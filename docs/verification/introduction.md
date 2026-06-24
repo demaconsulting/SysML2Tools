@@ -55,7 +55,10 @@ The following topics are out of scope:
 The test folder structure mirrors the source subsystem breakdown:
 
 - **test/** — test projects
-  - **DemaConsulting.SysML2Tools.Tests/** — unit and integration tests
+  - **DemaConsulting.SysML2Tools.Tests/** — TODO: core library tests (Phase 1+)
+  - **DemaConsulting.SysML2Tools.Svg.Tests/** — TODO: SVG renderer tests (Phase 4+)
+  - **DemaConsulting.SysML2Tools.Png.Tests/** — TODO: PNG renderer tests (Phase 4+)
+  - **DemaConsulting.SysML2Tools.Tool.Tests/** — dotnet tool unit and integration tests
 
 ## Companion Artifact Structure
 

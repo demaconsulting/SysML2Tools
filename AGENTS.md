@@ -30,7 +30,10 @@
 │   ├── DemaConsulting.SysML2Tools.Png/
 │   └── DemaConsulting.SysML2Tools.Tool/
 └── test/
-    └── DemaConsulting.SysML2Tools.Tests/
+    ├── DemaConsulting.SysML2Tools.Tests/       (TODO: core library tests — Phase 1+)
+    ├── DemaConsulting.SysML2Tools.Svg.Tests/   (TODO: SVG renderer tests — Phase 4+)
+    ├── DemaConsulting.SysML2Tools.Png.Tests/   (TODO: PNG renderer tests — Phase 4+)
+    └── DemaConsulting.SysML2Tools.Tool.Tests/
 ```
 
 # Language and Spelling (ALL Agents)

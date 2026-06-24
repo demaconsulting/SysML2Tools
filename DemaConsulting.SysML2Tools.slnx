@@ -7,5 +7,8 @@
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/DemaConsulting.SysML2Tools.Tests/DemaConsulting.SysML2Tools.Tests.csproj" />
+    <Project Path="test/DemaConsulting.SysML2Tools.Svg.Tests/DemaConsulting.SysML2Tools.Svg.Tests.csproj" />
+    <Project Path="test/DemaConsulting.SysML2Tools.Png.Tests/DemaConsulting.SysML2Tools.Png.Tests.csproj" />
+    <Project Path="test/DemaConsulting.SysML2Tools.Tool.Tests/DemaConsulting.SysML2Tools.Tool.Tests.csproj" />
   </Folder>
 </Solution>

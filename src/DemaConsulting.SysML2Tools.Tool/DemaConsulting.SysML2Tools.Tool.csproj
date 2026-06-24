@@ -77,7 +77,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="DemaConsulting.SysML2Tools.Tests" />
+    <InternalsVisibleTo Include="DemaConsulting.SysML2Tools.Tool.Tests" />
   </ItemGroup>
 
   <ItemGroup>

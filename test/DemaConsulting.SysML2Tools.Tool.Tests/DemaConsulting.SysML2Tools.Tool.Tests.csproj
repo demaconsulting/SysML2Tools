@@ -27,6 +27,10 @@
 
   <!-- Test Framework Dependencies -->
   <ItemGroup>
+    <!-- coverlet.collector uses child-element form to configure both PrivateAssets and IncludeAssets:
+         - PrivateAssets="all" keeps this test-coverage tool out of any consuming project's dependencies.
+         - IncludeAssets lists all asset types (including 'build' and 'buildtransitive') to ensure the
+           data collector MSBuild targets are activated so coverage is collected during test runs. -->
     <PackageReference Include="coverlet.collector" Version="10.0.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -41,6 +45,11 @@
 
   <!-- Code Analysis Dependencies -->
   <ItemGroup>
+    <!-- Analyzer packages use child-element form to configure both PrivateAssets and IncludeAssets:
+         - PrivateAssets="all" prevents these build-time analyzers from becoming transitive dependencies
+           in any project that references this test project.
+         - IncludeAssets lists all asset types (including 'analyzers' and 'buildtransitive') to ensure
+           Roslyn analyzers and MSBuild targets are fully activated during the build. -->
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.301">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -53,7 +62,7 @@
 
   <!-- Project References -->
   <ItemGroup>
-    <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools\DemaConsulting.SysML2Tools.csproj" />
+    <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Tool\DemaConsulting.SysML2Tools.Tool.csproj" />
   </ItemGroup>
 
 </Project>
