@@ -1,4 +1,4 @@
-# SysML2Tools
+# DemaConsulting.SysML2Tools.Tool
 
 ## Verification Approach
 

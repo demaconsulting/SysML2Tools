@@ -1,8 +1,8 @@
-# SysML2Tools
+# DemaConsulting.SysML2Tools.Tool
 
 ## Architecture
 
-The SysML2 Tools is a command-line application built on .NET. It is structured as one
+The `DemaConsulting.SysML2Tools.Tool` is a command-line application built on .NET. It is structured as one
 system containing one top-level unit (`Program`) and three subsystems (`Cli`, `SelfTest`,
 `Utilities`):
 

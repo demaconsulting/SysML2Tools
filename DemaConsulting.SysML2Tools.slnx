@@ -1,6 +1,9 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/DemaConsulting.SysML2Tools/DemaConsulting.SysML2Tools.csproj" />
+    <Project Path="src/DemaConsulting.SysML2Tools.Svg/DemaConsulting.SysML2Tools.Svg.csproj" />
+    <Project Path="src/DemaConsulting.SysML2Tools.Png/DemaConsulting.SysML2Tools.Png.csproj" />
+    <Project Path="src/DemaConsulting.SysML2Tools.Tool/DemaConsulting.SysML2Tools.Tool.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/DemaConsulting.SysML2Tools.Tests/DemaConsulting.SysML2Tools.Tests.csproj" />

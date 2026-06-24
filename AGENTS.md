@@ -1,21 +1,16 @@
 # Project Overview
 
-> **Downstream customization required**: Replace the `TODO` values below with
-> values specific to the target repository. These values are the canonical source
-> for project-wide template placeholders used throughout the repository.
-
-- **project-name**: TODO — repository/project name (e.g., `ReqStream`)
-- **organization**: TODO — organization name for document authorship (e.g., `DEMA Consulting`)
-- **project-tagline**: TODO — document subtitle; 4–8 words, noun phrase, no period
-  (e.g., `Requirements traceability for .NET projects`)
-- **description**: TODO — full project description, may be multiple sentences
-- **languages**: TODO — programming languages used (e.g., `C#`, `C++`)
-- **technologies**: TODO — key technologies and frameworks (e.g., `.NET`, `CMake`)
+- **project-name**: SysML2Tools
+- **organization**: DEMA Consulting
+- **project-tagline**: SysML v2 diagram rendering for .NET
+- **description**: SysML2Tools is a free, open-source .NET CLI tool and library that parses
+  SysML v2 textual model files and renders them as professional nested block diagrams
+  suitable for architecture documentation, CI/CD pipelines, and AI-assisted modeling
+  workflows.
+- **languages**: C#
+- **technologies**: .NET, ANTLR4, SkiaSharp
 
 # Project Structure
-
-> **Downstream customization required**: Replace `{project}` and
-> `{test-project}` with the actual source and test project folder names.
 
 ```text
 ├── docs/
@@ -30,9 +25,12 @@
 │   ├── user_guide/
 │   └── verification/
 ├── src/
-│   └── {project}/
+│   ├── DemaConsulting.SysML2Tools/
+│   ├── DemaConsulting.SysML2Tools.Svg/
+│   ├── DemaConsulting.SysML2Tools.Png/
+│   └── DemaConsulting.SysML2Tools.Tool/
 └── test/
-    └── {test-project}/
+    └── DemaConsulting.SysML2Tools.Tests/
 ```
 
 # Language and Spelling (ALL Agents)

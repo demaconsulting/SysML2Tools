@@ -1,0 +1,11 @@
+---
+# SysML2Tools PNG Renderer System-Level Requirements (Phase 0 Stub)
+#
+# PURPOSE:
+# - Define system-level requirements for the DemaConsulting.SysML2Tools.Png package
+# - PNG renderer: PngRenderer implements IRenderer using SkiaSharp (MIT)
+# - Requirements will be populated in Phase 4+ (SkiaSharp dependency added in Phase 1)
+
+sections:
+  - title: SysML2ToolsPng Requirements
+    requirements: []

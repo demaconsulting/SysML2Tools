@@ -62,7 +62,7 @@
 
   <!-- Project References -->
   <ItemGroup>
-    <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools\DemaConsulting.SysML2Tools.csproj" />
+    <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Tool\DemaConsulting.SysML2Tools.Tool.csproj" />
   </ItemGroup>
 
 </Project>

@@ -9,12 +9,14 @@
 [![Security][badge-security]][link-security]
 [![NuGet][badge-nuget]][link-nuget]
 
-DEMA Consulting template project for DotNet Tools, demonstrating best practices for building command-line tools with .NET.
+SysML2Tools is a free, open-source .NET CLI tool and library that parses SysML v2 textual model
+files and renders them as professional nested block diagrams suitable for architecture documentation,
+CI/CD pipelines, and AI-assisted modeling workflows.
 
 ## Features
 
-This template demonstrates:
-
+- **SysML v2 Parsing**: Parses SysML v2 textual notation model files (in development)
+- **Diagram Rendering**: Renders nested block diagrams as SVG and PNG output (in development)
 - **Standardized Command-Line Interface**: Context class handling common arguments
   (`--version`, `--help`, `--silent`, `--validate`, `--results`, `--depth`, `--log`)
 - **Self-Validation**: Built-in validation tests with TRX/JUnit output
