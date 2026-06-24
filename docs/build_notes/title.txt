@@ -1,11 +1,11 @@
 ---
-title: Template DotNet Tool
+title: SysML2 Tools
 subtitle: Build Notes
 author: DEMA Consulting
-description: Build notes for the Template DotNet Tool reference implementation
+description: Build notes for the SysML2 Tools reference implementation
 lang: en-US
 keywords:
-  - Template DotNet Tool
+  - SysML2 Tools
   - Build Notes
   - Release Notes
   - C#

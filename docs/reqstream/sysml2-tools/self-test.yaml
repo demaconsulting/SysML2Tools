@@ -1,0 +1,47 @@
+---
+# SelfTest Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the SysML2Tools SelfTest subsystem
+# - The SelfTest subsystem spans Validation.cs (self-validation test execution)
+# - Subsystem requirements describe the self-validation mechanism for tool qualification
+#   in regulated environments
+
+sections:
+  - title: SelfTest Subsystem Requirements
+    requirements:
+      - id: Template-SelfTest-Qualification
+        title: The tool shall provide a self-validation mechanism to qualify the tool in its deployment environment.
+        justification: |
+          In regulated environments, tool qualification evidence is required to demonstrate
+          that the tool functions correctly in its deployment environment before it is used
+          to generate compliance artifacts. The SelfTest subsystem provides a built-in
+          self-validation suite that exercises core behaviors and produces a pass/fail
+          summary, enabling quality assurance teams to obtain tool qualification evidence
+          without requiring a separate test harness.
+        tests:
+          - SelfTestSubsystem_ValidationWorkflow_NoResultFiles_CompletesSuccessfully
+
+      - id: Template-SelfTest-ResultsOutput
+        title: The tool shall write self-validation results to a standard test result file when --results is provided.
+        justification: |
+          CI/CD pipelines and requirements traceability tools (such as ReqStream) consume
+          test result files in standard formats. By supporting both TRX (MSTest) and JUnit
+          XML output, the SelfTest subsystem enables self-validation results to be fed
+          directly into pipeline tooling and traceability reports without additional
+          conversion steps, satisfying audit trail requirements.
+        tests:
+          - SelfTestSubsystem_ValidationWorkflow_WithTrxFile_GeneratesResults
+          - SelfTestSubsystem_ValidationWorkflow_WithJUnitFile_GeneratesResults
+          - SelfTestSubsystem_ValidationWorkflow_WithBothResultFiles_GeneratesBothResults
+
+      - id: Template-SelfTest-InvalidExtension
+        title: >-
+          The tool shall report an error and set a non-zero exit code when an
+          unsupported results file extension is provided.
+        justification: |
+          Prevents silent loss of validation evidence by failing loudly when a results
+          file cannot be written due to an unrecognized extension. This enables CI/CD
+          pipelines to detect misconfigured output paths automatically.
+        tests:
+          - SelfTestSubsystem_ValidationWorkflow_WithUnsupportedExtension_EmitsErrorAndNoFile

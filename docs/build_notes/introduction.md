@@ -1,11 +1,11 @@
 # Introduction
 
-This document contains the build notes for the Template DotNet Tool project.
+This document contains the build notes for the SysML2 Tools project.
 
 ## Purpose
 
 This report serves as a comprehensive record of changes and bug fixes for this
-release of Template DotNet Tool. It provides transparency about what has changed since the
+release of SysML2 Tools. It provides transparency about what has changed since the
 previous version and helps users understand the improvements and fixes included
 in this build.
 
@@ -27,7 +27,7 @@ changes and improvements included in this release.
 
 This document is intended for:
 
-- Software developers working on Template DotNet Tool
+- Software developers working on SysML2 Tools
 - Users evaluating what has changed in this release
 - Project stakeholders tracking progress
 - Contributors understanding recent changes

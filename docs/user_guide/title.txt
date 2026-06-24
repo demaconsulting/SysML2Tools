@@ -1,11 +1,11 @@
 ---
-title: Template DotNet Tool User Guide
+title: SysML2 Tools User Guide
 subtitle: A .NET Reference Implementation for CLI Tools
 author: DEMA Consulting
 description: A .NET Reference Implementation for CLI Tools
 lang: en-US
 keywords:
-  - Template DotNet Tool
+  - SysML2 Tools
   - .NET
   - Command-Line Tool
   - Documentation

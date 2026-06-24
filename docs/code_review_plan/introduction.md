@@ -1,11 +1,11 @@
 # Introduction
 
-This document contains the review plan for the Template DotNet Tool project.
+This document contains the review plan for the SysML2 Tools project.
 
 ## Purpose
 
 This review plan provides a comprehensive overview of all files requiring formal review
-in the Template DotNet Tool project. It identifies which review-sets cover which
+in the SysML2 Tools project. It identifies which review-sets cover which
 files and serves as evidence that every file requiring review is covered by at least
 one named review-set.
 
@@ -27,7 +27,7 @@ that every file requiring review is covered by a current, valid review.
 
 This document is intended for:
 
-- Software developers working on Template DotNet Tool
+- Software developers working on SysML2 Tools
 - Quality assurance teams validating review coverage
 - Project stakeholders reviewing compliance status
 - Auditors verifying that all required files have been reviewed

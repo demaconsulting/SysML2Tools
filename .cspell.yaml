@@ -38,7 +38,9 @@ words:
   - setlocal
   - snupkg
   - sonarmark
-  - templatetool
+  - SysML2
+  - SysML2Tools
+  - sysml2tools
   - venv
   - versionmark
   - Weasyprint

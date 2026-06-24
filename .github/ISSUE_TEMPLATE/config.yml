@@ -2,8 +2,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: 📚 Documentation
-    url: https://github.com/demaconsulting/TemplateDotNetTool
-    about: Read the documentation for TemplateDotNetTool
+    url: https://github.com/demaconsulting/SysML2Tools
+    about: Read the documentation for SysML2Tools
   - name: 💬 Discussions
-    url: https://github.com/demaconsulting/TemplateDotNetTool/discussions
+    url: https://github.com/demaconsulting/SysML2Tools/discussions
     about: Ask questions and discuss with the community

@@ -1,12 +1,12 @@
 # Introduction
 
-This document provides the detailed design for the Template DotNet Tool, a .NET command-line
+This document provides the detailed design for the SysML2 Tools, a .NET command-line
 application demonstrating best practices for DEMA Consulting DotNet Tools.
 
 ## Purpose
 
 The purpose of this document is to describe the internal design of each software unit that
-comprises the Template DotNet Tool. It captures data models, algorithms, key methods, and
+comprises the SysML2 Tools. It captures data models, algorithms, key methods, and
 inter-unit interactions at a level of detail sufficient for formal code review, compliance
 verification, and future maintenance. The document does not restate requirements; it explains
 how they are realized.
@@ -17,7 +17,7 @@ This document covers the detailed design of the following software items:
 
 **Local items:**
 
-- **TemplateDotNetTool** — the system as a whole
+- **SysML2Tools** — the system as a whole
 - **Program** — entry point and execution orchestrator
 - **Cli** subsystem
   - **Context** — command-line argument parser and I/O owner
@@ -46,11 +46,11 @@ The following topics are out of scope:
 
 ## Software Structure
 
-The following tree shows how the Template DotNet Tool software items are organized across the
+The following tree shows how the SysML2 Tools software items are organized across the
 system, subsystem, and unit levels:
 
 ```text
-TemplateDotNetTool (System)
+SysML2Tools (System)
 ├── Program (Unit)
 ├── Cli (Subsystem)
 │   └── Context (Unit)
@@ -82,7 +82,7 @@ reviewers an explicit navigation aid from design to code:
 
 ```text
 src/
-└── DemaConsulting.TemplateDotNetTool/  — main application source
+└── DemaConsulting.SysML2Tools/  — main application source
     ├── Cli/                            — command-line interface subsystem
     ├── SelfTest/                       — self-validation subsystem
     └── Utilities/                      — shared utilities subsystem
@@ -118,5 +118,5 @@ Review-sets: defined in `.reviewmark.yaml`
 
 ## References
 
-- Template DotNet Tool User Guide
-- Template DotNet Tool Repository (<https://github.com/demaconsulting/TemplateDotNetTool>)
+- SysML2 Tools User Guide
+- SysML2 Tools Repository (<https://github.com/demaconsulting/SysML2Tools>)

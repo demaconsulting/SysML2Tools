@@ -1,6 +1,6 @@
 ---
 name: ❓ Question / Help
-description: Ask a usage question or get help with the TemplateDotNetTool
+description: Ask a usage question or get help with the SysML2Tools
 title: "[Question]: "
 labels: ["question"]
 assignees: []
@@ -10,7 +10,7 @@ body:
       value: |
         Thanks for reaching out! Please fill out the sections below so we can help you as quickly as possible.
         For general discussion, you can also use
-        [GitHub Discussions](https://github.com/demaconsulting/TemplateDotNetTool/discussions).
+        [GitHub Discussions](https://github.com/demaconsulting/SysML2Tools/discussions).
 
   - type: textarea
     id: question
@@ -45,7 +45,7 @@ body:
     id: version
     attributes:
       label: Tool Version
-      description: What version of the TemplateDotNetTool are you using?
+      description: What version of the SysML2Tools are you using?
       placeholder: e.g., 1.0.0
     validations:
       required: true
