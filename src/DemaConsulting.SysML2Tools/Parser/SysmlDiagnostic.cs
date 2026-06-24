@@ -18,11 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-namespace DemaConsulting.SysML2Tools;
+namespace DemaConsulting.SysML2Tools.Parser;
 
-// Phase 0 stub — core library API surface will be added in Phase 1.
-#pragma warning disable S2094 // Empty class is intentional Phase 0 stub
-internal static class Placeholder
-{
-}
-#pragma warning restore S2094
+/// <summary>
+///     A single diagnostic message produced while parsing a SysML v2 file.
+/// </summary>
+/// <param name="FilePath">
+///     The source file path (or a <c>[stdlib]…</c> virtual path for embedded library files).
+/// </param>
+/// <param name="Line">One-based line number within <paramref name="FilePath"/>.</param>
+/// <param name="Column">Zero-based column offset within the line.</param>
+/// <param name="Severity">Severity of the diagnostic.</param>
+/// <param name="Message">Human-readable description of the problem.</param>
+public sealed record SysmlDiagnostic(
+    string FilePath,
+    int Line,
+    int Column,
+    DiagnosticSeverity Severity,
+    string Message);

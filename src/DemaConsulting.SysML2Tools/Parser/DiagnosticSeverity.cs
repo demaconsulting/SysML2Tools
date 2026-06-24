@@ -18,4 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// Phase 0 stub — core library tests will be added in Phase 1.
+namespace DemaConsulting.SysML2Tools.Parser;
+
+/// <summary>
+///     Severity level of a SysML diagnostic message.
+/// </summary>
+public enum DiagnosticSeverity
+{
+    /// <summary>Informational message — not a problem.</summary>
+    Info,
+
+    /// <summary>Warning — parseable but suspicious.</summary>
+    Warning,
+
+    /// <summary>Error — the file cannot be parsed or resolved correctly.</summary>
+    Error
+}

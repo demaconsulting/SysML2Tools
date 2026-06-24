@@ -20,6 +20,7 @@
 
 using System.Reflection;
 using DemaConsulting.SysML2Tools.Cli;
+using DemaConsulting.SysML2Tools.Lint;
 using DemaConsulting.SysML2Tools.SelfTest;
 
 namespace DemaConsulting.SysML2Tools;
@@ -151,7 +152,10 @@ internal static class Program
     /// <param name="context">The context for output.</param>
     private static void PrintHelp(Context context)
     {
-        context.WriteLine("Usage: sysml2tools [options]");
+        context.WriteLine("Usage: sysml2tools [options] <command> [files...]");
+        context.WriteLine("");
+        context.WriteLine("Commands:");
+        context.WriteLine("  lint <files...>            Parse files and report syntax errors");
         context.WriteLine("");
         context.WriteLine("Options:");
         context.WriteLine("  -v, --version              Display version information");
@@ -169,9 +173,15 @@ internal static class Program
     /// <param name="context">The context containing command line arguments and program state.</param>
     private static void RunToolLogic(Context context)
     {
-        context.WriteLine("SysML2 Tools - Demo Functionality");
-        context.WriteLine("This is a template project demonstrating best practices.");
-        context.WriteLine("");
-        context.WriteLine("Replace this with your actual tool implementation.");
+        switch (context.Command)
+        {
+            case SysmlCommand.Lint:
+                LintCommand.Run(context);
+                break;
+
+            default:
+                context.WriteLine("No command specified. Run 'sysml2tools --help' for usage.");
+                break;
+        }
     }
 }
