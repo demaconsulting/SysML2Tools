@@ -1,0 +1,154 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "--configuration",
+        "Release",
+        "${workspaceFolder}/DemaConsulting.TemplateDotNetTool.slnx"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "validate",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/src/DemaConsulting.TemplateDotNetTool",
+        "--configuration",
+        "Release",
+        "--framework",
+        "net10.0",
+        "--no-build",
+        "--",
+        "--validate"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "build and validate",
+      "dependsOn": [
+        "build",
+        "validate"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "format",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "format"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "lint markdown",
+      "command": "npx",
+      "type": "shell",
+      "args": [
+        "markdownlint-cli2",
+        "\"**/*.md\"",
+        "\"#node_modules\""
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "spell check",
+      "command": "npx",
+      "type": "shell",
+      "args": [
+        "cspell",
+        "\"**/*.{cs,md,json,yaml,yml}\"",
+        "--no-progress"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "lint yaml",
+      "command": "npx",
+      "type": "shell",
+      "args": [
+        "yamllint",
+        "."
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "lint all",
+      "dependsOn": [
+        "format",
+        "lint markdown",
+        "spell check",
+        "lint yaml"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "verify requirements",
+      "command": "dotnet",
+      "type": "shell",
+      "args": [
+        "reqstream",
+        "--requirements",
+        "requirements.yaml",
+        "--tests",
+        "\"test-results/**/*.trx\"",
+        "--enforce"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    }
+  ]
+}

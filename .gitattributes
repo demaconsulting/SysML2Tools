@@ -1,0 +1,7 @@
+# Set default behavior: normalize line endings to LF on checkout for all text files.
+# This ensures consistent SHA256 fingerprints for reviewmark across all platforms.
+* text=auto eol=lf
+
+# Windows batch files require CRLF line endings to function correctly.
+*.bat text eol=crlf
+*.cmd text eol=crlf

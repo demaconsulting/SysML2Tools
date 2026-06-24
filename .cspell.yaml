@@ -1,0 +1,60 @@
+---
+# Spell-Checking
+#
+# PURPOSE:
+# - Maintain professional documentation and code quality
+# - Catch spelling errors before publication
+# - Support consistent technical terminology usage
+# - Misspelled words should be fixed in the source
+# - NEVER add a misspelled word to the 'words' list
+# - PROPOSE only genuine technical terms/names as needed
+
+version: "0.2"
+language: en
+
+# Project-specific technical terms and tool names
+words:
+  - Blockquotes
+  - Postconditions
+  - buildmark
+  - buildtransitive
+  - contentfiles
+  - dcterms
+  - DEMA
+  - Dema
+  - doctitle
+  - docversion
+  - errorlevel
+  - fileassert
+  - xunit
+  - nameof
+  - pagetitle
+  - Pandoc
+  - Qube
+  - reqstream
+  - reviewmark
+  - SARIF
+  - sarifmark
+  - setlocal
+  - snupkg
+  - sonarmark
+  - templatetool
+  - venv
+  - versionmark
+  - Weasyprint
+  - yamlfix
+
+# Exclude common build artifacts, dependencies, and vendored third-party code
+ignorePaths:
+  - "**/.git/**"
+  - "**/node_modules/**"
+  - "**/.venv/**"
+  - "**/thirdparty/**"
+  - "**/third-party/**"
+  - "**/3rd-party/**"
+  - "**/generated/**"
+  - "**/AGENT_REPORT_*.md"
+  - "**/.agent-logs/**"
+  - "**/bin/**"
+  - "**/obj/**"
+  - package-lock.json

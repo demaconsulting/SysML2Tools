@@ -1,0 +1,13 @@
+---
+title: Template DotNet Tool Requirements
+subtitle: Requirements Specification for the Template DotNet Tool
+author: DEMA Consulting
+description: Requirements Specification for the Template DotNet Tool
+lang: en-US
+keywords:
+  - Template DotNet Tool
+  - Requirements
+  - Specification
+  - .NET
+  - Command-Line Tool
+---

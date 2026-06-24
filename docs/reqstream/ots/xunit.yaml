@@ -1,0 +1,44 @@
+---
+# xUnit OTS Software Requirements
+#
+# Requirements for the xUnit testing framework functionality.
+
+sections:
+  - title: OTS Software Requirements
+    sections:
+      - title: xUnit Requirements
+        requirements:
+          - id: Template-OTS-xUnit-Execute
+            title: xUnit shall discover and execute unit tests.
+            justification: |
+              xUnit v3 (xunit.v3 and xunit.runner.visualstudio) is the unit-testing framework used
+              by the project. It discovers and runs all test methods annotated with [Fact] or
+              [Theory]. Passing tests confirm the framework correctly identifies and executes each
+              test method.
+            tags: [ots]
+            tests:
+              - Context_Create_NoArguments_ReturnsDefaultContext
+              - Context_Create_VersionFlag_SetsVersionTrue
+              - Context_Create_SilentFlag_SetsSilentTrue
+              - Context_Create_LogFlag_OpensLogFile
+              - Context_Create_UnknownArgument_ThrowsArgumentException
+              - PathHelpers_SafePathCombine_ValidPaths_CombinesCorrectly
+              - Program_Run_WithVersionFlag_DisplaysVersionOnly
+              - Validation_Run_WithSilentContext_PrintsSummary
+          - id: Template-OTS-xUnit-Report
+            title: xUnit shall record test results in TRX output files.
+            justification: |
+              xUnit v3 with xunit.runner.visualstudio writes TRX result files that feed into
+              coverage reporting and requirements traceability via ReqStream. The presence of
+              named test results in the TRX output confirms the reporting pipeline is functioning
+              correctly.
+            tags: [ots]
+            tests:
+              - Context_Create_NoArguments_ReturnsDefaultContext
+              - Context_Create_VersionFlag_SetsVersionTrue
+              - Context_Create_SilentFlag_SetsSilentTrue
+              - Context_Create_LogFlag_OpensLogFile
+              - Context_Create_UnknownArgument_ThrowsArgumentException
+              - PathHelpers_SafePathCombine_ValidPaths_CombinesCorrectly
+              - Program_Run_WithVersionFlag_DisplaysVersionOnly
+              - Validation_Run_WithSilentContext_PrintsSummary

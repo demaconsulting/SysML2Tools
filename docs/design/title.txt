@@ -1,0 +1,13 @@
+---
+title: Template DotNet Tool Software Design Document
+subtitle: A .NET Reference Implementation for CLI Tools
+author: DEMA Consulting
+description: Detailed design document for the Template DotNet Tool
+lang: en-US
+keywords:
+  - Template DotNet Tool
+  - .NET
+  - Command-Line Tool
+  - Design
+  - Software Design Document
+---

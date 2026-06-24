@@ -1,0 +1,18 @@
+---
+# CodeQL configuration for Template DotNet Tool
+# Suppresses intentional generic catch clauses
+
+name: "Template DotNet Tool CodeQL Config"
+
+# Query filters to disable specific queries for certain paths
+query-filters:
+  - exclude:
+      id: cs/catch-of-all-exceptions
+    paths:
+      - src/DemaConsulting.TemplateDotNetTool/Context.cs
+      - src/DemaConsulting.TemplateDotNetTool/Validation.cs
+  # Exclude path-combine warnings in PathHelpers (validated safe usage)
+  - exclude:
+      id: cs/path-combine
+    paths:
+      - src/DemaConsulting.TemplateDotNetTool/PathHelpers.cs

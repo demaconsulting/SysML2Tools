@@ -1,0 +1,30 @@
+---
+# SarifMark OTS Software Requirements
+#
+# Requirements for the SarifMark SARIF report processing tool functionality.
+
+sections:
+  - title: OTS Software Requirements
+    sections:
+      - title: SarifMark Requirements
+        requirements:
+          - id: Template-OTS-SarifMark
+            title: SarifMark shall convert CodeQL SARIF results into a markdown report.
+            justification: |
+              DemaConsulting.SarifMark reads the SARIF output produced by CodeQL code scanning and
+              renders it as a human-readable markdown document included in the release artifacts.
+              It runs in the same CI pipeline that produces the TRX test results, so a successful
+              pipeline run is evidence that SarifMark executed without error.
+            tags: [ots]
+            tests:
+              - SarifMark_SarifReading
+              - SarifMark_MarkdownReportGeneration
+          - id: Template-OTS-SarifMark-Enforcement
+            title: SarifMark shall return a non-zero exit code when SARIF issues are detected.
+            justification: |
+              When invoked in enforcement mode, SarifMark exits non-zero if the SARIF input
+              contains any reported issues. This enables CI pipelines to fail on detected code
+              quality violations and confirms the enforcement gate is functioning correctly.
+            tags: [ots]
+            tests:
+              - SarifMark_Enforcement

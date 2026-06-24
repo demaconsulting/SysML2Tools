@@ -1,0 +1,14 @@
+---
+title: Template DotNet Tool
+subtitle: Build Notes
+author: DEMA Consulting
+description: Build notes for the Template DotNet Tool reference implementation
+lang: en-US
+keywords:
+  - Template DotNet Tool
+  - Build Notes
+  - Release Notes
+  - C#
+  - .NET
+  - Documentation
+---

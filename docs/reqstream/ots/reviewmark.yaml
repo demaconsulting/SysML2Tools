@@ -1,0 +1,51 @@
+---
+# ReviewMark OTS Software Requirements
+#
+# Requirements for the ReviewMark file review tool functionality.
+
+sections:
+  - title: OTS Software Requirements
+    sections:
+      - title: ReviewMark Requirements
+        requirements:
+          - id: Template-OTS-ReviewMark
+            title: ReviewMark shall produce review documentation from the review configuration.
+            justification: |
+              DemaConsulting.ReviewMark reads the .reviewmark.yaml configuration and the review
+              evidence store to produce a review plan and review report documenting file review
+              coverage and currency. It runs in the same CI pipeline that produces the TRX test
+              results, so a successful pipeline run is evidence that ReviewMark executed without error.
+            tags: [ots]
+            tests:
+              - ReviewMark_ReviewPlanGeneration
+              - ReviewMark_ReviewReportGeneration
+
+          - id: Template-OTS-ReviewMark-Lint
+            title: ReviewMark shall validate the review configuration file.
+            justification: |
+              DemaConsulting.ReviewMark --lint is run in the CI lint pass to validate the
+              .reviewmark.yaml configuration before any build proceeds, making configuration
+              errors a build-breaking condition.
+            tags: [ots]
+            tests:
+              - ReviewMark_Lint
+
+          - id: Template-OTS-ReviewMark-Elaborate
+            title: ReviewMark shall elaborate review-set details for agent consumption.
+            justification: |
+              DemaConsulting.ReviewMark --elaborate is invoked by the formal-review agent
+              to expand review-set file lists and context, enabling automated agents to
+              perform targeted file reviews without manually resolving glob patterns.
+            tags: [ots]
+            tests:
+              - ReviewMark_Elaborate
+
+          - id: Template-OTS-ReviewMark-Enforce
+            title: ReviewMark shall enforce that all review-sets have current review evidence.
+            justification: |
+              DemaConsulting.ReviewMark --enforce is run in the CI pipeline to verify that
+              every file in every review-set has been reviewed against current content,
+              making stale or missing review evidence a build-breaking condition.
+            tags: [ots]
+            tests:
+              - ReviewMark_Enforce

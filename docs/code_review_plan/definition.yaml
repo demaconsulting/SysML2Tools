@@ -1,0 +1,11 @@
+---
+resource-path:
+  - docs/code_review_plan
+  - docs/template
+input-files:
+  - docs/code_review_plan/title.txt
+  - docs/code_review_plan/introduction.md
+  - docs/code_review_plan/generated/plan.md
+template: template.html
+table-of-contents: true
+number-sections: true

@@ -1,0 +1,12 @@
+---
+resource-path:
+  - docs/requirements_doc
+  - docs/template
+input-files:
+  - docs/requirements_doc/title.txt
+  - docs/requirements_doc/introduction.md
+  - docs/requirements_doc/generated/requirements.md
+  - docs/requirements_doc/generated/justifications.md
+template: template.html
+table-of-contents: true
+number-sections: true

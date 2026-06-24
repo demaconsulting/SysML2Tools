@@ -1,0 +1,82 @@
+---
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (1.0.0)'
+        required: true
+        type: string
+      publish:
+        description: 'Publish type'
+        required: true
+        type: choice
+        options:
+          - none
+          - release
+          - publish
+
+jobs:
+  # Calls the reusable build workflow to build, test, and generate documentation
+  # for the release version.
+  build:
+    name: Build
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+      security-events: write
+    uses: ./.github/workflows/build.yaml
+    with:
+      version: ${{ inputs.version }}
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # Cuts and publishes the release, creating a GitHub release with artifacts
+  # and optionally publishing the NuGet package.
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+
+    steps:
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.x
+            9.x
+            10.x
+
+      - name: Download package artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: packages-ubuntu-latest
+          path: artifacts
+
+      - name: Download documents artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: documents
+          path: artifacts
+
+      - name: Create GitHub Release
+        if: inputs.publish == 'release' || inputs.publish == 'publish'
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ inputs.version }}
+          artifacts: artifacts/*
+          bodyFile: artifacts/build_notes.md
+          generateReleaseNotes: false
+
+      - name: Publish to NuGet.org
+        if: inputs.publish == 'publish'
+        run: |-
+          set -e
+          dotnet nuget push artifacts/*.nupkg \
+            --api-key ${{ secrets.DEMACONSULTINGNUGETKEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate

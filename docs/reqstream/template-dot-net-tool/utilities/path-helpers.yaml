@@ -1,0 +1,27 @@
+---
+# Software Unit Requirements for the PathHelpers Class
+#
+# The PathHelpers class provides safe path-combination utilities that protect
+# against path-traversal attacks by rejecting relative paths containing ".."
+# or absolute paths when a relative path is expected.
+
+sections:
+  - title: PathHelpers Unit Requirements
+    requirements:
+      - id: Template-PathHelpers-SafeCombine
+        title: The PathHelpers class shall combine paths safely, preventing path traversal.
+        justification: |
+          Prevents path-traversal vulnerabilities when constructing file paths from
+          user-supplied or external inputs. Paths containing ".." or rooted paths
+          must be rejected to ensure the combined path remains under the base directory.
+        tests:
+          - PathHelpers_SafePathCombine_ValidPaths_CombinesCorrectly
+          - PathHelpers_SafePathCombine_PathTraversalWithDoubleDots_ThrowsArgumentException
+          - PathHelpers_SafePathCombine_DoubleDotsInMiddle_ThrowsArgumentException
+          - PathHelpers_SafePathCombine_AbsolutePath_ThrowsArgumentException
+          - PathHelpers_SafePathCombine_NestedPaths_CombinesCorrectly
+          - PathHelpers_SafePathCombine_CurrentDirectoryReference_CombinesCorrectly
+          - PathHelpers_SafePathCombine_EmptyRelativePath_ReturnsBasePath
+          - PathHelpers_SafePathCombine_DotDotPrefixedName_CombinesCorrectly
+          - PathHelpers_SafePathCombine_NullBasePath_ThrowsArgumentNullException
+          - PathHelpers_SafePathCombine_NullRelativePath_ThrowsArgumentNullException

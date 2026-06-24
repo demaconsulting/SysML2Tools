@@ -1,0 +1,23 @@
+---
+# VersionMark OTS Software Requirements
+#
+# Requirements for the VersionMark version tracking tool functionality.
+
+sections:
+  - title: OTS Software Requirements
+    sections:
+      - title: VersionMark Requirements
+        requirements:
+          - id: Template-OTS-VersionMark
+            title: VersionMark shall publish captured tool-version information.
+            justification: |
+              DemaConsulting.VersionMark reads version metadata for each dotnet tool used in the
+              pipeline and writes a versions markdown document included in the release artifacts.
+              It runs in the same CI pipeline that produces the TRX test results, so a successful
+              pipeline run is evidence that VersionMark executed without error.
+            tags: [ots]
+            tests:
+              - VersionMark_CapturesVersions
+              - VersionMark_GeneratesMarkdownReport
+              - VersionMark_LintPassesForValidConfig
+              - VersionMark_LintReportsErrorsForInvalidConfig

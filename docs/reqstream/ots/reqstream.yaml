@@ -1,0 +1,26 @@
+---
+# ReqStream OTS Software Requirements
+#
+# Requirements for the ReqStream requirements traceability tool functionality.
+
+sections:
+  - title: OTS Software Requirements
+    sections:
+      - title: ReqStream Requirements
+        requirements:
+          - id: Template-OTS-ReqStream
+            title: ReqStream shall enforce that every requirement is linked to passing test evidence.
+            justification: |
+              DemaConsulting.ReqStream processes requirements.yaml and the TRX test-result files to
+              produce a requirements report, justifications document, and traceability matrix. When
+              run with --enforce, it exits with a non-zero code if any requirement lacks test evidence,
+              making unproven requirements a build-breaking condition. A successful pipeline run with
+              --enforce proves all requirements are covered and that ReqStream is functioning.
+            tags: [ots]
+            tests:
+              - ReqStream_RequirementsProcessing
+              - ReqStream_TraceMatrix
+              - ReqStream_ReportExport
+              - ReqStream_TagsFiltering
+              - ReqStream_EnforcementMode
+              - ReqStream_Lint

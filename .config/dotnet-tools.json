@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "dotnet-sonarscanner": {
+      "version": "11.2.1",
+      "commands": [
+        "dotnet-sonarscanner"
+      ]
+    },
+    "demaconsulting.pandoctool": {
+      "version": "3.10.0",
+      "commands": [
+        "pandoc"
+      ]
+    },
+    "demaconsulting.weasyprinttool": {
+      "version": "69.0.0",
+      "commands": [
+        "weasyprint"
+      ]
+    },
+    "demaconsulting.sarifmark": {
+      "version": "1.3.2",
+      "commands": [
+        "sarifmark"
+      ]
+    },
+    "demaconsulting.sonarmark": {
+      "version": "1.5.0",
+      "commands": [
+        "sonarmark"
+      ]
+    },
+    "demaconsulting.reqstream": {
+      "version": "1.10.0",
+      "commands": [
+        "reqstream"
+      ]
+    },
+    "demaconsulting.buildmark": {
+      "version": "1.3.0",
+      "commands": [
+        "buildmark"
+      ]
+    },
+    "demaconsulting.versionmark": {
+      "version": "1.4.3",
+      "commands": [
+        "versionmark"
+      ]
+    },
+    "demaconsulting.reviewmark": {
+      "version": "1.2.0",
+      "commands": [
+        "reviewmark"
+      ]
+    },
+    "demaconsulting.fileassert": {
+      "version": "0.5.1",
+      "commands": [
+        "fileassert"
+      ]
+    }
+  }
+}

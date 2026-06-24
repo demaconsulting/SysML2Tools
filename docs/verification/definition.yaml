@@ -1,0 +1,35 @@
+---
+resource-path:
+  - docs/verification
+  - docs/verification/template-dot-net-tool
+  - docs/verification/template-dot-net-tool/cli
+  - docs/verification/template-dot-net-tool/self-test
+  - docs/verification/template-dot-net-tool/utilities
+  - docs/verification/ots
+  - docs/template
+
+input-files:
+  - docs/verification/title.txt
+  - docs/verification/introduction.md
+  - docs/verification/template-dot-net-tool.md
+  - docs/verification/template-dot-net-tool/program.md
+  - docs/verification/template-dot-net-tool/cli.md
+  - docs/verification/template-dot-net-tool/cli/context.md
+  - docs/verification/template-dot-net-tool/self-test.md
+  - docs/verification/template-dot-net-tool/self-test/validation.md
+  - docs/verification/template-dot-net-tool/utilities.md
+  - docs/verification/template-dot-net-tool/utilities/path-helpers.md
+  - docs/verification/ots.md
+  - docs/verification/ots/buildmark.md
+  - docs/verification/ots/fileassert.md
+  - docs/verification/ots/pandoc.md
+  - docs/verification/ots/reqstream.md
+  - docs/verification/ots/reviewmark.md
+  - docs/verification/ots/sarifmark.md
+  - docs/verification/ots/sonarmark.md
+  - docs/verification/ots/versionmark.md
+  - docs/verification/ots/weasyprint.md
+  - docs/verification/ots/xunit.md
+template: template.html
+table-of-contents: true
+number-sections: true

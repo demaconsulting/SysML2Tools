@@ -1,0 +1,44 @@
+---
+# YAML Linting Standards
+#
+# PURPOSE:
+# - Maintain consistent code quality and readability standards
+# - Support CI/CD workflows with reliable YAML parsing
+# - Ensure professional documentation and configuration files
+#
+# DO NOT MODIFY: These rules represent coding standards
+# - If files fail linting, fix the files to meet these standards
+# - Do not relax rules to accommodate existing non-compliant files
+# - Consistency across repositories is critical for maintainability
+
+extends: default
+
+# Exclude common build artifacts, dependencies, and vendored third-party code
+ignore: |
+  **/.git/**
+  **/node_modules/**
+  **/.venv/**
+  **/thirdparty/**
+  **/third-party/**
+  **/3rd-party/**
+  **/generated/**
+  **/.agent-logs/**
+
+rules:
+  # Allow 'on:' in GitHub Actions workflows (not a boolean value)
+  truthy:
+    allowed-values: ['true', 'false', 'on', 'off']
+
+  # Allow longer lines for URLs and complex expressions
+  line-length:
+    max: 120
+    level: error
+
+  # Ensure proper indentation
+  indentation:
+    spaces: 2
+    indent-sequences: true
+
+  # Ensure proper comment formatting
+  comments:
+    min-spaces-from-content: 2

@@ -1,0 +1,24 @@
+---
+# BuildMark OTS Software Requirements
+#
+# Requirements for the BuildMark build documentation tool functionality.
+
+sections:
+  - title: OTS Software Requirements
+    sections:
+      - title: BuildMark Requirements
+        requirements:
+          - id: Template-OTS-BuildMark
+            title: BuildMark shall generate build-notes documentation from GitHub Actions metadata.
+            justification: |
+              DemaConsulting.BuildMark queries the GitHub API to capture workflow run details and
+              renders them as a markdown build-notes document included in the release artifacts.
+              It runs as part of the same CI pipeline that produces the TRX test results, so a
+              successful pipeline run is evidence that BuildMark executed without error.
+            tags: [ots]
+            tests:
+              - BuildMark_MarkdownReportGeneration
+              - BuildMark_GitIntegration
+              - BuildMark_IssueTracking
+              - BuildMark_KnownIssuesReporting
+              - BuildMark_RulesRouting

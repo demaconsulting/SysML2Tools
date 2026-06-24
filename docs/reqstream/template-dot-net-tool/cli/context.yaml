@@ -1,0 +1,97 @@
+---
+# Software Unit Requirements for the Context Class
+#
+# The Context class handles command-line argument parsing and program output.
+# It is the primary interface between the user's command-line invocation and
+# the tool's internal logic.
+
+sections:
+  - title: Context Unit Requirements
+    requirements:
+      - id: Template-Context-ArgumentParsing
+        title: The Context class shall parse command-line arguments into structured properties.
+        justification: |
+          Provides a standardized approach to command-line argument parsing and output
+          handling across all DEMA Consulting DotNet Tools.
+        tests:
+          - Context_Create_NoArguments_ReturnsDefaultContext
+          - Context_Create_VersionFlag_SetsVersionTrue
+          - Context_Create_ShortVersionFlag_SetsVersionTrue
+          - Context_Create_HelpFlag_SetsHelpTrue
+          - Context_Create_ShortHelpFlag_H_SetsHelpTrue
+          - Context_Create_ShortHelpFlag_Question_SetsHelpTrue
+          - Context_Create_SilentFlag_SetsSilentTrue
+          - Context_Create_ValidateFlag_SetsValidateTrue
+          - Context_Create_ResultsFlag_SetsResultsFile
+          - Context_Create_LogFlag_OpensLogFile
+          - Context_Create_ResultAliasFlag_SetsResultsFile
+          - Context_Create_DepthFlag_SetsHeadingDepth
+          - Context_Create_NoDepthFlag_ReturnsDefaultHeadingDepth
+
+      - id: Template-Context-InvalidArgs
+        title: The Context class shall reject unknown or malformed command-line arguments with a descriptive error.
+        justification: |
+          Providing clear feedback for invalid arguments helps users quickly correct
+          mistakes and prevents silent misconfiguration.
+        tests:
+          - Context_Create_UnknownArgument_ThrowsArgumentException
+          - Context_Create_LogFlag_WithoutValue_ThrowsArgumentException
+          - Context_Create_ResultsFlag_WithoutValue_ThrowsArgumentException
+          - Context_Create_ResultAliasFlag_WithoutValue_ThrowsArgumentException
+          - Context_Create_DepthFlag_WithoutValue_ThrowsArgumentException
+          - Context_Create_DepthFlag_NonIntegerValue_ThrowsArgumentException
+          - Context_Create_DepthFlag_ZeroValue_ThrowsArgumentException
+          - Context_Create_DepthFlag_ExceedsMaxValue_ThrowsArgumentException
+
+      - id: Template-Context-ConsoleOutput
+        title: The Context class shall write output to the console unless the silent flag is set.
+        justification: |
+          Provides visible output to users running the tool interactively, while allowing
+          automated environments to suppress console output via the silent flag.
+        tests:
+          - Context_WriteLine_NotSilent_WritesToConsole
+          - Context_WriteError_NotSilent_WritesToConsole
+
+      - id: Template-Context-LogOutput
+        title: The Context class shall additionally write output to a log file when the log flag is set.
+        justification: |
+          Provides persistent logging for debugging and audit trails, enabling post-run
+          inspection of tool output without requiring console capture.
+        tests:
+          - Context_Create_LogFlag_OpensLogFile
+          - Context_WriteError_WritesToLogFile
+
+      - id: Template-Context-Silent
+        title: The Context class shall suppress console output when the silent flag is set.
+        justification: |
+          Enables automated scripts and CI/CD pipelines to run the tool without
+          cluttering output logs.
+        tests:
+          - Context_Create_SilentFlag_SetsSilentTrue
+          - Context_WriteLine_Silent_DoesNotWriteToConsole
+          - Context_WriteError_Silent_DoesNotWriteToConsole
+
+      - id: Template-Context-ErrorOutput
+        title: The Context class shall write error messages to stderr.
+        justification: |
+          Error messages must be written to stderr so they remain visible to the user
+          without polluting stdout, which consumers may pipe or redirect for data capture.
+        tests:
+          - Context_WriteError_NotSilent_WritesToConsole
+
+      - id: Template-Context-ExitCode
+        title: The Context class shall track errors and expose a non-zero exit code when errors have occurred.
+        justification: |
+          Callers (scripts, CI/CD pipelines) must be able to detect failure conditions
+          programmatically via the process exit code.
+        tests:
+          - Context_WriteError_SetsErrorExitCode
+
+      - id: Template-Context-LogFailure
+        title: The Context class shall report an error when the specified log file cannot be opened.
+        justification: |
+          Failure to open a log file must be surfaced immediately so that users know their
+          log output will not be captured, preventing silent data loss in audit or
+          compliance workflows.
+        tests:
+          - Context_Create_LogFlag_InvalidPath_ThrowsInvalidOperationException

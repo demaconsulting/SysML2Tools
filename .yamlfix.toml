@@ -1,0 +1,16 @@
+# YAML Auto-Fix Configuration
+#
+# PURPOSE:
+# - Configure yamlfix to auto-fix common YAML issues before yamllint checks
+# - Settings MUST align with .yamllint.yaml to avoid conflicts
+# - Use 'pwsh ./fix.ps1' or run 'yamlfix .' before 'pwsh ./lint.ps1' to auto-fix, then verify with yamllint
+#
+# RELATIONSHIP TO YAMLLINT:
+# - line_length MUST match .yamllint.yaml line-length.max (120)
+# - preserve_quotes prevents mangling GitHub Actions 'on:' boolean handling
+# - After yamlfix auto-fix, yamllint should only fail on genuinely unresolvable issues
+
+line_length = 120
+preserve_quotes = true
+sequence_style = "keep_style"
+whitelines = 1

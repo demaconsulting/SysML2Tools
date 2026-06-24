@@ -1,0 +1,71 @@
+---
+# System-Level Platform Requirements
+#
+# These requirements specify the platforms and runtimes the tool must support.
+# They ensure the tool works across the required execution environments.
+#
+# Test links can include a source filter prefix (e.g. "windows@", "ubuntu@", "dotnet8.x@") to restrict
+# which test results count as evidence for a requirement. This is critical for platform and runtime
+# requirements - removing these filters invalidates the evidence-based proof.
+#
+# Source filter prefixes:
+#   windows@TestName      - proves the test passed on a Windows platform
+#   ubuntu@TestName       - proves the test passed on a Linux (Ubuntu) platform
+#   macos@TestName        - proves the test passed on a macOS platform
+#   dotnet8.x@TestName    - proves the self-validation test ran with .NET 8.x runtime
+#   dotnet9.x@TestName    - proves the self-validation test ran with .NET 9.x runtime
+#   dotnet10.x@TestName   - proves the self-validation test ran with .NET 10.x runtime
+
+sections:
+  - title: Platform Support
+    requirements:
+      - id: Template-Platform-Windows
+        title: The tool shall execute successfully on Windows platforms.
+        justification: |
+          DEMA Consulting tools must support Windows as a major development platform.
+        tests:
+          # Tests link to "windows" to ensure results come from Windows platform
+          - "windows@TemplateTool_VersionDisplay"
+          - "windows@TemplateTool_HelpDisplay"
+
+      - id: Template-Platform-Linux
+        title: The tool shall execute successfully on Linux platforms.
+        justification: |
+          DEMA Consulting tools must support Linux for CI/CD and containerized environments.
+        tests:
+          # Tests link to "ubuntu" to ensure results come from Linux platform
+          - "ubuntu@TemplateTool_VersionDisplay"
+          - "ubuntu@TemplateTool_HelpDisplay"
+
+      - id: Template-Platform-MacOS
+        title: The tool shall execute successfully on macOS platforms.
+        justification: |
+          DEMA Consulting tools must support macOS for developers using Apple platforms.
+        tests:
+          # Tests link to "macos" to ensure results come from macOS platform
+          - "macos@TemplateTool_VersionDisplay"
+          - "macos@TemplateTool_HelpDisplay"
+
+      - id: Template-Platform-Net8
+        title: The tool shall support .NET 8 runtime.
+        justification: |
+          .NET 8 is an LTS release providing long-term stability for enterprise users.
+        tests:
+          - "dotnet8.x@TemplateTool_VersionDisplay"
+          - "dotnet8.x@TemplateTool_HelpDisplay"
+
+      - id: Template-Platform-Net9
+        title: The tool shall support .NET 9 runtime.
+        justification: |
+          .NET 9 support enables users to leverage the latest .NET features.
+        tests:
+          - "dotnet9.x@TemplateTool_VersionDisplay"
+          - "dotnet9.x@TemplateTool_HelpDisplay"
+
+      - id: Template-Platform-Net10
+        title: The tool shall support .NET 10 runtime.
+        justification: |
+          .NET 10 support ensures the tool remains compatible with the latest .NET ecosystem.
+        tests:
+          - "dotnet10.x@TemplateTool_VersionDisplay"
+          - "dotnet10.x@TemplateTool_HelpDisplay"

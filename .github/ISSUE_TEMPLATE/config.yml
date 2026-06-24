@@ -1,0 +1,9 @@
+---
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/demaconsulting/TemplateDotNetTool
+    about: Read the documentation for TemplateDotNetTool
+  - name: 💬 Discussions
+    url: https://github.com/demaconsulting/TemplateDotNetTool/discussions
+    about: Ask questions and discuss with the community

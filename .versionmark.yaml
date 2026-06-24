@@ -1,0 +1,74 @@
+---
+# VersionMark Configuration File
+# This file defines which tools to capture and how to extract their version information.
+
+tools:
+  # .NET SDK
+  dotnet:
+    command: dotnet --version
+    regex: '(?<version>\d+\.\d+\.\d+(?:\.\d+)?)'
+
+  # Git
+  git:
+    command: git --version
+    regex: '(?i)git version (?<version>\d+\.\d+\.\d+)'
+
+  # Node.js
+  node:
+    command: node --version
+    regex: '(?i)v(?<version>\d+\.\d+\.\d+)'
+
+  # npm
+  npm:
+    command: npm --version
+    regex: '(?<version>\d+\.\d+\.\d+)'
+
+  # SonarScanner for .NET (from dotnet tool list)
+  dotnet-sonarscanner:
+    command: dotnet tool list
+    regex: '(?i)dotnet-sonarscanner\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'
+
+  # Pandoc (DemaConsulting.PandocTool from dotnet tool list)
+  pandoc:
+    command: dotnet tool list
+    regex: '(?i)demaconsulting\.pandoctool\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'
+
+  # WeasyPrint (DemaConsulting.WeasyPrintTool from dotnet tool list)
+  weasyprint:
+    command: dotnet tool list
+    regex: '(?i)demaconsulting\.weasyprinttool\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'
+
+  # SarifMark (DemaConsulting.SarifMark from dotnet tool list)
+  sarifmark:
+    command: dotnet tool list
+    regex: '(?i)demaconsulting\.sarifmark\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'
+
+  # SonarMark (DemaConsulting.SonarMark from dotnet tool list)
+  sonarmark:
+    command: dotnet tool list
+    regex: '(?i)demaconsulting\.sonarmark\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'
+
+  # ReqStream (DemaConsulting.ReqStream from dotnet tool list)
+  reqstream:
+    command: dotnet tool list
+    regex: '(?i)demaconsulting\.reqstream\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'
+
+  # BuildMark (DemaConsulting.BuildMark from dotnet tool list)
+  buildmark:
+    command: dotnet tool list
+    regex: '(?i)demaconsulting\.buildmark\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'
+
+  # VersionMark (DemaConsulting.VersionMark from dotnet tool list)
+  versionmark:
+    command: dotnet tool list
+    regex: '(?i)demaconsulting\.versionmark\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'
+
+  # ReviewMark (DemaConsulting.ReviewMark from dotnet tool list)
+  reviewmark:
+    command: dotnet tool list
+    regex: '(?i)demaconsulting\.reviewmark\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'
+
+  # FileAssert (DemaConsulting.FileAssert from dotnet tool list)
+  fileassert:
+    command: dotnet tool list
+    regex: '(?i)demaconsulting\.fileassert\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'

@@ -1,0 +1,11 @@
+---
+resource-path:
+  - docs/requirements_report
+  - docs/template
+input-files:
+  - docs/requirements_report/title.txt
+  - docs/requirements_report/introduction.md
+  - docs/requirements_report/generated/trace_matrix.md
+template: template.html
+table-of-contents: true
+number-sections: true

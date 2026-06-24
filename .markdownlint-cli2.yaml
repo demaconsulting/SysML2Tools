@@ -1,0 +1,55 @@
+---
+# Markdown Linting Standards
+#
+# PURPOSE:
+# - Maintain professional technical documentation standards
+# - Ensure consistent formatting for readability and maintenance
+# - Support automated documentation generation and publishing
+#
+# DO NOT MODIFY: These rules represent coding standards
+# - If files fail linting, fix the files to meet these standards
+# - Do not relax rules to accommodate existing non-compliant files
+# - Consistency across repositories is critical for documentation quality
+
+# Disable the banner message (e.g., version info) on stdout
+noBanner: true
+
+# Disable the progress indicator on stdout
+noProgress: true
+
+config:
+  # Enable all default rules
+  default: true
+
+  # Require ATX-style headers (# Header) instead of Setext-style
+  MD003:
+    style: atx
+
+  # Set consistent indentation for nested lists
+  MD007:
+    indent: 2
+
+  # Allow longer lines for URLs and technical content
+  MD013:
+    line_length: 120
+
+  # Allow multiple top-level headers per document
+  MD025: false
+
+  # Allow inline HTML for enhanced documentation
+  MD033: false
+
+  # Allow documents without top-level header (for fragments)
+  MD041: false
+
+# Exclude common build artifacts, dependencies, and vendored third-party code
+ignores:
+  - "**/.git/**"
+  - "**/node_modules/**"
+  - "**/.venv/**"
+  - "**/thirdparty/**"
+  - "**/third-party/**"
+  - "**/3rd-party/**"
+  - "**/generated/**"
+  - "**/AGENT_REPORT_*.md"
+  - "**/.agent-logs/**"

@@ -1,0 +1,22 @@
+---
+name: Build on Push
+
+on:
+  push:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 17 * * 1'  # 5PM UTC every Monday
+
+jobs:
+  build:
+    name: Build
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+      security-events: write
+    uses: ./.github/workflows/build.yaml
+    with:
+      version: 0.0.0-run.${{ github.run_number }}
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

@@ -1,0 +1,49 @@
+---
+# Software Unit Requirements for the Validation Class
+#
+# The Validation class provides the self-validation framework, running tests
+# that demonstrate the tool is functioning correctly in the deployment environment.
+# It supports writing results to TRX (MSTest) or JUnit XML format.
+
+sections:
+  - title: Validation Unit Requirements
+    requirements:
+      - id: Template-Validation-Run
+        title: The Validation class shall run self-validation tests and print a summary.
+        justification: |
+          Provides a built-in mechanism to verify the tool is functioning correctly
+          in the deployment environment. A summary is printed for human review.
+        tests:
+          - Validation_Run_WithSilentContext_PrintsSummary
+          - Validation_Run_WithSilentContext_ExitCodeIsZero
+
+      - id: Template-Validation-TrxResults
+        title: >-
+          The Validation class shall write test results to a `.trx` file in TRX
+          format when the results file path ends with `.trx`.
+        justification: |
+          TRX format is compatible with MSTest and ReqStream requirements traceability tools,
+          enabling integration with CI/CD systems that process MSTest output.
+        tests:
+          - Validation_Run_WithTrxResultsFile_WritesTrxFile
+
+      - id: Template-Validation-XmlResults
+        title: >-
+          The Validation class shall write test results to a `.xml` file in
+          JUnit XML format when the results file path ends with `.xml`.
+        justification: |
+          JUnit XML format is compatible with many CI tools (Jenkins, GitHub Actions, GitLab CI),
+          enabling broad integration with CI/CD pipelines that process JUnit output.
+        tests:
+          - Validation_Run_WithXmlResultsFile_WritesXmlFile
+
+      - id: Template-Validation-InvalidExtension
+        title: >-
+          The Validation class shall report an error and set exit code 1 when the
+          results file path has an unsupported extension.
+        justification: |
+          Provides a clear failure signal when an unrecognized results file extension is
+          supplied, preventing silent evidence loss and enabling CI/CD pipelines to
+          surface output configuration errors automatically.
+        tests:
+          - Validation_Run_WithUnsupportedResultsFormat_DoesNotWriteFile

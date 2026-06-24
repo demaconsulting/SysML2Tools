@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DemaConsulting.TemplateDotNetTool/DemaConsulting.TemplateDotNetTool.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/DemaConsulting.TemplateDotNetTool.Tests/DemaConsulting.TemplateDotNetTool.Tests.csproj" />
+  </Folder>
+</Solution>

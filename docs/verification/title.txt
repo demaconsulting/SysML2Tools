@@ -1,0 +1,13 @@
+---
+title: Template DotNet Tool Verification Design Document
+subtitle: A .NET Reference Implementation for CLI Tools
+author: DEMA Consulting
+description: Verification design document for the Template DotNet Tool
+lang: en-US
+keywords:
+  - Template DotNet Tool
+  - .NET
+  - Command-Line Tool
+  - Verification
+  - Verification Design Document
+---

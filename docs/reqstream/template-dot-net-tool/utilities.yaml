@@ -1,0 +1,26 @@
+---
+# Utilities Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the TemplateDotNetTool Utilities subsystem
+# - The Utilities subsystem spans PathHelpers.cs (safe path-combination utilities)
+# - Subsystem requirements describe the shared utility behavior available to all other subsystems
+
+sections:
+  - title: Utilities Subsystem Requirements
+    requirements:
+      - id: Template-Utilities-SafePaths
+        title: >-
+          The Utilities subsystem shall provide safe file path manipulation that
+          prevents path traversal and absolute path injection.
+        justification: |
+          The Utilities subsystem provides shared path utilities consumed by other subsystems.
+          When constructing file paths from caller-supplied inputs, the subsystem must reject
+          path traversal sequences (such as '..') and absolute paths to prevent unintended
+          file system access. This requirement captures the subsystem-level safety guarantee
+          that all consumers of the Utilities subsystem can rely upon.
+        tests:
+          - UtilitiesSubsystem_PathResolutionWorkflow_ValidPaths_ResolvesCorrectly
+          - UtilitiesSubsystem_DirectoryCreationWorkflow_ValidPaths_CreatesDirectories
+          - UtilitiesSubsystem_PathTraversalValidation_DangerousPaths_ThrowsException
+          - UtilitiesSubsystem_AbsolutePathRejection_ThrowsException

@@ -1,0 +1,43 @@
+---
+# Software Unit Requirements for the Program Class
+#
+# The Program unit is the top-level command dispatcher for the tool.
+
+sections:
+  - title: Program Unit Requirements
+    requirements:
+      - id: Template-Program-Version
+        title: The Program class shall support -v and --version flags to display version information.
+        justification: |
+          Users need to quickly identify the version of the tool they are using for
+          troubleshooting and compatibility verification.
+        tests:
+          - Program_Run_WithVersionFlag_DisplaysVersionOnly
+          - Program_Run_WithShortVersionFlag_DisplaysVersion
+          - Program_Version_ReturnsNonEmptyString
+
+      - id: Template-Program-Help
+        title: The Program class shall support -?, -h, and --help flags to display usage information.
+        justification: |
+          Users need access to command-line usage documentation without requiring
+          external resources.
+        tests:
+          - Program_Run_WithHelpFlag_DisplaysUsageInformation
+          - Program_Run_WithShortHelpFlag_DisplaysUsage
+          - Program_Run_WithQuestionMarkFlag_DisplaysUsage
+
+      - id: Template-Program-Validate
+        title: The Program class shall support --validate flag to invoke the self-validation framework.
+        justification: |
+          Provides a built-in mechanism to verify the tool is functioning correctly
+          in the deployment environment.
+        tests:
+          - Program_Run_WithValidateFlag_RunsValidation
+
+      - id: Template-Program-ExitCode
+        title: The Program class shall return a non-zero exit code on failure.
+        justification: |
+          Callers (scripts, CI/CD pipelines) must be able to detect failure conditions
+          programmatically via the process exit code.
+        tests:
+          - Program_Main_WithInvalidArgs_ReturnsNonZeroExitCode

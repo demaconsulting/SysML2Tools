@@ -1,0 +1,22 @@
+---
+# Root requirements file - includes all system, unit, platform, and OTS requirements
+includes:
+  - docs/reqstream/template-dot-net-tool.yaml
+  - docs/reqstream/template-dot-net-tool/program.yaml
+  - docs/reqstream/template-dot-net-tool/cli.yaml
+  - docs/reqstream/template-dot-net-tool/cli/context.yaml
+  - docs/reqstream/template-dot-net-tool/self-test.yaml
+  - docs/reqstream/template-dot-net-tool/self-test/validation.yaml
+  - docs/reqstream/template-dot-net-tool/utilities.yaml
+  - docs/reqstream/template-dot-net-tool/utilities/path-helpers.yaml
+  - docs/reqstream/template-dot-net-tool/platform-requirements.yaml
+  - docs/reqstream/ots/xunit.yaml
+  - docs/reqstream/ots/reqstream.yaml
+  - docs/reqstream/ots/buildmark.yaml
+  - docs/reqstream/ots/versionmark.yaml
+  - docs/reqstream/ots/sarifmark.yaml
+  - docs/reqstream/ots/sonarmark.yaml
+  - docs/reqstream/ots/reviewmark.yaml
+  - docs/reqstream/ots/pandoc.yaml
+  - docs/reqstream/ots/weasyprint.yaml
+  - docs/reqstream/ots/fileassert.yaml

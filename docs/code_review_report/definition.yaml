@@ -1,0 +1,11 @@
+---
+resource-path:
+  - docs/code_review_report
+  - docs/template
+input-files:
+  - docs/code_review_report/title.txt
+  - docs/code_review_report/introduction.md
+  - docs/code_review_report/generated/report.md
+template: template.html
+table-of-contents: true
+number-sections: true

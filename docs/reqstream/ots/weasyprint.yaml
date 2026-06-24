@@ -1,0 +1,27 @@
+---
+# WeasyPrint OTS Software Requirements
+#
+# Requirements for the WeasyPrint PDF generation tool functionality.
+
+sections:
+  - title: OTS Software Requirements
+    sections:
+      - title: WeasyPrint Requirements
+        requirements:
+          - id: Template-OTS-WeasyPrint
+            title: WeasyPrint shall convert HTML documents to valid PDF.
+            justification: |
+              DemaConsulting.WeasyPrintTool converts HTML documents to PDF as part of the
+              documentation build pipeline. FileAssert validates that each generated PDF file
+              exists, has a non-trivial size, contains at least one page, and includes expected
+              document content in the rendered text. Passing FileAssert assertions for each
+              document type proves WeasyPrint executed correctly and produced meaningful output.
+            tags: [ots]
+            tests:
+              - WeasyPrint_BuildNotesPdf
+              - WeasyPrint_CodeQualityPdf
+              - WeasyPrint_ReviewPlanPdf
+              - WeasyPrint_ReviewReportPdf
+              - WeasyPrint_DesignPdf
+              - WeasyPrint_VerificationPdf
+              - WeasyPrint_UserGuidePdf

@@ -1,0 +1,25 @@
+---
+# FileAssert OTS Software Requirements
+#
+# Requirements for the FileAssert document assertion tool functionality.
+
+sections:
+  - title: OTS Software Requirements
+    sections:
+      - title: FileAssert Requirements
+        requirements:
+          - id: Template-OTS-FileAssert
+            title: FileAssert shall validate generated documents against acceptance criteria.
+            justification: |
+              DemaConsulting.FileAssert validates HTML and PDF documents produced during the
+              build, asserting that each document exists, has a non-trivial size, is structurally
+              valid, and contains expected content. It provides OTS evidence for Pandoc and
+              WeasyPrint and independently confirms file assertion is functioning. Self-validation
+              proves the tool itself is operational before ReqStream consumes the results.
+            tags: [ots]
+            tests:
+              - FileAssert_Results
+              - FileAssert_File
+              - FileAssert_Text
+              - FileAssert_Html
+              - FileAssert_Pdf
