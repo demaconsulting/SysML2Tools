@@ -1,0 +1,11 @@
+---
+# SysML2Tools SVG Renderer System-Level Requirements (Phase 0 Stub)
+#
+# PURPOSE:
+# - Define system-level requirements for the DemaConsulting.SysML2Tools.Svg package
+# - SVG renderer: SvgRenderer implements IRenderer with zero external dependencies
+# - Requirements will be populated in Phase 4+
+
+sections:
+  - title: SysML2ToolsSvg Requirements
+    requirements: []

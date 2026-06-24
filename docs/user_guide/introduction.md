@@ -1,33 +1,31 @@
 # Introduction
 
+SysML2Tools is a free, open-source .NET CLI tool and library that parses SysML v2 textual
+model files and renders them as professional nested block diagrams. It is designed for .NET
+teams in regulated industries who author SysML v2 models as part of a Model-Based Systems
+Engineering (MBSE) practice and need to generate diagram images programmatically — without
+a paid GUI tool or a non-.NET runtime dependency.
+
+A secondary audience is AI agents iterating on SysML v2 models: the `lint` command provides
+structured diagnostic output (file, line, column, severity) that enables a model-fix loop
+without requiring a rendered diagram.
+
 ## Purpose
 
-SysML2 Tools is a demonstration project that showcases best practices for DEMA
-Consulting DotNet Tools.
+This guide covers the installation, configuration, and use of SysML2Tools. It describes
+the `lint` and `render` commands, the global CLI flags, view selection behavior, output
+formats, and depth limiting.
 
 ## Scope
 
 This user guide covers:
 
-- Installation instructions
-- Usage examples for common tasks
-- Command-line options reference
-- Practical examples for various scenarios
-
-# Continuous Compliance
-
-This template follows the
-[Continuous Compliance](https://github.com/demaconsulting/ContinuousCompliance) methodology, which ensures
-compliance evidence is generated automatically on every CI run.
-
-## Key Practices
-
-- **Requirements Traceability**: Every requirement is linked to passing tests, and a trace matrix is
-  auto-generated on each release
-- **Linting Enforcement**: markdownlint, cspell, and yamllint are enforced before any build proceeds
-- **Automated Audit Documentation**: Each release ships with generated requirements, justifications,
-  trace matrix, and quality reports
-- **CodeQL and SonarCloud**: Security and quality analysis runs on every build
+- Installation via `dotnet tool install`
+- Linting SysML v2 workspaces with the `lint` command
+- Rendering diagrams with the `render` command
+- Global CLI options
+- View selection and depth limiting
+- Self-validation for tool qualification evidence
 
 # Installation
 
@@ -37,160 +35,157 @@ Install the tool globally using the .NET CLI:
 dotnet tool install -g DemaConsulting.SysML2Tools
 ```
 
-# Usage
+# Workspaces
 
-## Display Version
-
-Display the tool version:
-
-```bash
-sysml2tools --version
-```
-
-## Default Behavior
-
-When invoked with no arguments, the tool displays the banner and copyright notice:
+SysML2Tools operates on a **workspace** — a set of `.sysml` files loaded together. The OMG
+standard library (`stdlib`) is always implicitly included. You specify workspace files as
+glob patterns on the command line:
 
 ```bash
-sysml2tools
+# Single file
+sysml2tools lint model.sysml
+
+# All .sysml files under a directory
+sysml2tools lint "src/**/*.sysml"
+
+# Multiple patterns
+sysml2tools render "common/**/*.sysml" "system/**/*.sysml" --output diagram.svg
 ```
 
-## Display Help
+# Linting
 
-Display usage information:
+The `lint` command loads a workspace, resolves the semantic model, and reports all
+diagnostics. It exits with a non-zero code if any errors are present.
 
 ```bash
-sysml2tools --help
+sysml2tools lint "src/**/*.sysml"
 ```
 
-## Self-Validation
+Diagnostic output includes file path, line, column, severity, and message:
 
-Self-validation produces a report demonstrating that SysML2 Tools is functioning
-correctly. This is useful in regulated industries where tool validation evidence is required.
+```text
+model.sysml:12:5: error: unresolved reference 'VehicleSystem'
+model.sysml:34:1: warning: view 'Overview' references unsupported viewpoint kind
+```
 
-### Running Validation
+This structured output is suitable for:
 
-To perform self-validation:
+- CI/CD pipelines that fail the build on model errors
+- AI-assisted model authoring loops that parse diagnostics and propose fixes
+
+# Rendering
+
+The `render` command loads a workspace, resolves a view, and renders it to SVG or PNG.
+The output format is determined by the file extension of `--output`.
+
+```bash
+# Render to SVG
+sysml2tools render model.sysml --output diagram.svg
+
+# Render to PNG
+sysml2tools render model.sysml --output diagram.png
+
+# Render a named view from a multi-view workspace
+sysml2tools render "src/**/*.sysml" --view SystemContext --output context.svg
+
+# Auto-render the top-level part def when no view is defined
+sysml2tools render model.sysml --auto --output diagram.svg
+```
+
+## View Selection
+
+| Condition | Behavior |
+| --- | --- |
+| Exactly one view in workspace | Render it |
+| Zero views, `--auto` specified | Auto-render BDD of top-level `part def` silently |
+| Zero views, no `--auto` | Warn: "define a view or use --auto", then auto-render |
+| Multiple views, none specified | Error: lists available view names, exits non-zero |
+| Multiple views, `--view <name>` | Render the named view |
+
+## Depth Limiting
+
+Use `--depth <n>` to limit the nesting depth rendered. Parts beyond the limit are replaced
+with an ellipsis footer (`+N more…`). Silent omission is never used — truncation is always
+visible in the output.
+
+```bash
+sysml2tools render model.sysml --output diagram.svg --depth 3
+```
+
+## Output Formats
+
+| Extension | Format | Notes |
+| --- | --- | --- |
+| `.svg` | SVG | Zero external dependencies |
+| `.png` | PNG | SkiaSharp (MIT); pixel-identical across platforms |
+
+PNG output uses an embedded Noto Sans font to guarantee pixel-identical output across
+Windows, Linux, and macOS.
+
+# Global Options
+
+The following global options are accepted before the verb:
+
+| Option | Description |
+| --- | --- |
+| `-v`, `--version` | Display version information |
+| `-?`, `-h`, `--help [<verb>]` | Display help; optionally for a specific verb |
+| `--silent` | Suppress console output |
+| `--validate` | Run self-validation tests |
+| `--results <file>`, `--result <file>` | Write validation results to `.trx` or `.xml` |
+| `--depth <#>` | Set heading depth for validation output (default: 1) |
+| `--log <file>` | Write all output to a log file |
+
+Verb-specific help is available via either form:
+
+```bash
+sysml2tools --help lint
+sysml2tools lint --help
+```
+
+# Self-Validation
+
+Self-validation exercises the tool against embedded test models and produces a structured
+report. This provides tool qualification evidence for regulated environments.
 
 ```bash
 sysml2tools --validate
-```
-
-To save validation results to a file:
-
-```bash
 sysml2tools --validate --results results.trx
+sysml2tools --validate --results results.xml
 ```
 
-The `--result` option is an accepted alias for `--results`.
+The results file format is determined by the extension: `.trx` for MSTest TRX format,
+`.xml` for JUnit XML format.
 
-The results file format is determined by the file extension: `.trx` for TRX (MSTest) format,
-or `.xml` for JUnit format.
-
-### Heading Depth
-
-Use `--depth <#>` to control the heading level of the validation output (default: `1`).
-This is useful when embedding the validation report into a larger markdown document:
+Use `--depth <#>` to embed the validation report at a specific heading level within a
+larger markdown document:
 
 ```bash
-# Embed validation at heading level 2
 sysml2tools --validate --depth 2
 ```
 
-### Validation Report
+# NuGet Library Packages
 
-The validation report contains the tool version, machine name, operating system version,
-.NET runtime version, timestamp, and test results.
+SysML2Tools is structured as four NuGet packages. Library consumers can take individual
+packages without pulling in the full CLI tool or native graphics binaries:
 
-Example validation report:
+| Package | Contents |
+| --- | --- |
+| `DemaConsulting.SysML2Tools` | Core library: parser, semantic model, layout, `IRenderer` interface |
+| `DemaConsulting.SysML2Tools.Svg` | SVG renderer — zero external dependencies |
+| `DemaConsulting.SysML2Tools.Png` | PNG renderer — requires SkiaSharp native assets at publish time |
+| `DemaConsulting.SysML2Tools.Tool` | dotnet tool — references all three packages |
 
-```text
-# DEMA Consulting SysML2 Tools
+Consumers who need only the parsed semantic model or `LayoutTree` take a dependency on
+`DemaConsulting.SysML2Tools` only. Consumers who need SVG or PNG output opt in to the
+respective renderer package explicitly.
 
-| Information         | Value                                              |
-| :------------------ | :------------------------------------------------- |
-| Tool Version        | 1.0.0                                              |
-| Machine Name        | BUILD-SERVER                                       |
-| OS Version          | Ubuntu 22.04.3 LTS                                 |
-| DotNet Runtime      | .NET 10.0.0                                        |
-| Time Stamp          | 2024-01-15 10:30:00 UTC                            |
+# Continuous Compliance
 
-✓ TemplateTool_VersionDisplay - Passed
-✓ TemplateTool_HelpDisplay - Passed
-
-Total Tests: 2
-Passed: 2
-Failed: 0
-```
-
-### Validation Tests
-
-Each test proves specific functionality works correctly:
-
-- **`TemplateTool_VersionDisplay`** - `--version` outputs a valid version string.
-- **`TemplateTool_HelpDisplay`** - `--help` outputs usage and options information.
-
-## Silent Mode
-
-Suppress console output:
-
-```bash
-sysml2tools --silent
-```
-
-## Logging
-
-Write output to a log file:
-
-```bash
-sysml2tools --log output.log
-```
-
-## Error Handling
-
-Unrecognized arguments cause the tool to print an error message to standard error and exit
-with a non-zero exit code. For example:
-
-```text
-Error: Unsupported argument '--unknown'
-```
-
-This behavior enables automated scripts and CI/CD pipelines to detect and surface
-misconfiguration failures automatically.
-
-# Command-Line Options
-
-The following command-line options are supported:
-
-| Option                                | Description                                                  |
-| ------------------------------------- | ------------------------------------------------------------ |
-| `-v`, `--version`                     | Display version information                                  |
-| `-?`, `-h`, `--help`                  | Display help message                                         |
-| `--silent`                            | Suppress console output                                      |
-| `--validate`                          | Run self-validation                                          |
-| `--results <file>`, `--result <file>` | Write validation results to file (TRX or JUnit format)       |
-| `--depth <#>`                         | Set heading depth for markdown output (default: 1)           |
-| `--log <file>`                        | Write output to log file                                     |
-
-# Examples
-
-## Example 1: Basic Usage
-
-```bash
-sysml2tools
-```
-
-## Example 2: Self-Validation with Results
-
-```bash
-sysml2tools --validate --results validation-results.trx
-```
-
-## Example 3: Silent Mode with Logging
-
-```bash
-sysml2tools --silent --log tool-output.log
-```
+This project follows the
+[Continuous Compliance](https://github.com/demaconsulting/ContinuousCompliance) methodology.
+Compliance evidence (requirements, trace matrix, quality reports) is generated automatically
+on every CI run.
 
 ## References
 

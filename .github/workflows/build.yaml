@@ -223,8 +223,8 @@ jobs:
         with:
           name: packages-${{ matrix.os }}
           path: |
-            src/DemaConsulting.SysML2Tools/bin/Release/*.nupkg
-            src/DemaConsulting.SysML2Tools/bin/Release/*.snupkg
+            src/DemaConsulting.SysML2Tools.Tool/bin/Release/*.nupkg
+            src/DemaConsulting.SysML2Tools.Tool/bin/Release/*.snupkg
 
   # Runs CodeQL security and quality analysis, gathering results to include
   # in the code quality report.

@@ -1,15 +1,18 @@
 ---
 # Root requirements file - includes all system, unit, platform, and OTS requirements
 includes:
-  - docs/reqstream/sysml2-tools.yaml
-  - docs/reqstream/sysml2-tools/program.yaml
-  - docs/reqstream/sysml2-tools/cli.yaml
-  - docs/reqstream/sysml2-tools/cli/context.yaml
-  - docs/reqstream/sysml2-tools/self-test.yaml
-  - docs/reqstream/sysml2-tools/self-test/validation.yaml
-  - docs/reqstream/sysml2-tools/utilities.yaml
-  - docs/reqstream/sysml2-tools/utilities/path-helpers.yaml
-  - docs/reqstream/sysml2-tools/platform-requirements.yaml
+  - docs/reqstream/sysml2-tools-core.yaml
+  - docs/reqstream/sysml2-tools-svg.yaml
+  - docs/reqstream/sysml2-tools-png.yaml
+  - docs/reqstream/sysml2-tools-tool.yaml
+  - docs/reqstream/sysml2-tools-tool/program.yaml
+  - docs/reqstream/sysml2-tools-tool/cli.yaml
+  - docs/reqstream/sysml2-tools-tool/cli/context.yaml
+  - docs/reqstream/sysml2-tools-tool/self-test.yaml
+  - docs/reqstream/sysml2-tools-tool/self-test/validation.yaml
+  - docs/reqstream/sysml2-tools-tool/utilities.yaml
+  - docs/reqstream/sysml2-tools-tool/utilities/path-helpers.yaml
+  - docs/reqstream/sysml2-tools-tool/platform-requirements.yaml
   - docs/reqstream/ots/xunit.yaml
   - docs/reqstream/ots/reqstream.yaml
   - docs/reqstream/ots/buildmark.yaml

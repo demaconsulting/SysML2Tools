@@ -1,0 +1,11 @@
+---
+# SysML2Tools Core Library System-Level Requirements (Phase 0 Stub)
+#
+# PURPOSE:
+# - Define system-level requirements for the DemaConsulting.SysML2Tools core library
+# - Core library provides: parsing, semantic model, layout, IRenderer interface
+# - Requirements will be populated in Phase 1+
+
+sections:
+  - title: SysML2ToolsLibrary Requirements
+    requirements: []

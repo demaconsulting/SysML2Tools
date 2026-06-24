@@ -53,7 +53,7 @@
 
   <!-- Project References -->
   <ItemGroup>
-    <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools\DemaConsulting.SysML2Tools.csproj" />
+    <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Svg\DemaConsulting.SysML2Tools.Svg.csproj" />
   </ItemGroup>
 
 </Project>

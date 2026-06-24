@@ -17,14 +17,17 @@ This document covers the verification design for the following software items:
 
 **Local items:**
 
-- **SysML2Tools** — system, subsystem, and unit verification:
-  - **Program** — entry point and execution orchestrator
-  - **Cli** subsystem
-    - **Context** — argument parser and I/O owner
-  - **SelfTest** subsystem
-    - **Validation** — self-validation test runner
-  - **Utilities** subsystem
-    - **PathHelpers** — safe path combination utilities
+- **DemaConsulting.SysML2Tools** (System — core library, Phase 0 stub)
+- **DemaConsulting.SysML2Tools.Svg** (System — SVG renderer, Phase 0 stub)
+- **DemaConsulting.SysML2Tools.Png** (System — PNG renderer, Phase 0 stub)
+- **DemaConsulting.SysML2Tools.Tool** (System — dotnet tool)
+  - **Program** (Unit) — entry point and execution orchestrator
+  - **Cli** (Subsystem) — command-line argument parsing and I/O
+    - **Context** (Unit) — argument parser and I/O owner
+  - **SelfTest** (Subsystem) — self-validation test runner
+    - **Validation** (Unit) — self-validation test runner
+  - **Utilities** (Subsystem) — shared utilities
+    - **PathHelpers** (Unit) — safe path combination utilities
 
 **OTS items:**
 
@@ -47,51 +50,25 @@ The following topics are out of scope:
 - The internal implementation of OTS software items is excluded; only integration and usage
   are verified
 
-## Software Structure
-
-The following tree shows the software items covered by this document:
-
-```text
-SysML2Tools (System)
-├── Program (Unit)
-├── Cli (Subsystem)
-│   └── Context (Unit)
-├── SelfTest (Subsystem)
-│   └── Validation (Unit)
-└── Utilities (Subsystem)
-    └── PathHelpers (Unit)
-
-OTS Items
-├── BuildMark
-├── FileAssert
-├── Pandoc
-├── ReqStream
-├── ReviewMark
-├── SarifMark
-├── SonarMark
-├── VersionMark
-├── WeasyPrint
-└── xUnit
-```
-
 ## Folder Layout
 
 The test folder structure mirrors the source subsystem breakdown:
 
-```text
-test/
-└── DemaConsulting.SysML2Tools.Tests/  — unit and integration tests
-```
+- **test/** — test projects
+  - **DemaConsulting.SysML2Tools.Tests/** — TODO: core library tests (Phase 1+)
+  - **DemaConsulting.SysML2Tools.Svg.Tests/** — TODO: SVG renderer tests (Phase 4+)
+  - **DemaConsulting.SysML2Tools.Png.Tests/** — TODO: PNG renderer tests (Phase 4+)
+  - **DemaConsulting.SysML2Tools.Tool.Tests/** — dotnet tool unit and integration tests
 
 ## Companion Artifact Structure
 
-In-house items have corresponding artifacts in parallel directory trees:
+Local items have parallel artifacts in:
 
-- Requirements: `docs/reqstream/{system}/.../{item}.yaml` (kebab-case)
-- Design docs: `docs/design/{system}/.../{item}.md` (kebab-case)
-- Verification design: `docs/verification/{system}/.../{item}.md` (kebab-case)
-- Source code: `src/{System}/.../{Item}.cs` (PascalCase for C#)
-- Tests: `test/{System}.Tests/.../{Item}Tests.cs` (PascalCase for C#)
+- Requirements: `docs/reqstream/{system-name}.yaml`, `docs/reqstream/{system-name}[/{subsystem-name}...]/{item}.yaml`
+- Design: `docs/design/{system-name}.md`, `docs/design/{system-name}[/{subsystem-name}...]/{item}.md`
+- Verification: `docs/verification/{system-name}.md`, `docs/verification/{system-name}[/{subsystem-name}...]/{item}.md`
+- Source: `src/{SystemName}[/{SubsystemName}...]/{Item}.cs`
+- Tests: `test/{SystemName}.Tests[/{SubsystemName}...]/{Item}Tests.cs`
 
 OTS items have parallel artifacts in:
 

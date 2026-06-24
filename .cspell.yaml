@@ -14,6 +14,10 @@ language: en
 
 # Project-specific technical terms and tool names
 words:
+  - ANTLR
+  - ANTLR4
+  - Antlr
+  - antlr
   - Blockquotes
   - Postconditions
   - buildmark
@@ -26,9 +30,12 @@ words:
   - docversion
   - errorlevel
   - fileassert
+  - KEBNF
+  - MBSE
   - xunit
   - nameof
   - pagetitle
+  - Noto
   - Pandoc
   - Qube
   - reqstream
@@ -36,10 +43,16 @@ words:
   - SARIF
   - sarifmark
   - setlocal
+  - Skia
+  - SkiaSharp
   - snupkg
   - sonarmark
+  - Stdlib
+  - stdlib
   - SysML2
   - SysML2Tools
+  - Sysml
+  - sysml
   - sysml2tools
   - venv
   - versionmark

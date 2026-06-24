@@ -52,36 +52,174 @@ reviews:
       - requirements.yaml
       - docs/design/introduction.md
 
-  # TemplateTool - Specials
-  - id: TemplateTool-Architecture
+  # SysML2Tools Tool - Specials
+  - id: SysML2Tools-Tool-Architecture
     title: Review of SysML2 Tools system architecture and operational validation
     context:
       - README.md
       - "docs/user_guide/**/*.md"
     paths:
-      - "docs/reqstream/sysml2-tools.yaml"
+      - "docs/reqstream/sysml2-tools-tool.yaml"
       - "docs/design/introduction.md"
-      - "docs/design/sysml2-tools.md"
+      - "docs/design/sysml2-tools-tool.md"
       - "docs/verification/introduction.md"
-      - "docs/verification/sysml2-tools.md"
+      - "docs/verification/sysml2-tools-tool.md"
       - "test/**/IntegrationTests.cs"
 
-  - id: TemplateTool-Design
-    title: Review of SysML2 Tools architectural and design consistency
+  - id: SysML2Tools-Tool-Design
+    title: Review that DemaConsulting.SysML2Tools.Tool Design is Consistent and Complete
     context:
-      - docs/reqstream/sysml2-tools.yaml
+      - docs/reqstream/sysml2-tools-tool.yaml
     paths:
-      - "docs/reqstream/sysml2-tools/platform-requirements.yaml"
+      - "docs/reqstream/sysml2-tools-tool/platform-requirements.yaml"
       - "docs/design/introduction.md"
-      - "docs/design/sysml2-tools/**/*.md"
+      - "docs/design/sysml2-tools-tool.md"
+      - "docs/design/sysml2-tools-tool/**/*.md"
+      - "docs/design/ots.md"
 
-  - id: TemplateTool-AllRequirements
+  - id: SysML2Tools-Tool-Verification
+    title: Review that DemaConsulting.SysML2Tools.Tool Verification is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-tool.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-tool.md"
+      - "docs/verification/sysml2-tools-tool/**/*.md"
+      - "docs/verification/ots.md"
+
+  - id: SysML2Tools-Tool-AllRequirements
     title: Review of SysML2 Tools requirements quality and traceability
     context:
-      - docs/design/sysml2-tools.md
-      - docs/reqstream/sysml2-tools.yaml
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
     paths:
-      - "docs/reqstream/sysml2-tools/**/*.yaml"
+      - "docs/reqstream/sysml2-tools-tool/**/*.yaml"
+
+  # SysML2Tools Core Library
+  - id: SysML2Tools-Core-Architecture
+    title: Review that DemaConsulting.SysML2Tools Architecture Satisfies Requirements
+    context:
+      - README.md
+      - "docs/user_guide/**/*.md"
+    paths:
+      - "docs/reqstream/sysml2-tools-core.yaml"
+      - "docs/design/introduction.md"
+      - "docs/design/sysml2-tools-core.md"
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-core.md"
+      - "src/DemaConsulting.SysML2Tools/**/*.cs"
+
+  - id: SysML2Tools-Core-Design
+    title: Review that DemaConsulting.SysML2Tools Design is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core.yaml
+    paths:
+      - "docs/design/introduction.md"
+      - "docs/design/sysml2-tools-core.md"
+      - "docs/design/sysml2-tools-core/**/*.md"
+      - "docs/design/ots.md"
+
+  - id: SysML2Tools-Core-Verification
+    title: Review that DemaConsulting.SysML2Tools Verification is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-core.md"
+      - "docs/verification/sysml2-tools-core/**/*.md"
+      - "docs/verification/ots.md"
+
+  - id: SysML2Tools-Core-AllRequirements
+    title: Review that All DemaConsulting.SysML2Tools Requirements are Complete
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-core/**/*.yaml"
+
+  # SysML2Tools SVG Renderer
+  - id: SysML2Tools-Svg-Architecture
+    title: Review that DemaConsulting.SysML2Tools.Svg Architecture Satisfies Requirements
+    context:
+      - README.md
+      - "docs/user_guide/**/*.md"
+    paths:
+      - "docs/reqstream/sysml2-tools-svg.yaml"
+      - "docs/design/introduction.md"
+      - "docs/design/sysml2-tools-svg.md"
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-svg.md"
+      - "src/DemaConsulting.SysML2Tools.Svg/**/*.cs"
+
+  - id: SysML2Tools-Svg-Design
+    title: Review that DemaConsulting.SysML2Tools.Svg Design is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-svg.yaml
+    paths:
+      - "docs/design/introduction.md"
+      - "docs/design/sysml2-tools-svg.md"
+      - "docs/design/sysml2-tools-svg/**/*.md"
+      - "docs/design/ots.md"
+
+  - id: SysML2Tools-Svg-Verification
+    title: Review that DemaConsulting.SysML2Tools.Svg Verification is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-svg.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-svg.md"
+      - "docs/verification/sysml2-tools-svg/**/*.md"
+      - "docs/verification/ots.md"
+
+  - id: SysML2Tools-Svg-AllRequirements
+    title: Review that All DemaConsulting.SysML2Tools.Svg Requirements are Complete
+    context:
+      - docs/design/sysml2-tools-svg.md
+      - docs/reqstream/sysml2-tools-svg.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-svg/**/*.yaml"
+
+  # SysML2Tools PNG Renderer
+  - id: SysML2Tools-Png-Architecture
+    title: Review that DemaConsulting.SysML2Tools.Png Architecture Satisfies Requirements
+    context:
+      - README.md
+      - "docs/user_guide/**/*.md"
+    paths:
+      - "docs/reqstream/sysml2-tools-png.yaml"
+      - "docs/design/introduction.md"
+      - "docs/design/sysml2-tools-png.md"
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-png.md"
+      - "src/DemaConsulting.SysML2Tools.Png/**/*.cs"
+
+  - id: SysML2Tools-Png-Design
+    title: Review that DemaConsulting.SysML2Tools.Png Design is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-png.yaml
+    paths:
+      - "docs/design/introduction.md"
+      - "docs/design/sysml2-tools-png.md"
+      - "docs/design/sysml2-tools-png/**/*.md"
+      - "docs/design/ots.md"
+
+  - id: SysML2Tools-Png-Verification
+    title: Review that DemaConsulting.SysML2Tools.Png Verification is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-png.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-png.md"
+      - "docs/verification/sysml2-tools-png/**/*.md"
+      - "docs/verification/ots.md"
+
+  - id: SysML2Tools-Png-AllRequirements
+    title: Review that All DemaConsulting.SysML2Tools.Png Requirements are Complete
+    context:
+      - docs/design/sysml2-tools-png.md
+      - docs/reqstream/sysml2-tools-png.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-png/**/*.yaml"
 
   - id: OTS-Verification
     title: Review of OTS software verification evidence
@@ -92,94 +230,94 @@ reviews:
       - "docs/verification/ots.md"
       - "docs/verification/ots/*.md"
 
-  # TemplateTool - Program
-  - id: TemplateTool-Program
+  # SysML2Tools Tool - Program
+  - id: SysML2Tools-Tool-Program
     title: Review of SysML2 Tools Program unit implementation
     context:
-      - docs/design/sysml2-tools.md
-      - docs/reqstream/sysml2-tools.yaml
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
     paths:
-      - "docs/reqstream/sysml2-tools/program.yaml"
-      - "docs/design/sysml2-tools/program.md"
-      - "docs/verification/sysml2-tools/program.md"
+      - "docs/reqstream/sysml2-tools-tool/program.yaml"
+      - "docs/design/sysml2-tools-tool/program.md"
+      - "docs/verification/sysml2-tools-tool/program.md"
       - "src/**/Program.cs"
       - "test/**/ProgramTests.cs"
 
-  # TemplateTool - Cli
-  - id: TemplateTool-Cli
+  # SysML2Tools Tool - Cli
+  - id: SysML2Tools-Tool-Cli
     title: Review of SysML2 Tools Cli subsystem architecture and interfaces
     context:
-      - docs/design/sysml2-tools.md
-      - docs/reqstream/sysml2-tools.yaml
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
     paths:
-      - "docs/reqstream/sysml2-tools/cli.yaml"
-      - "docs/design/sysml2-tools/cli.md"
-      - "docs/verification/sysml2-tools/cli.md"
+      - "docs/reqstream/sysml2-tools-tool/cli.yaml"
+      - "docs/design/sysml2-tools-tool/cli.md"
+      - "docs/verification/sysml2-tools-tool/cli.md"
       - "test/**/Cli/CliSubsystemTests.cs"
 
-  - id: TemplateTool-Cli-Context
+  - id: SysML2Tools-Tool-Cli-Context
     title: Review of SysML2 Tools Context unit implementation
     context:
-      - docs/design/sysml2-tools.md
-      - docs/reqstream/sysml2-tools.yaml
-      - docs/design/sysml2-tools/cli.md
-      - docs/reqstream/sysml2-tools/cli.yaml
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
+      - docs/design/sysml2-tools-tool/cli.md
+      - docs/reqstream/sysml2-tools-tool/cli.yaml
     paths:
-      - "docs/reqstream/sysml2-tools/cli/context.yaml"
-      - "docs/design/sysml2-tools/cli/context.md"
-      - "docs/verification/sysml2-tools/cli/context.md"
+      - "docs/reqstream/sysml2-tools-tool/cli/context.yaml"
+      - "docs/design/sysml2-tools-tool/cli/context.md"
+      - "docs/verification/sysml2-tools-tool/cli/context.md"
       - "src/**/Cli/Context.cs"
       - "test/**/Cli/ContextTests.cs"
 
-  # TemplateTool - SelfTest
-  - id: TemplateTool-SelfTest
+  # SysML2Tools Tool - SelfTest
+  - id: SysML2Tools-Tool-SelfTest
     title: Review of SysML2 Tools SelfTest subsystem architecture and interfaces
     context:
-      - docs/design/sysml2-tools.md
-      - docs/reqstream/sysml2-tools.yaml
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
     paths:
-      - "docs/reqstream/sysml2-tools/self-test.yaml"
-      - "docs/design/sysml2-tools/self-test.md"
-      - "docs/verification/sysml2-tools/self-test.md"
+      - "docs/reqstream/sysml2-tools-tool/self-test.yaml"
+      - "docs/design/sysml2-tools-tool/self-test.md"
+      - "docs/verification/sysml2-tools-tool/self-test.md"
       - "test/**/SelfTest/SelfTestSubsystemTests.cs"
 
-  - id: TemplateTool-SelfTest-Validation
+  - id: SysML2Tools-Tool-SelfTest-Validation
     title: Review of SysML2 Tools Validation unit implementation
     context:
-      - docs/design/sysml2-tools.md
-      - docs/reqstream/sysml2-tools.yaml
-      - docs/design/sysml2-tools/self-test.md
-      - docs/reqstream/sysml2-tools/self-test.yaml
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
+      - docs/design/sysml2-tools-tool/self-test.md
+      - docs/reqstream/sysml2-tools-tool/self-test.yaml
     paths:
-      - "docs/reqstream/sysml2-tools/self-test/validation.yaml"
-      - "docs/design/sysml2-tools/self-test/validation.md"
-      - "docs/verification/sysml2-tools/self-test/validation.md"
+      - "docs/reqstream/sysml2-tools-tool/self-test/validation.yaml"
+      - "docs/design/sysml2-tools-tool/self-test/validation.md"
+      - "docs/verification/sysml2-tools-tool/self-test/validation.md"
       - "src/**/SelfTest/Validation.cs"
       - "test/**/SelfTest/ValidationTests.cs"
 
-  # TemplateTool - Utilities
-  - id: TemplateTool-Utilities
+  # SysML2Tools Tool - Utilities
+  - id: SysML2Tools-Tool-Utilities
     title: Review of SysML2 Tools Utilities subsystem architecture and interfaces
     context:
-      - docs/design/sysml2-tools.md
-      - docs/reqstream/sysml2-tools.yaml
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
     paths:
-      - "docs/reqstream/sysml2-tools/utilities.yaml"
-      - "docs/design/sysml2-tools/utilities.md"
-      - "docs/verification/sysml2-tools/utilities.md"
+      - "docs/reqstream/sysml2-tools-tool/utilities.yaml"
+      - "docs/design/sysml2-tools-tool/utilities.md"
+      - "docs/verification/sysml2-tools-tool/utilities.md"
       - "test/**/Utilities/UtilitiesSubsystemTests.cs"
 
-  - id: TemplateTool-Utilities-PathHelpers
+  - id: SysML2Tools-Tool-Utilities-PathHelpers
     title: Review of SysML2 Tools PathHelpers unit implementation
     context:
-      - docs/design/sysml2-tools.md
-      - docs/reqstream/sysml2-tools.yaml
-      - docs/design/sysml2-tools/utilities.md
-      - docs/reqstream/sysml2-tools/utilities.yaml
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
+      - docs/design/sysml2-tools-tool/utilities.md
+      - docs/reqstream/sysml2-tools-tool/utilities.yaml
     paths:
-      - "docs/reqstream/sysml2-tools/utilities/path-helpers.yaml"
-      - "docs/design/sysml2-tools/utilities/path-helpers.md"
-      - "docs/verification/sysml2-tools/utilities/path-helpers.md"
+      - "docs/reqstream/sysml2-tools-tool/utilities/path-helpers.yaml"
+      - "docs/design/sysml2-tools-tool/utilities/path-helpers.md"
+      - "docs/verification/sysml2-tools-tool/utilities/path-helpers.md"
       - "src/**/Utilities/PathHelpers.cs"
       - "test/**/Utilities/PathHelpersTests.cs"
 

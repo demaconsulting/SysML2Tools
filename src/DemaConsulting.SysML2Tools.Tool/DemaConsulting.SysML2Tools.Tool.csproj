@@ -1,15 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <OutputType>Exe</OutputType>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <!-- Phase 0 stub — core library API surface will be added in Phase 1 -->
-    <IsPackable>false</IsPackable>
-    <PackageId>DemaConsulting.SysML2Tools.Core</PackageId>
-    <AssemblyName>DemaConsulting.SysML2Tools.Core</AssemblyName>
+    <!-- NuGet Tool Package Configuration -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>sysml2tools</ToolCommandName>
+    <AssemblyName>DemaConsulting.SysML2Tools</AssemblyName>
+    <PackageId>DemaConsulting.SysML2Tools</PackageId>
     <Version>0.0.0</Version>
     <Authors>DEMA Consulting</Authors>
     <Company>DEMA Consulting</Company>
@@ -17,6 +19,9 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/demaconsulting/SysML2Tools</PackageProjectUrl>
     <RepositoryUrl>https://github.com/demaconsulting/SysML2Tools</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>Icon.png</PackageIcon>
+    <PackageTags>sysml2;dotnet-tool</PackageTags>
     <Copyright>Copyright DEMA Consulting</Copyright>
     <Title>SysML2 Tools</Title>
     <Product>DemaConsulting.SysML2Tools</Product>
@@ -37,10 +42,15 @@
 
     <!-- SBOM Configuration -->
     <GenerateSBOM>true</GenerateSBOM>
-    <SBOMPackageName>$(Product)</SBOMPackageName>
+    <SBOMPackageName>$(PackageId)</SBOMPackageName>
     <SBOMPackageVersion>$(Version)</SBOMPackageVersion>
     <SBOMPackageSupplier>Organization: $(Company)</SBOMPackageSupplier>
   </PropertyGroup>
+
+  <!-- Runtime Dependencies -->
+  <ItemGroup>
+    <PackageReference Include="DemaConsulting.TestResults" Version="1.9.0" />
+  </ItemGroup>
 
   <!-- Build Tool Dependencies -->
   <ItemGroup>
@@ -64,6 +74,19 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DemaConsulting.SysML2Tools.Tool.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DemaConsulting.SysML2Tools\DemaConsulting.SysML2Tools.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\Icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
