@@ -11,7 +11,7 @@ We release patches for security vulnerabilities in the following versions:
 
 ## Reporting a Vulnerability
 
-We take the security of Template DotNet Tool seriously. If you believe you have found a
+We take the security of SysML2 Tools seriously. If you believe you have found a
 security vulnerability, please report it to us as described below.
 
 ### How to Report
@@ -60,31 +60,31 @@ Security updates will be released as:
 
 ## Security Best Practices
 
-When using Template DotNet Tool, we recommend following these security best practices:
+When using SysML2 Tools, we recommend following these security best practices:
 
 ### Input Validation
 
 - Validate command-line arguments and file paths before processing
 - Be cautious when processing data from untrusted sources
-- Use the latest version of Template DotNet Tool to benefit from security updates
+- Use the latest version of SysML2 Tools to benefit from security updates
 
 ### Dependencies
 
-- Keep Template DotNet Tool and its dependencies up to date
+- Keep SysML2 Tools and its dependencies up to date
 - Review the release notes for security-related updates
 - Use `dotnet list package --vulnerable` to check for vulnerable dependencies
 
 ### Execution Environment
 
-- Run Template DotNet Tool with the minimum required permissions
-- Avoid running Template DotNet Tool as a privileged user unless necessary
+- Run SysML2 Tools with the minimum required permissions
+- Avoid running SysML2 Tools as a privileged user unless necessary
 - Validate API tokens and credentials are stored securely
 
 ## Known Security Considerations
 
 ### File System Access
 
-Template DotNet Tool reads and writes files on the local file system. Users should:
+SysML2 Tools reads and writes files on the local file system. Users should:
 
 - Ensure appropriate file permissions are set on output files
 - Be cautious when processing files in shared directories
@@ -107,7 +107,7 @@ We will credit security researchers who report vulnerabilities responsibly. If y
 
 ## Third-Party Dependencies
 
-Template DotNet Tool relies on third-party packages. We:
+SysML2 Tools relies on third-party packages. We:
 
 - Regularly update dependencies to address known vulnerabilities
 - Use Dependabot to monitor for security updates
@@ -132,9 +132,9 @@ For general bugs and feature requests, please use [GitHub Issues][issues].
 - [.NET Security Best Practices][dotnet-security]
 - [GitHub Security Advisories][security-advisories]
 
-Thank you for helping keep Template DotNet Tool and its users safe!
+Thank you for helping keep SysML2 Tools and its users safe!
 
-[security-advisories]: https://github.com/demaconsulting/TemplateDotNetTool/security/advisories
-[issues]: https://github.com/demaconsulting/TemplateDotNetTool/issues
+[security-advisories]: https://github.com/demaconsulting/SysML2Tools/security/advisories
+[issues]: https://github.com/demaconsulting/SysML2Tools/issues
 [owasp-practices]: https://owasp.org/www-project-secure-coding-practices-quick-reference-guide/
 [dotnet-security]: https://learn.microsoft.com/en-us/dotnet/standard/security/

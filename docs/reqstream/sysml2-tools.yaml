@@ -1,0 +1,120 @@
+---
+# SysML2Tools System-Level Requirements
+#
+# PURPOSE:
+# - Define system-level requirements describing what end-users need the tool to provide
+# - These requirements capture the externally visible behavior of the complete system
+# - System requirements are validated through integration tests that exercise the
+#   published dotnet DLL end-to-end
+
+sections:
+  - title: System-Level Requirements
+    requirements:
+      - id: Template-System-Version
+        title: The tool shall display version information when the version flag is provided.
+        justification: |
+          Users need to quickly identify the version of the tool they are using for
+          troubleshooting and compatibility verification. The version display must
+          work from a standard dotnet invocation without additional configuration.
+        tests:
+          - SysML2Tools_VersionFlag_Provided_OutputsVersion
+
+      - id: Template-System-Help
+        title: The tool shall display usage information when the help flag is provided.
+        justification: |
+          Users need access to command-line usage documentation without requiring
+          external resources. Help output must be accessible from a standard dotnet
+          invocation and must list the available options so that users can self-serve.
+        tests:
+          - SysML2Tools_HelpFlag_Provided_OutputsUsageInformation
+
+      - id: Template-System-Validate
+        title: The tool shall execute self-validation tests when the validate flag is provided.
+        justification: |
+          Regulated environments require tool qualification evidence to demonstrate
+          that the tool functions correctly in its deployment environment before it
+          is used to generate compliance artifacts. The validation mode exercises
+          core behaviors and produces a structured test result file, providing the
+          qualification evidence required by quality management systems.
+        tests:
+          - SysML2Tools_ValidateFlag_Provided_RunsValidation
+
+      - id: Template-System-Silent
+        title: The tool shall suppress console output when the silent flag is provided.
+        justification: |
+          Enables automated scripts and CI/CD pipelines to run the tool without
+          cluttering output logs when only the exit code is needed.
+        tests:
+          - SysML2Tools_SilentFlag_Provided_SuppressesOutput
+
+      - id: Template-System-Log
+        title: The tool shall write output to a log file when the log flag is provided.
+        justification: |
+          Provides persistent logging for debugging and compliance audit trails.
+          Log files enable post-run inspection of tool output without requiring
+          console capture.
+        tests:
+          - SysML2Tools_LogFlag_Provided_WritesOutputToFile
+
+      - id: Template-System-ErrorHandling
+        title: The tool shall return a non-zero exit code for unrecognized arguments.
+        justification: |
+          A non-zero exit code enables CI/CD pipelines to detect and
+          surface misconfiguration failures automatically.
+        tests:
+          - SysML2Tools_UnknownArgument_Provided_ReturnsError
+
+      - id: Template-System-ErrorMessage
+        title: The tool shall report an error message for unrecognized arguments.
+        justification: |
+          Clear feedback for unrecognized arguments helps users quickly correct
+          mistakes and prevents silent misconfiguration.
+        tests:
+          - SysML2Tools_UnknownArgument_Provided_ReturnsError
+
+      - id: Template-System-Results
+        title: >-
+          The tool shall write self-validation results to a standard test result
+          file when the `--results` flag is provided.
+        justification: |
+          Enables integration with CI/CD systems that expect standard test result formats.
+          TRX format is compatible with MSTest; JUnit XML is compatible with many CI tools.
+        tests:
+          - SysML2Tools_ValidateWithTrxResults_Requested_GeneratesTrxFile
+          - SysML2Tools_ValidateWithXmlResults_Requested_GeneratesJUnitFile
+
+      - id: Template-System-Depth
+        title: The tool shall adjust the heading depth of validation output when the `--depth` flag is provided.
+        justification: |
+          Enables validation output to be embedded within larger markdown documents at
+          the appropriate heading level, supporting documentation workflows that combine
+          multiple reports.
+        tests:
+          - SysML2Tools_ValidateFlag_Provided_RunsValidation
+          - SysML2Tools_ValidateWithDepth_DepthThree_OutputsCorrectHeadingLevel
+
+      - id: Template-System-ValidateFailure
+        title: The tool shall return a non-zero exit code when the results file cannot be written.
+        justification: |
+          A non-zero exit code on results-write failure enables CI/CD pipelines to detect
+          and surface output errors automatically, preventing silent loss of validation
+          evidence in compliance-critical workflows.
+        tests:
+          - SysML2Tools_ValidateWithBadExtension_ExtensionInvalid_ReturnsNonZero
+
+      - id: Template-System-DefaultBehavior
+        title: The tool shall display a banner then run the default tool logic when invoked without any action flags.
+        justification: |
+          When a user invokes the tool without any recognized action flag, the tool shall
+          display a banner identifying itself and run its primary logic so that the
+          invocation is never silently empty.
+        tests:
+          - SysML2Tools_NoArguments_Invoked_DisplaysBanner
+
+      - id: Template-System-ResultAlias
+        title: The tool shall accept `--result` as a legacy alias for `--results`.
+        justification: |
+          Backward compatibility with scripts that use the earlier `--result` spelling
+          prevents breakage when upgrading to newer tool versions.
+        tests:
+          - SysML2Tools_ResultAlias_LegacyFlag_WritesResultsFile

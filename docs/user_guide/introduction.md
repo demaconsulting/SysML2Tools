@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Template DotNet Tool is a demonstration project that showcases best practices for DEMA
+SysML2 Tools is a demonstration project that showcases best practices for DEMA
 Consulting DotNet Tools.
 
 ## Scope
@@ -34,7 +34,7 @@ compliance evidence is generated automatically on every CI run.
 Install the tool globally using the .NET CLI:
 
 ```bash
-dotnet tool install -g DemaConsulting.TemplateDotNetTool
+dotnet tool install -g DemaConsulting.SysML2Tools
 ```
 
 # Usage
@@ -44,7 +44,7 @@ dotnet tool install -g DemaConsulting.TemplateDotNetTool
 Display the tool version:
 
 ```bash
-templatetool --version
+sysml2tools --version
 ```
 
 ## Default Behavior
@@ -52,7 +52,7 @@ templatetool --version
 When invoked with no arguments, the tool displays the banner and copyright notice:
 
 ```bash
-templatetool
+sysml2tools
 ```
 
 ## Display Help
@@ -60,12 +60,12 @@ templatetool
 Display usage information:
 
 ```bash
-templatetool --help
+sysml2tools --help
 ```
 
 ## Self-Validation
 
-Self-validation produces a report demonstrating that Template DotNet Tool is functioning
+Self-validation produces a report demonstrating that SysML2 Tools is functioning
 correctly. This is useful in regulated industries where tool validation evidence is required.
 
 ### Running Validation
@@ -73,13 +73,13 @@ correctly. This is useful in regulated industries where tool validation evidence
 To perform self-validation:
 
 ```bash
-templatetool --validate
+sysml2tools --validate
 ```
 
 To save validation results to a file:
 
 ```bash
-templatetool --validate --results results.trx
+sysml2tools --validate --results results.trx
 ```
 
 The `--result` option is an accepted alias for `--results`.
@@ -94,7 +94,7 @@ This is useful when embedding the validation report into a larger markdown docum
 
 ```bash
 # Embed validation at heading level 2
-templatetool --validate --depth 2
+sysml2tools --validate --depth 2
 ```
 
 ### Validation Report
@@ -105,7 +105,7 @@ The validation report contains the tool version, machine name, operating system 
 Example validation report:
 
 ```text
-# DEMA Consulting Template DotNet Tool
+# DEMA Consulting SysML2 Tools
 
 | Information         | Value                                              |
 | :------------------ | :------------------------------------------------- |
@@ -135,7 +135,7 @@ Each test proves specific functionality works correctly:
 Suppress console output:
 
 ```bash
-templatetool --silent
+sysml2tools --silent
 ```
 
 ## Logging
@@ -143,7 +143,7 @@ templatetool --silent
 Write output to a log file:
 
 ```bash
-templatetool --log output.log
+sysml2tools --log output.log
 ```
 
 ## Error Handling
@@ -177,19 +177,19 @@ The following command-line options are supported:
 ## Example 1: Basic Usage
 
 ```bash
-templatetool
+sysml2tools
 ```
 
 ## Example 2: Self-Validation with Results
 
 ```bash
-templatetool --validate --results validation-results.trx
+sysml2tools --validate --results validation-results.trx
 ```
 
 ## Example 3: Silent Mode with Logging
 
 ```bash
-templatetool --silent --log tool-output.log
+sysml2tools --silent --log tool-output.log
 ```
 
 ## References

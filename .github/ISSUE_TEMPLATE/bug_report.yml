@@ -1,6 +1,6 @@
 ---
 name: 🐛 Bug Report
-description: Report a bug or issue with the TemplateDotNetTool
+description: Report a bug or issue with the SysML2Tools
 title: "[Bug]: "
 labels: ["bug"]
 assignees: []
@@ -26,7 +26,7 @@ body:
       label: Steps to Reproduce
       description: Detailed steps to reproduce the behavior
       placeholder: |
-        1. Run TemplateDotNetTool with command '...'
+        1. Run SysML2Tools with command '...'
         2. Provide input file '...'
         3. Observe error...
       value: |
@@ -69,7 +69,7 @@ body:
     id: version
     attributes:
       label: Tool Version
-      description: What version of the TemplateDotNetTool are you using?
+      description: What version of the SysML2Tools are you using?
       placeholder: e.g., 1.0.0
     validations:
       required: true

@@ -1,24 +1,24 @@
 ---
 resource-path:
   - docs/design
-  - docs/design/template-dot-net-tool
-  - docs/design/template-dot-net-tool/cli
-  - docs/design/template-dot-net-tool/self-test
-  - docs/design/template-dot-net-tool/utilities
+  - docs/design/sysml2-tools
+  - docs/design/sysml2-tools/cli
+  - docs/design/sysml2-tools/self-test
+  - docs/design/sysml2-tools/utilities
   - docs/design/ots
   - docs/template
 
 input-files:
   - docs/design/title.txt
   - docs/design/introduction.md
-  - docs/design/template-dot-net-tool.md
-  - docs/design/template-dot-net-tool/program.md
-  - docs/design/template-dot-net-tool/cli.md
-  - docs/design/template-dot-net-tool/cli/context.md
-  - docs/design/template-dot-net-tool/self-test.md
-  - docs/design/template-dot-net-tool/self-test/validation.md
-  - docs/design/template-dot-net-tool/utilities.md
-  - docs/design/template-dot-net-tool/utilities/path-helpers.md
+  - docs/design/sysml2-tools.md
+  - docs/design/sysml2-tools/program.md
+  - docs/design/sysml2-tools/cli.md
+  - docs/design/sysml2-tools/cli/context.md
+  - docs/design/sysml2-tools/self-test.md
+  - docs/design/sysml2-tools/self-test/validation.md
+  - docs/design/sysml2-tools/utilities.md
+  - docs/design/sysml2-tools/utilities/path-helpers.md
   - docs/design/ots.md
   - docs/design/ots/buildmark.md
   - docs/design/ots/fileassert.md

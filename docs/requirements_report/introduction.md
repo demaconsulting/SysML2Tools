@@ -1,12 +1,12 @@
 # Introduction
 
-This document contains the requirements traceability matrix for the Template DotNet Tool project.
+This document contains the requirements traceability matrix for the SysML2 Tools project.
 
 ## Purpose
 
 The trace matrix provides traceability between requirements and test cases, ensuring that
 all requirements are validated through appropriate testing. This demonstrates that the
-Template DotNet Tool meets its specified requirements.
+SysML2 Tools meets its specified requirements.
 
 ## Scope
 
@@ -21,7 +21,7 @@ This traceability matrix covers:
 
 This document is intended for:
 
-- Software developers working on Template DotNet Tool
+- Software developers working on SysML2 Tools
 - Quality assurance teams validating requirements coverage
 - Project stakeholders reviewing test coverage
 - Auditors verifying requirements traceability

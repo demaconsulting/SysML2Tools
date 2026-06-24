@@ -1,6 +1,6 @@
 ---
 name: ✨ Feature Request
-description: Suggest a new feature or enhancement for the TemplateDotNetTool
+description: Suggest a new feature or enhancement for the SysML2Tools
 title: "[Feature]: "
 labels: ["enhancement"]
 assignees: []
@@ -43,7 +43,7 @@ body:
       placeholder: |
         ```csharp
         // Example usage
-        templatetool --input report.json --output report.md --feature-flag
+        sysml2tools --input report.json --output report.md --feature-flag
         ```
       render: csharp
 
@@ -51,7 +51,7 @@ body:
     id: benefits
     attributes:
       label: Benefits
-      description: Explain why this enhancement would be useful to TemplateDotNetTool users
+      description: Explain why this enhancement would be useful to SysML2Tools users
       placeholder: This would be useful because...
     validations:
       required: true

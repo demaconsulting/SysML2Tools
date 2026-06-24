@@ -168,7 +168,7 @@ jobs:
         run: >
           dotnet dotnet-sonarscanner
           begin
-          /k:"demaconsulting_TemplateDotNetTool"
+          /k:"demaconsulting_SysML2Tools"
           /o:"demaconsulting"
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
           /d:sonar.host.url="https://sonarcloud.io"
@@ -223,8 +223,8 @@ jobs:
         with:
           name: packages-${{ matrix.os }}
           path: |
-            src/DemaConsulting.TemplateDotNetTool/bin/Release/*.nupkg
-            src/DemaConsulting.TemplateDotNetTool/bin/Release/*.snupkg
+            src/DemaConsulting.SysML2Tools/bin/Release/*.nupkg
+            src/DemaConsulting.SysML2Tools/bin/Release/*.snupkg
 
   # Runs CodeQL security and quality analysis, gathering results to include
   # in the code quality report.
@@ -348,7 +348,7 @@ jobs:
           dotnet tool install --global \
             --add-source packages \
             --version ${{ inputs.version }} \
-            DemaConsulting.TemplateDotNetTool
+            DemaConsulting.SysML2Tools
 
       # === CAPTURE TOOL VERSIONS ===
       # This section captures the versions of all tools used in the integration tests.
@@ -375,22 +375,22 @@ jobs:
       - name: Test version display
         shell: bash
         run: |
-          echo "Testing templatetool --version..."
-          templatetool --version || { echo "✗ Version command failed"; exit 1; }
+          echo "Testing sysml2tools --version..."
+          sysml2tools --version || { echo "✗ Version command failed"; exit 1; }
           echo "✓ Version command succeeded"
 
       - name: Test help display
         shell: bash
         run: |
-          echo "Testing templatetool --help..."
-          templatetool --help || { echo "✗ Help command failed"; exit 1; }
+          echo "Testing sysml2tools --help..."
+          sysml2tools --help || { echo "✗ Help command failed"; exit 1; }
           echo "✓ Help command succeeded"
 
       - name: Run self-validation
         shell: bash
         run: |
           echo "Running self-validation..."
-          templatetool --validate \
+          sysml2tools --validate \
             --results artifacts/validation-${{ matrix.os }}-dotnet${{ matrix.dotnet-version }}.trx \
             || { echo "✗ Self-validation failed"; exit 1; }
           echo "✓ Self-validation succeeded"
@@ -560,7 +560,7 @@ jobs:
           dotnet weasyprint
           --pdf-variant pdf/a-3u
           docs/build_notes/generated/build_notes.html
-          "docs/generated/TemplateDotNetTool Build Notes.pdf"
+          "docs/generated/SysML2Tools Build Notes.pdf"
 
       - name: Assert Build Notes Documents with FileAssert
         run: >
@@ -600,7 +600,7 @@ jobs:
           dotnet sarifmark
           --sarif artifacts/csharp.sarif
           --report docs/code_quality/generated/codeql-quality.md
-          --heading "Template DotNet Tool CodeQL Analysis"
+          --heading "SysML2 Tools CodeQL Analysis"
           --report-depth 1
 
       - name: Display CodeQL Quality Report
@@ -616,7 +616,7 @@ jobs:
         run: >
           dotnet sonarmark
           --server https://sonarcloud.io
-          --project-key demaconsulting_TemplateDotNetTool
+          --project-key demaconsulting_SysML2Tools
           --branch ${{ github.ref_name }}
           --token "$SONAR_TOKEN"
           --report docs/code_quality/generated/sonar-quality.md
@@ -643,7 +643,7 @@ jobs:
           dotnet weasyprint
           --pdf-variant pdf/a-3u
           docs/code_quality/generated/quality.html
-          "docs/generated/TemplateDotNetTool Code Quality.pdf"
+          "docs/generated/SysML2Tools Code Quality.pdf"
 
       - name: Assert Code Quality Documents with FileAssert
         run: >
@@ -705,7 +705,7 @@ jobs:
           dotnet weasyprint
           --pdf-variant pdf/a-3u
           docs/code_review_plan/generated/plan.html
-          "docs/generated/TemplateDotNetTool Review Plan.pdf"
+          "docs/generated/SysML2Tools Review Plan.pdf"
 
       - name: Generate Review Report HTML with Pandoc
         shell: bash
@@ -722,7 +722,7 @@ jobs:
           dotnet weasyprint
           --pdf-variant pdf/a-3u
           docs/code_review_report/generated/report.html
-          "docs/generated/TemplateDotNetTool Review Report.pdf"
+          "docs/generated/SysML2Tools Review Report.pdf"
 
       - name: Assert Code Review Documents with FileAssert
         run: >
@@ -754,7 +754,7 @@ jobs:
           dotnet weasyprint
           --pdf-variant pdf/a-3u
           docs/design/generated/design.html
-          "docs/generated/TemplateDotNetTool Software Design.pdf"
+          "docs/generated/SysML2Tools Software Design.pdf"
 
       - name: Assert Design Documents with FileAssert
         run: >
@@ -786,7 +786,7 @@ jobs:
           dotnet weasyprint
           --pdf-variant pdf/a-3u
           docs/verification/generated/verification.html
-          "docs/generated/TemplateDotNetTool Software Verification Design.pdf"
+          "docs/generated/SysML2Tools Software Verification Design.pdf"
 
       - name: Assert Verification Documents with FileAssert
         run: >
@@ -818,7 +818,7 @@ jobs:
           dotnet weasyprint
           --pdf-variant pdf/a-3u
           docs/user_guide/generated/user_guide.html
-          "docs/generated/TemplateDotNetTool User Guide.pdf"
+          "docs/generated/SysML2Tools User Guide.pdf"
 
       - name: Assert User Guide Documents with FileAssert
         run: >
@@ -883,7 +883,7 @@ jobs:
           dotnet weasyprint
           --pdf-variant pdf/a-3u
           docs/requirements_doc/generated/requirements.html
-          "docs/generated/TemplateDotNetTool Requirements.pdf"
+          "docs/generated/SysML2Tools Requirements.pdf"
 
       - name: Generate Trace Matrix HTML with Pandoc
         shell: bash
@@ -900,7 +900,7 @@ jobs:
           dotnet weasyprint
           --pdf-variant pdf/a-3u
           docs/requirements_report/generated/trace_matrix.html
-          "docs/generated/TemplateDotNetTool Trace Matrix.pdf"
+          "docs/generated/SysML2Tools Trace Matrix.pdf"
 
       - name: Assert Requirements Documents with FileAssert
         run: >

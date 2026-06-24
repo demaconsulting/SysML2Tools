@@ -1,7 +1,7 @@
 # OTS Software Verification
 
 This section provides verification evidence for all Off-The-Shelf (OTS) software items
-used by the Template DotNet Tool.
+used by the SysML2 Tools.
 
 ## Scope
 

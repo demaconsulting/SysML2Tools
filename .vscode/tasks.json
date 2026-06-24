@@ -9,7 +9,7 @@
         "build",
         "--configuration",
         "Release",
-        "${workspaceFolder}/DemaConsulting.TemplateDotNetTool.slnx"
+        "${workspaceFolder}/DemaConsulting.SysML2Tools.slnx"
       ],
       "problemMatcher": "$msCompile",
       "group": {
@@ -28,7 +28,7 @@
       "args": [
         "run",
         "--project",
-        "${workspaceFolder}/src/DemaConsulting.TemplateDotNetTool",
+        "${workspaceFolder}/src/DemaConsulting.SysML2Tools",
         "--configuration",
         "Release",
         "--framework",

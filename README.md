@@ -1,4 +1,4 @@
-# Template DotNet Tool
+# SysML2 Tools
 
 [![GitHub forks][badge-forks]][link-forks]
 [![GitHub stars][badge-stars]][link-stars]
@@ -35,33 +35,33 @@ This template demonstrates:
 Install the tool globally using the .NET CLI:
 
 ```bash
-dotnet tool install -g DemaConsulting.TemplateDotNetTool
+dotnet tool install -g DemaConsulting.SysML2Tools
 ```
 
 ## Usage
 
 ```bash
 # Default behavior (no arguments) — displays banner and copyright
-templatetool
+sysml2tools
 
 # Display version
-templatetool --version
+sysml2tools --version
 
 # Display help
-templatetool --help
+sysml2tools --help
 
 # Run self-validation
-templatetool --validate
+sysml2tools --validate
 
 # Save validation results (--result is an accepted alias for --results)
-templatetool --validate --results results.trx
-templatetool --validate --result results.xml
+sysml2tools --validate --results results.trx
+sysml2tools --validate --result results.xml
 
 # Set heading depth for embedded validation output
-templatetool --validate --depth 2
+sysml2tools --validate --depth 2
 
 # Silent mode with logging
-templatetool --silent --log output.log
+sysml2tools --silent --log output.log
 ```
 
 ## Command-Line Options
@@ -93,7 +93,7 @@ automatically.
 Running self-validation produces a report containing the following information:
 
 ```text
-# DEMA Consulting Template DotNet Tool
+# DEMA Consulting SysML2 Tools
 
 | Information         | Value                                              |
 | :------------------ | :------------------------------------------------- |
@@ -121,7 +121,7 @@ This is useful when embedding validation output into a larger markdown document:
 
 ```bash
 # Embed validation at heading level 2
-templatetool --validate --depth 2
+sysml2tools --validate --depth 2
 ```
 
 See the [User Guide][link-guide] for more details on the self-validation tests.
@@ -141,7 +141,7 @@ Generated documentation includes:
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/demaconsulting/TemplateDotNetTool/blob/main/CONTRIBUTING.md) for
+See [CONTRIBUTING.md](https://github.com/demaconsulting/SysML2Tools/blob/main/CONTRIBUTING.md) for
 guidelines on reporting bugs, suggesting features, and submitting pull requests.
 
 ## License
@@ -151,23 +151,23 @@ Copyright (c) DEMA Consulting. Licensed under the MIT License. See [LICENSE][lin
 By contributing to this project, you agree that your contributions will be licensed under the MIT License.
 
 <!-- Badge References -->
-[badge-forks]: https://img.shields.io/github/forks/demaconsulting/TemplateDotNetTool?style=plastic
-[badge-stars]: https://img.shields.io/github/stars/demaconsulting/TemplateDotNetTool?style=plastic
-[badge-contributors]: https://img.shields.io/github/contributors/demaconsulting/TemplateDotNetTool?style=plastic
-[badge-license]: https://img.shields.io/github/license/demaconsulting/TemplateDotNetTool?style=plastic
-[badge-build]: https://img.shields.io/github/actions/workflow/status/demaconsulting/TemplateDotNetTool/build_on_push.yaml?style=plastic
-[badge-quality]: https://sonarcloud.io/api/project_badges/measure?project=demaconsulting_TemplateDotNetTool&metric=alert_status
-[badge-security]: https://sonarcloud.io/api/project_badges/measure?project=demaconsulting_TemplateDotNetTool&metric=security_rating
-[badge-nuget]: https://img.shields.io/nuget/v/DemaConsulting.TemplateDotNetTool?style=plastic
+[badge-forks]: https://img.shields.io/github/forks/demaconsulting/SysML2Tools?style=plastic
+[badge-stars]: https://img.shields.io/github/stars/demaconsulting/SysML2Tools?style=plastic
+[badge-contributors]: https://img.shields.io/github/contributors/demaconsulting/SysML2Tools?style=plastic
+[badge-license]: https://img.shields.io/github/license/demaconsulting/SysML2Tools?style=plastic
+[badge-build]: https://img.shields.io/github/actions/workflow/status/demaconsulting/SysML2Tools/build_on_push.yaml?style=plastic
+[badge-quality]: https://sonarcloud.io/api/project_badges/measure?project=demaconsulting_SysML2Tools&metric=alert_status
+[badge-security]: https://sonarcloud.io/api/project_badges/measure?project=demaconsulting_SysML2Tools&metric=security_rating
+[badge-nuget]: https://img.shields.io/nuget/v/DemaConsulting.SysML2Tools?style=plastic
 
 <!-- Link References -->
-[link-forks]: https://github.com/demaconsulting/TemplateDotNetTool/network/members
-[link-stars]: https://github.com/demaconsulting/TemplateDotNetTool/stargazers
-[link-contributors]: https://github.com/demaconsulting/TemplateDotNetTool/graphs/contributors
-[link-license]: https://github.com/demaconsulting/TemplateDotNetTool/blob/main/LICENSE
-[link-build]: https://github.com/demaconsulting/TemplateDotNetTool/actions/workflows/build_on_push.yaml
-[link-quality]: https://sonarcloud.io/dashboard?id=demaconsulting_TemplateDotNetTool
-[link-security]: https://sonarcloud.io/dashboard?id=demaconsulting_TemplateDotNetTool
-[link-nuget]: https://www.nuget.org/packages/DemaConsulting.TemplateDotNetTool
-[link-guide]: https://github.com/demaconsulting/TemplateDotNetTool/blob/main/docs/user_guide/introduction.md
+[link-forks]: https://github.com/demaconsulting/SysML2Tools/network/members
+[link-stars]: https://github.com/demaconsulting/SysML2Tools/stargazers
+[link-contributors]: https://github.com/demaconsulting/SysML2Tools/graphs/contributors
+[link-license]: https://github.com/demaconsulting/SysML2Tools/blob/main/LICENSE
+[link-build]: https://github.com/demaconsulting/SysML2Tools/actions/workflows/build_on_push.yaml
+[link-quality]: https://sonarcloud.io/dashboard?id=demaconsulting_SysML2Tools
+[link-security]: https://sonarcloud.io/dashboard?id=demaconsulting_SysML2Tools
+[link-nuget]: https://www.nuget.org/packages/DemaConsulting.SysML2Tools
+[link-guide]: https://github.com/demaconsulting/SysML2Tools/blob/main/docs/user_guide/introduction.md
 [link-continuous-compliance]: https://github.com/demaconsulting/ContinuousCompliance
