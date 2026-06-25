@@ -20,6 +20,7 @@
 
 using DemaConsulting.SysML2Tools.Cli;
 using DemaConsulting.SysML2Tools.Parser;
+using DemaConsulting.SysML2Tools.Semantic;
 
 namespace DemaConsulting.SysML2Tools.Lint;
 
@@ -44,7 +45,7 @@ internal static class LintCommand
 
         context.WriteLine($"Linting {files.Count} file(s)...");
 
-        var result = await WorkspaceParser.ParseAsync(files).ConfigureAwait(false);
+        var result = await WorkspaceLoader.LoadAsync(files).ConfigureAwait(false);
 
         foreach (var diagnostic in result.Diagnostics)
         {

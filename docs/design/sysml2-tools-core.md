@@ -6,10 +6,14 @@ The `DemaConsulting.SysML2Tools` core library provides the SysML v2 parsing engi
 standard library, and the foundation for future semantic model, layout algorithms, and the
 `IRenderer` interface shared by all renderer packages.
 
-The system contains one subsystem in Phase 1: **Parser**, which is further divided into the public
-API unit (`WorkspaceParser`) and an internal subsystem (`Internal`) containing
-`SysmlDiagnosticListener` and `StdlibLoader`. Supporting data types (`DiagnosticSeverity`,
-`SysmlDiagnostic`, `WorkspaceParseResult`) are declared at the `Parser` namespace level.
+The system contains two subsystems in Phase 2: **Parser** and **Semantic**. The Parser subsystem
+provides syntax-level parsing, while the Semantic subsystem builds a symbol table and performs
+reference resolution. The Parser subsystem is further divided into the public API unit
+(`WorkspaceParser`) and an internal subsystem (`Internal`) containing `SysmlDiagnosticListener`
+and `StdlibLoader`. The Semantic subsystem contains the public `WorkspaceLoader` unit and an
+internal subsystem with `AstBuilder`, `SymbolTable`, `ReferenceResolver`, and `SupertypeWalker`.
+Supporting data types (`DiagnosticSeverity`, `SysmlDiagnostic`, `WorkspaceParseResult`,
+`SysmlLoadResult`, `SysmlWorkspace`) are declared at the appropriate namespace levels.
 
 ```mermaid
 flowchart TD
@@ -18,8 +22,20 @@ flowchart TD
         SysmlDiagnosticListener
         StdlibLoader
     end
+    subgraph Semantic
+        WorkspaceLoader
+        AstBuilder
+        SymbolTable
+        ReferenceResolver
+        SupertypeWalker
+    end
     WorkspaceParser --> StdlibLoader
     WorkspaceParser --> SysmlDiagnosticListener
+    WorkspaceLoader --> WorkspaceParser
+    WorkspaceLoader --> AstBuilder
+    WorkspaceLoader --> SymbolTable
+    WorkspaceLoader --> ReferenceResolver
+    WorkspaceLoader --> SupertypeWalker
 ```
 
 ## External Interfaces
@@ -62,6 +78,29 @@ file path.
 - *Role*: Data type.
 - *Values*: `Info`, `Warning`, `Error`.
 
+**WorkspaceLoader.LoadAsync**: Loads the embedded stdlib plus every user file into a semantic workspace.
+
+- *Type*: In-process .NET static async method.
+- *Role*: Provider.
+- *Contract*: Accepts `IEnumerable<string> filePaths`; returns `Task<SysmlLoadResult>` containing
+  the semantic workspace, all collected diagnostics, and a `HasErrors` flag. Stdlib ASTs are
+  cached; user files are parsed in parallel on the thread pool.
+- *Constraints*: `filePaths` must not be null; each path should be a readable file path.
+
+**SysmlLoadResult**: Aggregate result record returned by `WorkspaceLoader.LoadAsync`.
+
+- *Type*: Sealed record.
+- *Role*: Data transfer object.
+- *Contract*: Exposes `SysmlWorkspace? Workspace`, `IReadOnlyList<SysmlDiagnostic> Diagnostics`,
+  and `bool HasErrors`.
+
+**SysmlWorkspace**: Semantic workspace containing all registered declarations.
+
+- *Type*: Sealed class.
+- *Role*: Data container.
+- *Contract*: Exposes `IReadOnlyList<string> Files` and
+  `IReadOnlyDictionary<string, object> Declarations`.
+
 ## Dependencies
 
 - **Antlr4.Runtime.Standard** — ANTLR4 C# runtime; provides `AntlrInputStream`,
@@ -69,8 +108,9 @@ file path.
   the pre-generated `SysMLv2Lexer` and `SysMLv2Parser`. See *ANTLR4 Integration Design*.
 - **Embedded Stdlib resources** — 94 SysML v2 standard library files (58 `.sysml` + 36
   `.kerml`) from the Systems-Modeling/SysML-v2-Release tag 2026-04; licensed EPL-2.0 and
-  committed under `Stdlib/`. Phase 1 loads only the `.sysml` files; `.kerml` files are
-  embedded but not parsed until Phase 2.
+  committed under `Stdlib/`. All 94 stdlib files (58 `.sysml` + 36 `.kerml`) are loaded by
+  WorkspaceLoader; KerML parse errors are downgraded to Warnings because the SysML v2 grammar
+  does not fully cover KerML-specific syntax.
 
 ## Risk Control Measures
 
@@ -96,6 +136,26 @@ N/A — not a safety-classified software item.
 6. After all async work completes, `WorkspaceParser.ParseAsync` concatenates stdlib and user-file
    paths and diagnostics into a `WorkspaceParseResult` and returns it.
 
+### Semantic Data Flow
+
+1. `WorkspaceLoader.LoadAsync` awaits the shared `Lazy<Task<StdlibSemanticResult>>` stdlib
+   semantic task. On first call, the factory fires `Task.Run(BuildStdlibSemanticAsync)`, which
+   enumerates all embedded manifest resources matching both `.sysml` and `.kerml` extensions,
+   reads each stream, parses to a CST via `WorkspaceParser.ParseSourceToCst`, builds a typed
+   AST via `AstBuilder.Build`, and collects all diagnostics (KerML errors downgraded to Warnings).
+2. Concurrently, all caller-supplied file paths are dispatched to the thread pool via
+   `Task.WhenAll`, each reading file content and calling `WorkspaceParser.ParseSourceToCst`
+   followed by `AstBuilder.Build`; file I/O failures are caught and returned as Error-severity
+   diagnostics.
+3. `SymbolTable.RegisterAll` is called for each stdlib and user AST root, building the
+   qualified-name registry.
+4. `ReferenceResolver.ResolveAll` iterates all registered symbols, resolving supertype
+   references and emitting Warning diagnostics for unresolved names and circular imports.
+5. `SupertypeWalker.WalkAll` traverses every specialization chain, detecting cyclic
+   specialization and emitting Warning diagnostics for detected cycles.
+6. A `SysmlWorkspace` is constructed from the loaded file list and symbol table, and wrapped
+   in a `SysmlLoadResult` with all accumulated diagnostics.
+
 ## Design Constraints
 
 - Platform: multi-targets net8.0, net9.0, and net10.0 on Windows, Linux, and macOS.
@@ -104,5 +164,6 @@ N/A — not a safety-classified software item.
 - The ANTLR4-generated C# files under `Parser/Antlr/` are committed to the repository and
   must not be manually edited; they are regenerated using `antlr-4.13.1-complete.jar` as
   documented in `Grammar/README.md`.
-- Phase 1 performs syntax-only parsing (CST construction). No semantic model, symbol table,
-  or reference resolution is performed.
+- `WorkspaceParser` provides syntax-only parsing (CST construction). Semantic model
+  construction, symbol table registration, and reference resolution are performed by
+  `WorkspaceLoader` in the Semantic subsystem.

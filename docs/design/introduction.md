@@ -37,7 +37,14 @@ system, subsystem, and unit levels:
     - **WorkspaceParser** (Unit) — public API: parses file glob patterns and source strings against the embedded stdlib
     - **Internal** (Subsystem) — internal implementation details
       - **SysmlDiagnosticListener** (Unit) — collects ANTLR4 syntax errors as SysmlDiagnostic records
-      - **StdlibLoader** (Unit) — enumerates and loads embedded .sysml stdlib resources; defers .kerml to Phase 2
+      - **StdlibLoader** (Unit) — enumerates and loads embedded stdlib resources; KerML errors are downgraded to Warnings
+  - **Semantic** (Subsystem) — SysML/KerML semantic model: symbol table, reference resolution, supertype walking
+    - **WorkspaceLoader** (Unit) — public API: loads SysML/KerML files into a semantic workspace
+    - **Internal** (Subsystem) — internal semantic implementation
+      - **AstBuilder** (Unit) — builds AST from ANTLR4 CST with qualified names and supertype lists
+      - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes
+      - **ReferenceResolver** (Unit) — resolves supertype references; detects circular imports
+      - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
 - **DemaConsulting.SysML2Tools.Svg** (System) — SVG renderer: renders `LayoutTree` to
   SVG output with zero external dependencies
   - TODO: subsystems and units to be defined in Phase 4+
@@ -50,7 +57,7 @@ system, subsystem, and unit levels:
   - **Cli** (Subsystem) — command-line argument parsing and I/O
     - **Context** (Unit) — argument parser and I/O owner
   - **Lint** (Subsystem) — lint command implementation
-    - **LintCommand** (Unit) — resolves glob patterns, invokes WorkspaceParser, reports diagnostics
+    - **LintCommand** (Unit) — resolves glob patterns, invokes WorkspaceLoader, reports diagnostics
   - **SelfTest** (Subsystem) — self-validation test runner
     - **Validation** (Unit) — self-validation test runner
   - **Utilities** (Subsystem) — shared utilities
