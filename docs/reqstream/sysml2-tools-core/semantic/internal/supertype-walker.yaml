@@ -16,4 +16,4 @@ sections:
           invalid in SysML v2. The walker must detect and report these cycles without
           looping infinitely.
         tests:
-          - WorkspaceLoader_LoadAsync_SpecializesChain_Registered
+          - WorkspaceLoader_LoadAsync_CyclicSpecialization_ProducesWarning

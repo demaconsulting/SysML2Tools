@@ -252,6 +252,29 @@ public sealed class WorkspaceLoaderTests
         }
     }
 
+    // Level 10: Unreadable file produces Error diagnostic
+    /// <summary>
+    ///     A path to a file that cannot be read (non-existent) should produce an Error diagnostic.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnreadableFile_ProducesErrorDiagnostic()
+    {
+        // Arrange — path to a file that does not exist
+        var nonExistentPath = Path.Combine(
+            Path.GetTempPath(),
+            $"nonexistent_{Guid.NewGuid():N}.sysml");
+
+        // Act
+        var result = await WorkspaceLoader.LoadAsync([nonExistentPath]);
+
+        // Assert
+        Assert.NotNull(result.Workspace);
+        Assert.True(result.HasErrors, "Expected HasErrors to be true for an unreadable file");
+        Assert.Contains(result.Diagnostics,
+            d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Error &&
+                 d.FilePath == nonExistentPath);
+    }
+
     /// <summary>
     ///     Validates that a cyclic specialization chain (A specializes B, B specializes A)
     ///     produces a Warning diagnostic and completes in finite time.

@@ -26,4 +26,4 @@ sections:
           A file-read failure prevents the workspace from being built for that file.
           Reporting it as an Error diagnostic allows callers to surface the problem to users.
         tests:
-          - WorkspaceLoader_LoadAsync_EmptyFile_ReturnsNonNullWorkspace
+          - WorkspaceLoader_LoadAsync_UnreadableFile_ProducesErrorDiagnostic
