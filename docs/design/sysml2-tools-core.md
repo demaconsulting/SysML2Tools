@@ -26,14 +26,14 @@ flowchart TD
 
 ## External Interfaces
 
-**WorkspaceParser.Parse**: Parses the embedded stdlib plus every file in the provided collection.
+**WorkspaceParser.ParseAsync**: Parses the embedded stdlib plus every file in the provided collection asynchronously.
 
-- *Type*: In-process .NET static method.
+- *Type*: In-process .NET static async method.
 - *Role*: Provider.
-- *Contract*: Accepts `IEnumerable<string> filePaths`; returns `WorkspaceParseResult` containing
-  all parsed file paths and all collected diagnostics.
-- *Constraints*: `filePaths` must not be null; each path must be a readable file. Stdlib files are
-  always parsed first.
+- *Contract*: Accepts `IEnumerable<string> filePaths`; returns `Task<WorkspaceParseResult>` containing
+  all parsed file paths and all collected diagnostics. Stdlib is parsed once and cached; user files
+  are parsed in parallel on the thread pool.
+- *Constraints*: `filePaths` must not be null; each path must be a readable file.
 
 **WorkspaceParser.ParseSource**: Parses an in-memory source string with a caller-supplied virtual
 file path.
@@ -44,7 +44,7 @@ file path.
   `IReadOnlyList<SysmlDiagnostic>` containing all diagnostics from parsing that single source.
 - *Constraints*: None. Both parameters are used as-is; `filePath` appears verbatim in diagnostics.
 
-**WorkspaceParseResult**: Aggregate result record returned by `WorkspaceParser.Parse`.
+**WorkspaceParseResult**: Aggregate result record returned by `WorkspaceParser.ParseAsync`.
 
 - *Type*: Sealed class.
 - *Role*: Provider.
@@ -80,21 +80,23 @@ N/A — not a safety-classified software item.
 
 ## Data Flow
 
-1. `WorkspaceParser.Parse` calls `StdlibLoader.LoadAll()`, which enumerates all embedded
-   manifest resources whose names match the `Stdlib.` prefix and end with `.sysml`, then
-   reads each resource stream into a `(virtualPath, content)` pair.
-2. For each stdlib pair and then for each caller-supplied file path, `WorkspaceParser` reads
-   the file content and calls the internal `ParseSource` overload.
+1. `WorkspaceParser.ParseAsync` awaits the shared `Lazy<Task<...>>` stdlib result. On first call
+   the factory fires `Task.Run(ParseStdlibInternal)`, which calls `StdlibLoader.LoadAll()` to
+   enumerate all embedded manifest resources matching the `Stdlib.` prefix and ending with
+   `.sysml`, reads each stream into a `(virtualPath, content)` pair, and parses each with the
+   internal `ParseSource` overload.
+2. Concurrently, all caller-supplied file paths are dispatched to the thread pool via
+   `Task.WhenAll`, each reading its file content and calling the internal `ParseSource` overload.
 3. The internal `ParseSource` creates a `SysmlDiagnosticListener` bound to the current file
-   path and a shared `List<SysmlDiagnostic>`.
+   path and a per-file `List<SysmlDiagnostic>`.
 4. `SysMLv2Lexer` is constructed over an `AntlrInputStream`; the listener is registered on
    the lexer. A `CommonTokenStream` wraps the lexer. `SysMLv2Parser` is constructed over the
    token stream; the listener is also registered on the parser.
 5. The entry rule `rootNamespace()` is invoked; the resulting CST root is discarded in Phase 1.
    Any lexer or parser errors invoke `SysmlDiagnosticListener.SyntaxError`, which appends a
-   new `SysmlDiagnostic(filePath, line, column, Error, message)` to the shared list.
-6. After all files are processed, `WorkspaceParser.Parse` wraps the accumulated file list and
-   diagnostic list in a `WorkspaceParseResult` and returns it.
+   new `SysmlDiagnostic(filePath, line, column, Error, message)` to the per-file list.
+6. After all async work completes, `WorkspaceParser.ParseAsync` concatenates stdlib and user-file
+   paths and diagnostics into a `WorkspaceParseResult` and returns it.
 
 ## Design Constraints
 

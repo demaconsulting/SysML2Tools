@@ -35,12 +35,13 @@ sections:
 
       - id: SysML2Tools-Core-Parser-ParseGlobs
         title: >-
-          WorkspaceParser.Parse shall accept a collection of file paths and parse each
+          WorkspaceParser.ParseAsync shall accept a collection of file paths and parse each
           file against the embedded stdlib.
         justification: |
-          A collection-based API allows callers to supply any number of pre-resolved
+          A collection-based async API allows callers to supply any number of pre-resolved
           file paths and receive a single aggregate result, simplifying integration
-          with CLI tools and test harnesses.
+          with CLI tools and test harnesses. User files are parsed in parallel on the
+          thread pool; the stdlib is parsed once and cached across concurrent callers.
         tests:
           - Parse_StdlibOnly_NoErrors
           - Parse_FilesCount_IncludesStdlib
