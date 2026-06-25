@@ -5,3 +5,6 @@
 # Windows batch files require CRLF line endings to function correctly.
 *.bat text eol=crlf
 *.cmd text eol=crlf
+
+# ANTLR4-generated parser files — excluded from CodeQL and language stats.
+src/DemaConsulting.SysML2Tools/Parser/Antlr/*.cs linguist-generated=true
