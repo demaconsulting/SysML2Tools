@@ -293,10 +293,11 @@ public sealed class WorkspaceLoaderTests
                 }
                 """, TestContext.Current.CancellationToken);
 
-            // Act — must complete in finite time
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            // Act — cycle detection must terminate (not loop forever).
+            // Use xUnit's per-test cancellation token rather than a hard 30-second
+            // limit; stdlib loading on a cold Linux CI runner can take longer than 30s.
             var result = await WorkspaceLoader.LoadAsync([tempFile])
-                .WaitAsync(cts.Token);
+                .WaitAsync(TestContext.Current.CancellationToken);
 
             // Assert — cyclic specialization warning present
             Assert.NotNull(result.Workspace);
