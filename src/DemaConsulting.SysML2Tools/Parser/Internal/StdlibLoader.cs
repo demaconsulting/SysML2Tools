@@ -38,7 +38,7 @@ internal static class StdlibLoader
     /// </summary>
     /// <remarks>
     ///     Virtual paths use the <c>[stdlib]</c> prefix to distinguish them from user files
-    ///     in diagnostic messages.
+    ///     in diagnostic messages. Loads all 94 stdlib files (58 <c>.sysml</c> + 36 <c>.kerml</c>).
     /// </remarks>
     internal static IEnumerable<(string VirtualPath, string Content)> LoadAll()
     {
@@ -50,9 +50,9 @@ internal static class StdlibLoader
                 continue;
             }
 
-            if (!name.EndsWith(".sysml", StringComparison.OrdinalIgnoreCase))
+            if (!name.EndsWith(".sysml", StringComparison.OrdinalIgnoreCase) &&
+                !name.EndsWith(".kerml", StringComparison.OrdinalIgnoreCase))
             {
-                // .kerml files require the KerML grammar — deferred to Phase 2
                 continue;
             }
 

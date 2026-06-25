@@ -170,6 +170,52 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/OmgModelsTests.cs"
 
+  - id: SysML2Tools-Core-Semantic-Design
+    title: Review that DemaConsulting.SysML2Tools Semantic Design is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core/semantic.yaml
+    paths:
+      - "docs/design/introduction.md"
+      - "docs/design/sysml2-tools-core.md"
+      - "docs/design/sysml2-tools-core/semantic.md"
+      - "docs/design/sysml2-tools-core/semantic/**/*.md"
+
+  - id: SysML2Tools-Core-Semantic-Verification
+    title: Review that DemaConsulting.SysML2Tools Semantic Verification is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core/semantic.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-core.md"
+      - "docs/verification/sysml2-tools-core/semantic.md"
+      - "docs/verification/sysml2-tools-core/semantic/**/*.md"
+
+  - id: SysML2Tools-Core-Semantic-AllRequirements
+    title: Review that All DemaConsulting.SysML2Tools Semantic Requirements are Complete
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-core/semantic/**/*.yaml"
+      - "docs/reqstream/sysml2-tools-core/semantic.yaml"
+
+  - id: SysML2Tools-Core-Semantic-Implementation
+    title: Review of DemaConsulting.SysML2Tools Semantic Implementation
+    context:
+      - docs/reqstream/sysml2-tools-core/semantic.yaml
+      - docs/design/sysml2-tools-core/semantic.md
+    paths:
+      - "src/DemaConsulting.SysML2Tools/Semantic/WorkspaceLoader.cs"
+      - "src/DemaConsulting.SysML2Tools/Semantic/SysmlLoadResult.cs"
+      - "src/DemaConsulting.SysML2Tools/Semantic/SysmlWorkspace.cs"
+      - "src/DemaConsulting.SysML2Tools/Semantic/Internal/SysmlNode.cs"
+      - "src/DemaConsulting.SysML2Tools/Semantic/Internal/AstBuilder.cs"
+      - "src/DemaConsulting.SysML2Tools/Semantic/Internal/SymbolTable.cs"
+      - "src/DemaConsulting.SysML2Tools/Semantic/Internal/ReferenceResolver.cs"
+      - "src/DemaConsulting.SysML2Tools/Semantic/Internal/SupertypeWalker.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
+
   # SysML2Tools SVG Renderer
   - id: SysML2Tools-Svg-Architecture
     title: Review that DemaConsulting.SysML2Tools.Svg Architecture Satisfies Requirements

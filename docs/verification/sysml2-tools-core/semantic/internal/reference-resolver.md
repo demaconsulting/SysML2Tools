@@ -1,0 +1,3 @@
+# ReferenceResolver Verification
+
+Verified indirectly through WorkspaceLoaderTests. Unresolved reference detection is confirmed by WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning. Circular import detection is confirmed by WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop.

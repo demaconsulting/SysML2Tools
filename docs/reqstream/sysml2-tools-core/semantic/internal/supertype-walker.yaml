@@ -1,0 +1,19 @@
+---
+# SupertypeWalker Requirements
+#
+# PURPOSE:
+# - Define requirements for the SupertypeWalker internal unit
+
+sections:
+  - title: SupertypeWalker Requirements
+    requirements:
+      - id: SysML2Tools-Core-Semantic-Internal-SupertypeWalker-Walk
+        title: >-
+          SupertypeWalker.WalkAll shall traverse the specialization chains of all
+          registered symbols and detect cyclic specialization.
+        justification: |
+          Cyclic specialization (e.g., A specializes B, B specializes A) is semantically
+          invalid in SysML v2. The walker must detect and report these cycles without
+          looping infinitely.
+        tests:
+          - WorkspaceLoader_LoadAsync_SpecializesChain_Registered

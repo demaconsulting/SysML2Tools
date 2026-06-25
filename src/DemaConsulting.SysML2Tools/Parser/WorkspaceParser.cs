@@ -156,6 +156,11 @@ public static class WorkspaceParser
     /// <summary>
     ///     Parses the stdlib and returns the aggregate files and diagnostics.
     /// </summary>
+    /// <remarks>
+    ///     KerML files are included in the file count but any parse errors they produce are downgraded
+    ///     to Warnings, since the SysML v2 grammar does not fully cover KerML-specific syntax.
+    ///     KerML semantic support is handled at the semantic layer.
+    /// </remarks>
     private static (IReadOnlyList<string> Files, IReadOnlyList<SysmlDiagnostic> Diagnostics) ParseStdlibInternal()
     {
         var files = new List<string>();
@@ -163,16 +168,37 @@ public static class WorkspaceParser
         foreach (var (virtualPath, content) in StdlibLoader.LoadAll())
         {
             files.Add(virtualPath);
-            ParseSource(virtualPath, content, diagnostics);
+            var fileDiagnostics = new List<SysmlDiagnostic>();
+            ParseSource(virtualPath, content, fileDiagnostics);
+
+            // KerML files may produce parse errors with the SysML v2 grammar — downgrade to Warning
+            if (virtualPath.EndsWith(".kerml", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var d in fileDiagnostics)
+                {
+                    diagnostics.Add(d.Severity == DiagnosticSeverity.Error
+                        ? d with { Severity = DiagnosticSeverity.Warning }
+                        : d);
+                }
+            }
+            else
+            {
+                diagnostics.AddRange(fileDiagnostics);
+            }
         }
 
         return (files, diagnostics);
     }
 
     /// <summary>
-    ///     Parses SysML v2 source text and appends any diagnostics to <paramref name="diagnostics"/>.
+    ///     Parses SysML v2 source text, appends diagnostics, and returns the CST root.
     /// </summary>
-    private static void ParseSource(string filePath, string content, List<SysmlDiagnostic> diagnostics)
+    /// <param name="filePath">Virtual file path used in diagnostics.</param>
+    /// <param name="content">SysML v2 source text.</param>
+    /// <param name="diagnostics">Mutable list to append parse diagnostics to.</param>
+    /// <returns>The CST root <see cref="SysMLv2Parser.RootNamespaceContext"/>.</returns>
+    internal static SysMLv2Parser.RootNamespaceContext ParseSourceToCst(
+        string filePath, string content, List<SysmlDiagnostic> diagnostics)
     {
         var listener = new SysmlDiagnosticListener(filePath, diagnostics);
 
@@ -188,7 +214,15 @@ public static class WorkspaceParser
         parser.RemoveErrorListeners();
         parser.AddErrorListener(listener);
 
-        // Trigger parse; the CST root is discarded in Phase 1
-        _ = parser.rootNamespace();
+        return parser.rootNamespace();
+    }
+
+    /// <summary>
+    ///     Parses SysML v2 source text and appends any diagnostics to <paramref name="diagnostics"/>.
+    /// </summary>
+    private static void ParseSource(string filePath, string content, List<SysmlDiagnostic> diagnostics)
+    {
+        // Invoke full parse; discard the CST — only diagnostics are retained
+        _ = ParseSourceToCst(filePath, content, diagnostics);
     }
 }

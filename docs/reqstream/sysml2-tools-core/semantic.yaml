@@ -1,0 +1,79 @@
+---
+# Semantic Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the SysML2Tools Semantic subsystem
+# - WorkspaceLoader provides the public API for loading SysML/KerML files into a semantic workspace
+# - Requirements describe observable semantic loading behavior, not internal implementation
+
+sections:
+  - title: Semantic Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Core-Semantic-LoadAsync
+        title: >-
+          WorkspaceLoader.LoadAsync shall accept a collection of file paths and load each file
+          against the embedded stdlib, returning a SysmlLoadResult.
+        justification: |
+          A collection-based async API allows callers to supply any number of pre-resolved
+          file paths and receive a single aggregate result including a semantic workspace
+          and all diagnostics. Stdlib is loaded and cached; user files are processed in parallel.
+        tests:
+          - WorkspaceLoader_LoadAsync_NoFiles_ReturnsNonNullWorkspace
+          - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
+
+      - id: SysML2Tools-Core-Semantic-SymbolRegistration
+        title: >-
+          WorkspaceLoader.LoadAsync shall register all named declarations with their
+          fully-qualified names in the workspace Declarations dictionary.
+        justification: |
+          A qualified-name registry enables callers to look up declarations by their fully
+          qualified names, supporting IDE integration, reference resolution, and future diagram
+          rendering features.
+        tests:
+          - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
+          - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames
+          - WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition
+
+      - id: SysML2Tools-Core-Semantic-StdlibDeclarations
+        title: >-
+          WorkspaceLoader.LoadAsync shall load all 94 embedded stdlib files and register
+          their declarations before processing user files.
+        justification: |
+          The SysML v2 and KerML standard library defines the base types and packages that
+          user models reference. Loading stdlib first ensures user files are resolved in
+          the correct context and stdlib declarations are available for reference resolution.
+        tests:
+          - WorkspaceLoader_LoadAsync_NoFiles_ReturnsNonNullWorkspace
+          - WorkspaceLoader_LoadAsync_StdlibDeclarations_Registered
+
+      - id: SysML2Tools-Core-Semantic-UnresolvedReference
+        title: >-
+          WorkspaceLoader.LoadAsync shall produce a Warning diagnostic for each supertype
+          reference that cannot be resolved in the symbol table.
+        justification: |
+          Unresolved supertype references indicate that a definition specializes a type that
+          has not been loaded. Reporting these as Warnings (not Errors) allows callers to
+          diagnose incomplete models while still returning a usable workspace.
+        tests:
+          - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
+
+      - id: SysML2Tools-Core-Semantic-CircularImport
+        title: >-
+          WorkspaceLoader.LoadAsync shall detect circular import chains and produce a Warning
+          diagnostic without looping infinitely.
+        justification: |
+          Circular imports in SysML models can arise from split namespace declarations across
+          files. The loader must detect and report these without hanging the calling process.
+        tests:
+          - WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop
+
+      - id: SysML2Tools-Core-Semantic-HasErrors
+        title: >-
+          SysmlLoadResult.HasErrors shall return true if and only if at least one
+          Error-severity diagnostic is present in the result.
+        justification: |
+          Callers need a simple boolean gate to decide whether to fail a build or report
+          errors without inspecting the full diagnostic list themselves.
+        tests:
+          - WorkspaceLoader_LoadAsync_EmptyFile_ReturnsNonNullWorkspace
+          - WorkspaceLoader_LoadAsync_StdlibDeclarations_Registered

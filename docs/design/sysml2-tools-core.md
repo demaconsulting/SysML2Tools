@@ -6,10 +6,14 @@ The `DemaConsulting.SysML2Tools` core library provides the SysML v2 parsing engi
 standard library, and the foundation for future semantic model, layout algorithms, and the
 `IRenderer` interface shared by all renderer packages.
 
-The system contains one subsystem in Phase 1: **Parser**, which is further divided into the public
-API unit (`WorkspaceParser`) and an internal subsystem (`Internal`) containing
-`SysmlDiagnosticListener` and `StdlibLoader`. Supporting data types (`DiagnosticSeverity`,
-`SysmlDiagnostic`, `WorkspaceParseResult`) are declared at the `Parser` namespace level.
+The system contains two subsystems in Phase 2: **Parser** and **Semantic**. The Parser subsystem
+provides syntax-level parsing, while the Semantic subsystem builds a symbol table and performs
+reference resolution. The Parser subsystem is further divided into the public API unit
+(`WorkspaceParser`) and an internal subsystem (`Internal`) containing `SysmlDiagnosticListener`
+and `StdlibLoader`. The Semantic subsystem contains the public `WorkspaceLoader` unit and an
+internal subsystem with `AstBuilder`, `SymbolTable`, `ReferenceResolver`, and `SupertypeWalker`.
+Supporting data types (`DiagnosticSeverity`, `SysmlDiagnostic`, `WorkspaceParseResult`,
+`SysmlLoadResult`, `SysmlWorkspace`) are declared at the appropriate namespace levels.
 
 ```mermaid
 flowchart TD
@@ -18,8 +22,20 @@ flowchart TD
         SysmlDiagnosticListener
         StdlibLoader
     end
+    subgraph Semantic
+        WorkspaceLoader
+        AstBuilder
+        SymbolTable
+        ReferenceResolver
+        SupertypeWalker
+    end
     WorkspaceParser --> StdlibLoader
     WorkspaceParser --> SysmlDiagnosticListener
+    WorkspaceLoader --> WorkspaceParser
+    WorkspaceLoader --> AstBuilder
+    WorkspaceLoader --> SymbolTable
+    WorkspaceLoader --> ReferenceResolver
+    WorkspaceLoader --> SupertypeWalker
 ```
 
 ## External Interfaces

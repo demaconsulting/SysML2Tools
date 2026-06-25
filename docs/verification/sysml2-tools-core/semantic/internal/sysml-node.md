@@ -1,0 +1,3 @@
+# SysmlNode Verification
+
+Verified indirectly through WorkspaceLoaderTests. The correct construction of SysmlPackageNode and SysmlDefinitionNode is confirmed by WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration and WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition.

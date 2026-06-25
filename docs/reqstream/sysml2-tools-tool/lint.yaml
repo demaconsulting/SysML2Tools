@@ -22,12 +22,12 @@ sections:
 
       - id: SysML2Tools-Tool-Lint-Parse
         title: >-
-          The LintCommand shall invoke WorkspaceParser.ParseAsync with the resolved
+          The LintCommand shall invoke WorkspaceLoader.LoadAsync with the resolved
           file paths derived from the provided patterns.
         justification: |
-          Delegating parsing to WorkspaceParser ensures that all SysML files are
-          validated against the embedded stdlib and that diagnostics are collected
-          consistently for all user-supplied files.
+          Delegating loading to WorkspaceLoader ensures that all SysML files are
+          validated against the embedded stdlib, that semantic analysis is performed,
+          and that all diagnostics are collected consistently for all user-supplied files.
         tests:
           - LintSubsystem_Parse_ValidFile_ParsesWithoutErrors
 

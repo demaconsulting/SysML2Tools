@@ -1,0 +1,3 @@
+# AstBuilder Verification
+
+Verified indirectly through WorkspaceLoaderTests. AstBuilder name extraction is confirmed by WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames. Supertype extraction is confirmed by WorkspaceLoader_LoadAsync_SpecializesChain_Registered.

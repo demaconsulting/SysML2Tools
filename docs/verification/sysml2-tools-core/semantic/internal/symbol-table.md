@@ -1,0 +1,3 @@
+# SymbolTable Verification
+
+Verified indirectly through WorkspaceLoaderTests. Registration is confirmed by WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration. Lookup behavior is confirmed by WorkspaceLoader_LoadAsync_SpecializesChain_Registered.

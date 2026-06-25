@@ -102,13 +102,13 @@ public sealed class WorkspaceParserTests
 
     /// <summary>
     ///     Stdlib is always loaded — even when no user files are passed.
-    ///     Phase 1 loads the 58 SysML stdlib files; KerML files are embedded but parsed in Phase 2.
+    ///     Phase 2 loads all 94 stdlib files (58 .sysml + 36 .kerml).
     /// </summary>
     [Fact]
     public async Task Parse_FilesCount_IncludesStdlib()
     {
         var result = await WorkspaceParser.ParseAsync([]);
-        Assert.True(result.Files.Count >= 58,
-            $"Expected at least 58 stdlib files, got {result.Files.Count}");
+        Assert.True(result.Files.Count >= 94,
+            $"Expected at least 94 stdlib files, got {result.Files.Count}");
     }
 }

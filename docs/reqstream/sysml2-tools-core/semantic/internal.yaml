@@ -1,0 +1,43 @@
+---
+# Semantic Internal Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the internal implementation of the Semantic subsystem
+# - Internal components: AstBuilder, SymbolTable, ReferenceResolver, SupertypeWalker
+
+sections:
+  - title: Semantic Internal Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Core-Semantic-Internal-AstBuild
+        title: >-
+          The internal semantic components shall build an AST from the ANTLR4 CST and
+          register all named elements in the symbol table.
+        justification: |
+          A symbol table indexed by qualified name is required for reference resolution
+          and supertype walking. The AST provides a structured representation of the model.
+        tests:
+          - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
+          - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames
+          - WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition
+
+      - id: SysML2Tools-Core-Semantic-Internal-ReferenceResolution
+        title: >-
+          The ReferenceResolver shall resolve supertype references against the symbol table
+          and produce Warning diagnostics for any unresolved names.
+        justification: |
+          Reference resolution identifies incomplete models where supertype names do not
+          correspond to any loaded declaration. Warnings allow callers to inspect model
+          completeness without blocking on hard errors.
+        tests:
+          - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
+          - WorkspaceLoader_LoadAsync_SpecializesChain_Registered
+
+      - id: SysML2Tools-Core-Semantic-Internal-SupertypeWalking
+        title: >-
+          The SupertypeWalker shall traverse specialization chains and detect cyclic
+          specialization, producing a Warning diagnostic for each cycle.
+        justification: |
+          Cyclic specialization (A specializes B, B specializes A) is invalid in SysML v2
+          and must be detected to prevent infinite loops in downstream analysis.
+        tests:
+          - WorkspaceLoader_LoadAsync_SpecializesChain_Registered
