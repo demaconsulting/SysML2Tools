@@ -25,6 +25,70 @@ using DemaConsulting.SysML2Tools.Parser.Internal;
 namespace DemaConsulting.SysML2Tools.Parser;
 
 /// <summary>
+///     Severity level of a SysML diagnostic message.
+/// </summary>
+public enum DiagnosticSeverity
+{
+    /// <summary>Informational message — not a problem.</summary>
+    Info,
+
+    /// <summary>Warning — parseable but suspicious.</summary>
+    Warning,
+
+    /// <summary>Error — the file cannot be parsed or resolved correctly.</summary>
+    Error
+}
+
+/// <summary>
+///     A single diagnostic message produced while parsing a SysML v2 file.
+/// </summary>
+/// <param name="FilePath">
+///     The source file path (or a <c>[stdlib]…</c> virtual path for embedded library files).
+/// </param>
+/// <param name="Line">One-based line number within <paramref name="FilePath"/>.</param>
+/// <param name="Column">Zero-based column offset within the line.</param>
+/// <param name="Severity">Severity of the diagnostic.</param>
+/// <param name="Message">Human-readable description of the problem.</param>
+public sealed record SysmlDiagnostic(
+    string FilePath,
+    int Line,
+    int Column,
+    DiagnosticSeverity Severity,
+    string Message);
+
+/// <summary>
+///     The aggregate result of parsing a SysML v2 workspace (stdlib + user files).
+/// </summary>
+public sealed class WorkspaceParseResult
+{
+    /// <summary>
+    ///     Initializes a new instance of <see cref="WorkspaceParseResult"/>.
+    /// </summary>
+    /// <param name="files">All files that were parsed (stdlib + user files).</param>
+    /// <param name="diagnostics">All diagnostics collected across all files.</param>
+    internal WorkspaceParseResult(IReadOnlyList<string> files, IReadOnlyList<SysmlDiagnostic> diagnostics)
+    {
+        Files = files;
+        Diagnostics = diagnostics;
+    }
+
+    /// <summary>
+    ///     Gets all file paths that were parsed, including stdlib virtual paths.
+    /// </summary>
+    public IReadOnlyList<string> Files { get; }
+
+    /// <summary>
+    ///     Gets all diagnostics collected across every parsed file.
+    /// </summary>
+    public IReadOnlyList<SysmlDiagnostic> Diagnostics { get; }
+
+    /// <summary>
+    ///     Gets a value indicating whether any error-level diagnostics exist.
+    /// </summary>
+    public bool HasErrors => Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+}
+
+/// <summary>
 ///     Parses one or more SysML v2 source files together with the OMG stdlib.
 /// </summary>
 /// <remarks>
