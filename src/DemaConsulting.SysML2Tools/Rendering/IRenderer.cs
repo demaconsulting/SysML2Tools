@@ -21,5 +21,8 @@ public interface IRenderer
     /// <summary>
     /// Renders the layout tree and writes the output to <paramref name="output"/>.
     /// </summary>
+    /// <param name="layout">The layout tree describing all nodes to render.</param>
+    /// <param name="options">Render options including theme and scale.</param>
+    /// <param name="output">Destination stream that receives all rendered bytes.</param>
     void Render(LayoutTree layout, RenderOptions options, Stream output);
 }

@@ -25,6 +25,10 @@ public enum PortSide
 /// <summary>
 /// A port node pinned to the edge of its parent box. Position is absolute.
 /// </summary>
+/// <param name="CentreX">Absolute X coordinate of the port centre in logical pixels.</param>
+/// <param name="CentreY">Absolute Y coordinate of the port centre in logical pixels.</param>
+/// <param name="Side">Edge of the parent box that this port is attached to.</param>
+/// <param name="Label">Optional text label displayed beside the port symbol.</param>
 public sealed record LayoutPort(
     double CentreX,
     double CentreY,

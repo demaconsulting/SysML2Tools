@@ -90,7 +90,7 @@ sections:
           (e.g., hierarchical, force-directed) to produce the same LayoutTree representation
           consumed by any IRenderer implementation, maximizing reuse.
         tests:
-          - ILayoutStrategy_BuildLayout_ReturnsLayoutTree
+          - ViewContext_Construction_StoresAllFields
 
       - id: SysML2Tools-Core-Rendering-DiagramRenderer
         title: >-

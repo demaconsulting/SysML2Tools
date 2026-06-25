@@ -19,6 +19,8 @@ public enum BoxShape
 /// <summary>
 /// A single compartment within a box (e.g., attributes section, operations section).
 /// </summary>
+/// <param name="Title">Optional compartment header text; <see langword="null"/> for untitled compartments.</param>
+/// <param name="Rows">Text rows displayed inside the compartment.</param>
 public sealed record LayoutCompartment(
     string? Title,
     IReadOnlyList<string> Rows);
@@ -26,6 +28,15 @@ public sealed record LayoutCompartment(
 /// <summary>
 /// A rectangular container node with optional label, depth, compartments, and nested children.
 /// </summary>
+/// <param name="X">Absolute X coordinate of the left edge in logical pixels.</param>
+/// <param name="Y">Absolute Y coordinate of the top edge in logical pixels.</param>
+/// <param name="Width">Width of the box in logical pixels.</param>
+/// <param name="Height">Height of the box in logical pixels.</param>
+/// <param name="Label">Optional text label displayed at the top of the box.</param>
+/// <param name="Depth">Nesting depth used by the renderer to index into <see cref="DemaConsulting.SysML2Tools.Rendering.Theme.DepthFillColors"/>.</param>
+/// <param name="Shape">Visual shape of the box outline.</param>
+/// <param name="Compartments">Ordered list of compartments displayed below the label.</param>
+/// <param name="Children">Nested layout nodes contained spatially within this box.</param>
 public sealed record LayoutBox(
     double X,
     double Y,

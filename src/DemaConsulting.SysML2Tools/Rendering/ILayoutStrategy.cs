@@ -25,5 +25,8 @@ public interface ILayoutStrategy
     /// <summary>
     /// Builds the complete layout for the given view.
     /// </summary>
+    /// <param name="context">View context identifying the workspace and view name to lay out.</param>
+    /// <param name="options">Render options supplying scale and depth limit hints.</param>
+    /// <returns>A fully resolved <see cref="LayoutTree"/> with all positions and waypoints computed.</returns>
     LayoutTree BuildLayout(ViewContext context, RenderOptions options);
 }

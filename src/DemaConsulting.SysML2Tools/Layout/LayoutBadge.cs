@@ -28,6 +28,11 @@ public enum BadgeShape
 /// <summary>
 /// A small icon badge at an absolute centre position.
 /// </summary>
+/// <param name="CentreX">Absolute X coordinate of the badge centre in logical pixels.</param>
+/// <param name="CentreY">Absolute Y coordinate of the badge centre in logical pixels.</param>
+/// <param name="Size">Diameter of the badge bounding circle in logical pixels.</param>
+/// <param name="Shape">Visual shape of the badge icon.</param>
+/// <param name="Label">Optional text label displayed beside the badge; <see langword="null"/> for icon-only badges.</param>
 public sealed record LayoutBadge(
     double CentreX,
     double CentreY,

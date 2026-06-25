@@ -126,7 +126,7 @@ flowchart TD
 
 ### Design Constraints
 
-- `DiagramRenderer`, `IRenderer`, `ILayoutStrategy`, and `ILayoutStrategy` are Phase 3
+- `DiagramRenderer`, `IRenderer`, `ILayoutStrategy`, and `ViewContext` are Phase 3
   interface definitions. All `Render` and `RenderWorkspace` method bodies throw
   `NotImplementedException` until Phase 4 implementation.
 - `ViewContext.Workspace` references `SysmlWorkspace` from
