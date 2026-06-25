@@ -65,6 +65,34 @@ words:
   - versionmark
   - Weasyprint
   - yamlfix
+  - LayoutBadge
+  - LayoutBand
+  - LayoutLifeline
+  - LayoutActivation
+  - LayoutGrid
+  - LayoutCompartment
+  - ArrowheadStyle
+  - BandOrientation
+  - BadgeShape
+  - PortSide
+  - FontDescriptor
+  - DepthFillColors
+  - LineCornerRadius
+  - LabelPadding
+  - CentreX
+  - CentreY
+  - ColSpan
+  - DiagramRenderer
+  - ILayoutStrategy
+  - RenderOutput
+  - DepthLimit
+  - waypoints
+  - arrowhead
+  - pseudostate
+  - pseudostates
+  - renderable
+  - Segoe
+  - colour
 
 # Exclude common build artifacts, dependencies, and vendored third-party code
 ignorePaths:

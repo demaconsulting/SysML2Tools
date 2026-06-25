@@ -11,6 +11,8 @@ includes:
   - docs/reqstream/sysml2-tools-core/semantic/internal/symbol-table.yaml
   - docs/reqstream/sysml2-tools-core/semantic/internal/reference-resolver.yaml
   - docs/reqstream/sysml2-tools-core/semantic/internal/supertype-walker.yaml
+  - docs/reqstream/sysml2-tools-core/layout.yaml
+  - docs/reqstream/sysml2-tools-core/rendering.yaml
   - docs/reqstream/sysml2-tools-svg.yaml
   - docs/reqstream/sysml2-tools-png.yaml
   - docs/reqstream/sysml2-tools-tool.yaml

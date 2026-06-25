@@ -45,6 +45,8 @@ system, subsystem, and unit levels:
       - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes
       - **ReferenceResolver** (Unit) — resolves supertype references; detects circular imports
       - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
+  - **Layout** (Subsystem) — LayoutTree intermediate representation: nine node types covering all SysML diagram elements
+  - **Rendering** (Subsystem) — rendering pipeline interfaces: IRenderer, ILayoutStrategy, Theme, RenderOptions, DiagramRenderer
 - **DemaConsulting.SysML2Tools.Svg** (System) — SVG renderer: renders `LayoutTree` to
   SVG output with zero external dependencies
   - TODO: subsystems and units to be defined in Phase 4+
@@ -87,9 +89,11 @@ reviewers an explicit navigation aid from design to code:
 - **src/** — source projects
   - **DemaConsulting.SysML2Tools/** — core library
     - **Grammar/** — ANTLR4 grammar files (hand-maintained; see Grammar/README.md)
+    - **Layout/** — LayoutTree intermediate representation (Phase 3+)
     - **Parser/** — SysML v2 parsing subsystem
       - **Antlr/** — ANTLR4-generated C# (committed; not hand-written)
       - **Internal/** — internal implementation (SysmlDiagnosticListener, StdlibLoader)
+    - **Rendering/** — rendering interfaces and theme (Phase 3+)
     - **Stdlib/** — embedded SysML v2 standard library files (EPL-2.0; see Stdlib/README.md)
   - **DemaConsulting.SysML2Tools.Svg/** — SVG renderer (Phase 0: stub)
   - **DemaConsulting.SysML2Tools.Png/** — PNG renderer (Phase 0: stub)

@@ -242,6 +242,46 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
       - "test/SysMLModels/software-structure.sysml"
 
+  - id: SysML2Tools-Core-Layout-Design
+    title: Review that DemaConsulting.SysML2Tools Layout Design is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/reqstream/sysml2-tools-core/layout.yaml
+    paths:
+      - "docs/design/introduction.md"
+      - "docs/design/sysml2-tools-core.md"
+      - "docs/design/sysml2-tools-core/layout.md"
+
+  - id: SysML2Tools-Core-Layout-Verification
+    title: Review that DemaConsulting.SysML2Tools Layout Verification is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/reqstream/sysml2-tools-core/layout.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-core.md"
+      - "docs/verification/sysml2-tools-core/layout.md"
+
+  - id: SysML2Tools-Core-Rendering-Design
+    title: Review that DemaConsulting.SysML2Tools Rendering Design is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/reqstream/sysml2-tools-core/rendering.yaml
+    paths:
+      - "docs/design/introduction.md"
+      - "docs/design/sysml2-tools-core.md"
+      - "docs/design/sysml2-tools-core/rendering.md"
+
+  - id: SysML2Tools-Core-Rendering-Verification
+    title: Review that DemaConsulting.SysML2Tools Rendering Verification is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/reqstream/sysml2-tools-core/rendering.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-core.md"
+      - "docs/verification/sysml2-tools-core/rendering.md"
+
   # SysML2Tools SVG Renderer
   - id: SysML2Tools-Svg-Architecture
     title: Review that DemaConsulting.SysML2Tools.Svg Architecture Satisfies Requirements

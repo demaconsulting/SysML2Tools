@@ -15,6 +15,12 @@ internal subsystem with `AstBuilder`, `SymbolTable`, `ReferenceResolver`, and `S
 Supporting data types (`DiagnosticSeverity`, `SysmlDiagnostic`, `WorkspaceParseResult`,
 `SysmlLoadResult`, `SysmlWorkspace`) are declared at the appropriate namespace levels.
 
+Phase 3 adds two further subsystems: **Layout** and **Rendering**. The Layout subsystem defines
+the `LayoutTree` intermediate representation consumed by renderers — nine immutable node record
+types covering all SysML diagram elements. The Rendering subsystem defines the interfaces and
+data types that form the rendering pipeline: `IRenderer`, `ILayoutStrategy`, `Theme`,
+`RenderOptions`, `RenderOutput`, and `DiagramRenderer`.
+
 ```mermaid
 flowchart TD
     subgraph Parser
@@ -29,6 +35,17 @@ flowchart TD
         ReferenceResolver
         SupertypeWalker
     end
+    subgraph Layout
+        LayoutTree
+        LayoutNode
+    end
+    subgraph Rendering
+        DiagramRenderer
+        ILayoutStrategy
+        IRenderer
+        Theme
+        RenderOptions
+    end
     WorkspaceParser --> StdlibLoader
     WorkspaceParser --> SysmlDiagnosticListener
     WorkspaceLoader --> WorkspaceParser
@@ -36,6 +53,11 @@ flowchart TD
     WorkspaceLoader --> SymbolTable
     WorkspaceLoader --> ReferenceResolver
     WorkspaceLoader --> SupertypeWalker
+    DiagramRenderer --> ILayoutStrategy
+    DiagramRenderer --> IRenderer
+    ILayoutStrategy --> LayoutTree
+    IRenderer --> LayoutTree
+    DiagramRenderer --> WorkspaceLoader
 ```
 
 ## External Interfaces
@@ -101,6 +123,35 @@ file path.
 - *Contract*: Exposes `IReadOnlyList<string> Files` and
   `IReadOnlyDictionary<string, object> Declarations`.
 
+**IRenderer**: Low-level renderer interface (Phase 3+).
+
+- *Type*: Interface.
+- *Role*: Consumer.
+- *Contract*: `string MediaType { get; }`, `string DefaultExtension { get; }`,
+  `void Render(LayoutTree layout, RenderOptions options, Stream output)`.
+  Implementations must be pure and stateless.
+
+**ILayoutStrategy**: Layout computation interface (Phase 3+).
+
+- *Type*: Interface.
+- *Role*: Provider.
+- *Contract*: `LayoutTree BuildLayout(ViewContext context, RenderOptions options)`.
+
+**LayoutTree**: Intermediate representation for one rendered diagram view (Phase 3+).
+
+- *Type*: Sealed record.
+- *Role*: Data container.
+- *Contract*: `double Width`, `double Height`, `IReadOnlyList<LayoutNode> Nodes`.
+  All coordinates are absolute; origin is top-left.
+
+**Theme**: Visual rendering configuration (Phase 3+).
+
+- *Type*: Sealed record.
+- *Role*: Configuration.
+- *Contract*: `DepthFillColors`, `StrokeColor`, `StrokeWidth`, `LineCornerRadius`,
+  `FontSizeTitle`, `FontSizeBody`, `LabelPadding`, `Font`. Three built-in instances are
+  provided by `Themes.Light`, `Themes.Dark`, and `Themes.Print`.
+
 ## Dependencies
 
 - **Antlr4.Runtime.Standard** — ANTLR4 C# runtime; provides `AntlrInputStream`,
@@ -155,6 +206,24 @@ N/A — not a safety-classified software item.
    specialization and emitting Warning diagnostics for detected cycles.
 6. A `SysmlWorkspace` is constructed from the loaded file list and symbol table, and wrapped
    in a `SysmlLoadResult` with all accumulated diagnostics.
+
+### Layout and Rendering Data Flow
+
+1. `DiagramRenderer.RenderWorkspace` receives a `SysmlWorkspace`, an `IRenderer`, and
+   `RenderOptions`. For each view declared in the workspace it constructs a `ViewContext`
+   containing the view name and workspace reference.
+2. `ILayoutStrategy.BuildLayout` is called with the `ViewContext` and `RenderOptions`. The
+   strategy places all nodes with absolute coordinates, routes all lines using A* path-finding
+   with even waypoint spacing, and returns a fully resolved `LayoutTree`.
+3. `IRenderer.Render` is called with the `LayoutTree`, `RenderOptions`, and a fresh output
+   `Stream`. The renderer reads each `LayoutNode` in the tree, translates it to output-format
+   primitives, and writes bytes to the stream.
+4. Fill colors for `LayoutBox` nodes are derived by the renderer as
+   `Theme.DepthFillColors[box.Depth % theme.DepthFillColors.Count]`.
+5. Corner rounding for `LayoutLine` elbows is applied by the renderer using
+   `Theme.LineCornerRadius`; `0.0` produces sharp corners.
+6. Each rendered stream is wrapped in a `RenderOutput` with `SuggestedFileName` derived from
+   the view name and `IRenderer.DefaultExtension`.
 
 ## Design Constraints
 
