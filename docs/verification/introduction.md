@@ -13,28 +13,10 @@ test scenario. The document does not restate design; it explains how the design 
 
 ## Scope
 
-This document covers the verification design for the following software items:
-
-**Local items:**
-
-- **DemaConsulting.SysML2Tools**: system, subsystem, and unit verification.
-- **DemaConsulting.SysML2Tools.Svg**: system verification (Phase 0 stub).
-- **DemaConsulting.SysML2Tools.Png**: system verification (Phase 0 stub).
-- **DemaConsulting.SysML2Tools.Tool**: system, subsystem, and unit verification.
-
-**OTS items:**
-
-- **ANTLR4**: integration and usage verification.
-- **BuildMark**: integration and usage verification.
-- **FileAssert**: integration and usage verification.
-- **Pandoc**: integration and usage verification.
-- **ReqStream**: integration and usage verification.
-- **ReviewMark**: integration and usage verification.
-- **SarifMark**: integration and usage verification.
-- **SonarMark**: integration and usage verification.
-- **VersionMark**: integration and usage verification.
-- **WeasyPrint**: integration and usage verification.
-- **xUnit**: integration and usage verification.
+This document describes how each software item in SysML2 Tools is verified —
+local items (systems, subsystems, and units), and OTS software items. For each
+item it names the test scenarios that verify its requirements. A reviewer should
+be able to confirm coverage completeness without reading test code.
 
 The following topics are out of scope:
 

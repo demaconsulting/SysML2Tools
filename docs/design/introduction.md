@@ -15,28 +15,11 @@ how they are realized.
 
 ## Scope
 
-This document covers the detailed design of the following software items:
-
-**Local items:**
-
-- **DemaConsulting.SysML2Tools**: system, subsystem, and unit design.
-- **DemaConsulting.SysML2Tools.Svg**: system design (Phase 0 stub).
-- **DemaConsulting.SysML2Tools.Png**: system design (Phase 0 stub).
-- **DemaConsulting.SysML2Tools.Tool**: system, subsystem, and unit design.
-
-**OTS items:**
-
-- **ANTLR4**: integration and usage design.
-- **BuildMark**: integration and usage design.
-- **FileAssert**: integration and usage design.
-- **Pandoc**: integration and usage design.
-- **ReqStream**: integration and usage design.
-- **ReviewMark**: integration and usage design.
-- **SarifMark**: integration and usage design.
-- **SonarMark**: integration and usage design.
-- **VersionMark**: integration and usage design.
-- **WeasyPrint**: integration and usage design.
-- **xUnit**: integration and usage design.
+This document defines the design for each software item in SysML2 Tools —
+full architectural and detailed design for local items (systems, subsystems,
+and units), and integration/usage design for OTS software items. A reviewer
+should be able to understand how each item satisfies its requirements without
+reading source code.
 
 The following topics are out of scope:
 
