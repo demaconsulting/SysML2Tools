@@ -25,14 +25,15 @@ Supporting data types declared at the `Parser` namespace level:
 
 ### Interfaces
 
-**WorkspaceParser.Parse**: Parses stdlib plus caller-supplied files.
+**WorkspaceParser.ParseAsync**: Parses stdlib plus caller-supplied files asynchronously.
 
-- *Type*: In-process .NET public static method.
+- *Type*: In-process .NET public static async method.
 - *Role*: Provider.
-- *Contract*: `public static WorkspaceParseResult Parse(IEnumerable<string> filePaths)` —
-  loads all embedded `.sysml` stdlib files first, then reads and parses each caller-supplied
-  file path. Returns a `WorkspaceParseResult` containing every parsed file path and every
-  collected `SysmlDiagnostic`.
+- *Contract*: `public static async Task<WorkspaceParseResult> ParseAsync(IEnumerable<string> filePaths)` —
+  awaits the shared stdlib `Task` (started lazily on first call; reused on all subsequent calls),
+  then parses each caller-supplied file path in parallel on the thread pool via `Task.WhenAll`.
+  Returns a `WorkspaceParseResult` containing every parsed file path and every collected
+  `SysmlDiagnostic`.
 - *Constraints*: `filePaths` must not be null (`ArgumentNullException` is thrown); each path
   must be readable via `File.ReadAllText`.
 
@@ -70,9 +71,17 @@ the central parse routine shared by both public methods:
 6. Calls `parser.rootNamespace()` to trigger full parsing; the returned CST root is discarded
    in Phase 1.
 
-`WorkspaceParser.Parse` collects file paths and diagnostics into shared lists, then wraps them
-in a `WorkspaceParseResult`. Stdlib files are always parsed first so that user-file diagnostics
-appear after stdlib diagnostics in the returned list.
+`WorkspaceParser.ParseAsync` uses two parallelism strategies:
+
+- **Stdlib caching**: A `Lazy<Task<(Files, Diagnostics)>>` field holds the stdlib parse `Task`.
+  The factory runs exactly once — the first call to `ParseAsync` starts the `Task` on the thread
+  pool; every subsequent call (including concurrent ones) awaits the same shared `Task`. This
+  ensures the 58 stdlib files are parsed at most once per process.
+- **User-file parallelism**: Caller-supplied files are dispatched to the thread pool via
+  `Task.WhenAll(filePaths.Select(path => Task.Run(...)))`, so all files parse concurrently.
+
+Stdlib file paths and diagnostics are prepended to the combined result so that stdlib diagnostics
+appear before user-file diagnostics in the returned `WorkspaceParseResult`.
 
 #### SysmlDiagnosticListener
 

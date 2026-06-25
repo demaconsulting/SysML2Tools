@@ -10,21 +10,21 @@ The subsystem contains one unit: `LintCommand`.
 
 ### Interfaces
 
-**LintCommand.Run**: Entry point for the lint subcommand.
+**LintCommand.RunAsync**: Entry point for the lint subcommand.
 
-- *Type*: In-process .NET static method.
+- *Type*: In-process .NET static async method.
 - *Role*: Provider.
-- *Contract*: `internal static void Run(Context context)` — reads `context.Files` (the list of
-  glob patterns supplied as positional CLI arguments), resolves them to file paths, calls
-  `WorkspaceParser.Parse`, writes each diagnostic, and calls `context.WriteError` if any
-  error-severity diagnostics were found (which sets exit code 1).
+- *Contract*: `internal static async Task RunAsync(Context context)` — reads `context.Files`
+  (the list of glob patterns supplied as positional CLI arguments), resolves them to file paths,
+  awaits `WorkspaceParser.ParseAsync`, writes each diagnostic, and calls `context.WriteError`
+  if any error-severity diagnostics were found (which sets exit code 1).
 - *Constraints*: If no files are resolved from the provided patterns, writes an error message
   and returns immediately without invoking the parser.
 
 ### Design
 
-`LintCommand` is a static class containing the public `Run` method and a private `ResolveFiles`
-helper.
+`LintCommand` is a static class containing the public `RunAsync` method and a private
+`ResolveFiles` helper.
 
 `ResolveFiles` iterates over the provided pattern list. For each pattern it splits the path into
 a directory component and a filename glob component using `Path.GetDirectoryName` and
@@ -32,9 +32,9 @@ a directory component and a filename glob component using `Path.GetDirectoryName
 TopDirectoryOnly)` to enumerate matching files. If the directory does not exist but the pattern
 itself is an existing file path, it is added directly.
 
-`Run` checks for an empty resolved file list and emits an error if no input files were found.
-Otherwise it logs a `"Linting N file(s)..."` status line, calls `WorkspaceParser.Parse(files)`,
-then iterates over `result.Diagnostics`. Error-severity diagnostics are written via
+`RunAsync` checks for an empty resolved file list and emits an error if no input files were
+found. Otherwise it logs a `"Linting N file(s)..."` status line, awaits
+`WorkspaceParser.ParseAsync(files)`, then iterates over `result.Diagnostics`. Error-severity diagnostics are written via
 `context.WriteError`; all others via `context.WriteLine`. After reporting all diagnostics it
 writes either a summary error count (via `context.WriteError`) or a `"lint: no errors found."`
 message (via `context.WriteLine`).
