@@ -64,7 +64,7 @@ internal static class Program
     ///     a stack trace. Any other exception is written to stderr and then re-thrown so that the
     ///     runtime can record it in event logs.
     /// </remarks>
-    public static int Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
         try
         {
@@ -72,7 +72,7 @@ internal static class Program
             using var context = Context.Create(args);
 
             // Run the program logic
-            Run(context);
+            await RunAsync(context).ConfigureAwait(false);
 
             // Return the exit code from the context
             return context.ExitCode;
@@ -80,19 +80,19 @@ internal static class Program
         catch (ArgumentException ex)
         {
             // Print expected argument exceptions and return error code
-            Console.Error.WriteLine($"Error: {ex.Message}");
+            await Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
             return 1;
         }
         catch (InvalidOperationException ex)
         {
             // Print expected operation exceptions and return error code
-            Console.Error.WriteLine($"Error: {ex.Message}");
+            await Console.Error.WriteLineAsync($"Error: {ex.Message}").ConfigureAwait(false);
             return 1;
         }
         catch (Exception ex)
         {
             // Print unexpected exceptions and re-throw to generate event logs
-            Console.Error.WriteLine($"Unexpected error: {ex.Message}");
+            await Console.Error.WriteLineAsync($"Unexpected error: {ex.Message}").ConfigureAwait(false);
             throw;
         }
     }
@@ -105,7 +105,7 @@ internal static class Program
     ///     Dispatch is priority-ordered: version check first, then help, then self-validation,
     ///     then main tool logic. Only the highest-priority matching action is executed per invocation.
     /// </remarks>
-    public static void Run(Context context)
+    public static async Task RunAsync(Context context)
     {
         // Priority 1: Version query
         if (context.Version)
@@ -127,12 +127,12 @@ internal static class Program
         // Priority 3: Self-Validation
         if (context.Validate)
         {
-            Validation.Run(context);
+            await Validation.RunAsync(context).ConfigureAwait(false);
             return;
         }
 
         // Priority 4: Main tool functionality
-        RunToolLogic(context);
+        await RunToolLogicAsync(context).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -171,12 +171,12 @@ internal static class Program
     ///     Runs the main tool logic.
     /// </summary>
     /// <param name="context">The context containing command line arguments and program state.</param>
-    private static void RunToolLogic(Context context)
+    private static async Task RunToolLogicAsync(Context context)
     {
         switch (context.Command)
         {
             case SysmlCommand.Lint:
-                LintCommand.Run(context);
+                await LintCommand.RunAsync(context).ConfigureAwait(false);
                 break;
 
             default:

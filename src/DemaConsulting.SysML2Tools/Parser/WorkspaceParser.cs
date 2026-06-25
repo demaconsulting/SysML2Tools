@@ -98,7 +98,14 @@ public sealed class WorkspaceParseResult
 public static class WorkspaceParser
 {
     /// <summary>
-    ///     Parses the stdlib plus every file matched by <paramref name="filePaths"/>.
+    ///     Stdlib parse result — computed once on first call, shared across all concurrent callers.
+    /// </summary>
+    private static readonly Lazy<Task<(IReadOnlyList<string> Files, IReadOnlyList<SysmlDiagnostic> Diagnostics)>> _stdlibTask =
+        new(() => Task.Run(ParseStdlibInternal));
+
+    /// <summary>
+    ///     Parses the stdlib plus every file in <paramref name="filePaths"/> asynchronously.
+    ///     User files are parsed in parallel across the thread pool.
     /// </summary>
     /// <param name="filePaths">
     ///     Absolute or relative paths to <c>.sysml</c> or <c>.kerml</c> files to include.
@@ -108,33 +115,33 @@ public static class WorkspaceParser
     ///     A <see cref="WorkspaceParseResult"/> containing all files parsed and all
     ///     diagnostics collected.
     /// </returns>
-    public static WorkspaceParseResult Parse(IEnumerable<string> filePaths)
+    public static async Task<WorkspaceParseResult> ParseAsync(IEnumerable<string> filePaths)
     {
         ArgumentNullException.ThrowIfNull(filePaths);
 
-        var allFiles = new List<string>();
-        var allDiagnostics = new List<SysmlDiagnostic>();
+        // Await stdlib — starts on first call; returns cached result on all subsequent calls
+        var (stdlibFiles, stdlibDiagnostics) = await _stdlibTask.Value.ConfigureAwait(false);
 
-        // Parse each stdlib file (silently — no user-visible output on success)
-        foreach (var (virtualPath, content) in StdlibLoader.LoadAll())
-        {
-            allFiles.Add(virtualPath);
-            ParseSource(virtualPath, content, allDiagnostics);
-        }
+        // Parse user files in parallel across the thread pool
+        var userResults = await Task.WhenAll(
+            filePaths.Select(path => Task.Run(() =>
+            {
+                var content = File.ReadAllText(path);
+                var diagnostics = new List<SysmlDiagnostic>();
+                ParseSource(path, content, diagnostics);
+                return (Path: path, Diagnostics: (IReadOnlyList<SysmlDiagnostic>)diagnostics);
+            }))).ConfigureAwait(false);
 
-        // Parse user-supplied files
-        foreach (var path in filePaths)
-        {
-            allFiles.Add(path);
-            var content = File.ReadAllText(path);
-            ParseSource(path, content, allDiagnostics);
-        }
+        var allFiles = stdlibFiles.Concat(userResults.Select(r => r.Path)).ToList();
+        var allDiagnostics = stdlibDiagnostics
+            .Concat(userResults.SelectMany(r => r.Diagnostics))
+            .ToList();
 
         return new WorkspaceParseResult(allFiles, allDiagnostics);
     }
 
     /// <summary>
-    ///     Parses SysML v2 source text from a string (used in tests and for stdlib loading).
+    ///     Parses SysML v2 source text from a string (used in tests and for single-file checks).
     /// </summary>
     /// <param name="filePath">Virtual or real path used in diagnostic messages.</param>
     /// <param name="content">Source text to parse.</param>
@@ -144,6 +151,22 @@ public static class WorkspaceParser
         var diagnostics = new List<SysmlDiagnostic>();
         ParseSource(filePath, content, diagnostics);
         return diagnostics;
+    }
+
+    /// <summary>
+    ///     Parses the stdlib and returns the aggregate files and diagnostics.
+    /// </summary>
+    private static (IReadOnlyList<string> Files, IReadOnlyList<SysmlDiagnostic> Diagnostics) ParseStdlibInternal()
+    {
+        var files = new List<string>();
+        var diagnostics = new List<SysmlDiagnostic>();
+        foreach (var (virtualPath, content) in StdlibLoader.LoadAll())
+        {
+            files.Add(virtualPath);
+            ParseSource(virtualPath, content, diagnostics);
+        }
+
+        return (files, diagnostics);
     }
 
     /// <summary>

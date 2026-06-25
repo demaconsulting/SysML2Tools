@@ -52,13 +52,13 @@ public sealed class OmgModelsTests
     ///     parse without syntax errors. This is the Phase 1 gate from the architecture.
     /// </summary>
     [Fact]
-    public void Parse_OmgModels_NoSyntaxErrors()
+    public async Task Parse_OmgModels_NoSyntaxErrors()
     {
         var omgRoot = FindOmgModelsRoot();
         var files = Directory.GetFiles(omgRoot, "*.sysml", SearchOption.AllDirectories);
         Assert.NotEmpty(files);
 
-        var result = WorkspaceParser.Parse(files);
+        var result = await WorkspaceParser.ParseAsync(files);
 
         var errors = result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)
@@ -75,11 +75,12 @@ public sealed class OmgModelsTests
     ///     Confirms all 251 expected OMG model files are present.
     /// </summary>
     [Fact]
-    public void OmgModels_FileCount_IsExpected()
+    public async Task OmgModels_FileCount_IsExpected()
     {
         var omgRoot = FindOmgModelsRoot();
         var files = Directory.GetFiles(omgRoot, "*.sysml", SearchOption.AllDirectories);
         Assert.True(files.Length >= 251,
             $"Expected at least 251 OMG model files, found {files.Length}");
+        await Task.CompletedTask;
     }
 }

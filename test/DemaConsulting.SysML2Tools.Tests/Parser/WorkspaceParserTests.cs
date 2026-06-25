@@ -92,9 +92,9 @@ public sealed class WorkspaceParserTests
     ///     The OMG stdlib (94 embedded files) should load and parse without any errors.
     /// </summary>
     [Fact]
-    public void Parse_StdlibOnly_NoErrors()
+    public async Task Parse_StdlibOnly_NoErrors()
     {
-        var result = WorkspaceParser.Parse([]);
+        var result = await WorkspaceParser.ParseAsync([]);
         Assert.False(result.HasErrors,
             $"Stdlib parse errors:{Environment.NewLine}" +
             string.Join(Environment.NewLine, result.Diagnostics.Select(d => $"  {d.FilePath}({d.Line},{d.Column}): {d.Message}")));
@@ -105,9 +105,9 @@ public sealed class WorkspaceParserTests
     ///     Phase 1 loads the 58 SysML stdlib files; KerML files are embedded but parsed in Phase 2.
     /// </summary>
     [Fact]
-    public void Parse_FilesCount_IncludesStdlib()
+    public async Task Parse_FilesCount_IncludesStdlib()
     {
-        var result = WorkspaceParser.Parse([]);
+        var result = await WorkspaceParser.ParseAsync([]);
         Assert.True(result.Files.Count >= 58,
             $"Expected at least 58 stdlib files, got {result.Files.Count}");
     }

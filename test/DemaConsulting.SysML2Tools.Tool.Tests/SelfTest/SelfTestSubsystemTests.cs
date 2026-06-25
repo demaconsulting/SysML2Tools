@@ -33,14 +33,14 @@ public class SelfTestSubsystemTests
     ///     Test that self-test subsystem can run validation workflow without result files.
     /// </summary>
     [Fact]
-    public void SelfTestSubsystem_ValidationWorkflow_NoResultFiles_CompletesSuccessfully()
+    public async Task SelfTestSubsystem_ValidationWorkflow_NoResultFiles_CompletesSuccessfully()
     {
         // Arrange: command line arguments for validation in silent mode
         var args = new[] { "--validate", "--silent" };
 
         // Act: create context and run validation
         using var context = Context.Create(args);
-        Validation.Run(context);
+        await Validation.RunAsync(context);
 
         // Assert: validation completes successfully with correct flags set
         Assert.True(context.Validate, "Context should have validate flag set");
@@ -51,7 +51,7 @@ public class SelfTestSubsystemTests
     ///     Test that self-test subsystem can run validation workflow with TRX result file.
     /// </summary>
     [Fact]
-    public void SelfTestSubsystem_ValidationWorkflow_WithTrxFile_GeneratesResults()
+    public async Task SelfTestSubsystem_ValidationWorkflow_WithTrxFile_GeneratesResults()
     {
         // Arrange: temporary TRX file path and validation command with results output
         var tempDir = Path.GetTempPath();
@@ -62,13 +62,13 @@ public class SelfTestSubsystemTests
         {
             // Act: create context and run validation with TRX output
             using var context = Context.Create(args);
-            Validation.Run(context);
+            await Validation.RunAsync(context);
 
             // Assert: validation completes and generates TRX file with standard format
             Assert.True(context.Validate, "Context should have validate flag set");
             Assert.Equal(0, context.ExitCode);
             Assert.True(File.Exists(trxFile), "TRX file should be generated");
-            var trxContent = File.ReadAllText(trxFile);
+            var trxContent = await File.ReadAllTextAsync(trxFile, TestContext.Current.CancellationToken);
             Assert.Contains("<TestRun", trxContent);
         }
         finally
@@ -85,7 +85,7 @@ public class SelfTestSubsystemTests
     ///     Test that self-test subsystem can run validation workflow with JUnit result file.
     /// </summary>
     [Fact]
-    public void SelfTestSubsystem_ValidationWorkflow_WithJUnitFile_GeneratesResults()
+    public async Task SelfTestSubsystem_ValidationWorkflow_WithJUnitFile_GeneratesResults()
     {
         // Arrange: temporary JUnit XML file path and validation command with results output
         var tempDir = Path.GetTempPath();
@@ -96,13 +96,13 @@ public class SelfTestSubsystemTests
         {
             // Act: create context and run validation with JUnit XML output
             using var context = Context.Create(args);
-            Validation.Run(context);
+            await Validation.RunAsync(context);
 
             // Assert: validation completes and generates JUnit XML file with standard format
             Assert.True(context.Validate, "Context should have validate flag set");
             Assert.Equal(0, context.ExitCode);
             Assert.True(File.Exists(junitFile), "JUnit file should be generated");
-            var junitContent = File.ReadAllText(junitFile);
+            var junitContent = await File.ReadAllTextAsync(junitFile, TestContext.Current.CancellationToken);
             Assert.Contains("<testsuites", junitContent);
         }
         finally
@@ -119,7 +119,7 @@ public class SelfTestSubsystemTests
     ///     Test that self-test subsystem can run validation workflow with both result file formats.
     /// </summary>
     [Fact]
-    public void SelfTestSubsystem_ValidationWorkflow_WithBothResultFiles_GeneratesBothResults()
+    public async Task SelfTestSubsystem_ValidationWorkflow_WithBothResultFiles_GeneratesBothResults()
     {
         // Arrange: setup validation arguments for both TRX and JUnit result file outputs
         var tempDir = Path.GetTempPath();
@@ -133,26 +133,26 @@ public class SelfTestSubsystemTests
             // Act: run validation with TRX output
             using (var trxContext = Context.Create(trxArgs))
             {
-                Validation.Run(trxContext);
+                await Validation.RunAsync(trxContext);
 
                 // Assert: verify validation completed and TRX result file was generated with standard format
                 Assert.True(trxContext.Validate, "Context should have validate flag set for TRX run");
                 Assert.Equal(0, trxContext.ExitCode);
                 Assert.True(File.Exists(trxFile), "TRX file should be generated");
-                var trxContent = File.ReadAllText(trxFile);
+                var trxContent = await File.ReadAllTextAsync(trxFile, TestContext.Current.CancellationToken);
                 Assert.Contains("<TestRun", trxContent);
             }
 
             // Act: run validation with JUnit XML output
             using (var junitContext = Context.Create(junitArgs))
             {
-                Validation.Run(junitContext);
+                await Validation.RunAsync(junitContext);
 
                 // Assert: verify validation completed and JUnit XML result file was generated with standard format
                 Assert.True(junitContext.Validate, "Context should have validate flag set for JUnit run");
                 Assert.Equal(0, junitContext.ExitCode);
                 Assert.True(File.Exists(junitFile), "JUnit file should be generated");
-                var junitContent = File.ReadAllText(junitFile);
+                var junitContent = await File.ReadAllTextAsync(junitFile, TestContext.Current.CancellationToken);
                 Assert.Contains("<testsuites", junitContent);
             }
         }
@@ -175,7 +175,7 @@ public class SelfTestSubsystemTests
     ///     Test that self-test subsystem with unsupported results extension emits an error and does not create the file.
     /// </summary>
     [Fact]
-    public void SelfTestSubsystem_ValidationWorkflow_WithUnsupportedExtension_EmitsErrorAndNoFile()
+    public async Task SelfTestSubsystem_ValidationWorkflow_WithUnsupportedExtension_EmitsErrorAndNoFile()
     {
         // Arrange: unsupported results file extension; capture stderr for error message assertion
         var tempDir = Path.GetTempPath();
@@ -190,7 +190,7 @@ public class SelfTestSubsystemTests
 
             // Act: create context and run validation with unsupported extension
             using var context = Context.Create(args);
-            Validation.Run(context);
+            await Validation.RunAsync(context);
 
             // Assert: error is reported, message identifies the format, and no file is created
             Assert.Equal(1, context.ExitCode);

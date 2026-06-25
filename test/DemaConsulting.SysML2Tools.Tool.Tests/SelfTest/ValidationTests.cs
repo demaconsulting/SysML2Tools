@@ -33,20 +33,20 @@ public class ValidationTests
     ///     Test that Run throws ArgumentNullException when context is null.
     /// </summary>
     [Fact]
-    public void Validation_Run_NullContext_ThrowsArgumentNullException()
+    public async Task Validation_Run_NullContext_ThrowsArgumentNullException()
     {
         // Arrange: setup test conditions
         // No setup required — null is the input under test.
 
         // Act & Assert: invoke Run with null context and verify ArgumentNullException is thrown
-        Assert.Throws<ArgumentNullException>(() => Validation.Run(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => Validation.RunAsync(null!));
     }
 
     /// <summary>
     ///     Test that Run prints a summary containing total, passed, and failed counts.
     /// </summary>
     [Fact]
-    public void Validation_Run_WithSilentContext_PrintsSummary()
+    public async Task Validation_Run_WithSilentContext_PrintsSummary()
     {
         // Arrange: setup unique log file path to capture silent context output
         var logFile = Path.Combine(Path.GetTempPath(), $"validation_test_{Guid.NewGuid()}.log");
@@ -55,11 +55,11 @@ public class ValidationTests
             using (var context = Context.Create(["--silent", "--log", logFile]))
             {
                 // Act: run validation with silent context and log file
-                Validation.Run(context);
+                await Validation.RunAsync(context);
             }
 
             // Assert: verify summary lines are written to log file
-            var logContent = File.ReadAllText(logFile);
+            var logContent = await File.ReadAllTextAsync(logFile, TestContext.Current.CancellationToken);
             Assert.Contains("Total Tests:", logContent);
             Assert.Contains("Passed:", logContent);
             Assert.Contains("Failed:", logContent);
@@ -77,13 +77,13 @@ public class ValidationTests
     ///     Test that Run exits with code zero when all self-validation tests pass.
     /// </summary>
     [Fact]
-    public void Validation_Run_WithSilentContext_ExitCodeIsZero()
+    public async Task Validation_Run_WithSilentContext_ExitCodeIsZero()
     {
         // Arrange: create silent context for validation run
         using var context = Context.Create(["--silent"]);
 
         // Act: run validation with silent context
-        Validation.Run(context);
+        await Validation.RunAsync(context);
 
         // Assert: verify exit code is zero indicating successful validation
         Assert.Equal(0, context.ExitCode);
@@ -93,7 +93,7 @@ public class ValidationTests
     ///     Test that Run writes a valid TRX file when the results path ends with .trx.
     /// </summary>
     [Fact]
-    public void Validation_Run_WithTrxResultsFile_WritesTrxFile()
+    public async Task Validation_Run_WithTrxResultsFile_WritesTrxFile()
     {
         // Arrange: setup TRX file path for test results output
         var trxFile = Path.Combine(Path.GetTempPath(), $"validation_test_{Guid.NewGuid()}.trx");
@@ -102,11 +102,11 @@ public class ValidationTests
             using var context = Context.Create(["--silent", "--results", trxFile]);
 
             // Act: run validation with TRX results output
-            Validation.Run(context);
+            await Validation.RunAsync(context);
 
             // Assert: verify TRX file is created with expected content
             Assert.True(File.Exists(trxFile));
-            var content = File.ReadAllText(trxFile);
+            var content = await File.ReadAllTextAsync(trxFile, TestContext.Current.CancellationToken);
             Assert.Contains("<TestRun", content);
         }
         finally
@@ -122,7 +122,7 @@ public class ValidationTests
     ///     Test that Run writes a valid JUnit XML file when the results path ends with .xml.
     /// </summary>
     [Fact]
-    public void Validation_Run_WithXmlResultsFile_WritesXmlFile()
+    public async Task Validation_Run_WithXmlResultsFile_WritesXmlFile()
     {
         // Arrange: setup XML file path for JUnit results output
         var xmlFile = Path.Combine(Path.GetTempPath(), $"validation_test_{Guid.NewGuid()}.xml");
@@ -131,11 +131,11 @@ public class ValidationTests
             using var context = Context.Create(["--silent", "--results", xmlFile]);
 
             // Act: run validation with XML results output  
-            Validation.Run(context);
+            await Validation.RunAsync(context);
 
             // Assert: verify XML file is created with JUnit format content
             Assert.True(File.Exists(xmlFile));
-            var content = File.ReadAllText(xmlFile);
+            var content = await File.ReadAllTextAsync(xmlFile, TestContext.Current.CancellationToken);
             Assert.Contains("<testsuites", content);
         }
         finally
@@ -151,7 +151,7 @@ public class ValidationTests
     ///     Test that Run does not write a results file when the extension is unsupported.
     /// </summary>
     [Fact]
-    public void Validation_Run_WithUnsupportedResultsFormat_DoesNotWriteFile()
+    public async Task Validation_Run_WithUnsupportedResultsFormat_DoesNotWriteFile()
     {
         // Arrange: setup unsupported file extension and log file to capture error output
         var jsonFile = Path.Combine(Path.GetTempPath(), $"validation_test_{Guid.NewGuid()}.json");
@@ -161,7 +161,7 @@ public class ValidationTests
             using (var context = Context.Create(["--silent", "--results", jsonFile, "--log", logFile]))
             {
                 // Act: run validation with unsupported results file extension
-                Validation.Run(context);
+                await Validation.RunAsync(context);
 
                 // Assert context state while still valid: no results file and non-zero exit code
                 Assert.False(File.Exists(jsonFile));
@@ -170,7 +170,7 @@ public class ValidationTests
 
             // Assert log content after disposal to ensure the log writer has been closed and flushed
             Assert.True(File.Exists(logFile));
-            var logContent = File.ReadAllText(logFile);
+            var logContent = await File.ReadAllTextAsync(logFile, TestContext.Current.CancellationToken);
             Assert.Contains("Unsupported results file format", logContent);
         }
         finally

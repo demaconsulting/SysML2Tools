@@ -32,7 +32,7 @@ public class CliSubsystemTests
     ///     Test that Context and Program work together to handle version flag workflow.
     /// </summary>
     [Fact]
-    public void CliSubsystem_VersionFlow_ContextAndProgram_DisplaysVersionAndExits()
+    public async Task CliSubsystem_VersionFlow_ContextAndProgram_DisplaysVersionAndExits()
     {
         // Arrange: command line arguments with version flag; capture console output
         var args = new[] { "--version" };
@@ -45,7 +45,7 @@ public class CliSubsystemTests
 
             // Act: create context and run program logic
             using var context = Context.Create(args);
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: version flag is parsed, version text is displayed, and exit code is success
             Assert.True(context.Version, "Context should parse version flag");
@@ -62,7 +62,7 @@ public class CliSubsystemTests
     ///     Test that Context and Program work together to handle the -v short version flag.
     /// </summary>
     [Fact]
-    public void CliSubsystem_VersionFlow_ContextAndProgram_DisplaysVersionAndExits_WithShortVFlag()
+    public async Task CliSubsystem_VersionFlow_ContextAndProgram_DisplaysVersionAndExits_WithShortVFlag()
     {
         // Arrange: command line arguments with -v short version flag; capture console output
         var args = new[] { "-v" };
@@ -75,7 +75,7 @@ public class CliSubsystemTests
 
             // Act: create context and run program logic
             using var context = Context.Create(args);
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: version flag is parsed, version text is displayed, and exit code is success
             Assert.True(context.Version, "Context should parse -v flag as version");
@@ -92,7 +92,7 @@ public class CliSubsystemTests
     ///     Test that Context and Program work together to handle help flag workflow.
     /// </summary>
     [Fact]
-    public void CliSubsystem_HelpFlow_ContextAndProgram_DisplaysHelpAndExits()
+    public async Task CliSubsystem_HelpFlow_ContextAndProgram_DisplaysHelpAndExits()
     {
         // Arrange: command line arguments with help flag; capture console output
         var args = new[] { "--help" };
@@ -105,7 +105,7 @@ public class CliSubsystemTests
 
             // Act: create context and run program logic
             using var context = Context.Create(args);
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: help flag is parsed, usage text is displayed, and exit code is success
             Assert.True(context.Help, "Context should parse help flag");
@@ -124,7 +124,7 @@ public class CliSubsystemTests
     ///     Test that Context and Program work together to handle the -? short help flag.
     /// </summary>
     [Fact]
-    public void CliSubsystem_HelpFlow_ContextAndProgram_DisplaysHelpAndExits_WithShortQuestionFlag()
+    public async Task CliSubsystem_HelpFlow_ContextAndProgram_DisplaysHelpAndExits_WithShortQuestionFlag()
     {
         // Arrange: command line arguments with -? short help flag; capture console output
         var args = new[] { "-?" };
@@ -137,7 +137,7 @@ public class CliSubsystemTests
 
             // Act: create context and run program logic
             using var context = Context.Create(args);
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: help flag is parsed, usage text is displayed, and exit code is success
             Assert.True(context.Help, "Context should parse -? flag as help");
@@ -156,7 +156,7 @@ public class CliSubsystemTests
     ///     Test that Context and Program work together to handle the -h short help flag.
     /// </summary>
     [Fact]
-    public void CliSubsystem_HelpFlow_ContextAndProgram_DisplaysHelpAndExits_WithShortHFlag()
+    public async Task CliSubsystem_HelpFlow_ContextAndProgram_DisplaysHelpAndExits_WithShortHFlag()
     {
         // Arrange: command line arguments with -h short help flag; capture console output
         var args = new[] { "-h" };
@@ -169,7 +169,7 @@ public class CliSubsystemTests
 
             // Act: create context and run program logic
             using var context = Context.Create(args);
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: help flag is parsed, usage text is displayed, and exit code is success
             Assert.True(context.Help, "Context should parse -h flag as help");
@@ -188,7 +188,7 @@ public class CliSubsystemTests
     ///     Test that Context and Program work together to handle validation flag workflow.
     /// </summary>
     [Fact]
-    public void CliSubsystem_ValidateFlow_ContextAndProgram_RunsValidationAndExits()
+    public async Task CliSubsystem_ValidateFlow_ContextAndProgram_RunsValidationAndExits()
     {
         // Arrange: command line arguments with validate flag; capture console output
         var args = new[] { "--validate" };
@@ -201,7 +201,7 @@ public class CliSubsystemTests
 
             // Act: create context and run program logic
             using var context = Context.Create(args);
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: validate flag is parsed, summary is output, and exit code is success
             Assert.True(context.Validate, "Context should parse validate flag");
@@ -218,7 +218,7 @@ public class CliSubsystemTests
     ///     Test that Context and Program work together to handle silent flag workflow.
     /// </summary>
     [Fact]
-    public void CliSubsystem_SilentFlow_ContextAndProgram_SuppressesOutput()
+    public async Task CliSubsystem_SilentFlow_ContextAndProgram_SuppressesOutput()
     {
         // Arrange: command line arguments with version and silent flags; capture console streams
         var args = new[] { "--version", "--silent" };
@@ -234,7 +234,7 @@ public class CliSubsystemTests
 
             // Act: create context and run program logic
             using var context = Context.Create(args);
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: silent flag is parsed, exit code is success, and no console output is produced
             Assert.True(context.Silent, "Context should parse silent flag");
@@ -253,7 +253,7 @@ public class CliSubsystemTests
     ///     Test that Context and Program work together to handle results flag workflow.
     /// </summary>
     [Fact]
-    public void CliSubsystem_ResultsFlow_ContextAndProgram_WritesResultsFile()
+    public async Task CliSubsystem_ResultsFlow_ContextAndProgram_WritesResultsFile()
     {
         // Arrange: temporary results file path and validation command with results output
         var tempDir = Path.GetTempPath();
@@ -264,7 +264,7 @@ public class CliSubsystemTests
         {
             // Act: create context and run program logic
             using var context = Context.Create(args);
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: results flag is parsed, validation runs, and results file is written
             Assert.Equal(resultsFile, context.ResultsFile);
@@ -285,7 +285,7 @@ public class CliSubsystemTests
     ///     Test that Context and Program work together to handle log flag workflow.
     /// </summary>
     [Fact]
-    public void CliSubsystem_LogFlow_ContextAndProgram_WritesLogFile()
+    public async Task CliSubsystem_LogFlow_ContextAndProgram_WritesLogFile()
     {
         // Arrange: temporary log file path and version command with log output
         var tempDir = Path.GetTempPath();
@@ -297,7 +297,7 @@ public class CliSubsystemTests
             // Act: create context and run program logic
             using (var context = Context.Create(args))
             {
-                Program.Run(context);
+                await Program.RunAsync(context);
 
                 // Assert: version flag is parsed and exit code is success
                 Assert.True(context.Version, "Context should parse version flag");
@@ -306,7 +306,7 @@ public class CliSubsystemTests
 
             // Assert: log file is written with version output
             Assert.True(File.Exists(logFile), "Log file should be created at specified path");
-            var logContent = File.ReadAllText(logFile);
+            var logContent = await File.ReadAllTextAsync(logFile, TestContext.Current.CancellationToken);
             Assert.False(string.IsNullOrWhiteSpace(logContent), "Log file should contain version output");
         }
         finally
@@ -323,7 +323,7 @@ public class CliSubsystemTests
     ///     Test that Program rejects unknown arguments, writes an error to stderr, and exits non-zero.
     /// </summary>
     [Fact]
-    public void CliSubsystem_InvalidArgs_ContextAndProgram_RejectsUnknownArgumentsAndExitsNonZero()
+    public async Task CliSubsystem_InvalidArgs_ContextAndProgram_RejectsUnknownArgumentsAndExitsNonZero()
     {
         // Arrange: unknown command-line argument
         var args = new[] { "--unknown-flag" };
@@ -335,7 +335,7 @@ public class CliSubsystemTests
             Console.SetError(errWriter);
 
             // Act: invoke the actual CLI entry point with an unknown flag
-            var result = Program.Main(args);
+            var result = await Program.Main(args);
 
             // Assert: invalid arguments produce a non-zero exit code and an error on stderr
             Assert.Equal(1, result);
@@ -353,7 +353,7 @@ public class CliSubsystemTests
     ///     Test that Context writes error messages to stderr.
     /// </summary>
     [Fact]
-    public void CliSubsystem_ErrorOutput_ContextAndProgram_WritesErrorToStderr()
+    public async Task CliSubsystem_ErrorOutput_ContextAndProgram_WritesErrorToStderr()
     {
         // Arrange: redirect stderr to capture error output
         var originalError = Console.Error;
@@ -381,7 +381,7 @@ public class CliSubsystemTests
     ///     Test that Context and Program work together to handle the --result legacy alias for results.
     /// </summary>
     [Fact]
-    public void CliSubsystem_ResultAliasFlow_ContextAndProgram_WritesResultsFile()
+    public async Task CliSubsystem_ResultAliasFlow_ContextAndProgram_WritesResultsFile()
     {
         // Arrange: temporary results file path and validation command with legacy --result alias
         var tempDir = Path.GetTempPath();
@@ -392,7 +392,7 @@ public class CliSubsystemTests
         {
             // Act: create context and run program logic
             using var context = Context.Create(args);
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: legacy --result alias is parsed, validation runs, and results file is written
             Assert.Equal(resultsFile, context.ResultsFile);
@@ -413,7 +413,7 @@ public class CliSubsystemTests
     ///     Test that Context and Program work together to handle depth flag with self-validation.
     /// </summary>
     [Fact]
-    public void CliSubsystem_DepthFlow_ContextAndProgram_AdjustsHeadingDepth()
+    public async Task CliSubsystem_DepthFlow_ContextAndProgram_AdjustsHeadingDepth()
     {
         // Arrange: command line with --validate, --depth 2, and a log file to capture output
         var tempDir = Path.GetTempPath();
@@ -425,7 +425,7 @@ public class CliSubsystemTests
             // Act: create context and run program logic
             using (var context = Context.Create(args))
             {
-                Program.Run(context);
+                await Program.RunAsync(context);
 
                 // Assert: depth is parsed correctly
                 Assert.Equal(2, context.HeadingDepth);
@@ -433,7 +433,7 @@ public class CliSubsystemTests
             }
 
             // Assert: log contains level-2 heading
-            var logContent = File.ReadAllText(logFile);
+            var logContent = await File.ReadAllTextAsync(logFile, TestContext.Current.CancellationToken);
             Assert.Contains("## DEMA Consulting", logContent);
         }
         finally

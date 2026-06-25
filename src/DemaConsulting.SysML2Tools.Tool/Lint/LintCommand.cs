@@ -32,7 +32,7 @@ internal static class LintCommand
     ///     Runs the lint command.
     /// </summary>
     /// <param name="context">The CLI context, supplying file patterns and output methods.</param>
-    public static void Run(Context context)
+    public static async Task RunAsync(Context context)
     {
         var files = ResolveFiles(context.Files);
 
@@ -44,7 +44,7 @@ internal static class LintCommand
 
         context.WriteLine($"Linting {files.Count} file(s)...");
 
-        var result = WorkspaceParser.Parse(files);
+        var result = await WorkspaceParser.ParseAsync(files).ConfigureAwait(false);
 
         foreach (var diagnostic in result.Diagnostics)
         {
