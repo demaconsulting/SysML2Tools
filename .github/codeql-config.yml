@@ -4,6 +4,10 @@
 
 name: "SysML2 Tools CodeQL Config"
 
+# Exclude ANTLR4-generated parser files from all analysis
+paths-ignore:
+  - src/DemaConsulting.SysML2Tools/Parser/Antlr
+
 # Query filters to disable specific queries for certain paths
 query-filters:
   - exclude:
