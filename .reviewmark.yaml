@@ -164,13 +164,11 @@ reviews:
       - docs/reqstream/sysml2-tools-core/parser.yaml
       - docs/design/sysml2-tools-core/parser.md
     paths:
-      - "src/DemaConsulting.SysML2Tools/Parser/DiagnosticSeverity.cs"
-      - "src/DemaConsulting.SysML2Tools/Parser/SysmlDiagnostic.cs"
-      - "src/DemaConsulting.SysML2Tools/Parser/WorkspaceParseResult.cs"
       - "src/DemaConsulting.SysML2Tools/Parser/WorkspaceParser.cs"
       - "src/DemaConsulting.SysML2Tools/Parser/Internal/SysmlDiagnosticListener.cs"
       - "src/DemaConsulting.SysML2Tools/Parser/Internal/StdlibLoader.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Parser/OmgModelsTests.cs"
 
   # SysML2Tools SVG Renderer
   - id: SysML2Tools-Svg-Architecture
