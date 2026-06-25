@@ -93,3 +93,12 @@ dotnet_code_quality_unused_parameters = all:suggestion
 
 # Nullable reference types
 csharp_nullable_reference_types = enable
+
+# ANTLR4-generated C# — suppress diagnostics that do not apply to generated code
+[src/DemaConsulting.SysML2Tools/Parser/Antlr/*.cs]
+generated_code = true
+# CS1584/CS1658 — XML doc cref uses SysML keywords ('namespace', 'class') as identifiers
+dotnet_diagnostic.CS1584.severity = none
+dotnet_diagnostic.CS1658.severity = none
+# CS3021 — CLSCompliant attribute; assembly does not declare [CLSCompliant]
+dotnet_diagnostic.CS3021.severity = none

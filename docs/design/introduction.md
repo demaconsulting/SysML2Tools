@@ -19,13 +19,20 @@ This document covers the detailed design of the following software items:
 
 **Local items:**
 
-- **DemaConsulting.SysML2Tools** (System — core library, Phase 0 stub)
+- **DemaConsulting.SysML2Tools** (System — core library)
+  - **Parser** (Subsystem) — SysML v2 parsing engine
+    - **WorkspaceParser** (Unit) — public parsing API
+    - **Internal** (Subsystem) — internal implementation
+      - **SysmlDiagnosticListener** (Unit) — ANTLR4 error listener
+      - **StdlibLoader** (Unit) — embedded stdlib loader
 - **DemaConsulting.SysML2Tools.Svg** (System — SVG renderer, Phase 0 stub)
 - **DemaConsulting.SysML2Tools.Png** (System — PNG renderer, Phase 0 stub)
 - **DemaConsulting.SysML2Tools.Tool** (System — dotnet tool)
   - **Program** — entry point and execution orchestrator
   - **Cli** subsystem
     - **Context** — command-line argument parser and I/O owner
+  - **Lint** (Subsystem) — lint command implementation
+    - **LintCommand** (Unit) — lint subcommand handler
   - **SelfTest** subsystem
     - **Validation** — self-validation test runner
   - **Utilities** subsystem
@@ -33,6 +40,7 @@ This document covers the detailed design of the following software items:
 
 **OTS items:**
 
+- **ANTLR4** — integration and usage design
 - **BuildMark** — integration and usage design
 - **FileAssert** — integration and usage design
 - **Pandoc** — integration and usage design
@@ -54,9 +62,12 @@ The following topics are out of scope:
 The following list shows how the SysML2 Tools software items are organized across the
 system, subsystem, and unit levels:
 
-- **DemaConsulting.SysML2Tools** (System) — core library: SysML v2 parsing, semantic
-  model, layout algorithms, and `IRenderer` interface
-  - TODO: subsystems and units to be defined in Phase 1+
+- **DemaConsulting.SysML2Tools** (System) — core library: SysML v2 parsing engine, embedded stdlib, and future semantic model/layout
+  - **Parser** (Subsystem) — SysML v2 parsing engine
+    - **WorkspaceParser** (Unit) — public API: parses file glob patterns and source strings against the embedded stdlib
+    - **Internal** (Subsystem) — internal implementation details
+      - **SysmlDiagnosticListener** (Unit) — collects ANTLR4 syntax errors as SysmlDiagnostic records
+      - **StdlibLoader** (Unit) — enumerates and loads embedded .sysml stdlib resources; defers .kerml to Phase 2
 - **DemaConsulting.SysML2Tools.Svg** (System) — SVG renderer: renders `LayoutTree` to
   SVG output with zero external dependencies
   - TODO: subsystems and units to be defined in Phase 4+
@@ -68,6 +79,8 @@ system, subsystem, and unit levels:
   - **Program** (Unit) — entry point and execution orchestrator
   - **Cli** (Subsystem) — command-line argument parsing and I/O
     - **Context** (Unit) — argument parser and I/O owner
+  - **Lint** (Subsystem) — lint command implementation
+    - **LintCommand** (Unit) — resolves glob patterns, invokes WorkspaceParser, reports diagnostics
   - **SelfTest** (Subsystem) — self-validation test runner
     - **Validation** (Unit) — self-validation test runner
   - **Utilities** (Subsystem) — shared utilities
@@ -75,6 +88,7 @@ system, subsystem, and unit levels:
 
 **OTS Dependencies:**
 
+- ANTLR4 (OTS) — ANTLR4 runtime (Antlr4.Runtime.Standard)
 - BuildMark (OTS) — build-notes documentation tool
 - FileAssert (OTS) — document assertion tool
 - Pandoc (OTS) — Markdown-to-HTML conversion tool
@@ -94,19 +108,27 @@ The source code folder structure mirrors the top-level system breakdown above, g
 reviewers an explicit navigation aid from design to code:
 
 - **src/** — source projects
-  - **DemaConsulting.SysML2Tools/** — core library (Phase 0: stub)
+  - **DemaConsulting.SysML2Tools/** — core library
+    - **Grammar/** — ANTLR4 grammar files (hand-maintained; see Grammar/README.md)
+    - **Parser/** — SysML v2 parsing subsystem
+      - **Antlr/** — ANTLR4-generated C# (committed; not hand-written)
+      - **Internal/** — internal implementation (SysmlDiagnosticListener, StdlibLoader)
+    - **Stdlib/** — embedded SysML v2 standard library files (EPL-2.0; see Stdlib/README.md)
   - **DemaConsulting.SysML2Tools.Svg/** — SVG renderer (Phase 0: stub)
   - **DemaConsulting.SysML2Tools.Png/** — PNG renderer (Phase 0: stub)
   - **DemaConsulting.SysML2Tools.Tool/** — dotnet tool CLI wrapper
     - **Cli/** — command-line interface subsystem
+    - **Lint/** — lint command subsystem
     - **SelfTest/** — self-validation subsystem
     - **Utilities/** — shared utilities subsystem
 - **docs/design/** — design documentation
-  - **sysml2-tools-core/** — TODO: core library unit/subsystem design (Phase 1+)
+  - **sysml2-tools-core/** — core library unit/subsystem design
+    - **parser/** — Parser subsystem design (Internal subsystem)
   - **sysml2-tools-svg/** — TODO: SVG renderer unit/subsystem design (Phase 4+)
   - **sysml2-tools-png/** — TODO: PNG renderer unit/subsystem design (Phase 4+)
   - **sysml2-tools-tool/** — DemaConsulting.SysML2Tools.Tool unit/subsystem design
     - **cli/** — Cli subsystem design
+    - **lint/** — Lint subsystem design
     - **self-test/** — SelfTest subsystem design
     - **utilities/** — Utilities subsystem design
 

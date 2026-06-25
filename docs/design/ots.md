@@ -13,6 +13,7 @@ scope; only how this project integrates and uses each item is documented.
 
 The following OTS items have integration design documentation:
 
+- ANTLR4 (_antlr4.md_) — ANTLR4 runtime (Antlr4.Runtime.Standard)
 - BuildMark (_buildmark.md_) — build-notes documentation tool
 - FileAssert (_fileassert.md_) — document assertion tool
 - Pandoc (_pandoc.md_) — Markdown-to-HTML conversion tool

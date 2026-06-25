@@ -1,0 +1,48 @@
+---
+# Lint Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the SysML2Tools Lint subsystem
+# - LintCommand resolves glob patterns, invokes WorkspaceParser, and reports diagnostics
+# - Subsystem requirements describe the externally visible linting behavior
+
+sections:
+  - title: Lint Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Tool-Lint-Patterns
+        title: >-
+          The LintCommand shall accept one or more file glob patterns as positional
+          arguments.
+        justification: |
+          Users specify which SysML files to lint using file glob patterns (e.g.,
+          src/**/*.sysml). Accepting multiple patterns in a single invocation allows
+          flexible targeting of file sets without requiring shell expansion.
+        tests: []
+
+      - id: SysML2Tools-Tool-Lint-Parse
+        title: >-
+          The LintCommand shall invoke WorkspaceParser.Parse with the resolved file
+          paths derived from the provided patterns.
+        justification: |
+          Delegating parsing to WorkspaceParser ensures that all SysML files are
+          validated against the embedded stdlib and that diagnostics are collected
+          consistently for all user-supplied files.
+        tests: []
+
+      - id: SysML2Tools-Tool-Lint-Report
+        title: >-
+          The LintCommand shall write each diagnostic to the context output in the
+          format: path(line,col): severity: message.
+        justification: |
+          A standard diagnostic format is recognized by IDEs, CI tools, and problem
+          matchers, enabling automated parsing of lint results without custom tooling.
+        tests: []
+
+      - id: SysML2Tools-Tool-Lint-ExitCode
+        title: >-
+          The LintCommand shall cause the tool to return exit code 1 if any
+          error-severity diagnostics are present.
+        justification: |
+          A non-zero exit code enables CI/CD pipelines to detect and surface lint
+          failures automatically, preventing silent acceptance of invalid SysML models.
+        tests: []

@@ -1,7 +1,7 @@
 # Grammar
 
 This folder contains the ANTLR4 grammar files for SysML v2 textual notation.
-The generated C# parser lives in `../Parser/Generated/` and is committed to the
+The generated C# parser lives in `../Parser/Antlr/` and is committed to the
 repository — no Java is required to build this project.
 
 ## Source Versions
@@ -30,10 +30,10 @@ To regenerate `../Parser/Generated/` after a grammar update:
    $java  = 'path\to\java.exe'
    $antlr = 'path\to\antlr-4.13.1-complete.jar'
    $src   = 'src\DemaConsulting.SysML2Tools\Grammar'
-   $out   = 'src\DemaConsulting.SysML2Tools\Parser\Generated'
+   $out   = 'src\DemaConsulting.SysML2Tools\Parser\Antlr'
    Remove-Item $out\* -Include *.cs,*.interp,*.tokens -Force
    & $java -jar $antlr -Dlanguage=CSharp `
-       -package DemaConsulting.SysML2Tools.Parser.Generated `
+       -package DemaConsulting.SysML2Tools.Parser.Antlr `
        -listener -visitor -o $out `
        $src\SysMLv2Lexer.g4 $src\SysMLv2Parser.g4
    ```
@@ -41,6 +41,6 @@ To regenerate `../Parser/Generated/` after a grammar update:
 4. Update the version table above.
 5. Commit the regenerated files.
 
-> **Note:** The `.interp` and `.tokens` files in `Generated/` are not needed
+> **Note:** The `.interp` and `.tokens` files in `Antlr/` are not needed
 > at runtime — the ANTLR4 ATN is serialized inline in the generated C# — but
 > they are committed alongside the `.cs` files to keep regeneration reproducible.

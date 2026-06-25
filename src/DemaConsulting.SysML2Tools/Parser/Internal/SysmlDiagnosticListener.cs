@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 using Antlr4.Runtime;
-using DemaConsulting.SysML2Tools.Parser.Generated;
+using DemaConsulting.SysML2Tools.Parser.Antlr;
 
 namespace DemaConsulting.SysML2Tools.Parser.Internal;
 

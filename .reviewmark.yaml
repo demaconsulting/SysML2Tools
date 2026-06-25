@@ -15,6 +15,7 @@ needs-review:
   - "docs/user_guide/**/*.md"     # User guide documentation
   - "!**/obj/**"                  # Exclude build output
   - "!**/bin/**"                  # Exclude build output
+  - "!src/**/Parser/Antlr/**"    # ANTLR4-generated C# — not hand-written
   - "!node_modules/**"            # Exclude npm dependencies
   - "!**/.venv/**"                # Exclude Python virtual environment
 
@@ -136,6 +137,40 @@ reviews:
       - docs/reqstream/sysml2-tools-core.yaml
     paths:
       - "docs/reqstream/sysml2-tools-core/**/*.yaml"
+
+  - id: SysML2Tools-Core-Parser-Design
+    title: Review that DemaConsulting.SysML2Tools Parser Design is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core.yaml
+    paths:
+      - "docs/design/introduction.md"
+      - "docs/design/sysml2-tools-core.md"
+      - "docs/design/sysml2-tools-core/parser.md"
+      - "docs/design/ots/antlr4.md"
+
+  - id: SysML2Tools-Core-Parser-Verification
+    title: Review that DemaConsulting.SysML2Tools Parser Verification is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-core.md"
+      - "docs/verification/sysml2-tools-core/parser.md"
+      - "docs/verification/ots/antlr4.md"
+
+  - id: SysML2Tools-Core-Parser-Implementation
+    title: Review of DemaConsulting.SysML2Tools Parser Implementation
+    context:
+      - docs/reqstream/sysml2-tools-core/parser.yaml
+      - docs/design/sysml2-tools-core/parser.md
+    paths:
+      - "src/DemaConsulting.SysML2Tools/Parser/DiagnosticSeverity.cs"
+      - "src/DemaConsulting.SysML2Tools/Parser/SysmlDiagnostic.cs"
+      - "src/DemaConsulting.SysML2Tools/Parser/WorkspaceParseResult.cs"
+      - "src/DemaConsulting.SysML2Tools/Parser/WorkspaceParser.cs"
+      - "src/DemaConsulting.SysML2Tools/Parser/Internal/SysmlDiagnosticListener.cs"
+      - "src/DemaConsulting.SysML2Tools/Parser/Internal/StdlibLoader.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
 
   # SysML2Tools SVG Renderer
   - id: SysML2Tools-Svg-Architecture
@@ -321,6 +356,17 @@ reviews:
       - "src/**/Utilities/PathHelpers.cs"
       - "test/**/Utilities/PathHelpersTests.cs"
 
+  - id: SysML2Tools-Tool-Lint
+    title: Review of SysML2 Tools Lint subsystem architecture and interfaces
+    context:
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-tool/lint.yaml"
+      - "docs/design/sysml2-tools-tool/lint.md"
+      - "docs/verification/sysml2-tools-tool/lint.md"
+      - "src/**/Lint/LintCommand.cs"
+
   # OTS Items
   - id: OTS-BuildMark
     title: Review of BuildMark OTS verification evidence
@@ -391,3 +437,10 @@ reviews:
       - "docs/reqstream/ots/xunit.yaml"
       - "docs/design/ots/xunit.md"
       - "docs/verification/ots/xunit.md"
+
+  - id: OTS-ANTLR4
+    title: Review of ANTLR4 OTS verification evidence
+    paths:
+      - "docs/reqstream/ots/antlr4.yaml"
+      - "docs/design/ots/antlr4.md"
+      - "docs/verification/ots/antlr4.md"

@@ -1,8 +1,10 @@
 ---
 resource-path:
   - docs/design
+  - docs/design/sysml2-tools-core
   - docs/design/sysml2-tools-tool
   - docs/design/sysml2-tools-tool/cli
+  - docs/design/sysml2-tools-tool/lint
   - docs/design/sysml2-tools-tool/self-test
   - docs/design/sysml2-tools-tool/utilities
   - docs/design/ots
@@ -15,14 +17,17 @@ input-files:
   - docs/design/sysml2-tools-tool/program.md
   - docs/design/sysml2-tools-tool/cli.md
   - docs/design/sysml2-tools-tool/cli/context.md
+  - docs/design/sysml2-tools-tool/lint.md
   - docs/design/sysml2-tools-tool/self-test.md
   - docs/design/sysml2-tools-tool/self-test/validation.md
   - docs/design/sysml2-tools-tool/utilities.md
   - docs/design/sysml2-tools-tool/utilities/path-helpers.md
   - docs/design/sysml2-tools-core.md
+  - docs/design/sysml2-tools-core/parser.md
   - docs/design/sysml2-tools-svg.md
   - docs/design/sysml2-tools-png.md
   - docs/design/ots.md
+  - docs/design/ots/antlr4.md
   - docs/design/ots/buildmark.md
   - docs/design/ots/fileassert.md
   - docs/design/ots/pandoc.md

@@ -16,6 +16,7 @@ Internal OTS tool design is out of scope; only integration and usage evidence is
 
 The following OTS items have verification evidence in this section:
 
+- ANTLR4 (_antlr4.md_) — ANTLR4 runtime (Antlr4.Runtime.Standard)
 - BuildMark (_buildmark.md_) — build-notes documentation tool
 - FileAssert (_fileassert.md_) — document assertion tool
 - Pandoc (_pandoc.md_) — Markdown-to-HTML conversion tool
