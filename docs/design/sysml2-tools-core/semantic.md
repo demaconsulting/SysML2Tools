@@ -6,7 +6,7 @@ The Semantic subsystem builds a semantic workspace from the parsed SysML/KerML s
 operates as a second layer above the Parser subsystem, consuming ANTLR4 CSTs produced by
 `WorkspaceParser` and transforming them into a structured symbol table with resolved references.
 
-### Architecture
+### Interfaces
 
 The Semantic subsystem contains one public unit (`WorkspaceLoader`) and an internal subsystem
 (`Internal`) containing `AstBuilder`, `SymbolTable`, `ReferenceResolver`, and `SupertypeWalker`.
@@ -28,8 +28,6 @@ flowchart TD
     WorkspaceLoader --> SupertypeWalker
     AstBuilder --> SymbolTable
 ```
-
-### External Interfaces
 
 **WorkspaceLoader.LoadAsync**: Loads the embedded stdlib plus every file in the provided
 collection asynchronously.
@@ -56,7 +54,7 @@ collection asynchronously.
 - *Contract*: Exposes `IReadOnlyList<string> Files` and `IReadOnlyDictionary<string, object> Declarations`
   mapping qualified names to declaration nodes.
 
-### Data Flow
+### Design
 
 1. `WorkspaceLoader.LoadAsync` awaits the shared `Lazy<Task<StdlibSemanticResult>>` stdlib result.
    On first call the factory fires `Task.Run(BuildStdlibSemanticAsync)`, which reads each stdlib

@@ -170,6 +170,16 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/OmgModelsTests.cs"
 
+  - id: SysML2Tools-Core-Parser-Changes
+    title: Review of Parser Changes for Phase 2 (StdlibLoader KerML + ParseSourceToCst)
+    context:
+      - docs/reqstream/sysml2-tools-core/parser.yaml
+      - docs/design/sysml2-tools-core/parser.md
+    paths:
+      - "src/DemaConsulting.SysML2Tools/Parser/WorkspaceParser.cs"
+      - "src/DemaConsulting.SysML2Tools/Parser/Internal/StdlibLoader.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
+
   - id: SysML2Tools-Core-Semantic-Design
     title: Review that DemaConsulting.SysML2Tools Semantic Design is Consistent and Complete
     context:
@@ -215,6 +225,22 @@ reviews:
       - "src/DemaConsulting.SysML2Tools/Semantic/Internal/SupertypeWalker.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
+
+  - id: SysML2Tools-Core-Semantic-WorkspaceLoader
+    title: Review of DemaConsulting.SysML2Tools Semantic WorkspaceLoader Unit Implementation
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/semantic.md
+      - docs/reqstream/sysml2-tools-core/semantic.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-core/semantic/workspace-loader.yaml"
+      - "docs/design/sysml2-tools-core/semantic/workspace-loader.md"
+      - "docs/verification/sysml2-tools-core/semantic/workspace-loader.md"
+      - "src/DemaConsulting.SysML2Tools/Semantic/WorkspaceLoader.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
+      - "test/SysMLModels/software-structure.sysml"
 
   # SysML2Tools SVG Renderer
   - id: SysML2Tools-Svg-Architecture

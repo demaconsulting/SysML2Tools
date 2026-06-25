@@ -67,6 +67,17 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop
 
+      - id: SysML2Tools-Core-Semantic-Supertype
+        title: >-
+          WorkspaceLoader.LoadAsync detects cyclic specialization and produces Warning diagnostics
+        justification: |
+          Cyclic specialization (e.g. A specializes B, B specializes A) is semantically
+          invalid in SysML v2. Reporting these as Warnings allows callers to diagnose invalid
+          models while still returning a usable workspace. SupertypeWalker.WalkAll performs
+          a DFS over the specialization graph and emits one Warning per back-edge detected.
+        tests:
+          - WorkspaceLoader_LoadAsync_CyclicSpecialization_ProducesWarning
+
       - id: SysML2Tools-Core-Semantic-HasErrors
         title: >-
           SysmlLoadResult.HasErrors shall return true if and only if at least one

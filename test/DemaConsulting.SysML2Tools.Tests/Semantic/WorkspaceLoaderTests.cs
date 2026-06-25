@@ -251,4 +251,39 @@ public sealed class WorkspaceLoaderTests
             File.Delete(tempFile2);
         }
     }
+
+    /// <summary>
+    ///     Validates that a cyclic specialization chain (A specializes B, B specializes A)
+    ///     produces a Warning diagnostic and completes in finite time.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_CyclicSpecialization_ProducesWarning()
+    {
+        // Arrange — A specializes B, B specializes A (cyclic)
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def A specializes P::B {}
+                    part def B specializes P::A {}
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act — must complete in finite time
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var result = await WorkspaceLoader.LoadAsync([tempFile])
+                .WaitAsync(cts.Token);
+
+            // Assert — cyclic specialization warning present
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("Cyclic specialization"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
 }
