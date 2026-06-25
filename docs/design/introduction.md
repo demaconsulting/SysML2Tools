@@ -31,7 +31,8 @@ The following topics are out of scope:
 The following list shows how the SysML2 Tools software items are organized across the
 system, subsystem, and unit levels:
 
-- **DemaConsulting.SysML2Tools** (System) — core library: SysML v2 parsing engine, embedded stdlib, and future semantic model/layout
+- **DemaConsulting.SysML2Tools** (System) — core library: SysML v2 parsing engine, embedded stdlib,
+  and future semantic model/layout
   - **Parser** (Subsystem) — SysML v2 parsing engine
     - **WorkspaceParser** (Unit) — public API: parses file glob patterns and source strings against the embedded stdlib
     - **Internal** (Subsystem) — internal implementation details
