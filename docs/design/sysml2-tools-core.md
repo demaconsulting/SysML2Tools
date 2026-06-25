@@ -15,10 +15,8 @@ API unit (`WorkspaceParser`) and an internal subsystem (`Internal`) containing
 flowchart TD
     subgraph Parser
         WorkspaceParser
-        subgraph Internal
-            SysmlDiagnosticListener
-            StdlibLoader
-        end
+        SysmlDiagnosticListener
+        StdlibLoader
     end
     WorkspaceParser --> StdlibLoader
     WorkspaceParser --> SysmlDiagnosticListener
