@@ -17,17 +17,19 @@ sections:
           Users specify which SysML files to lint using file glob patterns (e.g.,
           src/**/*.sysml). Accepting multiple patterns in a single invocation allows
           flexible targeting of file sets without requiring shell expansion.
-        tests: []
+        tests:
+          - LintSubsystem_Patterns_AcceptsGlobPatterns_ResolvesFiles
 
       - id: SysML2Tools-Tool-Lint-Parse
         title: >-
-          The LintCommand shall invoke WorkspaceParser.Parse with the resolved file
-          paths derived from the provided patterns.
+          The LintCommand shall invoke WorkspaceParser.ParseAsync with the resolved
+          file paths derived from the provided patterns.
         justification: |
           Delegating parsing to WorkspaceParser ensures that all SysML files are
           validated against the embedded stdlib and that diagnostics are collected
           consistently for all user-supplied files.
-        tests: []
+        tests:
+          - LintSubsystem_Parse_ValidFile_ParsesWithoutErrors
 
       - id: SysML2Tools-Tool-Lint-Report
         title: >-
@@ -36,7 +38,8 @@ sections:
         justification: |
           A standard diagnostic format is recognized by IDEs, CI tools, and problem
           matchers, enabling automated parsing of lint results without custom tooling.
-        tests: []
+        tests:
+          - LintSubsystem_Report_InvalidFile_WritesDiagnosticInExpectedFormat
 
       - id: SysML2Tools-Tool-Lint-ExitCode
         title: >-
@@ -45,4 +48,5 @@ sections:
         justification: |
           A non-zero exit code enables CI/CD pipelines to detect and surface lint
           failures automatically, preventing silent acceptance of invalid SysML models.
-        tests: []
+        tests:
+          - LintSubsystem_ExitCode_InvalidFile_ReturnsOne
