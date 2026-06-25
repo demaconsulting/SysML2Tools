@@ -47,6 +47,11 @@
     <PackageReference Include="Polyfill" Version="10.10.0" PrivateAssets="All" />
   </ItemGroup>
 
+  <!-- Project References -->
+  <ItemGroup>
+    <ProjectReference Include="..\DemaConsulting.SysML2Tools\DemaConsulting.SysML2Tools.csproj" />
+  </ItemGroup>
+
   <!-- Code Analysis Dependencies -->
   <ItemGroup>
     <!-- Analyzer packages use child-element form to configure both PrivateAssets and IncludeAssets:

@@ -1,0 +1,170 @@
+---
+# Layout Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the SysML2Tools Layout subsystem
+# - LayoutTree and its node types provide the intermediate representation consumed by renderers
+# - Requirements describe observable layout structure, not internal rendering algorithms
+
+sections:
+  - title: Layout Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-LayoutTree
+        title: >-
+          The Layout subsystem shall provide a LayoutTree record containing canvas Width,
+          Height, and a flat list of top-level LayoutNodes.
+        justification: |
+          A single root container with explicit canvas dimensions allows renderers to allocate
+          output buffers before visiting any node. The flat top-level list enables renderers
+          to iterate without recursing into the root unnecessarily; nesting is expressed
+          within LayoutBox.Children.
+        tests:
+          - LayoutTree_Construction_StoresWidthHeightNodes
+
+      - id: SysML2Tools-Core-Layout-AbsoluteCoordinates
+        title: >-
+          All coordinate values in LayoutTree and its descendant nodes shall be absolute,
+          with the origin at the top-left corner of the canvas.
+        justification: |
+          Absolute coordinates eliminate the need for renderers to maintain a coordinate
+          transform stack. Every node can be drawn independently without knowledge of its
+          ancestors, simplifying renderer implementations and enabling future parallel
+          rendering.
+        tests:
+          - LayoutBox_Coordinates_AreAbsolute
+          - LayoutPort_Coordinates_AreAbsolute
+
+      - id: SysML2Tools-Core-Layout-LayoutBox
+        title: >-
+          The Layout subsystem shall provide a LayoutBox node representing a rectangular
+          container with position, size, optional label, integer depth, shape, compartments,
+          and nested children.
+        justification: |
+          LayoutBox is the primary structural node for block diagrams. The integer Depth
+          field allows the renderer to look up a fill color from the Theme without embedding
+          color state in the layout tree, keeping the tree pure and re-renderable with
+          different themes. Children allow nested blocks to be expressed as a tree.
+        tests:
+          - LayoutBox_Construction_StoresAllFields
+          - LayoutBox_Depth_IsInteger
+
+      - id: SysML2Tools-Core-Layout-DepthNotColor
+        title: >-
+          LayoutBox shall carry an integer Depth field and no color fields; the renderer
+          shall derive fill color by indexing into Theme.DepthFillColors, wrapping if the
+          depth exceeds the color count.
+        justification: |
+          Separating layout from color concerns allows the same LayoutTree to be rendered
+          with different themes without recomputing layout. Wrapping ensures that deeply
+          nested blocks always receive a valid color regardless of theme depth.
+        tests:
+          - LayoutBox_Depth_IsInteger
+
+      - id: SysML2Tools-Core-Layout-TreeStructure
+        title: >-
+          LayoutBox.Children shall contain the nested LayoutNodes that reside spatially
+          inside the box, including LayoutPort nodes attached to its edges.
+        justification: |
+          Expressing nesting via Children preserves the parent–child spatial relationship
+          without requiring a back-reference from child to parent. Renderers can clip or
+          recursively render children knowing they are contained within the parent bounds.
+        tests:
+          - LayoutBox_Children_ContainsNestedNodes
+
+      - id: SysML2Tools-Core-Layout-LayoutPort
+        title: >-
+          The Layout subsystem shall provide a LayoutPort node with absolute centre
+          coordinates and a PortSide enum indicating which edge of the parent box it is
+          attached to.
+        justification: |
+          Ports are small connection points on box edges. Storing the absolute centre
+          position and side allows renderers to draw port symbols without requiring access
+          to the parent box dimensions.
+        tests:
+          - LayoutPort_Construction_StoresAllFields
+
+      - id: SysML2Tools-Core-Layout-LayoutLine
+        title: >-
+          The Layout subsystem shall provide a LayoutLine node containing a pre-routed
+          ordered list of absolute waypoints, source and target arrowhead styles, a line
+          stroke style, and an optional midpoint label.
+        justification: |
+          Pre-routed waypoints mean the renderer only draws straight segments between
+          consecutive points; path-finding is entirely the responsibility of ILayoutStrategy.
+          This separation allows multiple renderers (SVG, PNG) to share the same routing
+          algorithm without duplication.
+        tests:
+          - LayoutLine_Construction_StoresAllFields
+
+      - id: SysML2Tools-Core-Layout-LayoutLabel
+        title: >-
+          The Layout subsystem shall provide a LayoutLabel node with absolute position,
+          maximum width, text content, and horizontal text alignment.
+        justification: |
+          Standalone labels are needed for diagram titles, note annotations, and edge
+          mid-labels that are not part of a box compartment. MaxWidth allows the renderer
+          to wrap or truncate text without recomputing positions.
+        tests:
+          - LayoutLabel_Construction_StoresAllFields
+
+      - id: SysML2Tools-Core-Layout-LayoutBadge
+        title: >-
+          The Layout subsystem shall provide a LayoutBadge node with absolute centre
+          position, size, shape, and optional label for small icon decorators.
+        justification: |
+          Badges represent SysML notational icons (e.g., initial pseudostates, choice
+          nodes, history connectors) that are too small to be LayoutBox instances.
+          A dedicated node type allows renderers to apply specialized drawing logic.
+        tests:
+          - LayoutBadge_Construction_StoresAllFields
+
+      - id: SysML2Tools-Core-Layout-LayoutBand
+        title: >-
+          The Layout subsystem shall provide a LayoutBand node representing a swim-lane
+          with position, size, orientation, optional label, and nested children.
+        justification: |
+          Swim-lanes appear in activity and sequence diagrams. Expressing them as a
+          dedicated node type (rather than a styled LayoutBox) allows renderers to
+          apply lane-specific styling and header positioning.
+        tests:
+          - LayoutBand_Construction_StoresAllFields
+
+      - id: SysML2Tools-Core-Layout-LayoutLifeline
+        title: >-
+          The Layout subsystem shall provide a LayoutLifeline node representing a
+          sequence-diagram lifeline with absolute centre X, top Y, bottom Y, label,
+          header width, and header height; and a LayoutActivation node representing
+          an activation bar with centre X, top Y, and bottom Y.
+        justification: |
+          Lifelines and activation bars are structural elements of sequence diagrams
+          with distinct visual representations. Dedicated node types allow renderers
+          to draw them correctly without inferring their roles from generic properties.
+        tests:
+          - LayoutLifeline_Construction_StoresAllFields
+          - LayoutActivation_Construction_StoresAllFields
+
+      - id: SysML2Tools-Core-Layout-LayoutGrid
+        title: >-
+          The Layout subsystem shall provide a LayoutGrid node representing a tabular
+          layout at an absolute position, containing rows of cells with width, height,
+          text, alignment, and column span.
+        justification: |
+          Grids are needed for SysML table views and property compartments that have
+          multi-column structure. A dedicated node type allows renderers to draw borders
+          and apply header styling without heuristic detection.
+        tests:
+          - LayoutGrid_Construction_StoresAllFields
+
+      - id: SysML2Tools-Core-Layout-PreRoutedLines
+        title: >-
+          All line routing, including A* path-finding and even waypoint spacing, shall
+          be performed by ILayoutStrategy before the LayoutTree is passed to the renderer.
+          LayoutLine.Waypoints shall contain the complete ordered sequence of absolute
+          points that the renderer draws as straight segments.
+        justification: |
+          Delegating routing to ILayoutStrategy keeps renderers stateless and free of
+          path-finding logic. A renderer that implements IRenderer only needs to draw
+          line segments between consecutive waypoints and apply the Theme's
+          LineCornerRadius for elbow rounding.
+        tests:
+          - LayoutLine_Waypoints_AreAbsolute

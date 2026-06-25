@@ -1,0 +1,130 @@
+---
+# Rendering Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the SysML2Tools Rendering subsystem
+# - IRenderer, ILayoutStrategy, Theme, RenderOptions, and DiagramRenderer define the
+#   rendering pipeline interfaces
+# - Requirements describe observable rendering behavior, not internal rendering algorithms
+
+sections:
+  - title: Rendering Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Core-Rendering-IRenderer
+        title: >-
+          The Rendering subsystem shall define an IRenderer interface with a MediaType
+          property, a DefaultExtension property, and a Render method that writes a
+          LayoutTree to an output Stream using the supplied RenderOptions.
+        justification: |
+          A common IRenderer contract allows the orchestrator (DiagramRenderer) and the
+          CLI tool to treat SVG and PNG renderers uniformly. Callers can select a renderer
+          by MediaType without depending on concrete renderer types, supporting future
+          renderer additions without changing the orchestration logic.
+        tests:
+          - SvgRenderer_MediaType_IsImageSvgXml
+          - SvgRenderer_DefaultExtension_IsDotSvg
+          - PngRenderer_MediaType_IsImagePng
+          - PngRenderer_DefaultExtension_IsDotPng
+
+      - id: SysML2Tools-Core-Rendering-IRendererStateless
+        title: >-
+          IRenderer implementations shall be pure and stateless, and shall not perform
+          any filesystem access.
+        justification: |
+          Stateless renderers are safe to call concurrently from multiple threads and
+          can be reused across multiple Render invocations without side effects. Prohibiting
+          filesystem access ensures that renderers remain testable in-process with
+          in-memory streams.
+        tests:
+          - SvgRenderer_Render_ThrowsNotImplemented
+          - PngRenderer_Render_ThrowsNotImplemented
+
+      - id: SysML2Tools-Core-Rendering-Theme
+        title: >-
+          The Rendering subsystem shall define a Theme record containing DepthFillColors,
+          StrokeColor, StrokeWidth, LineCornerRadius, FontSizeTitle, FontSizeBody,
+          LabelPadding, and Font fields.
+        justification: |
+          Centralizing all visual parameters in a Theme record allows the entire appearance
+          of a rendered diagram to be changed by substituting a single object, without
+          modifying any layout or rendering logic. All visual decisions are deferred to the
+          Theme at render time.
+        tests:
+          - Themes_Light_IsInitialized
+          - Themes_Dark_IsInitialized
+          - Themes_Print_IsInitialized
+
+      - id: SysML2Tools-Core-Rendering-ThemeDepthWrap
+        title: >-
+          The renderer shall derive the fill color for a LayoutBox by indexing into
+          Theme.DepthFillColors using the modulo of LayoutBox.Depth and the color list
+          count, so that deeply nested boxes always receive a valid color.
+        justification: |
+          Modulo wrapping ensures that diagrams with nesting deeper than the theme's
+          color palette never produce an index-out-of-range error. It also creates a
+          natural visual cycle that helps readers distinguish nesting levels.
+        tests:
+          - Themes_Light_IsInitialized
+
+      - id: SysML2Tools-Core-Rendering-RenderOptions
+        title: >-
+          The Rendering subsystem shall define a RenderOptions record with a Theme,
+          a Scale factor (default 1.0), a Dpi value (default 96), and a DepthLimit
+          (default 0, meaning unlimited).
+        justification: |
+          RenderOptions bundles all rendering parameters into one object passed to both
+          ILayoutStrategy.BuildLayout and IRenderer.Render. A DepthLimit of 0 meaning
+          unlimited is a conventional sentinel that avoids magic negative values.
+        tests:
+          - RenderOptions_DefaultScale_IsOne
+          - RenderOptions_DefaultDpi_Is96
+          - RenderOptions_DefaultDepthLimit_IsZero
+
+      - id: SysML2Tools-Core-Rendering-ILayoutStrategy
+        title: >-
+          The Rendering subsystem shall define an ILayoutStrategy interface with a
+          BuildLayout method that accepts a ViewContext and RenderOptions and returns
+          a LayoutTree with all positions and line waypoints fully resolved.
+        justification: |
+          Separating layout computation from rendering allows different layout algorithms
+          (e.g., hierarchical, force-directed) to produce the same LayoutTree representation
+          consumed by any IRenderer implementation, maximizing reuse.
+        tests:
+          - ViewContext_Construction_StoresAllFields
+
+      - id: SysML2Tools-Core-Rendering-DiagramRenderer
+        title: >-
+          The Rendering subsystem shall provide a DiagramRenderer class that, for each
+          view in a SysmlWorkspace, calls ILayoutStrategy.BuildLayout to produce a
+          LayoutTree and then calls IRenderer.Render to produce a RenderOutput.
+        justification: |
+          DiagramRenderer is the single orchestration point that wires together the
+          layout and rendering pipeline. Centralizing this loop ensures consistent
+          error handling and output collection across all views and all renderer types.
+        tests:
+          - DiagramRenderer_RenderWorkspace_ThrowsNotImplemented
+
+      - id: SysML2Tools-Core-Rendering-RenderOutput
+        title: >-
+          The Rendering subsystem shall define a RenderOutput record containing a
+          SuggestedFileName, MediaType, and Data stream for each rendered view.
+        justification: |
+          RenderOutput decouples the renderer from filesystem decisions. Callers receive
+          a suggested file name and media type alongside the data stream and can write
+          the output wherever they choose (file system, HTTP response, zip archive).
+        tests:
+          - RenderOutput_Construction_StoresAllFields
+
+      - id: SysML2Tools-Core-Rendering-BuiltinThemes
+        title: >-
+          The Rendering subsystem shall provide at least three built-in Theme instances:
+          Themes.Light (screen display), Themes.Dark (dark-mode display), and
+          Themes.Print (black-and-white output).
+        justification: |
+          Built-in themes allow callers to produce professional output without specifying
+          every visual parameter. They also serve as reference values for testing and as
+          starting points for custom theme derivation.
+        tests:
+          - Themes_Light_IsInitialized
+          - Themes_Dark_IsInitialized
+          - Themes_Print_IsInitialized

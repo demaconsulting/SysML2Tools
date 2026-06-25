@@ -1,0 +1,16 @@
+// <copyright file="LayoutTree.cs" company="DemaConsulting">
+// Copyright (c) DemaConsulting. All rights reserved.
+// </copyright>
+
+namespace DemaConsulting.SysML2Tools.Layout;
+
+/// <summary>
+/// Complete layout for one rendered view. All coordinates are absolute (origin = top-left).
+/// </summary>
+/// <param name="Width">Canvas width in logical pixels.</param>
+/// <param name="Height">Canvas height in logical pixels.</param>
+/// <param name="Nodes">Flat list of top-level layout nodes to render.</param>
+public sealed record LayoutTree(
+    double Width,
+    double Height,
+    IReadOnlyList<LayoutNode> Nodes);
