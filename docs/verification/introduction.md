@@ -17,46 +17,32 @@ This document covers the verification design for the following software items:
 
 **Local items:**
 
-- **DemaConsulting.SysML2Tools** (System — core library)
-  - **Parser** (Subsystem) — SysML v2 parsing engine
-    - **WorkspaceParser** (Unit) — public parsing API
-    - **Internal** (Subsystem) — internal implementation
-      - **SysmlDiagnosticListener** (Unit) — ANTLR4 error listener
-      - **StdlibLoader** (Unit) — embedded stdlib loader
-- **DemaConsulting.SysML2Tools.Svg** (System — SVG renderer, Phase 0 stub)
-- **DemaConsulting.SysML2Tools.Png** (System — PNG renderer, Phase 0 stub)
-- **DemaConsulting.SysML2Tools.Tool** (System — dotnet tool)
-  - **Program** (Unit) — entry point and execution orchestrator
-  - **Cli** (Subsystem) — command-line argument parsing and I/O
-    - **Context** (Unit) — argument parser and I/O owner
-  - **Lint** (Subsystem) — lint command implementation
-    - **LintCommand** (Unit) — lint subcommand handler
-  - **SelfTest** (Subsystem) — self-validation test runner
-    - **Validation** (Unit) — self-validation test runner
-  - **Utilities** (Subsystem) — shared utilities
-    - **PathHelpers** (Unit) — safe path combination utilities
+- **DemaConsulting.SysML2Tools**: system, subsystem, and unit verification.
+- **DemaConsulting.SysML2Tools.Svg**: system verification (Phase 0 stub).
+- **DemaConsulting.SysML2Tools.Png**: system verification (Phase 0 stub).
+- **DemaConsulting.SysML2Tools.Tool**: system, subsystem, and unit verification.
 
 **OTS items:**
 
-- **ANTLR4** — ANTLR4 runtime (Antlr4.Runtime.Standard)
-- **BuildMark** — build-notes documentation tool
-- **FileAssert** — document assertion tool
-- **Pandoc** — Markdown-to-HTML conversion tool
-- **ReqStream** — requirements traceability tool
-- **ReviewMark** — file review enforcement tool
-- **SarifMark** — SARIF report conversion tool
-- **SonarMark** — SonarCloud quality report tool
-- **VersionMark** — tool-version documentation tool
-- **WeasyPrint** — HTML-to-PDF conversion tool
-- **xUnit** — unit-testing framework
+- **ANTLR4**: integration and usage verification.
+- **BuildMark**: integration and usage verification.
+- **FileAssert**: integration and usage verification.
+- **Pandoc**: integration and usage verification.
+- **ReqStream**: integration and usage verification.
+- **ReviewMark**: integration and usage verification.
+- **SarifMark**: integration and usage verification.
+- **SonarMark**: integration and usage verification.
+- **VersionMark**: integration and usage verification.
+- **WeasyPrint**: integration and usage verification.
+- **xUnit**: integration and usage verification.
 
 The following topics are out of scope:
 
 - Verification documents are not produced for the test projects themselves — they are the
-  means of verification, not subjects of it
-- Build pipeline CI configuration is excluded
+  means of verification, not subjects of it.
+- Build pipeline CI configuration is excluded.
 - The internal implementation of OTS software items is excluded; only integration and usage
-  are verified
+  are verified.
 
 ## Folder Layout
 
@@ -81,8 +67,9 @@ Local items have parallel artifacts in:
 
 OTS items have parallel artifacts in:
 
-- Requirements: `docs/reqstream/ots/{ots-name}.yaml` (kebab-case)
-- Verification: `docs/verification/ots/{ots-name}.md` (kebab-case)
+- Requirements: `docs/reqstream/ots/{ots-name}.yaml`
+- Design: `docs/design/ots/{ots-name}.md`
+- Verification: `docs/verification/ots/{ots-name}.md`
 
 Review-sets: defined in `.reviewmark.yaml`
 

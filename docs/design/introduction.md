@@ -19,43 +19,29 @@ This document covers the detailed design of the following software items:
 
 **Local items:**
 
-- **DemaConsulting.SysML2Tools** (System — core library)
-  - **Parser** (Subsystem) — SysML v2 parsing engine
-    - **WorkspaceParser** (Unit) — public parsing API
-    - **Internal** (Subsystem) — internal implementation
-      - **SysmlDiagnosticListener** (Unit) — ANTLR4 error listener
-      - **StdlibLoader** (Unit) — embedded stdlib loader
-- **DemaConsulting.SysML2Tools.Svg** (System — SVG renderer, Phase 0 stub)
-- **DemaConsulting.SysML2Tools.Png** (System — PNG renderer, Phase 0 stub)
-- **DemaConsulting.SysML2Tools.Tool** (System — dotnet tool)
-  - **Program** — entry point and execution orchestrator
-  - **Cli** subsystem
-    - **Context** — command-line argument parser and I/O owner
-  - **Lint** (Subsystem) — lint command implementation
-    - **LintCommand** (Unit) — lint subcommand handler
-  - **SelfTest** subsystem
-    - **Validation** — self-validation test runner
-  - **Utilities** subsystem
-    - **PathHelpers** — safe path combination utilities
+- **DemaConsulting.SysML2Tools**: system, subsystem, and unit design.
+- **DemaConsulting.SysML2Tools.Svg**: system design (Phase 0 stub).
+- **DemaConsulting.SysML2Tools.Png**: system design (Phase 0 stub).
+- **DemaConsulting.SysML2Tools.Tool**: system, subsystem, and unit design.
 
 **OTS items:**
 
-- **ANTLR4** — integration and usage design
-- **BuildMark** — integration and usage design
-- **FileAssert** — integration and usage design
-- **Pandoc** — integration and usage design
-- **ReqStream** — integration and usage design
-- **ReviewMark** — integration and usage design
-- **SarifMark** — integration and usage design
-- **SonarMark** — integration and usage design
-- **VersionMark** — integration and usage design
-- **WeasyPrint** — integration and usage design
-- **xUnit** — integration and usage design
+- **ANTLR4**: integration and usage design.
+- **BuildMark**: integration and usage design.
+- **FileAssert**: integration and usage design.
+- **Pandoc**: integration and usage design.
+- **ReqStream**: integration and usage design.
+- **ReviewMark**: integration and usage design.
+- **SarifMark**: integration and usage design.
+- **SonarMark**: integration and usage design.
+- **VersionMark**: integration and usage design.
+- **WeasyPrint**: integration and usage design.
+- **xUnit**: integration and usage design.
 
 The following topics are out of scope:
 
-- Design documents are not produced for the test projects or build pipeline CI configuration
-- The internal design of OTS software items is excluded; only integration and usage design is documented
+- Design documents are not produced for the test projects or build pipeline CI configuration.
+- The internal design of OTS software items is excluded; only integration and usage design is documented.
 
 ## Software Structure
 
