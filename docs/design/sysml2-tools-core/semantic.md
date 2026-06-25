@@ -1,12 +1,12 @@
-# DemaConsulting.SysML2Tools — Semantic Subsystem
+## DemaConsulting.SysML2Tools — Semantic Subsystem
 
-## Overview
+### Overview
 
 The Semantic subsystem builds a semantic workspace from the parsed SysML/KerML source files. It
 operates as a second layer above the Parser subsystem, consuming ANTLR4 CSTs produced by
 `WorkspaceParser` and transforming them into a structured symbol table with resolved references.
 
-## Architecture
+### Architecture
 
 The Semantic subsystem contains one public unit (`WorkspaceLoader`) and an internal subsystem
 (`Internal`) containing `AstBuilder`, `SymbolTable`, `ReferenceResolver`, and `SupertypeWalker`.
@@ -29,7 +29,7 @@ flowchart TD
     AstBuilder --> SymbolTable
 ```
 
-## External Interfaces
+### External Interfaces
 
 **WorkspaceLoader.LoadAsync**: Loads the embedded stdlib plus every file in the provided
 collection asynchronously.
@@ -56,11 +56,11 @@ collection asynchronously.
 - *Contract*: Exposes `IReadOnlyList<string> Files` and `IReadOnlyDictionary<string, object> Declarations`
   mapping qualified names to declaration nodes.
 
-## Data Flow
+### Data Flow
 
 1. `WorkspaceLoader.LoadAsync` awaits the shared `Lazy<Task<StdlibSemanticResult>>` stdlib result.
    On first call the factory fires `Task.Run(BuildStdlibSemanticAsync)`, which reads each stdlib
-   resource stream, calls `WorkspaceParser.ParseSourceToCst`, downgradeskerml parse errors to
+   resource stream, calls `WorkspaceParser.ParseSourceToCst`, downgrades KerML parse errors to
    Warnings, builds an AST via `AstBuilder`, and registers it into a `SymbolTable`.
 2. Concurrently, all caller-supplied file paths are dispatched via `Task.WhenAll`, each parsing
    its content via `WorkspaceParser.ParseSourceToCst`, building an AST, and registering into
@@ -73,7 +73,7 @@ collection asynchronously.
 5. A `SysmlWorkspace` is constructed from the loaded file list and symbol table, and returned
    in a `SysmlLoadResult`.
 
-## Design Constraints
+### Design Constraints
 
 - KerML stdlib files are parsed with the SysML v2 grammar; any parse errors are downgraded to
   Warnings since the grammar does not fully support KerML-specific syntax.

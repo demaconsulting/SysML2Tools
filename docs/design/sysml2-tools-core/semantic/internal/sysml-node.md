@@ -1,11 +1,11 @@
-# SysmlNode — AST Node Hierarchy
+#### SysmlNode — AST Node Hierarchy
 
-## Overview
+##### Overview
 
 `SysmlNode` is the abstract base class for all SysML/KerML AST nodes. Concrete subtypes represent
 packages, definitions, features, imports, views, and viewpoints.
 
-## Class Hierarchy
+##### Class Hierarchy
 
 | Class | Purpose |
 | --- | --- |
@@ -17,7 +17,7 @@ packages, definitions, features, imports, views, and viewpoints.
 | `SysmlViewNode` | View definition |
 | `SysmlViewpointNode` | Viewpoint definition |
 
-## Properties
+##### Properties
 
 All nodes carry:
 
@@ -26,3 +26,32 @@ All nodes carry:
 - `Children` — nested AST nodes.
 - `SupertypeNames` — qualified names of supertypes referenced via `specializes` / `:>`.
 - `ImportedNames` — qualified names of imported namespaces.
+
+##### Key Methods
+
+All node types use C# `init`-only properties and are constructed via object initializers.
+There are no behavioral methods beyond the inherited `object` members. `SysmlImportNode` adds:
+
+- `ImportedNamespace` — the target namespace string extracted by `ReferenceResolver`.
+- `IsWildcard` — `true` if the import ends with `::*`.
+
+`SysmlDefinitionNode` adds:
+
+- `DefinitionKeyword` — the grammar keyword string (e.g., `"part def"`, `"attribute def"`).
+
+##### Error Handling
+
+N/A — node types are pure data containers with no logic or validation. Invalid or anonymous
+elements are filtered out by `AstBuilder` before a node is constructed.
+
+##### Dependencies
+
+- No external dependencies. All node types are internal sealed classes or the abstract base class
+  within the `Semantic.Internal` namespace.
+
+##### Callers
+
+- `AstBuilder` — constructs all concrete node instances during CST visitor traversal.
+- `SymbolTable` — traverses the node hierarchy via `Children`; reads `QualifiedName`.
+- `ReferenceResolver` — reads `SupertypeNames`, `Children`; checks for `SysmlImportNode`.
+- `SupertypeWalker` — reads `SupertypeNames` on each node retrieved from `SymbolTable`.

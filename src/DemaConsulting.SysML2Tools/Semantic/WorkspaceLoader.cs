@@ -75,12 +75,22 @@ public static class WorkspaceLoader
         return new SysmlLoadResult(workspace, allDiagnostics);
     }
 
-    // Stdlib AST cache
+    /// <summary>
+    ///     Cached stdlib parse and AST build task, executed at most once per process lifetime.
+    /// </summary>
     private static readonly Lazy<Task<StdlibSemanticResult>> StdlibSemanticTask =
         new(() => Task.Run(BuildStdlibSemanticAsync));
 
+    /// <summary>
+    ///     Returns the shared stdlib semantic task, starting it on first access.
+    /// </summary>
     private static Task<StdlibSemanticResult> GetStdlibAstAsync() => StdlibSemanticTask.Value;
 
+    /// <summary>
+    ///     Enumerates all embedded stdlib resources, parses each into a CST, builds a typed
+    ///     AST, and returns all roots and diagnostics. KerML parse errors are downgraded to
+    ///     Warnings because the SysML v2 grammar does not fully cover KerML-specific syntax.
+    /// </summary>
     private static async Task<StdlibSemanticResult> BuildStdlibSemanticAsync()
     {
         var diagnostics = new List<SysmlDiagnostic>();
@@ -132,6 +142,11 @@ public static class WorkspaceLoader
         return new StdlibSemanticResult(astRoots, diagnostics);
     }
 
+    /// <summary>
+    ///     Reads and parses a single user-supplied SysML/KerML file, returning the file path,
+    ///     AST root, and all collected diagnostics. File I/O failures are caught and returned
+    ///     as an Error-severity diagnostic rather than propagated.
+    /// </summary>
     private static async Task<(string Path, SysmlNode? Root, List<SysmlDiagnostic> Diagnostics)> ParseUserFileAsync(
         string filePath)
     {
@@ -154,6 +169,9 @@ public static class WorkspaceLoader
         return (filePath, root, diagnostics);
     }
 
+    /// <summary>
+    ///     Internal result record holding all stdlib AST roots and collected diagnostics.
+    /// </summary>
     private sealed record StdlibSemanticResult(
         IReadOnlyList<(string VirtualPath, SysmlNode? Root)> AstRoots,
         IReadOnlyList<SysmlDiagnostic> Diagnostics);

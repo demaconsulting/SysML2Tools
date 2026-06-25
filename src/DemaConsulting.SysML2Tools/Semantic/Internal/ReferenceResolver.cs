@@ -10,15 +10,29 @@ namespace DemaConsulting.SysML2Tools.Semantic.Internal;
 /// </summary>
 internal sealed class ReferenceResolver
 {
+    /// <summary>
+    ///     The symbol table used to check whether supertype names are registered.
+    /// </summary>
     private readonly SymbolTable _symbolTable;
+
+    /// <summary>
+    ///     The shared diagnostics list to which Warning entries are appended.
+    /// </summary>
     private readonly List<SysmlDiagnostic> _diagnostics;
 
+    /// <summary>
+    ///     Initializes a new instance of <see cref="ReferenceResolver"/> with the given symbol
+    ///     table and diagnostics list.
+    /// </summary>
     public ReferenceResolver(SymbolTable symbolTable, List<SysmlDiagnostic> diagnostics)
     {
         _symbolTable = symbolTable;
         _diagnostics = diagnostics;
     }
 
+    /// <summary>
+    ///     Runs import-graph cycle detection and supertype reference resolution over all file roots.
+    /// </summary>
     public void ResolveAll(IEnumerable<(string FilePath, SysmlNode? Root)> fileRoots)
     {
         // Build import graph first
@@ -35,6 +49,9 @@ internal sealed class ReferenceResolver
         }
     }
 
+    /// <summary>
+    ///     Builds an import graph mapping each file path to the set of namespace names it imports.
+    /// </summary>
     private static Dictionary<string, HashSet<string>> BuildImportGraph(
         IEnumerable<(string FilePath, SysmlNode? Root)> fileRoots)
     {
@@ -49,6 +66,9 @@ internal sealed class ReferenceResolver
         return graph;
     }
 
+    /// <summary>
+    ///     Recursively collects all imported namespace names from an AST node and its descendants.
+    /// </summary>
     private static void CollectImports(SysmlNode node, HashSet<string> imports)
     {
         if (node is SysmlImportNode importNode)
@@ -62,6 +82,9 @@ internal sealed class ReferenceResolver
         }
     }
 
+    /// <summary>
+    ///     Performs a DFS over the import graph to detect and report circular import chains.
+    /// </summary>
     private void DetectCircularImports(Dictionary<string, HashSet<string>> importGraph)
     {
         var visited = new HashSet<string>(StringComparer.Ordinal);
@@ -73,6 +96,10 @@ internal sealed class ReferenceResolver
         }
     }
 
+    /// <summary>
+    ///     Recursive DFS helper that detects back-edges in the import graph and emits Warning
+    ///     diagnostics for any cycle found.
+    /// </summary>
     private void DetectCycles(
         string current,
         Dictionary<string, HashSet<string>> graph,
@@ -104,6 +131,10 @@ internal sealed class ReferenceResolver
         inStack.Remove(current);
     }
 
+    /// <summary>
+    ///     Resolves supertype names in the given AST node and its descendants, emitting a Warning
+    ///     for each name not found in the symbol table.
+    /// </summary>
     private void ResolveNode(SysmlNode node, string filePath, HashSet<string> resolvedInFile)
     {
         // Resolve supertype names

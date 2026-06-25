@@ -10,6 +10,9 @@ namespace DemaConsulting.SysML2Tools.Semantic.Internal;
 /// </summary>
 internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 {
+    /// <summary>
+    ///     Tracks the current nesting path as a stack of simple name segments.
+    /// </summary>
     private readonly List<string> _namespaceStack = new();
 
     /// <summary>

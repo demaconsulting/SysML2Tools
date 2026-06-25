@@ -1,17 +1,17 @@
-# AstBuilder
+#### AstBuilder
 
-## Overview
+##### Overview
 
 `AstBuilder` extends `SysMLv2ParserBaseVisitor<SysmlNode?>` and builds a typed AST from the
 ANTLR4 CST produced by `SysMLv2Parser`.
 
-## Namespace Stack
+##### Namespace Stack
 
 A `List<string> _namespaceStack` tracks the current nesting path. When entering a named package
 or definition, the name is pushed; it is popped before returning. `QualifyName(name)` joins the
 stack with `::` to form the fully-qualified name.
 
-## Key Visit Methods
+##### Key Methods
 
 | Method | Input Context | Output |
 | --- | --- | --- |
@@ -24,8 +24,6 @@ stack with `::` to form the fully-qualified name.
 | `VisitViewDefinition` | `ViewDefinitionContext` | `SysmlViewNode` |
 | `VisitViewpointDefinition` | `ViewpointDefinitionContext` | `SysmlViewpointNode` |
 
-## Name Extraction
-
 `GetDeclaredName(IdentificationContext)` handles the three grammar alternatives:
 
 - `< shortName > declaredName` (alt 1): returns `name(1).GetText()`.
@@ -34,8 +32,27 @@ stack with `::` to form the fully-qualified name.
 
 Elements with no declared name are treated as anonymous and are not registered in the symbol table.
 
-## Supertype Extraction
-
 `GetSubclassificationSupertypes(SubclassificationPartContext)` iterates
 `ownedSubclassification()` entries and calls `qualifiedName().GetText()` on each to produce
 the supertype name list.
+
+##### Error Handling
+
+Anonymous elements (null declared names) are silently skipped — visitor methods return `null`
+and the caller discards the result. `BuildDefinitionNode` returns `null` when passed a `null`
+`DefinitionContext`. No exceptions are thrown; malformed CST nodes produce `null` or empty
+results without propagating failures.
+
+##### Dependencies
+
+- `SysMLv2ParserBaseVisitor<SysmlNode?>` (ANTLR4 runtime) — base class providing visitor
+  dispatch over the CST.
+- `SysMLv2Parser` — provides all CST context types consumed by the visitor methods.
+- `SysmlNode` hierarchy (`SysmlPackageNode`, `SysmlDefinitionNode`, `SysmlViewNode`,
+  `SysmlViewpointNode`) — AST node types constructed by the visitor.
+
+##### Callers
+
+`WorkspaceLoader.BuildStdlibSemanticAsync` and `WorkspaceLoader.ParseUserFileAsync` each create
+a fresh `AstBuilder` instance and call `Build(RootNamespaceContext)` on the CST root produced
+by `WorkspaceParser.ParseSourceToCst`.

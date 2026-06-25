@@ -10,15 +10,30 @@ namespace DemaConsulting.SysML2Tools.Semantic.Internal;
 /// </summary>
 internal sealed class SupertypeWalker
 {
+    /// <summary>
+    ///     The symbol table providing all registered declarations for chain traversal.
+    /// </summary>
     private readonly SymbolTable _symbolTable;
+
+    /// <summary>
+    ///     The shared diagnostics list to which cyclic-specialization Warning entries are appended.
+    /// </summary>
     private readonly List<SysmlDiagnostic> _diagnostics;
 
+    /// <summary>
+    ///     Initializes a new instance of <see cref="SupertypeWalker"/> with the given symbol
+    ///     table and diagnostics list.
+    /// </summary>
     public SupertypeWalker(SymbolTable symbolTable, List<SysmlDiagnostic> diagnostics)
     {
         _symbolTable = symbolTable;
         _diagnostics = diagnostics;
     }
 
+    /// <summary>
+    ///     Walks all specialization chains for every symbol in the table and emits Warning
+    ///     diagnostics for any cyclic specialization detected.
+    /// </summary>
     public void WalkAll()
     {
         var visited = new HashSet<string>(StringComparer.Ordinal);
@@ -32,6 +47,10 @@ internal sealed class SupertypeWalker
         }
     }
 
+    /// <summary>
+    ///     Recursive DFS helper that traverses the specialization chain rooted at the given node,
+    ///     emitting a Warning when a back-edge (cycle) is detected.
+    /// </summary>
     private void WalkNode(
         SysmlNode node,
         string qualifiedName,

@@ -8,6 +8,9 @@ namespace DemaConsulting.SysML2Tools.Semantic.Internal;
 /// </summary>
 internal sealed class SymbolTable
 {
+    /// <summary>
+    ///     The internal dictionary mapping fully-qualified names to their declaration nodes.
+    /// </summary>
     private readonly Dictionary<string, SysmlNode> _symbols = new(StringComparer.Ordinal);
 
     /// <summary>
@@ -28,6 +31,9 @@ internal sealed class SymbolTable
         RegisterNode(root);
     }
 
+    /// <summary>
+    ///     Registers a single node and all of its descendants into the symbol dictionary.
+    /// </summary>
     private void RegisterNode(SysmlNode node)
     {
         if (node.QualifiedName is { Length: > 0 })
