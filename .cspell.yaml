@@ -54,6 +54,12 @@ words:
   - Sysml
   - sysml
   - sysml2tools
+  - kerml
+  - KerML
+  - daltskin
+  - interp
+  - Dlanguage
+  - uppercased
   - venv
   - versionmark
   - Weasyprint
@@ -68,6 +74,8 @@ ignorePaths:
   - "**/third-party/**"
   - "**/3rd-party/**"
   - "**/generated/**"
+  - "**/Parser/Antlr/**"
+  - "**/Stdlib/**"
   - "**/AGENT_REPORT_*.md"
   - "**/.agent-logs/**"
   - "**/bin/**"

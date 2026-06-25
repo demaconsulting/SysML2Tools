@@ -6,7 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <!-- Phase 0 stub — core library API surface will be added in Phase 1 -->
     <IsPackable>false</IsPackable>
     <PackageId>DemaConsulting.SysML2Tools.Core</PackageId>
     <AssemblyName>DemaConsulting.SysML2Tools.Core</AssemblyName>
@@ -42,8 +41,15 @@
     <SBOMPackageSupplier>Organization: $(Company)</SBOMPackageSupplier>
   </PropertyGroup>
 
-  <!-- Build Tool Dependencies -->
+  <!-- OMG SysML v2 Standard Library — embedded as resources; loaded at runtime by StdlibLoader -->
   <ItemGroup>
+    <EmbeddedResource Include="Stdlib\**\*.sysml" />
+    <EmbeddedResource Include="Stdlib\**\*.kerml" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" />
     <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.5" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="All" />
     <PackageReference Include="Polyfill" Version="10.10.0" PrivateAssets="All" />

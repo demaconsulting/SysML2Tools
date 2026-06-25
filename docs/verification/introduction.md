@@ -13,49 +13,26 @@ test scenario. The document does not restate design; it explains how the design 
 
 ## Scope
 
-This document covers the verification design for the following software items:
-
-**Local items:**
-
-- **DemaConsulting.SysML2Tools** (System — core library, Phase 0 stub)
-- **DemaConsulting.SysML2Tools.Svg** (System — SVG renderer, Phase 0 stub)
-- **DemaConsulting.SysML2Tools.Png** (System — PNG renderer, Phase 0 stub)
-- **DemaConsulting.SysML2Tools.Tool** (System — dotnet tool)
-  - **Program** (Unit) — entry point and execution orchestrator
-  - **Cli** (Subsystem) — command-line argument parsing and I/O
-    - **Context** (Unit) — argument parser and I/O owner
-  - **SelfTest** (Subsystem) — self-validation test runner
-    - **Validation** (Unit) — self-validation test runner
-  - **Utilities** (Subsystem) — shared utilities
-    - **PathHelpers** (Unit) — safe path combination utilities
-
-**OTS items:**
-
-- **BuildMark** — build-notes documentation tool
-- **FileAssert** — document assertion tool
-- **Pandoc** — Markdown-to-HTML conversion tool
-- **ReqStream** — requirements traceability tool
-- **ReviewMark** — file review enforcement tool
-- **SarifMark** — SARIF report conversion tool
-- **SonarMark** — SonarCloud quality report tool
-- **VersionMark** — tool-version documentation tool
-- **WeasyPrint** — HTML-to-PDF conversion tool
-- **xUnit** — unit-testing framework
+This document describes how each software item in SysML2 Tools is verified —
+local items (systems, subsystems, and units), and OTS software items. For each
+item it names the test scenarios that verify its requirements. A reviewer should
+be able to confirm coverage completeness without reading test code.
 
 The following topics are out of scope:
 
 - Verification documents are not produced for the test projects themselves — they are the
-  means of verification, not subjects of it
-- Build pipeline CI configuration is excluded
+  means of verification, not subjects of it.
+- Build pipeline CI configuration is excluded.
 - The internal implementation of OTS software items is excluded; only integration and usage
-  are verified
+  are verified.
 
 ## Folder Layout
 
 The test folder structure mirrors the source subsystem breakdown:
 
 - **test/** — test projects
-  - **DemaConsulting.SysML2Tools.Tests/** — TODO: core library tests (Phase 1+)
+  - **DemaConsulting.SysML2Tools.Tests/** — core library unit tests
+    - **Parser/** — WorkspaceParser and related tests
   - **DemaConsulting.SysML2Tools.Svg.Tests/** — TODO: SVG renderer tests (Phase 4+)
   - **DemaConsulting.SysML2Tools.Png.Tests/** — TODO: PNG renderer tests (Phase 4+)
   - **DemaConsulting.SysML2Tools.Tool.Tests/** — dotnet tool unit and integration tests
@@ -72,8 +49,9 @@ Local items have parallel artifacts in:
 
 OTS items have parallel artifacts in:
 
-- Requirements: `docs/reqstream/ots/{ots-name}.yaml` (kebab-case)
-- Verification: `docs/verification/ots/{ots-name}.md` (kebab-case)
+- Requirements: `docs/reqstream/ots/{ots-name}.yaml`
+- Design: `docs/design/ots/{ots-name}.md`
+- Verification: `docs/verification/ots/{ots-name}.md`
 
 Review-sets: defined in `.reviewmark.yaml`
 

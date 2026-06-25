@@ -1,0 +1,40 @@
+---
+# ANTLR4 OTS Software Requirements
+#
+# Requirements for the ANTLR4 runtime (Antlr4.Runtime.Standard) functionality.
+
+sections:
+  - title: OTS Software Requirements
+    sections:
+      - title: ANTLR4 Requirements
+        requirements:
+          - id: SysML2Tools-OTS-ANTLR4-Parse
+            title: >-
+              ANTLR4 runtime shall parse SysML v2 token streams according to the
+              grammar rules and return a parse tree.
+            justification: |
+              Antlr4.Runtime.Standard executes the pre-generated SysMLv2Lexer and
+              SysMLv2Parser classes. These tokenize SysML v2 source text and build a
+              concrete syntax tree rooted at the rootNamespace rule. Passing parse runs
+              confirm the runtime correctly drives the generated parser.
+            tags: [ots]
+            tests:
+              - ParseSource_EmptyFile_NoErrors
+              - ParseSource_MinimalPackage_NoErrors
+              - ParseSource_PartDef_NoErrors
+              - Parse_StdlibOnly_NoErrors
+
+          - id: SysML2Tools-OTS-ANTLR4-Errors
+            title: >-
+              ANTLR4 runtime shall report syntax errors via the registered error
+              listener interface.
+            justification: |
+              IAntlrErrorListener<T> is the ANTLR4 extension point for collecting lexer
+              and parser errors. SysmlDiagnosticListener implements both
+              IAntlrErrorListener<int> (lexer) and IAntlrErrorListener<IToken> (parser).
+              Passing error-path tests confirm the runtime invokes the registered listener
+              for invalid input.
+            tags: [ots]
+            tests:
+              - ParseSource_InvalidSyntax_ReportsError
+              - ParseSource_ErrorPath_MatchesSuppliedPath

@@ -32,7 +32,7 @@ public class ProgramTests
     ///     Test that Run with version flag displays version only.
     /// </summary>
     [Fact]
-    public void Program_Run_WithVersionFlag_DisplaysVersionOnly()
+    public async Task Program_Run_WithVersionFlag_DisplaysVersionOnly()
     {
         // Arrange: setup test conditions
         var originalOut = Console.Out;
@@ -43,7 +43,7 @@ public class ProgramTests
             using var context = Context.Create(["--version"]);
 
             // Act: execute the operation being tested
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: verify expected behavior
             var output = outWriter.ToString();
@@ -62,7 +62,7 @@ public class ProgramTests
     ///     Test that Run with help flag displays usage information.
     /// </summary>
     [Fact]
-    public void Program_Run_WithHelpFlag_DisplaysUsageInformation()
+    public async Task Program_Run_WithHelpFlag_DisplaysUsageInformation()
     {
         // Arrange: setup test conditions
         var originalOut = Console.Out;
@@ -73,7 +73,7 @@ public class ProgramTests
             using var context = Context.Create(["--help"]);
 
             // Act: execute the operation being tested
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: verify expected behavior
             var output = outWriter.ToString();
@@ -93,7 +93,7 @@ public class ProgramTests
     ///     Test that Run with validate flag runs validation.
     /// </summary>
     [Fact]
-    public void Program_Run_WithValidateFlag_RunsValidation()
+    public async Task Program_Run_WithValidateFlag_RunsValidation()
     {
         // Arrange: setup test conditions
         var originalOut = Console.Out;
@@ -104,7 +104,7 @@ public class ProgramTests
             using var context = Context.Create(["--validate"]);
 
             // Act: execute the operation being tested
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: verify expected behavior
             var output = outWriter.ToString();
@@ -121,7 +121,7 @@ public class ProgramTests
     ///     Test that Run with no arguments displays default behavior.
     /// </summary>
     [Fact]
-    public void Program_Run_NoArguments_DisplaysDefaultBehavior()
+    public async Task Program_Run_NoArguments_DisplaysDefaultBehavior()
     {
         // Arrange: setup test conditions
         var originalOut = Console.Out;
@@ -132,7 +132,7 @@ public class ProgramTests
             using var context = Context.Create([]);
 
             // Act: execute the operation being tested
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: verify expected behavior
             var output = outWriter.ToString();
@@ -150,7 +150,7 @@ public class ProgramTests
     ///     Test that version property returns non-empty version string.
     /// </summary>
     [Fact]
-    public void Program_Version_ReturnsNonEmptyString()
+    public async Task Program_Version_ReturnsNonEmptyString()
     {
         // Act: execute the operation being tested
         var version = Program.Version;
@@ -163,7 +163,7 @@ public class ProgramTests
     ///     Test that Main with invalid arguments returns non-zero exit code.
     /// </summary>
     [Fact]
-    public void Program_Main_WithInvalidArgs_ReturnsNonZeroExitCode()
+    public async Task Program_Main_WithInvalidArgs_ReturnsNonZeroExitCode()
     {
         // Arrange: redirect stderr to suppress error output during test
         var originalError = Console.Error;
@@ -173,7 +173,7 @@ public class ProgramTests
             Console.SetError(errWriter);
 
             // Act: invoke Main with an invalid argument
-            var result = Program.Main(["--invalid-argument"]);
+            var result = await Program.Main(["--invalid-argument"]);
 
             // Assert: invalid arguments produce a non-zero exit code
             Assert.Equal(1, result);
@@ -188,7 +188,7 @@ public class ProgramTests
     ///     Test that Run with short version flag -v displays version.
     /// </summary>
     [Fact]
-    public void Program_Run_WithShortVersionFlag_DisplaysVersion()
+    public async Task Program_Run_WithShortVersionFlag_DisplaysVersion()
     {
         // Arrange: setup test conditions
         var originalOut = Console.Out;
@@ -199,7 +199,7 @@ public class ProgramTests
             using var context = Context.Create(["-v"]);
 
             // Act: execute the operation being tested
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: verify expected behavior
             var output = outWriter.ToString();
@@ -216,7 +216,7 @@ public class ProgramTests
     ///     Test that Run with short help flag -h displays usage.
     /// </summary>
     [Fact]
-    public void Program_Run_WithShortHelpFlag_DisplaysUsage()
+    public async Task Program_Run_WithShortHelpFlag_DisplaysUsage()
     {
         // Arrange: setup test conditions
         var originalOut = Console.Out;
@@ -227,7 +227,7 @@ public class ProgramTests
             using var context = Context.Create(["-h"]);
 
             // Act: execute the operation being tested
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: verify expected behavior
             var output = outWriter.ToString();
@@ -245,7 +245,7 @@ public class ProgramTests
     ///     Test that Run with short help flag -? displays usage.
     /// </summary>
     [Fact]
-    public void Program_Run_WithQuestionMarkFlag_DisplaysUsage()
+    public async Task Program_Run_WithQuestionMarkFlag_DisplaysUsage()
     {
         // Arrange: setup test conditions
         var originalOut = Console.Out;
@@ -256,7 +256,7 @@ public class ProgramTests
             using var context = Context.Create(["-?"]);
 
             // Act: execute the operation being tested
-            Program.Run(context);
+            await Program.RunAsync(context);
 
             // Assert: verify expected behavior
             var output = outWriter.ToString();

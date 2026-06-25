@@ -21,6 +21,18 @@
 namespace DemaConsulting.SysML2Tools.Cli;
 
 /// <summary>
+///     Top-level command selected by the user.
+/// </summary>
+internal enum SysmlCommand
+{
+    /// <summary>No command specified — prints banner and help hint.</summary>
+    None,
+
+    /// <summary>Parse a workspace and report syntax diagnostics.</summary>
+    Lint
+}
+
+/// <summary>
 ///     Context class that handles command-line arguments and program output.
 /// </summary>
 internal sealed class Context : IDisposable
@@ -61,8 +73,16 @@ internal sealed class Context : IDisposable
     public string? ResultsFile { get; private init; }
 
     /// <summary>
-    ///     Gets the heading depth for markdown output (default is 1).
+    ///     Gets the top-level command to execute.
     /// </summary>
+    public SysmlCommand Command { get; private init; }
+
+    /// <summary>
+    ///     Gets the file glob patterns supplied as positional arguments.
+    /// </summary>
+    public IReadOnlyList<string> Files { get; private init; } = Array.Empty<string>();
+
+
     public int HeadingDepth { get; private init; } = 1;
 
     /// <summary>
@@ -99,7 +119,9 @@ internal sealed class Context : IDisposable
             Silent = parser.Silent,
             Validate = parser.Validate,
             ResultsFile = parser.ResultsFile,
-            HeadingDepth = parser.HeadingDepth
+            HeadingDepth = parser.HeadingDepth,
+            Command = parser.Command,
+            Files = parser.Files
         };
 
         // Open log file if specified
@@ -168,6 +190,21 @@ internal sealed class Context : IDisposable
         public string? ResultsFile { get; private set; }
 
         /// <summary>
+        ///     Gets the top-level command.
+        /// </summary>
+        public SysmlCommand Command { get; private set; }
+
+        /// <summary>
+        ///     File glob patterns collected from positional arguments.
+        /// </summary>
+        private readonly List<string> _files = [];
+
+        /// <summary>
+        ///     Gets the file glob patterns supplied as positional arguments.
+        /// </summary>
+        public IReadOnlyList<string> Files => _files;
+
+        /// <summary>
         ///     Gets the heading depth for markdown output.
         /// </summary>
         public int HeadingDepth { get; private set; } = 1;
@@ -232,7 +269,18 @@ internal sealed class Context : IDisposable
                     HeadingDepth = GetRequiredIntArgument(arg, args, index, "a heading depth argument", 1, 6);
                     return index + 1;
 
+                case "lint":
+                    Command = SysmlCommand.Lint;
+                    return index;
+
                 default:
+                    if (!arg.StartsWith("-", StringComparison.Ordinal))
+                    {
+                        // Positional argument — treat as a file glob pattern
+                        _files.Add(arg);
+                        return index;
+                    }
+
                     throw new ArgumentException($"Unsupported argument '{arg}'", nameof(args));
             }
         }

@@ -12,6 +12,9 @@ flowchart TD
     subgraph Cli
         Context
     end
+    subgraph Lint
+        LintCommand
+    end
     subgraph SelfTest
         Validation
     end
@@ -19,15 +22,17 @@ flowchart TD
         PathHelpers
     end
     Program --> Context
+    Program --> LintCommand
     Program --> Validation
     Validation --> Program
     Validation --> PathHelpers
 ```
 
 `Program` is the entry point. It creates a `Context` from the `Cli` subsystem, dispatches to
-`Validation` when `--validate` is passed, and returns the exit code from `Context`. `Validation`
-calls `Program.Run` recursively to exercise the tool during self-testing, and uses `PathHelpers`
-to construct safe temporary file paths.
+`LintCommand` when the `lint` subcommand is passed, dispatches to `Validation` when `--validate`
+is passed, and returns the exit code from `Context`. `Validation` calls `Program.Run` recursively
+to exercise the tool during self-testing, and uses `PathHelpers` to construct safe temporary file
+paths.
 
 ## External Interfaces
 
@@ -37,7 +42,8 @@ to construct safe temporary file paths.
 - *Role*: Consumer (the host environment invokes the system with command-line arguments).
 - *Contract*: Accepts arguments `-v`/`--version`, `-?`/`-h`/`--help`, `--silent`, `--validate`,
   `--results <file>`, `--result <file>` (legacy alias for `--results`), `--depth <n>`, and
-  `--log <file>`. Returns exit code 0 for success and 1 for failures.
+  `--log <file>`. Accepts `lint <patterns...>` as a subcommand that invokes lint mode. Returns
+  exit code 0 for success and 1 for failures.
 - *Constraints*: Unknown arguments cause exit code 1 and an error message on stderr.
 
 **Standard Output**: Normal program output written to `Console.Out`.
@@ -77,6 +83,8 @@ to construct safe temporary file paths.
 
 ## Dependencies
 
+- **DemaConsulting.SysML2Tools**: provides `WorkspaceParser`, `WorkspaceParseResult`, and
+  `SysmlDiagnostic` for SysML v2 parsing in the Lint subsystem.
 - **DemaConsulting.TestResults**: provides `TestResults`, `TestResult`, and `TestOutcome` for
   accumulating self-validation results.
 - **DemaConsulting.TestResults.IO**: provides `TrxSerializer` and `JUnitSerializer` for writing
@@ -97,6 +105,7 @@ N/A - not a safety-classified software item.
    - `--version` flag → `context.WriteLine(Version)`, then return.
    - Otherwise, `PrintBanner` is called first; then:
      - `--help` flag → `PrintHelp(context)`, then return.
+     - `lint` subcommand → `LintCommand.Run(context)`.
      - `--validate` flag → `Validation.Run(context)`.
      - No flags → `RunToolLogic(context)`.
 4. `Program.Main` returns `context.ExitCode` (0 if no errors were reported, 1 otherwise).

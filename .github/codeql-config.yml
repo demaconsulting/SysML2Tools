@@ -4,6 +4,10 @@
 
 name: "SysML2 Tools CodeQL Config"
 
+# Exclude ANTLR4-generated parser files from all analysis
+paths-ignore:
+  - src/DemaConsulting.SysML2Tools/Parser/Antlr
+
 # Query filters to disable specific queries for certain paths
 query-filters:
   - exclude:
@@ -16,3 +20,26 @@ query-filters:
       id: cs/path-combine
     paths:
       - src/DemaConsulting.SysML2Tools/PathHelpers.cs
+
+  # Suppress false positives in ANTLR4-generated parser files.
+  # These are mechanical code generation artefacts, not hand-written logic.
+  - exclude:
+      id: cs/complex-condition
+    paths:
+      - src/DemaConsulting.SysML2Tools/Parser/Antlr
+  - exclude:
+      id: cs/useless-assignment-to-local
+    paths:
+      - src/DemaConsulting.SysML2Tools/Parser/Antlr
+  - exclude:
+      id: cs/virtual-call-in-constructor
+    paths:
+      - src/DemaConsulting.SysML2Tools/Parser/Antlr
+  - exclude:
+      id: cs/missed-ternary-operator
+    paths:
+      - src/DemaConsulting.SysML2Tools/Parser/Antlr
+  - exclude:
+      id: cs/coupled-types
+    paths:
+      - src/DemaConsulting.SysML2Tools/Parser/Antlr
