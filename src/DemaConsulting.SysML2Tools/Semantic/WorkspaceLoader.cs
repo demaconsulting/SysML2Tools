@@ -93,10 +93,7 @@ public static class WorkspaceLoader
     /// </summary>
     private static async Task<StdlibSemanticResult> BuildStdlibSemanticAsync()
     {
-        var diagnostics = new List<SysmlDiagnostic>();
-        var astRoots = new List<(string VirtualPath, SysmlNode? Root)>();
-
-        // Access the stdlib embedded resources
+        // Read all resource content up-front (embedded streams are not thread-safe to read in parallel)
         var assembly = typeof(WorkspaceParser).Assembly;
         var resourcePrefix = "DemaConsulting.SysML2Tools.Stdlib.";
         var resources = assembly.GetManifestResourceNames()
@@ -105,7 +102,7 @@ public static class WorkspaceLoader
                         n.EndsWith(".kerml", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        var builder = new AstBuilder();
+        var contents = new List<(string Resource, string Content)>(resources.Count);
         foreach (var resource in resources)
         {
             using var stream = assembly.GetManifestResourceStream(resource);
@@ -115,29 +112,31 @@ public static class WorkspaceLoader
             }
 
             using var reader = new StreamReader(stream);
-            var content = await reader.ReadToEndAsync().ConfigureAwait(false);
+            contents.Add((resource, await reader.ReadToEndAsync().ConfigureAwait(false)));
+        }
 
+        // Parse and build ASTs in parallel — each file gets its own AstBuilder (not thread-safe to share)
+        var tasks = contents.Select(item => Task.Run(() =>
+        {
             var fileDiagnostics = new List<SysmlDiagnostic>();
-            var cst = WorkspaceParser.ParseSourceToCst(resource, content, fileDiagnostics);
+            var cst = WorkspaceParser.ParseSourceToCst(item.Resource, item.Content, fileDiagnostics);
+            var root = new AstBuilder().Build(cst);
 
             // KerML files may produce parse errors with the SysML v2 grammar — downgrade to Warning
-            if (resource.EndsWith(".kerml", StringComparison.OrdinalIgnoreCase))
+            if (item.Resource.EndsWith(".kerml", StringComparison.OrdinalIgnoreCase))
             {
-                foreach (var d in fileDiagnostics)
-                {
-                    diagnostics.Add(d.Severity == DiagnosticSeverity.Error
-                        ? d with { Severity = DiagnosticSeverity.Warning }
-                        : d);
-                }
-            }
-            else
-            {
-                diagnostics.AddRange(fileDiagnostics);
+                fileDiagnostics = fileDiagnostics
+                    .Select(d => d.Severity == DiagnosticSeverity.Error ? d with { Severity = DiagnosticSeverity.Warning } : d)
+                    .ToList();
             }
 
-            var root = builder.Build(cst);
-            astRoots.Add((resource, root));
-        }
+            return (item.Resource, Root: root, Diagnostics: fileDiagnostics);
+        }));
+
+        var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+
+        var astRoots = results.Select(r => ((string VirtualPath, SysmlNode? Root))(r.Resource, r.Root)).ToList();
+        var diagnostics = results.SelectMany(r => r.Diagnostics).ToList();
 
         return new StdlibSemanticResult(astRoots, diagnostics);
     }

@@ -943,6 +943,12 @@ definitionElement
     | metadataDefinition
     | allocationDefinition
     | extendedDefinition
+    // KerML classifier types — present in the stdlib .kerml files and valid SysML v2 textual notation
+    | dataType
+    | class
+    | structure
+    | association
+    | associationStructure
     ;
 
 usageElement

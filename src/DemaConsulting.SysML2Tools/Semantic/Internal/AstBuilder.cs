@@ -198,6 +198,111 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         return null;
     }
 
+    /// <inheritdoc/>
+    public override SysmlNode? VisitDataType(SysMLv2Parser.DataTypeContext context)
+    {
+        return BuildClassifierNode(context.classifierDeclaration(), context.typeBody(), "datatype");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitClass(SysMLv2Parser.ClassContext context)
+    {
+        return BuildClassifierNode(context.classifierDeclaration(), context.typeBody(), "class");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitStructure(SysMLv2Parser.StructureContext context)
+    {
+        return BuildClassifierNode(context.classifierDeclaration(), context.typeBody(), "struct");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitAssociation(SysMLv2Parser.AssociationContext context)
+    {
+        return BuildClassifierNode(context.classifierDeclaration(), context.typeBody(), "assoc");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitAssociationStructure(SysMLv2Parser.AssociationStructureContext context)
+    {
+        return BuildClassifierNode(context.classifierDeclaration(), context.typeBody(), "assoc struct");
+    }
+
+    /// <summary>
+    ///     Builds a definition AST node from a KerML classifier declaration (datatype, class, struct, assoc).
+    /// </summary>
+    private SysmlDefinitionNode? BuildClassifierNode(
+        SysMLv2Parser.ClassifierDeclarationContext? decl,
+        SysMLv2Parser.TypeBodyContext? body,
+        string keyword)
+    {
+        var name = GetDeclaredName(decl?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var qualifiedName = QualifyName(name);
+        var supertypeNames = GetSuperclassingSupertypes(decl?.superclassingPart());
+
+        _namespaceStack.Add(name);
+        var children = CollectTypeBodyItems(body?.typeBodyElement() ?? []);
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+
+        return new SysmlDefinitionNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            DefinitionKeyword = keyword,
+            SupertypeNames = supertypeNames,
+            Children = children,
+        };
+    }
+
+    /// <summary>
+    ///     Extracts supertype qualified names from a <see cref="SysMLv2Parser.SuperclassingPartContext"/>.
+    /// </summary>
+    private static IReadOnlyList<string> GetSuperclassingSupertypes(
+        SysMLv2Parser.SuperclassingPartContext? part)
+    {
+        if (part is null)
+        {
+            return Array.Empty<string>();
+        }
+
+        var names = new List<string>();
+        foreach (var owned in part.ownedSubclassification())
+        {
+            var qn = owned.qualifiedName()?.GetText();
+            if (qn is { Length: > 0 })
+            {
+                names.Add(qn);
+            }
+        }
+
+        return names;
+    }
+
+    /// <summary>
+    ///     Collects child nodes from an array of <see cref="SysMLv2Parser.TypeBodyElementContext"/>.
+    /// </summary>
+    private IReadOnlyList<SysmlNode> CollectTypeBodyItems(
+        IEnumerable<SysMLv2Parser.TypeBodyElementContext> items)
+    {
+        var result = new List<SysmlNode>();
+        foreach (var item in items)
+        {
+            var node = Visit(item);
+            if (node is not null)
+            {
+                result.Add(node);
+            }
+        }
+
+        return result;
+    }
+
+
     /// <summary>
     ///     Builds a definition AST node from the given <see cref="SysMLv2Parser.DefinitionContext"/>.
     /// </summary>

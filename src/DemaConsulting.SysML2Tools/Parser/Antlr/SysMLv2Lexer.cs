@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-// Generated from C:/work/DemaConsulting/BuildTools/SysML2Tools/src/DemaConsulting.SysML2Tools/Grammar/SysMLv2Lexer.g4 by ANTLR 4.13.1
+// Generated from src/DemaConsulting.SysML2Tools/Grammar/SysMLv2Lexer.g4 by ANTLR 4.13.1
 
 // Unreachable code detected
 #pragma warning disable 0162

@@ -6,4 +6,5 @@ files in `../../Grammar/`. Do not edit these files by hand.
 See [`../../Grammar/README.md`](../../Grammar/README.md) for:
 
 - Version information (grammar source, ANTLR4 generator, JDK)
+- Local patches applied to the upstream grammar (including KerML classifier fix)
 - Step-by-step regeneration instructions
