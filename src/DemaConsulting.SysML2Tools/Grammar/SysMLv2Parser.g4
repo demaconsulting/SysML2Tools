@@ -45,7 +45,7 @@ ownedExpression
     | ownedExpression argumentList
     | ownedExpression DOT qualifiedName
     | ownedExpression DOT_QUESTION bodyExpression
-    | ownedExpression ARROW qualifiedName ( bodyExpression | argumentList )
+    | ownedExpression ARROW qualifiedName ( bodyExpression | argumentList | qualifiedName )?
     | ALL typeReference
     | baseExpression
     ;
@@ -949,6 +949,9 @@ definitionElement
     | structure
     | association
     | associationStructure
+    // KerML behavioral classifier types — present in the stdlib .kerml files
+    | function
+    | predicate
     ;
 
 usageElement

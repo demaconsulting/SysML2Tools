@@ -21,15 +21,33 @@ repository — no Java is required to build this project.
 The grammar files in this folder are not a verbatim copy of the upstream source.
 The following patches have been applied and **must be re-applied** after any upstream grammar update:
 
-### `SysMLv2Parser.g4` — KerML classifier types added to `definitionElement`
+### Patch 1 — KerML classifier types added to `definitionElement`
+
+**Rule affected:** `definitionElement`
 
 The upstream `daltskin/sysml-v2-grammar` grammar omits KerML classifier definition
-types (`datatype`, `class`, `struct`, `assoc`) from the `definitionElement` rule.
-This means the grammar cannot parse the KerML-syntax files in the OMG standard
-library (e.g., `Collections.kerml`, `Objects.kerml`), even though these files are
-valid SysML v2 / KerML textual notation.
+types from the `definitionElement` rule. `definitionElement` is the production that
+matches any declaration appearing as a direct member of a `package` or
+`library package` body. The missing types are therefore invisible to the parser
+at package level, causing parse errors on any file that uses them at the top level.
 
-The following alternatives have been appended to `definitionElement`:
+This affects all `.kerml` files in the OMG standard library. For example,
+`Objects.kerml` opens with:
+
+```sysml
+library package Objects {
+    abstract class Object specializes Occurrence::Occurrence;
+    abstract struct Structure;
+    ...
+}
+```
+
+The rules `dataType`, `class`, `structure`, `association`, and `associationStructure`
+are all **defined** in the grammar (they exist in `nonFeatureElement`, which is
+reachable from type bodies), but they are not listed as alternatives in
+`definitionElement`, so they are unreachable from the package-member path.
+
+**Fix:** append the five missing alternatives to `definitionElement`:
 
 ```antlr
     // KerML classifier types — present in the stdlib .kerml files and valid SysML v2 textual notation
@@ -40,9 +58,71 @@ The following alternatives have been appended to `definitionElement`:
     | associationStructure
 ```
 
-All five rules (`dataType`, `class`, `structure`, `association`, `associationStructure`)
-are already defined elsewhere in the grammar — this patch simply makes them reachable
-as package-level members.
+---
+
+### Patch 2 — KerML behavioral classifier types added to `definitionElement`
+
+**Rule affected:** `definitionElement`
+
+The same omission as Patch 1 applies to KerML behavioral classifiers: `function`
+and `predicate`. These are used throughout the KerML function libraries. For example,
+`BaseFunctions.kerml` opens with:
+
+```kerml
+library package BaseFunctions {
+    abstract function '==' { in x: Anything[0..1]; in y: Anything[0..1]; }
+    function '!='          { in x: Anything[0..1]; in y: Anything[0..1]; }
+}
+```
+
+Like the classifier types in Patch 1, the `function` and `predicate` rules exist in
+`nonFeatureElement` (reachable from type bodies) but are absent from `definitionElement`
+(reachable from package bodies).
+
+**Fix:** append two further alternatives to `definitionElement`:
+
+```antlr
+    // KerML behavioral classifier types — present in the stdlib .kerml files
+    | function
+    | predicate
+```
+
+---
+
+### Patch 3 — Arrow expression accepts bare function-reference argument
+
+**Rule affected:** `ownedExpression` (the `ARROW` alternative)
+
+The KerML standard library uses `->reduce` and similar collection operations that
+pass a function reference as a bare restricted name (single-quoted identifier), without
+wrapping it in parentheses or braces. For example, in `Collections.kerml`:
+
+```kerml
+feature flattenedSize : Positive[1] = dimensions->reduce '*' ?? 1;
+```
+
+The upstream grammar rule for arrow expressions is:
+
+```antlr
+| ownedExpression ARROW qualifiedName ( bodyExpression | argumentList )
+```
+
+`bodyExpression` matches `{ ... }` and `argumentList` matches `( ... )`. The bare
+name `'*'` fits neither, so the parser raises an error on the `'*'` token and
+enters error recovery, corrupting the parse state for subsequent declarations in
+the same file.
+
+Note that the `name` rule in this grammar already accepts `STRING` tokens (the
+lexer rule `STRING : '\'' ... '\''` matches single-quoted values), so `'*'` and
+`'=='` are valid `qualifiedName` tokens — they simply could not appear in this
+position.
+
+**Fix:** add `qualifiedName` as a third option and make the entire suffix optional
+(a bare `->method` with no argument is also valid for pure feature-chain navigation):
+
+```antlr
+| ownedExpression ARROW qualifiedName ( bodyExpression | argumentList | qualifiedName )?
+```
 
 ## Regenerating the Parser
 

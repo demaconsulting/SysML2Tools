@@ -228,6 +228,18 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         return BuildClassifierNode(context.classifierDeclaration(), context.typeBody(), "assoc struct");
     }
 
+    /// <inheritdoc/>
+    public override SysmlNode? VisitFunction(SysMLv2Parser.FunctionContext context)
+    {
+        return BuildClassifierNode(context.classifierDeclaration(), body: null, "function");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitPredicate(SysMLv2Parser.PredicateContext context)
+    {
+        return BuildClassifierNode(context.classifierDeclaration(), body: null, "predicate");
+    }
+
     /// <summary>
     ///     Builds a definition AST node from a KerML classifier declaration (datatype, class, struct, assoc).
     /// </summary>
