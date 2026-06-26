@@ -1,22 +1,5 @@
-// Copyright (c) DEMA Consulting
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// Copyright (c) DemaConsulting. All rights reserved.
+// Licensed under the MIT License.
 
 using DemaConsulting.SysML2Tools.Parser;
 
@@ -86,29 +69,5 @@ public sealed class WorkspaceParserTests
         const string path = "my-model.sysml";
         var diagnostics = WorkspaceParser.ParseSource(path, "@@@");
         Assert.All(diagnostics, d => Assert.Equal(path, d.FilePath));
-    }
-
-    /// <summary>
-    ///     The OMG stdlib (94 embedded files) should load and parse without any errors.
-    /// </summary>
-    [Fact]
-    public async Task Parse_StdlibOnly_NoErrors()
-    {
-        var result = await WorkspaceParser.ParseAsync([]);
-        Assert.False(result.HasErrors,
-            $"Stdlib parse errors:{Environment.NewLine}" +
-            string.Join(Environment.NewLine, result.Diagnostics.Select(d => $"  {d.FilePath}({d.Line},{d.Column}): {d.Message}")));
-    }
-
-    /// <summary>
-    ///     Stdlib is always loaded — even when no user files are passed.
-    ///     Phase 2 loads all 94 stdlib files (58 .sysml + 36 .kerml).
-    /// </summary>
-    [Fact]
-    public async Task Parse_FilesCount_IncludesStdlib()
-    {
-        var result = await WorkspaceParser.ParseAsync([]);
-        Assert.True(result.Files.Count >= 94,
-            $"Expected at least 94 stdlib files, got {result.Files.Count}");
     }
 }

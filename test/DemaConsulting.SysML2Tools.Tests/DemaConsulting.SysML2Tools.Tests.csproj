@@ -53,7 +53,9 @@
 
   <!-- Project References -->
   <ItemGroup>
-    <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools\DemaConsulting.SysML2Tools.csproj" />
+    <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Language\DemaConsulting.SysML2Tools.Language.csproj" />
+    <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Stdlib\DemaConsulting.SysML2Tools.Stdlib.csproj" />
+    <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Core\DemaConsulting.SysML2Tools.Core.csproj" />
     <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Svg\DemaConsulting.SysML2Tools.Svg.csproj" />
     <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Png\DemaConsulting.SysML2Tools.Png.csproj" />
   </ItemGroup>

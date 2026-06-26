@@ -31,20 +31,30 @@ The following topics are out of scope:
 The following list shows how the SysML2 Tools software items are organized across the
 system, subsystem, and unit levels:
 
-- **DemaConsulting.SysML2Tools** (System) — core library: SysML v2 parsing engine, embedded stdlib,
-  and future semantic model/layout
+- **DemaConsulting.SysML2Tools.Language** (System) — language library: SysML v2 parsing engine,
+  AST node types, semantic analysis, and AST serialization/deserialization
   - **Parser** (Subsystem) — SysML v2 parsing engine
-    - **WorkspaceParser** (Unit) — public API: parses file glob patterns and source strings against the embedded stdlib
+    - **WorkspaceParser** (Unit) — public API: parses source strings; exposes internal `ParseSourceToCst`
     - **Internal** (Subsystem) — internal implementation details
       - **SysmlDiagnosticListener** (Unit) — collects ANTLR4 syntax errors as SysmlDiagnostic records
-      - **StdlibLoader** (Unit) — enumerates and loads embedded stdlib resources; KerML errors are downgraded to Warnings
   - **Semantic** (Subsystem) — SysML/KerML semantic model: symbol table, reference resolution, supertype walking
-    - **WorkspaceLoader** (Unit) — public API: loads SysML/KerML files into a semantic workspace
+    - **WorkspaceLoader** (Unit) — public API: loads SysML/KerML files into a semantic workspace with optional seed
+    - **AstSerializer** (Unit) — serializes SymbolTable + diagnostics to UTF-8 JSON bytes
+    - **AstDeserializer** (Unit) — deserializes bytes back to SymbolTable + diagnostics
     - **Internal** (Subsystem) — internal semantic implementation
+      - **SysmlNode** (Unit) — public AST node hierarchy: six types with JSON polymorphism
       - **AstBuilder** (Unit) — builds AST from ANTLR4 CST with qualified names and supertype lists
       - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes
       - **ReferenceResolver** (Unit) — resolves supertype references; detects circular imports
       - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
+      - **SerializedStdlib** (Unit) — DTO for stdlib binary serialization
+      - **AstSerializerContext** (Unit) — source-generated JSON context for AOT-safe serialization
+- **DemaConsulting.SysML2Tools.Stdlib** (System) — stdlib library: pre-compiled SysML v2 standard
+  library binary embedded as a managed resource
+  - **StdlibProvider** (Unit) — lazy-cached GetSymbolTable() deserialized from embedded stdlib.bin
+- **StdlibGen** (Build-time tool) — console tool that parses stdlib source files and writes stdlib.bin
+  - **Program** (Unit) — entry point: parses stdlib, runs resolution, serializes to stdlib.bin
+- **DemaConsulting.SysML2Tools** (System) — core library: layout, rendering interfaces, and DiagramRenderer
   - **Layout** (Subsystem) — LayoutTree intermediate representation: nine node types covering all SysML diagram elements
     - **Internal** (Subsystem) — internal layout implementation
       - **GeneralViewLayoutStrategy** (Unit) — two-column grid layout for general view diagrams
@@ -61,9 +71,9 @@ system, subsystem, and unit levels:
   - **Cli** (Subsystem) — command-line argument parsing and I/O
     - **Context** (Unit) — argument parser and I/O owner
   - **Lint** (Subsystem) — lint command implementation
-    - **LintCommand** (Unit) — resolves glob patterns, invokes WorkspaceLoader, reports diagnostics
+    - **LintCommand** (Unit) — resolves glob patterns, invokes WorkspaceLoader with stdlib seed, reports diagnostics
   - **Render** (Subsystem) — render command implementation
-    - **RenderCommand** (Unit) — loads workspace, selects renderer, writes diagram output files
+    - **RenderCommand** (Unit) — loads workspace with stdlib seed, selects renderer, writes diagram output files
   - **SelfTest** (Subsystem) — self-validation test runner
     - **Validation** (Unit) — self-validation test runner
   - **Utilities** (Subsystem) — shared utilities
@@ -91,15 +101,20 @@ The source code folder structure mirrors the top-level system breakdown above, g
 reviewers an explicit navigation aid from design to code:
 
 - **src/** — source projects
-  - **DemaConsulting.SysML2Tools/** — core library
+  - **DemaConsulting.SysML2Tools.Language/** — language library
     - **Grammar/** — ANTLR4 grammar files (hand-maintained; see Grammar/README.md)
-    - **Layout/** — LayoutTree intermediate representation
-      - **Internal/** — internal layout implementation (GeneralViewLayoutStrategy)
     - **Parser/** — SysML v2 parsing subsystem
       - **Antlr/** — ANTLR4-generated C# (committed; not hand-written)
-      - **Internal/** — internal implementation (SysmlDiagnosticListener, StdlibLoader)
+      - **Internal/** — internal implementation (SysmlDiagnosticListener)
+    - **Semantic/** — semantic model subsystem
+      - **Internal/** — internal implementation (SysmlNode, AstBuilder, SymbolTable,
+        ReferenceResolver, SupertypeWalker, SerializedStdlib, AstSerializerContext)
+  - **DemaConsulting.SysML2Tools.Stdlib/** — stdlib library
+    - **Stdlib/** — SysML v2 standard library source files (EPL-2.0; see Stdlib/README.md)
+  - **DemaConsulting.SysML2Tools.Core/** — core library
+    - **Layout/** — LayoutTree intermediate representation
+      - **Internal/** — internal layout implementation (GeneralViewLayoutStrategy)
     - **Rendering/** — rendering interfaces and theme (Phase 3+)
-    - **Stdlib/** — embedded SysML v2 standard library files (EPL-2.0; see Stdlib/README.md)
   - **DemaConsulting.SysML2Tools.Svg/** — SVG renderer
   - **DemaConsulting.SysML2Tools.Png/** — PNG renderer
   - **DemaConsulting.SysML2Tools.Tool/** — dotnet tool CLI wrapper
@@ -107,9 +122,11 @@ reviewers an explicit navigation aid from design to code:
     - **Lint/** — lint command subsystem
     - **SelfTest/** — self-validation subsystem
     - **Utilities/** — shared utilities subsystem
+  - **Tools/StdlibGen/** — build-time stdlib pre-compiler tool
 - **docs/design/** — design documentation
+  - **sysml2-tools-language.md** — language library design
+  - **sysml2-tools-stdlib.md** — stdlib library design
   - **sysml2-tools-core/** — core library unit/subsystem design
-    - **parser/** — Parser subsystem design (Internal subsystem)
   - **sysml2-tools-svg.md** — SVG renderer design
   - **sysml2-tools-png.md** — PNG renderer design
   - **sysml2-tools-tool/** — DemaConsulting.SysML2Tools.Tool unit/subsystem design
@@ -143,6 +160,8 @@ The four top-level systems map to these kebab-case folder names:
 
 | NuGet Package | kebab-case system folder |
 | --- | --- |
+| `DemaConsulting.SysML2Tools.Language` | `sysml2-tools-language` |
+| `DemaConsulting.SysML2Tools.Stdlib` | `sysml2-tools-stdlib` |
 | `DemaConsulting.SysML2Tools` | `sysml2-tools-core` |
 | `DemaConsulting.SysML2Tools.Svg` | `sysml2-tools-svg` |
 | `DemaConsulting.SysML2Tools.Png` | `sysml2-tools-png` |

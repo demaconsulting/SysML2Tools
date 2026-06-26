@@ -49,7 +49,7 @@
 
   <!-- Project References -->
   <ItemGroup>
-    <ProjectReference Include="..\DemaConsulting.SysML2Tools\DemaConsulting.SysML2Tools.csproj" />
+    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Core\DemaConsulting.SysML2Tools.Core.csproj" />
   </ItemGroup>
 
   <!-- Code Analysis Dependencies -->

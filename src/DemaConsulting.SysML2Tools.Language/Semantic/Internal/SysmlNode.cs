@@ -1,12 +1,21 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
+using System.Text.Json.Serialization;
+
 namespace DemaConsulting.SysML2Tools.Semantic.Internal;
 
 /// <summary>
 ///     Base class for all SysML/KerML AST nodes.
 /// </summary>
-internal abstract class SysmlNode
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(SysmlPackageNode), "package")]
+[JsonDerivedType(typeof(SysmlDefinitionNode), "definition")]
+[JsonDerivedType(typeof(SysmlFeatureNode), "feature")]
+[JsonDerivedType(typeof(SysmlImportNode), "import")]
+[JsonDerivedType(typeof(SysmlViewNode), "view")]
+[JsonDerivedType(typeof(SysmlViewpointNode), "viewpoint")]
+public abstract class SysmlNode
 {
     /// <summary>
     ///     Gets the simple (unqualified) name of this element, or null if anonymous.
@@ -37,14 +46,14 @@ internal abstract class SysmlNode
 /// <summary>
 ///     AST node representing a SysML/KerML package or namespace.
 /// </summary>
-internal sealed class SysmlPackageNode : SysmlNode
+public sealed class SysmlPackageNode : SysmlNode
 {
 }
 
 /// <summary>
 ///     AST node representing a definition element (part def, attribute def, etc.).
 /// </summary>
-internal sealed class SysmlDefinitionNode : SysmlNode
+public sealed class SysmlDefinitionNode : SysmlNode
 {
     /// <summary>
     ///     Gets the definition keyword (e.g., "part def", "attribute def").
@@ -55,14 +64,14 @@ internal sealed class SysmlDefinitionNode : SysmlNode
 /// <summary>
 ///     AST node representing a usage/feature element (part, attribute, etc.).
 /// </summary>
-internal sealed class SysmlFeatureNode : SysmlNode
+public sealed class SysmlFeatureNode : SysmlNode
 {
 }
 
 /// <summary>
 ///     AST node representing an import declaration.
 /// </summary>
-internal sealed class SysmlImportNode : SysmlNode
+public sealed class SysmlImportNode : SysmlNode
 {
     /// <summary>
     ///     Gets the imported namespace or qualified name.
@@ -78,13 +87,13 @@ internal sealed class SysmlImportNode : SysmlNode
 /// <summary>
 ///     AST node representing a view definition.
 /// </summary>
-internal sealed class SysmlViewNode : SysmlNode
+public sealed class SysmlViewNode : SysmlNode
 {
 }
 
 /// <summary>
 ///     AST node representing a viewpoint definition.
 /// </summary>
-internal sealed class SysmlViewpointNode : SysmlNode
+public sealed class SysmlViewpointNode : SysmlNode
 {
 }

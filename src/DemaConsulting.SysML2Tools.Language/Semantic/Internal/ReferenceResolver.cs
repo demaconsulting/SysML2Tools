@@ -51,17 +51,39 @@ internal sealed class ReferenceResolver
     }
 
     /// <summary>
-    ///     Builds an import graph mapping each file path to the set of namespace names it imports.
+    ///     Builds an import graph mapping each top-level namespace name to the set of namespace
+    ///     names it imports. The file-level root is a nameless container; we key on the
+    ///     names of its top-level package/definition children so the DFS can follow
+    ///     import edges by namespace name.
     /// </summary>
     private static Dictionary<string, HashSet<string>> BuildImportGraph(
         IEnumerable<(string FilePath, SysmlNode? Root)> fileRoots)
     {
         var graph = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        foreach (var (filePath, root) in fileRoots.Where(r => r.Root is not null))
+        foreach (var (_, root) in fileRoots.Where(r => r.Root is not null))
         {
-            var imports = new HashSet<string>(StringComparer.Ordinal);
-            CollectImports(root!, imports);
-            graph[filePath] = imports;
+            // The root is a nameless file-level container; top-level namespaces are its children.
+            foreach (var topLevel in root!.Children
+                         .Where(c => c is SysmlPackageNode or SysmlDefinitionNode)
+                         .Where(c => c.QualifiedName is not null || c.Name is not null))
+            {
+                var key = topLevel.QualifiedName ?? topLevel.Name!;
+                var imports = new HashSet<string>(StringComparer.Ordinal);
+                CollectImports(topLevel, imports);
+                imports.Remove(key); // avoid self-loops
+
+                if (!graph.TryGetValue(key, out var existing))
+                {
+                    graph[key] = imports;
+                }
+                else
+                {
+                    foreach (var imp in imports)
+                    {
+                        existing.Add(imp);
+                    }
+                }
+            }
         }
 
         return graph;

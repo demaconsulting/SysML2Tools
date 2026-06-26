@@ -1,9 +1,11 @@
 ---
 # Root requirements file - includes all system, unit, platform, and OTS requirements
 includes:
+  - docs/reqstream/sysml2-tools-language.yaml
+  - docs/reqstream/sysml2-tools-language/parser.yaml
+  - docs/reqstream/sysml2-tools-language/semantic.yaml
+  - docs/reqstream/sysml2-tools-stdlib.yaml
   - docs/reqstream/sysml2-tools-core.yaml
-  - docs/reqstream/sysml2-tools-core/parser.yaml
-  - docs/reqstream/sysml2-tools-core/semantic.yaml
   - docs/reqstream/sysml2-tools-core/semantic/workspace-loader.yaml
   - docs/reqstream/sysml2-tools-core/semantic/internal.yaml
   - docs/reqstream/sysml2-tools-core/semantic/internal/sysml-node.yaml

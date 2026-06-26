@@ -7,6 +7,7 @@ using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Png;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
+using DemaConsulting.SysML2Tools.Stdlib;
 using DemaConsulting.SysML2Tools.Svg;
 
 namespace DemaConsulting.SysML2Tools.Render;
@@ -40,7 +41,8 @@ internal static class RenderCommand
 
         // Load the workspace from the supplied file patterns
         context.WriteLine($"Loading {context.Files.Count} file pattern(s)...");
-        var loadResult = await WorkspaceLoader.LoadAsync(context.Files).ConfigureAwait(false);
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var loadResult = await WorkspaceLoader.LoadAsync(context.Files, stdlibTable).ConfigureAwait(false);
 
         // Report any diagnostics from the load phase
         foreach (var diagnostic in loadResult.Diagnostics)

@@ -6,12 +6,28 @@ namespace DemaConsulting.SysML2Tools.Semantic.Internal;
 /// <summary>
 ///     Registry mapping fully-qualified SysML/KerML names to their declaration nodes.
 /// </summary>
-internal sealed class SymbolTable
+public sealed class SymbolTable
 {
     /// <summary>
     ///     The internal dictionary mapping fully-qualified names to their declaration nodes.
     /// </summary>
     private readonly Dictionary<string, SysmlNode> _symbols = new(StringComparer.Ordinal);
+
+    /// <summary>
+    ///     Initializes a new empty symbol table.
+    /// </summary>
+    public SymbolTable()
+    {
+    }
+
+    /// <summary>
+    ///     Initializes a symbol table pre-populated with the given symbols.
+    /// </summary>
+    /// <param name="symbols">The symbols to pre-populate the table with.</param>
+    public SymbolTable(IReadOnlyDictionary<string, SysmlNode> symbols)
+    {
+        _symbols = new Dictionary<string, SysmlNode>(symbols, StringComparer.Ordinal);
+    }
 
     /// <summary>
     ///     Gets the registered symbols as a read-only dictionary.

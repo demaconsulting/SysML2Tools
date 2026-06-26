@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using DemaConsulting.SysML2Tools.Semantic;
+using DemaConsulting.SysML2Tools.Stdlib;
 
 namespace DemaConsulting.SysML2Tools.Tests.Semantic;
 
@@ -24,7 +25,8 @@ public sealed class WorkspaceLoaderTests
             await File.WriteAllTextAsync(tempFile, string.Empty, TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert
             Assert.NotNull(result.Workspace);
@@ -50,7 +52,8 @@ public sealed class WorkspaceLoaderTests
             await File.WriteAllTextAsync(tempFile, "package Foo {}", TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert
             Assert.NotNull(result.Workspace);
@@ -77,7 +80,8 @@ public sealed class WorkspaceLoaderTests
             await File.WriteAllTextAsync(tempFile, "package A { package B {} }", TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert
             Assert.NotNull(result.Workspace);
@@ -104,7 +108,8 @@ public sealed class WorkspaceLoaderTests
             await File.WriteAllTextAsync(tempFile, "package P { part def W {} }", TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert
             Assert.NotNull(result.Workspace);
@@ -125,7 +130,8 @@ public sealed class WorkspaceLoaderTests
     public async Task WorkspaceLoader_LoadAsync_NoFiles_ReturnsNonNullWorkspace()
     {
         // Act
-        var result = await WorkspaceLoader.LoadAsync([]);
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([], stdlibTable);
 
         // Assert
         Assert.NotNull(result.Workspace);
@@ -141,7 +147,8 @@ public sealed class WorkspaceLoaderTests
     public async Task WorkspaceLoader_LoadAsync_StdlibDeclarations_Registered()
     {
         // Act
-        var result = await WorkspaceLoader.LoadAsync([]);
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([], stdlibTable);
 
         // Assert
         Assert.NotNull(result.Workspace);
@@ -171,7 +178,8 @@ public sealed class WorkspaceLoaderTests
                 """, TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert
             Assert.NotNull(result.Workspace);
@@ -206,7 +214,8 @@ public sealed class WorkspaceLoaderTests
                 """, TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert
             Assert.NotNull(result.Workspace);
@@ -238,7 +247,8 @@ public sealed class WorkspaceLoaderTests
             // Act — cycle detection must terminate (not loop forever).
             // Use xUnit's per-test cancellation token rather than a hard 30-second
             // limit; stdlib loading on a cold Linux CI runner can take longer than 30s.
-            var result = await WorkspaceLoader.LoadAsync([tempFile1, tempFile2])
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile1, tempFile2], stdlibTable)
                 .WaitAsync(TestContext.Current.CancellationToken);
 
             // Assert — circular import warning present
@@ -266,7 +276,8 @@ public sealed class WorkspaceLoaderTests
             $"nonexistent_{Guid.NewGuid():N}.sysml");
 
         // Act
-        var result = await WorkspaceLoader.LoadAsync([nonExistentPath]);
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([nonExistentPath], stdlibTable);
 
         // Assert
         Assert.NotNull(result.Workspace);
@@ -297,7 +308,8 @@ public sealed class WorkspaceLoaderTests
             // Act — cycle detection must terminate (not loop forever).
             // Use xUnit's per-test cancellation token rather than a hard 30-second
             // limit; stdlib loading on a cold Linux CI runner can take longer than 30s.
-            var result = await WorkspaceLoader.LoadAsync([tempFile])
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable)
                 .WaitAsync(TestContext.Current.CancellationToken);
 
             // Assert — cyclic specialization warning present
@@ -333,7 +345,8 @@ public sealed class WorkspaceLoaderTests
                 """, TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert — unqualified "Foo" should resolve to A::Foo via namespace scope
             Assert.NotNull(result.Workspace);
@@ -369,7 +382,8 @@ public sealed class WorkspaceLoaderTests
                 """, TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert — "Bar" resolves via Pkg::Bar through the wildcard import
             Assert.NotNull(result.Workspace);
@@ -405,7 +419,8 @@ public sealed class WorkspaceLoaderTests
                 """, TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert — "Bar" resolves via explicit import Pkg::Bar
             Assert.NotNull(result.Workspace);
@@ -419,3 +434,4 @@ public sealed class WorkspaceLoaderTests
         }
     }
 }
+

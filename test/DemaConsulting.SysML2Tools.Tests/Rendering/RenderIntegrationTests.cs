@@ -5,6 +5,7 @@
 using DemaConsulting.SysML2Tools.Png;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
+using DemaConsulting.SysML2Tools.Stdlib;
 using DemaConsulting.SysML2Tools.Svg;
 
 namespace DemaConsulting.SysML2Tools.Tests.Rendering;
@@ -40,7 +41,8 @@ public sealed class RenderIntegrationTests
     public async Task DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsEmptyList()
     {
         // Arrange: load workspace from the software-structure model file
-        var result = await WorkspaceLoader.LoadAsync([SoftwareStructureModel]);
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([SoftwareStructureModel], stdlibTable);
         Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
         var diagramRenderer = new DiagramRenderer();
         var svgRenderer = new SvgRenderer();
@@ -62,7 +64,8 @@ public sealed class RenderIntegrationTests
     public async Task DiagramRenderer_RenderWorkspace_SoftwareStructureModel_PngRenderer_ReturnsEmptyList()
     {
         // Arrange: load workspace from the software-structure model file
-        var result = await WorkspaceLoader.LoadAsync([SoftwareStructureModel]);
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([SoftwareStructureModel], stdlibTable);
         Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
         var diagramRenderer = new DiagramRenderer();
         var pngRenderer = new PngRenderer();
@@ -88,7 +91,8 @@ public sealed class RenderIntegrationTests
         try
         {
             await File.WriteAllTextAsync(tempFile, GeneralViewSysml, TestContext.Current.CancellationToken);
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
             Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
             var diagramRenderer = new DiagramRenderer();
             var svgRenderer = new SvgRenderer();
@@ -124,7 +128,8 @@ public sealed class RenderIntegrationTests
         try
         {
             await File.WriteAllTextAsync(tempFile, GeneralViewSysml, TestContext.Current.CancellationToken);
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
             Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
             var diagramRenderer = new DiagramRenderer();
             var pngRenderer = new PngRenderer();
@@ -163,7 +168,8 @@ public sealed class RenderIntegrationTests
         try
         {
             await File.WriteAllTextAsync(tempFile, GeneralViewSysml, TestContext.Current.CancellationToken);
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
             Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
 
             // Act / Assert: filter diagnostics to those originating from user files
@@ -182,3 +188,4 @@ public sealed class RenderIntegrationTests
         }
     }
 }
+

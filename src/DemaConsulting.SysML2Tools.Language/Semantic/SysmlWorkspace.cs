@@ -1,6 +1,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
+using DemaConsulting.SysML2Tools.Semantic.Internal;
+
 namespace DemaConsulting.SysML2Tools.Semantic;
 
 /// <summary>
@@ -16,6 +18,6 @@ public sealed class SysmlWorkspace
     /// <summary>
     ///     Gets the qualified-name registry mapping fully-qualified names to their declaration nodes.
     /// </summary>
-    public IReadOnlyDictionary<string, object> Declarations { get; init; } =
-        new Dictionary<string, object>();
+    public IReadOnlyDictionary<string, SysmlNode> Declarations { get; init; } =
+        new Dictionary<string, SysmlNode>();
 }

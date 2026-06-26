@@ -7,17 +7,17 @@
     <Nullable>enable</Nullable>
 
     <IsPackable>false</IsPackable>
-    <PackageId>DemaConsulting.SysML2Tools.Core</PackageId>
-    <AssemblyName>DemaConsulting.SysML2Tools.Core</AssemblyName>
+    <PackageId>DemaConsulting.SysML2Tools.Stdlib</PackageId>
+    <AssemblyName>DemaConsulting.SysML2Tools.Stdlib</AssemblyName>
     <Version>0.0.0</Version>
     <Authors>DEMA Consulting</Authors>
     <Company>DEMA Consulting</Company>
-    <Description>SysML v2 diagram rendering for .NET</Description>
+    <Description>Pre-compiled SysML v2 standard library for .NET</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/demaconsulting/SysML2Tools</PackageProjectUrl>
     <RepositoryUrl>https://github.com/demaconsulting/SysML2Tools</RepositoryUrl>
     <Copyright>Copyright DEMA Consulting</Copyright>
-    <Title>SysML2 Tools</Title>
+    <Title>SysML2 Tools Stdlib</Title>
     <Product>DemaConsulting.SysML2Tools</Product>
 
     <!-- Symbol Package Configuration -->
@@ -41,31 +41,46 @@
     <SBOMPackageSupplier>Organization: $(Company)</SBOMPackageSupplier>
   </PropertyGroup>
 
-  <!-- OMG SysML v2 Standard Library — embedded as resources; loaded at runtime by StdlibLoader -->
+  <!-- StdlibGen tool: referenced only for build ordering, not linked into Stdlib.dll -->
   <ItemGroup>
-    <EmbeddedResource Include="Stdlib\**\*.sysml" />
-    <EmbeddedResource Include="Stdlib\**\*.kerml" />
+    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Language\DemaConsulting.SysML2Tools.Language.csproj" />
   </ItemGroup>
 
-
+  <!-- Source files tracked for incremental build -->
   <ItemGroup>
-    <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" />
-    <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.5" PrivateAssets="All" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="All" />
-    <PackageReference Include="Polyfill" Version="10.10.0" PrivateAssets="All" />
+    <StdlibSourceFiles Include="$(MSBuildThisFileDirectory)Stdlib\**\*.sysml" />
+    <StdlibSourceFiles Include="$(MSBuildThisFileDirectory)Stdlib\**\*.kerml" />
   </ItemGroup>
 
-  <ItemGroup>
-    <InternalsVisibleTo Include="DemaConsulting.SysML2Tools.Tests" />
-  </ItemGroup>
+  <!-- Generate stdlib.bin before PrepareForBuild; skipped when outputs are fresh -->
+  <Target Name="GenerateStdlibBin"
+          BeforeTargets="PrepareForBuild"
+          Inputs="@(StdlibSourceFiles)"
+          Outputs="$(IntermediateOutputPath)stdlib.bin">
+    <!-- Rebuild StdlibGen if needed, then execute it -->
+    <MSBuild Projects="..\Tools\StdlibGen\StdlibGen.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration);TargetFramework=net9.0"
+             BuildInParallel="false" />
+    <PropertyGroup>
+      <_StdlibGenDll>$(MSBuildThisFileDirectory)..\Tools\StdlibGen\bin\$(Configuration)\net9.0\StdlibGen.dll</_StdlibGenDll>
+    </PropertyGroup>
+    <Exec Command="dotnet &quot;$(_StdlibGenDll)&quot; --stdlib-dir &quot;$(MSBuildThisFileDirectory)Stdlib&quot; --output &quot;$(IntermediateOutputPath)stdlib.bin&quot;" />
+  </Target>
+
+  <!-- After stdlib.bin is generated, embed it as a manifest resource -->
+  <Target Name="EmbedStdlibBin" AfterTargets="GenerateStdlibBin">
+    <ItemGroup>
+      <EmbeddedResource Include="$(IntermediateOutputPath)stdlib.bin">
+        <LogicalName>DemaConsulting.SysML2Tools.Stdlib.stdlib.bin</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+  </Target>
 
   <!-- Code Analysis Dependencies -->
   <ItemGroup>
-    <!-- Analyzer packages use child-element form to configure both PrivateAssets and IncludeAssets:
-         - PrivateAssets="all" prevents these build-time analyzers from becoming transitive dependencies
-           in packages that consume this tool.
-         - IncludeAssets lists all asset types (including 'analyzers' and 'buildtransitive') to ensure
-           Roslyn analyzers and MSBuild targets are fully activated during the build. -->
+    <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.5" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="All" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.301">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

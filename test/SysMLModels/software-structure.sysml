@@ -3,6 +3,8 @@
 
 package SysML2Tools {
 
+    view def SoftwareStructureView {}
+
     // Core library subsystems
     package Core {
 

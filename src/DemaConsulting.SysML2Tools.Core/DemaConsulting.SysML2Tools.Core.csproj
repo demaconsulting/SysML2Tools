@@ -1,17 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <!-- NuGet Tool Package Configuration -->
-    <PackAsTool>true</PackAsTool>
-    <ToolCommandName>sysml2tools</ToolCommandName>
-    <AssemblyName>DemaConsulting.SysML2Tools</AssemblyName>
-    <PackageId>DemaConsulting.SysML2Tools</PackageId>
+    <IsPackable>false</IsPackable>
+    <PackageId>DemaConsulting.SysML2Tools.Core</PackageId>
+    <AssemblyName>DemaConsulting.SysML2Tools.Core</AssemblyName>
     <Version>0.0.0</Version>
     <Authors>DEMA Consulting</Authors>
     <Company>DEMA Consulting</Company>
@@ -19,9 +16,6 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/demaconsulting/SysML2Tools</PackageProjectUrl>
     <RepositoryUrl>https://github.com/demaconsulting/SysML2Tools</RepositoryUrl>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageIcon>Icon.png</PackageIcon>
-    <PackageTags>sysml2;dotnet-tool</PackageTags>
     <Copyright>Copyright DEMA Consulting</Copyright>
     <Title>SysML2 Tools</Title>
     <Product>DemaConsulting.SysML2Tools</Product>
@@ -42,24 +36,23 @@
 
     <!-- SBOM Configuration -->
     <GenerateSBOM>true</GenerateSBOM>
-    <SBOMPackageName>$(PackageId)</SBOMPackageName>
+    <SBOMPackageName>$(Product)</SBOMPackageName>
     <SBOMPackageVersion>$(Version)</SBOMPackageVersion>
     <SBOMPackageSupplier>Organization: $(Company)</SBOMPackageSupplier>
   </PropertyGroup>
 
-  <!-- Runtime Dependencies -->
-  <ItemGroup>
-    <PackageReference Include="DemaConsulting.TestResults" Version="1.9.0" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.9" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
-    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="2.88.9" Condition="$([MSBuild]::IsOSPlatform('macOS'))" />
-  </ItemGroup>
-
-  <!-- Build Tool Dependencies -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.5" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="All" />
-    <PackageReference Include="Polyfill" Version="10.10.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Language\DemaConsulting.SysML2Tools.Language.csproj" />
+    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Stdlib\DemaConsulting.SysML2Tools.Stdlib.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DemaConsulting.SysML2Tools.Tests" />
   </ItemGroup>
 
   <!-- Code Analysis Dependencies -->
@@ -77,22 +70,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <InternalsVisibleTo Include="DemaConsulting.SysML2Tools.Tool.Tests" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Core\DemaConsulting.SysML2Tools.Core.csproj" />
-    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Stdlib\DemaConsulting.SysML2Tools.Stdlib.csproj" />
-    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Svg\DemaConsulting.SysML2Tools.Svg.csproj" />
-    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Png\DemaConsulting.SysML2Tools.Png.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
-    <None Include="..\..\Icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
