@@ -56,6 +56,15 @@
     <ProjectReference Include="..\DemaConsulting.SysML2Tools\DemaConsulting.SysML2Tools.csproj" />
   </ItemGroup>
 
+  <!-- Embedded Font Resources (Noto Sans, SIL OFL 1.1) -->
+  <ItemGroup>
+    <EmbeddedResource Include="Fonts\NotoSans-Regular.ttf" />
+    <EmbeddedResource Include="Fonts\NotoSans-Bold.ttf" />
+    <EmbeddedResource Include="Fonts\NotoSans-Italic.ttf" />
+    <EmbeddedResource Include="Fonts\NotoSans-BoldItalic.ttf" />
+    <EmbeddedResource Include="Fonts\OFL.txt" />
+  </ItemGroup>
+
   <!-- Code Analysis Dependencies -->
   <ItemGroup>
     <!-- Analyzer packages use child-element form to configure both PrivateAssets and IncludeAssets:

@@ -5,19 +5,12 @@
 namespace DemaConsulting.SysML2Tools.Rendering;
 
 /// <summary>
-/// Describes a font family and optional embedded resource.
-/// </summary>
-/// <param name="FamilyName">Font family name (e.g., "Segoe UI", "DejaVu Sans").</param>
-/// <param name="EmbeddedResourcePath">
-/// Assembly-embedded resource path for bundled fonts, or <see langword="null"/> to use the system font.
-/// </param>
-public sealed record FontDescriptor(
-    string FamilyName,
-    string? EmbeddedResourcePath);
-
-/// <summary>
 /// Visual theme for rendering a diagram.
 /// </summary>
+/// <remarks>
+/// Font choice is not part of the theme; each renderer hardcodes its own typeface internally
+/// to ensure consistent output across all platforms.
+/// </remarks>
 /// <param name="DepthFillColors">
 /// Hex colour strings indexed by nesting depth. Wraps if depth exceeds count.
 /// Example: <c>["#FFFFFF", "#EEF4FF", "#D6E8FF"]</c>.
@@ -28,7 +21,6 @@ public sealed record FontDescriptor(
 /// <param name="FontSizeTitle">Font size for title / heading text.</param>
 /// <param name="FontSizeBody">Font size for body / row text.</param>
 /// <param name="LabelPadding">Internal padding between text and its bounding box.</param>
-/// <param name="Font">Font descriptor for the primary typeface.</param>
 public sealed record Theme(
     IReadOnlyList<string> DepthFillColors,
     string StrokeColor,
@@ -36,8 +28,7 @@ public sealed record Theme(
     double LineCornerRadius,
     double FontSizeTitle,
     double FontSizeBody,
-    double LabelPadding,
-    FontDescriptor Font);
+    double LabelPadding);
 
 /// <summary>
 /// Built-in themes for common rendering scenarios.
@@ -54,8 +45,7 @@ public static class Themes
         LineCornerRadius: 4.0,
         FontSizeTitle: 14.0,
         FontSizeBody: 12.0,
-        LabelPadding: 6.0,
-        Font: new FontDescriptor("Segoe UI", null));
+        LabelPadding: 6.0);
 
     /// <summary>
     /// Gets a dark theme suitable for dark-mode screen display.
@@ -67,8 +57,7 @@ public static class Themes
         LineCornerRadius: 4.0,
         FontSizeTitle: 14.0,
         FontSizeBody: 12.0,
-        LabelPadding: 6.0,
-        Font: new FontDescriptor("Segoe UI", null));
+        LabelPadding: 6.0);
 
     /// <summary>
     /// Gets a print theme optimized for black-and-white output.
@@ -80,6 +69,5 @@ public static class Themes
         LineCornerRadius: 0.0,
         FontSizeTitle: 12.0,
         FontSizeBody: 10.0,
-        LabelPadding: 4.0,
-        Font: new FontDescriptor("Arial", null));
+        LabelPadding: 4.0);
 }

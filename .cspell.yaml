@@ -99,7 +99,9 @@ words:
   - Premul
   - rasterizes
   - Rgba
+  - Rects
   - RRGGBB
+  - RRGGBBAA
 
 # Exclude common build artifacts, dependencies, and vendored third-party code
 ignorePaths:

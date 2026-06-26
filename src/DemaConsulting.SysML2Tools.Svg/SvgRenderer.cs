@@ -18,12 +18,25 @@ namespace DemaConsulting.SysML2Tools.Svg;
 /// No state is shared between calls. The produced SVG targets SVG 1.1 and is encoded in UTF-8.
 ///
 /// Node rendering:
-/// - <see cref="LayoutBox"/> → <c>&lt;rect&gt;</c> + optional <c>&lt;text&gt;</c> for the label;
-///   children are rendered recursively.
-/// - <see cref="LayoutLine"/> → <c>&lt;path&gt;</c> with M/L commands; arrowheads are rendered
-///   as marker references defined in <c>&lt;defs&gt;</c>.
+/// - <see cref="LayoutBox"/> → <c>&lt;rect&gt;</c> (with <c>rx</c>/<c>ry</c> for rounded
+///   corners) + optional <c>&lt;text&gt;</c> for the label + <c>&lt;line&gt;</c> dividers
+///   and <c>&lt;text&gt;</c> rows for each compartment; children rendered recursively.
+/// - <see cref="LayoutLine"/> → <c>&lt;path&gt;</c> with M/L/A commands for corner-radius-
+///   aware bends; arrowheads as marker references defined in <c>&lt;defs&gt;</c>; optional
+///   midpoint label as <c>&lt;text&gt;</c>.
 /// - <see cref="LayoutLabel"/> → <c>&lt;text&gt;</c>.
-/// - All other node types are skipped for forward compatibility.
+/// - <see cref="LayoutPort"/> → <c>&lt;rect&gt;</c> filled square with optional
+///   <c>&lt;text&gt;</c> label offset away from the attached edge.
+/// - <see cref="LayoutBadge"/> → shape-specific SVG elements centered at the badge position
+///   with optional <c>&lt;text&gt;</c> label.
+/// - <see cref="LayoutBand"/> → <c>&lt;rect&gt;</c> with optional rotated or horizontal
+///   <c>&lt;text&gt;</c> label; children rendered recursively.
+/// - <see cref="LayoutLifeline"/> → <c>&lt;rect&gt;</c> header + dashed
+///   <c>&lt;line&gt;</c> stem + <c>&lt;text&gt;</c> label.
+/// - <see cref="LayoutActivation"/> → <c>&lt;rect&gt;</c> with white fill.
+/// - <see cref="LayoutGrid"/> → bordered <c>&lt;rect&gt;</c> cells with per-cell
+///   <c>&lt;text&gt;</c> elements.
+/// - All other node types are silently skipped for forward compatibility.
 ///
 /// Fill colors are derived from <see cref="Theme.DepthFillColors"/> using modulo wrapping on
 /// <see cref="LayoutBox.Depth"/>.
@@ -62,7 +75,7 @@ public sealed class SvgRenderer : IRenderer
             $"""<svg xmlns="http://www.w3.org/2000/svg" width="{F(width)}" height="{F(height)}" viewBox="0 0 {F(width)} {F(height)}">""");
         sb.AppendLine();
 
-        // Write defs section with arrowhead markers
+        // Write defs section with all arrowhead markers
         WriteArrowheadDefs(sb, theme);
 
         // Render all top-level nodes recursively
@@ -80,15 +93,22 @@ public sealed class SvgRenderer : IRenderer
     }
 
     /// <summary>
-    /// Writes the <c>&lt;defs&gt;</c> block containing all arrowhead marker definitions.
+    /// Writes the <c>&lt;defs&gt;</c> block containing all arrowhead marker definitions used
+    /// by <see cref="RenderLine"/>.
     /// </summary>
+    /// <remarks>
+    /// Markers defined: <c>arrowhead-open</c> (hollow triangle),
+    /// <c>arrowhead-filled</c> (filled triangle), <c>arrowhead-diamond</c> (hollow diamond),
+    /// <c>arrowhead-filled-diamond</c> (filled diamond), <c>arrowhead-circle</c> (hollow
+    /// circle), and <c>arrowhead-bar</c> (perpendicular bar).
+    /// </remarks>
     /// <param name="sb">String builder receiving the SVG markup.</param>
     /// <param name="theme">Theme providing stroke color and width.</param>
     private static void WriteArrowheadDefs(StringBuilder sb, Theme theme)
     {
         sb.AppendLine("  <defs>");
 
-        // Open arrowhead marker — used for specialization / generalization lines
+        // Open arrowhead marker — hollow triangle pointing along the line direction
         sb.Append(CultureInfo.InvariantCulture,
             $"""    <marker id="arrowhead-open" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">""");
         sb.AppendLine();
@@ -97,7 +117,7 @@ public sealed class SvgRenderer : IRenderer
         sb.AppendLine();
         sb.AppendLine("    </marker>");
 
-        // Filled arrowhead marker — used for dependency / usage lines
+        // Filled arrowhead marker — solid triangle pointing along the line direction
         sb.Append(CultureInfo.InvariantCulture,
             $"""    <marker id="arrowhead-filled" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">""");
         sb.AppendLine();
@@ -106,11 +126,49 @@ public sealed class SvgRenderer : IRenderer
         sb.AppendLine();
         sb.AppendLine("    </marker>");
 
+        // Diamond marker — open four-point diamond straddling the line end
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""    <marker id="arrowhead-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">""");
+        sb.AppendLine();
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""      <polygon points="1 4, 7 0, 13 4, 7 8" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+        sb.AppendLine("    </marker>");
+
+        // Filled diamond marker — solid four-point diamond straddling the line end
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""    <marker id="arrowhead-filled-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">""");
+        sb.AppendLine();
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""      <polygon points="1 4, 7 0, 13 4, 7 8" fill="{theme.StrokeColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+        sb.AppendLine("    </marker>");
+
+        // Circle marker — open circle whose near edge sits at the line endpoint
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""    <marker id="arrowhead-circle" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">""");
+        sb.AppendLine();
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""      <circle cx="5" cy="5" r="4" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+        sb.AppendLine("    </marker>");
+
+        // Bar marker — perpendicular line centered on the line endpoint
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""    <marker id="arrowhead-bar" markerWidth="4" markerHeight="12" refX="2" refY="6" orient="auto">""");
+        sb.AppendLine();
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""      <line x1="2" y1="0" x2="2" y2="12" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+        sb.AppendLine("    </marker>");
+
         sb.AppendLine("  </defs>");
     }
 
     /// <summary>
-    /// Renders a single <see cref="LayoutNode"/> to the SVG string builder.
+    /// Dispatches a single <see cref="LayoutNode"/> to the appropriate typed render method.
+    /// Unknown concrete types are silently skipped so that future node types do not break
+    /// existing callers.
     /// </summary>
     /// <param name="sb">String builder receiving the SVG markup.</param>
     /// <param name="node">The node to render.</param>
@@ -132,6 +190,30 @@ public sealed class SvgRenderer : IRenderer
                 RenderLabel(sb, label, theme, scale);
                 break;
 
+            case LayoutPort port:
+                RenderPort(sb, port, theme, scale);
+                break;
+
+            case LayoutBadge badge:
+                RenderBadge(sb, badge, theme, scale);
+                break;
+
+            case LayoutBand band:
+                RenderBand(sb, band, theme, scale);
+                break;
+
+            case LayoutLifeline lifeline:
+                RenderLifeline(sb, lifeline, theme, scale);
+                break;
+
+            case LayoutActivation activation:
+                RenderActivation(sb, activation, theme, scale);
+                break;
+
+            case LayoutGrid grid:
+                RenderGrid(sb, grid, theme, scale);
+                break;
+
             default:
                 // Skip unknown node types for forward compatibility
                 break;
@@ -139,8 +221,10 @@ public sealed class SvgRenderer : IRenderer
     }
 
     /// <summary>
-    /// Renders a <see cref="LayoutBox"/> as an SVG <c>&lt;rect&gt;</c> with an optional
-    /// label and recursively renders its children.
+    /// Renders a <see cref="LayoutBox"/> as a <c>&lt;rect&gt;</c> with <c>rx</c>/<c>ry</c>
+    /// attributes for rounded corners, an optional centered <c>&lt;text&gt;</c> label,
+    /// horizontal divider <c>&lt;line&gt;</c> elements and text rows for each compartment,
+    /// then recursively renders its children.
     /// </summary>
     /// <param name="sb">String builder receiving the SVG markup.</param>
     /// <param name="box">The box node to render.</param>
@@ -156,19 +240,30 @@ public sealed class SvgRenderer : IRenderer
         var w = box.Width * scale;
         var h = box.Height * scale;
 
-        // Draw the rectangle
+        // Add rx/ry for rounded rectangle; corner radius doubles the line radius for prominence
+        var cornerStr = box.Shape == BoxShape.RoundedRectangle && theme.LineCornerRadius > 0
+            ? $" rx=\"{F(theme.LineCornerRadius * 2.0 * scale)}\" ry=\"{F(theme.LineCornerRadius * 2.0 * scale)}\""
+            : string.Empty;
+
         sb.Append(CultureInfo.InvariantCulture,
-            $"""  <rect x="{F(x)}" y="{F(y)}" width="{F(w)}" height="{F(h)}" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+            $"""  <rect x="{F(x)}" y="{F(y)}" width="{F(w)}" height="{F(h)}" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"{cornerStr}/>""");
         sb.AppendLine();
 
-        // Draw the label if present
+        // Draw the centered label in the title area if present
         if (box.Label != null)
         {
             var textX = (box.X + box.Width / 2.0) * scale;
             var textY = (box.Y + theme.LabelPadding + theme.FontSizeTitle / 2.0) * scale;
+            var availableWidth = (box.Width - 2 * theme.LabelPadding) * scale;
             sb.Append(CultureInfo.InvariantCulture,
-                $"""  <text x="{F(textX)}" y="{F(textY)}" font-family="Segoe UI, sans-serif" font-size="{F(theme.FontSizeTitle * scale)}" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle">{EscapeXml(box.Label)}</text>""");
+                $"""  <text x="{F(textX)}" y="{F(textY)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeTitle * scale)}" font-weight="bold" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle" textLength="{F(availableWidth)}" lengthAdjust="spacingAndGlyphs">{EscapeXml(box.Label)}</text>""");
             sb.AppendLine();
+        }
+
+        // Render compartments below the label area
+        if (box.Compartments.Count > 0)
+        {
+            RenderBoxCompartments(sb, box, theme, scale);
         }
 
         // Render children recursively
@@ -179,9 +274,64 @@ public sealed class SvgRenderer : IRenderer
     }
 
     /// <summary>
-    /// Renders a <see cref="LayoutLine"/> as an SVG <c>&lt;path&gt;</c> element with optional
-    /// arrowhead markers.
+    /// Renders the compartments of a <see cref="LayoutBox"/> below the title area as SVG
+    /// <c>&lt;line&gt;</c> dividers and <c>&lt;text&gt;</c> elements.
     /// </summary>
+    /// <param name="sb">String builder receiving the SVG markup.</param>
+    /// <param name="box">Box whose compartments are rendered.</param>
+    /// <param name="theme">Visual theme providing font sizes, padding, and stroke settings.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    private static void RenderBoxCompartments(StringBuilder sb, LayoutBox box, Theme theme, double scale)
+    {
+        // Compartments start below the label area (padding + font + padding when label present)
+        var labelAreaHeight = box.Label != null
+            ? theme.LabelPadding + theme.FontSizeTitle + theme.LabelPadding
+            : 0.0;
+        var compartmentY = box.Y + labelAreaHeight;
+
+        foreach (var compartment in box.Compartments)
+        {
+            // Full-width horizontal divider at the top of this compartment
+            sb.Append(CultureInfo.InvariantCulture,
+                $"""  <line x1="{F(box.X * scale)}" y1="{F(compartmentY * scale)}" x2="{F((box.X + box.Width) * scale)}" y2="{F(compartmentY * scale)}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+            sb.AppendLine();
+
+            // Draw optional bold compartment title
+            if (compartment.Title != null)
+            {
+                var titleX = (box.X + theme.LabelPadding) * scale;
+                var titleY = (compartmentY + theme.LabelPadding + theme.FontSizeBody / 2.0) * scale;
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <text x="{F(titleX)}" y="{F(titleY)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" font-weight="bold" font-style="italic" fill="{theme.StrokeColor}" text-anchor="start" dominant-baseline="middle">{EscapeXml(compartment.Title)}</text>""");
+                sb.AppendLine();
+                compartmentY += theme.LabelPadding + theme.FontSizeBody + theme.LabelPadding;
+            }
+
+            // Draw each body row with body font size and left-aligned indent
+            foreach (var row in compartment.Rows)
+            {
+                var rowX = (box.X + theme.LabelPadding) * scale;
+                var rowY = (compartmentY + theme.LabelPadding + theme.FontSizeBody / 2.0) * scale;
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <text x="{F(rowX)}" y="{F(rowY)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" fill="{theme.StrokeColor}" text-anchor="start" dominant-baseline="middle">{EscapeXml(row)}</text>""");
+                sb.AppendLine();
+                compartmentY += theme.LabelPadding + theme.FontSizeBody;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Renders a <see cref="LayoutLine"/> as an SVG <c>&lt;path&gt;</c> element with
+    /// arc-at-bend corner rounding, optional arrowhead marker references, optional dashing,
+    /// and an optional midpoint label.
+    /// </summary>
+    /// <remarks>
+    /// When <see cref="Theme.LineCornerRadius"/> is zero, each interior waypoint is
+    /// connected with a plain <c>L</c> command. When the radius is positive, each interior
+    /// waypoint is replaced with a shortened incoming <c>L</c> command and an <c>A</c>
+    /// (arc) command whose sweep direction is derived from the cross product of the incoming
+    /// and outgoing direction vectors.
+    /// </remarks>
     /// <param name="sb">String builder receiving the SVG markup.</param>
     /// <param name="line">The line node to render.</param>
     /// <param name="theme">Visual theme providing stroke color and width.</param>
@@ -194,31 +344,32 @@ public sealed class SvgRenderer : IRenderer
             return;
         }
 
-        // Build SVG path data from waypoints
-        var pathData = new StringBuilder();
-        var first = line.Waypoints[0];
-        pathData.Append(CultureInfo.InvariantCulture, $"M {F(first.X * scale)} {F(first.Y * scale)}");
-        for (var i = 1; i < line.Waypoints.Count; i++)
-        {
-            var wp = line.Waypoints[i];
-            pathData.Append(CultureInfo.InvariantCulture, $" L {F(wp.X * scale)} {F(wp.Y * scale)}");
-        }
+        // Build SVG path data with optional arc-at-bend corner rounding
+        var pathData = BuildLinePath(line.Waypoints, theme.LineCornerRadius, scale);
 
-        // Determine arrowhead markers
+        // Resolve arrowhead marker attribute strings
         var markerStart = line.SourceArrowhead switch
         {
             ArrowheadStyle.Open => " marker-start=\"url(#arrowhead-open)\"",
             ArrowheadStyle.Filled => " marker-start=\"url(#arrowhead-filled)\"",
+            ArrowheadStyle.Diamond => " marker-start=\"url(#arrowhead-diamond)\"",
+            ArrowheadStyle.FilledDiamond => " marker-start=\"url(#arrowhead-filled-diamond)\"",
+            ArrowheadStyle.Circle => " marker-start=\"url(#arrowhead-circle)\"",
+            ArrowheadStyle.Bar => " marker-start=\"url(#arrowhead-bar)\"",
             _ => string.Empty
         };
         var markerEnd = line.TargetArrowhead switch
         {
             ArrowheadStyle.Open => " marker-end=\"url(#arrowhead-open)\"",
             ArrowheadStyle.Filled => " marker-end=\"url(#arrowhead-filled)\"",
+            ArrowheadStyle.Diamond => " marker-end=\"url(#arrowhead-diamond)\"",
+            ArrowheadStyle.FilledDiamond => " marker-end=\"url(#arrowhead-filled-diamond)\"",
+            ArrowheadStyle.Circle => " marker-end=\"url(#arrowhead-circle)\"",
+            ArrowheadStyle.Bar => " marker-end=\"url(#arrowhead-bar)\"",
             _ => string.Empty
         };
 
-        // Determine stroke style
+        // Determine stroke dash pattern for non-solid lines
         var dashArray = line.LineStyle switch
         {
             LineStyle.Dashed => " stroke-dasharray=\"6 3\"",
@@ -229,10 +380,142 @@ public sealed class SvgRenderer : IRenderer
         sb.Append(CultureInfo.InvariantCulture,
             $"""  <path d="{pathData}" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"{markerStart}{markerEnd}{dashArray}/>""");
         sb.AppendLine();
+
+        // Draw the optional midpoint label as a centered text element
+        if (line.MidpointLabel != null)
+        {
+            var (midX, midY) = ComputeLineMidpoint(line.Waypoints);
+            sb.Append(CultureInfo.InvariantCulture,
+                $"""  <text x="{F(midX * scale)}" y="{F(midY * scale)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle">{EscapeXml(line.MidpointLabel)}</text>""");
+            sb.AppendLine();
+        }
     }
 
     /// <summary>
-    /// Renders a <see cref="LayoutLabel"/> as an SVG <c>&lt;text&gt;</c> element.
+    /// Builds the SVG path <c>d</c> attribute string for a polyline, applying arc-at-bend
+    /// corner rounding for each interior waypoint when <paramref name="cornerRadius"/> is
+    /// greater than zero.
+    /// </summary>
+    /// <remarks>
+    /// For each interior waypoint the incoming segment is shortened by
+    /// <paramref name="cornerRadius"/> and an SVG arc (<c>A</c> command) bridges the gap.
+    /// The arc sweep direction is determined by the cross product of the incoming and outgoing
+    /// direction vectors: positive cross product (clockwise turn in SVG screen space) uses
+    /// sweep-flag 1; negative uses sweep-flag 0. The radius is clamped to half the shorter
+    /// adjacent segment so the arc never overshoots.
+    /// </remarks>
+    /// <param name="waypoints">Ordered waypoints; must contain at least 2 entries.</param>
+    /// <param name="cornerRadius">Corner rounding radius in logical pixels; 0 disables arcs.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    /// <returns>SVG path data string starting with <c>M</c>.</returns>
+    private static string BuildLinePath(
+        IReadOnlyList<Point2D> waypoints,
+        double cornerRadius,
+        double scale)
+    {
+        var sb = new StringBuilder();
+        var first = waypoints[0];
+        sb.Append(CultureInfo.InvariantCulture, $"M {F(first.X * scale)} {F(first.Y * scale)}");
+
+        if (cornerRadius <= 0)
+        {
+            // No corner rounding: plain M/L path
+            for (var i = 1; i < waypoints.Count; i++)
+            {
+                var wp = waypoints[i];
+                sb.Append(CultureInfo.InvariantCulture, $" L {F(wp.X * scale)} {F(wp.Y * scale)}");
+            }
+
+            return sb.ToString();
+        }
+
+        // Arc-at-bends: replace each interior waypoint with a shortened L + arc A command
+        for (var i = 1; i < waypoints.Count; i++)
+        {
+            var cur = waypoints[i];
+
+            var isInterior = i < waypoints.Count - 1;
+            if (!isInterior)
+            {
+                // Last waypoint: plain line to the endpoint
+                sb.Append(CultureInfo.InvariantCulture, $" L {F(cur.X * scale)} {F(cur.Y * scale)}");
+                continue;
+            }
+
+            var prev = waypoints[i - 1];
+            var next = waypoints[i + 1];
+
+            // Incoming direction from prev to cur
+            var inDx = cur.X - prev.X;
+            var inDy = cur.Y - prev.Y;
+            var inLen = Math.Sqrt(inDx * inDx + inDy * inDy);
+
+            // Outgoing direction from cur to next
+            var outDx = next.X - cur.X;
+            var outDy = next.Y - cur.Y;
+            var outLen = Math.Sqrt(outDx * outDx + outDy * outDy);
+
+            if (inLen < 0.001 || outLen < 0.001)
+            {
+                // Degenerate segment: fall back to a plain line command
+                sb.Append(CultureInfo.InvariantCulture, $" L {F(cur.X * scale)} {F(cur.Y * scale)}");
+                continue;
+            }
+
+            // Normalize both direction vectors
+            var inNx = inDx / inLen;
+            var inNy = inDy / inLen;
+            var outNx = outDx / outLen;
+            var outNy = outDy / outLen;
+
+            // Clamp radius so the arc never overshoots either adjacent segment
+            var r = Math.Min(cornerRadius, Math.Min(inLen / 2.0, outLen / 2.0));
+
+            // Endpoint of the shortened incoming segment (just before the corner)
+            var shortEndX = cur.X - inNx * r;
+            var shortEndY = cur.Y - inNy * r;
+
+            // Start of the outgoing segment after the arc (just past the corner)
+            var shortStartX = cur.X + outNx * r;
+            var shortStartY = cur.Y + outNy * r;
+
+            // Cross product z-component determines clockwise vs counter-clockwise arc in SVG
+            // (positive cross = clockwise screen turn = sweep-flag 1)
+            var cross = inNx * outNy - inNy * outNx;
+            var sweep = cross > 0 ? 1 : 0;
+
+            sb.Append(CultureInfo.InvariantCulture,
+                $" L {F(shortEndX * scale)} {F(shortEndY * scale)}");
+            sb.Append(CultureInfo.InvariantCulture,
+                $" A {F(r * scale)} {F(r * scale)} 0 0 {sweep} {F(shortStartX * scale)} {F(shortStartY * scale)}");
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Computes the geometric midpoint of an ordered waypoint list. For an odd count the
+    /// center element is returned; for an even count the average of the two center elements
+    /// is returned.
+    /// </summary>
+    /// <param name="waypoints">Ordered waypoints; must contain at least one entry.</param>
+    /// <returns>The (X, Y) coordinates of the midpoint in logical pixels.</returns>
+    private static (double X, double Y) ComputeLineMidpoint(IReadOnlyList<Point2D> waypoints)
+    {
+        var n = waypoints.Count;
+        if (n % 2 == 1)
+        {
+            return (waypoints[n / 2].X, waypoints[n / 2].Y);
+        }
+
+        var lo = waypoints[n / 2 - 1];
+        var hi = waypoints[n / 2];
+        return ((lo.X + hi.X) / 2.0, (lo.Y + hi.Y) / 2.0);
+    }
+
+    /// <summary>
+    /// Renders a <see cref="LayoutLabel"/> as an SVG <c>&lt;text&gt;</c> element with
+    /// <c>text-anchor</c> derived from <see cref="TextAlign"/>.
     /// </summary>
     /// <param name="sb">String builder receiving the SVG markup.</param>
     /// <param name="label">The label node to render.</param>
@@ -248,10 +531,306 @@ public sealed class SvgRenderer : IRenderer
             TextAlign.Right => "end",
             _ => "start"
         };
+        var fontWeight = label.Weight == FontWeight.Bold ? "bold" : "normal";
+        var fontStyle = label.Style == FontStyle.Italic ? "italic" : "normal";
+        var textLengthAttr = label.MaxWidth > 0
+            ? $""" textLength="{F(label.MaxWidth * scale)}" lengthAdjust="spacingAndGlyphs" """
+            : " ";
 
         sb.Append(CultureInfo.InvariantCulture,
-            $"""  <text x="{F(x)}" y="{F(y)}" font-family="Segoe UI, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" fill="{theme.StrokeColor}" text-anchor="{anchor}" dominant-baseline="middle">{EscapeXml(label.Text)}</text>""");
+            $"""  <text x="{F(x)}" y="{F(y)}" font-family="Noto Sans, sans-serif" font-size="{F(label.FontSize * scale)}" font-weight="{fontWeight}" font-style="{fontStyle}" fill="{theme.StrokeColor}" text-anchor="{anchor}" dominant-baseline="middle"{textLengthAttr.TrimEnd()}>{EscapeXml(label.Text)}</text>""");
         sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Renders a <see cref="LayoutPort"/> as a filled 8×8 <c>&lt;rect&gt;</c> centered at
+    /// the port position, with an optional <c>&lt;text&gt;</c> label offset away from the
+    /// attached edge.
+    /// </summary>
+    /// <param name="sb">String builder receiving the SVG markup.</param>
+    /// <param name="port">The port node to render.</param>
+    /// <param name="theme">Visual theme providing stroke color and font settings.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    private static void RenderPort(StringBuilder sb, LayoutPort port, Theme theme, double scale)
+    {
+        // Port square: 8×8 logical pixels, filled with the stroke color
+        const double PortHalfSize = 4.0;
+        var rx = (port.CentreX - PortHalfSize) * scale;
+        var ry = (port.CentreY - PortHalfSize) * scale;
+        var rs = PortHalfSize * 2.0 * scale;
+
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""  <rect x="{F(rx)}" y="{F(ry)}" width="{F(rs)}" height="{F(rs)}" fill="{theme.StrokeColor}"/>""");
+        sb.AppendLine();
+
+        // Optional label offset away from the attached edge
+        if (port.Label != null)
+        {
+            var offset = PortHalfSize + theme.LabelPadding;
+            var (labelX, labelY, anchor) = port.Side switch
+            {
+                PortSide.Top => (port.CentreX, port.CentreY - offset, "middle"),
+                PortSide.Bottom => (port.CentreX, port.CentreY + offset + theme.FontSizeBody, "middle"),
+                PortSide.Left => (port.CentreX - offset, port.CentreY + theme.FontSizeBody / 2.0, "end"),
+                _ => (port.CentreX + offset, port.CentreY + theme.FontSizeBody / 2.0, "start")
+            };
+
+            sb.Append(CultureInfo.InvariantCulture,
+                $"""  <text x="{F(labelX * scale)}" y="{F(labelY * scale)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" fill="{theme.StrokeColor}" text-anchor="{anchor}" dominant-baseline="middle">{EscapeXml(port.Label)}</text>""");
+            sb.AppendLine();
+        }
+    }
+
+    /// <summary>
+    /// Renders a <see cref="LayoutBadge"/> as shape-specific SVG elements centered at the
+    /// badge position, with an optional <c>&lt;text&gt;</c> label to the right.
+    /// </summary>
+    /// <param name="sb">String builder receiving the SVG markup.</param>
+    /// <param name="badge">The badge node to render.</param>
+    /// <param name="theme">Visual theme providing stroke color, width, and font settings.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    private static void RenderBadge(StringBuilder sb, LayoutBadge badge, Theme theme, double scale)
+    {
+        var cx = badge.CentreX * scale;
+        var cy = badge.CentreY * scale;
+        var r = badge.Size / 2.0 * scale;
+        var sw = F(theme.StrokeWidth);
+
+        // Draw the badge shape centered at (cx, cy) within bounding radius r
+        switch (badge.Shape)
+        {
+            case BadgeShape.FilledCircle:
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <circle cx="{F(cx)}" cy="{F(cy)}" r="{F(r)}" fill="{theme.StrokeColor}"/>""");
+                sb.AppendLine();
+                break;
+
+            case BadgeShape.Bullseye:
+                // Outer filled circle + white inner circle for the ring effect
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <circle cx="{F(cx)}" cy="{F(cy)}" r="{F(r)}" fill="{theme.StrokeColor}"/>""");
+                sb.AppendLine();
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <circle cx="{F(cx)}" cy="{F(cy)}" r="{F(r / 3.0)}" fill="white" stroke="{theme.StrokeColor}" stroke-width="{sw}"/>""");
+                sb.AppendLine();
+                break;
+
+            case BadgeShape.Diamond:
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <polygon points="{F(cx)},{F(cy - r)} {F(cx + r)},{F(cy)} {F(cx)},{F(cy + r)} {F(cx - r)},{F(cy)}" fill="none" stroke="{theme.StrokeColor}" stroke-width="{sw}"/>""");
+                sb.AppendLine();
+                break;
+
+            case BadgeShape.HorizontalBar:
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <line x1="{F(cx - r * 0.8)}" y1="{F(cy)}" x2="{F(cx + r * 0.8)}" y2="{F(cy)}" stroke="{theme.StrokeColor}" stroke-width="{sw}"/>""");
+                sb.AppendLine();
+                break;
+
+            case BadgeShape.VerticalBar:
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <line x1="{F(cx)}" y1="{F(cy - r * 0.8)}" x2="{F(cx)}" y2="{F(cy + r * 0.8)}" stroke="{theme.StrokeColor}" stroke-width="{sw}"/>""");
+                sb.AppendLine();
+                break;
+
+            default:
+                // Unknown badge shapes are skipped for forward compatibility
+                break;
+        }
+
+        // Optional label to the right of the bounding circle
+        if (badge.Label != null)
+        {
+            var labelX = (badge.CentreX + badge.Size / 2.0 + theme.LabelPadding) * scale;
+            var labelY = (badge.CentreY + theme.FontSizeBody / 2.0) * scale;
+            sb.Append(CultureInfo.InvariantCulture,
+                $"""  <text x="{F(labelX)}" y="{F(labelY)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" fill="{theme.StrokeColor}" text-anchor="start" dominant-baseline="middle">{EscapeXml(badge.Label)}</text>""");
+            sb.AppendLine();
+        }
+    }
+
+    /// <summary>
+    /// Renders a <see cref="LayoutBand"/> as a <c>&lt;rect&gt;</c> with a depth-0 fill,
+    /// an optional label (rotated for Horizontal orientation, horizontal for Vertical),
+    /// then recursively renders its children.
+    /// </summary>
+    /// <param name="sb">String builder receiving the SVG markup.</param>
+    /// <param name="band">The band node to render.</param>
+    /// <param name="theme">Visual theme providing fill colors, stroke, and font settings.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    private static void RenderBand(StringBuilder sb, LayoutBand band, Theme theme, double scale)
+    {
+        var x = band.X * scale;
+        var y = band.Y * scale;
+        var w = band.Width * scale;
+        var h = band.Height * scale;
+        var fillColor = theme.DepthFillColors[0];
+
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""  <rect x="{F(x)}" y="{F(y)}" width="{F(w)}" height="{F(h)}" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+
+        // Draw the optional label; Horizontal → rotated 90° CCW on left edge, Vertical → top
+        if (band.Label != null)
+        {
+            if (band.Orientation == BandOrientation.Horizontal)
+            {
+                // Label center on the left edge strip, rotated 90° CCW
+                var labelCx = (band.X + theme.LabelPadding + theme.FontSizeBody / 2.0) * scale;
+                var labelCy = (band.Y + band.Height / 2.0) * scale;
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <text x="0" y="0" transform="translate({F(labelCx)},{F(labelCy)}) rotate(-90)" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle">{EscapeXml(band.Label)}</text>""");
+                sb.AppendLine();
+            }
+            else
+            {
+                // Horizontal label at the top of the band
+                var textX = (band.X + band.Width / 2.0) * scale;
+                var textY = (band.Y + theme.LabelPadding + theme.FontSizeBody / 2.0) * scale;
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <text x="{F(textX)}" y="{F(textY)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle">{EscapeXml(band.Label)}</text>""");
+                sb.AppendLine();
+            }
+        }
+
+        // Render children recursively
+        foreach (var child in band.Children)
+        {
+            RenderNode(sb, child, theme, scale);
+        }
+    }
+
+    /// <summary>
+    /// Renders a <see cref="LayoutLifeline"/> as a header <c>&lt;rect&gt;</c> with a
+    /// centered label, followed by a dashed <c>&lt;line&gt;</c> stem running from the
+    /// bottom of the header to <see cref="LayoutLifeline.BottomY"/>.
+    /// </summary>
+    /// <param name="sb">String builder receiving the SVG markup.</param>
+    /// <param name="lifeline">The lifeline node to render.</param>
+    /// <param name="theme">Visual theme providing colors, font, and stroke settings.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    private static void RenderLifeline(StringBuilder sb, LayoutLifeline lifeline, Theme theme, double scale)
+    {
+        // Header box: centered at CentreX, top edge at TopY
+        var headerLeft = lifeline.CentreX - lifeline.HeaderWidth / 2.0;
+        var hx = headerLeft * scale;
+        var hy = lifeline.TopY * scale;
+        var hw = lifeline.HeaderWidth * scale;
+        var hh = lifeline.HeaderHeight * scale;
+        var fillColor = theme.DepthFillColors[0];
+
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""  <rect x="{F(hx)}" y="{F(hy)}" width="{F(hw)}" height="{F(hh)}" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+
+        // Centered label within the header box
+        var textX = lifeline.CentreX * scale;
+        var textY = (lifeline.TopY + lifeline.HeaderHeight / 2.0) * scale;
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""  <text x="{F(textX)}" y="{F(textY)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" font-weight="bold" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle">{EscapeXml(lifeline.Label)}</text>""");
+        sb.AppendLine();
+
+        // Dashed vertical stem from the bottom of the header to BottomY
+        var stemX = lifeline.CentreX * scale;
+        var stemTopY = (lifeline.TopY + lifeline.HeaderHeight) * scale;
+        var stemBottomY = lifeline.BottomY * scale;
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""  <line x1="{F(stemX)}" y1="{F(stemTopY)}" x2="{F(stemX)}" y2="{F(stemBottomY)}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}" stroke-dasharray="6 3"/>""");
+        sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Renders a <see cref="LayoutActivation"/> as a narrow white-filled
+    /// <c>&lt;rect&gt;</c> with a stroke border, centered at
+    /// <see cref="LayoutActivation.CentreX"/>.
+    /// </summary>
+    /// <remarks>
+    /// The bar width is <c>Theme.LabelPadding * 2</c> so it scales proportionally with
+    /// the diagram's text padding.
+    /// </remarks>
+    /// <param name="sb">String builder receiving the SVG markup.</param>
+    /// <param name="activation">The activation node to render.</param>
+    /// <param name="theme">Visual theme providing stroke settings and padding.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    private static void RenderActivation(StringBuilder sb, LayoutActivation activation, Theme theme, double scale)
+    {
+        // Bar width = LabelPadding * 2, centered at CentreX
+        var halfWidth = theme.LabelPadding;
+        var ax = (activation.CentreX - halfWidth) * scale;
+        var ay = activation.TopY * scale;
+        var aw = halfWidth * 2.0 * scale;
+        var ah = (activation.BottomY - activation.TopY) * scale;
+
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""  <rect x="{F(ax)}" y="{F(ay)}" width="{F(aw)}" height="{F(ah)}" fill="white" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Renders a <see cref="LayoutGrid"/> as a bordered table. Header rows are filled with
+    /// the depth-1 theme color; body rows use the depth-0 color. Each cell contains a
+    /// <c>&lt;text&gt;</c> element aligned per <see cref="LayoutGridCell.Align"/>.
+    /// </summary>
+    /// <param name="sb">String builder receiving the SVG markup.</param>
+    /// <param name="grid">The grid node to render.</param>
+    /// <param name="theme">Visual theme providing fill colors, stroke, and font settings.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    private static void RenderGrid(StringBuilder sb, LayoutGrid grid, Theme theme, double scale)
+    {
+        // Header rows use depth-1 color; body rows use depth-0 color
+        var headerFill = theme.DepthFillColors[1 % theme.DepthFillColors.Count];
+        var bodyFill = theme.DepthFillColors[0];
+
+        var currentY = grid.Y;
+        foreach (var row in grid.Rows)
+        {
+            // Row height = maximum cell height in this row
+            var rowHeight = 0.0;
+            foreach (var cell in row.Cells)
+            {
+                rowHeight = Math.Max(rowHeight, cell.Height);
+            }
+
+            var fillColor = row.IsHeader ? headerFill : bodyFill;
+            var currentX = grid.X;
+
+            foreach (var cell in row.Cells)
+            {
+                var cx = currentX * scale;
+                var cy = currentY * scale;
+                var cw = cell.Width * scale;
+                var ch = rowHeight * scale;
+
+                // Cell background and border
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <rect x="{F(cx)}" y="{F(cy)}" width="{F(cw)}" height="{F(ch)}" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+                sb.AppendLine();
+
+                // Cell text, horizontally aligned per spec and vertically centered in the row
+                var anchor = cell.Align switch
+                {
+                    TextAlign.Center => "middle",
+                    TextAlign.Right => "end",
+                    _ => "start"
+                };
+                var textX = cell.Align switch
+                {
+                    TextAlign.Center => currentX + cell.Width / 2.0,
+                    TextAlign.Right => currentX + cell.Width - theme.LabelPadding,
+                    _ => currentX + theme.LabelPadding
+                };
+                var textY = currentY + rowHeight / 2.0;
+                var fontWeightAttr = row.IsHeader ? " font-weight=\"bold\"" : string.Empty;
+
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <text x="{F(textX * scale)}" y="{F(textY * scale)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}"{fontWeightAttr} fill="{theme.StrokeColor}" text-anchor="{anchor}" dominant-baseline="middle">{EscapeXml(cell.Text)}</text>""");
+                sb.AppendLine();
+
+                currentX += cell.Width;
+            }
+
+            currentY += rowHeight;
+        }
     }
 
     /// <summary>
