@@ -7,7 +7,7 @@ using DemaConsulting.SysML2Tools.Stdlib;
 namespace DemaConsulting.SysML2Tools.Tests.Semantic;
 
 /// <summary>
-///     Tests for <see cref="StdlibProvider"/> correctness and caching behaviour.
+///     Tests for <see cref="StdlibProvider"/> correctness and caching behavior.
 /// </summary>
 public sealed class StdlibProviderTests
 {

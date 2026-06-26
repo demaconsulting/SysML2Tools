@@ -57,7 +57,8 @@ path `"my-model.sysml"` and invalid source `"@@@"`; every diagnostic in the retu
 scenario is tested by `ParseSource_ErrorPath_MatchesSuppliedPath`.
 
 **Parse_OmgModels_NoSyntaxErrors**: All 251 OMG reference `.sysml` files are discovered from
-`test/SysMLModels/OMG/` and all passed to `WorkspaceLoader.LoadAsync` seeded with `StdlibProvider.GetSymbolTable()`; the returned result
+`test/SysMLModels/OMG/` and all passed to `WorkspaceLoader.LoadAsync` seeded with
+`StdlibProvider.GetSymbolTable()`; the returned result
 contains zero `Error`-severity diagnostics. Any failures print the full list of erroring files,
 lines, and messages. This is the Phase 1 architecture gate. This scenario is tested by
 `Parse_OmgModels_NoSyntaxErrors`.
