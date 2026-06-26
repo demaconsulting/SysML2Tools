@@ -93,6 +93,13 @@ words:
   - renderable
   - Segoe
   - colour
+  - dasharray
+  - Metaobjects
+  - noviews
+  - Premul
+  - rasterizes
+  - Rgba
+  - RRGGBB
 
 # Exclude common build artifacts, dependencies, and vendored third-party code
 ignorePaths:

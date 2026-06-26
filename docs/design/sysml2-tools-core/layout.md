@@ -175,10 +175,53 @@ decisions recorded here reflect constraints imposed during the Phase 3 vocabular
 ### Design Constraints
 
 - All Layout types target net8.0, net9.0, and net10.0 with `<Nullable>enable</Nullable>`.
-- No methods or behaviors are defined in the Layout subsystem; it is a data model only.
+- No methods or behaviors are defined in the Layout subsystem data types; it is a data model only.
 - `TextAlign` is declared in `LayoutLabel.cs` and reused by `LayoutGrid.cs`; both files
   are in the same `DemaConsulting.SysML2Tools.Layout` namespace, so no cross-namespace
   import is required.
+
+### Internal Subsystem
+
+#### GeneralViewLayoutStrategy
+
+##### Purpose
+
+`GeneralViewLayoutStrategy` implements `ILayoutStrategy` to produce a two-column grid
+layout for general view diagrams. It collects all user-defined `part def` elements from
+the workspace, groups them by parent package, and arranges the group boxes into two
+left-to-right columns. Specialization relationships between `part def` elements with
+declared supertypes are represented as `LayoutLine` nodes with open arrowheads.
+
+##### Data Model
+
+`GeneralViewLayoutStrategy` has no instance state. All inputs are supplied through
+`BuildLayout` parameters. Layout constants (margins, gaps, minimum box sizes) are
+declared as `private const double` fields.
+
+##### Key Methods
+
+**`BuildLayout(ViewContext context, RenderOptions options)`**
+
+Entry point. Calls `CollectUserPartDefs` to gather non-stdlib `part def` declarations.
+Returns a minimal 200×100 `LayoutTree` when no user part defs are found. Otherwise
+calls `GroupByPackage` and `BuildGridLayout` to produce the full layout tree.
+
+**`CollectUserPartDefs(SysmlWorkspace workspace)`**
+
+Iterates `workspace.Declarations`, keeping only `SysmlDefinitionNode` entries with
+`DefinitionKeyword == "part def"` that pass `StdlibFilter.IsStdlibElement`.
+
+**`BuildGridLayout(groups, theme)`**
+
+Places group `LayoutBox` nodes alternately in left and right columns. Computes column
+widths from the maximum group width in each column, then assigns absolute `(X, Y)`
+coordinates. Calls `AddSpecializationLines` to append `LayoutLine` nodes.
+
+##### Dependencies
+
+- `ILayoutStrategy` (in `DemaConsulting.SysML2Tools.Rendering`) — interface
+- `StdlibFilter` (in `DemaConsulting.SysML2Tools.Rendering.Internal`) — stdlib exclusion
+- `SysmlDefinitionNode` (in `DemaConsulting.SysML2Tools.Semantic.Internal`) — part def nodes
 
 ### Requirements Traceability
 

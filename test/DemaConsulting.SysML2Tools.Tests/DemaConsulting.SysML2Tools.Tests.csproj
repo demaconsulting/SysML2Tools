@@ -58,4 +58,11 @@
     <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Png\DemaConsulting.SysML2Tools.Png.csproj" />
   </ItemGroup>
 
+  <!-- SkiaSharp Native Assets -->
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.9" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="2.88.9" Condition="$([MSBuild]::IsOSPlatform('macOS'))" />
+  </ItemGroup>
+
 </Project>

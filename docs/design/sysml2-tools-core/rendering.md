@@ -97,9 +97,26 @@ flowchart TD
 - *Type*: Sealed class.
 - *Role*: Orchestrator.
 - *Contract*: `IReadOnlyList<RenderOutput> RenderWorkspace(SysmlWorkspace workspace, IRenderer renderer, RenderOptions options)`.
-  Iterates over all views in the workspace, calls `ILayoutStrategy.BuildLayout` for each,
-  then calls `IRenderer.Render` and collects the results. Implementation is deferred to
-  Phase 4.
+  Iterates over all views in the workspace, routes each view to an `ILayoutStrategy` via
+  `DiagramTypeRouter`, calls `ILayoutStrategy.BuildLayout`, then calls `IRenderer.Render`
+  and collects the results. Standard-library view declarations are filtered by `StdlibFilter`.
+
+**DiagramTypeRouter**: Internal routing helper.
+
+- *Type*: Internal static class.
+- *Role*: Router.
+- *Contract*: `static ILayoutStrategy GetStrategy(object viewNode, SysmlWorkspace workspace, out string? unsupportedMessage)`.
+  Routes all view types to `GeneralViewLayoutStrategy` in Phase 4. Sets `unsupportedMessage`
+  to a non-null diagnostic when no strategy is available for the view type; the caller skips
+  rendering that view.
+
+**StdlibFilter**: Standard-library element filter.
+
+- *Type*: Internal static class.
+- *Role*: Filter.
+- *Contract*: `static bool IsStdlibElement(string qualifiedName)`. Returns `true` when the
+  qualified name matches a standard-library prefix. Used by `DiagramRenderer` to exclude
+  stdlib view declarations from rendering.
 
 ### Design
 
@@ -126,9 +143,6 @@ flowchart TD
 
 ### Design Constraints
 
-- `DiagramRenderer`, `IRenderer`, `ILayoutStrategy`, and `ViewContext` are Phase 3
-  interface definitions. All `Render` and `RenderWorkspace` method bodies throw
-  `NotImplementedException` until Phase 4 implementation.
 - `ViewContext.Workspace` references `SysmlWorkspace` from
   `DemaConsulting.SysML2Tools.Semantic`; the `using` directive `using DemaConsulting.SysML2Tools.Semantic;`
   is required in `ILayoutStrategy.cs` and `DiagramRenderer.cs`.
@@ -141,11 +155,11 @@ flowchart TD
 | Requirement ID | Satisfied by |
 | --- | --- |
 | SysML2Tools-Core-Rendering-IRenderer | `IRenderer` interface |
-| SysML2Tools-Core-Rendering-IRendererStateless | `IRenderer` doc constraint; stub throws `NotImplementedException` |
+| SysML2Tools-Core-Rendering-IRendererStateless | `SvgRenderer` and `PngRenderer` are pure stateless implementations |
 | SysML2Tools-Core-Rendering-Theme | `Theme` and `FontDescriptor` records |
 | SysML2Tools-Core-Rendering-ThemeDepthWrap | `Theme.DepthFillColors` with modulo indexing documented in `Theme` |
 | SysML2Tools-Core-Rendering-RenderOptions | `RenderOptions` record with default values |
 | SysML2Tools-Core-Rendering-ILayoutStrategy | `ILayoutStrategy` interface and `ViewContext` record |
-| SysML2Tools-Core-Rendering-DiagramRenderer | `DiagramRenderer` class stub |
+| SysML2Tools-Core-Rendering-DiagramRenderer | `DiagramRenderer.RenderWorkspace`; `DiagramTypeRouter`; `StdlibFilter` |
 | SysML2Tools-Core-Rendering-RenderOutput | `RenderOutput` record |
 | SysML2Tools-Core-Rendering-BuiltinThemes | `Themes.Light`, `Themes.Dark`, `Themes.Print` |

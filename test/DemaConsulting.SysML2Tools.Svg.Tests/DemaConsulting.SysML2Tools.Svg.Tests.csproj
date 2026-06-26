@@ -56,4 +56,9 @@
     <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Svg\DemaConsulting.SysML2Tools.Svg.csproj" />
   </ItemGroup>
 
+  <!-- Build Tool Dependencies (Polyfill for implicit usings) -->
+  <ItemGroup>
+    <PackageReference Include="Polyfill" Version="10.10.0" PrivateAssets="All" />
+  </ItemGroup>
+
 </Project>

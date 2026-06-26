@@ -21,6 +21,7 @@
 using System.Reflection;
 using DemaConsulting.SysML2Tools.Cli;
 using DemaConsulting.SysML2Tools.Lint;
+using DemaConsulting.SysML2Tools.Render;
 using DemaConsulting.SysML2Tools.SelfTest;
 
 namespace DemaConsulting.SysML2Tools;
@@ -156,6 +157,7 @@ internal static class Program
         context.WriteLine("");
         context.WriteLine("Commands:");
         context.WriteLine("  lint <files...>            Parse files and report syntax errors");
+        context.WriteLine("  render [options] <files..> Render view diagrams to SVG or PNG files");
         context.WriteLine("");
         context.WriteLine("Options:");
         context.WriteLine("  -v, --version              Display version information");
@@ -165,6 +167,8 @@ internal static class Program
         context.WriteLine("  --results <file>           Write validation results to file (.trx or .xml)");
         context.WriteLine("  --depth <#>                Set heading depth for markdown output (default: 1)");
         context.WriteLine("  --log <file>               Write output to log file");
+        context.WriteLine("  --output <dir>             Output directory for rendered files (render command)");
+        context.WriteLine("  --format <fmt>             Renderer format: svg (default) or png (render command)");
     }
 
     /// <summary>
@@ -177,6 +181,10 @@ internal static class Program
         {
             case SysmlCommand.Lint:
                 await LintCommand.RunAsync(context).ConfigureAwait(false);
+                break;
+
+            case SysmlCommand.Render:
+                await RenderCommand.RunAsync(context).ConfigureAwait(false);
                 break;
 
             default:

@@ -1,0 +1,62 @@
+---
+# Render Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the DemaConsulting.SysML2Tools.Tool Render subsystem
+# - RenderCommand implements the CLI render verb
+# - Requirements describe observable behavior of the render command
+
+sections:
+  - title: Render Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Tool-Render-Patterns
+        title: >-
+          The render command shall accept one or more file glob patterns as positional
+          arguments and report an error when no patterns are supplied.
+        justification: |
+          File glob patterns are the primary input mechanism for the CLI tool. An error
+          on missing patterns gives users an actionable message instead of silent failure.
+        tests:
+          - RenderSubsystem_NoFiles_ReportsError
+
+      - id: SysML2Tools-Tool-Render-Load
+        title: >-
+          The render command shall load a SysML workspace from the supplied file patterns
+          and report any load diagnostics before rendering.
+        justification: |
+          Reporting diagnostics before rendering ensures that users can identify and
+          correct model errors that would affect diagram output.
+        tests:
+          - RenderSubsystem_WithFiles_LoadsWorkspace
+
+      - id: SysML2Tools-Tool-Render-Format
+        title: >-
+          The render command shall select the SVG renderer when the --format option is
+          "svg" or absent, and the PNG renderer when --format is "png".
+        justification: |
+          Format selection through a named option makes the CLI self-documenting and
+          avoids dependence on file extension inference.
+        tests:
+          - RenderSubsystem_FormatSvg_UsesSvgRenderer
+          - RenderSubsystem_FormatPng_UsesPngRenderer
+
+      - id: SysML2Tools-Tool-Render-Output
+        title: >-
+          The render command shall write rendered output files to the directory specified
+          by the --output option, defaulting to the current working directory when the
+          option is absent.
+        justification: |
+          Defaulting to the current working directory matches common CLI tool conventions
+          and avoids requiring the option for simple single-directory use cases.
+        tests:
+          - RenderSubsystem_NoOutputDir_UsesCurrentDirectory
+
+      - id: SysML2Tools-Tool-Render-Empty
+        title: >-
+          The render command shall report a diagnostic message and write no output files
+          when the workspace contains no view declarations.
+        justification: |
+          An explicit message when no views are found prevents user confusion when
+          a model loads successfully but produces no diagram output.
+        tests:
+          - RenderSubsystem_NoViews_ReportsNoOutput

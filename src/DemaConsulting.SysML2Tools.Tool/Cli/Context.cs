@@ -29,7 +29,10 @@ internal enum SysmlCommand
     None,
 
     /// <summary>Parse a workspace and report syntax diagnostics.</summary>
-    Lint
+    Lint,
+
+    /// <summary>Render view diagrams to SVG or PNG files.</summary>
+    Render
 }
 
 /// <summary>
@@ -83,7 +86,22 @@ internal sealed class Context : IDisposable
     public IReadOnlyList<string> Files { get; private init; } = Array.Empty<string>();
 
 
+    /// <summary>
+    ///     Gets the heading depth for markdown output; valid range 1–6, default 1;
+    ///     supplied via <c>--depth</c>.
+    /// </summary>
     public int HeadingDepth { get; private init; } = 1;
+
+    /// <summary>
+    ///     Gets the output directory path for rendered diagram files.
+    /// </summary>
+    public string? OutputDirectory { get; private init; }
+
+    /// <summary>
+    ///     Gets the renderer format identifier (e.g., <c>"svg"</c> or <c>"png"</c>).
+    ///     Defaults to <see langword="null"/>, which the render command interprets as SVG.
+    /// </summary>
+    public string? RendererFormat { get; private init; }
 
     /// <summary>
     ///     Gets the proposed exit code for the application (0 for success, 1 for errors).
@@ -121,7 +139,9 @@ internal sealed class Context : IDisposable
             ResultsFile = parser.ResultsFile,
             HeadingDepth = parser.HeadingDepth,
             Command = parser.Command,
-            Files = parser.Files
+            Files = parser.Files,
+            OutputDirectory = parser.OutputDirectory,
+            RendererFormat = parser.RendererFormat
         };
 
         // Open log file if specified
@@ -210,6 +230,16 @@ internal sealed class Context : IDisposable
         public int HeadingDepth { get; private set; } = 1;
 
         /// <summary>
+        ///     Gets the output directory path for rendered diagram files.
+        /// </summary>
+        public string? OutputDirectory { get; private set; }
+
+        /// <summary>
+        ///     Gets the renderer format identifier supplied via <c>--format</c>.
+        /// </summary>
+        public string? RendererFormat { get; private set; }
+
+        /// <summary>
         ///     Parses command-line arguments
         /// </summary>
         /// <param name="args">Command-line arguments.</param>
@@ -269,8 +299,20 @@ internal sealed class Context : IDisposable
                     HeadingDepth = GetRequiredIntArgument(arg, args, index, "a heading depth argument", 1, 6);
                     return index + 1;
 
+                case "--output":
+                    OutputDirectory = GetRequiredStringArgument(arg, args, index, "an output directory argument");
+                    return index + 1;
+
+                case "--format":
+                    RendererFormat = GetRequiredStringArgument(arg, args, index, "a format argument (svg or png)");
+                    return index + 1;
+
                 case "lint":
                     Command = SysmlCommand.Lint;
+                    return index;
+
+                case "render":
+                    Command = SysmlCommand.Render;
                     return index;
 
                 default:

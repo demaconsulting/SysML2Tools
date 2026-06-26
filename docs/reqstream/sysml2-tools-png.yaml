@@ -1,11 +1,52 @@
 ---
-# SysML2Tools PNG Renderer System-Level Requirements (Phase 0 Stub)
+# SysML2Tools PNG Renderer System-Level Requirements
 #
 # PURPOSE:
 # - Define system-level requirements for the DemaConsulting.SysML2Tools.Png package
 # - PNG renderer: PngRenderer implements IRenderer using SkiaSharp (MIT)
-# - Requirements will be populated in Phase 4+ (SkiaSharp dependency added in Phase 1)
 
 sections:
   - title: SysML2ToolsPng Requirements
-    requirements: []
+    requirements:
+      - id: SysML2Tools-Png-MediaType
+        title: >-
+          PngRenderer shall return "image/png" for the MediaType property.
+        justification: |
+          The media type is the standard MIME type for PNG content and is used
+          by the CLI and by callers to identify the output format without
+          inspecting the stream content.
+        tests:
+          - PngRenderer_MediaType_IsImagePng
+
+      - id: SysML2Tools-Png-DefaultExtension
+        title: >-
+          PngRenderer shall return ".png" for the DefaultExtension property.
+        justification: |
+          The default extension is used by DiagramRenderer to construct the
+          suggested file name for each rendered view output.
+        tests:
+          - PngRenderer_DefaultExtension_IsDotPng
+
+      - id: SysML2Tools-Png-Render-Signature
+        title: >-
+          PngRenderer.Render shall write a valid PNG stream to the output,
+          beginning with the four-byte PNG magic number (0x89 0x50 0x4E 0x47),
+          for any LayoutTree input.
+        justification: |
+          The PNG signature bytes are the primary conformance check for PNG
+          output. Their presence confirms that SkiaSharp produced a valid PNG
+          image file that can be opened by any standard PNG viewer.
+        tests:
+          - PngRenderer_Render_EmptyTree_WritesPngBytes
+          - PngRenderer_Render_EmptyTree_WritesPngSignature
+
+      - id: SysML2Tools-Png-Render-Box
+        title: >-
+          PngRenderer.Render shall render each LayoutBox node as a filled and
+          stroked rectangle in the PNG output without throwing.
+        justification: |
+          Box rendering must complete without error for any depth level and
+          any valid label text. The test confirms that SkiaSharp drawing
+          operations complete successfully and produce a non-empty PNG output.
+        tests:
+          - PngRenderer_Render_SingleBox_ProducesNonEmptyOutput

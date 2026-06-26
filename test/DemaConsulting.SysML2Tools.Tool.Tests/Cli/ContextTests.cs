@@ -504,6 +504,99 @@ public class ContextTests
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() => Context.Create(["--log", invalidLogPath]));
     }
+
+    /// <summary>
+    ///     Test creating a context with the render command sets Command to SysmlCommand.Render.
+    /// </summary>
+    [Fact]
+    public void Context_Create_RenderCommand_SetsCommandRender()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["render"]);
+
+        // Assert: verify expected behavior
+        Assert.Equal(SysmlCommand.Render, context.Command);
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
+    ///     Test creating a context with render command and --format svg sets RendererFormat to "svg".
+    /// </summary>
+    [Fact]
+    public void Context_Create_RenderCommand_WithFormat_SetsSvgFormat()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["render", "--format", "svg"]);
+
+        // Assert: verify expected behavior
+        Assert.Equal("svg", context.RendererFormat);
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
+    ///     Test creating a context with render command and --format png sets RendererFormat to "png".
+    /// </summary>
+    [Fact]
+    public void Context_Create_RenderCommand_WithPngFormat_SetsPngFormat()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["render", "--format", "png"]);
+
+        // Assert: verify expected behavior
+        Assert.Equal("png", context.RendererFormat);
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
+    ///     Test creating a context with render command and --output sets OutputDirectory.
+    /// </summary>
+    [Fact]
+    public void Context_Create_RenderCommand_WithOutput_SetsOutputDirectory()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["render", "--output", "output/path"]);
+
+        // Assert: verify expected behavior
+        Assert.Equal("output/path", context.OutputDirectory);
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
+    ///     Test creating a context with render command and a file pattern sets Files.
+    /// </summary>
+    [Fact]
+    public void Context_Create_RenderCommand_WithFiles_SetsFiles()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["render", "*.sysml"]);
+
+        // Assert: verify expected behavior
+        Assert.Single(context.Files);
+        Assert.Equal("*.sysml", context.Files[0]);
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
+    ///     Test creating a context with render --format but no value throws ArgumentException.
+    /// </summary>
+    [Fact]
+    public void Context_Create_RenderCommand_FormatWithoutValue_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() => Context.Create(["render", "--format"]));
+        Assert.Contains("--format", exception.Message);
+    }
+
+    /// <summary>
+    ///     Test creating a context with render --output but no value throws ArgumentException.
+    /// </summary>
+    [Fact]
+    public void Context_Create_RenderCommand_OutputWithoutValue_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() => Context.Create(["render", "--output"]));
+        Assert.Contains("--output", exception.Message);
+    }
 }
 
 

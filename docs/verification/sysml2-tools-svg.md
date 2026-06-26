@@ -1,20 +1,48 @@
-# DemaConsulting.SysML2Tools.Svg
+# DemaConsulting.SysML2Tools.Svg Verification
 
 ## Verification Approach
 
-System-level verification for the `DemaConsulting.SysML2Tools.Svg` SVG renderer will use
-unit tests and integration tests that exercise the `IRenderer` implementation against
-known SysML v2 model inputs. This system is a Phase 0 stub; verification details will be
-populated in Phase 4+.
+The SVG renderer is verified using unit tests in
+`test/DemaConsulting.SysML2Tools.Svg.Tests/SvgRendererTests.cs`. Tests construct
+`LayoutTree` inputs directly, invoke `SvgRenderer.Render`, and inspect the output
+stream for expected SVG elements. No filesystem access is required; all I/O uses
+`MemoryStream`. Tests run against all three target frameworks (net8.0, net9.0, net10.0).
 
 ## Test Environment
 
-*To be defined in Phase 4+.*
+- Framework: xUnit v3
+- Target frameworks: net8.0, net9.0, net10.0
+- Test project: `DemaConsulting.SysML2Tools.Svg.Tests`
+- Dependencies: `DemaConsulting.SysML2Tools.Svg`, `DemaConsulting.SysML2Tools`
 
 ## Acceptance Criteria
 
-*To be defined in Phase 4+.*
+- `SvgRenderer.MediaType` returns `"image/svg+xml"`
+- `SvgRenderer.DefaultExtension` returns `".svg"`
+- `Render` with any `LayoutTree` produces a non-empty stream containing `<svg` and `</svg>`
+- `Render` with a tree containing a `LayoutBox` produces a stream containing `<rect`
+- `Render` with a tree containing a `LayoutLabel` produces a stream containing `<text`
+- `Render` with a tree containing a `LayoutLine` produces a stream containing `<path`
 
 ## Test Scenarios
 
-*To be defined in Phase 4+.*
+### SvgRenderer_Render_EmptyTree_ProducesSvgDocument
+
+Verifies that an empty `LayoutTree` produces a non-empty SVG document with `<svg` and
+`</svg>` tags. Confirms basic document structure for the trivial case.
+
+### SvgRenderer_Render_SingleBox_ProducesRectElement
+
+Verifies that a `LayoutTree` containing one `LayoutBox` produces SVG output containing
+a `<rect` element. Confirms that the box-to-rectangle translation is applied.
+
+### SvgRenderer_Render_SingleLabel_ProducesTextElement
+
+Verifies that a `LayoutTree` containing one `LayoutLabel` produces SVG output containing
+a `<text` element and the label text. Confirms that standalone labels are translated
+to SVG text nodes.
+
+### SvgRenderer_Render_SingleLine_ProducesPathElement
+
+Verifies that a `LayoutTree` containing one `LayoutLine` produces SVG output containing
+a `<path` element. Confirms that lines are translated to SVG path elements.

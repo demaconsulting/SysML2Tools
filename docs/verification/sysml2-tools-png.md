@@ -1,20 +1,39 @@
-# DemaConsulting.SysML2Tools.Png
+# DemaConsulting.SysML2Tools.Png Verification
 
 ## Verification Approach
 
-System-level verification for the `DemaConsulting.SysML2Tools.Png` PNG renderer will use
-unit tests and integration tests that exercise the `IRenderer` implementation against
-known SysML v2 model inputs. This system is a Phase 0 stub; verification details will be
-populated in Phase 4+.
+The PNG renderer is verified using unit tests in
+`test/DemaConsulting.SysML2Tools.Png.Tests/PngRendererTests.cs`. Tests construct
+`LayoutTree` inputs directly, invoke `PngRenderer.Render`, and inspect the output
+stream for PNG signature bytes and non-zero length. No filesystem access is required;
+all I/O uses `MemoryStream`. Tests run against all three target frameworks.
 
 ## Test Environment
 
-*To be defined in Phase 4+.*
+- Framework: xUnit v3
+- Target frameworks: net8.0, net9.0, net10.0
+- Test project: `DemaConsulting.SysML2Tools.Png.Tests`
+- Dependencies: `DemaConsulting.SysML2Tools.Png`, `DemaConsulting.SysML2Tools`, SkiaSharp
 
 ## Acceptance Criteria
 
-*To be defined in Phase 4+.*
+- `PngRenderer.MediaType` returns `"image/png"`
+- `PngRenderer.DefaultExtension` returns `".png"`
+- `Render` with any `LayoutTree` produces a non-empty stream whose first four bytes
+  are `0x89 0x50 0x4E 0x47` (PNG magic number)
+- `Render` with a tree containing a `LayoutBox` produces a non-empty PNG output
+  without throwing
 
 ## Test Scenarios
 
-*To be defined in Phase 4+.*
+### PngRenderer_Render_EmptyTree_WritesPngSignature
+
+Verifies that an empty `LayoutTree` (zero canvas size) produces a stream beginning
+with the four-byte PNG signature `0x89 0x50 0x4E 0x47`. Confirms that SkiaSharp
+produces valid PNG output even for the minimal 1×1 bitmap case.
+
+### PngRenderer_Render_SingleBox_ProducesNonEmptyOutput
+
+Verifies that a `LayoutTree` containing one `LayoutBox` produces a non-empty PNG
+stream with the PNG signature. Confirms that box drawing operations complete without
+error and produce a rasterized output.

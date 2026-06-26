@@ -46,13 +46,15 @@ system, subsystem, and unit levels:
       - **ReferenceResolver** (Unit) — resolves supertype references; detects circular imports
       - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
   - **Layout** (Subsystem) — LayoutTree intermediate representation: nine node types covering all SysML diagram elements
+    - **Internal** (Subsystem) — internal layout implementation
+      - **GeneralViewLayoutStrategy** (Unit) — two-column grid layout for general view diagrams
   - **Rendering** (Subsystem) — rendering pipeline interfaces: IRenderer, ILayoutStrategy, Theme, RenderOptions, DiagramRenderer
 - **DemaConsulting.SysML2Tools.Svg** (System) — SVG renderer: renders `LayoutTree` to
   SVG output with zero external dependencies
-  - TODO: subsystems and units to be defined in Phase 4+
+  - **SvgRenderer** (Unit) — translates a `LayoutTree` to a self-contained SVG 1.1 document
 - **DemaConsulting.SysML2Tools.Png** (System) — PNG renderer: renders `LayoutTree` to
   PNG output using SkiaSharp
-  - TODO: subsystems and units to be defined in Phase 4+
+  - **PngRenderer** (Unit) — rasterizes a `LayoutTree` to a PNG image using SkiaSharp
 - **DemaConsulting.SysML2Tools.Tool** (System) — dotnet tool: thin CLI wrapper and
   orchestration
   - **Program** (Unit) — entry point and execution orchestrator
@@ -60,6 +62,8 @@ system, subsystem, and unit levels:
     - **Context** (Unit) — argument parser and I/O owner
   - **Lint** (Subsystem) — lint command implementation
     - **LintCommand** (Unit) — resolves glob patterns, invokes WorkspaceLoader, reports diagnostics
+  - **Render** (Subsystem) — render command implementation
+    - **RenderCommand** (Unit) — loads workspace, selects renderer, writes diagram output files
   - **SelfTest** (Subsystem) — self-validation test runner
     - **Validation** (Unit) — self-validation test runner
   - **Utilities** (Subsystem) — shared utilities
@@ -89,14 +93,15 @@ reviewers an explicit navigation aid from design to code:
 - **src/** — source projects
   - **DemaConsulting.SysML2Tools/** — core library
     - **Grammar/** — ANTLR4 grammar files (hand-maintained; see Grammar/README.md)
-    - **Layout/** — LayoutTree intermediate representation (Phase 3+)
+    - **Layout/** — LayoutTree intermediate representation
+      - **Internal/** — internal layout implementation (GeneralViewLayoutStrategy)
     - **Parser/** — SysML v2 parsing subsystem
       - **Antlr/** — ANTLR4-generated C# (committed; not hand-written)
       - **Internal/** — internal implementation (SysmlDiagnosticListener, StdlibLoader)
     - **Rendering/** — rendering interfaces and theme (Phase 3+)
     - **Stdlib/** — embedded SysML v2 standard library files (EPL-2.0; see Stdlib/README.md)
-  - **DemaConsulting.SysML2Tools.Svg/** — SVG renderer (Phase 0: stub)
-  - **DemaConsulting.SysML2Tools.Png/** — PNG renderer (Phase 0: stub)
+  - **DemaConsulting.SysML2Tools.Svg/** — SVG renderer
+  - **DemaConsulting.SysML2Tools.Png/** — PNG renderer
   - **DemaConsulting.SysML2Tools.Tool/** — dotnet tool CLI wrapper
     - **Cli/** — command-line interface subsystem
     - **Lint/** — lint command subsystem
@@ -105,11 +110,12 @@ reviewers an explicit navigation aid from design to code:
 - **docs/design/** — design documentation
   - **sysml2-tools-core/** — core library unit/subsystem design
     - **parser/** — Parser subsystem design (Internal subsystem)
-  - **sysml2-tools-svg/** — TODO: SVG renderer unit/subsystem design (Phase 4+)
-  - **sysml2-tools-png/** — TODO: PNG renderer unit/subsystem design (Phase 4+)
+  - **sysml2-tools-svg.md** — SVG renderer design
+  - **sysml2-tools-png.md** — PNG renderer design
   - **sysml2-tools-tool/** — DemaConsulting.SysML2Tools.Tool unit/subsystem design
     - **cli/** — Cli subsystem design
     - **lint/** — Lint subsystem design
+    - **render/** — Render subsystem design (render.md)
     - **self-test/** — SelfTest subsystem design
     - **utilities/** — Utilities subsystem design
 

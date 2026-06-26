@@ -43,19 +43,26 @@ public sealed class RenderingTests
     }
 
     /// <summary>
-    ///     SvgRenderer.Render throws NotImplementedException, confirming Phase 4 deferral.
+    ///     SvgRenderer.Render produces a non-empty output stream that begins with the SVG root tag,
+    ///     confirming that the renderer writes a valid SVG document for an empty layout tree.
     /// </summary>
     [Fact]
-    public void SvgRenderer_Render_ThrowsNotImplemented()
+    public void SvgRenderer_Render_EmptyTree_WritesValidSvg()
     {
-        // Arrange: a renderer with an empty LayoutTree and default options
+        // Arrange: an SvgRenderer with a minimal empty LayoutTree and default options
         var renderer = new SvgRenderer();
-        var layout = new LayoutTree(0, 0, []);
+        var layout = new LayoutTree(200, 100, []);
         var options = new RenderOptions(Themes.Light);
         using var output = new MemoryStream();
 
-        // Act / Assert: Render throws NotImplementedException
-        Assert.Throws<NotImplementedException>(() => renderer.Render(layout, options, output));
+        // Act: render the empty tree to the output stream
+        renderer.Render(layout, options, output);
+
+        // Assert: output is non-empty and starts with the SVG opening tag
+        Assert.True(output.Length > 0);
+        output.Position = 0;
+        var svgText = new System.IO.StreamReader(output).ReadToEnd();
+        Assert.Contains("<svg", svgText, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -85,36 +92,51 @@ public sealed class RenderingTests
     }
 
     /// <summary>
-    ///     PngRenderer.Render throws NotImplementedException, confirming Phase 4 deferral.
+    ///     PngRenderer.Render produces a non-empty output stream whose first four bytes are the
+    ///     PNG signature bytes, confirming valid PNG output for an empty layout tree.
     /// </summary>
     [Fact]
-    public void PngRenderer_Render_ThrowsNotImplemented()
+    public void PngRenderer_Render_EmptyTree_WritesPngBytes()
     {
-        // Arrange: a renderer with an empty LayoutTree and default options
+        // Arrange: a PngRenderer with a minimal empty LayoutTree and default options
         var renderer = new PngRenderer();
         var layout = new LayoutTree(0, 0, []);
         var options = new RenderOptions(Themes.Light);
         using var output = new MemoryStream();
 
-        // Act / Assert: Render throws NotImplementedException
-        Assert.Throws<NotImplementedException>(() => renderer.Render(layout, options, output));
+        // Act: render the empty tree to the output stream
+        renderer.Render(layout, options, output);
+
+        // Assert: output contains PNG magic bytes 0x89 0x50 0x4E 0x47
+        Assert.True(output.Length > 4);
+        output.Position = 0;
+        var header = new byte[4];
+        _ = output.Read(header, 0, 4);
+        Assert.Equal(0x89, header[0]);
+        Assert.Equal(0x50, header[1]);
+        Assert.Equal(0x4E, header[2]);
+        Assert.Equal(0x47, header[3]);
     }
 
     /// <summary>
-    ///     DiagramRenderer.RenderWorkspace throws NotImplementedException, confirming Phase 4
-    ///     deferral stub behavior.
+    ///     DiagramRenderer.RenderWorkspace returns an empty list when the workspace contains no
+    ///     view declarations, confirming that the renderer does not fabricate output for
+    ///     view-free workspaces.
     /// </summary>
     [Fact]
-    public void DiagramRenderer_RenderWorkspace_ThrowsNotImplemented()
+    public void DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList()
     {
-        // Arrange: a DiagramRenderer, an empty SysmlWorkspace, an SvgRenderer, and default options
+        // Arrange: a DiagramRenderer, an empty SysmlWorkspace (no views), and default options
         var diagramRenderer = new DiagramRenderer();
         var workspace = new SysmlWorkspace();
         var renderer = new SvgRenderer();
         var options = new RenderOptions(Themes.Light);
 
-        // Act / Assert: RenderWorkspace throws NotImplementedException
-        Assert.Throws<NotImplementedException>(() => diagramRenderer.RenderWorkspace(workspace, renderer, options));
+        // Act: render the workspace with no view declarations
+        var results = diagramRenderer.RenderWorkspace(workspace, renderer, options);
+
+        // Assert: no render outputs are produced
+        Assert.Empty(results);
     }
 
     /// <summary>
