@@ -165,10 +165,11 @@ internal static class Program
         context.WriteLine("  --silent                   Suppress console output");
         context.WriteLine("  --validate                 Run self-validation");
         context.WriteLine("  --results <file>           Write validation results to file (.trx or .xml)");
-        context.WriteLine("  --depth <#>                Set heading depth for markdown output (default: 1)");
+        context.WriteLine("  --depth <#>                Set heading depth (1–6) and diagram render depth (default: 1)");
         context.WriteLine("  --log <file>               Write output to log file");
         context.WriteLine("  --output <dir>             Output directory for rendered files (render command)");
         context.WriteLine("  --format <fmt>             Renderer format: svg (default) or png (render command)");
+        context.WriteLine("  --view <name>              Select a specific view to render (render command)");
     }
 
     /// <summary>

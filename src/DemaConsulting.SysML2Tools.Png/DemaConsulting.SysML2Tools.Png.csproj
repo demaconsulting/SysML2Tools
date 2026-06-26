@@ -18,6 +18,10 @@
     <Copyright>Copyright DEMA Consulting</Copyright>
     <Title>SysML2 Tools PNG Renderer</Title>
     <Product>DemaConsulting.SysML2Tools.Png</Product>
+    <PackageReleaseNotes>
+This package embeds the Noto Sans font (SIL Open Font License 1.1, copyright Google Inc.).
+SkiaSharp is used for PNG rendering (MIT license, copyright Microsoft Corporation).
+    </PackageReleaseNotes>
 
     <!-- Symbol Package Configuration -->
     <IncludeSymbols>true</IncludeSymbols>
@@ -63,6 +67,8 @@
     <EmbeddedResource Include="Fonts\NotoSans-Italic.ttf" />
     <EmbeddedResource Include="Fonts\NotoSans-BoldItalic.ttf" />
     <EmbeddedResource Include="Fonts\OFL.txt" />
+    <!-- Include OFL.txt in the NuGet package content so consumers can read the font license -->
+    <None Include="Fonts\OFL.txt" Pack="true" PackagePath="content\Fonts" />
   </ItemGroup>
 
   <!-- Code Analysis Dependencies -->

@@ -60,3 +60,35 @@ sections:
           a model loads successfully but produces no diagram output.
         tests:
           - RenderSubsystem_NoViews_ReportsNoOutput
+
+      - id: SysML2Tools-Tool-Render-DepthLimit
+        title: >-
+          The render command shall limit diagram nesting depth to the value supplied via
+          --depth, replacing truncated children with an ellipsis indicator.
+        justification: |
+          A depth limit prevents overly complex diagrams when large models have deep
+          nesting. An ellipsis marker tells the reader that content was omitted.
+        tests:
+          - RenderSubsystem_WithDepth_LimitsNesting
+
+      - id: SysML2Tools-Tool-Render-MultipleViewError
+        title: >-
+          The render command shall report an error listing all available view names when
+          the workspace contains multiple renderable views and --view is not specified.
+        justification: |
+          Requiring explicit view selection prevents rendering the wrong diagram when
+          a model contains multiple views, and the error lists choices so the user knows
+          what to supply.
+        tests:
+          - RenderSubsystem_MultipleViews_NoViewFlag_ReportsError
+          - RenderSubsystem_MultipleViews_NoViewFlag_ListsAvailableViews
+
+      - id: SysML2Tools-Tool-Render-ViewSelection
+        title: >-
+          The render command shall render only the view whose display name matches the
+          value supplied via --view.
+        justification: |
+          View selection enables targeting a single diagram for output in multi-view
+          models without generating every diagram in the workspace.
+        tests:
+          - RenderSubsystem_MultipleViews_WithViewFlag_RendersSelectedView

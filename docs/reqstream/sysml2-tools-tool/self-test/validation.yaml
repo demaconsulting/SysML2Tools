@@ -47,3 +47,47 @@ sections:
           surface output configuration errors automatically.
         tests:
           - Validation_Run_WithUnsupportedResultsFormat_DoesNotWriteFile
+
+      - id: SysML2Tools-Tool-Validation-LintSelfTest
+        title: >-
+          The Validation class shall include a lint self-test that loads the built-in
+          self-test model and verifies it produces zero error-level diagnostics.
+        justification: |
+          A lint self-test provides early evidence that the SysML parser is functional
+          in the deployment environment without requiring external model files.
+        tests:
+          - Validation_RunLintSelfTest_ValidModel_Passes
+
+      - id: SysML2Tools-Tool-Validation-RenderSvgSelfTest
+        title: >-
+          The Validation class shall include an SVG render self-test that loads the
+          built-in self-test model and verifies that at least one non-empty SVG stream
+          is produced.
+        justification: |
+          An SVG render self-test confirms that the layout and SVG rendering pipeline
+          are operational in the deployment environment.
+        tests:
+          - Validation_RunRenderSvgSelfTest_ValidModel_Passes
+
+      - id: SysML2Tools-Tool-Validation-RenderPngSelfTest
+        title: >-
+          The Validation class shall include a PNG render self-test that loads the
+          built-in self-test model and verifies that at least one non-empty PNG stream
+          is produced, skipping gracefully when the SkiaSharp native library is absent.
+        justification: |
+          A PNG render self-test confirms SkiaSharp integration is operational. Skipping
+          when the native library is absent prevents false failures in environments that
+          only support SVG output.
+        tests:
+          - Validation_RunRenderPngSelfTest_SkiaSharpAvailable_Passes
+
+      - id: SysML2Tools-Tool-Validation-PassedSummary
+        title: >-
+          The Validation class shall print "SysML2Tools self-test: PASSED" after the
+          count summary when all tests pass, or "SysML2Tools self-test: FAILED — N
+          test(s) failed" when any test fails.
+        justification: |
+          A single-line outcome statement gives operators a fast, machine-readable signal
+          of the overall self-validation result without parsing the full summary table.
+        tests:
+          - Validation_Run_AllTestsPass_PrintsPassedSummary

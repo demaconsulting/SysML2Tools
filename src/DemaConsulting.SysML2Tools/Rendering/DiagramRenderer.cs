@@ -22,12 +22,64 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 public sealed class DiagramRenderer
 {
     /// <summary>
+    /// Returns the display names of all renderable user-defined views in the workspace,
+    /// mirroring the filtering applied by <see cref="RenderWorkspace"/>.
+    /// </summary>
+    /// <param name="workspace">The SysML workspace whose view declarations are inspected.</param>
+    /// <returns>
+    /// An ordered list of view display names. Returns an empty list when the workspace
+    /// contains no renderable view declarations.
+    /// </returns>
+    public static IReadOnlyList<string> GetViewNames(SysmlWorkspace workspace)
+    {
+        // Validate input — null workspace would produce silent failures
+        ArgumentNullException.ThrowIfNull(workspace);
+
+        var names = new List<string>();
+
+        // Iterate over all declarations and collect each renderable view name
+        foreach (var (qualifiedName, node) in workspace.Declarations)
+        {
+            // Skip non-view declarations
+            if (node is not SysmlViewNode viewNode)
+            {
+                continue;
+            }
+
+            // Skip stdlib view declarations — only user-defined views are considered
+            if (Internal.StdlibFilter.IsStdlibElement(qualifiedName))
+            {
+                continue;
+            }
+
+            // Skip views whose type is not supported by any available strategy
+            var strategy = Internal.DiagramTypeRouter.GetStrategy(viewNode, workspace, out var unsupportedMsg);
+            if (unsupportedMsg != null)
+            {
+                continue;
+            }
+
+            // Suppress unused variable warning — strategy is validated but not used here
+            _ = strategy;
+
+            // Resolve the display name: prefer the simple name, fall back to qualified name
+            names.Add(viewNode.Name ?? qualifiedName);
+        }
+
+        return names;
+    }
+
+    /// <summary>
     /// Renders every view in the workspace and returns a collection of output streams,
     /// one per view.
     /// </summary>
     /// <param name="workspace">The SysML workspace whose view declarations are rendered.</param>
     /// <param name="renderer">The format-specific renderer used to write each view.</param>
     /// <param name="options">Render options supplying theme, scale, and depth-limit settings.</param>
+    /// <param name="viewFilter">
+    /// When non-null, only the view whose display name equals this value is rendered.
+    /// When null, all renderable views are rendered.
+    /// </param>
     /// <returns>
     /// An ordered list of <see cref="RenderOutput"/> instances, one per view in declaration order.
     /// Returns an empty list when the workspace contains no view declarations.
@@ -37,7 +89,8 @@ public sealed class DiagramRenderer
     public IReadOnlyList<RenderOutput> RenderWorkspace(
         SysmlWorkspace workspace,
         IRenderer renderer,
-        RenderOptions options)
+        RenderOptions options,
+        string? viewFilter = null)
 #pragma warning restore S2325
     {
         // Validate inputs — null workspace or renderer would produce silent failures
@@ -72,6 +125,13 @@ public sealed class DiagramRenderer
 
             // Resolve the display name: prefer the simple name, fall back to qualified name
             var viewName = viewNode.Name ?? qualifiedName;
+
+            // Skip views that do not match the active filter
+            if (viewFilter != null && !string.Equals(viewName, viewFilter, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
             var context = new ViewContext(viewName, workspace);
 
             // Build the layout tree for this view

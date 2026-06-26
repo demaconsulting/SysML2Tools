@@ -102,9 +102,21 @@ called with `["--depth", "abc"]`; an `ArgumentException` is thrown. This scenari
 `["--depth", "0"]` (below the minimum of 1); an `ArgumentException` is thrown. This scenario
 is tested by `Context_Create_DepthFlag_ZeroValue_ThrowsArgumentException`.
 
-**Context_Create_DepthFlag_ExceedsMaxValue_ThrowsArgumentException**: `Context.Create` is
-called with `["--depth", "7"]` (above the maximum of 6); an `ArgumentException` is thrown.
-This scenario is tested by `Context_Create_DepthFlag_ExceedsMaxValue_ThrowsArgumentException`.
+**Context_Create_DepthFlag_ExceedsMaxValue_ThrowsArgumentException**: *(replaced)*
+`Context.Create` with `["--depth", "7"]` no longer throws; this scenario is superseded by
+`Context_Create_DepthFlag_ExceedsMaxValue_SetsMaxRenderDepth`.
+
+**Context_Create_DepthFlag_ExceedsMaxValue_SetsMaxRenderDepth**: `Context.Create` is called
+with `["--depth", "7"]`; `HeadingDepth` is 6 (clamped) and `MaxRenderDepth` is 7 (raw).
+This scenario is tested by `Context_Create_DepthFlag_ExceedsMaxValue_SetsMaxRenderDepth`.
+
+**Context_Create_DepthFlag_SetsMaxRenderDepth**: `Context.Create` is called with
+`["--depth", "3"]`; `HeadingDepth` is 3 and `MaxRenderDepth` is 3. This scenario is tested
+by `Context_Create_DepthFlag_SetsMaxRenderDepth`.
+
+**Context_Create_ViewFlag_SetsViewName**: `Context.Create` is called with
+`["--view", "MyView"]`; `ViewName` equals `"MyView"`. This scenario is tested by
+`Context_Create_ViewFlag_SetsViewName`.
 
 **Context_WriteLine_NotSilent_WritesToConsole**: A non-silent `Context` calls `WriteLine` with
 a test message; the message appears on standard output. This scenario is tested by

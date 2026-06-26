@@ -28,6 +28,13 @@ neither flag was present.
 **HeadingDepth**: `int` — Heading depth for markdown output; valid range 1–6, default 1;
 supplied via `--depth`.
 
+**MaxRenderDepth**: `int?` — Raw diagram render depth supplied via `--depth`; not clamped
+to 6. `null` when `--depth` was not specified. Used by the render command as the
+`DepthLimit` in `RenderOptions`; 0 is interpreted as unlimited.
+
+**ViewName**: `string?` — View display name supplied via `--view`, or `null` if the option
+was absent. Used by the render command to filter which view is rendered.
+
 **Command**: `SysmlCommand` — `SysmlCommand.Lint` when `lint` is the first positional
 argument; `SysmlCommand.Render` when `render` is the first positional argument;
 `SysmlCommand.None` otherwise.
@@ -54,8 +61,11 @@ or `null` if the option was absent. Used by the render command to select the out
   if `--log` was supplied.
 
 Delegates to the private `ArgumentParser` helper to parse flags, then opens the log file by
-calling `OpenLogFile` if `--log` was present. Throws `ArgumentException` for unknown or
-malformed arguments; throws `InvalidOperationException` if the log file cannot be opened.
+calling `OpenLogFile` if `--log` was present. For `--depth`, the raw value is stored as
+`MaxRenderDepth` without clamping and `HeadingDepth` is set to `Math.Clamp(depth, 1, 6)`.
+The `--view` flag stores its value in `ViewName`.
+Throws `ArgumentException` for unknown or malformed arguments; throws
+`InvalidOperationException` if the log file cannot be opened.
 
 **WriteLine**: Writes a message to standard output and to the log file.
 
@@ -101,5 +111,5 @@ available.
 
 - **Program** — creates `Context` via `Context.Create` and calls `WriteLine` and `WriteError`.
 - **Validation** — receives `Context` from `Program` and calls `WriteLine` and `WriteError`.
-- **RenderCommand** — reads `Files`, `RendererFormat`, and `OutputDirectory`; calls
-  `WriteLine` and `WriteError`.
+- **RenderCommand** — reads `Files`, `RendererFormat`, `OutputDirectory`, `ViewName`, and
+  `MaxRenderDepth`; calls `WriteLine` and `WriteError`.

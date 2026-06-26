@@ -53,7 +53,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var groups = GroupByPackage(userPartDefs);
 
         // Lay out groups in a two-column grid and collect all top-level nodes
-        return BuildGridLayout(groups, options.Theme);
+        return BuildGridLayout(groups, options.Theme, options.DepthLimit);
     }
 
     /// <summary>
@@ -131,10 +131,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// </summary>
     /// <param name="groups">Part-def groups ordered by package name.</param>
     /// <param name="theme">Visual theme providing size and color parameters.</param>
+    /// <param name="depthLimit">Maximum nesting depth to render; 0 means unlimited.</param>
     /// <returns>A fully resolved <see cref="LayoutTree"/> with all box positions computed.</returns>
     private static LayoutTree BuildGridLayout(
         IReadOnlyList<(string PackageName, IReadOnlyList<(string QualifiedName, SysmlDefinitionNode Node)> Items)> groups,
-        Theme theme)
+        Theme theme,
+        int depthLimit)
     {
         // Compute the width required for each group box
         var groupWidths = groups.Select(g => ComputeGroupWidth(g.PackageName, g.Items, theme)).ToList();
@@ -190,7 +192,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             }
 
             // Build child part-def boxes
-            var children = BuildChildBoxes(items, boxX, boxY, gw, theme);
+            var children = BuildChildBoxes(items, boxX, boxY, gw, theme, depthLimit);
             var label = string.IsNullOrEmpty(packageName) ? null : packageName;
             var groupBox = new LayoutBox(boxX, boxY, gw, gh, label, 0, BoxShape.Rectangle, [], children);
             nodes.Add(groupBox);
@@ -261,13 +263,15 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <param name="groupY">Top edge Y of the parent group box.</param>
     /// <param name="groupWidth">Width of the parent group box.</param>
     /// <param name="theme">Visual theme for font and size measurements.</param>
+    /// <param name="depthLimit">Maximum nesting depth to render; 0 means unlimited.</param>
     /// <returns>List of child <see cref="LayoutBox"/> nodes with absolute coordinates.</returns>
     private static IReadOnlyList<LayoutNode> BuildChildBoxes(
         IReadOnlyList<(string QualifiedName, SysmlDefinitionNode Node)> items,
         double groupX,
         double groupY,
         double groupWidth,
-        Theme theme)
+        Theme theme,
+        int depthLimit)
     {
         var children = new List<LayoutNode>();
 
@@ -276,6 +280,22 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var childX = groupX + theme.LabelPadding;
         var childWidth = groupWidth - 2 * theme.LabelPadding;
         var cursorY = groupY + titleHeight + theme.LabelPadding;
+
+        // Child part-def boxes are at depth 1; when the depth limit is active and met,
+        // replace all children with a single ellipsis label to indicate truncation
+        if (depthLimit > 0 && 1 >= depthLimit)
+        {
+            children.Add(new LayoutLabel(
+                X: childX,
+                Y: cursorY,
+                MaxWidth: childWidth,
+                Text: "…",
+                Align: TextAlign.Center,
+                Weight: FontWeight.Regular,
+                Style: FontStyle.Normal,
+                FontSize: theme.FontSizeTitle));
+            return children;
+        }
 
         foreach (var (qualifiedName, node) in items)
         {

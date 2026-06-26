@@ -186,5 +186,135 @@ public class ValidationTests
             }
         }
     }
+
+    /// <summary>
+    ///     Test that the lint self-test passes for the built-in self-test model.
+    /// </summary>
+    [Fact]
+    public async Task Validation_RunLintSelfTest_ValidModel_Passes()
+    {
+        // Arrange: capture validation output via log file
+        var logFile = Path.Combine(Path.GetTempPath(), $"validation_test_{Guid.NewGuid()}.log");
+        try
+        {
+            using (var context = Context.Create(["--silent", "--log", logFile]))
+            {
+                // Act: run the full validation suite (includes lint self-test)
+                await Validation.RunAsync(context);
+            }
+
+            // Assert: the lint self-test produced a pass marker in the log
+            var logContent = await File.ReadAllTextAsync(logFile, TestContext.Current.CancellationToken);
+            Assert.Contains("✓ SysML2Tools_LintSelfTest", logContent);
+        }
+        finally
+        {
+            if (File.Exists(logFile))
+            {
+                File.Delete(logFile);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Test that the SVG render self-test passes for the built-in self-test model.
+    /// </summary>
+    [Fact]
+    public async Task Validation_RunRenderSvgSelfTest_ValidModel_Passes()
+    {
+        // Arrange: capture validation output via log file
+        var logFile = Path.Combine(Path.GetTempPath(), $"validation_test_{Guid.NewGuid()}.log");
+        try
+        {
+            using (var context = Context.Create(["--silent", "--log", logFile]))
+            {
+                // Act: run the full validation suite (includes SVG render self-test)
+                await Validation.RunAsync(context);
+            }
+
+            // Assert: the SVG render self-test produced a pass marker in the log
+            var logContent = await File.ReadAllTextAsync(logFile, TestContext.Current.CancellationToken);
+            Assert.Contains("✓ SysML2Tools_RenderSvgSelfTest", logContent);
+        }
+        finally
+        {
+            if (File.Exists(logFile))
+            {
+                File.Delete(logFile);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Test that the PNG render self-test passes (or is skipped) when SkiaSharp is available.
+    /// </summary>
+    [Fact]
+    public async Task Validation_RunRenderPngSelfTest_SkiaSharpAvailable_Passes()
+    {
+        // Guard: check if SkiaSharp native library is loadable without triggering type
+        // initializers. If unavailable, the self-test skips internally and we only check
+        // that the suite still exits cleanly.
+        if (!System.Runtime.InteropServices.NativeLibrary.TryLoad("libSkiaSharp", out var nativeHandle))
+        {
+            // SkiaSharp unavailable — just verify the suite exits cleanly (skip is recorded as pass)
+            using var context = Context.Create(["--silent"]);
+            await Validation.RunAsync(context);
+            Assert.Equal(0, context.ExitCode);
+            return;
+        }
+
+        System.Runtime.InteropServices.NativeLibrary.Free(nativeHandle);
+
+        // Arrange: capture validation output via log file
+        var logFile = Path.Combine(Path.GetTempPath(), $"validation_test_{Guid.NewGuid()}.log");
+        try
+        {
+            using (var context = Context.Create(["--silent", "--log", logFile]))
+            {
+                // Act: run the full validation suite (includes PNG render self-test)
+                await Validation.RunAsync(context);
+            }
+
+            // Assert: the PNG render self-test produced a pass marker in the log
+            var logContent = await File.ReadAllTextAsync(logFile, TestContext.Current.CancellationToken);
+            Assert.Contains("✓ SysML2Tools_RenderPngSelfTest", logContent);
+        }
+        finally
+        {
+            if (File.Exists(logFile))
+            {
+                File.Delete(logFile);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Test that Run prints a "PASSED" summary line when all self-tests pass.
+    /// </summary>
+    [Fact]
+    public async Task Validation_Run_AllTestsPass_PrintsPassedSummary()
+    {
+        // Arrange: capture validation output via log file
+        var logFile = Path.Combine(Path.GetTempPath(), $"validation_test_{Guid.NewGuid()}.log");
+        try
+        {
+            using (var context = Context.Create(["--silent", "--log", logFile]))
+            {
+                // Act: run the full validation suite
+                await Validation.RunAsync(context);
+            }
+
+            // Assert: the PASSED summary line is present in the log
+            var logContent = await File.ReadAllTextAsync(logFile, TestContext.Current.CancellationToken);
+            Assert.Contains("SysML2Tools self-test: PASSED", logContent);
+        }
+        finally
+        {
+            if (File.Exists(logFile))
+            {
+                File.Delete(logFile);
+            }
+        }
+    }
 }
 

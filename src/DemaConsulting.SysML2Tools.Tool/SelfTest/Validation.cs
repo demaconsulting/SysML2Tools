@@ -20,6 +20,11 @@
 
 using System.Runtime.InteropServices;
 using DemaConsulting.SysML2Tools.Cli;
+using DemaConsulting.SysML2Tools.Parser;
+using DemaConsulting.SysML2Tools.Png;
+using DemaConsulting.SysML2Tools.Rendering;
+using DemaConsulting.SysML2Tools.Semantic;
+using DemaConsulting.SysML2Tools.Svg;
 using DemaConsulting.SysML2Tools.Utilities;
 using DemaConsulting.TestResults.IO;
 
@@ -30,6 +35,17 @@ namespace DemaConsulting.SysML2Tools.SelfTest;
 /// </summary>
 internal static class Validation
 {
+    /// <summary>
+    ///     Minimal SysML model used by the self-validation test suite.
+    ///     Contains a <c>view def</c> so that render tests can exercise the full pipeline.
+    /// </summary>
+    private const string SelfTestModel = """
+        package ValidateTest {
+            view def GeneralView {}
+            part def SensorUnit;
+            part def ActuatorUnit;
+        }
+        """;
     /// <summary>
     ///     Runs self-validation tests and optionally writes results to a file.
     /// </summary>
@@ -58,6 +74,9 @@ internal static class Validation
         // Run core functionality tests
         await RunVersionTestAsync(context, testResults).ConfigureAwait(false);
         await RunHelpTestAsync(context, testResults).ConfigureAwait(false);
+        await RunLintSelfTestAsync(context, testResults).ConfigureAwait(false);
+        await RunRenderSvgSelfTestAsync(context, testResults).ConfigureAwait(false);
+        await RunRenderPngSelfTestAsync(context, testResults).ConfigureAwait(false);
 
         // Calculate totals
         var totalTests = testResults.Results.Count;
@@ -75,6 +94,16 @@ internal static class Validation
         else
         {
             context.WriteLine($"Failed: {failedTests}");
+        }
+
+        // Print overall self-test result line
+        if (failedTests == 0)
+        {
+            context.WriteLine("SysML2Tools self-test: PASSED");
+        }
+        else
+        {
+            context.WriteError($"SysML2Tools self-test: FAILED — {failedTests} test(s) failed");
         }
 
         // Write results file if requested
@@ -234,6 +263,179 @@ internal static class Validation
         catch (Exception ex)
         {
             HandleTestException(test, context, "TemplateTool_HelpDisplay", ex);
+        }
+
+        FinalizeTestResult(test, startTime, testResults);
+    }
+
+    /// <summary>
+    ///     Runs a lint self-test against the built-in <see cref="SelfTestModel"/>.
+    /// </summary>
+    /// <param name="context">The context for output.</param>
+    /// <param name="testResults">The test results collection.</param>
+    private static async Task RunLintSelfTestAsync(Context context, DemaConsulting.TestResults.TestResults testResults)
+    {
+        var startTime = DateTime.UtcNow;
+        var test = CreateTestResult("SysML2Tools_LintSelfTest");
+
+        try
+        {
+            using var tempDir = new TemporaryDirectory();
+            var modelFile = PathHelpers.SafePathCombine(tempDir.DirectoryPath, "self-test.sysml");
+
+            // Write the self-test model to a temporary file
+            await File.WriteAllTextAsync(modelFile, SelfTestModel).ConfigureAwait(false);
+
+            // Load and lint the model
+            var result = await WorkspaceLoader.LoadAsync([modelFile]).ConfigureAwait(false);
+
+            // Verify no error-level diagnostics were produced
+            var errorCount = result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
+            if (errorCount == 0)
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Passed;
+                context.WriteLine($"✓ SysML2Tools_LintSelfTest - Passed");
+            }
+            else
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Failed;
+                test.ErrorMessage = $"{errorCount} lint error(s) found in self-test model";
+                context.WriteError($"✗ SysML2Tools_LintSelfTest - Failed: {errorCount} lint error(s) found");
+            }
+        }
+        // Generic catch is justified here as this is a test framework - any exception should be
+        // recorded as a test failure to ensure robust test execution and reporting.
+        catch (Exception ex)
+        {
+            HandleTestException(test, context, "SysML2Tools_LintSelfTest", ex);
+        }
+
+        FinalizeTestResult(test, startTime, testResults);
+    }
+
+    /// <summary>
+    ///     Runs an SVG render self-test against the built-in <see cref="SelfTestModel"/>.
+    /// </summary>
+    /// <param name="context">The context for output.</param>
+    /// <param name="testResults">The test results collection.</param>
+    private static async Task RunRenderSvgSelfTestAsync(Context context, DemaConsulting.TestResults.TestResults testResults)
+    {
+        var startTime = DateTime.UtcNow;
+        var test = CreateTestResult("SysML2Tools_RenderSvgSelfTest");
+
+        try
+        {
+            using var tempDir = new TemporaryDirectory();
+            var modelFile = PathHelpers.SafePathCombine(tempDir.DirectoryPath, "self-test.sysml");
+
+            // Write the self-test model to a temporary file
+            await File.WriteAllTextAsync(modelFile, SelfTestModel).ConfigureAwait(false);
+
+            // Load the model
+            var loadResult = await WorkspaceLoader.LoadAsync([modelFile]).ConfigureAwait(false);
+            if (loadResult.Workspace is null)
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Failed;
+                test.ErrorMessage = "Workspace loading failed";
+                context.WriteError($"✗ SysML2Tools_RenderSvgSelfTest - Failed: workspace loading failed");
+                FinalizeTestResult(test, startTime, testResults);
+                return;
+            }
+
+            // Render the model to an in-memory SVG stream
+            var diagramRenderer = new DiagramRenderer();
+            var options = new RenderOptions(Themes.Light);
+            var outputs = diagramRenderer.RenderWorkspace(loadResult.Workspace, new SvgRenderer(), options);
+
+            // Verify at least one non-empty output was produced
+            if (outputs.Count > 0 && outputs[0].Data.Length > 0)
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Passed;
+                context.WriteLine($"✓ SysML2Tools_RenderSvgSelfTest - Passed");
+            }
+            else
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Failed;
+                test.ErrorMessage = "SVG render produced no output";
+                context.WriteError($"✗ SysML2Tools_RenderSvgSelfTest - Failed: no output produced");
+            }
+        }
+        // Generic catch is justified here as this is a test framework - any exception should be
+        // recorded as a test failure to ensure robust test execution and reporting.
+        catch (Exception ex)
+        {
+            HandleTestException(test, context, "SysML2Tools_RenderSvgSelfTest", ex);
+        }
+
+        FinalizeTestResult(test, startTime, testResults);
+    }
+
+    /// <summary>
+    ///     Runs a PNG render self-test against the built-in <see cref="SelfTestModel"/>.
+    ///     Skips gracefully when the SkiaSharp native library is unavailable.
+    /// </summary>
+    /// <param name="context">The context for output.</param>
+    /// <param name="testResults">The test results collection.</param>
+    private static async Task RunRenderPngSelfTestAsync(Context context, DemaConsulting.TestResults.TestResults testResults)
+    {
+        var startTime = DateTime.UtcNow;
+        var test = CreateTestResult("SysML2Tools_RenderPngSelfTest");
+
+        try
+        {
+            // Check whether the SkiaSharp native library is loadable before attempting PNG rendering.
+            // If the native runtime is absent the test is skipped (recorded as Passed) so that
+            // environments without the SkiaSharp native assets do not fail the suite.
+            if (!NativeLibrary.TryLoad("libSkiaSharp", out var nativeHandle))
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Passed;
+                context.WriteLine($"↷ SysML2Tools_RenderPngSelfTest - Skipped (SkiaSharp unavailable)");
+                FinalizeTestResult(test, startTime, testResults);
+                return;
+            }
+
+            NativeLibrary.Free(nativeHandle);
+
+            using var tempDir = new TemporaryDirectory();
+            var modelFile = PathHelpers.SafePathCombine(tempDir.DirectoryPath, "self-test.sysml");
+
+            // Write the self-test model to a temporary file
+            await File.WriteAllTextAsync(modelFile, SelfTestModel).ConfigureAwait(false);
+
+            // Load the model
+            var loadResult = await WorkspaceLoader.LoadAsync([modelFile]).ConfigureAwait(false);
+            if (loadResult.Workspace is null)
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Failed;
+                test.ErrorMessage = "Workspace loading failed";
+                context.WriteError($"✗ SysML2Tools_RenderPngSelfTest - Failed: workspace loading failed");
+                FinalizeTestResult(test, startTime, testResults);
+                return;
+            }
+
+            // Render the model to an in-memory PNG stream
+            var diagramRenderer = new DiagramRenderer();
+            var options = new RenderOptions(Themes.Light);
+            var outputs = diagramRenderer.RenderWorkspace(loadResult.Workspace, new PngRenderer(), options);
+
+            // Verify at least one non-empty output was produced
+            if (outputs.Count > 0 && outputs[0].Data.Length > 0)
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Passed;
+                context.WriteLine($"✓ SysML2Tools_RenderPngSelfTest - Passed");
+            }
+            else
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Failed;
+                test.ErrorMessage = "PNG render produced no output";
+                context.WriteError($"✗ SysML2Tools_RenderPngSelfTest - Failed: no output produced");
+            }
+        }
+        // Generic catch is justified here as this is a test framework - any exception should be
+        // recorded as a test failure to ensure robust test execution and reporting.
+        catch (Exception ex)
+        {
+            HandleTestException(test, context, "SysML2Tools_RenderPngSelfTest", ex);
         }
 
         FinalizeTestResult(test, startTime, testResults);

@@ -41,7 +41,28 @@ sections:
           - Context_Create_DepthFlag_WithoutValue_ThrowsArgumentException
           - Context_Create_DepthFlag_NonIntegerValue_ThrowsArgumentException
           - Context_Create_DepthFlag_ZeroValue_ThrowsArgumentException
-          - Context_Create_DepthFlag_ExceedsMaxValue_ThrowsArgumentException
+
+      - id: SysML2Tools-Tool-Context-MaxRenderDepth
+        title: >-
+          The Context class shall expose the raw --depth value as MaxRenderDepth (int?)
+          without clamping, so that render commands can apply an unlimited depth limit.
+        justification: |
+          HeadingDepth is clamped to the valid markdown heading range (1–6), but diagram
+          render depth is unbounded. Separating the two allows callers to apply each
+          independently.
+        tests:
+          - Context_Create_DepthFlag_SetsMaxRenderDepth
+          - Context_Create_DepthFlag_ExceedsMaxValue_SetsMaxRenderDepth
+
+      - id: SysML2Tools-Tool-Context-ViewName
+        title: >-
+          The Context class shall parse the --view flag into the ViewName property and
+          expose it for use by the render command.
+        justification: |
+          View selection is a render-command concern but must be parsed centrally by
+          Context so that all argument handling remains in one place.
+        tests:
+          - Context_Create_ViewFlag_SetsViewName
 
       - id: Template-Context-ConsoleOutput
         title: The Context class shall write output to the console unless the silent flag is set.

@@ -62,16 +62,27 @@ internal static class RenderCommand
             return;
         }
 
+        // Enumerate renderable views; require --view when multiple views are present
+        var viewNames = DiagramRenderer.GetViewNames(loadResult.Workspace);
+        if (viewNames.Count > 1 && context.ViewName is null)
+        {
+            var available = string.Join(", ", viewNames);
+            context.WriteError(
+                $"error: multiple views found; use --view to select one (available: {available})");
+            return;
+        }
+
         // Select the renderer based on the format option (default: svg)
         var format = context.RendererFormat ?? "svg";
         IRenderer renderer = format.Equals("png", StringComparison.OrdinalIgnoreCase)
             ? new PngRenderer()
             : new SvgRenderer();
 
-        // Render all views in the workspace
+        // Render all views in the workspace (or the selected view when --view is specified)
         var diagramRenderer = new DiagramRenderer();
-        var options = new RenderOptions(Themes.Light);
-        var outputs = diagramRenderer.RenderWorkspace(loadResult.Workspace, renderer, options);
+        var options = new RenderOptions(Themes.Light, DepthLimit: context.MaxRenderDepth ?? 0);
+        var outputs = diagramRenderer.RenderWorkspace(
+            loadResult.Workspace, renderer, options, viewFilter: context.ViewName);
 
         if (outputs.Count == 0)
         {
