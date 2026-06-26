@@ -311,4 +311,111 @@ public sealed class WorkspaceLoaderTests
             File.Delete(tempFile);
         }
     }
+
+    // Level 11: Unqualified name in same package resolves without warning
+    /// <summary>
+    ///     A part def that specializes a sibling defined in the same package using its short
+    ///     (unqualified) name should resolve correctly and produce no "Unresolved reference"
+    ///     warning.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnqualifiedNameSamePackage_ResolvesWithoutWarning()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package A {
+                    part def Foo {}
+                    part def Baz specializes Foo {}
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+
+            // Assert — unqualified "Foo" should resolve to A::Foo via namespace scope
+            Assert.NotNull(result.Workspace);
+            Assert.DoesNotContain(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("Foo"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    // Level 12: Unqualified name resolves via wildcard import
+    /// <summary>
+    ///     A part def that specializes a type using only its short name, where that type is
+    ///     brought into scope by a wildcard import, should resolve without an "Unresolved
+    ///     reference" warning.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnqualifiedNameViaWildcardImport_ResolvesWithoutWarning()
+    {
+        // Arrange — Bar is defined in Pkg; Other imports Pkg::* and references Bar by short name
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package Pkg { part def Bar {} }
+                package Other {
+                    import Pkg::*;
+                    part def Foo specializes Bar {}
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+
+            // Assert — "Bar" resolves via Pkg::Bar through the wildcard import
+            Assert.NotNull(result.Workspace);
+            Assert.DoesNotContain(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("Bar"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    // Level 13: Explicit named import resolves short name
+    /// <summary>
+    ///     A part def that specializes a type using only its short name, where that type is
+    ///     brought into scope by an explicit named import, should resolve without an "Unresolved
+    ///     reference" warning.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ExplicitImportedName_ResolvesWithoutWarning()
+    {
+        // Arrange — Bar is defined in Pkg; Other imports Pkg::Bar by full name and references Bar
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package Pkg { part def Bar {} }
+                package Other {
+                    import Pkg::Bar;
+                    part def Foo specializes Bar {}
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+
+            // Assert — "Bar" resolves via explicit import Pkg::Bar
+            Assert.NotNull(result.Workspace);
+            Assert.DoesNotContain(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("Bar"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
 }

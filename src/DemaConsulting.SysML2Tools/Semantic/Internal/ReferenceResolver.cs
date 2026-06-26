@@ -42,10 +42,11 @@ internal sealed class ReferenceResolver
         // Detect circular imports
         DetectCircularImports(importGraph);
 
-        // Resolve references in each file
+        // Resolve references in each file using the per-file import context
         foreach (var (filePath, root) in fileRootsList.Where(r => r.Root is not null))
         {
-            ResolveNode(root!, filePath, new HashSet<string>());
+            var imports = CollectImportNodes(root!);
+            ResolveNode(root!, filePath, new HashSet<string>(), new List<string>(), imports);
         }
     }
 
@@ -79,6 +80,36 @@ internal sealed class ReferenceResolver
         foreach (var child in node.Children)
         {
             CollectImports(child, imports);
+        }
+    }
+
+    /// <summary>
+    ///     Recursively collects all <see cref="SysmlImportNode"/> instances from an AST root and
+    ///     its descendants, providing the per-file import context for reference resolution.
+    /// </summary>
+    /// <param name="root">The AST root to traverse.</param>
+    /// <returns>All import nodes found anywhere in the file's AST.</returns>
+    private static List<SysmlImportNode> CollectImportNodes(SysmlNode root)
+    {
+        var imports = new List<SysmlImportNode>();
+        CollectImportNodesRecursive(root, imports);
+        return imports;
+    }
+
+    /// <summary>
+    ///     Recursive helper that accumulates <see cref="SysmlImportNode"/> instances into the
+    ///     given list.
+    /// </summary>
+    private static void CollectImportNodesRecursive(SysmlNode node, List<SysmlImportNode> imports)
+    {
+        if (node is SysmlImportNode importNode)
+        {
+            imports.Add(importNode);
+        }
+
+        foreach (var child in node.Children)
+        {
+            CollectImportNodesRecursive(child, imports);
         }
     }
 
@@ -132,14 +163,108 @@ internal sealed class ReferenceResolver
     }
 
     /// <summary>
-    ///     Resolves supertype names in the given AST node and its descendants, emitting a Warning
-    ///     for each name not found in the symbol table.
+    ///     Attempts to resolve a name using a four-step lookup strategy so that unqualified
+    ///     names referenced in source code match their fully-qualified counterparts in the
+    ///     symbol table.
     /// </summary>
-    private void ResolveNode(SysmlNode node, string filePath, HashSet<string> resolvedInFile)
+    /// <remarks>
+    ///     The four steps, tried in order, are:
+    ///     <list type="number">
+    ///         <item>Direct lookup — handles already-qualified names such as <c>Pkg::Bar</c>.</item>
+    ///         <item>
+    ///             Enclosing namespace scopes — for a reference inside <c>A::B</c>, tries
+    ///             <c>A::B::name</c>, then <c>A::name</c>, so same-package references resolve
+    ///             without qualification.
+    ///         </item>
+    ///         <item>
+    ///             Wildcard imports — for each <c>import X::*</c> in the file, tries
+    ///             <c>X::name</c>, matching star-imported members by short name.
+    ///         </item>
+    ///         <item>
+    ///             Explicit named imports — for each <c>import X::Y</c> where <c>Y == name</c>
+    ///             and <c>X::Y</c> is in the symbol table, accepts the reference.
+    ///         </item>
+    ///     </list>
+    /// </remarks>
+    /// <param name="name">The name to resolve — may be unqualified or partially qualified.</param>
+    /// <param name="namespaceStack">
+    ///     Simple name segments of the current enclosing namespace path, outermost first
+    ///     (e.g., <c>["A", "B"]</c> for a symbol nested inside <c>A::B</c>).
+    /// </param>
+    /// <param name="imports">All import nodes collected from the current file.</param>
+    /// <returns>
+    ///     <see langword="true"/> if the name resolves to a known symbol;
+    ///     <see langword="false"/> otherwise.
+    /// </returns>
+    private bool TryResolve(
+        string name,
+        IReadOnlyList<string> namespaceStack,
+        IReadOnlyList<SysmlImportNode> imports)
     {
-        // Resolve supertype names
+        // Step 1: Direct lookup — handles already-qualified names
+        if (_symbolTable.Contains(name))
+        {
+            return true;
+        }
+
+        // Step 2: Enclosing namespace scopes — try progressively shorter prefixes so that
+        // an unqualified "Bar" inside A::B matches A::B::Bar, then A::Bar
+        for (var i = namespaceStack.Count; i > 0; i--)
+        {
+            var prefix = string.Join("::", namespaceStack.Take(i));
+            if (_symbolTable.Contains($"{prefix}::{name}"))
+            {
+                return true;
+            }
+        }
+
+        // Step 3: Wildcard imports — for each `import X::*` in the file, try X::name
+        if (imports.Any(i => i.IsWildcard && _symbolTable.Contains($"{i.ImportedNamespace}::{name}")))
+        {
+            return true;
+        }
+
+        // Step 4: Explicit named imports — for each `import X::Y` where Y == name,
+        // accept the reference if X::Y is a known symbol
+        foreach (var ns in imports.Where(i => !i.IsWildcard).Select(i => i.ImportedNamespace))
+        {
+            var lastSep = ns.LastIndexOf("::", StringComparison.Ordinal);
+            var lastName = lastSep >= 0 ? ns[(lastSep + 2)..] : ns;
+            if (lastName == name && _symbolTable.Contains(ns))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Resolves supertype names in the given AST node and its descendants, emitting a Warning
+    ///     diagnostic for each name that cannot be resolved through the four-step lookup.
+    /// </summary>
+    /// <param name="node">The AST node to process.</param>
+    /// <param name="filePath">Source file path used when constructing diagnostics.</param>
+    /// <param name="resolvedInFile">
+    ///     Set of unresolved names already warned about in this file, preventing duplicate
+    ///     warnings for the same unresolved name within one file.
+    /// </param>
+    /// <param name="namespaceStack">
+    ///     Mutable stack of simple name segments for the current enclosing namespace path,
+    ///     maintained by this method as it recurses. Must be caller-owned; this method pushes
+    ///     and pops entries but does not allocate the list.
+    /// </param>
+    /// <param name="imports">All import nodes collected from the current file.</param>
+    private void ResolveNode(
+        SysmlNode node,
+        string filePath,
+        HashSet<string> resolvedInFile,
+        List<string> namespaceStack,
+        IReadOnlyList<SysmlImportNode> imports)
+    {
+        // Resolve each supertype name using the current namespace context and file imports
         foreach (var supertypeName in node.SupertypeNames.Where(
-                     n => !_symbolTable.Contains(n) && !resolvedInFile.Contains(n)))
+                     n => !resolvedInFile.Contains(n) && !TryResolve(n, namespaceStack, imports)))
         {
             resolvedInFile.Add(supertypeName);
             _diagnostics.Add(new SysmlDiagnostic(
@@ -149,9 +274,22 @@ internal sealed class ReferenceResolver
                 $"Unresolved reference: '{supertypeName}'"));
         }
 
+        // Push this node's name onto the namespace stack before recursing into its children,
+        // mirroring the scope that was in effect when AstBuilder computed qualified names
+        var pushed = (node is SysmlPackageNode or SysmlDefinitionNode) && node.Name is not null;
+        if (pushed)
+        {
+            namespaceStack.Add(node.Name!);
+        }
+
         foreach (var child in node.Children)
         {
-            ResolveNode(child, filePath, resolvedInFile);
+            ResolveNode(child, filePath, resolvedInFile, namespaceStack, imports);
+        }
+
+        if (pushed)
+        {
+            namespaceStack.RemoveAt(namespaceStack.Count - 1);
         }
     }
 }

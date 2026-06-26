@@ -155,6 +155,49 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         };
     }
 
+    /// <inheritdoc/>
+    public override SysmlNode? VisitImportRule(SysMLv2Parser.ImportRuleContext context)
+    {
+        var decl = context.importDeclaration();
+        if (decl is null)
+        {
+            return null;
+        }
+
+        // Namespace import: qualifiedName::* — wildcard, all members of the namespace are in scope
+        var nsImport = decl.namespaceImport();
+        if (nsImport is not null)
+        {
+            var qn = nsImport.qualifiedName()?.GetText();
+            if (qn is { Length: > 0 })
+            {
+                return new SysmlImportNode
+                {
+                    ImportedNamespace = qn,
+                    IsWildcard = true,
+                };
+            }
+        }
+
+        // Membership import: qualifiedName (optional ::**)
+        // The ** form is a recursive wildcard; either way it enables lookup under the namespace
+        var memImport = decl.membershipImport();
+        if (memImport is not null)
+        {
+            var qn = memImport.qualifiedName()?.GetText();
+            if (qn is { Length: > 0 })
+            {
+                return new SysmlImportNode
+                {
+                    ImportedNamespace = qn,
+                    IsWildcard = memImport.STAR_STAR() is not null,
+                };
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>
     ///     Builds a definition AST node from the given <see cref="SysMLv2Parser.DefinitionContext"/>.
     /// </summary>
