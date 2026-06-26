@@ -95,3 +95,21 @@ sections:
           compliance workflows.
         tests:
           - Context_Create_LogFlag_InvalidPath_ThrowsInvalidOperationException
+
+      - id: Template-Context-RenderArgs
+        title: >-
+          The Context class shall parse the render command's --format and --output arguments
+          into the RendererFormat and OutputDirectory properties.
+        justification: |
+          The render command relies on Context to supply the renderer format and output
+          directory without needing to re-parse command-line arguments. The render command
+          token must also set Command to SysmlCommand.Render and collect subsequent
+          positional arguments into Files.
+        tests:
+          - Context_Create_RenderCommand_SetsCommandRender
+          - Context_Create_RenderCommand_WithFormat_SetsSvgFormat
+          - Context_Create_RenderCommand_WithPngFormat_SetsPngFormat
+          - Context_Create_RenderCommand_WithOutput_SetsOutputDirectory
+          - Context_Create_RenderCommand_WithFiles_SetsFiles
+          - Context_Create_RenderCommand_FormatWithoutValue_ThrowsArgumentException
+          - Context_Create_RenderCommand_OutputWithoutValue_ThrowsArgumentException

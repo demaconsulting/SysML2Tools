@@ -28,6 +28,19 @@ neither flag was present.
 **HeadingDepth**: `int` — Heading depth for markdown output; valid range 1–6, default 1;
 supplied via `--depth`.
 
+**Command**: `SysmlCommand` — `SysmlCommand.Lint` when `lint` is the first positional
+argument; `SysmlCommand.Render` when `render` is the first positional argument;
+`SysmlCommand.None` otherwise.
+
+**Files**: `IReadOnlyList<string>` — file glob patterns collected from positional arguments
+after the command token.
+
+**OutputDirectory**: `string?` — path supplied after `--output`, or `null` if the option
+was absent. Used by the render command as the output directory for diagram files.
+
+**RendererFormat**: `string?` — value supplied after `--format` (e.g., `"svg"` or `"png"`),
+or `null` if the option was absent. Used by the render command to select the output format.
+
 **ExitCode**: `int` (derived) — Returns 1 if `_hasErrors` is true; returns 0 otherwise.
 
 #### Key Methods
@@ -88,3 +101,5 @@ available.
 
 - **Program** — creates `Context` via `Context.Create` and calls `WriteLine` and `WriteError`.
 - **Validation** — receives `Context` from `Program` and calls `WriteLine` and `WriteError`.
+- **RenderCommand** — reads `Files`, `RendererFormat`, and `OutputDirectory`; calls
+  `WriteLine` and `WriteError`.

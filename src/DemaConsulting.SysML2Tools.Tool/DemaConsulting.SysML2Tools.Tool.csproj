@@ -50,6 +50,9 @@
   <!-- Runtime Dependencies -->
   <ItemGroup>
     <PackageReference Include="DemaConsulting.TestResults" Version="1.9.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" Condition="$([MSBuild]::IsOSPlatform('Windows'))" PrivateAssets="All" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.9" Condition="$([MSBuild]::IsOSPlatform('Linux'))" PrivateAssets="All" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="2.88.9" Condition="$([MSBuild]::IsOSPlatform('macOS'))" PrivateAssets="All" />
   </ItemGroup>
 
   <!-- Build Tool Dependencies -->
@@ -82,6 +85,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DemaConsulting.SysML2Tools\DemaConsulting.SysML2Tools.csproj" />
+    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Svg\DemaConsulting.SysML2Tools.Svg.csproj" />
+    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Png\DemaConsulting.SysML2Tools.Png.csproj" />
   </ItemGroup>
 
   <ItemGroup>

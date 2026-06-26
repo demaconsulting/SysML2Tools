@@ -18,11 +18,11 @@ All test inputs are constructed inline. No external network access or services a
 - All unit tests pass with zero failures across all three target frameworks.
 - `SvgRenderer.MediaType` returns `"image/svg+xml"`.
 - `SvgRenderer.DefaultExtension` returns `".svg"`.
-- `SvgRenderer.Render` throws `NotImplementedException` with message containing "Phase 4".
+- `SvgRenderer.Render` with an empty `LayoutTree` writes a non-empty SVG document to the output stream.
 - `PngRenderer.MediaType` returns `"image/png"`.
 - `PngRenderer.DefaultExtension` returns `".png"`.
-- `PngRenderer.Render` throws `NotImplementedException` with message containing "Phase 4".
-- `DiagramRenderer.RenderWorkspace` throws `NotImplementedException` with message containing "Phase 4".
+- `PngRenderer.Render` with an empty `LayoutTree` writes a valid PNG stream beginning with the PNG magic number.
+- `DiagramRenderer.RenderWorkspace` with a workspace containing no view declarations returns an empty list.
 - `Themes.Light` is non-null and has `DepthFillColors.Count >= 1` and non-empty `StrokeColor`.
 - `Themes.Dark` is non-null and has `DepthFillColors.Count >= 1` and non-empty `StrokeColor`.
 - `Themes.Print` is non-null and has `DepthFillColors.Count >= 1` and non-empty `StrokeColor`.
@@ -39,10 +39,10 @@ identifies itself with the correct MIME type for SVG output.
 `DefaultExtension` property is asserted to equal `".svg"`. This confirms the renderer
 provides a correct default extension for output file naming.
 
-**SvgRenderer_Render_ThrowsNotImplemented**: A `SvgRenderer` instance is constructed and
-`Render` is called with an empty `LayoutTree`, default `RenderOptions`, and a
-`MemoryStream`; a `NotImplementedException` is expected. This confirms the Phase 4
-deferral stub behavior.
+**SvgRenderer_Render_EmptyTree_WritesValidSvg**: A `SvgRenderer` instance is constructed
+and `Render` is called with an empty `LayoutTree`, default `RenderOptions`, and a
+`MemoryStream`; the stream is asserted to be non-empty and contain `<svg`. This confirms
+that the Phase 4 implementation produces a valid SVG document for the trivial case.
 
 **PngRenderer_MediaType_IsImagePng**: A `PngRenderer` instance is constructed; the
 `MediaType` property is asserted to equal `"image/png"`.
@@ -50,14 +50,17 @@ deferral stub behavior.
 **PngRenderer_DefaultExtension_IsDotPng**: A `PngRenderer` instance is constructed; the
 `DefaultExtension` property is asserted to equal `".png"`.
 
-**PngRenderer_Render_ThrowsNotImplemented**: A `PngRenderer` instance is constructed and
-`Render` is called with an empty `LayoutTree`, default `RenderOptions`, and a
-`MemoryStream`; a `NotImplementedException` is expected.
+**PngRenderer_Render_EmptyTree_WritesPngBytes**: A `PngRenderer` instance is constructed
+and `Render` is called with an empty `LayoutTree`, default `RenderOptions`, and a
+`MemoryStream`; the first four bytes of the output are asserted to equal the PNG magic
+number `0x89 0x50 0x4E 0x47`. This confirms that Phase 4 SkiaSharp encoding produces
+valid PNG output for the minimal canvas case.
 
-**DiagramRenderer_RenderWorkspace_ThrowsNotImplemented**: A `DiagramRenderer` instance is
-constructed and `RenderWorkspace` is called with a non-null `SysmlWorkspace`, a
-`SvgRenderer`, and default `RenderOptions`; a `NotImplementedException` is expected.
-This confirms the Phase 4 deferral stub behavior.
+**DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList**: A `DiagramRenderer` instance
+is constructed and `RenderWorkspace` is called with a `SysmlWorkspace` containing no view
+declarations, a `SvgRenderer`, and default `RenderOptions`; the return value is asserted
+to be an empty list. This confirms the Phase 4 implementation handles empty workspaces
+without error.
 
 **Themes_Light_IsInitialized**: `Themes.Light` is accessed; the result is asserted to be
 non-null, `DepthFillColors` to have at least one element, and `StrokeColor` to be

@@ -36,8 +36,8 @@ sections:
           filesystem access ensures that renderers remain testable in-process with
           in-memory streams.
         tests:
-          - SvgRenderer_Render_ThrowsNotImplemented
-          - PngRenderer_Render_ThrowsNotImplemented
+          - SvgRenderer_Render_EmptyTree_WritesValidSvg
+          - PngRenderer_Render_EmptyTree_WritesPngBytes
 
       - id: SysML2Tools-Core-Rendering-Theme
         title: >-
@@ -102,7 +102,7 @@ sections:
           layout and rendering pipeline. Centralizing this loop ensures consistent
           error handling and output collection across all views and all renderer types.
         tests:
-          - DiagramRenderer_RenderWorkspace_ThrowsNotImplemented
+          - DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList
 
       - id: SysML2Tools-Core-Rendering-RenderOutput
         title: >-

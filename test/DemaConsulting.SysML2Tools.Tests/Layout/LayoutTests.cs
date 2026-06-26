@@ -201,20 +201,23 @@ public sealed class LayoutTests
     }
 
     /// <summary>
-    ///     A LayoutLabel constructed with all five parameters stores each property as supplied.
+    ///     A LayoutLabel constructed with all eight parameters stores each property as supplied.
     /// </summary>
     [Fact]
     public void LayoutLabel_Construction_StoresAllFields()
     {
-        // Arrange / Act: construct a label with all five parameters non-default
-        var label = new LayoutLabel(50.0, 75.0, 200.0, "Hello World", TextAlign.Center);
+        // Arrange / Act: construct a label with all eight parameters non-default
+        var label = new LayoutLabel(50.0, 75.0, 200.0, "Hello World", TextAlign.Center, FontWeight.Regular, FontStyle.Normal, 12.0);
 
-        // Assert: all five properties equal the supplied values
+        // Assert: all eight properties equal the supplied values
         Assert.Equal(50.0, label.X);
         Assert.Equal(75.0, label.Y);
         Assert.Equal(200.0, label.MaxWidth);
         Assert.Equal("Hello World", label.Text);
         Assert.Equal(TextAlign.Center, label.Align);
+        Assert.Equal(FontWeight.Regular, label.Weight);
+        Assert.Equal(FontStyle.Normal, label.Style);
+        Assert.Equal(12.0, label.FontSize);
     }
 
     /// <summary>

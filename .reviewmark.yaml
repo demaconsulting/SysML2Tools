@@ -477,6 +477,18 @@ reviews:
       - "docs/verification/sysml2-tools-tool/lint.md"
       - "src/**/Lint/LintCommand.cs"
 
+  - id: SysML2Tools-Tool-Render
+    title: Review of SysML2 Tools Render subsystem implementation
+    context:
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-tool/render.yaml"
+      - "docs/design/sysml2-tools-tool/render.md"
+      - "docs/verification/sysml2-tools-tool/render.md"
+      - "src/DemaConsulting.SysML2Tools.Tool/Render/RenderCommand.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Render/RenderSubsystemTests.cs"
+
   # OTS Items
   - id: OTS-BuildMark
     title: Review of BuildMark OTS verification evidence
