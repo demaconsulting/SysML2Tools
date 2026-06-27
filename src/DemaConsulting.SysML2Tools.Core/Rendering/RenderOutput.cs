@@ -13,4 +13,11 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 public sealed record RenderOutput(
     string SuggestedFileName,
     string MediaType,
-    Stream Data);
+    Stream Data)
+{
+    /// <summary>
+    /// Gets non-fatal layout-quality warnings produced while laying out this view (e.g. connectors
+    /// that could not be routed without crossing a box). Empty when the layout is clean.
+    /// </summary>
+    public IReadOnlyList<string> Warnings { get; init; } = [];
+}

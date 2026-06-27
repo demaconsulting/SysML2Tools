@@ -79,12 +79,13 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             nodes.Add(MakeActionBox(actions[i], rects[i]));
         }
 
-        AddSuccessionEdges(edges, rects, nodes);
+        var crossings = AddSuccessionEdges(edges, rects, nodes);
         AddStartAndDone(actions, rects, edges, layered, nodes);
 
         var width = layered.Width;
         var height = layered.Height + (2.0 * MarkerBand);
-        return new LayoutTree(width, height, nodes);
+        var warnings = LayoutWarnings.ForCrossings(context.ViewName, crossings);
+        return new LayoutTree(width, height, nodes) { Warnings = warnings };
     }
 
     /// <summary>Finds the definition with the most successions to use as the diagram root.</summary>
@@ -203,12 +204,16 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             Children: [],
             Keyword: "action");
 
-    /// <summary>Adds the succession flow edges (top-to-bottom) between action boxes.</summary>
-    private static void AddSuccessionEdges(
+    /// <summary>
+    /// Adds the succession flow edges (top-to-bottom) between action boxes, returning the number
+    /// that had to cross a box.
+    /// </summary>
+    private static int AddSuccessionEdges(
         IReadOnlyList<(int From, int To)> edges,
         Rect[] rects,
         List<LayoutNode> nodes)
     {
+        var crossings = 0;
         foreach (var (from, to) in edges)
         {
             var source = new Point2D(rects[from].X + (rects[from].Width / 2.0), rects[from].Y + rects[from].Height);
@@ -223,16 +228,23 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
                 }
             }
 
-            var waypoints = ChannelRouter.Route(
+            var route = ChannelRouter.RouteWithStatus(
                 source, target, obstacles, FlowClearance,
                 sourceSide: PortSide.Bottom, targetSide: PortSide.Top);
+            if (route.Crossed)
+            {
+                crossings++;
+            }
+
             nodes.Add(new LayoutLine(
-                Waypoints: waypoints,
+                Waypoints: route.Waypoints,
                 SourceArrowhead: ArrowheadStyle.None,
                 TargetArrowhead: ArrowheadStyle.Filled,
                 LineStyle: LineStyle.Solid,
                 MidpointLabel: null));
         }
+
+        return crossings;
     }
 
     /// <summary>

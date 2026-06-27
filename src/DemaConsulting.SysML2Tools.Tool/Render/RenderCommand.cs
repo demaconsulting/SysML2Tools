@@ -118,6 +118,12 @@ internal static class RenderCommand
             context.WriteLine($"  Writing {filePath}");
             await using var fileStream = File.Create(filePath);
             await output.Data.CopyToAsync(fileStream).ConfigureAwait(false);
+
+            // Surface any layout-quality warnings for this view.
+            foreach (var warning in output.Warnings)
+            {
+                context.WriteLine($"  warning: {warning}");
+            }
         }
 
         context.WriteLine($"Rendered {outputs.Count} view(s).");

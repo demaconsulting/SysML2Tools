@@ -131,6 +131,58 @@ public sealed class ChannelRouterTests
     }
 
     /// <summary>
+    ///     A clean route (no blocking obstacle) reports it did not cross via RouteWithStatus.
+    /// </summary>
+    [Fact]
+    public void RouteWithStatus_NoBlockingObstacle_ReportsNotCrossed()
+    {
+        // Act: route around a single obstacle that a channel exists past
+        var result = ChannelRouter.RouteWithStatus(
+            new Point2D(0, 50), new Point2D(200, 50), [new Rect(80, 0, 40, 100)], clearance: 10);
+
+        // Assert: a valid orthogonal route was found, so Crossed is false
+        Assert.False(result.Crossed);
+        AssertAllSegmentsOrthogonal(result.Waypoints);
+    }
+
+    /// <summary>
+    ///     An obstacle squarely between the endpoints is routed around (not crossed), demonstrating
+    ///     the clearance-retry robustness.
+    /// </summary>
+    [Fact]
+    public void RouteWithStatus_ObstacleBetween_RoutesAroundWithoutCrossing()
+    {
+        // Arrange: an obstacle blocking the straight path but with room to route around
+        var obstacles = new[] { new Rect(40, 40, 40, 40) };
+
+        // Act
+        var result = ChannelRouter.RouteWithStatus(
+            new Point2D(0, 60), new Point2D(120, 60), obstacles, clearance: 8);
+
+        // Assert: routed cleanly (no crossing) and no segment passes through the obstacle interior
+        Assert.False(result.Crossed);
+        AssertNoSegmentCrossesObstacle(result.Waypoints, obstacles);
+    }
+
+    /// <summary>
+    ///     When the target lies inside an obstacle (no obstacle-free approach exists), the router
+    ///     reports that it had to cross.
+    /// </summary>
+    [Fact]
+    public void RouteWithStatus_TargetEnclosedByObstacle_ReportsCrossed()
+    {
+        // Arrange: an obstacle that fully encloses the target point
+        var obstacles = new[] { new Rect(50, 0, 200, 100) };
+
+        // Act: target (100, 50) is strictly inside the obstacle
+        var result = ChannelRouter.RouteWithStatus(
+            new Point2D(0, 50), new Point2D(100, 50), obstacles, clearance: 10);
+
+        // Assert: no clean path exists, so Crossed is reported true
+        Assert.True(result.Crossed);
+    }
+
+    /// <summary>
     ///     Asserts that the path begins at the expected source and ends at the expected target.
     /// </summary>
     private static void AssertEndpoints(IReadOnlyList<Point2D> path, Point2D source, Point2D target)

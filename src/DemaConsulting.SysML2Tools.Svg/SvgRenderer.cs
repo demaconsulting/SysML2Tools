@@ -84,10 +84,17 @@ public sealed class SvgRenderer : IRenderer
         // Write defs section with all arrowhead markers
         WriteArrowheadDefs(sb, theme);
 
-        // Render all top-level nodes recursively
+        // Render all top-level nodes recursively (wires are drawn without their labels here)
         foreach (var node in layout.Nodes)
         {
             RenderNode(sb, node, theme, options.Scale);
+        }
+
+        // Final pass: draw every connector label on top of all wires and boxes, so that no later
+        // wire can draw over an earlier wire's label.
+        foreach (var line in CollectLines(layout.Nodes))
+        {
+            RenderLineLabel(sb, line, theme, options.Scale);
         }
 
         // Close SVG root
@@ -167,6 +174,13 @@ public sealed class SvgRenderer : IRenderer
             $"""      <line x1="2" y1="0" x2="2" y2="12" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
         sb.AppendLine();
         sb.AppendLine(MarkerClose);
+
+        // Auto-sizing white background for text drawn over lines (e.g. message and guard labels).
+        // The filter region defaults to the text bounding box; the small negative inset adds padding.
+        sb.AppendLine("""    <filter id="label-bg" x="-0.05" y="-0.05" width="1.1" height="1.1">""");
+        sb.AppendLine("""      <feFlood flood-color="#FFFFFF"/>""");
+        sb.AppendLine("""      <feComposite in="SourceGraphic" operator="over"/>""");
+        sb.AppendLine("    </filter>");
 
         sb.AppendLine("  </defs>");
     }
@@ -518,23 +532,64 @@ public sealed class SvgRenderer : IRenderer
             $"""  <path d="{pathData}" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"{markerStart}{markerEnd}{dashArray}/>""");
         sb.AppendLine();
 
-        // Draw the optional midpoint label as a centered text element on a white background so the
-        // line does not strike through the text (mirrors the PNG renderer).
-        if (line.MidpointLabel != null)
+        // Note: the midpoint label is intentionally NOT drawn here. It is drawn in a final pass
+        // (see RenderLineLabel) so that no later wire can draw over an earlier wire's label.
+    }
+
+    /// <summary>
+    /// Renders a line's optional midpoint label as a centered text element with an auto-sizing white
+    /// background (via the <c>label-bg</c> filter). Called in a final pass after all wires and boxes
+    /// are drawn so labels are never drawn over by another wire.
+    /// </summary>
+    /// <param name="sb">String builder receiving the SVG markup.</param>
+    /// <param name="line">The line whose label is rendered.</param>
+    /// <param name="theme">Visual theme providing font and color settings.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    private static void RenderLineLabel(StringBuilder sb, LayoutLine line, Theme theme, double scale)
+    {
+        if (line.MidpointLabel is null)
         {
-            var (midX, midY) = ComputeLineMidpoint(line.Waypoints);
-            var fontSize = theme.FontSizeBody;
-            var estWidth = (line.MidpointLabel.Length * fontSize * 0.6) + theme.LabelPadding;
-            var bgX = (midX * scale) - (estWidth * scale / 2.0);
-            var bgY = (midY - (fontSize / 2.0) - 1.0) * scale;
-            var bgW = estWidth * scale;
-            var bgH = (fontSize + 2.0) * scale;
-            sb.Append(CultureInfo.InvariantCulture,
-                $"""  <rect x="{F(bgX)}" y="{F(bgY)}" width="{F(bgW)}" height="{F(bgH)}" fill="#FFFFFF"/>""");
-            sb.AppendLine();
-            sb.Append(CultureInfo.InvariantCulture,
-                $"""  <text x="{F(midX * scale)}" y="{F(midY * scale)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle">{EscapeXml(line.MidpointLabel)}</text>""");
-            sb.AppendLine();
+            return;
+        }
+
+        var (midX, midY) = ComputeLineMidpoint(line.Waypoints);
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""  <text x="{F(midX * scale)}" y="{F(midY * scale)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">{EscapeXml(line.MidpointLabel)}</text>""");
+        sb.AppendLine();
+    }
+
+    /// <summary>Recursively collects all <see cref="LayoutLine"/> nodes from a node tree.</summary>
+    /// <param name="nodes">Top-level nodes to walk.</param>
+    /// <returns>Every line node, including those nested inside boxes or bands.</returns>
+    private static IEnumerable<LayoutLine> CollectLines(IReadOnlyList<LayoutNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            switch (node)
+            {
+                case LayoutLine line:
+                    yield return line;
+                    break;
+
+                case LayoutBox box:
+                    foreach (var inner in CollectLines(box.Children))
+                    {
+                        yield return inner;
+                    }
+
+                    break;
+
+                case LayoutBand band:
+                    foreach (var inner in CollectLines(band.Children))
+                    {
+                        yield return inner;
+                    }
+
+                    break;
+
+                default:
+                    break;
+            }
         }
     }
 
@@ -641,23 +696,39 @@ public sealed class SvgRenderer : IRenderer
     }
 
     /// <summary>
-    /// Computes the geometric midpoint of an ordered waypoint list. For an odd count the
-    /// center element is returned; for an even count the average of the two center elements
-    /// is returned.
+    /// Computes the position for an edge's midpoint label: the midpoint of the longest segment of
+    /// the polyline. Long segments are the open runs between boxes, so the label is far less likely
+    /// to land on top of a box than the path's geometric midpoint would be.
     /// </summary>
     /// <param name="waypoints">Ordered waypoints; must contain at least one entry.</param>
-    /// <returns>The (X, Y) coordinates of the midpoint in logical pixels.</returns>
+    /// <returns>The (X, Y) coordinates of the label position in logical pixels.</returns>
     private static (double X, double Y) ComputeLineMidpoint(IReadOnlyList<Point2D> waypoints)
     {
-        var n = waypoints.Count;
-        if (n % 2 == 1)
+        if (waypoints.Count == 1)
         {
-            return (waypoints[n / 2].X, waypoints[n / 2].Y);
+            return (waypoints[0].X, waypoints[0].Y);
         }
 
-        var lo = waypoints[n / 2 - 1];
-        var hi = waypoints[n / 2];
-        return ((lo.X + hi.X) / 2.0, (lo.Y + hi.Y) / 2.0);
+        // Find the longest segment and return its midpoint.
+        var bestLength = -1.0;
+        var bestX = waypoints[0].X;
+        var bestY = waypoints[0].Y;
+        for (var i = 0; i < waypoints.Count - 1; i++)
+        {
+            var a = waypoints[i];
+            var b = waypoints[i + 1];
+            var dx = b.X - a.X;
+            var dy = b.Y - a.Y;
+            var length = (dx * dx) + (dy * dy);
+            if (length > bestLength)
+            {
+                bestLength = length;
+                bestX = (a.X + b.X) / 2.0;
+                bestY = (a.Y + b.Y) / 2.0;
+            }
+        }
+
+        return (bestX, bestY);
     }
 
     /// <summary>

@@ -18,6 +18,10 @@
     <marker id="arrowhead-bar" markerWidth="4" markerHeight="12" refX="2" refY="6" orient="auto">
       <line x1="2" y1="0" x2="2" y2="12" stroke="#1A1A2E" stroke-width="1.50"/>
     </marker>
+    <filter id="label-bg" x="-0.05" y="-0.05" width="1.1" height="1.1">
+      <feFlood flood-color="#FFFFFF"/>
+      <feComposite in="SourceGraphic" operator="over"/>
+    </filter>
   </defs>
   <rect x="12.00" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
   <text x="62.64" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>

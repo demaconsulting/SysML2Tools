@@ -103,9 +103,10 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         }
 
         // Ports and connectors.
-        AddPortsAndConnectors(parts, partRects, pairs, nodes);
+        var crossings = AddPortsAndConnectors(parts, partRects, pairs, nodes);
 
-        return new LayoutTree(containerWidth, containerHeight, nodes);
+        var warnings = LayoutWarnings.ForCrossings(context.ViewName, crossings);
+        return new LayoutTree(containerWidth, containerHeight, nodes) { Warnings = warnings };
     }
 
     /// <summary>
@@ -237,9 +238,10 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Assigns ports to each part box for its incident connections and routes a connector line for
-    /// each connection between the two ports, appending the port and line nodes to the output.
+    /// each connection between the two ports, appending the port and line nodes to the output and
+    /// returning the number of connectors that had to cross a box.
     /// </summary>
-    private static void AddPortsAndConnectors(
+    private static int AddPortsAndConnectors(
         IReadOnlyList<PartItem> parts,
         Rect[] partRects,
         IReadOnlyList<ConnPair> pairs,
@@ -276,6 +278,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         }
 
         // Route a connector line for each connection between its two ports.
+        var crossings = 0;
         for (var c = 0; c < pairs.Count; c++)
         {
             var (a, b) = (pairs[c].A, pairs[c].B);
@@ -294,21 +297,27 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                 }
             }
 
-            var waypoints = ChannelRouter.Route(
+            var route = ChannelRouter.RouteWithStatus(
                 new Point2D(portA.CentreX, portA.CentreY),
                 new Point2D(portB.CentreX, portB.CentreY),
                 obstacles,
                 ConnectorClearance,
                 sourceSide: portA.Side,
                 targetSide: portB.Side);
+            if (route.Crossed)
+            {
+                crossings++;
+            }
 
             nodes.Add(new LayoutLine(
-                Waypoints: waypoints,
+                Waypoints: route.Waypoints,
                 SourceArrowhead: ArrowheadStyle.None,
                 TargetArrowhead: ArrowheadStyle.None,
                 LineStyle: LineStyle.Solid,
                 MidpointLabel: null));
         }
+
+        return crossings;
     }
 
     /// <summary>Returns the centre point of a rectangle.</summary>

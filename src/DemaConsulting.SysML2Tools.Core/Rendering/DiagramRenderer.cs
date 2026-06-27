@@ -144,7 +144,7 @@ public sealed class DiagramRenderer
 
             // Derive a safe file name from the view name and add to results
             var fileName = SanitizeFileName(viewName) + renderer.DefaultExtension;
-            results.Add(new RenderOutput(fileName, renderer.MediaType, stream));
+            results.Add(new RenderOutput(fileName, renderer.MediaType, stream) { Warnings = layout.Warnings });
         }
 
         return results;

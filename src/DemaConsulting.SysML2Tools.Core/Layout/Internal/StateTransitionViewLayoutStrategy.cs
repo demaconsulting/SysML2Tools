@@ -29,7 +29,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     private const double CharWidthFactor = 0.62;
 
     /// <summary>Nominal spacing between adjacent state centres in the force layout.</summary>
-    private const double StateSpacing = 160.0;
+    private const double StateSpacing = 240.0;
 
     /// <summary>Clearance kept between routed transitions and state boxes.</summary>
     private const double TransitionClearance = 12.0;
@@ -92,9 +92,10 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         AddInitialMarker(stateRects[0], nodes);
 
         // Transition edges with guard labels.
-        AddTransitions(transitions, stateRects, nodes);
+        var crossings = AddTransitions(transitions, stateRects, nodes);
 
-        return new LayoutTree(force.Width, force.Height, nodes);
+        var warnings = LayoutWarnings.ForCrossings(context.ViewName, crossings);
+        return new LayoutTree(force.Width, force.Height, nodes) { Warnings = warnings };
     }
 
     /// <summary>Finds the definition with the most transitions to use as the diagram root.</summary>
@@ -236,12 +237,16 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             MidpointLabel: null));
     }
 
-    /// <summary>Adds transition edges (with guard labels) between state boxes.</summary>
-    private static void AddTransitions(
+    /// <summary>
+    /// Adds transition edges (with guard labels) between state boxes, returning the number of edges
+    /// that could not be routed without crossing a state box.
+    /// </summary>
+    private static int AddTransitions(
         IReadOnlyList<TransitionItem> transitions,
         Rect[] stateRects,
         List<LayoutNode> nodes)
     {
+        var crossings = 0;
         foreach (var transition in transitions)
         {
             var label = transition.Guard is { Length: > 0 } g ? $"[{g}]" : null;
@@ -266,14 +271,21 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
                 }
             }
 
-            var waypoints = ChannelRouter.Route(source, target, obstacles, TransitionClearance, sourceSide, targetSide);
+            var route = ChannelRouter.RouteWithStatus(source, target, obstacles, TransitionClearance, sourceSide, targetSide);
+            if (route.Crossed)
+            {
+                crossings++;
+            }
+
             nodes.Add(new LayoutLine(
-                Waypoints: waypoints,
+                Waypoints: route.Waypoints,
                 SourceArrowhead: ArrowheadStyle.None,
                 TargetArrowhead: ArrowheadStyle.Filled,
                 LineStyle: LineStyle.Solid,
                 MidpointLabel: label));
         }
+
+        return crossings;
     }
 
     /// <summary>Builds a small self-transition loop above the state box.</summary>

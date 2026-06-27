@@ -68,10 +68,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var (nodes, placed, canvasWidth, canvasHeight) = PlaceGroups(groups, theme, options.DepthLimit);
 
         // Route specialization edges between placed boxes.
-        var edges = BuildSpecializationEdges(defs, placed);
+        var (edges, crossings) = BuildSpecializationEdges(defs, placed);
         nodes.AddRange(edges);
 
-        return new LayoutTree(canvasWidth, canvasHeight, nodes);
+        var warnings = LayoutWarnings.ForCrossings(context.ViewName, crossings);
+        return new LayoutTree(canvasWidth, canvasHeight, nodes) { Warnings = warnings };
     }
 
     /// <summary>
@@ -388,10 +389,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             Children: [],
             Keyword: def.Keyword);
 
-    /// <summary>Builds specialization (generalization) edges between placed definition boxes.</summary>
-    private static List<LayoutNode> BuildSpecializationEdges(IReadOnlyList<DefBox> defs, IReadOnlyList<PlacedBox> placed)
+    /// <summary>
+    /// Builds specialization (generalization) edges between placed definition boxes, returning the
+    /// edges and the number that could not be routed without crossing a box.
+    /// </summary>
+    private static (List<LayoutNode> Edges, int Crossings) BuildSpecializationEdges(
+        IReadOnlyList<DefBox> defs,
+        IReadOnlyList<PlacedBox> placed)
     {
         var edges = new List<LayoutNode>();
+        var crossings = 0;
 
         // Index placed boxes by both qualified and simple name for supertype resolution.
         var byQualified = new Dictionary<string, PlacedBox>(StringComparer.Ordinal);
@@ -417,11 +424,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     continue;
                 }
 
-                edges.Add(RouteEdge(fromBox, target, placed));
+                var (edge, crossed) = RouteEdge(fromBox, target, placed);
+                edges.Add(edge);
+                if (crossed)
+                {
+                    crossings++;
+                }
             }
         }
 
-        return edges;
+        return (edges, crossings);
     }
 
     /// <summary>Resolves a supertype reference to a placed box by qualified then simple name.</summary>
@@ -450,8 +462,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         return false;
     }
 
-    /// <summary>Routes a single specialization edge from a subtype box to its supertype box.</summary>
-    private static LayoutLine RouteEdge(PlacedBox from, PlacedBox to, IReadOnlyList<PlacedBox> placed)
+    /// <summary>
+    /// Routes a single specialization edge from a subtype box to its supertype box, returning the
+    /// edge and whether it had to cross another box.
+    /// </summary>
+    private static (LayoutLine Edge, bool Crossed) RouteEdge(PlacedBox from, PlacedBox to, IReadOnlyList<PlacedBox> placed)
     {
         var fromCenter = new Point2D(from.X + (from.Width / 2.0), from.Y + (from.Height / 2.0));
         var toCenter = new Point2D(to.X + (to.Width / 2.0), to.Y + (to.Height / 2.0));
@@ -465,15 +480,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             .Select(b => new Rect(b.X, b.Y, b.Width, b.Height))
             .ToList();
 
-        var waypoints = ChannelRouter.Route(source, target, obstacles, EdgeClearance, sourceSide, targetSide);
+        var route = ChannelRouter.RouteWithStatus(source, target, obstacles, EdgeClearance, sourceSide, targetSide);
 
         // Generalization: open arrowhead points at the supertype (target) end.
-        return new LayoutLine(
-            Waypoints: waypoints,
+        var edge = new LayoutLine(
+            Waypoints: route.Waypoints,
             SourceArrowhead: ArrowheadStyle.None,
             TargetArrowhead: ArrowheadStyle.Open,
             LineStyle: LineStyle.Solid,
             MidpointLabel: null);
+        return (edge, route.Crossed);
     }
 
     /// <summary>

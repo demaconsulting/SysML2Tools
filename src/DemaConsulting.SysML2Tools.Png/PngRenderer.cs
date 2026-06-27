@@ -189,6 +189,13 @@ public sealed class PngRenderer : IRenderer
             RenderNode(canvas, node, options);
         }
 
+        // Final pass: draw every connector label on top of all wires and boxes, so that no later
+        // wire can draw over an earlier wire's label.
+        foreach (var line in CollectLines(layout.Nodes))
+        {
+            RenderLineLabel(canvas, line, options);
+        }
+
         // Encode as PNG and write to the output stream
         using var image = SKImage.FromBitmap(bitmap);
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
@@ -606,10 +613,62 @@ public sealed class PngRenderer : IRenderer
                 new ArrowheadPaint(strokeColor, (float)theme.StrokeWidth * scale, scale));
         }
 
-        // Draw the optional midpoint label with a white background for readability
-        if (line.MidpointLabel != null)
+        // Note: the midpoint label is intentionally NOT drawn here. It is drawn in a final pass
+        // (see RenderLineLabel) so that no later wire can draw over an earlier wire's label.
+    }
+
+    /// <summary>
+    /// Draws a line's optional midpoint label, called in a final pass after all wires and boxes are
+    /// drawn so labels are never drawn over by another wire.
+    /// </summary>
+    /// <param name="canvas">Canvas to draw on.</param>
+    /// <param name="line">The line whose label is rendered.</param>
+    /// <param name="options">Render options providing theme and scale.</param>
+    private static void RenderLineLabel(SKCanvas canvas, LayoutLine line, RenderOptions options)
+    {
+        if (line.MidpointLabel is null)
         {
-            RenderLineMidpointLabel(canvas, line.Waypoints, line.MidpointLabel, theme, scale, strokeColor);
+            return;
+        }
+
+        var theme = options.Theme;
+        var scale = (float)options.Scale;
+        var strokeColor = SKColor.Parse(theme.StrokeColor);
+        RenderLineMidpointLabel(canvas, line.Waypoints, line.MidpointLabel, theme, scale, strokeColor);
+    }
+
+    /// <summary>Recursively collects all <see cref="LayoutLine"/> nodes from a node tree.</summary>
+    /// <param name="nodes">Top-level nodes to walk.</param>
+    /// <returns>Every line node, including those nested inside boxes or bands.</returns>
+    private static IEnumerable<LayoutLine> CollectLines(IReadOnlyList<LayoutNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            switch (node)
+            {
+                case LayoutLine line:
+                    yield return line;
+                    break;
+
+                case LayoutBox box:
+                    foreach (var inner in CollectLines(box.Children))
+                    {
+                        yield return inner;
+                    }
+
+                    break;
+
+                case LayoutBand band:
+                    foreach (var inner in CollectLines(band.Children))
+                    {
+                        yield return inner;
+                    }
+
+                    break;
+
+                default:
+                    break;
+            }
         }
     }
 
@@ -810,25 +869,39 @@ public sealed class PngRenderer : IRenderer
     }
 
     /// <summary>
-    /// Computes the geometric midpoint of an ordered waypoint list. For an odd number of
-    /// waypoints the center element is returned; for an even count the average of the two
-    /// center elements is returned.
+    /// Computes the position for an edge's midpoint label: the midpoint of the longest segment of
+    /// the polyline. Long segments are the open runs between boxes, so the label is far less likely
+    /// to land on top of a box than the path's geometric midpoint would be.
     /// </summary>
     /// <param name="waypoints">Ordered waypoints; must contain at least one entry.</param>
-    /// <returns>The (X, Y) coordinates of the midpoint in logical pixels.</returns>
+    /// <returns>The (X, Y) coordinates of the label position in logical pixels.</returns>
     private static (double X, double Y) ComputeLineMidpoint(IReadOnlyList<Point2D> waypoints)
     {
-        var n = waypoints.Count;
-        if (n % 2 == 1)
+        if (waypoints.Count == 1)
         {
-            // Odd: middle element is the exact midpoint
-            return (waypoints[n / 2].X, waypoints[n / 2].Y);
+            return (waypoints[0].X, waypoints[0].Y);
         }
 
-        // Even: average the two center elements
-        var lo = waypoints[n / 2 - 1];
-        var hi = waypoints[n / 2];
-        return ((lo.X + hi.X) / 2.0, (lo.Y + hi.Y) / 2.0);
+        // Find the longest segment and return its midpoint.
+        var bestLength = -1.0;
+        var bestX = waypoints[0].X;
+        var bestY = waypoints[0].Y;
+        for (var i = 0; i < waypoints.Count - 1; i++)
+        {
+            var a = waypoints[i];
+            var b = waypoints[i + 1];
+            var dx = b.X - a.X;
+            var dy = b.Y - a.Y;
+            var length = (dx * dx) + (dy * dy);
+            if (length > bestLength)
+            {
+                bestLength = length;
+                bestX = (a.X + b.X) / 2.0;
+                bestY = (a.Y + b.Y) / 2.0;
+            }
+        }
+
+        return (bestX, bestY);
     }
 
     /// <summary>

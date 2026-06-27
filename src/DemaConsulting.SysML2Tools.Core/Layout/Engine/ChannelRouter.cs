@@ -14,6 +14,17 @@ namespace DemaConsulting.SysML2Tools.Layout.Engine;
 internal readonly record struct Rect(double X, double Y, double Width, double Height);
 
 /// <summary>
+/// The outcome of a routing request: the computed waypoints and whether the route had to cross an
+/// obstacle (i.e. no obstacle-free orthogonal path could be found).
+/// </summary>
+/// <param name="Waypoints">Ordered orthogonal waypoints from source to target.</param>
+/// <param name="Crossed">
+/// <see langword="true"/> when the router fell back to a path that may cross a box; this indicates a
+/// degenerate (over-dense or overlapping) placement worth surfacing as a layout warning.
+/// </param>
+internal readonly record struct RouteResult(IReadOnlyList<Point2D> Waypoints, bool Crossed);
+
+/// <summary>
 /// Routes orthogonal (right-angle) connector lines between two points while avoiding a set of
 /// rectangular obstacles.
 /// </summary>
@@ -73,31 +84,90 @@ internal static class ChannelRouter
         IReadOnlyList<Rect> obstacles,
         double clearance,
         PortSide? sourceSide = null,
+        PortSide? targetSide = null) =>
+        RouteWithStatus(source, target, obstacles, clearance, sourceSide, targetSide).Waypoints;
+
+    /// <summary>
+    /// Computes an orthogonal route and reports whether it had to cross an obstacle. The route is
+    /// attempted with progressively smaller clearances; only when no obstacle-free orthogonal path
+    /// exists at any clearance does it fall back to a (possibly crossing) L-shape, in which case
+    /// <see cref="RouteResult.Crossed"/> is <see langword="true"/>.
+    /// </summary>
+    /// <param name="source">Start point (typically an anchor on the source box boundary).</param>
+    /// <param name="target">End point (typically an anchor on the target box boundary).</param>
+    /// <param name="obstacles">Rectangles to route around, excluding the source and target boxes.</param>
+    /// <param name="clearance">Preferred gap between routed segments and obstacles.</param>
+    /// <param name="sourceSide">Optional box side the source anchor sits on (adds a perpendicular stub).</param>
+    /// <param name="targetSide">Optional box side the target anchor sits on (adds a perpendicular stub).</param>
+    /// <returns>The waypoints and a flag indicating whether the route crosses an obstacle.</returns>
+    public static RouteResult RouteWithStatus(
+        Point2D source,
+        Point2D target,
+        IReadOnlyList<Rect> obstacles,
+        double clearance,
+        PortSide? sourceSide = null,
         PortSide? targetSide = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(obstacles);
 
-        // Optionally step off each anchor's box edge with a perpendicular stub so connectors enter
-        // and leave boxes at right angles instead of sliding along the edge.
+        // Step off each anchor's box edge with a perpendicular stub so connectors enter and leave
+        // boxes at right angles instead of sliding along the edge.
         var stub = clearance + 8.0;
         var routeSource = StepOff(source, sourceSide, stub);
         var routeTarget = StepOff(target, targetSide, stub);
 
-        // Build the candidate grid coordinates from the (stubbed) endpoints and obstacle edges.
-        var xs = BuildAxis(routeSource.X, routeTarget.X, obstacles, clearance, horizontal: true);
-        var ys = BuildAxis(routeSource.Y, routeTarget.Y, obstacles, clearance, horizontal: false);
+        // Try to find an obstacle-free orthogonal path, preferring the largest clearance that works.
+        foreach (var c in ClearanceLevels(clearance))
+        {
+            var xs = BuildAxis(routeSource.X, routeTarget.X, obstacles, c, horizontal: true);
+            var ys = BuildAxis(routeSource.Y, routeTarget.Y, obstacles, c, horizontal: false);
 
-        var startI = IndexOf(xs, routeSource.X);
-        var startJ = IndexOf(ys, routeSource.Y);
-        var goalI = IndexOf(xs, routeTarget.X);
-        var goalJ = IndexOf(ys, routeTarget.Y);
+            var path = AStar(
+                xs, ys,
+                IndexOf(xs, routeSource.X), IndexOf(ys, routeSource.Y),
+                IndexOf(xs, routeTarget.X), IndexOf(ys, routeTarget.Y),
+                obstacles);
 
-        var path = AStar(xs, ys, startI, startJ, goalI, goalJ, obstacles)
-            ?? BuildFallback(routeSource, routeTarget);
+            if (path is not null)
+            {
+                return new RouteResult(Finalize(source, target, sourceSide, targetSide, path), Crossed: false);
+            }
+        }
 
-        // Re-attach the original anchor points outside the stubs.
+        // No clean path at any clearance: fall back to the least-bad L-shape (it may cross a box).
+        var fallback = BuildObstacleAwareFallback(routeSource, routeTarget, obstacles);
+        return new RouteResult(Finalize(source, target, sourceSide, targetSide, fallback), Crossed: true);
+    }
+
+    /// <summary>
+    /// Yields the clearances to attempt, from the requested value down to zero, so the router prefers
+    /// a spacious route but still hugs box edges (clearance 0) rather than crossing them.
+    /// </summary>
+    private static IEnumerable<double> ClearanceLevels(double clearance)
+    {
+        var seen = new HashSet<double>();
+        foreach (var c in new[] { clearance, clearance / 2.0, clearance / 4.0, 0.0 })
+        {
+            var v = Math.Max(0.0, c);
+            if (seen.Add(v))
+            {
+                yield return v;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Re-attaches the original anchor points outside their stubs and simplifies the path.
+    /// </summary>
+    private static IReadOnlyList<Point2D> Finalize(
+        Point2D source,
+        Point2D target,
+        PortSide? sourceSide,
+        PortSide? targetSide,
+        IReadOnlyList<Point2D> path)
+    {
         var full = new List<Point2D>();
         if (sourceSide is not null)
         {
@@ -388,9 +458,14 @@ internal static class ChannelRouter
     }
 
     /// <summary>
-    /// Builds a simple L-shaped fallback route used when A* cannot find an obstacle-free path.
+    /// Builds the least-bad L-shaped fallback route used when A* cannot find an obstacle-free path:
+    /// it tries the horizontal-first and vertical-first elbows and returns whichever crosses fewer
+    /// obstacles.
     /// </summary>
-    private static IReadOnlyList<Point2D> BuildFallback(Point2D source, Point2D target)
+    private static IReadOnlyList<Point2D> BuildObstacleAwareFallback(
+        Point2D source,
+        Point2D target,
+        IReadOnlyList<Rect> obstacles)
     {
         // Aligned endpoints need only a straight segment.
         if (Math.Abs(source.X - target.X) < 1e-9 || Math.Abs(source.Y - target.Y) < 1e-9)
@@ -398,7 +473,44 @@ internal static class ChannelRouter
             return [source, target];
         }
 
-        // Otherwise route horizontally then vertically through the elbow point.
-        return [source, new Point2D(target.X, source.Y), target];
+        // Two candidate elbows: horizontal-first and vertical-first.
+        var horizontalFirst = new List<Point2D> { source, new(target.X, source.Y), target };
+        var verticalFirst = new List<Point2D> { source, new(source.X, target.Y), target };
+
+        var hCrossings = CountCrossings(horizontalFirst, obstacles);
+        var vCrossings = CountCrossings(verticalFirst, obstacles);
+
+        return hCrossings <= vCrossings ? horizontalFirst : verticalFirst;
+    }
+
+    /// <summary>Counts how many (segment, obstacle) pairs along a path cross an obstacle interior.</summary>
+    private static int CountCrossings(IReadOnlyList<Point2D> path, IReadOnlyList<Rect> obstacles)
+    {
+        var count = 0;
+        for (var i = 0; i < path.Count - 1; i++)
+        {
+            var a = path[i];
+            var b = path[i + 1];
+            count += obstacles.Count(r => SegmentCrossesRect(a, b, r));
+        }
+
+        return count;
+    }
+
+    /// <summary>Returns true when an axis-aligned segment passes through a rectangle's strict interior.</summary>
+    private static bool SegmentCrossesRect(Point2D a, Point2D b, Rect r)
+    {
+        if (Math.Abs(a.Y - b.Y) < 1e-9)
+        {
+            var y = a.Y;
+            var xa = Math.Min(a.X, b.X);
+            var xb = Math.Max(a.X, b.X);
+            return r.Y < y && y < r.Y + r.Height && Math.Max(xa, r.X) < Math.Min(xb, r.X + r.Width);
+        }
+
+        var x = a.X;
+        var ya = Math.Min(a.Y, b.Y);
+        var yb = Math.Max(a.Y, b.Y);
+        return r.X < x && x < r.X + r.Width && Math.Max(ya, r.Y) < Math.Min(yb, r.Y + r.Height);
     }
 }
