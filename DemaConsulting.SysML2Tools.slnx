@@ -8,7 +8,6 @@
     <Project Path="src/DemaConsulting.SysML2Tools.Tool/DemaConsulting.SysML2Tools.Tool.csproj" />
   </Folder>
   <Folder Name="/tools/">
-    <Project Path="src/Tools/StdlibGen/StdlibGen.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/DemaConsulting.SysML2Tools.Tests/DemaConsulting.SysML2Tools.Tests.csproj" />

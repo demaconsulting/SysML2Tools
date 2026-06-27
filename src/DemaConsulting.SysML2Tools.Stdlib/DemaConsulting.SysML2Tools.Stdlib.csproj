@@ -41,7 +41,10 @@
     <SBOMPackageSupplier>Organization: $(Company)</SBOMPackageSupplier>
   </PropertyGroup>
 
-  <!-- StdlibGen tool: referenced only for build ordering, not linked into Stdlib.dll -->
+  <!-- StdlibGen build-time tool: must complete before Stdlib compiles.
+       ReferenceOutputAssembly=false: do not link StdlibGen into Stdlib.dll.
+       SkipGetTargetFrameworkProperties=true: suppress TFM compatibility checks
+       (StdlibGen targets net10.0; Stdlib also targets net8.0 and net9.0). -->
   <ItemGroup>
     <ProjectReference Include="..\DemaConsulting.SysML2Tools.Language\DemaConsulting.SysML2Tools.Language.csproj" />
   </ItemGroup>
@@ -52,21 +55,16 @@
     <StdlibSourceFiles Include="$(MSBuildThisFileDirectory)Stdlib\**\*.kerml" />
   </ItemGroup>
 
-  <!-- Generate stdlib.bin once per build into a shared (non-TFM-specific) location.
-       Runs in the outer (cross-targeting) build before inner TFM builds are dispatched,
-       preventing parallel TFM builds from racing to write the same StdlibGen output.
-       Also runs for single-TFM builds (e.g. dotnet build -f net9.0) via the net9.0 condition.
-       Skipped entirely when outputs are already up to date (incremental build). -->
+  <!-- Generate stdlib.bin once in the outer (cross-targeting) build before inner
+       TFM builds are dispatched. Uses <Exec> (not <MSBuild>) to build StdlibGen
+       in a child process so it never competes for MSBuild worker nodes.
+       Skipped when outputs are already up to date (incremental build). -->
   <Target Name="GenerateStdlibBin"
           BeforeTargets="DispatchToInnerBuilds;PrepareForBuild"
           Condition="'$(TargetFrameworks)' != '' OR '$(TargetFramework)' == 'net10.0'"
           Inputs="@(StdlibSourceFiles)"
           Outputs="$(BaseIntermediateOutputPath)stdlib.bin">
-    <!-- Rebuild StdlibGen if needed, then execute it -->
-    <MSBuild Projects="..\Tools\StdlibGen\StdlibGen.csproj"
-             Targets="Build"
-             Properties="Configuration=$(Configuration);TargetFramework=net10.0"
-             BuildInParallel="false" />
+    <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\Tools\StdlibGen\StdlibGen.csproj&quot; -c $(Configuration) -f net10.0 --no-restore -v:q" />
     <PropertyGroup>
       <_StdlibGenDll>$(MSBuildThisFileDirectory)..\Tools\StdlibGen\bin\$(Configuration)\net10.0\StdlibGen.dll</_StdlibGenDll>
     </PropertyGroup>
@@ -74,8 +72,7 @@
   </Target>
 
   <!-- Embed stdlib.bin as a manifest resource in every TFM inner build.
-       The file is guaranteed to exist because GenerateStdlibBin ran in the
-       outer build (DispatchToInnerBuilds) before any inner TFM build starts. -->
+       Guaranteed to exist because GenerateStdlibBin ran in the outer build. -->
   <Target Name="EmbedStdlibBin" BeforeTargets="PrepareForBuild">
     <ItemGroup>
       <EmbeddedResource Include="$(BaseIntermediateOutputPath)stdlib.bin">
