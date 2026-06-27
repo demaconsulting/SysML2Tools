@@ -246,8 +246,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         int depthLimit)
     {
         var margin = 2.0 * theme.LabelPadding;
-        var hGap = 3.0 * theme.LabelPadding;
-        var vGap = 2.0 * theme.LabelPadding;
+        var hGap = 4.0 * theme.LabelPadding;
+
+        // Vertical gap between packed rows. Kept generous so specialization edges between
+        // vertically-adjacent boxes have room for their arrowheads and a visible line segment.
+        var vGap = 5.0 * theme.LabelPadding;
 
         // Reserve the full title area (package keyword + name) above a folder's contents so the
         // label never overlaps the first child box. The renderer draws the smaller tab notch within.
@@ -453,8 +456,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var fromCenter = new Point2D(from.X + (from.Width / 2.0), from.Y + (from.Height / 2.0));
         var toCenter = new Point2D(to.X + (to.Width / 2.0), to.Y + (to.Height / 2.0));
 
-        var source = AnchorToward(from, toCenter);
-        var target = AnchorToward(to, fromCenter);
+        var (source, sourceSide) = AnchorToward(from, toCenter);
+        var (target, targetSide) = AnchorToward(to, fromCenter);
 
         // Obstacles are all boxes except the two endpoints of this edge.
         var obstacles = placed
@@ -462,7 +465,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             .Select(b => new Rect(b.X, b.Y, b.Width, b.Height))
             .ToList();
 
-        var waypoints = ChannelRouter.Route(source, target, obstacles, EdgeClearance);
+        var waypoints = ChannelRouter.Route(source, target, obstacles, EdgeClearance, sourceSide, targetSide);
 
         // Generalization: open arrowhead points at the supertype (target) end.
         return new LayoutLine(
@@ -473,8 +476,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             MidpointLabel: null);
     }
 
-    /// <summary>Returns the midpoint of the box side whose outward normal best points at the target.</summary>
-    private static Point2D AnchorToward(PlacedBox box, Point2D target)
+    /// <summary>
+    /// Returns the midpoint of the box side whose outward normal best points at the target, along
+    /// with that side.
+    /// </summary>
+    private static (Point2D Point, PortSide Side) AnchorToward(PlacedBox box, Point2D target)
     {
         var cx = box.X + (box.Width / 2.0);
         var cy = box.Y + (box.Height / 2.0);
@@ -485,14 +491,14 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         {
             // Left or right side.
             return dx >= 0
-                ? new Point2D(box.X + box.Width, cy)
-                : new Point2D(box.X, cy);
+                ? (new Point2D(box.X + box.Width, cy), PortSide.Right)
+                : (new Point2D(box.X, cy), PortSide.Left);
         }
 
         // Top or bottom side.
         return dy >= 0
-            ? new Point2D(cx, box.Y + box.Height)
-            : new Point2D(cx, box.Y);
+            ? (new Point2D(cx, box.Y + box.Height), PortSide.Bottom)
+            : (new Point2D(cx, box.Y), PortSide.Top);
     }
 
     /// <summary>Computes the packing width used to lay out the definitions within a package folder.</summary>

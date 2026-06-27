@@ -58,6 +58,11 @@ internal static class ChannelRouter
     /// Rectangles to route around, excluding the boxes that own the source and target anchors.
     /// </param>
     /// <param name="clearance">Minimum gap kept between routed segments and obstacles.</param>
+    /// <param name="sourceSide">
+    /// Optional box side the source anchor sits on. When given, the route leaves the source with a
+    /// short stub perpendicular to that side before routing freely, so connectors exit boxes cleanly.
+    /// </param>
+    /// <param name="targetSide">Optional box side the target anchor sits on; see <paramref name="sourceSide"/>.</param>
     /// <returns>
     /// An ordered list of waypoints beginning with <paramref name="source"/> and ending with
     /// <paramref name="target"/>. Consecutive waypoints always share an X or a Y coordinate.
@@ -66,30 +71,61 @@ internal static class ChannelRouter
         Point2D source,
         Point2D target,
         IReadOnlyList<Rect> obstacles,
-        double clearance)
+        double clearance,
+        PortSide? sourceSide = null,
+        PortSide? targetSide = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(obstacles);
 
-        // Build the candidate grid coordinates from endpoints and clearance-offset obstacle edges.
-        var xs = BuildAxis(source.X, target.X, obstacles, clearance, horizontal: true);
-        var ys = BuildAxis(source.Y, target.Y, obstacles, clearance, horizontal: false);
+        // Optionally step off each anchor's box edge with a perpendicular stub so connectors enter
+        // and leave boxes at right angles instead of sliding along the edge.
+        var stub = clearance + 8.0;
+        var routeSource = StepOff(source, sourceSide, stub);
+        var routeTarget = StepOff(target, targetSide, stub);
 
-        var startI = IndexOf(xs, source.X);
-        var startJ = IndexOf(ys, source.Y);
-        var goalI = IndexOf(xs, target.X);
-        var goalJ = IndexOf(ys, target.Y);
+        // Build the candidate grid coordinates from the (stubbed) endpoints and obstacle edges.
+        var xs = BuildAxis(routeSource.X, routeTarget.X, obstacles, clearance, horizontal: true);
+        var ys = BuildAxis(routeSource.Y, routeTarget.Y, obstacles, clearance, horizontal: false);
 
-        var path = AStar(xs, ys, startI, startJ, goalI, goalJ, obstacles);
-        if (path is null)
+        var startI = IndexOf(xs, routeSource.X);
+        var startJ = IndexOf(ys, routeSource.Y);
+        var goalI = IndexOf(xs, routeTarget.X);
+        var goalJ = IndexOf(ys, routeTarget.Y);
+
+        var path = AStar(xs, ys, startI, startJ, goalI, goalJ, obstacles)
+            ?? BuildFallback(routeSource, routeTarget);
+
+        // Re-attach the original anchor points outside the stubs.
+        var full = new List<Point2D>();
+        if (sourceSide is not null)
         {
-            // No obstacle-free route found: fall back to an L-shaped path.
-            return BuildFallback(source, target);
+            full.Add(source);
         }
 
-        return Simplify(path);
+        full.AddRange(path);
+
+        if (targetSide is not null)
+        {
+            full.Add(target);
+        }
+
+        return Simplify(full);
     }
+
+    /// <summary>
+    /// Returns the point offset from <paramref name="anchor"/> by <paramref name="distance"/> in the
+    /// outward-normal direction of <paramref name="side"/>, or the anchor unchanged when no side.
+    /// </summary>
+    private static Point2D StepOff(Point2D anchor, PortSide? side, double distance) => side switch
+    {
+        PortSide.Top => new Point2D(anchor.X, anchor.Y - distance),
+        PortSide.Bottom => new Point2D(anchor.X, anchor.Y + distance),
+        PortSide.Left => new Point2D(anchor.X - distance, anchor.Y),
+        PortSide.Right => new Point2D(anchor.X + distance, anchor.Y),
+        _ => anchor,
+    };
 
     /// <summary>
     /// Builds the sorted, de-duplicated set of grid coordinates for one axis: the two endpoint
@@ -323,16 +359,31 @@ internal static class ChannelRouter
             var cur = points[k];
             var next = points[k + 1];
 
-            // Drop the middle point when prev, cur, next are collinear (all share X or all share Y).
-            var collinearX = Math.Abs(prev.X - cur.X) < 1e-9 && Math.Abs(cur.X - next.X) < 1e-9;
-            var collinearY = Math.Abs(prev.Y - cur.Y) < 1e-9 && Math.Abs(cur.Y - next.Y) < 1e-9;
+            // Drop exact duplicates of the previous point (stubs can introduce these).
+            if (Math.Abs(prev.X - cur.X) < 1e-9 && Math.Abs(prev.Y - cur.Y) < 1e-9)
+            {
+                continue;
+            }
+
+            // Drop the middle point only when prev→cur→next is collinear AND monotonic (same
+            // direction). A direction reversal (U-turn) on the same axis must be preserved, e.g. a
+            // perpendicular stub that briefly overshoots before entering a box.
+            var collinearX = Math.Abs(prev.X - cur.X) < 1e-9 && Math.Abs(cur.X - next.X) < 1e-9 &&
+                             (cur.Y - prev.Y) * (next.Y - cur.Y) >= 0;
+            var collinearY = Math.Abs(prev.Y - cur.Y) < 1e-9 && Math.Abs(cur.Y - next.Y) < 1e-9 &&
+                             (cur.X - prev.X) * (next.X - cur.X) >= 0;
             if (!collinearX && !collinearY)
             {
                 result.Add(cur);
             }
         }
 
-        result.Add(points[^1]);
+        // Append the final point unless it duplicates the current last point.
+        if (Math.Abs(result[^1].X - points[^1].X) >= 1e-9 || Math.Abs(result[^1].Y - points[^1].Y) >= 1e-9)
+        {
+            result.Add(points[^1]);
+        }
+
         return result;
     }
 

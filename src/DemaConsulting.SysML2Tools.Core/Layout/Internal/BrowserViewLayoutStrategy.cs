@@ -113,7 +113,7 @@ internal sealed class BrowserViewLayoutStrategy : ILayoutStrategy
         var boxWidth = (label.Length * theme.FontSizeBody * CharWidthFactor) + (4.0 * theme.LabelPadding);
         var centreY = y + (rowHeight / 2.0);
 
-        // Connector line from the parent's vertical stem to this row.
+        // Connector line from the parent's bottom-left stem down to this row, then across to the box.
         if (parentCentreY is { } pcy)
         {
             nodes.Add(new LayoutLine(
@@ -138,11 +138,13 @@ internal sealed class BrowserViewLayoutStrategy : ILayoutStrategy
         maxRight = Math.Max(maxRight, x + boxWidth);
         cursorY += rowHeight + (theme.LabelPadding / 2.0);
 
-        // Children hang from a vertical stem dropping from this row's left edge.
+        // Children hang from a vertical stem that drops from this row's bottom-left, so it never
+        // crosses over this node's own box or text.
         var stemX = x + (Indent / 2.0);
+        var stemTopY = y + rowHeight;
         foreach (var child in node.Children)
         {
-            EmitNode(child, depth + 1, theme, rowHeight, nodes, ref cursorY, ref maxRight, centreY, stemX);
+            EmitNode(child, depth + 1, theme, rowHeight, nodes, ref cursorY, ref maxRight, stemTopY, stemX);
         }
     }
 

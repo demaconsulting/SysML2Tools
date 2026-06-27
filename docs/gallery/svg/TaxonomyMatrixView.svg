@@ -1,0 +1,472 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1543.20" height="384.00" viewBox="0 0 1543.20 384.00">
+  <defs>
+    <marker id="arrowhead-open" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-filled" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-filled-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-circle" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <circle cx="5" cy="5" r="4" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-bar" markerWidth="4" markerHeight="12" refX="2" refY="6" orient="auto">
+      <line x1="2" y1="0" x2="2" y2="12" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+  </defs>
+  <rect x="12.00" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="62.64" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="113.28" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">AirVehicle</text>
+  <rect x="214.56" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Airplane</text>
+  <rect x="315.84" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Boat</text>
+  <rect x="417.12" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Car</text>
+  <rect x="518.40" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Helicopter</text>
+  <rect x="619.68" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">LandVehicle</text>
+  <rect x="720.96" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Motorcycle</text>
+  <rect x="822.24" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">PickupTruck</text>
+  <rect x="923.52" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Sedan</text>
+  <rect x="1024.80" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">SportsCar</text>
+  <rect x="1126.08" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Submarine</text>
+  <rect x="1227.36" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Truck</text>
+  <rect x="1328.64" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Vehicle</text>
+  <rect x="1429.92" y="12.00" width="101.28" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">WaterVehicle</text>
+  <rect x="12.00" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">AirVehicle</text>
+  <rect x="113.28" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="214.56" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="315.84" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="417.12" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="518.40" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="619.68" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="720.96" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="822.24" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="923.52" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1024.80" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1126.08" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1227.36" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1328.64" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="1429.92" y="36.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="12.00" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Airplane</text>
+  <rect x="113.28" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="214.56" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="315.84" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="417.12" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="518.40" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="619.68" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="720.96" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="822.24" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="923.52" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1024.80" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1126.08" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1227.36" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1328.64" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1429.92" y="60.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="12.00" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Boat</text>
+  <rect x="113.28" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="214.56" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="315.84" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="417.12" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="518.40" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="619.68" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="720.96" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="822.24" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="923.52" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1024.80" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1126.08" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1227.36" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1328.64" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1429.92" y="84.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="12.00" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Car</text>
+  <rect x="113.28" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="214.56" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="315.84" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="417.12" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="518.40" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="619.68" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="720.96" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="822.24" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="923.52" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1024.80" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1126.08" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1227.36" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1328.64" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1429.92" y="108.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="12.00" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Helicopter</text>
+  <rect x="113.28" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="214.56" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="315.84" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="417.12" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="518.40" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="619.68" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="720.96" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="822.24" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="923.52" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1024.80" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1126.08" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1227.36" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1328.64" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1429.92" y="132.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="144.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="12.00" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">LandVehicle</text>
+  <rect x="113.28" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="214.56" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="315.84" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="417.12" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="518.40" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="619.68" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="720.96" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="822.24" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="923.52" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1024.80" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1126.08" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1227.36" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1328.64" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="1429.92" y="156.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="168.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="12.00" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Motorcycle</text>
+  <rect x="113.28" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="214.56" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="315.84" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="417.12" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="518.40" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="619.68" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="720.96" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="822.24" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="923.52" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1024.80" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1126.08" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1227.36" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1328.64" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1429.92" y="180.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="192.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="12.00" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">PickupTruck</text>
+  <rect x="113.28" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="214.56" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="315.84" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="417.12" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="518.40" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="619.68" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="720.96" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="822.24" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="923.52" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1024.80" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1126.08" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1227.36" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="1328.64" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1429.92" y="204.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="216.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="12.00" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Sedan</text>
+  <rect x="113.28" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="214.56" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="315.84" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="417.12" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="518.40" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="619.68" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="720.96" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="822.24" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="923.52" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1024.80" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1126.08" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1227.36" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1328.64" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1429.92" y="228.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="240.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="12.00" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">SportsCar</text>
+  <rect x="113.28" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="214.56" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="315.84" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="417.12" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="518.40" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="619.68" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="720.96" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="822.24" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="923.52" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1024.80" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1126.08" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1227.36" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1328.64" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1429.92" y="252.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="264.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="12.00" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Submarine</text>
+  <rect x="113.28" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="214.56" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="315.84" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="417.12" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="518.40" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="619.68" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="720.96" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="822.24" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="923.52" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1024.80" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1126.08" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1227.36" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1328.64" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1429.92" y="276.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="288.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="12.00" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Truck</text>
+  <rect x="113.28" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="214.56" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="315.84" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="417.12" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="518.40" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="619.68" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="720.96" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="822.24" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="923.52" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1024.80" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1126.08" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1227.36" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1328.64" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1429.92" y="300.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="312.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="12.00" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Vehicle</text>
+  <rect x="113.28" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="214.56" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="315.84" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="417.12" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="518.40" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="619.68" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="720.96" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="822.24" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="923.52" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1024.80" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1126.08" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1227.36" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1328.64" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1429.92" y="324.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="336.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="12.00" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">WaterVehicle</text>
+  <rect x="113.28" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.92" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="214.56" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="265.20" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="315.84" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="366.48" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="417.12" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="467.76" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="518.40" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="569.04" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="619.68" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="670.32" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="720.96" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="771.60" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="822.24" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="872.88" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="923.52" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="974.16" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1024.80" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1075.44" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1126.08" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1176.72" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1227.36" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1278.00" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="1328.64" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1379.28" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="1429.92" y="348.00" width="101.28" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1480.56" y="360.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+</svg>

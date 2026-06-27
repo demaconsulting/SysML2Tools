@@ -86,6 +86,51 @@ public sealed class ChannelRouterTests
     }
 
     /// <summary>
+    ///     When a source side is given, the route leaves the source with a perpendicular stub: the
+    ///     first segment runs in the side's outward direction.
+    /// </summary>
+    [Fact]
+    public void Route_WithSourceSide_LeavesPerpendicular()
+    {
+        // Arrange: source on the right side of its box, target up and to the right
+        var source = new Point2D(100, 100);
+        var target = new Point2D(200, 20);
+
+        // Act: the source anchor is on the Right side, so the first move must go right (+x)
+        var path = ChannelRouter.Route(source, target, [], clearance: 10, sourceSide: PortSide.Right);
+
+        // Assert: first segment is horizontal and heads to the right (outward from the Right side)
+        Assert.True(path.Count >= 2);
+        Assert.Equal(source.X, path[0].X, 6);
+        Assert.Equal(source.Y, path[0].Y, 6);
+        Assert.Equal(path[0].Y, path[1].Y, 6); // horizontal first segment
+        Assert.True(path[1].X > path[0].X, "First segment should leave the Right side going right.");
+        AssertAllSegmentsOrthogonal(path);
+    }
+
+    /// <summary>
+    ///     When a target side is given, the route enters the target with a perpendicular stub: the
+    ///     last segment runs into the side's inward direction.
+    /// </summary>
+    [Fact]
+    public void Route_WithTargetSide_EntersPerpendicular()
+    {
+        // Arrange: target on the top side of its box, source below-left
+        var source = new Point2D(20, 200);
+        var target = new Point2D(150, 100);
+
+        // Act: the target anchor is on the Top side, so the last move must arrive going down (+y)
+        var path = ChannelRouter.Route(source, target, [], clearance: 10, targetSide: PortSide.Top);
+
+        // Assert: last segment is vertical and arrives from above (entering the Top side)
+        Assert.Equal(target.X, path[^1].X, 6);
+        Assert.Equal(target.Y, path[^1].Y, 6);
+        Assert.Equal(path[^1].X, path[^2].X, 6); // vertical last segment
+        Assert.True(path[^2].Y < path[^1].Y, "Last segment should enter the Top side from above.");
+        AssertAllSegmentsOrthogonal(path);
+    }
+
+    /// <summary>
     ///     Asserts that the path begins at the expected source and ends at the expected target.
     /// </summary>
     private static void AssertEndpoints(IReadOnlyList<Point2D> path, Point2D source, Point2D target)

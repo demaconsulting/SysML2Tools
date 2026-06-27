@@ -373,15 +373,40 @@ public sealed class SvgRenderer : IRenderer
             cursorY += theme.FontSizeBody + theme.LabelPadding;
         }
 
-        // Bold name label
+        // Bold name label — only constrain width when the text would actually overflow the box,
+        // so short labels render at their natural size instead of being stretched to fill.
         if (box.Label != null)
         {
             var textY = (cursorY + theme.FontSizeTitle / 2.0) * scale;
-            var availableWidth = (box.Width - 2 * theme.LabelPadding) * scale;
+            var availableWidth = box.Width - (2 * theme.LabelPadding);
+            var fit = FitTextLength(box.Label, theme.FontSizeTitle, availableWidth, scale);
             sb.Append(CultureInfo.InvariantCulture,
-                $"""  <text x="{F(centerX)}" y="{F(textY)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeTitle * scale)}" font-weight="bold" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle" textLength="{F(availableWidth)}" lengthAdjust="spacingAndGlyphs">{EscapeXml(box.Label)}</text>""");
+                $"""  <text x="{F(centerX)}" y="{F(textY)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeTitle * scale)}" font-weight="bold" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle"{fit}>{EscapeXml(box.Label)}</text>""");
             sb.AppendLine();
         }
+    }
+
+    /// <summary>
+    /// Returns an SVG <c>textLength</c>/<c>lengthAdjust</c> attribute fragment that constrains text
+    /// to <paramref name="availableWidth"/> only when the text's estimated natural width exceeds it;
+    /// otherwise returns an empty string so the text renders at its natural width (no stretching).
+    /// </summary>
+    /// <param name="text">The text to be rendered.</param>
+    /// <param name="fontSize">Unscaled font size of the text.</param>
+    /// <param name="availableWidth">Unscaled width available for the text.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    /// <returns>A leading-space attribute fragment, or an empty string when no constraint is needed.</returns>
+    private static string FitTextLength(string text, double fontSize, double availableWidth, double scale)
+    {
+        // Rough average glyph-width estimate; matches the layout engine's sizing factor.
+        const double GlyphWidthFactor = 0.6;
+        var estimatedWidth = text.Length * fontSize * GlyphWidthFactor;
+        if (availableWidth <= 0 || estimatedWidth <= availableWidth)
+        {
+            return string.Empty;
+        }
+
+        return $""" textLength="{F(availableWidth * scale)}" lengthAdjust="spacingAndGlyphs" """.TrimEnd();
     }
 
     /// <summary>
@@ -493,10 +518,20 @@ public sealed class SvgRenderer : IRenderer
             $"""  <path d="{pathData}" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"{markerStart}{markerEnd}{dashArray}/>""");
         sb.AppendLine();
 
-        // Draw the optional midpoint label as a centered text element
+        // Draw the optional midpoint label as a centered text element on a white background so the
+        // line does not strike through the text (mirrors the PNG renderer).
         if (line.MidpointLabel != null)
         {
             var (midX, midY) = ComputeLineMidpoint(line.Waypoints);
+            var fontSize = theme.FontSizeBody;
+            var estWidth = (line.MidpointLabel.Length * fontSize * 0.6) + theme.LabelPadding;
+            var bgX = (midX * scale) - (estWidth * scale / 2.0);
+            var bgY = (midY - (fontSize / 2.0) - 1.0) * scale;
+            var bgW = estWidth * scale;
+            var bgH = (fontSize + 2.0) * scale;
+            sb.Append(CultureInfo.InvariantCulture,
+                $"""  <rect x="{F(bgX)}" y="{F(bgY)}" width="{F(bgW)}" height="{F(bgH)}" fill="#FFFFFF"/>""");
+            sb.AppendLine();
             sb.Append(CultureInfo.InvariantCulture,
                 $"""  <text x="{F(midX * scale)}" y="{F(midY * scale)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle">{EscapeXml(line.MidpointLabel)}</text>""");
             sb.AppendLine();
@@ -645,12 +680,12 @@ public sealed class SvgRenderer : IRenderer
         };
         var fontWeight = label.Weight == FontWeight.Bold ? "bold" : "normal";
         var fontStyle = label.Style == FontStyle.Italic ? "italic" : "normal";
-        var textLengthAttr = label.MaxWidth > 0
-            ? $""" textLength="{F(label.MaxWidth * scale)}" lengthAdjust="spacingAndGlyphs" """
-            : " ";
+
+        // Only constrain width when the text would overflow MaxWidth (no stretching of short text).
+        var textLengthAttr = FitTextLength(label.Text, label.FontSize, label.MaxWidth, scale);
 
         sb.Append(CultureInfo.InvariantCulture,
-            $"""  <text x="{F(x)}" y="{F(y)}" font-family="Noto Sans, sans-serif" font-size="{F(label.FontSize * scale)}" font-weight="{fontWeight}" font-style="{fontStyle}" fill="{theme.StrokeColor}" text-anchor="{anchor}" dominant-baseline="middle"{textLengthAttr.TrimEnd()}>{EscapeXml(label.Text)}</text>""");
+            $"""  <text x="{F(x)}" y="{F(y)}" font-family="Noto Sans, sans-serif" font-size="{F(label.FontSize * scale)}" font-weight="{fontWeight}" font-style="{fontStyle}" fill="{theme.StrokeColor}" text-anchor="{anchor}" dominant-baseline="middle"{textLengthAttr}>{EscapeXml(label.Text)}</text>""");
         sb.AppendLine();
     }
 

@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="526.13" height="503.61" viewBox="0 0 526.13 503.61">
+  <defs>
+    <marker id="arrowhead-open" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-filled" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-filled-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-circle" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <circle cx="5" cy="5" r="4" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-bar" markerWidth="4" markerHeight="12" refX="2" refY="6" orient="auto">
+      <line x1="2" y1="0" x2="2" y2="12" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+  </defs>
+  <rect x="231.83" y="42.00" width="100.00" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="281.83" y="54.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
+  <text x="281.83" y="73.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">idle</text>
+  <rect x="200.80" y="407.88" width="128.16" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="264.88" y="419.88" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
+  <text x="264.88" y="438.88" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">doorsOpening</text>
+  <rect x="382.01" y="411.61" width="102.12" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="433.07" y="423.61" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
+  <text x="433.07" y="442.61" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">doorsOpen</text>
+  <rect x="233.24" y="267.80" width="128.16" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="297.32" y="279.80" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
+  <text x="297.32" y="298.80" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">doorsClosing</text>
+  <rect x="132.00" y="169.80" width="100.00" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="182.00" y="181.80" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
+  <text x="182.00" y="200.80" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">movingUp</text>
+  <rect x="42.00" y="404.12" width="110.80" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="97.40" y="416.12" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
+  <text x="97.40" y="435.12" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">movingDown</text>
+  <circle cx="281.83" cy="14.00" r="9.00" fill="#1A1A2E"/>
+  <path d="M 281.83 23.00 L 281.83 42.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 281.83 92.00 L 281.83 243.80 A 4.00 4.00 0 0 0 285.83 247.80 L 293.32 247.80 A 4.00 4.00 0 0 1 297.32 251.80 L 297.32 267.80" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <rect x="236.17" y="240.80" width="106.80" height="14.00" fill="#FFFFFF"/>
+  <text x="289.57" y="247.80" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">[callReceived]</text>
+  <path d="M 233.24 292.80 L 217.24 292.80 A 4.00 4.00 0 0 0 217.24 292.80 L 248.00 292.80 A 4.00 4.00 0 0 0 252.00 288.80 L 252.00 198.80 A 4.00 4.00 0 0 0 248.00 194.80 L 232.00 194.80" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <rect x="202.20" y="285.80" width="99.60" height="14.00" fill="#FFFFFF"/>
+  <text x="252.00" y="292.80" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">[doorsClosed]</text>
+  <path d="M 182.00 219.80 L 182.00 383.88 A 4.00 4.00 0 0 0 186.00 387.88 L 260.88 387.88 A 4.00 4.00 0 0 1 264.88 391.88 L 264.88 407.88" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <rect x="188.04" y="380.88" width="70.80" height="14.00" fill="#FFFFFF"/>
+  <text x="223.44" y="387.88" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">[atFloor]</text>
+  <path d="M 152.80 429.12 L 178.92 429.12 A 1.88 1.88 0 0 1 180.80 431.00 L 180.80 431.00 A 1.88 1.88 0 0 0 182.68 432.88 L 200.80 432.88" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <rect x="145.40" y="424.00" width="70.80" height="14.00" fill="#FFFFFF"/>
+  <text x="180.80" y="431.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">[atFloor]</text>
+  <path d="M 328.96 432.88 L 360.14 432.88 A 1.86 1.86 0 0 1 362.01 434.75 L 362.01 434.75 A 1.86 1.86 0 0 0 363.87 436.61 L 382.01 436.61" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <rect x="308.61" y="427.75" width="106.80" height="14.00" fill="#FFFFFF"/>
+  <text x="362.01" y="434.75" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">[doorsAreOpen]</text>
+  <path d="M 433.07 411.61 L 433.07 395.61 A 4.00 4.00 0 0 0 429.07 391.61 L 301.32 391.61 A 4.00 4.00 0 0 1 297.32 387.61 L 297.32 317.80" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <rect x="329.79" y="384.61" width="70.80" height="14.00" fill="#FFFFFF"/>
+  <text x="365.19" y="391.61" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">[timeout]</text>
+  <path d="M 233.24 292.80 L 176.80 292.80 A 4.00 4.00 0 0 0 172.80 296.80 L 172.80 425.12 A 4.00 4.00 0 0 1 168.80 429.12 L 152.80 429.12" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <rect x="130.20" y="353.96" width="85.20" height="14.00" fill="#FFFFFF"/>
+  <text x="172.80" y="360.96" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">[goingDown]</text>
+  <path d="M 182.00 169.80 L 182.00 153.80 A 4.00 4.00 0 0 1 186.00 149.80 L 277.83 149.80 A 4.00 4.00 0 0 0 281.83 145.80 L 281.83 92.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <rect x="182.12" y="142.80" width="99.60" height="14.00" fill="#FFFFFF"/>
+  <text x="231.92" y="149.80" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">[idleTimeout]</text>
+</svg>

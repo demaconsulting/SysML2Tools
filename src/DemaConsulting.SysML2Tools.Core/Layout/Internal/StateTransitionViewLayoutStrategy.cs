@@ -254,8 +254,8 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
             var from = stateRects[transition.Source];
             var to = stateRects[transition.Target];
-            var source = AnchorToward(from, Centre(to));
-            var target = AnchorToward(to, Centre(from));
+            var (source, sourceSide) = AnchorToward(from, Centre(to));
+            var (target, targetSide) = AnchorToward(to, Centre(from));
 
             var obstacles = new List<Rect>();
             for (var i = 0; i < stateRects.Length; i++)
@@ -266,7 +266,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
                 }
             }
 
-            var waypoints = ChannelRouter.Route(source, target, obstacles, TransitionClearance);
+            var waypoints = ChannelRouter.Route(source, target, obstacles, TransitionClearance, sourceSide, targetSide);
             nodes.Add(new LayoutLine(
                 Waypoints: waypoints,
                 SourceArrowhead: ArrowheadStyle.None,
@@ -300,8 +300,11 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             MidpointLabel: label);
     }
 
-    /// <summary>Returns the midpoint of the box side whose outward normal best points at the target.</summary>
-    private static Point2D AnchorToward(Rect box, Point2D target)
+    /// <summary>
+    /// Returns the midpoint of the box side whose outward normal best points at the target, along
+    /// with that side.
+    /// </summary>
+    private static (Point2D Point, PortSide Side) AnchorToward(Rect box, Point2D target)
     {
         var cx = box.X + (box.Width / 2.0);
         var cy = box.Y + (box.Height / 2.0);
@@ -310,10 +313,14 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
         if (Math.Abs(dx) >= Math.Abs(dy))
         {
-            return dx >= 0 ? new Point2D(box.X + box.Width, cy) : new Point2D(box.X, cy);
+            return dx >= 0
+                ? (new Point2D(box.X + box.Width, cy), PortSide.Right)
+                : (new Point2D(box.X, cy), PortSide.Left);
         }
 
-        return dy >= 0 ? new Point2D(cx, box.Y + box.Height) : new Point2D(cx, box.Y);
+        return dy >= 0
+            ? (new Point2D(cx, box.Y + box.Height), PortSide.Bottom)
+            : (new Point2D(cx, box.Y), PortSide.Top);
     }
 
     /// <summary>Returns the centre point of a rectangle.</summary>

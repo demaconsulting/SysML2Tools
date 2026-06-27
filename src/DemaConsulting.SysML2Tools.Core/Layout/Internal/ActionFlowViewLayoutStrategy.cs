@@ -223,7 +223,9 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
                 }
             }
 
-            var waypoints = ChannelRouter.Route(source, target, obstacles, FlowClearance);
+            var waypoints = ChannelRouter.Route(
+                source, target, obstacles, FlowClearance,
+                sourceSide: PortSide.Bottom, targetSide: PortSide.Top);
             nodes.Add(new LayoutLine(
                 Waypoints: waypoints,
                 SourceArrowhead: ArrowheadStyle.None,

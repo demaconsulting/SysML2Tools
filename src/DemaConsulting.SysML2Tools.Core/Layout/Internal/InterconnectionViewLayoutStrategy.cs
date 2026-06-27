@@ -298,7 +298,9 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                 new Point2D(portA.CentreX, portA.CentreY),
                 new Point2D(portB.CentreX, portB.CentreY),
                 obstacles,
-                ConnectorClearance);
+                ConnectorClearance,
+                sourceSide: portA.Side,
+                targetSide: portB.Side);
 
             nodes.Add(new LayoutLine(
                 Waypoints: waypoints,
