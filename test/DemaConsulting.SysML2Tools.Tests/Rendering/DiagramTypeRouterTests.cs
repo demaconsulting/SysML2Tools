@@ -80,4 +80,28 @@ public sealed class DiagramTypeRouterTests
 
         Assert.IsType<ActionFlowViewLayoutStrategy>(strategy);
     }
+
+    /// <summary>A view whose name contains "Matrix" routes to the grid strategy.</summary>
+    [Fact]
+    public void GetStrategy_MatrixNamedView_ReturnsGridStrategy()
+    {
+        var view = new SysmlViewNode { Name = "SpecializationMatrixView", QualifiedName = "M::SpecializationMatrixView" };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out _);
+
+        Assert.IsType<GridViewLayoutStrategy>(strategy);
+    }
+
+    /// <summary>A view whose name contains "Browser" routes to the browser strategy.</summary>
+    [Fact]
+    public void GetStrategy_BrowserNamedView_ReturnsBrowserStrategy()
+    {
+        var view = new SysmlViewNode { Name = "CatalogBrowserView", QualifiedName = "M::CatalogBrowserView" };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out _);
+
+        Assert.IsType<BrowserViewLayoutStrategy>(strategy);
+    }
 }

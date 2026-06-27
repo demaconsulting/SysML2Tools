@@ -56,6 +56,16 @@ internal static class DiagramTypeRouter
             {
                 return new ActionFlowViewLayoutStrategy();
             }
+
+            if (Matches(view, "Grid") || Matches(view, "Matrix") || Matches(view, "Tabular"))
+            {
+                return new GridViewLayoutStrategy();
+            }
+
+            if (Matches(view, "Browser") || Matches(view, "Tree"))
+            {
+                return new BrowserViewLayoutStrategy();
+            }
         }
 
         return new GeneralViewLayoutStrategy();

@@ -19,14 +19,14 @@ onward) needed to reach full SysML v2 view coverage.
 
 | # | View Type | Purpose | Our Status |
 |---|-----------|---------|------------|
-| 1 | **General View** | Any model element; foundational "catch-all" view | 🟡 Partial |
-| 2 | **Interconnection View** | Structural contents of a Usage (parts, ports, connectors) | 🔴 Unsupported |
-| 3 | **Action Flow View** | Input/output flows between actions (behavioral dynamics) | 🔴 Unsupported |
-| 4 | **State Transition View** | States and transitions (behavioral dynamics) | 🔴 Unsupported |
+| 1 | **General View** | Any model element; foundational "catch-all" view | 🟢 Implemented |
+| 2 | **Interconnection View** | Structural contents of a Usage (parts, ports, connectors) | 🟢 Implemented |
+| 3 | **Action Flow View** | Input/output flows between actions (behavioral dynamics) | 🟢 Implemented |
+| 4 | **State Transition View** | States and transitions (behavioral dynamics) | 🟢 Implemented |
 | 5 | **Sequence View** | Chronological event occurrences on lifelines | 🔴 Unsupported |
-| 6 | **Grid View** | Elements in structured rectangular grid (tabular/matrix) | 🔴 Unsupported |
-| 7 | **Browser View** | Hierarchical membership structure from a root element | 🔴 Unsupported |
-| 8 | **Geometry View** | Spatial items in 2D or 3D | 🔴 Unsupported |
+| 6 | **Grid View** | Elements in structured rectangular grid (tabular/matrix) | 🟢 Implemented |
+| 7 | **Browser View** | Hierarchical membership structure from a root element | 🟢 Implemented |
+| 8 | **Geometry View** | Spatial items in 2D or 3D | 🔴 Unsupported (deferred) |
 
 ---
 
@@ -672,7 +672,16 @@ Agent views the PNG and asserts:
 
 ---
 
-### Phase 12 — Grid View + Browser View (1–2 sessions)
+### Phase 12 — Grid View + Browser View (1–2 sessions) — ✅ COMPLETE
+
+> **Status:** Complete. Both views are pure-arithmetic strategies (no new engine, no new AST).
+> `BrowserViewLayoutStrategy` builds the membership tree from the qualified-name hierarchy of
+> non-stdlib declarations and renders indented rows with parent→child connector lines.
+> `GridViewLayoutStrategy` renders a specialization relationship matrix (definitions × definitions,
+> marked where the row specializes the column) via `LayoutGrid` with styled header row/column.
+> `DiagramTypeRouter` dispatches on "Browser"/"Tree" and "Grid"/"Matrix"/"Tabular".
+> Visual gate passed against `catalog-browser-grid` (indented tree; specialization matrix with
+> correct marks).
 
 Implement tabular and tree views. No new engines — pure geometric arithmetic.
 
