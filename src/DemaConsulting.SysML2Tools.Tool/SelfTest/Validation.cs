@@ -169,8 +169,12 @@ internal static class Validation
                 // Read log content
                 var logContent = await File.ReadAllTextAsync(logFile).ConfigureAwait(false);
 
-                // Verify version string is in log (version contains dots like 0.0.0)
-                var versionPattern = new System.Text.RegularExpressions.Regex(@"\b\d+\.\d+\.\d+");
+                // Verify version string is in log (version contains dots like 0.0.0).
+                // A 1-second timeout guards against catastrophic backtracking in unexpected input.
+                var versionPattern = new System.Text.RegularExpressions.Regex(
+                    @"\b\d+\.\d+\.\d+",
+                    System.Text.RegularExpressions.RegexOptions.None,
+                    TimeSpan.FromSeconds(1));
                 if (!string.IsNullOrWhiteSpace(logContent) &&
                     versionPattern.IsMatch(logContent))
                 {

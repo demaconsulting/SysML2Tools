@@ -52,26 +52,33 @@
     <StdlibSourceFiles Include="$(MSBuildThisFileDirectory)Stdlib\**\*.kerml" />
   </ItemGroup>
 
-  <!-- Generate stdlib.bin before PrepareForBuild; skipped when outputs are fresh -->
+  <!-- Generate stdlib.bin once per build into a shared (non-TFM-specific) location.
+       Runs in the outer (cross-targeting) build before inner TFM builds are dispatched,
+       preventing parallel TFM builds from racing to write the same StdlibGen output.
+       Also runs for single-TFM builds (e.g. dotnet build -f net9.0) via the net9.0 condition.
+       Skipped entirely when outputs are already up to date (incremental build). -->
   <Target Name="GenerateStdlibBin"
-          BeforeTargets="PrepareForBuild"
+          BeforeTargets="DispatchToInnerBuilds;PrepareForBuild"
+          Condition="'$(TargetFrameworks)' != '' OR '$(TargetFramework)' == 'net10.0'"
           Inputs="@(StdlibSourceFiles)"
-          Outputs="$(IntermediateOutputPath)stdlib.bin">
+          Outputs="$(BaseIntermediateOutputPath)stdlib.bin">
     <!-- Rebuild StdlibGen if needed, then execute it -->
     <MSBuild Projects="..\Tools\StdlibGen\StdlibGen.csproj"
              Targets="Build"
-             Properties="Configuration=$(Configuration);TargetFramework=net9.0"
+             Properties="Configuration=$(Configuration);TargetFramework=net10.0"
              BuildInParallel="false" />
     <PropertyGroup>
-      <_StdlibGenDll>$(MSBuildThisFileDirectory)..\Tools\StdlibGen\bin\$(Configuration)\net9.0\StdlibGen.dll</_StdlibGenDll>
+      <_StdlibGenDll>$(MSBuildThisFileDirectory)..\Tools\StdlibGen\bin\$(Configuration)\net10.0\StdlibGen.dll</_StdlibGenDll>
     </PropertyGroup>
-    <Exec Command="dotnet &quot;$(_StdlibGenDll)&quot; --stdlib-dir &quot;$(MSBuildThisFileDirectory)Stdlib&quot; --output &quot;$(IntermediateOutputPath)stdlib.bin&quot;" />
+    <Exec Command="dotnet &quot;$(_StdlibGenDll)&quot; --stdlib-dir &quot;$(MSBuildThisFileDirectory)Stdlib&quot; --output &quot;$(BaseIntermediateOutputPath)stdlib.bin&quot;" />
   </Target>
 
-  <!-- After stdlib.bin is generated, embed it as a manifest resource -->
-  <Target Name="EmbedStdlibBin" AfterTargets="GenerateStdlibBin">
+  <!-- Embed stdlib.bin as a manifest resource in every TFM inner build.
+       The file is guaranteed to exist because GenerateStdlibBin ran in the
+       outer build (DispatchToInnerBuilds) before any inner TFM build starts. -->
+  <Target Name="EmbedStdlibBin" BeforeTargets="PrepareForBuild">
     <ItemGroup>
-      <EmbeddedResource Include="$(IntermediateOutputPath)stdlib.bin">
+      <EmbeddedResource Include="$(BaseIntermediateOutputPath)stdlib.bin">
         <LogicalName>DemaConsulting.SysML2Tools.Stdlib.stdlib.bin</LogicalName>
       </EmbeddedResource>
     </ItemGroup>

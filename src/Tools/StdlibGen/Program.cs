@@ -8,21 +8,8 @@ using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Internal;
 
-// Parse arguments
-string? stdlibDir = null;
-string? outputPath = null;
-
-for (var i = 0; i < args.Length - 1; i++)
-{
-    if (args[i] == "--stdlib-dir")
-    {
-        stdlibDir = args[i + 1];
-    }
-    else if (args[i] == "--output")
-    {
-        outputPath = args[i + 1];
-    }
-}
+// Parse arguments — extracted to keep the top-level program's cognitive complexity within limits
+var (stdlibDir, outputPath) = ParseArgs(args);
 
 if (stdlibDir is null || outputPath is null)
 {
@@ -97,3 +84,31 @@ await Console.Out.WriteLineAsync($"StdlibGen: Wrote {bytes.Length:N0} bytes to {
 await Console.Out.WriteLineAsync($"StdlibGen: {symbolTable.Symbols.Count} symbols, {errorCount} errors, {warnCount} warnings").ConfigureAwait(false);
 
 return errorCount > 0 ? 1 : 0;
+
+/// <summary>
+/// Parses the command-line arguments and returns the stdlib directory and output path.
+/// Extracted to keep the top-level program within the cognitive-complexity limit.
+/// </summary>
+/// <param name="args">Raw command-line arguments.</param>
+/// <returns>
+/// A tuple of (<c>StdlibDir</c>, <c>OutputPath</c>), either of which may be <see langword="null"/>
+/// when the corresponding flag is absent.
+/// </returns>
+static (string? StdlibDir, string? OutputPath) ParseArgs(string[] args)
+{
+    string? stdlibDir = null;
+    string? outputPath = null;
+    for (var i = 0; i < args.Length - 1; i++)
+    {
+        if (args[i] == "--stdlib-dir")
+        {
+            stdlibDir = args[i + 1];
+        }
+        else if (args[i] == "--output")
+        {
+            outputPath = args[i + 1];
+        }
+    }
+
+    return (stdlibDir, outputPath);
+}

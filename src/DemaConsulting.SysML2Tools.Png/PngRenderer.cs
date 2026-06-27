@@ -471,8 +471,8 @@ public sealed class PngRenderer : IRenderer
                 canvas,
                 (float)(tip.X * scale), (float)(tip.Y * scale),
                 (float)dx, (float)dy,
-                line.SourceArrowhead, scale, strokeColor,
-                (float)theme.StrokeWidth * scale);
+                line.SourceArrowhead,
+                new ArrowheadPaint(strokeColor, (float)theme.StrokeWidth * scale, scale));
         }
 
         // Draw target arrowhead at the last waypoint, direction pointing away from the line
@@ -486,8 +486,8 @@ public sealed class PngRenderer : IRenderer
                 canvas,
                 (float)(tip.X * scale), (float)(tip.Y * scale),
                 (float)dx, (float)dy,
-                line.TargetArrowhead, scale, strokeColor,
-                (float)theme.StrokeWidth * scale);
+                line.TargetArrowhead,
+                new ArrowheadPaint(strokeColor, (float)theme.StrokeWidth * scale, scale));
         }
 
         // Draw the optional midpoint label with a white background for readability
@@ -496,6 +496,15 @@ public sealed class PngRenderer : IRenderer
             RenderLineMidpointLabel(canvas, line.Waypoints, line.MidpointLabel, theme, scale, strokeColor);
         }
     }
+
+    /// <summary>
+    /// Groups the visual paint parameters for arrowhead rendering, reducing the parameter
+    /// count on <see cref="DrawArrowhead"/> to within the allowed limit.
+    /// </summary>
+    /// <param name="Color">Stroke and fill color for the arrowhead.</param>
+    /// <param name="StrokeWidth">Stroke width applied to open (non-filled) arrowhead styles.</param>
+    /// <param name="Scale">Uniform scale factor used to size the arrowhead relative to the diagram.</param>
+    private readonly record struct ArrowheadPaint(SKColor Color, float StrokeWidth, float Scale);
 
     /// <summary>
     /// Draws an arrowhead of the specified style at a line endpoint.
@@ -511,17 +520,13 @@ public sealed class PngRenderer : IRenderer
     /// <param name="dx">X component of the normalized direction vector pointing toward the tip.</param>
     /// <param name="dy">Y component of the normalized direction vector pointing toward the tip.</param>
     /// <param name="style">Arrowhead style to draw; <see cref="ArrowheadStyle.None"/> is a no-op.</param>
-    /// <param name="scale">Uniform scale factor used to size the arrowhead.</param>
-    /// <param name="color">Stroke and fill color for the arrowhead.</param>
-    /// <param name="strokeWidth">Stroke width used for open (non-filled) styles.</param>
+    /// <param name="paint">Color, stroke width, and scale parameters for the arrowhead.</param>
     private static void DrawArrowhead(
         SKCanvas canvas,
         float tipX, float tipY,
         float dx, float dy,
         ArrowheadStyle style,
-        float scale,
-        SKColor color,
-        float strokeWidth)
+        ArrowheadPaint paint)
     {
         if (style == ArrowheadStyle.None)
         {
@@ -533,87 +538,87 @@ public sealed class PngRenderer : IRenderer
         var py = dx;
 
         // Arrowhead sizing: length along the line, half-width across
-        var arrowLen = 10f * scale;
-        var halfW = 4f * scale;
+        var arrowLen = 10f * paint.Scale;
+        var halfW = 4f * paint.Scale;
 
-        using var paint = new SKPaint();
-        paint.Color = color;
-        paint.IsAntialias = true;
-        paint.StrokeWidth = strokeWidth;
+        using var paintObj = new SKPaint();
+        paintObj.Color = paint.Color;
+        paintObj.IsAntialias = true;
+        paintObj.StrokeWidth = paint.StrokeWidth;
 
         switch (style)
         {
             case ArrowheadStyle.Open:
                 {
                     // Open (hollow) triangle: two stroke lines from wing points to the tip
-                    paint.Style = SKPaintStyle.Stroke;
+                    paintObj.Style = SKPaintStyle.Stroke;
                     using var p = new SKPath();
                     p.MoveTo(tipX - dx * arrowLen + px * halfW, tipY - dy * arrowLen + py * halfW);
                     p.LineTo(tipX, tipY);
                     p.LineTo(tipX - dx * arrowLen - px * halfW, tipY - dy * arrowLen - py * halfW);
-                    canvas.DrawPath(p, paint);
+                    canvas.DrawPath(p, paintObj);
                     break;
                 }
 
             case ArrowheadStyle.Filled:
                 {
                     // Filled solid triangle pointing toward the tip
-                    paint.Style = SKPaintStyle.Fill;
+                    paintObj.Style = SKPaintStyle.Fill;
                     using var p = new SKPath();
                     p.MoveTo(tipX, tipY);
                     p.LineTo(tipX - dx * arrowLen + px * halfW, tipY - dy * arrowLen + py * halfW);
                     p.LineTo(tipX - dx * arrowLen - px * halfW, tipY - dy * arrowLen - py * halfW);
                     p.Close();
-                    canvas.DrawPath(p, paint);
+                    canvas.DrawPath(p, paintObj);
                     break;
                 }
 
             case ArrowheadStyle.Diamond:
                 {
                     // Open diamond: four-point polygon straddling the line end
-                    paint.Style = SKPaintStyle.Stroke;
+                    paintObj.Style = SKPaintStyle.Stroke;
                     using var p = new SKPath();
                     p.MoveTo(tipX, tipY);
                     p.LineTo(tipX - dx * (arrowLen / 2f) + px * halfW, tipY - dy * (arrowLen / 2f) + py * halfW);
                     p.LineTo(tipX - dx * arrowLen, tipY - dy * arrowLen);
                     p.LineTo(tipX - dx * (arrowLen / 2f) - px * halfW, tipY - dy * (arrowLen / 2f) - py * halfW);
                     p.Close();
-                    canvas.DrawPath(p, paint);
+                    canvas.DrawPath(p, paintObj);
                     break;
                 }
 
             case ArrowheadStyle.FilledDiamond:
                 {
                     // Filled diamond
-                    paint.Style = SKPaintStyle.Fill;
+                    paintObj.Style = SKPaintStyle.Fill;
                     using var p = new SKPath();
                     p.MoveTo(tipX, tipY);
                     p.LineTo(tipX - dx * (arrowLen / 2f) + px * halfW, tipY - dy * (arrowLen / 2f) + py * halfW);
                     p.LineTo(tipX - dx * arrowLen, tipY - dy * arrowLen);
                     p.LineTo(tipX - dx * (arrowLen / 2f) - px * halfW, tipY - dy * (arrowLen / 2f) - py * halfW);
                     p.Close();
-                    canvas.DrawPath(p, paint);
+                    canvas.DrawPath(p, paintObj);
                     break;
                 }
 
             case ArrowheadStyle.Circle:
                 {
                     // Open circle whose near edge touches the tip; center is pulled back by one radius
-                    paint.Style = SKPaintStyle.Stroke;
-                    var r = 4f * scale;
-                    canvas.DrawCircle(tipX - dx * r, tipY - dy * r, r, paint);
+                    paintObj.Style = SKPaintStyle.Stroke;
+                    var r = 4f * paint.Scale;
+                    canvas.DrawCircle(tipX - dx * r, tipY - dy * r, r, paintObj);
                     break;
                 }
 
             case ArrowheadStyle.Bar:
                 {
                     // Perpendicular bar centered on the tip
-                    paint.Style = SKPaintStyle.Stroke;
-                    var barHalf = 6f * scale;
+                    paintObj.Style = SKPaintStyle.Stroke;
+                    var barHalf = 6f * paint.Scale;
                     canvas.DrawLine(
                         tipX + px * barHalf, tipY + py * barHalf,
                         tipX - px * barHalf, tipY - py * barHalf,
-                        paint);
+                        paintObj);
                     break;
                 }
 
