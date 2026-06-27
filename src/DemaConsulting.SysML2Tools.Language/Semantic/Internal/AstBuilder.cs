@@ -234,6 +234,161 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <inheritdoc/>
+    public override SysmlNode? VisitPartUsage(SysMLv2Parser.PartUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "part");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitPortUsage(SysMLv2Parser.PortUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "port");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitAttributeUsage(SysMLv2Parser.AttributeUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "attribute");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitItemUsage(SysMLv2Parser.ItemUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "item");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitReferenceUsage(SysMLv2Parser.ReferenceUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "ref");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitEnumerationUsage(SysMLv2Parser.EnumerationUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "enum");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitOccurrenceUsage(SysMLv2Parser.OccurrenceUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "occurrence");
+    }
+
+    /// <summary>
+    ///     Builds a usage/feature AST node from a <see cref="SysMLv2Parser.UsageContext"/>, capturing
+    ///     the keyword, declared name, feature typing, multiplicity, and any nested usage children.
+    /// </summary>
+    private SysmlFeatureNode? BuildUsageNode(SysMLv2Parser.UsageContext? usage, string keyword)
+    {
+        if (usage is null)
+        {
+            return null;
+        }
+
+        var decl = usage.usageDeclaration();
+        var name = GetDeclaredName(decl?.identification());
+        var typing = ExtractFeatureTyping(decl?.featureSpecializationPart());
+        var multiplicity = ExtractMultiplicity(decl?.featureSpecializationPart());
+
+        // Named usages contribute a namespace segment for any nested usages they own.
+        var qualifiedName = name is not null ? QualifyName(name) : null;
+        IReadOnlyList<SysmlNode> children = Array.Empty<SysmlNode>();
+        var body = usage.usageCompletion()?.usageBody()?.definitionBody();
+        if (body is not null)
+        {
+            if (name is not null)
+            {
+                _namespaceStack.Add(name);
+            }
+
+            children = CollectDefinitionBodyItems(body.definitionBodyItem());
+
+            if (name is not null)
+            {
+                _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+            }
+        }
+
+        return new SysmlFeatureNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            FeatureKeyword = keyword,
+            FeatureTyping = typing,
+            Multiplicity = multiplicity,
+            Children = children,
+        };
+    }
+
+    /// <summary>
+    ///     Extracts the first feature-typing qualified name from a feature specialization part
+    ///     (the type that follows <c>:</c> or <c>typed by</c>), or null when the feature is untyped.
+    /// </summary>
+    private static string? ExtractFeatureTyping(SysMLv2Parser.FeatureSpecializationPartContext? fsp)
+    {
+        if (fsp is null)
+        {
+            return null;
+        }
+
+        foreach (var fs in fsp.featureSpecialization())
+        {
+            var typings = fs.typings();
+            if (typings is null)
+            {
+                continue;
+            }
+
+            // The first typing is held by the typedBy clause; additional typings follow as a list.
+            var fromTypedBy = TypingName(typings.typedBy()?.featureTyping());
+            if (fromTypedBy is not null)
+            {
+                return fromTypedBy;
+            }
+
+            foreach (var ft in typings.featureTyping())
+            {
+                var name = TypingName(ft);
+                if (name is not null)
+                {
+                    return name;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Extracts the qualified type name from a single feature-typing context.</summary>
+    private static string? TypingName(SysMLv2Parser.FeatureTypingContext? ft)
+    {
+        if (ft is null)
+        {
+            return null;
+        }
+
+        var owned = ft.ownedFeatureTyping();
+        if (owned is not null)
+        {
+            return owned.GetText();
+        }
+
+        return ft.qualifiedName()?.GetText();
+    }
+
+    /// <summary>
+    ///     Extracts the multiplicity text (e.g. <c>[4]</c>) from a feature specialization part,
+    ///     or null when no multiplicity is declared.
+    /// </summary>
+    private static string? ExtractMultiplicity(SysMLv2Parser.FeatureSpecializationPartContext? fsp)
+    {
+        var multiplicity = fsp?.multiplicityPart()?.ownedMultiplicity();
+        var text = multiplicity?.GetText();
+        return string.IsNullOrEmpty(text) ? null : text;
+    }
+
+    /// <inheritdoc/>
     public override SysmlNode? VisitViewDefinition(SysMLv2Parser.ViewDefinitionContext context)
     {
         var name = GetDeclaredName(context.definitionDeclaration()?.identification());

@@ -426,6 +426,9 @@ public sealed class SvgRenderer : IRenderer
                 sb.AppendLine();
                 compartmentY += theme.LabelPadding + theme.FontSizeBody;
             }
+
+            // Bottom gap so the last row clears the next compartment divider.
+            compartmentY += theme.LabelPadding;
         }
     }
 

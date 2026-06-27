@@ -39,6 +39,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         string SimpleName,
         string Keyword,
         IReadOnlyList<string> SupertypeNames,
+        IReadOnlyList<LayoutCompartment> Compartments,
         double Width,
         double Height);
 
@@ -96,24 +97,116 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             var simpleName = def.Name ?? qualifiedName;
             var keyword = string.IsNullOrEmpty(def.DefinitionKeyword) ? "def" : def.DefinitionKeyword;
 
-            var (width, height) = ComputeBoxSize(simpleName, keyword, theme);
-            result.Add(new DefBox(qualifiedName, simpleName, keyword, def.SupertypeNames, width, height));
+            // Build compartments from the definition's owned usages (attributes, ports, parts, …).
+            var compartments = BuildCompartments(def);
+
+            var (width, height) = ComputeBoxSize(simpleName, keyword, compartments, theme);
+            result.Add(new DefBox(qualifiedName, simpleName, keyword, def.SupertypeNames, compartments, width, height));
         }
 
         return result;
     }
 
-    /// <summary>Computes the intrinsic box size needed to show a keyword line and a name line.</summary>
-    private static (double Width, double Height) ComputeBoxSize(string name, string keyword, Theme theme)
+    /// <summary>
+    /// Builds compartments for a definition by grouping its owned usage features by keyword and
+    /// formatting each as a <c>name : Type [n]</c> row.
+    /// </summary>
+    private static IReadOnlyList<LayoutCompartment> BuildCompartments(SysmlDefinitionNode def)
+    {
+        // Preserve keyword first-seen order so compartments appear in declaration order.
+        var order = new List<string>();
+        var groups = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+
+        foreach (var child in def.Children)
+        {
+            if (child is not SysmlFeatureNode feature)
+            {
+                continue;
+            }
+
+            var keyword = string.IsNullOrEmpty(feature.FeatureKeyword) ? "feature" : feature.FeatureKeyword;
+            if (!groups.TryGetValue(keyword, out var rows))
+            {
+                rows = [];
+                groups[keyword] = rows;
+                order.Add(keyword);
+            }
+
+            rows.Add(FormatFeatureRow(feature));
+        }
+
+        return [.. order.Select(k => new LayoutCompartment(Pluralize(k), groups[k]))];
+    }
+
+    /// <summary>Formats a usage feature as a compartment row: <c>name : Type [n]</c>.</summary>
+    private static string FormatFeatureRow(SysmlFeatureNode feature)
+    {
+        var name = feature.Name ?? string.Empty;
+        var typing = feature.FeatureTyping is { Length: > 0 } t ? $" : {t}" : string.Empty;
+        var multiplicity = feature.Multiplicity is { Length: > 0 } m ? $" {m}" : string.Empty;
+        var row = $"{name}{typing}{multiplicity}".Trim();
+        return row.Length == 0 ? "\u2014" : row;
+    }
+
+    /// <summary>Returns a simple plural form of a usage keyword for use as a compartment title.</summary>
+    private static string Pluralize(string keyword) => keyword switch
+    {
+        "ref" => "references",
+        _ => keyword + "s",
+    };
+
+    /// <summary>Computes the intrinsic box size needed for the title and any compartments.</summary>
+    private static (double Width, double Height) ComputeBoxSize(
+        string name,
+        string keyword,
+        IReadOnlyList<LayoutCompartment> compartments,
+        Theme theme)
     {
         var nameWidth = (name.Length * theme.FontSizeTitle * CharWidthFactor) + (2.0 * theme.LabelPadding);
         var keywordWidth = ((keyword.Length + 2) * theme.FontSizeBody * CharWidthFactor) + (2.0 * theme.LabelPadding);
         var width = Math.Max(MinBoxWidth, Math.Max(nameWidth, keywordWidth));
 
+        // Widen to fit the longest compartment title or row.
+        foreach (var compartment in compartments)
+        {
+            if (compartment.Title is { } title)
+            {
+                width = Math.Max(width, (title.Length * theme.FontSizeBody * CharWidthFactor) + (2.0 * theme.LabelPadding));
+            }
+
+            foreach (var row in compartment.Rows)
+            {
+                width = Math.Max(width, (row.Length * theme.FontSizeBody * CharWidthFactor) + (3.0 * theme.LabelPadding));
+            }
+        }
+
         // Title area holds the keyword line and the name line; add a little body breathing room.
         var height = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true) + theme.LabelPadding;
+        foreach (var compartment in compartments)
+        {
+            height += ComputeCompartmentHeight(compartment, theme);
+        }
 
         return (width, height);
+    }
+
+    /// <summary>
+    /// Computes the rendered height of a compartment, matching the renderer's layout: an optional
+    /// title row followed by one row per entry.
+    /// </summary>
+    private static double ComputeCompartmentHeight(LayoutCompartment compartment, Theme theme)
+    {
+        var height = 0.0;
+        if (compartment.Title is not null)
+        {
+            height += theme.LabelPadding + theme.FontSizeBody + theme.LabelPadding;
+        }
+
+        height += compartment.Rows.Count * (theme.LabelPadding + theme.FontSizeBody);
+
+        // Bottom gap added by the renderer after the last row.
+        height += theme.LabelPadding;
+        return height;
     }
 
     /// <summary>
@@ -288,7 +381,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             Label: def.SimpleName,
             Depth: depth,
             Shape: BoxShape.Rectangle,
-            Compartments: [],
+            Compartments: def.Compartments,
             Children: [],
             Keyword: def.Keyword);
 

@@ -503,6 +503,9 @@ public sealed class PngRenderer : IRenderer
                 canvas.DrawText(row, rowX, rowY, rowPaint);
                 compartmentY += theme.LabelPadding + theme.FontSizeBody;
             }
+
+            // Bottom gap so the last row clears the next compartment divider.
+            compartmentY += theme.LabelPadding;
         }
     }
 

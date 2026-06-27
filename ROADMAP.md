@@ -353,7 +353,20 @@ Agent views each PNG and asserts:
 
 ---
 
-### Phase 7 — General View: Usage Nodes, Compartments + Annotating Elements (2–3 sessions)
+### Phase 7 — General View: Usage Nodes, Compartments + Annotating Elements (2–3 sessions) — ✅ COMPLETE (compartment style)
+
+> **Status:** Complete. Definitions now render their owned usages as keyword-grouped compartments
+> (e.g. *attributes*, *ports*, *parts*) with `name : Type [n]` rows. `SysmlFeatureNode` gained
+> `FeatureKeyword`, `FeatureTyping`, and `Multiplicity`; `AstBuilder` visits part/port/attribute/
+> item/reference/enum/occurrence usages and extracts the type from both the `typed by` clause and
+> the typing list. Compartment row spacing improved in both renderers.
+>
+> **Design decision:** In the General View, usages render as *compartment rows* (matching the SysON
+> General View compartment style) rather than nested rounded boxes. Nested-box containment with
+> ports and connectors is the defining purpose of the **Interconnection View (Phase 8)** and is
+> implemented there to avoid duplicating containment layout. Documentation/Comment note-shape nodes
+> are deferred — the `BoxShape.Note` primitive is implemented and ready, but annotating-element AST
+> capture is left to a follow-up. Visual gate passed against `vehicle-with-usages`.
 
 Extend the semantic model and layout to capture Usage (feature) elements and render
 compartments and annotation nodes. No new engines required.

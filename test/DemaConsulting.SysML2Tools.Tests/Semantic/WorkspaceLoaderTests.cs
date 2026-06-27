@@ -502,6 +502,65 @@ public sealed class WorkspaceLoaderTests
         }
     }
 
+    /// <summary>
+    ///     A definition owning usages registers them as feature children carrying the usage keyword,
+    ///     declared name, and feature typing (including the type held by the <c>typed by</c> clause).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DefinitionUsages_CaptureKeywordAndTyping()
+    {
+        // Arrange: a part def owning an attribute, a port, and a multiplicity-bearing part usage
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package Demo {
+                    part def Engine;
+                    port def FuelPort;
+                    part def Vehicle {
+                        attribute mass : Real;
+                        port fuelInlet : FuelPort;
+                        part engine : Engine;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: the Vehicle definition owns three feature children with the expected typing
+            Assert.NotNull(result.Workspace);
+            var vehicle = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["Demo::Vehicle"]);
+            var features = vehicle.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlFeatureNode>()
+                .ToList();
+
+            AssertFeature(features, "mass", "attribute", "Real");
+            AssertFeature(features, "fuelInlet", "port", "FuelPort");
+            AssertFeature(features, "engine", "part", "Engine");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>Asserts that a feature with the given name has the expected keyword and typing.</summary>
+    private static void AssertFeature(
+        IEnumerable<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlFeatureNode> features,
+        string name,
+        string keyword,
+        string typing)
+    {
+        var feature = features.FirstOrDefault(f => f.Name == name);
+        Assert.NotNull(feature);
+        Assert.Equal(keyword, feature!.FeatureKeyword);
+        Assert.Equal(typing, feature.FeatureTyping);
+    }
+
     /// <summary>Asserts that the named declaration exists and is a definition with the given keyword.</summary>
     private static void AssertKeyword(SysmlWorkspace workspace, string qualifiedName, string expectedKeyword)
     {

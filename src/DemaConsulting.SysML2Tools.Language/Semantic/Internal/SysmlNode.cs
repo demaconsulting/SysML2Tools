@@ -66,6 +66,20 @@ public sealed class SysmlDefinitionNode : SysmlNode
 /// </summary>
 public sealed class SysmlFeatureNode : SysmlNode
 {
+    /// <summary>
+    ///     Gets the usage keyword (e.g., "part", "port", "attribute", "ref").
+    /// </summary>
+    public string FeatureKeyword { get; init; } = string.Empty;
+
+    /// <summary>
+    ///     Gets the feature typing reference (the type after <c>:</c>), or null when untyped.
+    /// </summary>
+    public string? FeatureTyping { get; init; }
+
+    /// <summary>
+    ///     Gets the multiplicity text (e.g., "[4]", "[0..*]"), or null when unspecified.
+    /// </summary>
+    public string? Multiplicity { get; init; }
 }
 
 /// <summary>

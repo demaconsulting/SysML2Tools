@@ -229,6 +229,43 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Empty(layout.Nodes);
     }
 
+    /// <summary>
+    ///     BuildLayout populates a definition box with compartments grouped by usage keyword,
+    ///     formatting each usage as a <c>name : Type</c> row.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments()
+    {
+        // Arrange: a part def owning an attribute usage and a port usage
+        var strategy = new GeneralViewLayoutStrategy();
+        var vehicle = new SysmlDefinitionNode
+        {
+            Name = "Vehicle",
+            QualifiedName = "P::Vehicle",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "mass", QualifiedName = "P::Vehicle::mass", FeatureKeyword = "attribute", FeatureTyping = "Real" },
+                new SysmlFeatureNode { Name = "fuel", QualifiedName = "P::Vehicle::fuel", FeatureKeyword = "port", FeatureTyping = "FuelPort" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::Vehicle"] = vehicle }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the Vehicle box has an attributes compartment and a ports compartment
+        var box = CollectBoxes(layout.Nodes).First(b => b.Label == "Vehicle");
+        Assert.Equal(2, box.Compartments.Count);
+        Assert.Contains(box.Compartments, c => c.Title == "attributes" && c.Rows.Contains("mass : Real"));
+        Assert.Contains(box.Compartments, c => c.Title == "ports" && c.Rows.Contains("fuel : FuelPort"));
+    }
+
     /// <summary>Recursively collects all <see cref="LayoutBox"/> nodes from a node list.</summary>
     private static IReadOnlyList<LayoutBox> CollectBoxes(IReadOnlyList<LayoutNode> nodes)
     {
