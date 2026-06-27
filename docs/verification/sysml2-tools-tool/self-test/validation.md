@@ -52,3 +52,24 @@ with a context whose `ResultsFile` has a `.json` extension (unsupported); no fil
 no exception is thrown, and an error message indicating the unsupported format is written to
 the context. This scenario is tested by
 `Validation_Run_WithUnsupportedResultsFormat_DoesNotWriteFile`.
+
+**Validation_RunLintSelfTest_ValidModel_Passes**: The full validation suite is run with a
+silent context; the log output contains `"✓ SysML2Tools_LintSelfTest"`, confirming that the
+built-in model passes lint without errors. This scenario is tested by
+`Validation_RunLintSelfTest_ValidModel_Passes`.
+
+**Validation_RunRenderSvgSelfTest_ValidModel_Passes**: The full validation suite is run with
+a silent context; the log output contains `"✓ SysML2Tools_RenderSvgSelfTest"`, confirming
+that the SVG render pipeline produces output for the built-in model. This scenario is tested
+by `Validation_RunRenderSvgSelfTest_ValidModel_Passes`.
+
+**Validation_RunRenderPngSelfTest_SkiaSharpAvailable_Passes**: When SkiaSharp is available,
+the full validation suite is run; the log output contains
+`"✓ SysML2Tools_RenderPngSelfTest"`. When SkiaSharp is absent, the suite is run without a
+log and exit code is 0 (the test skips internally). This scenario is tested by
+`Validation_RunRenderPngSelfTest_SkiaSharpAvailable_Passes`.
+
+**Validation_Run_AllTestsPass_PrintsPassedSummary**: The full validation suite is run with
+a silent context; the log output contains `"SysML2Tools self-test: PASSED"`, confirming
+the overall outcome line is present when all tests pass. This scenario is tested by
+`Validation_Run_AllTestsPass_PrintsPassedSummary`.

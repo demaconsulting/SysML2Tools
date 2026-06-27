@@ -48,7 +48,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var strategy = new GeneralViewLayoutStrategy();
         var workspace = new SysmlWorkspace
         {
-            Declarations = new Dictionary<string, object>
+            Declarations = new Dictionary<string, SysmlNode>
             {
                 // SysML stdlib element — must be filtered
                 ["SysML::Parts::PartDef"] = new SysmlDefinitionNode
@@ -83,7 +83,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var strategy = new GeneralViewLayoutStrategy();
         var workspace = new SysmlWorkspace
         {
-            Declarations = new Dictionary<string, object>
+            Declarations = new Dictionary<string, SysmlNode>
             {
                 ["MyPackage::MyComponent"] = new SysmlDefinitionNode
                 {

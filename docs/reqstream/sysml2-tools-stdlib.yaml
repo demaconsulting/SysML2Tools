@@ -1,0 +1,53 @@
+---
+# SysML2Tools Stdlib Library System-Level Requirements (Phase 5 Stub)
+#
+# PURPOSE:
+# - Define system-level requirements for the DemaConsulting.SysML2Tools.Stdlib library
+# - Stdlib library provides: pre-compiled stdlib binary embedded as a resource,
+#   StdlibProvider.GetSymbolTable() for lazy-cached access to the standard library symbol table
+
+sections:
+  - title: SysML2Tools Stdlib Requirements
+    requirements:
+      - id: SysML2Tools-Stdlib-GetSymbolTable
+        title: >-
+          StdlibProvider.GetSymbolTable shall return a non-empty SymbolTable containing
+          pre-compiled SysML v2 standard library declarations.
+        justification: |
+          The SysML v2 and KerML standard library contains the base types that user models
+          reference. Embedding a pre-compiled stdlib binary and deserializing it at runtime
+          eliminates the 25-second cold-start parse, making the tool responsive at first use.
+        tests:
+          - GetSymbolTable_ReturnsNonEmpty
+          - GetSymbolTable_ContainsKnownStdlibTypes
+
+      - id: SysML2Tools-Stdlib-Caching
+        title: >-
+          StdlibProvider.GetSymbolTable shall return the same SymbolTable instance on every
+          call within the same application domain.
+        justification: |
+          Caching the deserialized stdlib ensures that multiple callers share the same
+          instance rather than deserializing the binary resource on each invocation.
+        tests:
+          - GetSymbolTable_IsCached
+
+      - id: SysML2Tools-Stdlib-Performance
+        title: >-
+          After the first call, StdlibProvider.GetSymbolTable shall return the cached
+          result in under 50 milliseconds.
+        justification: |
+          A fast cached path is the primary performance guarantee of the pre-compilation
+          architecture. If the cached path is not fast, the benefit over the original
+          runtime-parse approach is lost.
+        tests:
+          - GetSymbolTable_FastOnSubsequentCalls
+
+      - id: SysML2Tools-Stdlib-Diagnostics
+        title: >-
+          StdlibProvider.GetSymbolTable shall return a non-null diagnostics list alongside
+          the SymbolTable, reporting any issues from the pre-compilation step.
+        justification: |
+          Exposing diagnostics from the build-time pre-compilation step allows callers to
+          detect and report any stdlib parse warnings without hiding them from end users.
+        tests:
+          - GetSymbolTable_DiagnosticsNotNull

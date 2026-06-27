@@ -22,7 +22,6 @@ sections:
               - ParseSource_EmptyFile_NoErrors
               - ParseSource_MinimalPackage_NoErrors
               - ParseSource_PartDef_NoErrors
-              - Parse_StdlibOnly_NoErrors
 
           - id: SysML2Tools-OTS-ANTLR4-Errors
             title: >-

@@ -1,0 +1,98 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+    <PackageId>DemaConsulting.SysML2Tools.Stdlib</PackageId>
+    <AssemblyName>DemaConsulting.SysML2Tools.Stdlib</AssemblyName>
+    <Version>0.0.0</Version>
+    <Authors>DEMA Consulting</Authors>
+    <Company>DEMA Consulting</Company>
+    <Description>Pre-compiled SysML v2 standard library for .NET</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/demaconsulting/SysML2Tools</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/demaconsulting/SysML2Tools</RepositoryUrl>
+    <Copyright>Copyright DEMA Consulting</Copyright>
+    <Title>SysML2 Tools Stdlib</Title>
+    <Product>DemaConsulting.SysML2Tools</Product>
+
+    <!-- Symbol Package Configuration -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Code Quality Configuration -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+
+    <!-- SBOM Configuration -->
+    <GenerateSBOM>true</GenerateSBOM>
+    <SBOMPackageName>$(Product)</SBOMPackageName>
+    <SBOMPackageVersion>$(Version)</SBOMPackageVersion>
+    <SBOMPackageSupplier>Organization: $(Company)</SBOMPackageSupplier>
+  </PropertyGroup>
+
+  <!-- StdlibGen build-time tool: must complete before Stdlib compiles.
+       ReferenceOutputAssembly=false: do not link StdlibGen into Stdlib.dll.
+       SkipGetTargetFrameworkProperties=true: suppress TFM compatibility checks
+       (StdlibGen targets net10.0; Stdlib also targets net8.0 and net9.0). -->
+  <ItemGroup>
+    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Language\DemaConsulting.SysML2Tools.Language.csproj" />
+  </ItemGroup>
+
+  <!-- Source files tracked for incremental build -->
+  <ItemGroup>
+    <StdlibSourceFiles Include="$(MSBuildThisFileDirectory)Stdlib\**\*.sysml" />
+    <StdlibSourceFiles Include="$(MSBuildThisFileDirectory)Stdlib\**\*.kerml" />
+  </ItemGroup>
+
+  <!-- Generate stdlib.bin once in the outer (cross-targeting) build before inner
+       TFM builds are dispatched. Uses <Exec> (not <MSBuild>) to build StdlibGen
+       in a child process so it never competes for MSBuild worker nodes.
+       Skipped when outputs are already up to date (incremental build). -->
+  <Target Name="GenerateStdlibBin"
+          BeforeTargets="DispatchToInnerBuilds;PrepareForBuild"
+          Condition="'$(TargetFrameworks)' != '' OR '$(TargetFramework)' == 'net10.0'"
+          Inputs="@(StdlibSourceFiles)"
+          Outputs="$(BaseIntermediateOutputPath)stdlib.bin">
+    <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\Tools\StdlibGen\StdlibGen.csproj&quot; -c $(Configuration) -f net10.0 -v:q" />
+    <PropertyGroup>
+      <_StdlibGenDll>$(MSBuildThisFileDirectory)..\Tools\StdlibGen\bin\$(Configuration)\net10.0\StdlibGen.dll</_StdlibGenDll>
+    </PropertyGroup>
+    <Exec Command="dotnet &quot;$(_StdlibGenDll)&quot; --stdlib-dir &quot;$(MSBuildThisFileDirectory)Stdlib&quot; --output &quot;$(BaseIntermediateOutputPath)stdlib.bin&quot;" />
+  </Target>
+
+  <!-- Embed stdlib.bin as a manifest resource in every TFM inner build.
+       Guaranteed to exist because GenerateStdlibBin ran in the outer build. -->
+  <Target Name="EmbedStdlibBin" BeforeTargets="PrepareForBuild">
+    <ItemGroup>
+      <EmbeddedResource Include="$(BaseIntermediateOutputPath)stdlib.bin">
+        <LogicalName>DemaConsulting.SysML2Tools.Stdlib.stdlib.bin</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+  </Target>
+
+  <!-- Code Analysis Dependencies -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.5" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.301">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.27.0.140913">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

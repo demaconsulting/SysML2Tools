@@ -107,3 +107,6 @@ versionmark-*.json
 # Agent report files
 AGENT_REPORT_*.md
 .agent-logs/
+
+# StdlibGen debug output (regenerated on every build, not committed)
+stdlib.json

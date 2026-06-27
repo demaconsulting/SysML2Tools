@@ -93,6 +93,18 @@ internal sealed class Context : IDisposable
     public int HeadingDepth { get; private init; } = 1;
 
     /// <summary>
+    ///     Gets the maximum diagram render depth; <see langword="null"/> means unlimited.
+    ///     Supplied via <c>--depth</c> and passed through directly (not clamped to 6).
+    /// </summary>
+    public int? MaxRenderDepth { get; private init; }
+
+    /// <summary>
+    ///     Gets the view name filter for the render command; <see langword="null"/> means
+    ///     render all views. Supplied via <c>--view</c>.
+    /// </summary>
+    public string? ViewName { get; private init; }
+
+    /// <summary>
     ///     Gets the output directory path for rendered diagram files.
     /// </summary>
     public string? OutputDirectory { get; private init; }
@@ -138,6 +150,8 @@ internal sealed class Context : IDisposable
             Validate = parser.Validate,
             ResultsFile = parser.ResultsFile,
             HeadingDepth = parser.HeadingDepth,
+            MaxRenderDepth = parser.MaxRenderDepth,
+            ViewName = parser.ViewName,
             Command = parser.Command,
             Files = parser.Files,
             OutputDirectory = parser.OutputDirectory,
@@ -230,6 +244,16 @@ internal sealed class Context : IDisposable
         public int HeadingDepth { get; private set; } = 1;
 
         /// <summary>
+        ///     Gets the maximum diagram render depth; <see langword="null"/> means unlimited.
+        /// </summary>
+        public int? MaxRenderDepth { get; private set; }
+
+        /// <summary>
+        ///     Gets the view name filter for the render command.
+        /// </summary>
+        public string? ViewName { get; private set; }
+
+        /// <summary>
         ///     Gets the output directory path for rendered diagram files.
         /// </summary>
         public string? OutputDirectory { get; private set; }
@@ -296,7 +320,9 @@ internal sealed class Context : IDisposable
                     return index + 1;
 
                 case "--depth":
-                    HeadingDepth = GetRequiredIntArgument(arg, args, index, "a heading depth argument", 1, 6);
+                    var depth = GetRequiredIntArgument(arg, args, index, "a heading depth argument", 1);
+                    HeadingDepth = Math.Clamp(depth, 1, 6);
+                    MaxRenderDepth = depth;
                     return index + 1;
 
                 case "--output":
@@ -305,6 +331,10 @@ internal sealed class Context : IDisposable
 
                 case "--format":
                     RendererFormat = GetRequiredStringArgument(arg, args, index, "a format argument (svg or png)");
+                    return index + 1;
+
+                case "--view":
+                    ViewName = GetRequiredStringArgument(arg, args, index, "a view name argument");
                     return index + 1;
 
                 case "lint":

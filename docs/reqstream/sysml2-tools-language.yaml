@@ -1,0 +1,49 @@
+---
+# SysML2Tools Language Library System-Level Requirements (Phase 5 Stub)
+#
+# PURPOSE:
+# - Define system-level requirements for the DemaConsulting.SysML2Tools.Language library
+# - Language library provides: ANTLR parser, SysmlNode AST types, AstBuilder, WorkspaceParser,
+#   SymbolTable, ReferenceResolver, SupertypeWalker, WorkspaceLoader, AstSerializer/AstDeserializer
+
+sections:
+  - title: SysML2Tools Language Requirements
+    requirements:
+      - id: SysML2Tools-Language-Parsing
+        title: >-
+          The Language library shall parse SysML v2 source strings and return syntax
+          diagnostics with file path, line number, and column offset.
+        justification: |
+          Providing a stdlib-agnostic SysML v2 parser as a reusable library allows tools,
+          tests, and build-time generators to parse SysML syntax without depending on any
+          particular standard library version.
+        tests:
+          - ParseSource_EmptyFile_NoErrors
+          - ParseSource_InvalidSyntax_ReportsError
+
+      - id: SysML2Tools-Language-SemanticLoading
+        title: >-
+          The Language library shall build a semantic workspace from provided SysML v2
+          files, optionally seeded with a pre-populated symbol table.
+        justification: |
+          A seeded loading API decouples the Language library from any specific standard
+          library, enabling callers to supply a pre-compiled stdlib symbol table (or none
+          at all) without recompiling the Language library.
+        tests:
+          - WorkspaceLoader_LoadAsync_NoFiles_ReturnsNonNullWorkspace
+          - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
+
+      - id: SysML2Tools-Language-AstSerialization
+        title: >-
+          The Language library shall serialize a SymbolTable and diagnostics to a binary
+          representation and faithfully deserialize them, preserving all node types,
+          qualified names, supertype lists, and import names.
+        justification: |
+          Round-trip serialization enables the build-time StdlibGen tool to write a
+          pre-compiled stdlib.bin and the runtime StdlibProvider to deserialize it,
+          eliminating the 25-second cold-start parse at application launch.
+        tests:
+          - Serialize_EmptyTable_RoundTrips
+          - Serialize_AllNodeTypes_RoundTrip
+          - Serialize_Diagnostics_RoundTrip
+          - Serialize_SupertypeAndImportedNames_Preserved

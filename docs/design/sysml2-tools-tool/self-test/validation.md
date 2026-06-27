@@ -12,6 +12,10 @@ tool's requirements; it verifies that the tool behaves correctly in the deployme
 `Validation` holds no instance state. The class is `internal static`; all state is local to
 `Run` and the private test methods.
 
+**SelfTestModel**: `string` constant — minimal SysML model containing a `view def GeneralView {}`,
+`part def SensorUnit;`, and `part def ActuatorUnit;` inside `package ValidateTest`. Used by
+lint and render self-tests without requiring external files.
+
 #### Key Methods
 
 **Run**: Entry point for the self-validation suite.
@@ -23,8 +27,10 @@ tool's requirements; it verifies that the tool behaves correctly in the deployme
   file has been written or an error has been recorded for an unsupported extension.
 
 Calls `PrintValidationHeader`, constructs a `TestResults` object named
-`"SysML2 Tools Self-Validation"`, calls `RunVersionTest` and `RunHelpTest`, prints
-totals (using `WriteError` if any tests failed), and calls `WriteResultsFile` if
+`"SysML2 Tools Self-Validation"`, calls `RunVersionTest`, `RunHelpTest`,
+`RunLintSelfTest`, `RunRenderSvgSelfTest`, and `RunRenderPngSelfTest`, prints
+totals (using `WriteError` if any tests failed), prints `"SysML2Tools self-test: PASSED"`
+or `"SysML2Tools self-test: FAILED — N test(s) failed"`, and calls `WriteResultsFile` if
 `context.ResultsFile` is set.
 
 **RunVersionTest**: Verifies that `--version` produces a version string.
@@ -46,6 +52,39 @@ Creates a `TemporaryDirectory`, constructs a log path with `PathHelpers.SafePath
 invokes `Program.Run` with `["--silent", "--log", logFile, "--help"]`, reads the log, and
 asserts the content contains both `"Usage:"` and `"Options:"`. Records pass or fail. Any
 exception is caught by a broad `catch (Exception)` and recorded via `HandleTestException`.
+
+**RunLintSelfTestAsync**: Verifies that `SelfTestModel` produces zero lint errors.
+
+- *Parameters*: `Context context`, `DemaConsulting.TestResults.TestResults testResults`.
+- *Returns*: `Task`.
+
+Creates a `TemporaryDirectory`, writes `SelfTestModel` to a temp file, calls
+`WorkspaceLoader.LoadAsync`, and asserts `result.Diagnostics` contains no
+`DiagnosticSeverity.Error` entries. Records pass or fail. Any exception is caught and
+recorded via `HandleTestException`.
+
+**RunRenderSvgSelfTestAsync**: Verifies that `SelfTestModel` renders to a non-empty SVG stream.
+
+- *Parameters*: `Context context`, `DemaConsulting.TestResults.TestResults testResults`.
+- *Returns*: `Task`.
+
+Creates a `TemporaryDirectory`, writes `SelfTestModel` to a temp file, loads the workspace
+with `WorkspaceLoader.LoadAsync`, calls `DiagramRenderer.RenderWorkspace` with
+`new SvgRenderer()` and `new RenderOptions(Themes.Light)`, and asserts
+`outputs.Count > 0 && outputs[0].Data.Length > 0`. Records pass or fail. Any exception is
+caught and recorded via `HandleTestException`.
+
+**RunRenderPngSelfTestAsync**: Verifies that `SelfTestModel` renders to a non-empty PNG stream,
+or skips gracefully when SkiaSharp is unavailable.
+
+- *Parameters*: `Context context`, `DemaConsulting.TestResults.TestResults testResults`.
+- *Returns*: `Task`.
+
+Calls `NativeLibrary.TryLoad("libSkiaSharp", ...)` first. If the library is absent, records
+the test as `Passed` with a skip message and returns early. Otherwise frees the handle, writes
+`SelfTestModel` to a temp file, loads the workspace, calls `DiagramRenderer.RenderWorkspace`
+with `new PngRenderer()`, and asserts non-empty output. Records pass or fail. Any exception
+is caught and recorded via `HandleTestException`.
 
 **WriteResultsFile**: Serializes `testResults` to `context.ResultsFile`.
 

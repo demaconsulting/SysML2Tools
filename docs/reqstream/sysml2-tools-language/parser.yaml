@@ -1,0 +1,50 @@
+---
+# Parser Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the SysML2Tools Language Parser subsystem
+# - WorkspaceParser provides the public API for parsing SysML v2 files and source strings
+# - Requirements describe observable parsing behavior, not internal implementation
+
+sections:
+  - title: SysML2Tools Language Requirements
+    sections:
+      - title: Parser Subsystem Requirements
+        requirements:
+          - id: SysML2Tools-Language-Parser-Diagnostics
+            title: >-
+              WorkspaceParser shall report syntax errors as SysmlDiagnostic records
+              containing the file path, line number, column offset, severity, and message.
+            justification: |
+              Structured diagnostics allow callers to present errors to users with precise
+              location information (file, line, column) and enable programmatic filtering
+              by severity level.
+            tests:
+              - ParseSource_InvalidSyntax_ReportsError
+              - ParseSource_ErrorPath_MatchesSuppliedPath
+
+          - id: SysML2Tools-Language-Parser-ParseSource
+            title: >-
+              WorkspaceParser.ParseSource shall parse an in-memory source string using the
+              caller-supplied virtual file path for diagnostic attribution.
+            justification: |
+              In-memory parsing without requiring a physical file is essential for testing
+              and for future IDE integration scenarios where source text is provided directly
+              by the editor without being written to disk.
+            tests:
+              - ParseSource_EmptyFile_NoErrors
+              - ParseSource_MinimalPackage_NoErrors
+              - ParseSource_PartDef_NoErrors
+              - ParseSource_InvalidSyntax_ReportsError
+              - ParseSource_ErrorPath_MatchesSuppliedPath
+
+          - id: SysML2Tools-Language-Parser-HasErrors
+            title: >-
+              WorkspaceParseResult.HasErrors shall return true if and only if at least one
+              Error-severity diagnostic is present in the result.
+            justification: |
+              Callers need a simple boolean gate to decide whether to fail a build or report
+              errors without inspecting the full diagnostic list themselves.
+            tests:
+              - ParseSource_EmptyFile_NoErrors
+              - ParseSource_InvalidSyntax_ReportsError

@@ -99,6 +99,7 @@ Write-Host "Fixing: dotnet format..."
 $slnFiles = @(Get-ChildItem -Filter "*.sln" -ErrorAction SilentlyContinue) +
             @(Get-ChildItem -Filter "*.slnx" -ErrorAction SilentlyContinue)
 if ($slnFiles.Count -gt 0) {
+    dotnet restore > $null 2>&1
     dotnet format 2>$null
 }
 

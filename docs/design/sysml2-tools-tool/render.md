@@ -21,7 +21,7 @@ a simple string comparison, and rendering orchestration to `DiagramRenderer`.
 No instance state. All data flows through the `Context` parameter and local variables.
 
 - Input: `Context` — file patterns (`Files`), format (`RendererFormat`), output path
-  (`OutputDirectory`)
+  (`OutputDirectory`), view filter (`ViewName`), render depth (`MaxRenderDepth`)
 - Intermediate: `SysmlLoadResult` — workspace and diagnostics from `WorkspaceLoader`
 - Output: files written to `OutputDirectory` via `File.Create`
 
@@ -36,12 +36,16 @@ Entry point for the render command. Steps:
 2. Calls `WorkspaceLoader.LoadAsync(context.Files)` to load the workspace.
 3. Reports all diagnostics from `loadResult.Diagnostics`, writing errors via
    `context.WriteError` and other messages via `context.WriteLine`.
-4. Selects renderer: `PngRenderer` when `context.RendererFormat` equals `"png"`
+4. Calls `DiagramRenderer.GetViewNames(workspace)` to enumerate renderable views.
+5. When `viewNames.Count > 1` and `context.ViewName` is null, calls `context.WriteError`
+   with a message listing the available names and returns early.
+6. Selects renderer: `PngRenderer` when `context.RendererFormat` equals `"png"`
    (case-insensitive); `SvgRenderer` otherwise.
-5. Calls `DiagramRenderer.RenderWorkspace` with the loaded workspace, selected renderer,
-   and `new RenderOptions(Themes.Light)`.
-6. Writes a "No views found" message and returns when `outputs` is empty.
-7. Resolves the output directory (defaults to `Directory.GetCurrentDirectory()`), creates
+7. Calls `DiagramRenderer.RenderWorkspace` passing
+   `new RenderOptions(Themes.Light, DepthLimit: context.MaxRenderDepth ?? 0)` and
+   `viewFilter: context.ViewName`.
+8. Writes a "No views found" message and returns when `outputs` is empty.
+9. Resolves the output directory (defaults to `Directory.GetCurrentDirectory()`), creates
    it via `Directory.CreateDirectory`, and writes each `RenderOutput.Data` stream to a
    file named `RenderOutput.SuggestedFileName`.
 
@@ -49,6 +53,8 @@ Entry point for the render command. Steps:
 
 - Missing file patterns: `context.WriteError` is called and the method returns early.
 - Load diagnostics: reported to the context; non-fatal; rendering proceeds regardless.
+- Multiple views without `--view`: `context.WriteError` lists available view names and
+  returns early.
 - No view declarations: informational message; no output files written; returns normally.
 - File system errors (e.g., permission denied): propagate as `IOException`; handled by
   `Program.Main`'s outer exception handler.
@@ -76,3 +82,6 @@ Entry point for the render command. Steps:
 | SysML2Tools-Tool-Render-Format | Renderer selection switch in `RunAsync` |
 | SysML2Tools-Tool-Render-Output | Output directory resolution in `RunAsync` |
 | SysML2Tools-Tool-Render-Empty | Empty-outputs message in `RunAsync` |
+| SysML2Tools-Tool-Render-DepthLimit | `DepthLimit` passed to `RenderOptions` in `RunAsync` |
+| SysML2Tools-Tool-Render-MultipleViewError | Multi-view guard using `GetViewNames` in `RunAsync` |
+| SysML2Tools-Tool-Render-ViewSelection | `viewFilter` passed to `RenderWorkspace` in `RunAsync` |

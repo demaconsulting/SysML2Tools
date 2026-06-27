@@ -316,14 +316,48 @@ public class ContextTests
     }
 
     /// <summary>
-    ///     Test creating a context with --depth flag and value exceeding maximum throws exception.
+    ///     Test creating a context with --depth flag and value exceeding maximum (6) does not throw;
+    ///     it sets MaxRenderDepth to the raw value and clamps HeadingDepth to 6.
     /// </summary>
     [Fact]
-    public void Context_Create_DepthFlag_ExceedsMaxValue_ThrowsArgumentException()
+    public void Context_Create_DepthFlag_ExceedsMaxValue_SetsMaxRenderDepth()
     {
-        // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => Context.Create(["--depth", "7"]));
-        Assert.Contains("--depth", exception.Message);
+        // Act: execute the operation being tested
+        using var context = Context.Create(["--depth", "7"]);
+
+        // Assert: HeadingDepth is clamped to 6; MaxRenderDepth preserves the raw value
+        Assert.Equal(6, context.HeadingDepth);
+        Assert.Equal(7, context.MaxRenderDepth);
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
+    ///     Test creating a context with --depth 3 sets both HeadingDepth and MaxRenderDepth.
+    /// </summary>
+    [Fact]
+    public void Context_Create_DepthFlag_SetsMaxRenderDepth()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["--depth", "3"]);
+
+        // Assert: both properties reflect the supplied depth
+        Assert.Equal(3, context.HeadingDepth);
+        Assert.Equal(3, context.MaxRenderDepth);
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the --view flag sets the ViewName property.
+    /// </summary>
+    [Fact]
+    public void Context_Create_ViewFlag_SetsViewName()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["--view", "MyView"]);
+
+        // Assert: verify expected behavior
+        Assert.Equal("MyView", context.ViewName);
+        Assert.Equal(0, context.ExitCode);
     }
 
     /// <summary>

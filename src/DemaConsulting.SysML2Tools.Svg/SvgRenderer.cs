@@ -43,6 +43,12 @@ namespace DemaConsulting.SysML2Tools.Svg;
 /// </remarks>
 public sealed class SvgRenderer : IRenderer
 {
+    /// <summary>Closing tag for an SVG marker element, indented to match the defs block.</summary>
+    private const string MarkerClose = "    </marker>";
+
+    /// <summary>SVG text-anchor value for centered alignment.</summary>
+    private const string TextAnchorMiddle = "middle";
+
     /// <inheritdoc/>
     public string MediaType => "image/svg+xml";
 
@@ -115,7 +121,7 @@ public sealed class SvgRenderer : IRenderer
         sb.Append(CultureInfo.InvariantCulture,
             $"""      <polygon points="0 0, 10 3.5, 0 7" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
         sb.AppendLine();
-        sb.AppendLine("    </marker>");
+        sb.AppendLine(MarkerClose);
 
         // Filled arrowhead marker — solid triangle pointing along the line direction
         sb.Append(CultureInfo.InvariantCulture,
@@ -124,7 +130,7 @@ public sealed class SvgRenderer : IRenderer
         sb.Append(CultureInfo.InvariantCulture,
             $"""      <polygon points="0 0, 10 3.5, 0 7" fill="{theme.StrokeColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
         sb.AppendLine();
-        sb.AppendLine("    </marker>");
+        sb.AppendLine(MarkerClose);
 
         // Diamond marker — open four-point diamond straddling the line end
         sb.Append(CultureInfo.InvariantCulture,
@@ -133,7 +139,7 @@ public sealed class SvgRenderer : IRenderer
         sb.Append(CultureInfo.InvariantCulture,
             $"""      <polygon points="1 4, 7 0, 13 4, 7 8" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
         sb.AppendLine();
-        sb.AppendLine("    </marker>");
+        sb.AppendLine(MarkerClose);
 
         // Filled diamond marker — solid four-point diamond straddling the line end
         sb.Append(CultureInfo.InvariantCulture,
@@ -142,7 +148,7 @@ public sealed class SvgRenderer : IRenderer
         sb.Append(CultureInfo.InvariantCulture,
             $"""      <polygon points="1 4, 7 0, 13 4, 7 8" fill="{theme.StrokeColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
         sb.AppendLine();
-        sb.AppendLine("    </marker>");
+        sb.AppendLine(MarkerClose);
 
         // Circle marker — open circle whose near edge sits at the line endpoint
         sb.Append(CultureInfo.InvariantCulture,
@@ -151,7 +157,7 @@ public sealed class SvgRenderer : IRenderer
         sb.Append(CultureInfo.InvariantCulture,
             $"""      <circle cx="5" cy="5" r="4" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
         sb.AppendLine();
-        sb.AppendLine("    </marker>");
+        sb.AppendLine(MarkerClose);
 
         // Bar marker — perpendicular line centered on the line endpoint
         sb.Append(CultureInfo.InvariantCulture,
@@ -160,7 +166,7 @@ public sealed class SvgRenderer : IRenderer
         sb.Append(CultureInfo.InvariantCulture,
             $"""      <line x1="2" y1="0" x2="2" y2="12" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
         sb.AppendLine();
-        sb.AppendLine("    </marker>");
+        sb.AppendLine(MarkerClose);
 
         sb.AppendLine("  </defs>");
     }
@@ -527,7 +533,7 @@ public sealed class SvgRenderer : IRenderer
         var y = label.Y * scale;
         var anchor = label.Align switch
         {
-            TextAlign.Center => "middle",
+            TextAlign.Center => TextAnchorMiddle,
             TextAlign.Right => "end",
             _ => "start"
         };
@@ -569,8 +575,8 @@ public sealed class SvgRenderer : IRenderer
             var offset = PortHalfSize + theme.LabelPadding;
             var (labelX, labelY, anchor) = port.Side switch
             {
-                PortSide.Top => (port.CentreX, port.CentreY - offset, "middle"),
-                PortSide.Bottom => (port.CentreX, port.CentreY + offset + theme.FontSizeBody, "middle"),
+                PortSide.Top => (port.CentreX, port.CentreY - offset, TextAnchorMiddle),
+                PortSide.Bottom => (port.CentreX, port.CentreY + offset + theme.FontSizeBody, TextAnchorMiddle),
                 PortSide.Left => (port.CentreX - offset, port.CentreY + theme.FontSizeBody / 2.0, "end"),
                 _ => (port.CentreX + offset, port.CentreY + theme.FontSizeBody / 2.0, "start")
             };
@@ -806,21 +812,9 @@ public sealed class SvgRenderer : IRenderer
                     $"""  <rect x="{F(cx)}" y="{F(cy)}" width="{F(cw)}" height="{F(ch)}" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
                 sb.AppendLine();
 
-                // Cell text, horizontally aligned per spec and vertically centered in the row
-                var anchor = cell.Align switch
-                {
-                    TextAlign.Center => "middle",
-                    TextAlign.Right => "end",
-                    _ => "start"
-                };
-                var textX = cell.Align switch
-                {
-                    TextAlign.Center => currentX + cell.Width / 2.0,
-                    TextAlign.Right => currentX + cell.Width - theme.LabelPadding,
-                    _ => currentX + theme.LabelPadding
-                };
+                // Cell text properties are computed in a helper to stay within complexity limits
+                var (anchor, textX, fontWeightAttr) = GetCellTextProperties(cell, currentX, theme, row.IsHeader);
                 var textY = currentY + rowHeight / 2.0;
-                var fontWeightAttr = row.IsHeader ? " font-weight=\"bold\"" : string.Empty;
 
                 sb.Append(CultureInfo.InvariantCulture,
                     $"""  <text x="{F(textX * scale)}" y="{F(textY * scale)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}"{fontWeightAttr} fill="{theme.StrokeColor}" text-anchor="{anchor}" dominant-baseline="middle">{EscapeXml(cell.Text)}</text>""");
@@ -831,6 +825,41 @@ public sealed class SvgRenderer : IRenderer
 
             currentY += rowHeight;
         }
+    }
+
+    /// <summary>
+    /// Computes the SVG text-anchor, horizontal text position, and font-weight attribute for a
+    /// single grid cell. Extracted from <see cref="RenderGrid"/> to reduce its cognitive complexity.
+    /// </summary>
+    /// <param name="cell">The grid cell whose alignment drives the computed values.</param>
+    /// <param name="cellLeft">Logical X origin of the cell within the grid.</param>
+    /// <param name="theme">Visual theme providing label padding.</param>
+    /// <param name="isHeader">
+    /// <see langword="true"/> when the cell belongs to a header row; controls font weight.
+    /// </param>
+    /// <returns>
+    /// A tuple of (<c>Anchor</c>, <c>TextX</c>, <c>FontWeightAttr</c>) ready for SVG output.
+    /// </returns>
+    private static (string Anchor, double TextX, string FontWeightAttr) GetCellTextProperties(
+        LayoutGridCell cell,
+        double cellLeft,
+        Theme theme,
+        bool isHeader)
+    {
+        var anchor = cell.Align switch
+        {
+            TextAlign.Center => TextAnchorMiddle,
+            TextAlign.Right => "end",
+            _ => "start"
+        };
+        var textX = cell.Align switch
+        {
+            TextAlign.Center => cellLeft + cell.Width / 2.0,
+            TextAlign.Right => cellLeft + cell.Width - theme.LabelPadding,
+            _ => cellLeft + theme.LabelPadding
+        };
+        var fontWeightAttr = isHeader ? " font-weight=\"bold\"" : string.Empty;
+        return (anchor, textX, fontWeightAttr);
     }
 
     /// <summary>

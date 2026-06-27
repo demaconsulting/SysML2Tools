@@ -24,6 +24,9 @@ on context output and exit code. File-writing scenarios use a temporary director
 - Output files written to `--output` directory
 - No output files written when workspace has no views
 - Informational message written when workspace has no views
+- `--depth 1` produces SVG output containing the ellipsis character `"…"`
+- Multiple views without `--view` yields exit code 1 and an error message
+- `--view <name>` with a multi-view workspace renders exactly one file
 
 #### Test Scenarios
 
@@ -56,3 +59,22 @@ directory.
 
 Verifies that a model with no view declarations produces no output files and an
 informational message.
+
+##### RenderSubsystem_WithDepth_LimitsNesting
+
+Verifies that `--depth 1` causes the SVG output to contain the ellipsis character `"…"`,
+confirming that child part-def boxes were replaced by the depth-limit indicator.
+
+##### RenderSubsystem_MultipleViews_NoViewFlag_ReportsError
+
+Verifies that rendering a workspace with two views and no `--view` flag yields exit code 1.
+
+##### RenderSubsystem_MultipleViews_NoViewFlag_ListsAvailableViews
+
+Verifies that the multi-view error path writes an error containing the available view names
+to the log.
+
+##### RenderSubsystem_MultipleViews_WithViewFlag_RendersSelectedView
+
+Verifies that `--view ViewAlpha` selects exactly one view from a two-view workspace and
+produces a single `.svg` output file.

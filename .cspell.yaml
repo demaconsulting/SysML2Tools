@@ -57,6 +57,9 @@ words:
   - kerml
   - KerML
   - supertypes
+  - Superclassing
+  - superclassing
+  - NETSDK
   - daltskin
   - interp
   - Dlanguage

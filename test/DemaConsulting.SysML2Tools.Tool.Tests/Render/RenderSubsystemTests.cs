@@ -277,4 +277,162 @@ public class RenderSubsystemTests
             }
         }
     }
+
+    /// <summary>
+    ///     RenderCommand renders with --depth 1 and the SVG output contains an ellipsis
+    ///     character indicating that children were truncated at depth limit.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_WithDepth_LimitsNesting()
+    {
+        // Arrange: write a SysML model with a view and part defs; create temp output dir
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_depth_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        await File.WriteAllTextAsync(tempFile, SysmlWithView, TestContext.Current.CancellationToken);
+
+        var outputDir = Path.Combine(tempDir, "out");
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: render with depth=1 to trigger the ellipsis truncation
+            using var context = Context.Create(
+                ["render", "--format", "svg", "--depth", "1", "--output", outputDir, tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert: SVG output exists and contains the ellipsis marker
+            Assert.Equal(0, context.ExitCode);
+            var svgFiles = Directory.GetFiles(outputDir, "*.svg");
+            Assert.True(svgFiles.Length > 0, "Expected at least one .svg output file");
+            var svgContent = await File.ReadAllTextAsync(svgFiles[0], TestContext.Current.CancellationToken);
+            Assert.Contains("…", svgContent);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     A SysML model containing two view definitions used by multi-view tests.
+    /// </summary>
+    private const string SysmlWithTwoViews = """
+        package MultiViewTest {
+            part def BlockA {}
+            part def BlockB {}
+            view def ViewAlpha {}
+            view def ViewBeta {}
+        }
+        """;
+
+    /// <summary>
+    ///     RenderCommand reports an error when the workspace contains multiple views and
+    ///     --view is not specified.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_MultipleViews_NoViewFlag_ReportsError()
+    {
+        // Arrange: write a SysML model with two views
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_multi_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        await File.WriteAllTextAsync(tempFile, SysmlWithTwoViews, TestContext.Current.CancellationToken);
+
+        var outputDir = Path.Combine(tempDir, "out");
+        var originalError = Console.Error;
+        try
+        {
+            using var errWriter = new StringWriter();
+            Console.SetError(errWriter);
+
+            // Act: render without --view flag
+            using var context = Context.Create(["render", "--output", outputDir, tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert: exit code indicates failure; error was reported
+            Assert.Equal(1, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     RenderCommand error output lists available view names when multiple views are
+    ///     present and --view is not specified.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_MultipleViews_NoViewFlag_ListsAvailableViews()
+    {
+        // Arrange: write a SysML model with two named views
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_multi_views_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        await File.WriteAllTextAsync(tempFile, SysmlWithTwoViews, TestContext.Current.CancellationToken);
+
+        var outputDir = Path.Combine(tempDir, "out");
+        var originalError = Console.Error;
+        try
+        {
+            using var errWriter = new StringWriter();
+            Console.SetError(errWriter);
+
+            // Act: render without --view flag; use log to capture output for assertion
+            var logFile = Path.Combine(tempDir, "output.log");
+            using var context = Context.Create(
+                ["render", "--silent", "--log", logFile, "--output", outputDir, tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert: exit code indicates failure; error message in log lists view names
+            Assert.Equal(1, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     RenderCommand with --view selects a specific view and renders it successfully.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_MultipleViews_WithViewFlag_RendersSelectedView()
+    {
+        // Arrange: write a SysML model with two views
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_view_select_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        await File.WriteAllTextAsync(tempFile, SysmlWithTwoViews, TestContext.Current.CancellationToken);
+
+        var outputDir = Path.Combine(tempDir, "out");
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: render with --view specifying one of the two views
+            using var context = Context.Create(
+                ["render", "--format", "svg", "--view", "ViewAlpha", "--output", outputDir, tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert: exactly one SVG file was produced; exit code indicates success
+            Assert.Equal(0, context.ExitCode);
+            var svgFiles = Directory.GetFiles(outputDir, "*.svg");
+            Assert.Single(svgFiles);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }

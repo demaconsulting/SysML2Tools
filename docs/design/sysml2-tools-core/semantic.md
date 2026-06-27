@@ -29,16 +29,17 @@ flowchart TD
     AstBuilder --> SymbolTable
 ```
 
-**WorkspaceLoader.LoadAsync**: Loads the embedded stdlib plus every file in the provided
-collection asynchronously.
+**WorkspaceLoader.LoadAsync**: Loads every file in the provided collection asynchronously,
+optionally seeded with a pre-populated symbol table.
 
 - *Type*: In-process .NET static async method.
 - *Role*: Provider.
-- *Contract*: Accepts `IEnumerable<string> filePaths`; returns `Task<SysmlLoadResult>` containing
-  a `SysmlWorkspace` with all qualified-name declarations and all collected diagnostics. Stdlib
-  is loaded and cached; user files are parsed in parallel on the thread pool.
-- *Constraints*: `filePaths` must be valid, readable file paths. KerML stdlib parse errors are
-  downgraded to Warnings since the SysML v2 grammar does not fully cover KerML syntax.
+- *Contract*: Accepts `IEnumerable<string> filePaths` and an optional `SymbolTable? seedSymbolTable`;
+  returns `Task<SysmlLoadResult>` containing a `SysmlWorkspace` with all qualified-name declarations
+  and all collected diagnostics. When `seedSymbolTable` is provided, the workspace is initialized with
+  a copy of its symbols before processing user files. User files are parsed in parallel on the
+  thread pool.
+- *Constraints*: `filePaths` must not be null; each path should be a readable file path.
 
 **SysmlLoadResult**: Aggregate result returned by `WorkspaceLoader.LoadAsync`.
 
@@ -56,11 +57,10 @@ collection asynchronously.
 
 ### Design
 
-1. `WorkspaceLoader.LoadAsync` awaits the shared `Lazy<Task<StdlibSemanticResult>>` stdlib result.
-   On first call the factory fires `Task.Run(BuildStdlibSemanticAsync)`, which reads each stdlib
-   resource stream, calls `WorkspaceParser.ParseSourceToCst`, downgrades KerML parse errors to
-   Warnings, builds an AST via `AstBuilder`, and registers it into a `SymbolTable`.
-2. Concurrently, all caller-supplied file paths are dispatched via `Task.WhenAll`, each parsing
+1. `WorkspaceLoader.LoadAsync` creates a `SymbolTable` seeded from `seedSymbolTable` via the copy
+   constructor `new SymbolTable(seedSymbolTable.Symbols)` when a seed is provided, or creates an
+   empty `SymbolTable` when `seedSymbolTable` is `null`.
+2. All caller-supplied file paths are dispatched via `Task.WhenAll`, each parsing
    its content via `WorkspaceParser.ParseSourceToCst`, building an AST, and registering into
    the same `SymbolTable`.
 3. `ReferenceResolver.ResolveAll` traverses all AST nodes, checks each supertype name against
@@ -73,8 +73,5 @@ collection asynchronously.
 
 ### Design Constraints
 
-- KerML stdlib files are parsed with the SysML v2 grammar; any parse errors are downgraded to
-  Warnings since the grammar does not fully support KerML-specific syntax.
-- The stdlib AST and symbol table are cached in a static `Lazy<Task<>>` and shared across all
-  concurrent callers.
+- There is no shared static state; each call to `LoadAsync` creates an independent `SymbolTable`.
 - `AstBuilder` is not thread-safe — a separate instance is created for each file.

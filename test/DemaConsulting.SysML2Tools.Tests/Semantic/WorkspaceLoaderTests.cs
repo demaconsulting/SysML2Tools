@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using DemaConsulting.SysML2Tools.Semantic;
+using DemaConsulting.SysML2Tools.Stdlib;
 
 namespace DemaConsulting.SysML2Tools.Tests.Semantic;
 
@@ -24,7 +25,8 @@ public sealed class WorkspaceLoaderTests
             await File.WriteAllTextAsync(tempFile, string.Empty, TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert
             Assert.NotNull(result.Workspace);
@@ -50,7 +52,8 @@ public sealed class WorkspaceLoaderTests
             await File.WriteAllTextAsync(tempFile, "package Foo {}", TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert
             Assert.NotNull(result.Workspace);
@@ -77,7 +80,8 @@ public sealed class WorkspaceLoaderTests
             await File.WriteAllTextAsync(tempFile, "package A { package B {} }", TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert
             Assert.NotNull(result.Workspace);
@@ -104,7 +108,8 @@ public sealed class WorkspaceLoaderTests
             await File.WriteAllTextAsync(tempFile, "package P { part def W {} }", TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert
             Assert.NotNull(result.Workspace);
@@ -125,7 +130,8 @@ public sealed class WorkspaceLoaderTests
     public async Task WorkspaceLoader_LoadAsync_NoFiles_ReturnsNonNullWorkspace()
     {
         // Act
-        var result = await WorkspaceLoader.LoadAsync([]);
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([], stdlibTable);
 
         // Assert
         Assert.NotNull(result.Workspace);
@@ -141,7 +147,8 @@ public sealed class WorkspaceLoaderTests
     public async Task WorkspaceLoader_LoadAsync_StdlibDeclarations_Registered()
     {
         // Act
-        var result = await WorkspaceLoader.LoadAsync([]);
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([], stdlibTable);
 
         // Assert
         Assert.NotNull(result.Workspace);
@@ -171,7 +178,8 @@ public sealed class WorkspaceLoaderTests
                 """, TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert
             Assert.NotNull(result.Workspace);
@@ -206,7 +214,8 @@ public sealed class WorkspaceLoaderTests
                 """, TestContext.Current.CancellationToken);
 
             // Act
-            var result = await WorkspaceLoader.LoadAsync([tempFile]);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             // Assert
             Assert.NotNull(result.Workspace);
@@ -238,7 +247,8 @@ public sealed class WorkspaceLoaderTests
             // Act — cycle detection must terminate (not loop forever).
             // Use xUnit's per-test cancellation token rather than a hard 30-second
             // limit; stdlib loading on a cold Linux CI runner can take longer than 30s.
-            var result = await WorkspaceLoader.LoadAsync([tempFile1, tempFile2])
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile1, tempFile2], stdlibTable)
                 .WaitAsync(TestContext.Current.CancellationToken);
 
             // Assert — circular import warning present
@@ -266,7 +276,8 @@ public sealed class WorkspaceLoaderTests
             $"nonexistent_{Guid.NewGuid():N}.sysml");
 
         // Act
-        var result = await WorkspaceLoader.LoadAsync([nonExistentPath]);
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([nonExistentPath], stdlibTable);
 
         // Assert
         Assert.NotNull(result.Workspace);
@@ -297,7 +308,8 @@ public sealed class WorkspaceLoaderTests
             // Act — cycle detection must terminate (not loop forever).
             // Use xUnit's per-test cancellation token rather than a hard 30-second
             // limit; stdlib loading on a cold Linux CI runner can take longer than 30s.
-            var result = await WorkspaceLoader.LoadAsync([tempFile])
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable)
                 .WaitAsync(TestContext.Current.CancellationToken);
 
             // Assert — cyclic specialization warning present
@@ -311,4 +323,115 @@ public sealed class WorkspaceLoaderTests
             File.Delete(tempFile);
         }
     }
+
+    // Level 11: Unqualified name in same package resolves without warning
+    /// <summary>
+    ///     A part def that specializes a sibling defined in the same package using its short
+    ///     (unqualified) name should resolve correctly and produce no "Unresolved reference"
+    ///     warning.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnqualifiedNameSamePackage_ResolvesWithoutWarning()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package A {
+                    part def Foo {}
+                    part def Baz specializes Foo {}
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert — unqualified "Foo" should resolve to A::Foo via namespace scope
+            Assert.NotNull(result.Workspace);
+            Assert.DoesNotContain(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("Foo"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    // Level 12: Unqualified name resolves via wildcard import
+    /// <summary>
+    ///     A part def that specializes a type using only its short name, where that type is
+    ///     brought into scope by a wildcard import, should resolve without an "Unresolved
+    ///     reference" warning.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnqualifiedNameViaWildcardImport_ResolvesWithoutWarning()
+    {
+        // Arrange — Bar is defined in Pkg; Other imports Pkg::* and references Bar by short name
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package Pkg { part def Bar {} }
+                package Other {
+                    import Pkg::*;
+                    part def Foo specializes Bar {}
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert — "Bar" resolves via Pkg::Bar through the wildcard import
+            Assert.NotNull(result.Workspace);
+            Assert.DoesNotContain(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("Bar"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    // Level 13: Explicit named import resolves short name
+    /// <summary>
+    ///     A part def that specializes a type using only its short name, where that type is
+    ///     brought into scope by an explicit named import, should resolve without an "Unresolved
+    ///     reference" warning.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ExplicitImportedName_ResolvesWithoutWarning()
+    {
+        // Arrange — Bar is defined in Pkg; Other imports Pkg::Bar by full name and references Bar
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package Pkg { part def Bar {} }
+                package Other {
+                    import Pkg::Bar;
+                    part def Foo specializes Bar {}
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert — "Bar" resolves via explicit import Pkg::Bar
+            Assert.NotNull(result.Workspace);
+            Assert.DoesNotContain(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("Bar"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
 }
+

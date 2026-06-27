@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using DemaConsulting.SysML2Tools.Semantic;
+using DemaConsulting.SysML2Tools.Stdlib;
 
 namespace DemaConsulting.SysML2Tools.Tests.Semantic;
 
@@ -49,7 +50,8 @@ public sealed class SemanticOmgModelsTests
         }
 
         // Act
-        var result = await WorkspaceLoader.LoadAsync(sysmlFiles);
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync(sysmlFiles, stdlibTable);
 
         // Assert — no errors
         var errors = result.Diagnostics
