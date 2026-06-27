@@ -151,6 +151,81 @@ public sealed class DiagramRenderer
     }
 
     /// <summary>
+    /// Synthesizes a <see cref="SysmlViewNode"/> that targets the most representative
+    /// top-level element in the workspace, for use when the user passes <c>--auto</c>
+    /// and no user-defined views are present.
+    /// </summary>
+    /// <param name="workspace">
+    /// The SysML workspace to inspect. Must not be null.
+    /// </param>
+    /// <returns>
+    /// A synthetic <see cref="SysmlViewNode"/> whose <c>Name</c> is derived from the chosen
+    /// element (e.g. <c>"VehicleA"</c> → <c>"VehicleAView"</c>), or <see langword="null"/>
+    /// when the workspace contains no non-stdlib declarations to target.
+    /// </returns>
+    /// <remarks>
+    /// Selection priority:
+    /// <list type="number">
+    ///   <item>The non-stdlib <c>part def</c> with the highest direct-child count.</item>
+    ///   <item>The first non-stdlib definition when no <c>part def</c> exists.</item>
+    /// </list>
+    /// The returned node has empty <see cref="SysmlNode.Children"/> and
+    /// <see cref="SysmlNode.SupertypeNames"/> because the GeneralView layout strategy
+    /// derives its content from workspace declarations rather than the view's own children.
+    /// </remarks>
+    public static SysmlViewNode? SynthesizeAutoView(SysmlWorkspace workspace)
+    {
+        // Validate input — null workspace would cause a NullReferenceException
+        ArgumentNullException.ThrowIfNull(workspace);
+
+        // Collect all non-stdlib definition nodes as candidates for the auto view target
+        SysmlDefinitionNode? bestPartDef = null;
+        SysmlDefinitionNode? firstDefinition = null;
+
+        foreach (var (qualifiedName, node) in workspace.Declarations)
+        {
+            // Skip stdlib elements — only user-defined declarations are considered
+            if (Internal.StdlibFilter.IsStdlibElement(qualifiedName))
+            {
+                continue;
+            }
+
+            // Consider only definition nodes (part def, attribute def, etc.)
+            if (node is not SysmlDefinitionNode defNode)
+            {
+                continue;
+            }
+
+            // Record the first non-stdlib definition as the fallback target
+            firstDefinition ??= defNode;
+
+            // Prefer a part def, and among part defs prefer the one with the most direct children
+            if (string.Equals(defNode.DefinitionKeyword, "part def", StringComparison.Ordinal) &&
+                (bestPartDef is null || defNode.Children.Count > bestPartDef.Children.Count))
+            {
+                bestPartDef = defNode;
+            }
+        }
+
+        // Choose the best candidate: part def with most children, then any definition, then none
+        var target = bestPartDef ?? firstDefinition;
+        if (target is null)
+        {
+            return null;
+        }
+
+        // Build the synthesized view name by appending "View" to the element's simple name
+        var viewName = (target.Name ?? target.QualifiedName ?? "AutoView") + "View";
+        var viewQualifiedName = (target.QualifiedName ?? target.Name ?? "AutoView") + "View";
+
+        return new SysmlViewNode
+        {
+            Name = viewName,
+            QualifiedName = viewQualifiedName
+        };
+    }
+
+    /// <summary>
     /// Produces a file-system-safe name by replacing any character that is invalid
     /// in a file name with an underscore.
     /// </summary>

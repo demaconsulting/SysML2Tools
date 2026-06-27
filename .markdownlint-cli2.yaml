@@ -53,3 +53,4 @@ ignores:
   - "**/generated/**"
   - "**/AGENT_REPORT_*.md"
   - "**/.agent-logs/**"
+  - "ROADMAP.md"

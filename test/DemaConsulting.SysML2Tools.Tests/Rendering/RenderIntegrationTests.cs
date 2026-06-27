@@ -16,10 +16,35 @@ namespace DemaConsulting.SysML2Tools.Tests.Rendering;
 public sealed class RenderIntegrationTests
 {
     /// <summary>
-    ///     Path to the software-structure test model that contains no view definitions.
+    ///     Locates the <c>test/SysMLModels</c> root by walking up from the assembly's base directory.
     /// </summary>
-    private static readonly string SoftwareStructureModel =
-        Path.Combine("SysMLModels", "software-structure.sysml");
+    /// <returns>
+    ///     The absolute path to the <c>test/SysMLModels</c> directory, or <see langword="null"/>
+    ///     when the directory cannot be found (e.g., the test is running from an unexpected location).
+    /// </returns>
+    private static string? FindSysMLModelsRoot()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null)
+        {
+            var candidate = Path.Combine(dir, "test", "SysMLModels");
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Path to the nested-packages-with-view test fixture: two nested packages,
+    ///     several part defs, and one view def.
+    /// </summary>
+    private static string SoftwareStructureModel =>
+        Path.Combine(FindSysMLModelsRoot() ?? "SysMLModels", "Custom", "nested-packages-with-view.sysml");
 
     /// <summary>
     ///     Inline SysML source for the general-view end-to-end tests.  The package contains two
@@ -34,13 +59,13 @@ public sealed class RenderIntegrationTests
         """;
 
     /// <summary>
-    ///     DiagramRenderer.RenderWorkspace on a workspace loaded from the software-structure
-    ///     model (which has no view definitions) returns an empty list of render outputs.
+    ///     DiagramRenderer.RenderWorkspace on a workspace loaded from the sysml2tools-architecture
+    ///     model produces SVG output for the declared view.
     /// </summary>
     [Fact]
-    public async Task DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsEmptyList()
+    public async Task DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsSvgOutput()
     {
-        // Arrange: load workspace from the software-structure model file
+        // Arrange: load workspace from the sysml2tools-architecture model file
         var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
         var result = await WorkspaceLoader.LoadAsync([SoftwareStructureModel], stdlibTable);
         Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
@@ -48,22 +73,21 @@ public sealed class RenderIntegrationTests
         var svgRenderer = new SvgRenderer();
         var options = new RenderOptions(Themes.Light);
 
-        // Act: render the workspace (which has no views)
+        // Act: render the workspace
         var outputs = diagramRenderer.RenderWorkspace(result.Workspace, svgRenderer, options);
 
-        // Assert: no outputs because the model has no view declarations
-        Assert.Empty(outputs);
+        // Assert: one output for the declared view
+        Assert.NotEmpty(outputs);
     }
 
     /// <summary>
-    ///     DiagramRenderer.RenderWorkspace on a workspace loaded from the software-structure
-    ///     model produces no PNG outputs either, confirming the empty-list result is
-    ///     renderer-agnostic.
+    ///     DiagramRenderer.RenderWorkspace on a workspace loaded from the sysml2tools-architecture
+    ///     model produces PNG output for the declared view.
     /// </summary>
     [Fact]
-    public async Task DiagramRenderer_RenderWorkspace_SoftwareStructureModel_PngRenderer_ReturnsEmptyList()
+    public async Task DiagramRenderer_RenderWorkspace_SoftwareStructureModel_PngRenderer_ReturnsPngOutput()
     {
-        // Arrange: load workspace from the software-structure model file
+        // Arrange: load workspace from the sysml2tools-architecture model file
         var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
         var result = await WorkspaceLoader.LoadAsync([SoftwareStructureModel], stdlibTable);
         Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
@@ -71,11 +95,11 @@ public sealed class RenderIntegrationTests
         var pngRenderer = new PngRenderer();
         var options = new RenderOptions(Themes.Light);
 
-        // Act: render the workspace (which has no views)
+        // Act: render the workspace
         var outputs = diagramRenderer.RenderWorkspace(result.Workspace, pngRenderer, options);
 
-        // Assert: no outputs because the model has no view declarations
-        Assert.Empty(outputs);
+        // Assert: one output for the declared view
+        Assert.NotEmpty(outputs);
     }
 
     /// <summary>

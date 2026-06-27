@@ -119,6 +119,7 @@ ignorePaths:
   - "**/Stdlib/**"
   - "**/AGENT_REPORT_*.md"
   - "**/.agent-logs/**"
+  - "ROADMAP.md"
   - "**/bin/**"
   - "**/obj/**"
   - package-lock.json

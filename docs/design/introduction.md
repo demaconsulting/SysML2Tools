@@ -175,7 +175,99 @@ OTS items have integration/usage design documentation parallel to system folders
 
 Review-sets: defined in `.reviewmark.yaml`
 
+## Technology Stack
+
+| Concern | Choice | License |
+| --- | --- | --- |
+| Language / runtime | C# / .NET 8+ | MIT |
+| Parser generator | ANTLR4 (`Antlr4.Runtime.Standard`) | BSD-3-Clause |
+| SysML v2 grammar | `antlr/grammars-v4` (official OMG KEBNF) | MIT |
+| PNG rendering | SkiaSharp | MIT |
+| Embedded font | Noto Sans | SIL OFL 1.1 |
+| Test results output | `DemaConsulting.TestResults` | — |
+| Unit testing | xUnit v3 | Apache 2.0 |
+
+No ImageSharp dependency. SkiaSharp is chosen over ImageSharp to avoid the Six Labors
+Split License, which would impose licensing obligations on library consumers embedding
+`DemaConsulting.SysML2Tools.Png` in commercial products.
+
+## Architectural Decisions
+
+**Multi-package from day one.** Separating the core library from renderer packages
+allows library consumers to take a dependency on parsing and layout without pulling
+in native graphics binaries. The `IRenderer` interface is the extension point.
+
+**Multi-file workspace.** The OMG stdlib is pre-loaded from embedded resources before
+any user files are parsed. Single-file input is the degenerate case of a multi-file
+workspace; there is no single-file mode.
+
+**SkiaSharp over ImageSharp.** SkiaSharp is MIT-licensed. ImageSharp v2+ uses the
+Six Labors Split License which imposes obligations on commercial library consumers.
+SkiaSharp's native asset requirement is transparent for tool consumers (handled by
+NuGet at publish time) and is a known, documented constraint for library consumers.
+
+**Embedded Noto Sans font.** Ensures pixel-identical PNG output across all platforms.
+Noto Sans is licensed SIL OFL 1.1 which explicitly permits embedding in software.
+Default themes use the embedded font; user-overridden themes may use system or
+external fonts at the cost of the pixel-identity guarantee.
+
+**`IRenderer` is low-level and pure — no filesystem access.** It receives a
+`LayoutTree` and writes to a caller-supplied `Stream`. Passing a `FileStream`
+writes directly to disk with no intermediate buffer; passing a `MemoryStream`
+keeps output in memory for testing or in-process use; passing
+`Console.OpenStandardOutput()` supports stdout piping. Multi-view orchestration
+(`DiagramRenderer`) lives in the core library and calls `IRenderer` once per view —
+renderer packages have no concept of workspaces or view iteration.
+
+**DiagramTypeRouter uses resolved qualified names.** The router dispatches on the
+stdlib-resolved qualified name of a view's viewpoint type (e.g.,
+`SystemsModelingLibrary::Views::GeneralView`), not the raw token. User aliases and
+local imports therefore do not break dispatch. The router walks the supertype chain
+to handle custom viewpoints that specialize stdlib viewpoints.
+
+**Diagnostic model mirrors ReviewMark.** `SysmlDiagnostic` mirrors ReviewMark's
+`LintIssue` in structure and philosophy: file/line/col location, severity enum,
+human-readable message. The `lint` command makes this output useful for AI-assisted
+model authoring loops.
+
+**Layout engines are independent and reusable.** Non-trivial layout algorithms
+(`ContainmentPacker`, `ChannelRouter`, `ForceDirectedEngine`, `PortAssigner`,
+`LayeredLayoutEngine`) live in `Layout/Engine/` with no dependency on the SysML
+semantic model. Each engine accepts plain geometric input and returns computed
+geometry, making them independently testable and reusable across multiple view
+strategies. See `ROADMAP.md` for the phased introduction of each engine.
+
+**Theme record is a compile-time constant in v1.** Loadable theme files are deferred
+to v2. The Theme record data structure is defined in v1 so that v2 loadable themes
+are additive and non-breaking.
+
+**`--auto` flag.** When a workspace has no view definitions, `--auto` renders the
+general view of the top-level `part def` silently. Without `--auto`, the same
+auto-render occurs but a warning is emitted advising the user to define an explicit
+view. This keeps v1 immediately useful for unstructured models while encouraging
+good authoring practice.
+
+**Self-test via `--validate` flag.** Uses the same `Program.Run` pattern as
+ReviewMark: invokes the full CLI pipeline against embedded test models with a test
+context, then asserts expected outputs. Results are written as TRX/JUnit via
+`DemaConsulting.TestResults`, consistent with the shared DEMA CI contract. This
+tests the integrated tool, not just unit-level components.
+
+**SARIF deferred.** The `SysmlDiagnostic` list is structurally compatible with SARIF.
+SARIF output can be added as a formatting option on the existing infrastructure
+without any breaking changes.
+
+**SkiaSharp native assets for library consumers.** Consumers referencing
+`DemaConsulting.SysML2Tools.Png` must ensure the appropriate
+`SkiaSharp.NativeAssets.*` package is included in their publish output. This must
+be documented clearly in the package README.
+
+**Noto Sans SIL OFL attribution.** OFL requires the copyright notice and license
+text to be included in distributions. Must appear in NuGet package notices and the
+tool's `--licenses` output (or equivalent).
+
 ## References
 
 - SysML2 Tools User Guide
 - SysML2 Tools Repository (<https://github.com/demaconsulting/SysML2Tools>)
+- SysML2 Tools Rendering Roadmap (`ROADMAP.md`)

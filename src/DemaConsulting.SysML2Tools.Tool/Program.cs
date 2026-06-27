@@ -170,6 +170,7 @@ internal static class Program
         context.WriteLine("  --output <dir>             Output directory for rendered files (render command)");
         context.WriteLine("  --format <fmt>             Renderer format: svg (default) or png (render command)");
         context.WriteLine("  --view <name>              Select a specific view to render (render command)");
+        context.WriteLine("  --auto                     Auto-generate a view when none are defined (render command)");
     }
 
     /// <summary>
