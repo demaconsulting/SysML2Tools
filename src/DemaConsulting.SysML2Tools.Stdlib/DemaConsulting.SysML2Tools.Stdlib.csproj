@@ -64,7 +64,7 @@
           Condition="'$(TargetFrameworks)' != '' OR '$(TargetFramework)' == 'net10.0'"
           Inputs="@(StdlibSourceFiles)"
           Outputs="$(BaseIntermediateOutputPath)stdlib.bin">
-    <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\Tools\StdlibGen\StdlibGen.csproj&quot; -c $(Configuration) -f net10.0 --no-restore -v:q" />
+    <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\Tools\StdlibGen\StdlibGen.csproj&quot; -c $(Configuration) -f net10.0 -v:q" />
     <PropertyGroup>
       <_StdlibGenDll>$(MSBuildThisFileDirectory)..\Tools\StdlibGen\bin\$(Configuration)\net10.0\StdlibGen.dll</_StdlibGenDll>
     </PropertyGroup>
