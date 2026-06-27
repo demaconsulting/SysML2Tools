@@ -51,6 +51,11 @@ internal static class DiagramTypeRouter
             {
                 return new StateTransitionViewLayoutStrategy();
             }
+
+            if (Matches(view, "ActionFlow") || Matches(view, "Action"))
+            {
+                return new ActionFlowViewLayoutStrategy();
+            }
         }
 
         return new GeneralViewLayoutStrategy();

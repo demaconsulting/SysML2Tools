@@ -277,7 +277,7 @@ Grid, Browser, Geometry) require no engine — pure arithmetic in the strategy c
 | `ChannelRouter` ✅ | Orthogonal edge routing around obstacles | Phase 6 | Phase 7, 8 |
 | `ForceDirectedEngine` ✅ | Fruchterman-Reingold spring layout | Phase 8 | Phase 9 |
 | `PortAssigner` ✅ | Port-side and slot heuristic | Phase 8 | — |
-| `LayeredLayoutEngine` | Simplified Sugiyama DAG layout | Phase 10 | — |
+| `LayeredLayoutEngine` ✅ | Simplified Sugiyama DAG layout | Phase 10 | — |
 
 All engines live in `Layout/Engine/` and have their own unit tests with **synthetic
 inputs** (no parser or view code required). Integration is validated through the
@@ -549,7 +549,20 @@ Agent views the PNG and asserts:
 
 ---
 
-### Phase 10 — Action Flow View + LayeredLayoutEngine (2–3 sessions)
+### Phase 10 — Action Flow View + LayeredLayoutEngine (2–3 sessions) — ✅ COMPLETE (orthogonal flows)
+
+> **Status:** Complete. `LayeredLayoutEngine` (simplified Sugiyama: DFS cycle removal, longest-path
+> layer assignment, barycenter crossing-reduction sweeps, coordinate assignment) implemented and
+> unit-tested (5 tests: layer ordering, downward edges, no same-layer overlap, cycle handling).
+> `AstBuilder` captures action usages (`VisitActionUsage`) and successions (`VisitSuccessionAsUsage`
+> → `SysmlTransitionNode`); `VisitActionDefinition` collects the action body.
+> `ActionFlowViewLayoutStrategy` lays actions out top-to-bottom in layers, adds a start node
+> (filled circle) into the initial actions and a done node (bullseye) from the final actions, and
+> routes successions as flow arrows. `DiagramTypeRouter` dispatches on "ActionFlow"/"Action".
+>
+> **Design decision:** Decision/fork/join nodes render as regular action boxes (branch points);
+> dedicated diamond/bar shapes for decision and fork/join detection are a future enhancement.
+> Visual gate passed against `order-action-flow` (branch + join, correct layering, no overlaps).
 
 Implement the Action Flow View, introducing the Sugiyama-style layered layout engine.
 

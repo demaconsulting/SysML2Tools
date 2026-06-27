@@ -68,4 +68,16 @@ public sealed class DiagramTypeRouterTests
 
         Assert.IsType<StateTransitionViewLayoutStrategy>(strategy);
     }
+
+    /// <summary>A view whose name contains "ActionFlow" routes to the action-flow strategy.</summary>
+    [Fact]
+    public void GetStrategy_ActionFlowNamedView_ReturnsActionFlowStrategy()
+    {
+        var view = new SysmlViewNode { Name = "OrderActionFlowView", QualifiedName = "M::OrderActionFlowView" };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out _);
+
+        Assert.IsType<ActionFlowViewLayoutStrategy>(strategy);
+    }
 }

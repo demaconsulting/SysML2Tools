@@ -176,7 +176,70 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <inheritdoc/>
     public override SysmlNode? VisitActionDefinition(SysMLv2Parser.ActionDefinitionContext context)
     {
-        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "action def");
+        var decl = context.definitionDeclaration();
+        var name = GetDeclaredName(decl?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var qualifiedName = QualifyName(name);
+        var supertypeNames = GetSubclassificationSupertypes(decl?.subclassificationPart());
+
+        // Collect the action body (action usages and successions) as children.
+        _namespaceStack.Add(name);
+        var children = CollectChildren(context.actionBody()?.actionBodyItem() ?? []);
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+
+        return new SysmlDefinitionNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            DefinitionKeyword = "action def",
+            SupertypeNames = supertypeNames,
+            Children = children,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitActionUsage(SysMLv2Parser.ActionUsageContext context)
+    {
+        var name = GetDeclaredName(context.actionUsageDeclaration()?.usageDeclaration()?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        return new SysmlFeatureNode
+        {
+            Name = name,
+            QualifiedName = QualifyName(name),
+            FeatureKeyword = "action",
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitSuccessionAsUsage(SysMLv2Parser.SuccessionAsUsageContext context)
+    {
+        // A succession links two action ends: first <source> then <target>.
+        var ends = context.connectorEndMember();
+        if (ends.Length < 2)
+        {
+            return null;
+        }
+
+        var source = ConnectorEndReference(ends[0]);
+        var target = ConnectorEndReference(ends[1]);
+        if (source is null || target is null)
+        {
+            return null;
+        }
+
+        return new SysmlTransitionNode
+        {
+            Source = source,
+            Target = target,
+        };
     }
 
     /// <inheritdoc/>

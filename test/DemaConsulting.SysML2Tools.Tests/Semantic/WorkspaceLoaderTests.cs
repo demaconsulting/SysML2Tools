@@ -640,6 +640,52 @@ public sealed class WorkspaceLoaderTests
         }
     }
 
+    /// <summary>
+    ///     An action definition captures its action usages and successions (as transition nodes).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ActionDefinition_CapturesActionsAndSuccessions()
+    {
+        // Arrange: an action def with two actions and a succession between them
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package AF {
+                    action def Flow {
+                        action stepA;
+                        action stepB;
+                        first stepA then stepB;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: the action def owns two action features and one succession
+            Assert.NotNull(result.Workspace);
+            var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["AF::Flow"]);
+            var actions = flow.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlFeatureNode>()
+                .Count(f => f.FeatureKeyword == "action");
+            Assert.Equal(2, actions);
+
+            var succession = flow.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlTransitionNode>()
+                .Single();
+            Assert.Equal("stepA", succession.Source);
+            Assert.Equal("stepB", succession.Target);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     /// <summary>Asserts that a feature with the given name has the expected keyword and typing.</summary>
     private static void AssertFeature(
         IEnumerable<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlFeatureNode> features,
