@@ -23,6 +23,16 @@ public sealed class SysmlWorkspace
     public IReadOnlyList<string> Files { get; init; } = Array.Empty<string>();
 
     /// <summary>
+    ///     Gets the set of fully-qualified names that originate from the standard-library seed.
+    /// </summary>
+    /// <remarks>
+    ///     Populated by <see cref="WorkspaceLoader"/> from the seed symbol table. Renderers use this
+    ///     to exclude standard-library elements from user-facing diagrams, which is more robust than
+    ///     matching against a fixed list of root-package name prefixes.
+    /// </remarks>
+    public IReadOnlySet<string> StdlibNames { get; init; } = new HashSet<string>(StringComparer.Ordinal);
+
+    /// <summary>
     ///     Gets the qualified-name registry mapping fully-qualified names to their declaration nodes.
     /// </summary>
     /// <remarks>

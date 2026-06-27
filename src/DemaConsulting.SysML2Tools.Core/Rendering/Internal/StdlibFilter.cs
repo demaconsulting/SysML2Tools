@@ -59,4 +59,15 @@ internal static class StdlibFilter
         StdlibPrefixes.Any(prefix =>
             qualifiedName == prefix ||
             qualifiedName.StartsWith(prefix + "::", StringComparison.Ordinal));
+
+    /// <summary>
+    /// Returns <see langword="true"/> when the qualified name is a standard-library element,
+    /// determined first by membership in the workspace's seed-derived <paramref name="stdlibNames"/>
+    /// set and falling back to the root-package prefix heuristic.
+    /// </summary>
+    /// <param name="qualifiedName">Fully-qualified element name to test.</param>
+    /// <param name="stdlibNames">Set of qualified names that originate from the stdlib seed.</param>
+    /// <returns><see langword="true"/> if the element is part of the stdlib.</returns>
+    public static bool IsStdlibElement(string qualifiedName, IReadOnlySet<string> stdlibNames) =>
+        stdlibNames.Contains(qualifiedName) || IsStdlibElement(qualifiedName);
 }

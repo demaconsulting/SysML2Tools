@@ -47,7 +47,7 @@ public sealed class DiagramRenderer
             }
 
             // Skip stdlib view declarations — only user-defined views are considered
-            if (Internal.StdlibFilter.IsStdlibElement(qualifiedName))
+            if (Internal.StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
             {
                 continue;
             }
@@ -110,7 +110,7 @@ public sealed class DiagramRenderer
             }
 
             // Skip stdlib view declarations — only user-defined views are rendered
-            if (Internal.StdlibFilter.IsStdlibElement(qualifiedName))
+            if (Internal.StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
             {
                 continue;
             }
@@ -185,7 +185,7 @@ public sealed class DiagramRenderer
         foreach (var (qualifiedName, node) in workspace.Declarations)
         {
             // Skip stdlib elements — only user-defined declarations are considered
-            if (Internal.StdlibFilter.IsStdlibElement(qualifiedName))
+            if (Internal.StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
             {
                 continue;
             }

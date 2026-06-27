@@ -241,30 +241,11 @@ public sealed class SvgRenderer : IRenderer
         // Derive fill color from theme using depth modulo wrapping
         var fillColor = theme.DepthFillColors[box.Depth % theme.DepthFillColors.Count];
 
-        var x = box.X * scale;
-        var y = box.Y * scale;
-        var w = box.Width * scale;
-        var h = box.Height * scale;
+        // Draw the box outline (shape-specific)
+        RenderBoxOutline(sb, box, theme, fillColor, scale);
 
-        // Add rx/ry for rounded rectangle; corner radius doubles the line radius for prominence
-        var cornerStr = box.Shape == BoxShape.RoundedRectangle && theme.LineCornerRadius > 0
-            ? $" rx=\"{F(theme.LineCornerRadius * 2.0 * scale)}\" ry=\"{F(theme.LineCornerRadius * 2.0 * scale)}\""
-            : string.Empty;
-
-        sb.Append(CultureInfo.InvariantCulture,
-            $"""  <rect x="{F(x)}" y="{F(y)}" width="{F(w)}" height="{F(h)}" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"{cornerStr}/>""");
-        sb.AppendLine();
-
-        // Draw the centered label in the title area if present
-        if (box.Label != null)
-        {
-            var textX = (box.X + box.Width / 2.0) * scale;
-            var textY = (box.Y + theme.LabelPadding + theme.FontSizeTitle / 2.0) * scale;
-            var availableWidth = (box.Width - 2 * theme.LabelPadding) * scale;
-            sb.Append(CultureInfo.InvariantCulture,
-                $"""  <text x="{F(textX)}" y="{F(textY)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeTitle * scale)}" font-weight="bold" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle" textLength="{F(availableWidth)}" lengthAdjust="spacingAndGlyphs">{EscapeXml(box.Label)}</text>""");
-            sb.AppendLine();
-        }
+        // Draw the keyword and label in the title area
+        RenderBoxTitle(sb, box, theme, scale);
 
         // Render compartments below the label area
         if (box.Compartments.Count > 0)
@@ -280,6 +261,130 @@ public sealed class SvgRenderer : IRenderer
     }
 
     /// <summary>
+    /// Renders the outline (border and fill) of a <see cref="LayoutBox"/>, selecting the path
+    /// geometry based on <see cref="LayoutBox.Shape"/>.
+    /// </summary>
+    /// <param name="sb">String builder receiving the SVG markup.</param>
+    /// <param name="box">The box whose outline is drawn.</param>
+    /// <param name="theme">Visual theme providing stroke settings and corner radius.</param>
+    /// <param name="fillColor">Resolved fill color for the box interior.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    private static void RenderBoxOutline(StringBuilder sb, LayoutBox box, Theme theme, string fillColor, double scale)
+    {
+        var x = box.X * scale;
+        var y = box.Y * scale;
+        var w = box.Width * scale;
+        var h = box.Height * scale;
+
+        switch (box.Shape)
+        {
+            case BoxShape.Folder:
+                RenderFolderOutline(sb, box, theme, fillColor, scale);
+                break;
+
+            case BoxShape.Note:
+                RenderNoteOutline(sb, box, theme, fillColor, scale);
+                break;
+
+            case BoxShape.RoundedRectangle:
+                var cornerStr = theme.LineCornerRadius > 0
+                    ? $" rx=\"{F(theme.LineCornerRadius * 2.0 * scale)}\" ry=\"{F(theme.LineCornerRadius * 2.0 * scale)}\""
+                    : string.Empty;
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <rect x="{F(x)}" y="{F(y)}" width="{F(w)}" height="{F(h)}" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"{cornerStr}/>""");
+                sb.AppendLine();
+                break;
+
+            default:
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <rect x="{F(x)}" y="{F(y)}" width="{F(w)}" height="{F(h)}" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+                sb.AppendLine();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Renders a folder-shaped outline (a tab at the top-left above a full-width body),
+    /// used for package nodes.
+    /// </summary>
+    private static void RenderFolderOutline(StringBuilder sb, LayoutBox box, Theme theme, string fillColor, double scale)
+    {
+        var tabHeight = BoxMetrics.FolderTabHeight(theme);
+        var tabWidth = Math.Min(box.Width * 0.45, Math.Max(60.0, (box.Label?.Length ?? 4) * theme.FontSizeBody * 0.55 + 2.0 * theme.LabelPadding));
+
+        var x = box.X * scale;
+        var yTab = box.Y * scale;
+        var yBody = (box.Y + tabHeight) * scale;
+        var xTabRight = (box.X + tabWidth) * scale;
+        var xRight = (box.X + box.Width) * scale;
+        var yBottom = (box.Y + box.Height) * scale;
+
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""  <path d="M {F(x)} {F(yBody)} L {F(x)} {F(yTab)} L {F(xTabRight)} {F(yTab)} L {F(xTabRight)} {F(yBody)} L {F(xRight)} {F(yBody)} L {F(xRight)} {F(yBottom)} L {F(x)} {F(yBottom)} Z" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Renders a note-shaped outline (a rectangle with a folded-down top-right corner),
+    /// used for documentation and comment nodes.
+    /// </summary>
+    private static void RenderNoteOutline(StringBuilder sb, LayoutBox box, Theme theme, string fillColor, double scale)
+    {
+        var fold = Math.Min(box.Width, box.Height) * 0.25;
+        fold = Math.Min(fold, 16.0);
+
+        var x = box.X * scale;
+        var y = box.Y * scale;
+        var xRight = (box.X + box.Width) * scale;
+        var xFold = (box.X + box.Width - fold) * scale;
+        var yFold = (box.Y + fold) * scale;
+        var yBottom = (box.Y + box.Height) * scale;
+
+        // Main body with the top-right corner cut
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""  <path d="M {F(x)} {F(y)} L {F(xFold)} {F(y)} L {F(xRight)} {F(yFold)} L {F(xRight)} {F(yBottom)} L {F(x)} {F(yBottom)} Z" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+
+        // The folded corner triangle
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""  <path d="M {F(xFold)} {F(y)} L {F(xFold)} {F(yFold)} L {F(xRight)} {F(yFold)}" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Renders the optional keyword line and bold name label in the title area of a box.
+    /// </summary>
+    /// <param name="sb">String builder receiving the SVG markup.</param>
+    /// <param name="box">Box whose title is rendered.</param>
+    /// <param name="theme">Visual theme providing font sizes and padding.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    private static void RenderBoxTitle(StringBuilder sb, LayoutBox box, Theme theme, double scale)
+    {
+        var centerX = (box.X + box.Width / 2.0) * scale;
+        var cursorY = box.Y + theme.LabelPadding;
+
+        // Keyword line (smaller, italic, guillemet-wrapped) above the name
+        if (box.Keyword != null)
+        {
+            var kwY = (cursorY + theme.FontSizeBody / 2.0) * scale;
+            sb.Append(CultureInfo.InvariantCulture,
+                $"""  <text x="{F(centerX)}" y="{F(kwY)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" font-style="italic" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle">{EscapeXml("\u00AB" + box.Keyword + "\u00BB")}</text>""");
+            sb.AppendLine();
+            cursorY += theme.FontSizeBody + theme.LabelPadding;
+        }
+
+        // Bold name label
+        if (box.Label != null)
+        {
+            var textY = (cursorY + theme.FontSizeTitle / 2.0) * scale;
+            var availableWidth = (box.Width - 2 * theme.LabelPadding) * scale;
+            sb.Append(CultureInfo.InvariantCulture,
+                $"""  <text x="{F(centerX)}" y="{F(textY)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeTitle * scale)}" font-weight="bold" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle" textLength="{F(availableWidth)}" lengthAdjust="spacingAndGlyphs">{EscapeXml(box.Label)}</text>""");
+            sb.AppendLine();
+        }
+    }
+
+    /// <summary>
     /// Renders the compartments of a <see cref="LayoutBox"/> below the title area as SVG
     /// <c>&lt;line&gt;</c> dividers and <c>&lt;text&gt;</c> elements.
     /// </summary>
@@ -289,10 +394,8 @@ public sealed class SvgRenderer : IRenderer
     /// <param name="scale">Uniform scale factor.</param>
     private static void RenderBoxCompartments(StringBuilder sb, LayoutBox box, Theme theme, double scale)
     {
-        // Compartments start below the label area (padding + font + padding when label present)
-        var labelAreaHeight = box.Label != null
-            ? theme.LabelPadding + theme.FontSizeTitle + theme.LabelPadding
-            : 0.0;
+        // Compartments start below the title area (keyword + label), computed via shared metrics
+        var labelAreaHeight = BoxMetrics.TitleAreaHeight(theme, box.Label != null, box.Keyword != null);
         var compartmentY = box.Y + labelAreaHeight;
 
         foreach (var compartment in box.Compartments)

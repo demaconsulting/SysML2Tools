@@ -273,8 +273,8 @@ Grid, Browser, Geometry) require no engine — pure arithmetic in the strategy c
 
 | Engine | Category | First Used In | Reused In |
 |--------|----------|---------------|-----------|
-| `ContainmentPacker` | Bottom-up size, bin packing | Phase 6 | Phase 7, 8 |
-| `ChannelRouter` | Orthogonal edge routing around obstacles | Phase 6 | Phase 7, 8 |
+| `ContainmentPacker` ✅ | Bottom-up size, bin packing | Phase 6 | Phase 7, 8 |
+| `ChannelRouter` ✅ | Orthogonal edge routing around obstacles | Phase 6 | Phase 7, 8 |
 | `ForceDirectedEngine` | Fruchterman-Reingold spring layout | Phase 8 | Phase 9 |
 | `PortAssigner` | Port-side and slot heuristic | Phase 8 | — |
 | `LayeredLayoutEngine` | Simplified Sugiyama DAG layout | Phase 10 | — |
@@ -285,7 +285,13 @@ existing render integration tests.
 
 ---
 
-### Phase 6 — General View: All Definitions + Edges + ContainmentPacker + ChannelRouter (2–3 sessions)
+### Phase 6 — General View: All Definitions + Edges + ContainmentPacker + ChannelRouter (2–3 sessions) — ✅ COMPLETE
+
+> **Status:** Complete. All definition kinds render with keyword labels; packages render as
+> folder-tab containers; `ContainmentPacker` and `ChannelRouter` engines implemented and
+> unit-tested; specialization edges route around boxes. Standard-library filtering switched from
+> a fixed prefix list to seed-origin tracking (`SysmlWorkspace.StdlibNames`). Visual gate passed
+> against `2a-PartsInterconnection`, `1a-PartsTree`, and `nested-packages-with-view`.
 
 Highest-value incremental improvement: complete the General View to show all
 Definition types and relationship edges, and simultaneously introduce the two layout

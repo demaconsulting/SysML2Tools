@@ -433,5 +433,81 @@ public sealed class WorkspaceLoaderTests
             File.Delete(tempFile);
         }
     }
+
+    /// <summary>
+    ///     A model declaring several definition kinds registers each with the correct definition
+    ///     keyword, confirming the AST builder visits all definition rule variants.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_MixedDefinitionKinds_RegistersKeywords()
+    {
+        // Arrange: a package declaring part, port, interface, requirement, and enum definitions
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package Demo {
+                    part def Vehicle;
+                    port def FuelPort;
+                    interface def FuelInterface;
+                    requirement def MassReq;
+                    enum def Gear;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: each definition is registered with its expected keyword
+            Assert.NotNull(result.Workspace);
+            AssertKeyword(result.Workspace!, "Demo::Vehicle", "part def");
+            AssertKeyword(result.Workspace!, "Demo::FuelPort", "port def");
+            AssertKeyword(result.Workspace!, "Demo::FuelInterface", "interface def");
+            AssertKeyword(result.Workspace!, "Demo::MassReq", "requirement def");
+            AssertKeyword(result.Workspace!, "Demo::Gear", "enum def");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Loading with a stdlib seed populates the workspace's <see cref="SysmlWorkspace.StdlibNames"/>
+    ///     set with the seed's qualified names while excluding user declarations.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_PopulatesStdlibNamesFromSeed()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "package UserPkg { part def UserPart; }", TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: stdlib names are recorded and the user declaration is not among them
+            Assert.NotNull(result.Workspace);
+            Assert.NotEmpty(result.Workspace!.StdlibNames);
+            Assert.DoesNotContain("UserPkg::UserPart", result.Workspace.StdlibNames);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>Asserts that the named declaration exists and is a definition with the given keyword.</summary>
+    private static void AssertKeyword(SysmlWorkspace workspace, string qualifiedName, string expectedKeyword)
+    {
+        Assert.True(workspace.Declarations.TryGetValue(qualifiedName, out var node), $"Missing {qualifiedName}");
+        var def = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlDefinitionNode>(node);
+        Assert.Equal(expectedKeyword, def.DefinitionKeyword);
+    }
 }
 

@@ -114,6 +114,126 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <inheritdoc/>
+    public override SysmlNode? VisitPortDefinition(SysMLv2Parser.PortDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "port def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitConnectionDefinition(SysMLv2Parser.ConnectionDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "connection def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitAllocationDefinition(SysMLv2Parser.AllocationDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "allocation def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitFlowDefinition(SysMLv2Parser.FlowDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "flow def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitOccurrenceDefinition(SysMLv2Parser.OccurrenceDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "occurrence def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitIndividualDefinition(SysMLv2Parser.IndividualDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "individual def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitRenderingDefinition(SysMLv2Parser.RenderingDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "rendering def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitMetadataDefinition(SysMLv2Parser.MetadataDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "metadata def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitEnumerationDefinition(SysMLv2Parser.EnumerationDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "enum def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitInterfaceDefinition(SysMLv2Parser.InterfaceDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "interface def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitActionDefinition(SysMLv2Parser.ActionDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "action def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitStateDefinition(SysMLv2Parser.StateDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "state def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitCalculationDefinition(SysMLv2Parser.CalculationDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "calc def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitConstraintDefinition(SysMLv2Parser.ConstraintDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "constraint def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitRequirementDefinition(SysMLv2Parser.RequirementDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "requirement def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitConcernDefinition(SysMLv2Parser.ConcernDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "concern def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitCaseDefinition(SysMLv2Parser.CaseDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "case def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitAnalysisCaseDefinition(SysMLv2Parser.AnalysisCaseDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "analysis def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitVerificationCaseDefinition(SysMLv2Parser.VerificationCaseDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "verification def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitUseCaseDefinition(SysMLv2Parser.UseCaseDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "use case def");
+    }
+
+    /// <inheritdoc/>
     public override SysmlNode? VisitViewDefinition(SysMLv2Parser.ViewDefinitionContext context)
     {
         var name = GetDeclaredName(context.definitionDeclaration()?.identification());
@@ -314,6 +434,38 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         return result;
     }
 
+
+    /// <summary>
+    ///     Builds a definition AST node from a bare <see cref="SysMLv2Parser.DefinitionDeclarationContext"/>
+    ///     for definition kinds whose grammar rule uses a specialized body (e.g. action, state,
+    ///     requirement, enum) rather than the generic <c>definition</c> rule.
+    /// </summary>
+    /// <remarks>
+    ///     Only the declared name and supertype names are captured. The specialized body contents
+    ///     (nested usages and compartment members) are not yet collected; that is handled in a later
+    ///     phase that adds usage and compartment rendering.
+    /// </remarks>
+    private SysmlDefinitionNode? BuildDefinitionFromDeclaration(
+        SysMLv2Parser.DefinitionDeclarationContext? decl,
+        string keyword)
+    {
+        var name = GetDeclaredName(decl?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var qualifiedName = QualifyName(name);
+        var supertypeNames = GetSubclassificationSupertypes(decl?.subclassificationPart());
+
+        return new SysmlDefinitionNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            DefinitionKeyword = keyword,
+            SupertypeNames = supertypeNames,
+        };
+    }
 
     /// <summary>
     ///     Builds a definition AST node from the given <see cref="SysMLv2Parser.DefinitionContext"/>.
