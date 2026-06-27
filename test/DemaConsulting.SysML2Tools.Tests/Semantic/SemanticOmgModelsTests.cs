@@ -7,7 +7,7 @@ using DemaConsulting.SysML2Tools.Stdlib;
 namespace DemaConsulting.SysML2Tools.Tests.Semantic;
 
 /// <summary>
-///     Level 10 gate: all OMG example models and software-structure.sysml resolve with zero errors.
+///     Level 10 gate: all OMG example models and custom test models resolve with zero errors.
 /// </summary>
 public sealed class SemanticOmgModelsTests
 {
@@ -31,7 +31,7 @@ public sealed class SemanticOmgModelsTests
     }
 
     /// <summary>
-    ///     All OMG reference model files (including software-structure.sysml) should load with zero errors.
+    ///     All OMG reference model files and custom test models should load with zero errors.
     /// </summary>
     [Fact]
     public async Task SemanticOmgModels_AllModels_ResolveWithZeroErrors()

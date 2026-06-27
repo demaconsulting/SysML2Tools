@@ -74,6 +74,21 @@ internal static class RenderCommand
             return;
         }
 
+        // When --auto is requested and no user-defined views exist, synthesise a GeneralView
+        // targeting the most representative top-level element in the workspace
+        if (viewNames.Count == 0 && context.AutoView)
+        {
+            var autoView = DiagramRenderer.SynthesizeAutoView(loadResult.Workspace);
+            if (autoView != null)
+            {
+                context.WriteLine($"  Auto-generating view for '{autoView.Name}'...");
+
+                // Inject the synthetic view node into the workspace so the rendering pipeline
+                // discovers it via the normal declaration-iteration path in RenderWorkspace
+                loadResult.Workspace.AddDeclaration(autoView.QualifiedName!, autoView);
+            }
+        }
+
         // Select the renderer based on the format option (default: svg)
         var format = context.RendererFormat ?? "svg";
         IRenderer renderer = format.Equals("png", StringComparison.OrdinalIgnoreCase)

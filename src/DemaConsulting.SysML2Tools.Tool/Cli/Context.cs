@@ -116,6 +116,16 @@ internal sealed class Context : IDisposable
     public string? RendererFormat { get; private init; }
 
     /// <summary>
+    ///     Gets a value indicating whether the <c>--auto</c> flag was specified.
+    /// </summary>
+    /// <remarks>
+    ///     When <see langword="true"/> and the workspace has no user-defined view declarations,
+    ///     the render command synthesises a GeneralView targeting the most representative
+    ///     top-level element. The flag is silently ignored when views already exist.
+    /// </remarks>
+    public bool AutoView { get; private init; }
+
+    /// <summary>
     ///     Gets the proposed exit code for the application (0 for success, 1 for errors).
     /// </summary>
     public int ExitCode => _hasErrors ? 1 : 0;
@@ -155,7 +165,8 @@ internal sealed class Context : IDisposable
             Command = parser.Command,
             Files = parser.Files,
             OutputDirectory = parser.OutputDirectory,
-            RendererFormat = parser.RendererFormat
+            RendererFormat = parser.RendererFormat,
+            AutoView = parser.AutoView
         };
 
         // Open log file if specified
@@ -264,6 +275,11 @@ internal sealed class Context : IDisposable
         public string? RendererFormat { get; private set; }
 
         /// <summary>
+        ///     Gets a value indicating whether the <c>--auto</c> flag was specified.
+        /// </summary>
+        public bool AutoView { get; private set; }
+
+        /// <summary>
         ///     Parses command-line arguments
         /// </summary>
         /// <param name="args">Command-line arguments.</param>
@@ -336,6 +352,10 @@ internal sealed class Context : IDisposable
                 case "--view":
                     ViewName = GetRequiredStringArgument(arg, args, index, "a view name argument");
                     return index + 1;
+
+                case "--auto":
+                    AutoView = true;
+                    return index;
 
                 case "lint":
                     Command = SysmlCommand.Lint;
