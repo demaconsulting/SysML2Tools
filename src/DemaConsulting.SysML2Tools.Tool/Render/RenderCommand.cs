@@ -74,7 +74,7 @@ internal static class RenderCommand
             return;
         }
 
-        // When --auto is requested and no user-defined views exist, synthesise a GeneralView
+        // When --auto is requested and no user-defined views exist, synthesize a GeneralView
         // targeting the most representative top-level element in the workspace
         if (viewNames.Count == 0 && context.AutoView)
         {

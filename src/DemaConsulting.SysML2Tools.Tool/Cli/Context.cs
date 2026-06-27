@@ -120,7 +120,7 @@ internal sealed class Context : IDisposable
     /// </summary>
     /// <remarks>
     ///     When <see langword="true"/> and the workspace has no user-defined view declarations,
-    ///     the render command synthesises a GeneralView targeting the most representative
+    ///     the render command synthesizes a GeneralView targeting the most representative
     ///     top-level element. The flag is silently ignored when views already exist.
     /// </remarks>
     public bool AutoView { get; private init; }

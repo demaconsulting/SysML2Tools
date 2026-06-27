@@ -47,7 +47,7 @@ public sealed class SysmlWorkspace
     /// <param name="node">The node to register. Must not be null.</param>
     /// <remarks>
     ///     This method is intended for post-load augmentation only (e.g., the <c>--auto</c> flag
-    ///     synthesising a GeneralView). It should not be used during normal workspace construction.
+    ///     synthesizing a GeneralView). It should not be used during normal workspace construction.
     /// </remarks>
     public void AddDeclaration(string qualifiedName, SysmlNode node)
     {
