@@ -591,6 +591,55 @@ public sealed class WorkspaceLoaderTests
         }
     }
 
+    /// <summary>
+    ///     A state definition captures its declared state usages and transitions, recording each
+    ///     transition's source, target, and guard.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_StateDefinition_CapturesStatesAndTransitions()
+    {
+        // Arrange: a state def with three states and guarded transitions
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package SM {
+                    state def Light {
+                        state stop;
+                        state go;
+                        transition first stop if t then go;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: the state def owns two state features and one transition
+            Assert.NotNull(result.Workspace);
+            var light = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["SM::Light"]);
+            var states = light.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlFeatureNode>()
+                .Where(f => f.FeatureKeyword == "state")
+                .ToList();
+            Assert.Equal(2, states.Count);
+
+            var transition = light.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlTransitionNode>()
+                .Single();
+            Assert.Equal("stop", transition.Source);
+            Assert.Equal("go", transition.Target);
+            Assert.Equal("t", transition.Guard);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     /// <summary>Asserts that a feature with the given name has the expected keyword and typing.</summary>
     private static void AssertFeature(
         IEnumerable<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlFeatureNode> features,

@@ -182,7 +182,29 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <inheritdoc/>
     public override SysmlNode? VisitStateDefinition(SysMLv2Parser.StateDefinitionContext context)
     {
-        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "state def");
+        var decl = context.definitionDeclaration();
+        var name = GetDeclaredName(decl?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var qualifiedName = QualifyName(name);
+        var supertypeNames = GetSubclassificationSupertypes(decl?.subclassificationPart());
+
+        // Collect the state body (state usages and transitions) as children.
+        _namespaceStack.Add(name);
+        var children = CollectChildren(context.stateDefBody()?.stateBodyItem() ?? []);
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+
+        return new SysmlDefinitionNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            DefinitionKeyword = "state def",
+            SupertypeNames = supertypeNames,
+            Children = children,
+        };
     }
 
     /// <inheritdoc/>
@@ -288,6 +310,44 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             ConnectionKeyword = "connection",
             EndpointA = endpointA,
             EndpointB = endpointB,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitStateUsage(SysMLv2Parser.StateUsageContext context)
+    {
+        var name = GetDeclaredName(context.actionUsageDeclaration()?.usageDeclaration()?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        return new SysmlFeatureNode
+        {
+            Name = name,
+            QualifiedName = QualifyName(name),
+            FeatureKeyword = "state",
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitTransitionUsage(SysMLv2Parser.TransitionUsageContext context)
+    {
+        var name = GetDeclaredName(context.usageDeclaration()?.identification());
+
+        // Source is the feature chain after FIRST; target is the connector end after THEN.
+        var source = context.featureChainMember()?.GetText();
+        var target = ConnectorEndReference(
+            context.transitionSuccessionMember()?.transitionSuccession()?.connectorEndMember());
+        var guard = context.guardExpressionMember()?.ownedExpression()?.GetText();
+
+        return new SysmlTransitionNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            Source = source,
+            Target = target,
+            Guard = guard,
         };
     }
 
@@ -764,6 +824,26 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
         // Alt 3: just the declared name
         return names[0].GetText();
+    }
+
+    /// <summary>
+    ///     Collects child nodes by visiting an arbitrary sequence of parse-tree contexts, keeping
+    ///     each non-null result. Used for specialized bodies (e.g. state bodies) whose item type
+    ///     differs from the generic definition body item.
+    /// </summary>
+    private IReadOnlyList<SysmlNode> CollectChildren(IEnumerable<Antlr4.Runtime.Tree.IParseTree> items)
+    {
+        var result = new List<SysmlNode>();
+        foreach (var item in items)
+        {
+            var node = Visit(item);
+            if (node is not null)
+            {
+                result.Add(node);
+            }
+        }
+
+        return result;
     }
 
     /// <summary>

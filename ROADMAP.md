@@ -484,7 +484,20 @@ Agent views each PNG and asserts:
 
 ---
 
-### Phase 9 — State Transition View + Bezier Routing (2–3 sessions)
+### Phase 9 — State Transition View + Bezier Routing (2–3 sessions) — ✅ COMPLETE (orthogonal routing)
+
+> **Status:** Complete. `SysmlTransitionNode` captures transition source/target/guard;
+> `AstBuilder` visits state usages (`VisitStateUsage`) and transitions (`VisitTransitionUsage`),
+> and `VisitStateDefinition` now collects the state-def body (states + transitions) via a generic
+> `CollectChildren` helper. `StateTransitionViewLayoutStrategy` places states with the
+> force-directed engine, draws an initial pseudo-state (filled circle) into the first declared
+> state, and renders transitions with filled arrowheads and `[guard]` midpoint labels; self-
+> transitions render as a small loop. `DiagramTypeRouter` dispatches on "StateTransition"/"State".
+>
+> **Design decision:** Transitions use orthogonal routing via `ChannelRouter` rather than Bezier
+> curves — orthogonal state diagrams are clear and reuse the existing routing engine. Bezier
+> curve rendering remains a possible future enhancement. Visual gate passed against
+> `traffic-light-states` (three states, initial marker, guarded transitions, no overlaps).
 
 Implement the State Transition View. Reuses `ForceDirectedEngine` from Phase 8;
 adds curved/Bezier edge routing for the general-graph topology.

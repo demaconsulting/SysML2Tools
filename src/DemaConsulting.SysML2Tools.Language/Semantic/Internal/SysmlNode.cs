@@ -16,6 +16,7 @@ namespace DemaConsulting.SysML2Tools.Semantic.Internal;
 [JsonDerivedType(typeof(SysmlViewNode), "view")]
 [JsonDerivedType(typeof(SysmlViewpointNode), "viewpoint")]
 [JsonDerivedType(typeof(SysmlConnectionNode), "connection")]
+[JsonDerivedType(typeof(SysmlTransitionNode), "transition")]
 public abstract class SysmlNode
 {
     /// <summary>
@@ -132,4 +133,25 @@ public sealed class SysmlConnectionNode : SysmlNode
     ///     Gets the second endpoint reference (e.g., "transmission.input"), or null when unresolved.
     /// </summary>
     public string? EndpointB { get; init; }
+}
+
+/// <summary>
+///     AST node representing a state transition (source state, target state, optional guard).
+/// </summary>
+public sealed class SysmlTransitionNode : SysmlNode
+{
+    /// <summary>
+    ///     Gets the source state reference, or null when implied by the containing state.
+    /// </summary>
+    public string? Source { get; init; }
+
+    /// <summary>
+    ///     Gets the target state reference.
+    /// </summary>
+    public string? Target { get; init; }
+
+    /// <summary>
+    ///     Gets the guard expression text (the condition after <c>if</c>), or null when unguarded.
+    /// </summary>
+    public string? Guard { get; init; }
 }

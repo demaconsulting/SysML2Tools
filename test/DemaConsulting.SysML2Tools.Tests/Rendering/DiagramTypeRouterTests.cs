@@ -56,4 +56,16 @@ public sealed class DiagramTypeRouterTests
         Assert.Null(unsupported);
         Assert.IsType<GeneralViewLayoutStrategy>(strategy);
     }
+
+    /// <summary>A view whose name contains "StateTransition" routes to the state-transition strategy.</summary>
+    [Fact]
+    public void GetStrategy_StateTransitionNamedView_ReturnsStateStrategy()
+    {
+        var view = new SysmlViewNode { Name = "TrafficStateTransitionView", QualifiedName = "M::TrafficStateTransitionView" };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out _);
+
+        Assert.IsType<StateTransitionViewLayoutStrategy>(strategy);
+    }
 }

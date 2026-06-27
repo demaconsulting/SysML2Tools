@@ -40,26 +40,32 @@ internal static class DiagramTypeRouter
         _ = workspace;
         unsupportedMessage = null;
 
-        if (viewNode is SysmlViewNode view && IsInterconnectionView(view))
+        if (viewNode is SysmlViewNode view)
         {
-            return new InterconnectionViewLayoutStrategy();
+            if (Matches(view, "Interconnection"))
+            {
+                return new InterconnectionViewLayoutStrategy();
+            }
+
+            if (Matches(view, "StateTransition") || Matches(view, "State"))
+            {
+                return new StateTransitionViewLayoutStrategy();
+            }
         }
 
         return new GeneralViewLayoutStrategy();
     }
 
     /// <summary>
-    /// Determines whether a view declares itself as an interconnection view by specializing (or
-    /// being named after) a view kind whose name contains <c>Interconnection</c>.
+    /// Determines whether a view declares the given view-kind marker in its name or a supertype.
     /// </summary>
-    private static bool IsInterconnectionView(SysmlViewNode view)
+    private static bool Matches(SysmlViewNode view, string marker)
     {
-        const string Marker = "Interconnection";
-        if (view.Name is not null && view.Name.Contains(Marker, StringComparison.OrdinalIgnoreCase))
+        if (view.Name is not null && view.Name.Contains(marker, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        return view.SupertypeNames.Any(s => s.Contains(Marker, StringComparison.OrdinalIgnoreCase));
+        return view.SupertypeNames.Any(s => s.Contains(marker, StringComparison.OrdinalIgnoreCase));
     }
 }
