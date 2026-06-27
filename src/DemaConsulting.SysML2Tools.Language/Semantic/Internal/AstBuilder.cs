@@ -275,6 +275,51 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         return BuildUsageNode(context.usage(), "occurrence");
     }
 
+    /// <inheritdoc/>
+    public override SysmlNode? VisitConnectionUsage(SysMLv2Parser.ConnectionUsageContext context)
+    {
+        var name = GetDeclaredName(context.usageDeclaration()?.identification());
+        var (endpointA, endpointB) = ExtractConnectorEnds(context.connectorPart());
+
+        return new SysmlConnectionNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            ConnectionKeyword = "connection",
+            EndpointA = endpointA,
+            EndpointB = endpointB,
+        };
+    }
+
+    /// <summary>
+    ///     Extracts the two endpoint references of a binary connector (the features either side of
+    ///     <c>connect … to …</c>), or nulls when the connector is not a simple binary connection.
+    /// </summary>
+    private static (string? A, string? B) ExtractConnectorEnds(SysMLv2Parser.ConnectorPartContext? connectorPart)
+    {
+        var binary = connectorPart?.binaryConnectorPart();
+        if (binary is null)
+        {
+            return (null, null);
+        }
+
+        var ends = binary.connectorEndMember();
+        if (ends.Length < 2)
+        {
+            return (null, null);
+        }
+
+        return (ConnectorEndReference(ends[0]), ConnectorEndReference(ends[1]));
+    }
+
+    /// <summary>Returns the qualified feature reference named by a connector end, or null.</summary>
+    private static string? ConnectorEndReference(SysMLv2Parser.ConnectorEndMemberContext? member)
+    {
+        var end = member?.connectorEnd();
+        var reference = end?.ownedReferenceSubsetting();
+        return reference?.GetText();
+    }
+
     /// <summary>
     ///     Builds a usage/feature AST node from a <see cref="SysMLv2Parser.UsageContext"/>, capturing
     ///     the keyword, declared name, feature typing, multiplicity, and any nested usage children.

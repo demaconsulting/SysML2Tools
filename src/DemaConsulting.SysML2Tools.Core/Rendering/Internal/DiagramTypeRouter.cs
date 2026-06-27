@@ -4,6 +4,7 @@
 
 using DemaConsulting.SysML2Tools.Layout.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
+using DemaConsulting.SysML2Tools.Semantic.Internal;
 
 namespace DemaConsulting.SysML2Tools.Rendering.Internal;
 
@@ -12,9 +13,9 @@ namespace DemaConsulting.SysML2Tools.Rendering.Internal;
 /// based on the view type.
 /// </summary>
 /// <remarks>
-/// Phase 4 simplification: all view types are routed to <see cref="GeneralViewLayoutStrategy"/>.
-/// Future phases will inspect the view's stereotype or keyword to select a specialized strategy
-/// (e.g., IBD, sequence, activity).
+/// Dispatch inspects the view's declared supertype names (and its own name) for a recognized view
+/// kind. A view that specializes a name containing <c>Interconnection</c> routes to the
+/// interconnection strategy; everything else falls back to the general view strategy.
 /// </remarks>
 internal static class DiagramTypeRouter
 {
@@ -36,11 +37,29 @@ internal static class DiagramTypeRouter
         SysmlWorkspace workspace,
         out string? unsupportedMessage)
     {
-        // Phase 4 simplification: route all view types to the general view strategy.
-        // Future phases will add stereotype inspection to select specialized strategies.
-        _ = viewNode;
         _ = workspace;
         unsupportedMessage = null;
+
+        if (viewNode is SysmlViewNode view && IsInterconnectionView(view))
+        {
+            return new InterconnectionViewLayoutStrategy();
+        }
+
         return new GeneralViewLayoutStrategy();
+    }
+
+    /// <summary>
+    /// Determines whether a view declares itself as an interconnection view by specializing (or
+    /// being named after) a view kind whose name contains <c>Interconnection</c>.
+    /// </summary>
+    private static bool IsInterconnectionView(SysmlViewNode view)
+    {
+        const string Marker = "Interconnection";
+        if (view.Name is not null && view.Name.Contains(Marker, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return view.SupertypeNames.Any(s => s.Contains(Marker, StringComparison.OrdinalIgnoreCase));
     }
 }

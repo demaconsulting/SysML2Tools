@@ -548,6 +548,49 @@ public sealed class WorkspaceLoaderTests
         }
     }
 
+    /// <summary>
+    ///     A part definition with connection usages captures each connection's two endpoints.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionUsages_CaptureEndpoints()
+    {
+        // Arrange: a part def with two parts and a connection between them
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package Demo {
+                    part def Engine;
+                    part def Gearbox;
+                    part def Drivetrain {
+                        part engine : Engine;
+                        part gearbox : Gearbox;
+                        connection link connect engine to gearbox;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: the Drivetrain owns a connection node referencing both parts
+            Assert.NotNull(result.Workspace);
+            var drivetrain = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["Demo::Drivetrain"]);
+            var connection = drivetrain.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlConnectionNode>()
+                .Single();
+            Assert.Equal("engine", connection.EndpointA);
+            Assert.Equal("gearbox", connection.EndpointB);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     /// <summary>Asserts that a feature with the given name has the expected keyword and typing.</summary>
     private static void AssertFeature(
         IEnumerable<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlFeatureNode> features,

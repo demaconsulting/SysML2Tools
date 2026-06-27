@@ -30,6 +30,7 @@ words:
   - docversion
   - errorlevel
   - fileassert
+  - Fruchterman
   - Hanan
   - KEBNF
   - MBSE
@@ -39,12 +40,14 @@ words:
   - Noto
   - Pandoc
   - Qube
+  - Reingold
   - reqstream
   - reviewmark
   - SARIF
   - sarifmark
   - setlocal
   - Skia
+  - Subsetting
   - SkiaSharp
   - snupkg
   - sonarmark

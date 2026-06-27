@@ -1,0 +1,59 @@
+// <copyright file="DiagramTypeRouterTests.cs" company="DemaConsulting">
+// Copyright (c) DemaConsulting. All rights reserved.
+// </copyright>
+
+using DemaConsulting.SysML2Tools.Layout.Internal;
+using DemaConsulting.SysML2Tools.Rendering.Internal;
+using DemaConsulting.SysML2Tools.Semantic;
+using DemaConsulting.SysML2Tools.Semantic.Internal;
+
+namespace DemaConsulting.SysML2Tools.Tests.Rendering;
+
+/// <summary>
+///     Tests for <see cref="DiagramTypeRouter"/> view-kind dispatch.
+/// </summary>
+public sealed class DiagramTypeRouterTests
+{
+    /// <summary>A view whose name contains "Interconnection" routes to the interconnection strategy.</summary>
+    [Fact]
+    public void GetStrategy_InterconnectionNamedView_ReturnsInterconnectionStrategy()
+    {
+        var view = new SysmlViewNode { Name = "VehicleInterconnectionView", QualifiedName = "M::VehicleInterconnectionView" };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType<InterconnectionViewLayoutStrategy>(strategy);
+    }
+
+    /// <summary>A view specializing an interconnection view definition routes to that strategy.</summary>
+    [Fact]
+    public void GetStrategy_ViewSpecializingInterconnection_ReturnsInterconnectionStrategy()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "MyView",
+            QualifiedName = "M::MyView",
+            SupertypeNames = ["InterconnectionView"]
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out _);
+
+        Assert.IsType<InterconnectionViewLayoutStrategy>(strategy);
+    }
+
+    /// <summary>An ordinary view routes to the general view strategy.</summary>
+    [Fact]
+    public void GetStrategy_PlainView_ReturnsGeneralViewStrategy()
+    {
+        var view = new SysmlViewNode { Name = "GeneralView", QualifiedName = "M::GeneralView" };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType<GeneralViewLayoutStrategy>(strategy);
+    }
+}

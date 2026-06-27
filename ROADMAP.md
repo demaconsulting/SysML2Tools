@@ -275,8 +275,8 @@ Grid, Browser, Geometry) require no engine — pure arithmetic in the strategy c
 |--------|----------|---------------|-----------|
 | `ContainmentPacker` ✅ | Bottom-up size, bin packing | Phase 6 | Phase 7, 8 |
 | `ChannelRouter` ✅ | Orthogonal edge routing around obstacles | Phase 6 | Phase 7, 8 |
-| `ForceDirectedEngine` | Fruchterman-Reingold spring layout | Phase 8 | Phase 9 |
-| `PortAssigner` | Port-side and slot heuristic | Phase 8 | — |
+| `ForceDirectedEngine` ✅ | Fruchterman-Reingold spring layout | Phase 8 | Phase 9 |
+| `PortAssigner` ✅ | Port-side and slot heuristic | Phase 8 | — |
 | `LayeredLayoutEngine` | Simplified Sugiyama DAG layout | Phase 10 | — |
 
 All engines live in `Layout/Engine/` and have their own unit tests with **synthetic
@@ -414,7 +414,17 @@ Agent views each PNG and asserts:
 
 ---
 
-### Phase 8 — Interconnection View + ForceDirectedEngine + PortAssigner (2–3 sessions)
+### Phase 8 — Interconnection View + ForceDirectedEngine + PortAssigner (2–3 sessions) — ✅ COMPLETE
+
+> **Status:** Complete. `ForceDirectedEngine` (deterministic Fruchterman-Reingold with overlap
+> removal) and `PortAssigner` (side selection + even slot distribution) implemented and unit-tested.
+> `InterconnectionViewLayoutStrategy` renders a part definition's interior: nested part usages as
+> rounded boxes placed by the force engine, ports on box boundaries via `PortAssigner`, and
+> connection usages routed as orthogonal connectors via `ChannelRouter`. `AstBuilder` captures
+> connection usages with both endpoints (`SysmlConnectionNode`). `DiagramTypeRouter` dispatches to
+> the interconnection strategy when a view's name or supertype contains "Interconnection".
+> Visual gate passed against `power-system-interconnection` (drivetrain chain with port-to-port
+> connectors, no overlaps).
 
 Implement the Interconnection View, introducing two new engines that will also be
 reused by the State Transition View in Phase 9.

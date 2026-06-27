@@ -15,6 +15,7 @@ namespace DemaConsulting.SysML2Tools.Semantic.Internal;
 [JsonDerivedType(typeof(SysmlImportNode), "import")]
 [JsonDerivedType(typeof(SysmlViewNode), "view")]
 [JsonDerivedType(typeof(SysmlViewpointNode), "viewpoint")]
+[JsonDerivedType(typeof(SysmlConnectionNode), "connection")]
 public abstract class SysmlNode
 {
     /// <summary>
@@ -110,4 +111,25 @@ public sealed class SysmlViewNode : SysmlNode
 /// </summary>
 public sealed class SysmlViewpointNode : SysmlNode
 {
+}
+
+/// <summary>
+///     AST node representing a connection/binding usage between two endpoints.
+/// </summary>
+public sealed class SysmlConnectionNode : SysmlNode
+{
+    /// <summary>
+    ///     Gets the connection keyword (e.g., "connection", "binding").
+    /// </summary>
+    public string ConnectionKeyword { get; init; } = string.Empty;
+
+    /// <summary>
+    ///     Gets the first endpoint reference (e.g., "engine.fuelPort"), or null when unresolved.
+    /// </summary>
+    public string? EndpointA { get; init; }
+
+    /// <summary>
+    ///     Gets the second endpoint reference (e.g., "transmission.input"), or null when unresolved.
+    /// </summary>
+    public string? EndpointB { get; init; }
 }
