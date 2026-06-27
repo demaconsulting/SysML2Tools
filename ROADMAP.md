@@ -751,18 +751,19 @@ Current coverage:
 
 | Primitive | Used By | Status |
 |---|---|---|
-| `LayoutBox` | All views | ✅ Implemented + rendered |
-| `LayoutLabel` | All views | ✅ Implemented + rendered |
-| `LayoutLine` | General View (edges) | ✅ Implemented + rendered |
-| `LayoutCompartment` | General View, Interconnection | ✅ Defined, not yet populated |
-| `LayoutPort` | Interconnection View | ✅ Defined, not yet rendered |
-| `LayoutLifeline` | Sequence View | ✅ Defined, not yet rendered |
-| `LayoutBand` | Action Flow View (swim-lanes) | ✅ Defined, not yet rendered |
-| `LayoutBadge` | Annotations / decorators | ✅ Defined, not yet rendered |
-| `LayoutGrid` | Grid View, Browser View | ✅ Defined, not yet rendered |
+| `LayoutBox` | All structural views | ✅ Implemented + rendered |
+| `LayoutLabel` | Browser, truncation indicators | ✅ Implemented + rendered |
+| `LayoutLine` | All views (edges/arrows) | ✅ Implemented + rendered |
+| `LayoutCompartment` | General View | ✅ Populated + rendered (Phase 7) |
+| `LayoutPort` | Interconnection View | ✅ Rendered (Phase 8) |
+| `LayoutLifeline` | Sequence View | ✅ Rendered (Phase 11) |
+| `LayoutBand` | Action Flow swim-lanes | ✅ Defined, not yet populated (future) |
+| `LayoutBadge` | State/Action markers | ✅ Rendered (Phases 9–10) |
+| `LayoutGrid` | Grid View | ✅ Rendered (Phase 12) |
 
-The vocabulary is complete. No structural breaking changes to `IRenderer` are expected
-as new view implementations are added.
+The vocabulary is complete and the renderers handle every primitive. `LayoutActivation` (sequence
+activation bars) and `LayoutBand` (action swim-lanes) are rendered/available but not yet populated
+by their strategies — reserved for future refinements.
 
 ---
 
@@ -823,17 +824,23 @@ Layout/
 | Phase 1 — Parser + Stdlib | ✅ Complete | |
 | Phase 2 — Semantic Model | ✅ Complete | |
 | Phase 3 — LayoutTree Design | ✅ Complete | All 8 view primitives defined |
-| Phase 4 — GeneralView + Renderers | ✅ Complete | `part def` only |
+| Phase 4 — GeneralView + Renderers | ✅ Complete | All definition kinds + usages (Phases 6–7) |
 | Phase 5 — Polish + Self-test | ✅ Complete | `--validate`, `--auto`, themes |
+| Phases 6–7 — General View (complete) | ✅ Complete | All definitions, compartments, edges, folder packages |
+| Phase 8 — Interconnection View | ✅ Complete | Force-directed parts, ports, connectors |
+| Phase 9 — State Transition View | ✅ Complete | Force-directed states, transitions, initial marker |
+| Phase 10 — Action Flow View | ✅ Complete | Layered (Sugiyama) actions, start/done markers |
+| Phase 11 — Sequence View | ✅ Complete | Lifelines + messages (activations deferred) |
+| Phase 12 — Grid + Browser Views | ✅ Complete | Relationship matrix + membership tree |
+| Phase 13 — Geometry View | 🟢 Deferred | Requires spatial coordinate data (future) |
 | Open Concern #1 — LayoutTree covers all 8 views | ✅ Resolved | Vocabulary is sufficient |
 | Open Concern #2 — IRenderer API stability | ✅ Stable | No breaking changes needed |
 | Open Concern #3 — SkiaSharp native assets | 🟡 Documented | Needs package README |
 | Open Concern #4 — Noto Sans OFL attribution | 🟡 Pending | Needs `--licenses` output |
 | Open Concern #5 — spec42 competitive risk | 🟢 Low | Unchanged |
-| Open Concern #6 — Theme file format for v2 | 🟢 Deferred | YAML/JSON, Phase 6+ |
+| Open Concern #6 — Theme file format for v2 | 🟢 Deferred | YAML/JSON, future |
 | SARIF output | 🟢 Deferred | Infrastructure ready |
-| Loadable theme files | 🟢 Deferred | Phase 6+ |
-| `export` verb | 🟢 Deferred | Phase 6+ |
-| Non-`GeneralView` rendering | 🔴 Not started | Phases 8–13 |
-| Full OMG graphical notation conformance | 🟡 In progress | Phases 6–13 |
-| `feature/auto-flag` branch | 🟡 Open PR | Needs lint + PR |
+| Loadable theme files | 🟢 Deferred | Future |
+| `export` verb | 🟢 Deferred | Future |
+| Non-`GeneralView` rendering | ✅ Complete | 7 of 8 view types implemented |
+| Full OMG graphical notation conformance | 🟡 In progress | 7 of 8 views; refinements ongoing |
