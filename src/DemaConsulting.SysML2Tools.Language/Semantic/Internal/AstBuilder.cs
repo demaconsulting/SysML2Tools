@@ -377,6 +377,32 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <inheritdoc/>
+    public override SysmlNode? VisitMessage(SysMLv2Parser.MessageContext context)
+    {
+        var decl = context.messageDeclaration();
+        var name = GetDeclaredName(decl?.usageDeclaration()?.identification());
+
+        // A message links two events: from <source> to <target>.
+        string? from = null;
+        string? to = null;
+        var events = decl?.messageEventMember();
+        if (events is { Length: >= 2 })
+        {
+            from = events[0].messageEvent()?.ownedReferenceSubsetting()?.GetText();
+            to = events[1].messageEvent()?.ownedReferenceSubsetting()?.GetText();
+        }
+
+        return new SysmlConnectionNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            ConnectionKeyword = "message",
+            EndpointA = from,
+            EndpointB = to,
+        };
+    }
+
+    /// <inheritdoc/>
     public override SysmlNode? VisitStateUsage(SysMLv2Parser.StateUsageContext context)
     {
         var name = GetDeclaredName(context.actionUsageDeclaration()?.usageDeclaration()?.identification());

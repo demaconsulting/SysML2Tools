@@ -104,4 +104,16 @@ public sealed class DiagramTypeRouterTests
 
         Assert.IsType<BrowserViewLayoutStrategy>(strategy);
     }
+
+    /// <summary>A view whose name contains "Sequence" routes to the sequence strategy.</summary>
+    [Fact]
+    public void GetStrategy_SequenceNamedView_ReturnsSequenceStrategy()
+    {
+        var view = new SysmlViewNode { Name = "ProtocolSequenceView", QualifiedName = "M::ProtocolSequenceView" };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out _);
+
+        Assert.IsType<SequenceViewLayoutStrategy>(strategy);
+    }
 }

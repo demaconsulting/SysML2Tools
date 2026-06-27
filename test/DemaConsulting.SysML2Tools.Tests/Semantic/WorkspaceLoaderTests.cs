@@ -686,6 +686,48 @@ public sealed class WorkspaceLoaderTests
         }
     }
 
+    /// <summary>
+    ///     A definition with message usages captures each message's name and from/to endpoints.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_Messages_CaptureEndpoints()
+    {
+        // Arrange: a part def with two parts (each with an event) and a message between them
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package Seq {
+                    part def Protocol {
+                        part client { event occurrence s; }
+                        part server { event occurrence r; }
+                        message request from client.s to server.r;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: the protocol owns a message connection with the expected endpoints
+            Assert.NotNull(result.Workspace);
+            var protocol = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["Seq::Protocol"]);
+            var message = protocol.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlConnectionNode>()
+                .Single(c => c.ConnectionKeyword == "message");
+            Assert.Equal("request", message.Name);
+            Assert.Equal("client.s", message.EndpointA);
+            Assert.Equal("server.r", message.EndpointB);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     /// <summary>Asserts that a feature with the given name has the expected keyword and typing.</summary>
     private static void AssertFeature(
         IEnumerable<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlFeatureNode> features,

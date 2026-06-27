@@ -66,6 +66,11 @@ internal static class DiagramTypeRouter
             {
                 return new BrowserViewLayoutStrategy();
             }
+
+            if (Matches(view, "Sequence"))
+            {
+                return new SequenceViewLayoutStrategy();
+            }
         }
 
         return new GeneralViewLayoutStrategy();

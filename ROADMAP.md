@@ -23,7 +23,7 @@ onward) needed to reach full SysML v2 view coverage.
 | 2 | **Interconnection View** | Structural contents of a Usage (parts, ports, connectors) | 🟢 Implemented |
 | 3 | **Action Flow View** | Input/output flows between actions (behavioral dynamics) | 🟢 Implemented |
 | 4 | **State Transition View** | States and transitions (behavioral dynamics) | 🟢 Implemented |
-| 5 | **Sequence View** | Chronological event occurrences on lifelines | 🔴 Unsupported |
+| 5 | **Sequence View** | Chronological event occurrences on lifelines | 🟢 Implemented |
 | 6 | **Grid View** | Elements in structured rectangular grid (tabular/matrix) | 🟢 Implemented |
 | 7 | **Browser View** | Hierarchical membership structure from a root element | 🟢 Implemented |
 | 8 | **Geometry View** | Spatial items in 2D or 3D | 🔴 Unsupported (deferred) |
@@ -622,7 +622,18 @@ Agent views the PNG and asserts:
 
 ---
 
-### Phase 11 — Sequence View (1–2 sessions)
+### Phase 11 — Sequence View (1–2 sessions) — ✅ COMPLETE (core)
+
+> **Status:** Complete. `AstBuilder.VisitMessage` captures message usages (name + from/to event
+> references) as `SysmlConnectionNode` with keyword "message". `SequenceViewLayoutStrategy` renders
+> the participating lifelines (distinct first-segment participants) as dashed stems with header
+> boxes and draws each message as a horizontal arrow between lifelines, ordered top-to-bottom by
+> declaration order, with the message name as the arrow label; self-messages render as a small loop.
+> `DiagramTypeRouter` dispatches on "Sequence".
+>
+> **Deferred enhancements:** Activation bars and combined fragments (alt/loop/opt) — the
+> `LayoutActivation` primitive is implemented and ready. Visual gate passed against
+> `client-server-sequence` (two lifelines, three ordered messages with correct arrow directions).
 
 Implement the Sequence View. No new engines — pure column-and-time-axis arithmetic.
 
