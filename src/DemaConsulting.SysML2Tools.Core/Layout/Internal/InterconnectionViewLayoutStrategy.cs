@@ -79,11 +79,17 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             partRects[i] = new Rect(r.X + offsetX, r.Y + offsetY, r.Width, r.Height);
         }
 
+        // Gravity-compress overlaps to a tight minimum gap, then quantise to the grid so part
+        // anchors fall on predictable lines before ports and connectors are routed.
+        partRects = CompressAndQuantize(partRects, theme);
+
         var nodes = new List<LayoutNode>();
 
-        // Container box for the root part definition.
-        var containerWidth = force.Width + (offsetX * 2.0);
-        var containerHeight = offsetY + force.Height + (theme.LabelPadding * 2.0);
+        // Container box for the root part definition, sized to fit the compressed/quantised parts.
+        var contentRight = parts.Count == 0 ? force.Width : partRects.Max(r => r.X + r.Width);
+        var contentBottom = parts.Count == 0 ? force.Height : partRects.Max(r => r.Y + r.Height);
+        var containerWidth = Math.Max(force.Width + (offsetX * 2.0), contentRight + offsetX);
+        var containerHeight = Math.Max(offsetY + force.Height + (theme.LabelPadding * 2.0), contentBottom + (theme.LabelPadding * 2.0));
         nodes.Add(new LayoutBox(
             X: 0,
             Y: 0,
@@ -400,4 +406,36 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <summary>Returns the centre point of a rectangle.</summary>
     private static Point2D Centre(Rect rect) =>
         new(rect.X + (rect.Width / 2.0), rect.Y + (rect.Height / 2.0));
+
+    /// <summary>
+    /// Gravity-compresses the placed part boxes to a tight minimum gap and quantises them to a grid
+    /// so the connectors that follow have predictable, well-separated anchor lines. Falls back to the
+    /// uncompressed positions if compression cannot find a non-overlapping arrangement.
+    /// </summary>
+    private static Rect[] CompressAndQuantize(Rect[] partRects, Theme theme)
+    {
+        if (partRects.Length == 0)
+        {
+            return partRects;
+        }
+
+        var minGap = ConnectorClearance * 2.0;
+        var grid = theme.LabelPadding * 2.0;
+
+        var compressed = GravityCompressor.Compress(
+            [.. partRects.Select(r => new CompressBox(r.X, r.Y, r.Width, r.Height, r.Width, r.Height))],
+            minGap,
+            grid);
+        if (!compressed.Feasible)
+        {
+            return partRects;
+        }
+
+        var quantised = GridQuantizer.Quantize(
+            [.. partRects.Select((r, i) => new QuantizeBox(compressed.Positions[i].X, compressed.Positions[i].Y, r.Width, r.Height))],
+            grid,
+            theme.LabelPadding);
+
+        return [.. quantised.Select(q => new Rect(q.X, q.Y, q.Width, q.Height))];
+    }
 }

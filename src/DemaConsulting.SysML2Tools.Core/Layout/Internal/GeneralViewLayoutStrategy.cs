@@ -33,21 +33,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <summary>Clearance kept between routed edges and boxes.</summary>
     private const double EdgeClearance = 12.0;
 
-    /// <summary>Maximum number of gap-scaling iterations in the adaptive placement loop.</summary>
-    private const int MaxIterations = 5;
-
-    /// <summary>Maximum multiplier applied to the initial gap before capping.</summary>
-    private const double MaxGapMultiplier = 8.0;
-
-    /// <summary>Minimum number of vertical edge segments in a band before gap expansion is triggered.</summary>
-    private const double HeatThreshold = 2.0;
-
-    /// <summary>Tolerance used when clustering box top-edges into rows for band-heat measurement.</summary>
-    private const double RowClusterTolerance = 8.0;
-
-    /// <summary>Extra vertical gap added per edge segment above the heat threshold, per band.</summary>
-    private const double PerEdgeExpansion = EdgeClearance * 2.0;
-
     /// <summary>A feature membership: the keyword and the raw typing reference of one owned feature.</summary>
     private sealed record FeatureMembership(string Keyword, string TypeName);
 
@@ -83,65 +68,14 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Group definitions by their owning package (prefix before the last "::").
         var groups = GroupByPackage(defs);
 
-        // Per-band heat loop: start with baseline gaps and widen the vertical gap when any
-        // inter-row band becomes congested with routed edge segments, up to MaxGapMultiplier ×
-        // initial gap and at most MaxIterations attempts. The simplified max-gap fallback is used
-        // because PlacedBox records are immutable and cannot be shifted individually.
+        // Place package folders and standalone definition boxes across the canvas.
         var hGap = 4.0 * theme.LabelPadding;
         var vGap = 5.0 * theme.LabelPadding;
-        var maxVGap = MaxGapMultiplier * vGap;
+        var (nodes, placed, canvasWidth, canvasHeight) = PlaceGroups(groups, theme, options.DepthLimit, hGap, vGap);
 
-        var initialVGap = vGap;
-        List<LayoutNode> nodes = [];
-        List<PlacedBox> placed = [];
-        double canvasWidth = 200.0, canvasHeight = 100.0;
-        List<LayoutNode> specEdges = [];
-        List<LayoutNode> memberEdges = [];
-        int specCrossings = 0, memberCrossings = 0;
-
-        for (var iteration = 0; iteration < MaxIterations; iteration++)
-        {
-            (nodes, placed, canvasWidth, canvasHeight) = PlaceGroups(groups, theme, options.DepthLimit, hGap, vGap);
-
-            (specEdges, specCrossings) = BuildSpecializationEdges(defs, placed);
-            (memberEdges, memberCrossings) = BuildMembershipEdges(defs, placed);
-
-            // Combine all routed edges for heat measurement.
-            var allEdges = specEdges.Concat(memberEdges).ToList();
-
-            // Detect rows and measure per-band vertical heat.
-            var rows = DetectRows(placed);
-            var bandHeat = MeasureVerticalBandHeat(rows, placed, allEdges);
-
-            // Compute extra gap needed per band and take the maximum for the simplified fallback.
-            var maxExtraGap = 0.0;
-            var anyHot = false;
-            foreach (var heat in bandHeat)
-            {
-                var extraGap = Math.Max(0.0, (heat - HeatThreshold) * PerEdgeExpansion);
-                if (extraGap > 0.0)
-                {
-                    anyHot = true;
-                    maxExtraGap = Math.Max(maxExtraGap, extraGap);
-                }
-            }
-
-            // Converged: no band is above the heat threshold.
-            if (!anyHot)
-            {
-                break;
-            }
-
-            // Apply the maximum extra gap as a uniform vGap increase (simplified fallback),
-            // capped at the maximum allowed gap.
-            var newVGap = Math.Min(initialVGap + maxExtraGap, maxVGap);
-            if (newVGap <= vGap)
-            {
-                break;
-            }
-
-            vGap = newVGap;
-        }
+        // Route edges for the placement.
+        var (specEdges, specCrossings) = BuildSpecializationEdges(defs, placed);
+        var (memberEdges, memberCrossings) = BuildMembershipEdges(defs, placed);
 
         nodes.AddRange(specEdges);
         nodes.AddRange(memberEdges);
@@ -738,120 +672,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     {
         var sep = package.LastIndexOf("::", StringComparison.Ordinal);
         return sep >= 0 ? package[(sep + 2)..] : package;
-    }
-
-    /// <summary>
-    /// Groups placed boxes into rows by clustering their top-edge Y coordinates.
-    /// Two boxes belong to the same row when their top-edge Y values differ by no more than
-    /// <see cref="RowClusterTolerance"/>. Rows are returned in ascending Y order.
-    /// </summary>
-    /// <param name="placed">All placed boxes on the canvas. Must not be null.</param>
-    /// <returns>
-    /// A list of rows, each row being a list of indices into <paramref name="placed"/>.
-    /// The rows are ordered from smallest to largest Y top-edge.
-    /// </returns>
-    private static IReadOnlyList<IReadOnlyList<int>> DetectRows(IReadOnlyList<PlacedBox> placed)
-    {
-        // Sort box indices by ascending Y top-edge to enable greedy row clustering.
-        var indices = Enumerable.Range(0, placed.Count)
-            .OrderBy(i => placed[i].Y)
-            .ToList();
-
-        var rows = new List<List<int>>();
-        foreach (var idx in indices)
-        {
-            var boxY = placed[idx].Y;
-
-            // Start a new row when the box's top-edge is beyond the current row's cluster boundary.
-            if (rows.Count == 0 || boxY > placed[rows[^1][0]].Y + RowClusterTolerance)
-            {
-                rows.Add([idx]);
-            }
-            else
-            {
-                rows[^1].Add(idx);
-            }
-        }
-
-        return rows;
-    }
-
-    /// <summary>
-    /// Measures the vertical edge-segment count (heat) for each inter-row band.
-    /// Band <c>i</c> spans the vertical gap between row <c>i</c> (bottom edges) and
-    /// row <c>i+1</c> (top edges). A routed edge segment contributes heat to a band when
-    /// it is vertical (|ΔX| &lt; 1.0) and its Y range overlaps the band's Y span.
-    /// </summary>
-    /// <param name="rows">Rows detected by <see cref="DetectRows"/>.</param>
-    /// <param name="placed">All placed boxes, indexed by the row index lists.</param>
-    /// <param name="edges">Routed edge nodes (only <see cref="LayoutLine"/> nodes are examined).</param>
-    /// <returns>
-    /// A list of heat values, one per inter-row band (length = rows.Count − 1).
-    /// Returns an empty list when there are fewer than two rows.
-    /// </returns>
-    private static IReadOnlyList<double> MeasureVerticalBandHeat(
-        IReadOnlyList<IReadOnlyList<int>> rows,
-        IReadOnlyList<PlacedBox> placed,
-        IReadOnlyList<LayoutNode> edges)
-    {
-        if (rows.Count < 2)
-        {
-            return [];
-        }
-
-        // Pre-compute band spans: bandTop = max bottom-edge of row i, bandBottom = min top-edge of row i+1.
-        var bandCount = rows.Count - 1;
-        var bandTops = new double[bandCount];
-        var bandBottoms = new double[bandCount];
-
-        for (var i = 0; i < bandCount; i++)
-        {
-            bandTops[i] = rows[i].Max(idx => placed[idx].Y + placed[idx].Height);
-            bandBottoms[i] = rows[i + 1].Min(idx => placed[idx].Y);
-        }
-
-        // Count vertical edge segments that overlap each band.
-        var heat = new double[bandCount];
-        foreach (var node in edges)
-        {
-            if (node is not LayoutLine line)
-            {
-                continue;
-            }
-
-            var waypoints = line.Waypoints;
-            for (var k = 0; k < waypoints.Count - 1; k++)
-            {
-                var p1 = waypoints[k];
-                var p2 = waypoints[k + 1];
-
-                // Only vertical segments carry routing pressure in horizontal bands.
-                if (Math.Abs(p1.X - p2.X) >= 1.0)
-                {
-                    continue;
-                }
-
-                var segTop = Math.Min(p1.Y, p2.Y);
-                var segBottom = Math.Max(p1.Y, p2.Y);
-
-                for (var b = 0; b < bandCount; b++)
-                {
-                    // A zero-width or inverted band (boxes overlap) contributes no heat.
-                    if (bandBottoms[b] <= bandTops[b])
-                    {
-                        continue;
-                    }
-
-                    // Segment overlaps band when their Y intervals intersect.
-                    if (segTop < bandBottoms[b] && segBottom > bandTops[b])
-                    {
-                        heat[b] += 1.0;
-                    }
-                }
-            }
-        }
-
-        return heat;
     }
 
     /// <summary>Internal plan for one top-level block (a folder or a standalone definition box).</summary>

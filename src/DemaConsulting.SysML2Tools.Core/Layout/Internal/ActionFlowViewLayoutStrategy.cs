@@ -79,7 +79,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             nodes.Add(MakeActionBox(actions[i], rects[i]));
         }
 
-        var crossings = AddSuccessionEdges(edges, rects, nodes);
+        var crossings = AddSuccessionEdges(edges, rects, nodes, layered.Layers);
         AddStartAndDone(actions, rects, edges, layered, nodes);
 
         var width = layered.Width;
@@ -211,7 +211,8 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
     private static int AddSuccessionEdges(
         IReadOnlyList<(int From, int To)> edges,
         Rect[] rects,
-        List<LayoutNode> nodes)
+        List<LayoutNode> nodes,
+        IReadOnlyList<int> layers)
     {
         var crossings = 0;
         foreach (var (from, to) in edges)
@@ -228,8 +229,12 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
                 }
             }
 
+            // A back edge (target in an earlier layer) detours with extra clearance because the
+            // orthogonal router cannot draw an arc.
+            var isBackEdge = from < layers.Count && to < layers.Count && layers[from] > layers[to];
+            var clearance = isBackEdge ? FlowClearance * 2.5 : FlowClearance;
             var route = ChannelRouter.RouteWithStatus(
-                source, target, obstacles, FlowClearance,
+                source, target, obstacles, clearance,
                 sourceSide: PortSide.Bottom, targetSide: PortSide.Top);
             if (route.Crossed)
             {

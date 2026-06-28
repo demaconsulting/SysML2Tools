@@ -64,14 +64,23 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         }
 
         var transitions = ResolveTransitions(root, index);
+        var flowEdges = transitions.Where(t => t.Source != t.Target).Select(t => new ForceEdge(t.Source, t.Target)).ToList();
+
+        // Directed-flow hierarchy: layer hints bias states into a near-hard top-to-bottom reading
+        // direction (kHier = 1.0) so transitions mostly flow downward.
+        var connectivity = ConnectivityAnalyzer.Analyze(
+            [.. states.Select(s => new ConnectivityNode(s.Name))],
+            [.. flowEdges.Select(e => new ConnectivityEdge(e.A, e.B))]);
 
         // Place state boxes with the force-directed engine using transitions as springs.
         var margin = theme.LabelPadding * 4.0;
         var force = ForceDirectedEngine.Place(
             [.. states.Select(s => new ForceNode(s.Width, s.Height))],
-            [.. transitions.Where(t => t.Source != t.Target).Select(t => new ForceEdge(t.Source, t.Target))],
+            flowEdges,
             spacing: StateSpacing,
-            padding: margin + InitialMarkerSize);
+            padding: margin + InitialMarkerSize,
+            kHier: 1.0,
+            layerHints: connectivity.LayerHints);
 
         var stateRects = new Rect[states.Count];
         for (var i = 0; i < states.Count; i++)
@@ -92,7 +101,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         AddInitialMarker(stateRects[0], nodes);
 
         // Transition edges with guard labels.
-        var crossings = AddTransitions(transitions, stateRects, nodes);
+        var crossings = AddTransitions(transitions, stateRects, nodes, connectivity.LayerHints);
 
         var warnings = LayoutWarnings.ForCrossings(context.ViewName, crossings);
         return new LayoutTree(force.Width, force.Height, nodes) { Warnings = warnings };
@@ -250,7 +259,8 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     private static int AddTransitions(
         IReadOnlyList<TransitionItem> transitions,
         Rect[] stateRects,
-        List<LayoutNode> nodes)
+        List<LayoutNode> nodes,
+        IReadOnlyList<int> layerHints)
     {
         var count = transitions.Count;
         var srcSide = new PortSide[count];
@@ -344,7 +354,12 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
                 }
             }
 
-            var route = ChannelRouter.RouteWithStatus(srcPoint[i], tgtPoint[i], obstacles, TransitionClearance, srcSide[i], tgtSide[i]);
+            // Back edges (target sits in an earlier layer) detour around the flow with a wider
+            // clearance, since the orthogonal router has no arc support.
+            var isBackEdge = transition.Source < layerHints.Count && transition.Target < layerHints.Count &&
+                layerHints[transition.Source] > layerHints[transition.Target];
+            var clearance = isBackEdge ? TransitionClearance * 2.5 : TransitionClearance;
+            var route = ChannelRouter.RouteWithStatus(srcPoint[i], tgtPoint[i], obstacles, clearance, srcSide[i], tgtSide[i]);
             if (route.Crossed)
             {
                 crossings++;
