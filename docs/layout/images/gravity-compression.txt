@@ -1,0 +1,44 @@
+Image: gravity-compression.svg
+Title: Gravity Compression — Three Stages
+
+Purpose:
+  Three left-to-right frames showing the same four-block layout progressing from the
+  oversized starting state to the final compact state. Illustrates Step 4 → Step 6
+  (oversized placement → gravity compression).
+
+Frame 1 — "Oversized (expansion_factor = 3×)":
+  Four blocks arranged in a 2×2 pattern with very large gaps between them — both
+  horizontal and vertical gaps are roughly three times larger than needed. The
+  routes connecting them are clean and uncongested (minimum-bend straight lines)
+  because there is ample space. The large gaps are emphasised by double-headed arrows
+  labelling the gap sizes "3× min_gap". Visual impression: clean but very wasteful.
+
+Frame 2 — "Compressing":
+  Same four blocks; gaps are now roughly at 1.5× the minimum. Bold inward arrows on
+  all four sides of the layout show the compression direction (both axes simultaneously).
+  The connector routes are still clean. The gaps are visibly smaller than Frame 1 but
+  the layout is not yet at minimum.
+
+Frame 3 — "Minimal (closed-form)":
+  Same four blocks; gaps are now exactly at the minimum feasible width — just enough
+  for the committed wires and labels. Double-headed arrows label the gap sizes with
+  the formula "max(min_gap, N×G + 2·margin)". The connector routes remain clean
+  (no detours forced by compression). Blocks are noticeably closer together than
+  Frame 1. Visual impression: compact and tidy.
+
+Between frames: right-pointing arrows labelled "compress" to show progression.
+
+Key message:
+  Starting oversized guarantees routing is trivially clean in Step 5. Compression then
+  shrinks gaps to their exact minimum in a single closed-form pass (no iterative loop).
+  The result is minimum-size without ever having produced a congested intermediate.
+
+Diffusion prompt hint:
+  Three-panel horizontal technical diagram on white background, labelled Frame 1
+  "Oversized", Frame 2 "Compressing", Frame 3 "Minimal". Each panel contains four
+  blue rectangles in a 2×2 grid connected by thin grey orthogonal lines. Frame 1:
+  very large white spaces between blocks with double-headed arrows labelled "3× min_gap".
+  Frame 2: medium spaces with bold inward-pointing compression arrows on all four sides.
+  Frame 3: small but non-zero spaces with double-headed arrows labelled
+  "max(min_gap, N×G+2·margin)". Right-pointing arrows between panels labelled
+  "compress". Clean flat design, sans-serif labels, no shadows.

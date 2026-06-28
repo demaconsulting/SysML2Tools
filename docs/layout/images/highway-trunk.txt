@@ -1,0 +1,50 @@
+Image: highway-trunk.svg
+Title: Port Merging — Merged Trunk vs Individual Slots
+
+Purpose:
+  Show why a merged trunk is cleaner than individual port slots.
+  Left panel: 5 connections each using their own port slot — stubs cross in the
+  stub area, messy. Right panel: same 5 connections using ONE merged trunk — a comb
+  fan-out in the stub area is clean and non-crossing.
+
+Left panel — "Individual port slots (messy)":
+  One block on the left ("Hub") with 5 port stubs on its right face, spaced at
+  irregular y-positions (not at the lanes they need). Five destination blocks on
+  the right column at different y-positions. The stubs from the Hub cross each other
+  between the Hub face and the corridor, creating a tangle before the wires even
+  enter the highway. Arrow at top: "5 individual slots — stubs cross at entry".
+
+Right panel — "Merged trunk (clean)":
+  Same Hub block on the left, same 5 destination blocks on the right.
+  Hub has ONE port on its right face (a single merged stub, drawn as a thick line).
+  The thick trunk runs from the Hub face to the corridor left wall.
+  In the stub area (between Hub face and corridor), a COMB structure fans the single
+  trunk into 5 parallel wires at equal G spacing. The comb looks like a short vertical
+  spine with 5 horizontal teeth branching off. Inside the corridor, 5 parallel
+  horizontal wires run cleanly. At the far side, another comb fans the wires back to
+  individual port stubs entering the destination blocks.
+  Arrow at top: "1 merged trunk — comb fan-out is non-crossing".
+
+Key annotations:
+  Left: red callout "stubs cross!" near the crossing region in the stub area.
+  Right: label "merged trunk" on the thick stub from Hub face.
+         label "comb fan-out" on the stub-area comb.
+         label "parallel lanes" inside the corridor.
+  Bottom: note "PortAssigner groups by (face, directionality, highway_id) → one trunk per group"
+
+Key message:
+  The merged trunk moves all complexity from the block face (where N slots would be
+  needed) into the stub area (where a comb is a non-crossing structure). The block
+  face needs only 1 port point regardless of N. The stub area minimum length is
+  ceil((N-1)/2) × G to allow the comb to fan out without wire crossings.
+
+Diffusion prompt hint:
+  Split-panel technical diagram on white background. Title "Port Merging". Left panel:
+  a blue rectangle labelled "Hub" with 5 thin grey lines of different angles emerging
+  from its right face and crossing each other messily before reaching 5 destination
+  blue rectangles on the right. Red callout "stubs cross!". Right panel: same Hub
+  block but with ONE thick blue line emerging from its right face. In the stub area
+  a comb shape fans this into 5 parallel horizontal lines. An amber shaded corridor
+  rectangle. Inside the corridor, 5 clearly separated parallel horizontal lines.
+  Another comb on the right side fans them back to 5 destination blocks. Labels:
+  "merged trunk", "comb fan-out", "parallel lanes". Clean flat design, no shadows.

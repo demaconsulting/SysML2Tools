@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="250" viewBox="0 0 560 250">
+  <rect width="560" height="250" fill="white"/>
+  <defs>
+    <marker id="ah-dark" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <polygon points="0 0,7 2.5,0 5" fill="#374151"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="280" y="16" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#111827">Free 2D &#x2003;&#x3ba;&#x2095; = 0.15</text>
+
+  <!-- Cluster ellipses (faint dashed background) -->
+  <ellipse cx="125" cy="130" rx="103" ry="88" fill="none" stroke="#93c5fd" stroke-width="1.2" stroke-dasharray="6,4"/>
+  <text x="24" y="158" font-family="sans-serif" font-size="10" fill="#3b82f6">community 1</text>
+
+  <ellipse cx="382" cy="117" rx="102" ry="80" fill="none" stroke="#93c5fd" stroke-width="1.2" stroke-dasharray="6,4"/>
+  <text x="382" y="44" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#3b82f6">community 2</text>
+
+  <!-- ═══ Edges (drawn before blocks so blocks sit on top) ═══ -->
+  <!-- Within cluster 1 -->
+  <!-- B1→B2 (right edge of B1 to left edge of B2, nearly horizontal) -->
+  <line x1="116" y1="73" x2="145" y2="67" stroke="#374151" stroke-width="1" marker-end="url(#ah-dark)"/>
+  <!-- B1→B3 (bottom of B1 to top of B3, vertical) -->
+  <line x1="87"  y1="86" x2="84"  y2="118" stroke="#374151" stroke-width="1" marker-end="url(#ah-dark)"/>
+  <!-- B2→B4 (bottom of B2 to top of B4) -->
+  <line x1="174" y1="78" x2="174" y2="115" stroke="#374151" stroke-width="1" marker-end="url(#ah-dark)"/>
+  <!-- B3→B4 (right of B3 to left of B4) -->
+  <line x1="113" y1="131" x2="145" y2="126" stroke="#374151" stroke-width="1" marker-end="url(#ah-dark)"/>
+  <!-- B4→B8 satellite edge (diagonal) -->
+  <line x1="158" y1="139" x2="104" y2="178" stroke="#374151" stroke-width="1" marker-end="url(#ah-dark)"/>
+
+  <!-- Within cluster 2 -->
+  <!-- B5→B6 -->
+  <line x1="352" y1="84" x2="313" y2="148" stroke="#374151" stroke-width="1" marker-end="url(#ah-dark)"/>
+  <!-- B5→B7 -->
+  <line x1="376" y1="84" x2="411" y2="148" stroke="#374151" stroke-width="1" marker-end="url(#ah-dark)"/>
+  <!-- B6→B7 (horizontal) -->
+  <line x1="340" y1="161" x2="382" y2="161" stroke="#374151" stroke-width="1" marker-end="url(#ah-dark)"/>
+  <!-- B5→B9 satellite edge -->
+  <line x1="393" y1="71" x2="435" y2="84" stroke="#374151" stroke-width="1" marker-end="url(#ah-dark)"/>
+
+  <!-- Inter-cluster edge B2→B5 (long) -->
+  <line x1="203" y1="66" x2="335" y2="71" stroke="#374151" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-dark)"/>
+
+  <!-- ═══ Blocks (cluster 1) ═══ -->
+  <rect x="58"  y="60"  width="58" height="26" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" rx="2"/>
+  <text x="87"  y="77"  text-anchor="middle" font-family="sans-serif" font-size="10" fill="#1f2937">B1</text>
+
+  <rect x="145" y="52"  width="58" height="26" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" rx="2"/>
+  <text x="174" y="69"  text-anchor="middle" font-family="sans-serif" font-size="10" fill="#1f2937">B2</text>
+
+  <rect x="55"  y="118" width="58" height="26" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" rx="2"/>
+  <text x="84"  y="135" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#1f2937">B3</text>
+
+  <rect x="145" y="113" width="58" height="26" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" rx="2"/>
+  <text x="174" y="130" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#1f2937">B4</text>
+
+  <!-- Satellite B8 -->
+  <rect x="75"  y="178" width="52" height="24" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" rx="2"/>
+  <text x="101" y="194" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#1f2937">B8</text>
+
+  <!-- ═══ Blocks (cluster 2) ═══ -->
+  <rect x="335" y="58"  width="58" height="26" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" rx="2"/>
+  <text x="364" y="75"  text-anchor="middle" font-family="sans-serif" font-size="10" fill="#1f2937">B5</text>
+
+  <rect x="282" y="148" width="58" height="26" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" rx="2"/>
+  <text x="311" y="165" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#1f2937">B6</text>
+
+  <rect x="382" y="148" width="58" height="26" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" rx="2"/>
+  <text x="411" y="165" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#1f2937">B7</text>
+
+  <!-- Satellite B9 -->
+  <rect x="435" y="78"  width="52" height="24" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" rx="2"/>
+  <text x="461" y="94"  text-anchor="middle" font-family="sans-serif" font-size="10" fill="#1f2937">B9</text>
+
+  <!-- Annotation -->
+  <text x="280" y="234" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#374151" font-style="italic">rows / columns emergent &#x2014; not pre-assigned</text>
+
+</svg>

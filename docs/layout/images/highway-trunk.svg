@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="360" viewBox="0 0 800 360">
+  <rect width="800" height="360" fill="white"/>
+  <defs>
+    <marker id="ah-dark" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0,8 3,0 6" fill="#374151"/>
+    </marker>
+    <marker id="ah-blue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0,8 3,0 6" fill="#2563eb"/>
+    </marker>
+  </defs>
+
+  <!-- Panel divider -->
+  <line x1="400" y1="0" x2="400" y2="360" stroke="#e5e7eb" stroke-width="1"/>
+
+  <!-- Panel titles -->
+  <text x="200" y="22" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#111827">Before: individual port slots</text>
+  <text x="600" y="22" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#111827">After: merged trunk</text>
+
+  <!-- ====== BEFORE PANEL ====== -->
+  <!-- Hub block (tall, many ports) -->
+  <rect x="30" y="108" width="70" height="144" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="65" y="184" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#1e40af">Hub</text>
+
+  <!-- Destination blocks -->
+  <rect x="270" y="88" width="70" height="28" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="305" y="106" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D1</text>
+  <rect x="270" y="138" width="70" height="28" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="305" y="156" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D2</text>
+  <rect x="270" y="188" width="70" height="28" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="305" y="206" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D3</text>
+  <rect x="270" y="238" width="70" height="28" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="305" y="256" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D4</text>
+
+  <!-- Individual port stubs (crossing diagonals from mismatched ports) -->
+  <!-- Port y=133 -> D4 center y=252 (diagonal down) -->
+  <path d="M 100 133 L 150 133 L 150 252 L 270 252" fill="none" stroke="#374151" stroke-width="1.5" marker-end="url(#ah-dark)"/>
+  <!-- Port y=153 -> D1 center y=102 (diagonal up, crosses above) -->
+  <path d="M 100 153 L 150 153 L 150 102 L 270 102" fill="none" stroke="#374151" stroke-width="1.5" marker-end="url(#ah-dark)"/>
+  <!-- Port y=173 -> D3 center y=202 (short down) -->
+  <path d="M 100 173 L 155 173 L 155 202 L 270 202" fill="none" stroke="#374151" stroke-width="1.5" marker-end="url(#ah-dark)"/>
+  <!-- Port y=193 -> D2 center y=152 (diagonal up, crosses above) -->
+  <path d="M 100 193 L 155 193 L 155 152 L 270 152" fill="none" stroke="#374151" stroke-width="1.5" marker-end="url(#ah-dark)"/>
+
+  <!-- Red callout: crossing region -->
+  <ellipse cx="152" cy="163" rx="20" ry="35" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <text x="172" y="150" font-family="sans-serif" font-size="9" fill="#dc2626">stubs</text>
+  <text x="172" y="163" font-family="sans-serif" font-size="9" fill="#dc2626">cross!</text>
+
+  <!-- Individual port dots on Hub right face -->
+  <circle cx="100" cy="133" r="3" fill="#374151"/>
+  <circle cx="100" cy="153" r="3" fill="#374151"/>
+  <circle cx="100" cy="173" r="3" fill="#374151"/>
+  <circle cx="100" cy="193" r="3" fill="#374151"/>
+
+  <!-- ====== AFTER PANEL ====== -->
+  <!-- Hub block (tall, ONE port) -->
+  <rect x="430" y="108" width="70" height="144" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="465" y="184" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#1e40af">Hub</text>
+
+  <!-- Destination blocks -->
+  <rect x="670" y="88" width="70" height="28" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="705" y="106" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D1</text>
+  <rect x="670" y="138" width="70" height="28" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="705" y="156" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D2</text>
+  <rect x="670" y="188" width="70" height="28" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="705" y="206" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D3</text>
+  <rect x="670" y="238" width="70" height="28" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="705" y="256" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D4</text>
+
+  <!-- ONE merged trunk from Hub right face (ONE port dot) -->
+  <circle cx="500" cy="180" r="3" fill="#2563eb"/>
+  <!-- Thick merged trunk to comb -->
+  <line x1="500" y1="180" x2="545" y2="180" stroke="#2563eb" stroke-width="3"/>
+  <text x="522" y="173" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#1d4ed8">merged trunk</text>
+
+  <!-- Comb spine (vertical) at x=545 -->
+  <line x1="545" y1="102" x2="545" y2="252" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="548" y="295" font-family="sans-serif" font-size="8" fill="#1d4ed8">comb fan-out</text>
+
+  <!-- Comb teeth (horizontal) + parallel wires to destinations -->
+  <!-- D1 at y=102 -->
+  <path d="M 545 102 H 670" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#ah-blue)"/>
+  <!-- D2 at y=152 -->
+  <path d="M 545 152 H 670" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#ah-blue)"/>
+  <!-- D3 at y=202 -->
+  <path d="M 545 202 H 670" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#ah-blue)"/>
+  <!-- D4 at y=252 -->
+  <path d="M 545 252 H 670" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#ah-blue)"/>
+
+  <!-- "parallel wires" label -->
+  <text x="607" y="88" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#1d4ed8">parallel</text>
+  <text x="607" y="99" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#1d4ed8">wires</text>
+
+  <!-- Bottom annotation -->
+  <text x="400" y="340" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#6b7280">PortAssigner groups by (face, directionality, highway_id) &#x2192; one merged trunk per group</text>
+  <text x="400" y="353" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#6b7280">stub area min length = ceil((N-1)/2) &#xd7; G (comb fan-out constraint)</text>
+</svg>

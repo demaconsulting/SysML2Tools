@@ -1,0 +1,58 @@
+Image: highway-thresholds.svg
+Title: Highway Capacity Thresholds — Three Rendering Tiers
+
+Purpose:
+  Show the three rendering tiers based on peak concurrent occupancy vs capacity
+  thresholds. Three side-by-side panels (left, middle, right), each showing the
+  SAME corridor segment between Block A and Block B but at different occupancy levels.
+
+Panels (three equal-width panels arranged horizontally):
+
+  PANEL 1 — "Normal" (leftmost, peak ≤ readability_cap ≈ 6):
+    A short horizontal corridor (amber rectangle) between Block A (left) and
+    Block B (right). Inside the corridor: 3 distinct parallel horizontal lines,
+    each with an arrowhead on the right end. Lines slightly spaced vertically.
+    Label below panel: "Normal: 3 wires"
+    Sub-label: "peak ≤ readability_cap"
+    Colour: corridor amber, wires dark gray, arrowheads black.
+
+  PANEL 2 — "Bundle Notation" (centre, peak > readability_cap but ≤ face_capacity):
+    Same corridor segment. Inside the corridor: ONE thick bold horizontal line
+    (representing N bundled wires) with an arrowhead on the right end.
+    Above the thick line: a badge or small label "×7" (or "×N") in a rounded
+    rectangle.
+    Label below panel: "Bundle Notation: ×7 wires"
+    Sub-label: "peak > readability_cap"
+    Colour: corridor amber, thick bundle line indigo/purple, badge background white
+    with indigo border.
+
+  PANEL 3 — "Two-Face Split" (rightmost, peak > face_capacity):
+    Block A (left) shown taller. TWO corridor segments stacked vertically between
+    Block A and Block B — one leaving from the upper half of Block A's right face,
+    one leaving from the lower half. A "LayoutWarning" badge (orange triangle with !)
+    appears above Block A.
+    Label below panel: "Two-Face Split: ×12 wires"
+    Sub-label: "peak > face_capacity → LayoutWarning"
+    Colour: both corridors amber (thinner), LayoutWarning badge orange.
+
+Above the three panels, a horizontal threshold ruler/bar:
+  A number line from 0 to "face_cap" with three colour zones:
+    Green zone: 0 to readability_cap (~6)   — "Normal"
+    Orange zone: readability_cap to face_cap — "Bundle Notation"
+    Red zone: beyond face_cap               — "Split + Warn"
+
+Key formulas at bottom of image:
+  "readability_cap = ~6 (cognitive threshold)"
+  "face_capacity = min(src_face_h, dst_face_h) ÷ G"
+  "stub_min_len = ceil((N-1)/2) × G"
+
+Diffusion prompt hint:
+  Wide horizontal technical diagram on white background. Title "Highway Capacity
+  Thresholds". Three equal side-by-side panels labelled "Normal", "Bundle Notation",
+  and "Two-Face Split". Each panel contains two blue rectangular blocks "A" and "B"
+  with an amber shaded corridor between them. First panel: 3 small parallel wires
+  with arrowheads crossing the corridor. Second panel: one thick purple wire with
+  an orange "×7" badge crossing the corridor. Third panel: two thinner corridors
+  stacked between A and B (A is taller), with an orange warning triangle above A.
+  Above all panels: a coloured threshold bar green→orange→red. Bottom: three formula
+  lines. Clean flat UI illustration style, no shadows, consistent block sizing.

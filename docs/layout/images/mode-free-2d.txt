@@ -1,0 +1,43 @@
+Image: mode-free-2d.svg
+Title: Free 2D Mode — Clusters Emerge from Force-Directed Relaxation
+
+Purpose:
+  Show how isotropic force-directed placement (κ_h = 0.15) produces natural 2D
+  clusters without any pre-assigned rows or columns. Contrast with mode-directed-flow
+  which imposes a top-to-bottom layer structure.
+
+Layout:
+  Approximately nine blocks total, forming two visible spatial clusters.
+
+  Cluster 1 (left area, four blocks): A tightly connected group — a 2×2 arrangement
+  where all four blocks have high mutual affinity (many shared edges). The blocks sit
+  close together. Short edges between them. A light background ellipse or rounded
+  rectangle loosely encircles the group, labelled "community 1".
+
+  Cluster 2 (right area, three blocks): A triangle of connected blocks. Again a faint
+  background region labelled "community 2".
+
+  Two satellite/peripheral blocks: connected to only one cluster each; they nestle
+  against the nearest free face of their cluster rather than floating far away.
+
+  Edges between clusters: one or two longer edges crossing the gap between the two
+  communities, noticeably longer than the intra-cluster edges.
+
+  No grid lines, no row/column rules — positions look "organic" and physics-driven.
+  A small annotation: "rows / columns emergent — not pre-assigned".
+
+Key message:
+  With κ_h = 0.15 the hierarchy gravity is weak. Blocks are free to cluster in 2D;
+  the natural result is community groupings matching the model's package/type
+  relationships. This is the correct mode for General View where there is no single
+  execution order.
+
+Diffusion prompt hint:
+  Technical diagram on white background, title "Free 2D — κ_h = 0.15". Nine blue
+  labelled rectangles scattered in an organic pattern, not in rows. Four of them sit
+  close together in the left half, surrounded by a faint dashed ellipse labelled
+  "community 1". Three sit in the right half inside a faint dashed ellipse labelled
+  "community 2". Two satellite blocks nestle near the clusters. Short grey edges
+  connect blocks within each cluster; one or two longer grey edges cross between
+  clusters. Annotation: "rows / columns emergent — not pre-assigned". Clean flat
+  design, sans-serif labels, no shadows.

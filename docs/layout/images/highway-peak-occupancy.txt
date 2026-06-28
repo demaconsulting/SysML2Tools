@@ -1,0 +1,63 @@
+Image: highway-peak-occupancy.svg
+Title: Highway Width = Peak Concurrent Occupancy, Not Total Edge Count
+
+Purpose:
+  Illustrate that the reserved width of a highway corridor is determined by the
+  maximum number of wires simultaneously present at any cross-section of the trunk,
+  NOT the total number of edges that use the highway. Uses a vertical trunk with
+  fan-out to show wires tapping off at different heights.
+
+Layout:
+  A tall vertical corridor strip in the centre of the image (amber rectangle,
+  running top to bottom). On the right side, ONE source block (Block A) at the top.
+  On the left side, THREE destination blocks (Block B at top, Block C in middle,
+  Block D at bottom).
+
+  Block A (right, y≈55) sends 3 wires through the corridor trunk:
+    - Wire A→B: taps off at Block B level (y≈90)
+    - Wire A→C: taps off at Block C level (y≈170)
+    - Wire A→D: taps off at Block D level (y≈250)
+
+  The trunk runs VERTICALLY on the right wall of the corridor (descending from
+  Block A's level downward). The trunk is drawn as a set of parallel vertical lines
+  (one per active wire) whose count decreases as wires tap off:
+
+  Section 1 (y=55 to y=90):   3 parallel vertical lines — width = 3G
+  Section 2 (y=90 to y=170):  2 parallel vertical lines — width = 2G  (A→B tapped off)
+  Section 3 (y=170 to y=250): 1 vertical line           — width = G   (A→C tapped off)
+
+  Horizontal tap-off lines with arrowheads exit the trunk at each block level and
+  cross the corridor to reach Block B, C, D on the left.
+
+  Width annotations on the left of the corridor:
+    Brace or dimension line labelled "3G" for Section 1
+    Brace labelled "2G" for Section 2
+    Brace labelled "G" for Section 3
+
+  Key formula annotation below or beside the diagram:
+    "reserved width = peak(active wires) × G + 2·margin"
+    "NOT: total_edge_count × G + 2·margin"
+
+  A counter annotation on the right side showing the running active-wire count:
+    "active = 3" at the top section
+    "active = 2" at the middle section (with a small arrow showing A→B tapping off)
+    "active = 1" at the bottom section (with A→C tapping off)
+
+Key message:
+  A highway with 3 total edges may only need 1G of width in its lower stretch once
+  two wires have already tapped off. The closed-form compression in Step 6 uses the
+  peak cross-section, computed by a sweep-line over entry/exit events — O(k log k)
+  per bundle.
+
+Diffusion prompt hint:
+  Tall vertical technical diagram on white background. Title "Peak Concurrent
+  Occupancy". Centre: a tall amber shaded vertical rectangle (the corridor). Right
+  side: one blue block "Block A" at the top with a thick merged stub entering the
+  corridor from the right. Inside the corridor right edge: a vertical trunk that
+  starts as 3 parallel thin lines at the top, reduces to 2 lines in the middle
+  (after one exits left to "Block B"), reduces to 1 line at the bottom (after
+  another exits left to "Block C"), and the last exits left to "Block D". Left side:
+  three blue blocks "Block B", "Block C", "Block D" at three heights receiving the
+  tap-off wires with arrowheads. Width brace annotations on the left of corridor:
+  "3G" top, "2G" middle, "G" bottom. Formula below: "reserved = peak × G + 2·margin".
+  Clean flat design, no shadows.

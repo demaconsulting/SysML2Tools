@@ -1,0 +1,46 @@
+Image: force-fields.svg
+Title: Force Fields — Coarse Phase (Step 2)
+
+Purpose:
+  Show the five force types acting simultaneously on a single block (Block A) during
+  Fruchterman-Reingold coarse placement. Each force is a distinct coloured arrow with
+  a label naming the force and giving its formula.
+
+Layout:
+  Block A (central, highlighted blue) occupies the centre of the canvas.
+  Block B (connected neighbour, plain blue) sits to the upper-right.
+  Block C (too-close obstacle, plain blue) sits to the lower-right.
+  A canvas-centroid marker (green cross) sits to the lower-left.
+  A dense-channel stripe (amber shaded rectangle) runs vertically on the right edge
+  of the canvas, between Block A's column and the next.
+
+Force arrows (all originate from Block A centre):
+  1. Affinity spring   — blue solid arrow, direction NE toward Block B.
+                         Label: "affinity spring  r(ŵ) = L·(1.5 − ŵ)"
+  2. Block repulsion   — red solid arrow, direction NW (away from Block C, lower-right).
+                         Label: "block repulsion  k² / d²"
+  3. Hierarchy gravity — purple solid arrow, direction S (straight down).
+                         Label: "hierarchy gravity  κ_h · Δlevel · L / k"
+  4. Canvas gravity    — green solid arrow, direction SW toward centroid marker.
+                         Label: "canvas gravity  κ_c · d_centroid / k"
+  5. Wire pressure     — amber dashed arrow, direction W (away from dense channel on right).
+                         Label: "wire pressure (annealed)  × T(t) → 0"
+                         Dashed to signal that this force decays to zero as the system cools.
+
+Key message:
+  All five forces act at once; their vector sum determines where Block A settles.
+  Wire pressure and the affinity spring are deliberately opposed (spring pulls toward
+  Block B while pressure pushes away from the crowded channel between them) — this
+  tension is what produces correct spacing. As temperature T(t) drops the wire-pressure
+  term anneals away, leaving only the conservative spring/repulsion/gravity field to
+  find a stable minimum.
+
+Diffusion prompt hint:
+  Technical diagram on white background. Centre: a labelled blue rectangle "Block A".
+  Upper-right: blue rectangle "Block B (connected)". Lower-right: blue rectangle
+  "Block C (too close)". Lower-left: a green cross labelled "centroid". Right edge:
+  a vertical amber shaded stripe labelled "dense channel". Five coloured arrows radiate
+  from Block A: blue NE arrow labelled "affinity spring", red NW arrow labelled
+  "block repulsion", purple downward arrow labelled "hierarchy gravity", green
+  SW arrow labelled "canvas gravity", amber dashed leftward arrow labelled
+  "wire pressure (annealed)". Clean sans-serif font, flat design, no shadows.
