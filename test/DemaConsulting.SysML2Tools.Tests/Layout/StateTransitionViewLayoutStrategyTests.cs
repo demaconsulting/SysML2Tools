@@ -96,4 +96,49 @@ public sealed class StateTransitionViewLayoutStrategyTests
 
         Assert.Empty(layout.Nodes);
     }
+
+    /// <summary>
+    ///     A state with both an outgoing and an incoming transition on the same edge anchors them at
+    ///     distinct points so the two arrows do not coincide (which would hide their direction).
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_InAndOutOnSameEdge_UseDistinctAnchors()
+    {
+        // Arrange: two states with transitions in both directions (a->b and b->a).
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var machine = new SysmlDefinitionNode
+        {
+            Name = "M",
+            QualifiedName = "P::M",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a", QualifiedName = "P::M::a", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "b", QualifiedName = "P::M::b", FeatureKeyword = "state" },
+                new SysmlTransitionNode { Source = "a", Target = "b", Guard = "fwd" },
+                new SysmlTransitionNode { Source = "b", Target = "a", Guard = "rev" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::M"] = machine }
+        };
+        var context = new ViewContext("StateTransition", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // The forward line leaves state 'a' at its first waypoint; the reverse line enters state 'a'
+        // at its last waypoint. Both are on a's edge facing b, so they must be different points.
+        var lines = layout.Nodes.OfType<LayoutLine>().ToList();
+        var forward = lines.Single(l => l.MidpointLabel == "[fwd]");
+        var reverse = lines.Single(l => l.MidpointLabel == "[rev]");
+        var outAnchor = forward.Waypoints[0];
+        var inAnchor = reverse.Waypoints[^1];
+
+        Assert.False(
+            Math.Abs(outAnchor.X - inAnchor.X) < 1e-6 && Math.Abs(outAnchor.Y - inAnchor.Y) < 1e-6,
+            "Outgoing and incoming transitions on the same edge must not share an anchor point.");
+    }
 }

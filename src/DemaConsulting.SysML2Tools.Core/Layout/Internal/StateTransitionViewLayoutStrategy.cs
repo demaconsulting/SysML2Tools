@@ -241,14 +241,92 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     /// Adds transition edges (with guard labels) between state boxes, returning the number of edges
     /// that could not be routed without crossing a state box.
     /// </summary>
+    /// <remarks>
+    /// Each transition end attaches to the side of its box that faces the other state. When several
+    /// transitions share the same box side, their anchor points are distributed evenly along that
+    /// side (ordered to face their counterparts) instead of all stacking on the side midpoint, so an
+    /// incoming arrowhead never coincides with another transition's endpoint.
+    /// </remarks>
     private static int AddTransitions(
         IReadOnlyList<TransitionItem> transitions,
         Rect[] stateRects,
         List<LayoutNode> nodes)
     {
-        var crossings = 0;
-        foreach (var transition in transitions)
+        var count = transitions.Count;
+        var srcSide = new PortSide[count];
+        var tgtSide = new PortSide[count];
+        var srcPoint = new Point2D[count];
+        var tgtPoint = new Point2D[count];
+
+        // Pass 1: determine the side each transition end attaches to.
+        for (var i = 0; i < count; i++)
         {
+            var transition = transitions[i];
+            if (transition.Source == transition.Target)
+            {
+                continue;
+            }
+
+            srcSide[i] = SideToward(stateRects[transition.Source], Centre(stateRects[transition.Target]));
+            tgtSide[i] = SideToward(stateRects[transition.Target], Centre(stateRects[transition.Source]));
+        }
+
+        // Pass 2: group endpoints by (state, side) and distribute them evenly along each side.
+        var groups = new Dictionary<(int State, PortSide Side), List<(int Trans, bool IsSource, double Order)>>();
+        for (var i = 0; i < count; i++)
+        {
+            var transition = transitions[i];
+            if (transition.Source == transition.Target)
+            {
+                continue;
+            }
+
+            AddEndpoint(groups, transition.Source, srcSide[i], i, isSource: true, OrderKey(srcSide[i], Centre(stateRects[transition.Target])));
+            AddEndpoint(groups, transition.Target, tgtSide[i], i, isSource: false, OrderKey(tgtSide[i], Centre(stateRects[transition.Source])));
+        }
+
+        foreach (var group in groups)
+        {
+            var ordered = group.Value.OrderBy(e => e.Order).ToList();
+
+            // Collapse runs of consecutive same-direction endpoints into shared anchor slots: this
+            // keeps inputs and outputs on separate points (so direction is never ambiguous) while
+            // reducing the number of distinct points on a busy edge. The crossing-minimizing order
+            // (by counterpart position) is preserved, so only adjacent same-direction edges merge.
+            var slots = new List<(bool IsSource, List<int> Trans)>();
+            foreach (var endpoint in ordered)
+            {
+                if (slots.Count == 0 || slots[^1].IsSource != endpoint.IsSource)
+                {
+                    slots.Add((endpoint.IsSource, []));
+                }
+
+                slots[^1].Trans.Add(endpoint.Trans);
+            }
+
+            for (var s = 0; s < slots.Count; s++)
+            {
+                var frac = (s + 1.0) / (slots.Count + 1.0);
+                var point = PointOnSide(stateRects[group.Key.State], group.Key.Side, frac);
+                foreach (var trans in slots[s].Trans)
+                {
+                    if (slots[s].IsSource)
+                    {
+                        srcPoint[trans] = point;
+                    }
+                    else
+                    {
+                        tgtPoint[trans] = point;
+                    }
+                }
+            }
+        }
+
+        // Pass 3: route each transition and build its line.
+        var crossings = 0;
+        for (var i = 0; i < count; i++)
+        {
+            var transition = transitions[i];
             var label = transition.Guard is { Length: > 0 } g ? $"[{g}]" : null;
 
             if (transition.Source == transition.Target)
@@ -257,21 +335,16 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            var from = stateRects[transition.Source];
-            var to = stateRects[transition.Target];
-            var (source, sourceSide) = AnchorToward(from, Centre(to));
-            var (target, targetSide) = AnchorToward(to, Centre(from));
-
             var obstacles = new List<Rect>();
-            for (var i = 0; i < stateRects.Length; i++)
+            for (var j = 0; j < stateRects.Length; j++)
             {
-                if (i != transition.Source && i != transition.Target)
+                if (j != transition.Source && j != transition.Target)
                 {
-                    obstacles.Add(stateRects[i]);
+                    obstacles.Add(stateRects[j]);
                 }
             }
 
-            var route = ChannelRouter.RouteWithStatus(source, target, obstacles, TransitionClearance, sourceSide, targetSide);
+            var route = ChannelRouter.RouteWithStatus(srcPoint[i], tgtPoint[i], obstacles, TransitionClearance, srcSide[i], tgtSide[i]);
             if (route.Crossed)
             {
                 crossings++;
@@ -286,6 +359,25 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         }
 
         return crossings;
+    }
+
+    /// <summary>Registers a transition endpoint against the (state, side) group it attaches to.</summary>
+    private static void AddEndpoint(
+        Dictionary<(int State, PortSide Side), List<(int Trans, bool IsSource, double Order)>> groups,
+        int state,
+        PortSide side,
+        int trans,
+        bool isSource,
+        double order)
+    {
+        var key = (state, side);
+        if (!groups.TryGetValue(key, out var list))
+        {
+            list = [];
+            groups[key] = list;
+        }
+
+        list.Add((trans, isSource, order));
     }
 
     /// <summary>Builds a small self-transition loop above the state box.</summary>
@@ -313,10 +405,9 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Returns the midpoint of the box side whose outward normal best points at the target, along
-    /// with that side.
+    /// Returns the side of the box whose outward normal best points at the target.
     /// </summary>
-    private static (Point2D Point, PortSide Side) AnchorToward(Rect box, Point2D target)
+    private static PortSide SideToward(Rect box, Point2D target)
     {
         var cx = box.X + (box.Width / 2.0);
         var cy = box.Y + (box.Height / 2.0);
@@ -325,15 +416,30 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
         if (Math.Abs(dx) >= Math.Abs(dy))
         {
-            return dx >= 0
-                ? (new Point2D(box.X + box.Width, cy), PortSide.Right)
-                : (new Point2D(box.X, cy), PortSide.Left);
+            return dx >= 0 ? PortSide.Right : PortSide.Left;
         }
 
-        return dy >= 0
-            ? (new Point2D(cx, box.Y + box.Height), PortSide.Bottom)
-            : (new Point2D(cx, box.Y), PortSide.Top);
+        return dy >= 0 ? PortSide.Bottom : PortSide.Top;
     }
+
+    /// <summary>
+    /// Returns the point at fractional position <paramref name="frac"/> (0..1) along the given side
+    /// of the box.
+    /// </summary>
+    private static Point2D PointOnSide(Rect box, PortSide side, double frac) => side switch
+    {
+        PortSide.Top => new Point2D(box.X + (frac * box.Width), box.Y),
+        PortSide.Bottom => new Point2D(box.X + (frac * box.Width), box.Y + box.Height),
+        PortSide.Left => new Point2D(box.X, box.Y + (frac * box.Height)),
+        _ => new Point2D(box.X + box.Width, box.Y + (frac * box.Height)),
+    };
+
+    /// <summary>
+    /// Returns the ordering key used to lay endpoints out along a side so their connectors fan out
+    /// toward their counterparts without crossing: the counterpart coordinate along the side's axis.
+    /// </summary>
+    private static double OrderKey(PortSide side, Point2D counterpart) =>
+        side is PortSide.Top or PortSide.Bottom ? counterpart.X : counterpart.Y;
 
     /// <summary>Returns the centre point of a rectangle.</summary>
     private static Point2D Centre(Rect rect) =>
