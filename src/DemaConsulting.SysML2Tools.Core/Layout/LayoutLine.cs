@@ -22,6 +22,9 @@ public enum ArrowheadStyle
     /// <summary>Open (hollow) arrowhead.</summary>
     Open,
 
+    /// <summary>Open arrowhead with a perpendicular crossbar (for redefinition).</summary>
+    OpenWithCrossbar,
+
     /// <summary>Filled arrowhead.</summary>
     Filled,
 

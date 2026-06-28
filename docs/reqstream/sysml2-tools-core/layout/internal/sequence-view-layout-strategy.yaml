@@ -40,3 +40,13 @@ sections:
           rendering a misleading frame with no participants or messages.
         tests:
           - SequenceView_BuildLayout_NoMessages_ReturnsMinimalCanvas
+
+      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessageArrowhead
+        title: >-
+          SequenceViewLayoutStrategy shall draw each message arrow with an open arrowhead at the
+          receiver end.
+        justification: |
+          SysML v2 sequence message notation uses an open arrowhead at the receiver. Applying this
+          property makes rendered message arrows conform to the standard notation.
+        tests:
+          - SequenceView_BuildLayout_MessageArrow_HasOpenArrowhead

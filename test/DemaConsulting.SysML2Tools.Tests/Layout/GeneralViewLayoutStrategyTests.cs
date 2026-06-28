@@ -285,4 +285,80 @@ public sealed class GeneralViewLayoutStrategyTests
         Walk(nodes);
         return result;
     }
+
+    /// <summary>
+    ///     A part def that owns a typed feature emits a filled-diamond line from the feature's type
+    ///     box to the owning definition box.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_CompositeMembership_ProducesFilledDiamondEdge()
+    {
+        // Arrange: Vehicle owns a part typed as Wheel; both are user definitions
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Wheel"] = new SysmlDefinitionNode { Name = "Wheel", QualifiedName = "P::Wheel", DefinitionKeyword = "part def" },
+                ["P::Vehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "Vehicle",
+                    QualifiedName = "P::Vehicle",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "wheel", QualifiedName = "P::Vehicle::wheel", FeatureKeyword = "part", FeatureTyping = "Wheel" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a line with a filled-diamond arrowhead at the owner (Vehicle) end exists
+        var membershipEdge = layout.Nodes.OfType<LayoutLine>()
+            .FirstOrDefault(l => l.TargetArrowhead == ArrowheadStyle.FilledDiamond);
+        Assert.NotNull(membershipEdge);
+    }
+
+    /// <summary>
+    ///     A part def that owns a reference feature emits an open-diamond line from the feature's
+    ///     type box to the owning definition box.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesDiamondEdge()
+    {
+        // Arrange: System owns a ref typed as Engine; both are user definitions
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Engine"] = new SysmlDefinitionNode { Name = "Engine", QualifiedName = "P::Engine", DefinitionKeyword = "part def" },
+                ["P::System"] = new SysmlDefinitionNode
+                {
+                    Name = "System",
+                    QualifiedName = "P::System",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "eng", QualifiedName = "P::System::eng", FeatureKeyword = "ref", FeatureTyping = "Engine" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a line with an open-diamond arrowhead at the owner (System) end exists
+        var membershipEdge = layout.Nodes.OfType<LayoutLine>()
+            .FirstOrDefault(l => l.TargetArrowhead == ArrowheadStyle.Diamond);
+        Assert.NotNull(membershipEdge);
+    }
 }

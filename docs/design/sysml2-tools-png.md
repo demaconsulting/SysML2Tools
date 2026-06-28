@@ -137,9 +137,10 @@ styles, then `RenderLineMidpointLabel` when `MidpointLabel` is non-null.
 **`DrawArrowhead(SKCanvas, tipX, tipY, dx, dy, ArrowheadStyle, scale, color, strokeWidth)`**
 
 Draws the arrowhead at the given tip using a normalized direction vector. Supports all
-seven `ArrowheadStyle` values: `None` (no-op), `Open` (hollow triangle), `Filled` (solid
+eight `ArrowheadStyle` values: `None` (no-op), `Open` (hollow triangle), `Filled` (solid
 triangle), `Diamond` (hollow four-point polygon), `FilledDiamond` (solid four-point
-polygon), `Circle` (open circle), `Bar` (perpendicular stroke).
+polygon), `Circle` (open circle), `Bar` (perpendicular stroke), `OpenWithCrossbar`
+(hollow triangle with perpendicular crossbar).
 
 **`RenderLabel(SKCanvas canvas, LayoutLabel label, RenderOptions options)`**
 

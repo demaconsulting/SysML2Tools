@@ -313,4 +313,38 @@ public sealed class PngRendererTests
         var actual = bmp.GetPixel(50, 50);
         Assert.True(ColorNear(strokeColor, actual, tolerance: 10), $"Expected stroke {strokeColor} ≈ {actual}");
     }
+
+    /// <summary>
+    ///     Render a LayoutLine with an OpenWithCrossbar target arrowhead produces a non-empty
+    ///     output stream beginning with the PNG signature bytes, confirming that the
+    ///     open-with-crossbar arrowhead style renders without error.
+    /// </summary>
+    [Fact]
+    public void PngRenderer_Render_DrawArrowhead_OpenWithCrossbar_ProducesNonEmptyOutput()
+    {
+        // Arrange: a line with OpenWithCrossbar arrowhead at the target
+        var renderer = new PngRenderer();
+        var line = new LayoutLine(
+            [new Point2D(10, 50), new Point2D(190, 50)],
+            ArrowheadStyle.None,
+            ArrowheadStyle.OpenWithCrossbar,
+            LineStyle.Solid,
+            null);
+        var layout = new LayoutTree(200, 100, [line]);
+        var options = new RenderOptions(Themes.Light);
+        using var output = new MemoryStream();
+
+        // Act
+        renderer.Render(layout, options, output);
+
+        // Assert: output is a non-empty PNG stream
+        Assert.True(output.Length > 4);
+        output.Position = 0;
+        var header = new byte[4];
+        _ = output.Read(header, 0, 4);
+        Assert.Equal(0x89, header[0]);
+        Assert.Equal(0x50, header[1]);
+        Assert.Equal(0x4E, header[2]);
+        Assert.Equal(0x47, header[3]);
+    }
 }

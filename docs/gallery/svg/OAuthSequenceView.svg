@@ -6,6 +6,10 @@
     <marker id="arrowhead-filled" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
     </marker>
+    <marker id="arrowhead-open-crossbar" markerWidth="12" markerHeight="7" refX="11" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+      <line x1="10" y1="0" x2="10" y2="7" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
     <marker id="arrowhead-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
       <polygon points="1 4, 7 0, 13 4, 7 8" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
     </marker>
@@ -35,15 +39,15 @@
   <rect x="474.48" y="18.00" width="128.16" height="26.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
   <text x="538.56" y="31.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">resourceServer</text>
   <line x1="538.56" y1="44.00" x2="538.56" y2="394.00" stroke="#1A1A2E" stroke-width="1.50" stroke-dasharray="6 3"/>
-  <path d="M 82.08 79.00 L 234.24 79.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 234.24 114.00 L 386.40 114.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 386.40 149.00 L 82.08 149.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 82.08 184.00 L 386.40 184.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 386.40 219.00 L 234.24 219.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 234.24 254.00 L 386.40 254.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 386.40 289.00 L 234.24 289.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 234.24 324.00 L 538.56 324.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 538.56 359.00 L 82.08 359.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 82.08 79.00 L 234.24 79.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 234.24 114.00 L 386.40 114.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 386.40 149.00 L 82.08 149.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 82.08 184.00 L 386.40 184.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 386.40 219.00 L 234.24 219.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 234.24 254.00 L 386.40 254.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 386.40 289.00 L 234.24 289.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 234.24 324.00 L 538.56 324.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 538.56 359.00 L 82.08 359.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
   <text x="158.16" y="79.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">openApp</text>
   <text x="310.32" y="114.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">redirect</text>
   <text x="234.24" y="149.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">promptCredentials</text>

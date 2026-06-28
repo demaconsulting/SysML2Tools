@@ -51,3 +51,13 @@ sections:
           renderer produce a valid blank diagram rather than failing.
         tests:
           - StateTransitionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-TransitionArrowhead
+        title: >-
+          StateTransitionViewLayoutStrategy shall draw each transition edge with an open arrowhead
+          at the target state.
+        justification: |
+          SysML v2 state transition notation uses an open arrowhead at the target end. Applying this
+          property makes rendered transitions conform to the standard notation.
+        tests:
+          - StateTransitionView_BuildLayout_TransitionEdge_HasOpenArrowhead

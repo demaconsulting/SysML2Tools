@@ -353,7 +353,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             nodes.Add(new LayoutLine(
                 Waypoints: route.Waypoints,
                 SourceArrowhead: ArrowheadStyle.None,
-                TargetArrowhead: ArrowheadStyle.Filled,
+                TargetArrowhead: ArrowheadStyle.Open,
                 LineStyle: LineStyle.Solid,
                 MidpointLabel: label));
         }
@@ -399,7 +399,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         return new LayoutLine(
             Waypoints: waypoints,
             SourceArrowhead: ArrowheadStyle.None,
-            TargetArrowhead: ArrowheadStyle.Filled,
+            TargetArrowhead: ArrowheadStyle.Open,
             LineStyle: LineStyle.Solid,
             MidpointLabel: label);
     }

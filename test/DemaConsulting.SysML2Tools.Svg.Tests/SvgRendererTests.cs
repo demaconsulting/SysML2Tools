@@ -490,4 +490,33 @@ public sealed class SvgRendererTests
         Assert.Contains("<text", svgText, StringComparison.Ordinal);
         Assert.Contains("uses", svgText, StringComparison.Ordinal);
     }
+
+    /// <summary>
+    ///     Render a LayoutLine with an OpenWithCrossbar target arrowhead produces SVG output
+    ///     containing the arrowhead-open-crossbar marker id, confirming the open-crossbar marker
+    ///     is defined in the defs block and referenced by the path element.
+    /// </summary>
+    [Fact]
+    public void SvgRenderer_Render_SingleLine_WithOpenCrossbarArrowhead_ProducesOpenCrossbarMarker()
+    {
+        // Arrange: a line with OpenWithCrossbar arrowhead at the target
+        var renderer = new SvgRenderer();
+        var line = new LayoutLine(
+            [new Point2D(10, 10), new Point2D(90, 10)],
+            ArrowheadStyle.None,
+            ArrowheadStyle.OpenWithCrossbar,
+            LineStyle.Solid,
+            null);
+        var layout = new LayoutTree(200, 100, [line]);
+        var options = new RenderOptions(Themes.Light);
+        using var output = new MemoryStream();
+
+        // Act
+        renderer.Render(layout, options, output);
+
+        // Assert
+        output.Position = 0;
+        var svgText = new StreamReader(output).ReadToEnd();
+        Assert.Contains("arrowhead-open-crossbar", svgText, StringComparison.Ordinal);
+    }
 }

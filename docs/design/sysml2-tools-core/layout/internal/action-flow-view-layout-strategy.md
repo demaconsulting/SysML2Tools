@@ -40,8 +40,9 @@ indices, keeping only distinct, resolvable pairs.
 Action boxes are positioned by `LayeredLayoutEngine.Place`, which assigns top-to-bottom layers so
 a target sits below its source, then shifted down to leave a marker band above the first layer.
 `AddSuccessionEdges` routes each succession with `ChannelRouter.RouteWithStatus` from the bottom
-of the source to the top of the target, keeping `FlowClearance` from unrelated boxes, and returns
-the number of edges that had to cross a box. `AddStartAndDone` places a filled-circle start marker
+of the source to the top of the target, keeping `FlowClearance` from unrelated boxes. Each
+succession is emitted as a dashed `LayoutLine` with an open arrowhead at the target, matching
+SysML v2 succession notation. The method returns the number of edges that had to cross a box. `AddStartAndDone` places a filled-circle start marker
 centred over the actions with no incoming edge and a bullseye done marker centred under the actions
 with no outgoing edge, joining each with a straight flow line.
 

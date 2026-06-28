@@ -239,8 +239,8 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             nodes.Add(new LayoutLine(
                 Waypoints: route.Waypoints,
                 SourceArrowhead: ArrowheadStyle.None,
-                TargetArrowhead: ArrowheadStyle.Filled,
-                LineStyle: LineStyle.Solid,
+                TargetArrowhead: ArrowheadStyle.Open,
+                LineStyle: LineStyle.Dashed,
                 MidpointLabel: null));
         }
 

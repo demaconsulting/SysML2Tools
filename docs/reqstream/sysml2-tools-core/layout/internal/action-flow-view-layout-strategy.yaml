@@ -40,3 +40,14 @@ sections:
           renderer produce a valid blank diagram rather than failing.
         tests:
           - ActionFlowView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-SuccessionLineStyle
+        title: >-
+          ActionFlowViewLayoutStrategy shall draw each succession flow edge as a dashed line with
+          an open arrowhead at the target action.
+        justification: |
+          SysML v2 succession notation uses a dashed line with an open arrowhead. Applying these
+          properties makes the rendered succession edges conform to the standard notation so that
+          diagram readers can identify control flow at a glance.
+        tests:
+          - ActionFlowView_BuildLayout_SuccessionEdge_IsDashedWithOpenArrowhead

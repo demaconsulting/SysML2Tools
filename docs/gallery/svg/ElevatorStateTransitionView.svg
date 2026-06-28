@@ -6,6 +6,10 @@
     <marker id="arrowhead-filled" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
     </marker>
+    <marker id="arrowhead-open-crossbar" markerWidth="12" markerHeight="7" refX="11" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+      <line x1="10" y1="0" x2="10" y2="7" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
     <marker id="arrowhead-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
       <polygon points="1 4, 7 0, 13 4, 7 8" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
     </marker>
@@ -43,14 +47,14 @@
   <text x="97.40" y="551.47" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">movingDown</text>
   <circle cx="675.57" cy="340.49" r="9.00" fill="#1A1A2E"/>
   <path d="M 675.57 349.49 L 675.57 368.49" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 625.57 401.82 L 446.23 401.82 A 4.00 4.00 0 0 1 442.23 397.82 L 442.23 378.65 A 4.00 4.00 0 0 0 438.23 374.65 L 422.23 374.65" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 379.51 349.65 L 379.51 268.33 A 4.00 4.00 0 0 1 383.51 264.33 L 481.76 264.33 A 4.00 4.00 0 0 0 485.76 260.33 L 485.76 244.33" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 435.76 219.33 L 225.66 219.33 A 4.00 4.00 0 0 0 221.66 223.33 L 221.66 273.37 A 4.00 4.00 0 0 1 217.66 277.37 L 201.66 277.37" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 97.40 520.47 L 97.40 326.37 A 4.00 4.00 0 0 1 101.40 322.37 L 133.58 322.37 A 4.00 4.00 0 0 0 137.58 318.37 L 137.58 302.37" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 137.58 252.37 L 137.58 116.00 A 4.00 4.00 0 0 1 141.58 112.00 L 148.91 112.00 A 4.00 4.00 0 0 0 152.91 108.00 L 152.91 92.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 186.95 92.00 L 186.95 108.00 A 4.00 4.00 0 0 0 190.95 112.00 L 332.79 112.00 A 4.00 4.00 0 0 1 336.79 116.00 L 336.79 349.65" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 294.07 374.65 L 176.80 374.65 A 4.00 4.00 0 0 0 172.80 378.65 L 172.80 541.47 A 4.00 4.00 0 0 1 168.80 545.47 L 152.80 545.47" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 535.76 219.33 L 551.76 219.33 A 4.00 4.00 0 0 1 555.76 223.33 L 555.76 381.15 A 4.00 4.00 0 0 0 559.76 385.15 L 625.57 385.15" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 625.57 401.82 L 446.23 401.82 A 4.00 4.00 0 0 1 442.23 397.82 L 442.23 378.65 A 4.00 4.00 0 0 0 438.23 374.65 L 422.23 374.65" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 379.51 349.65 L 379.51 268.33 A 4.00 4.00 0 0 1 383.51 264.33 L 481.76 264.33 A 4.00 4.00 0 0 0 485.76 260.33 L 485.76 244.33" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 435.76 219.33 L 225.66 219.33 A 4.00 4.00 0 0 0 221.66 223.33 L 221.66 273.37 A 4.00 4.00 0 0 1 217.66 277.37 L 201.66 277.37" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 97.40 520.47 L 97.40 326.37 A 4.00 4.00 0 0 1 101.40 322.37 L 133.58 322.37 A 4.00 4.00 0 0 0 137.58 318.37 L 137.58 302.37" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 137.58 252.37 L 137.58 116.00 A 4.00 4.00 0 0 1 141.58 112.00 L 148.91 112.00 A 4.00 4.00 0 0 0 152.91 108.00 L 152.91 92.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 186.95 92.00 L 186.95 108.00 A 4.00 4.00 0 0 0 190.95 112.00 L 332.79 112.00 A 4.00 4.00 0 0 1 336.79 116.00 L 336.79 349.65" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 294.07 374.65 L 176.80 374.65 A 4.00 4.00 0 0 0 172.80 378.65 L 172.80 541.47 A 4.00 4.00 0 0 1 168.80 545.47 L 152.80 545.47" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 535.76 219.33 L 551.76 219.33 A 4.00 4.00 0 0 1 555.76 223.33 L 555.76 381.15 A 4.00 4.00 0 0 0 559.76 385.15 L 625.57 385.15" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
   <text x="533.90" y="401.82" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[callReceived]</text>
   <text x="432.64" y="264.33" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[doorsClosed]</text>
   <text x="328.71" y="219.33" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[atFloor]</text>

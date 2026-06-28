@@ -141,4 +141,41 @@ public sealed class StateTransitionViewLayoutStrategyTests
             Math.Abs(outAnchor.X - inAnchor.X) < 1e-6 && Math.Abs(outAnchor.Y - inAnchor.Y) < 1e-6,
             "Outgoing and incoming transitions on the same edge must not share an anchor point.");
     }
+
+    /// <summary>
+    ///     A state transition edge carries an open arrowhead at the target end.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_TransitionEdge_HasOpenArrowhead()
+    {
+        // Arrange: a simple two-state machine with one transition
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var machine = new SysmlDefinitionNode
+        {
+            Name = "M",
+            QualifiedName = "P::M",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a", QualifiedName = "P::M::a", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "b", QualifiedName = "P::M::b", FeatureKeyword = "state" },
+                new SysmlTransitionNode { Source = "a", Target = "b", Guard = "g" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::M"] = machine }
+        };
+        var context = new ViewContext("StateTransition", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the transition line has an open arrowhead at the target end
+        var transitionLine = layout.Nodes.OfType<LayoutLine>()
+            .FirstOrDefault(l => l.MidpointLabel == "[g]");
+        Assert.NotNull(transitionLine);
+        Assert.Equal(ArrowheadStyle.Open, transitionLine!.TargetArrowhead);
+    }
 }

@@ -42,7 +42,8 @@ State boxes are positioned by `ForceDirectedEngine.Place`, using the non-self tr
 springs at `StateSpacing`. `AddInitialMarker` places a filled-circle badge above the first state
 with a straight arrow into it. `AddTransitions` routes each transition with
 `ChannelRouter.RouteWithStatus`, keeping `TransitionClearance` from unrelated boxes, labelling
-each line with its bracketed guard. Each transition end attaches to the box side facing the other
+each line with its bracketed guard. Each transition is emitted with an open arrowhead at the
+target state, matching SysML v2 state transition notation. Each transition end attaches to the box side facing the other
 state; when several transitions share a side, their endpoints are distributed along that side and
 ordered by counterpart position to reduce crossings, and runs of consecutive same-direction
 endpoints are collapsed into shared anchor slots so that incoming and outgoing transitions on one

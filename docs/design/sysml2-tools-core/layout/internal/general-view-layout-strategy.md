@@ -22,8 +22,8 @@ user definition with its computed size, keyword, supertype names, and compartmen
 
 Entry point. Calls `CollectDefinitions` to gather user definitions; returns a minimal
 200×100 empty `LayoutTree` when none are found. Otherwise groups the definitions by package,
-places the groups, routes the specialization edges, and returns the assembled tree with any
-crossing warnings attached.
+places the groups, routes the specialization edges and feature-membership edges, and returns the
+assembled tree with any crossing warnings attached.
 
 ###### `CollectDefinitions(workspace, theme)`
 
@@ -52,6 +52,15 @@ with `ChannelRouter` from the subtype box to the supertype box, keeping `EdgeCle
 unrelated boxes, and emits a `LayoutLine` with an open arrowhead at the supertype end. Returns
 the routed lines and the count of edges that had to cross a box.
 
+###### `BuildMembershipEdges(defs, placed)`
+
+For each definition with typed owned features, resolves each feature's type to a placed box and
+routes an orthogonal line from the member-type box to the owner box, placing a filled-diamond
+arrowhead at the owner end for composite-membership features (all keywords except `ref`) and an
+open-diamond arrowhead for reference-membership features (`ref` keyword). Routing uses
+`ChannelRouter` with `EdgeClearance` from unrelated boxes. Returns the routed lines and the count
+of edges that had to cross a box.
+
 ##### Error Handling
 
 Null `context` or `options` arguments throw `ArgumentNullException`. A workspace with no user
@@ -67,6 +76,7 @@ routed cleanly are still drawn and counted as crossings, which are surfaced thro
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode` (Semantic subsystem) — model input.
 - `LayoutWarnings` (Layout Internal subsystem) — crossing-warning construction.
 - The `LayoutTree`, `LayoutBox`, `LayoutCompartment`, and `LayoutLine` data types (Layout subsystem).
+- `FeatureMembership` (private record) — carries the keyword and type reference of one owned feature.
 
 ##### Callers
 

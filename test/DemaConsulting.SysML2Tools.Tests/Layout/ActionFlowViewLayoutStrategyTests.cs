@@ -105,4 +105,42 @@ public sealed class ActionFlowViewLayoutStrategyTests
 
         Assert.Empty(layout.Nodes);
     }
+
+    /// <summary>
+    ///     A succession flow edge is drawn as a dashed line with an open arrowhead at the target.
+    /// </summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_SuccessionEdge_IsDashedWithOpenArrowhead()
+    {
+        // Arrange: a -> b
+        var strategy = new ActionFlowViewLayoutStrategy();
+        var process = new SysmlDefinitionNode
+        {
+            Name = "P",
+            QualifiedName = "M::P",
+            DefinitionKeyword = "action def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a", QualifiedName = "M::P::a", FeatureKeyword = "action" },
+                new SysmlFeatureNode { Name = "b", QualifiedName = "M::P::b", FeatureKeyword = "action" },
+                new SysmlTransitionNode { Source = "a", Target = "b" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["M::P"] = process }
+        };
+        var context = new ViewContext("ActionFlow", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the succession line between a and b is dashed with an open arrowhead
+        var successionLines = layout.Nodes.OfType<LayoutLine>()
+            .Where(l => l.MidpointLabel is null && l.LineStyle == LineStyle.Dashed)
+            .ToList();
+        Assert.NotEmpty(successionLines);
+        Assert.All(successionLines, l => Assert.Equal(ArrowheadStyle.Open, l.TargetArrowhead));
+    }
 }

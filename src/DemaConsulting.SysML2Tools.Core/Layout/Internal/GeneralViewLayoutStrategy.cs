@@ -33,12 +33,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <summary>Clearance kept between routed edges and boxes.</summary>
     private const double EdgeClearance = 12.0;
 
+    /// <summary>A feature membership: the keyword and the raw typing reference of one owned feature.</summary>
+    private sealed record FeatureMembership(string Keyword, string TypeName);
+
     /// <summary>A user-defined definition together with its computed box size and supertypes.</summary>
     private sealed record DefBox(
         string QualifiedName,
         string SimpleName,
         string Keyword,
         IReadOnlyList<string> SupertypeNames,
+        IReadOnlyList<FeatureMembership> Memberships,
         IReadOnlyList<LayoutCompartment> Compartments,
         double Width,
         double Height);
@@ -68,10 +72,14 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var (nodes, placed, canvasWidth, canvasHeight) = PlaceGroups(groups, theme, options.DepthLimit);
 
         // Route specialization edges between placed boxes.
-        var (edges, crossings) = BuildSpecializationEdges(defs, placed);
-        nodes.AddRange(edges);
+        var (specEdges, specCrossings) = BuildSpecializationEdges(defs, placed);
+        nodes.AddRange(specEdges);
 
-        var warnings = LayoutWarnings.ForCrossings(context.ViewName, crossings);
+        // Route feature-membership edges between placed boxes.
+        var (memberEdges, memberCrossings) = BuildMembershipEdges(defs, placed);
+        nodes.AddRange(memberEdges);
+
+        var warnings = LayoutWarnings.ForCrossings(context.ViewName, specCrossings + memberCrossings);
         return new LayoutTree(canvasWidth, canvasHeight, nodes) { Warnings = warnings };
     }
 
@@ -101,8 +109,9 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             // Build compartments from the definition's owned usages (attributes, ports, parts, …).
             var compartments = BuildCompartments(def);
 
+            var memberships = CollectMemberships(def);
             var (width, height) = ComputeBoxSize(simpleName, keyword, compartments, theme);
-            result.Add(new DefBox(qualifiedName, simpleName, keyword, def.SupertypeNames, compartments, width, height));
+            result.Add(new DefBox(qualifiedName, simpleName, keyword, def.SupertypeNames, memberships, compartments, width, height));
         }
 
         return result;
@@ -155,6 +164,30 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         "ref" => "references",
         _ => keyword + "s",
     };
+
+    /// <summary>
+    /// Collects the feature memberships of a definition: the keyword and type reference of each
+    /// owned feature that carries a type annotation.
+    /// </summary>
+    private static IReadOnlyList<FeatureMembership> CollectMemberships(SysmlDefinitionNode def)
+    {
+        var result = new List<FeatureMembership>();
+        foreach (var child in def.Children)
+        {
+            if (child is not SysmlFeatureNode feature)
+            {
+                continue;
+            }
+
+            if (feature.FeatureTyping is { Length: > 0 } typing)
+            {
+                var keyword = string.IsNullOrEmpty(feature.FeatureKeyword) ? "feature" : feature.FeatureKeyword;
+                result.Add(new FeatureMembership(keyword, typing));
+            }
+        }
+
+        return result;
+    }
 
     /// <summary>Computes the intrinsic box size needed for the title and any compartments.</summary>
     private static (double Width, double Height) ComputeBoxSize(
@@ -434,6 +467,96 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         }
 
         return (edges, crossings);
+    }
+
+    /// <summary>
+    /// Builds feature-membership edges between placed definition boxes, returning the edges and
+    /// the number that could not be routed without crossing a box.
+    /// </summary>
+    /// <remarks>
+    /// Composite-membership features (all keywords except "ref") emit a filled-diamond arrowhead
+    /// at the owner end; reference memberships ("ref") emit an open-diamond arrowhead at the owner
+    /// end. Each edge is routed from the member-type box toward the owner box so the diamond sits
+    /// on the owner.
+    /// </remarks>
+    private static (List<LayoutNode> Edges, int Crossings) BuildMembershipEdges(
+        IReadOnlyList<DefBox> defs,
+        IReadOnlyList<PlacedBox> placed)
+    {
+        var edges = new List<LayoutNode>();
+        var crossings = 0;
+
+        // Index placed boxes by both qualified and simple name for type resolution.
+        var byQualified = new Dictionary<string, PlacedBox>(StringComparer.Ordinal);
+        var bySimple = new Dictionary<string, PlacedBox>(StringComparer.Ordinal);
+        foreach (var p in placed)
+        {
+            byQualified.TryAdd(p.QualifiedName, p);
+            bySimple.TryAdd(p.SimpleName, p);
+        }
+
+        foreach (var def in defs)
+        {
+            if (!byQualified.TryGetValue(def.QualifiedName, out var ownerBox))
+            {
+                continue;
+            }
+
+            foreach (var membership in def.Memberships)
+            {
+                if (!TryResolve(membership.TypeName, byQualified, bySimple, out var memberTypeBox) ||
+                    memberTypeBox!.QualifiedName == def.QualifiedName)
+                {
+                    continue;
+                }
+
+                var arrowhead = membership.Keyword == "ref"
+                    ? ArrowheadStyle.Diamond
+                    : ArrowheadStyle.FilledDiamond;
+
+                // Route from member-type box to owner box; diamond (TargetArrowhead) sits at the owner.
+                var (edge, crossed) = RouteMembershipEdge(memberTypeBox, ownerBox, placed, arrowhead);
+                edges.Add(edge);
+                if (crossed)
+                {
+                    crossings++;
+                }
+            }
+        }
+
+        return (edges, crossings);
+    }
+
+    /// <summary>
+    /// Routes a single membership edge from the member-type box to the owner box, placing the
+    /// diamond arrowhead at the owner (target) end.
+    /// </summary>
+    private static (LayoutLine Edge, bool Crossed) RouteMembershipEdge(
+        PlacedBox memberType,
+        PlacedBox owner,
+        IReadOnlyList<PlacedBox> placed,
+        ArrowheadStyle diamond)
+    {
+        var memberCenter = new Point2D(memberType.X + (memberType.Width / 2.0), memberType.Y + (memberType.Height / 2.0));
+        var ownerCenter = new Point2D(owner.X + (owner.Width / 2.0), owner.Y + (owner.Height / 2.0));
+
+        var (source, sourceSide) = AnchorToward(memberType, ownerCenter);
+        var (target, targetSide) = AnchorToward(owner, memberCenter);
+
+        var obstacles = placed
+            .Where(b => b.QualifiedName != memberType.QualifiedName && b.QualifiedName != owner.QualifiedName)
+            .Select(b => new Rect(b.X, b.Y, b.Width, b.Height))
+            .ToList();
+
+        var route = ChannelRouter.RouteWithStatus(source, target, obstacles, EdgeClearance, sourceSide, targetSide);
+
+        var edge = new LayoutLine(
+            Waypoints: route.Waypoints,
+            SourceArrowhead: ArrowheadStyle.None,
+            TargetArrowhead: diamond,
+            LineStyle: LineStyle.Solid,
+            MidpointLabel: null);
+        return (edge, route.Crossed);
     }
 
     /// <summary>Resolves a supertype reference to a placed box by qualified then simple name.</summary>

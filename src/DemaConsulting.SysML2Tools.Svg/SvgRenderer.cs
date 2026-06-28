@@ -117,6 +117,7 @@ public sealed class SvgRenderer : IRenderer
     /// </summary>
     /// <remarks>
     /// Markers defined: <c>arrowhead-open</c> (hollow triangle),
+    /// <c>arrowhead-open-crossbar</c> (hollow triangle with perpendicular crossbar),
     /// <c>arrowhead-filled</c> (filled triangle), <c>arrowhead-diamond</c> (hollow diamond),
     /// <c>arrowhead-filled-diamond</c> (filled diamond), <c>arrowhead-circle</c> (hollow
     /// circle), and <c>arrowhead-bar</c> (perpendicular bar).
@@ -142,6 +143,18 @@ public sealed class SvgRenderer : IRenderer
         sb.AppendLine();
         sb.Append(CultureInfo.InvariantCulture,
             $"""      <polygon points="0 0, 10 3.5, 0 7" fill="{theme.StrokeColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+        sb.AppendLine(MarkerClose);
+
+        // Open-with-crossbar arrowhead marker — hollow triangle + perpendicular crossbar near tip
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""    <marker id="arrowhead-open-crossbar" markerWidth="12" markerHeight="7" refX="11" refY="3.5" orient="auto">""");
+        sb.AppendLine();
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""      <polygon points="0 0, 10 3.5, 0 7" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""      <line x1="10" y1="0" x2="10" y2="7" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
         sb.AppendLine();
         sb.AppendLine(MarkerClose);
 
@@ -508,6 +521,7 @@ public sealed class SvgRenderer : IRenderer
         var markerStart = line.SourceArrowhead switch
         {
             ArrowheadStyle.Open => " marker-start=\"url(#arrowhead-open)\"",
+            ArrowheadStyle.OpenWithCrossbar => " marker-start=\"url(#arrowhead-open-crossbar)\"",
             ArrowheadStyle.Filled => " marker-start=\"url(#arrowhead-filled)\"",
             ArrowheadStyle.Diamond => " marker-start=\"url(#arrowhead-diamond)\"",
             ArrowheadStyle.FilledDiamond => " marker-start=\"url(#arrowhead-filled-diamond)\"",
@@ -518,6 +532,7 @@ public sealed class SvgRenderer : IRenderer
         var markerEnd = line.TargetArrowhead switch
         {
             ArrowheadStyle.Open => " marker-end=\"url(#arrowhead-open)\"",
+            ArrowheadStyle.OpenWithCrossbar => " marker-end=\"url(#arrowhead-open-crossbar)\"",
             ArrowheadStyle.Filled => " marker-end=\"url(#arrowhead-filled)\"",
             ArrowheadStyle.Diamond => " marker-end=\"url(#arrowhead-diamond)\"",
             ArrowheadStyle.FilledDiamond => " marker-end=\"url(#arrowhead-filled-diamond)\"",

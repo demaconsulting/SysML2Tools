@@ -74,3 +74,24 @@ sections:
           canvas lets the renderer produce a valid blank diagram rather than failing.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CompositeMembership
+        title: >-
+          GeneralViewLayoutStrategy shall connect a definition to the type of each composite-membership
+          feature it owns with a filled-diamond arrowhead at the owning definition end.
+        justification: |
+          Composite membership (owned features) is shown in SysML v2 diagrams using a filled diamond
+          at the owner end. Drawing this edge makes part/attribute ownership visible in the General View.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_CompositeMembership_ProducesFilledDiamondEdge
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ReferenceMembership
+        title: >-
+          GeneralViewLayoutStrategy shall connect a definition to the type of each reference-membership
+          feature it owns with an open-diamond arrowhead at the owning definition end.
+        justification: |
+          Reference membership (ref features) is shown in SysML v2 diagrams using an open diamond at
+          the owner end. Drawing this edge distinguishes reference membership from composite membership
+          in the General View.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesDiamondEdge

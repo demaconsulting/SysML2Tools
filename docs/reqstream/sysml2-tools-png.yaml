@@ -50,3 +50,13 @@ sections:
           operations complete successfully and produce a non-empty PNG output.
         tests:
           - PngRenderer_Render_SingleBox_ProducesNonEmptyOutput
+
+      - id: SysML2Tools-Png-Render-ArrowheadOpenCrossbar
+        title: >-
+          PngRenderer shall rasterize a line with the open-with-crossbar arrowhead
+          style without error.
+        justification: |
+          The open-with-crossbar arrowhead style must render correctly so that
+          diagrams containing redefinition connectors produce valid PNG output.
+        tests:
+          - PngRenderer_Render_DrawArrowhead_OpenWithCrossbar_ProducesNonEmptyOutput

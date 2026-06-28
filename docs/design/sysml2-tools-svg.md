@@ -79,10 +79,11 @@ to `output` in a single `Write` call.
 
 **`WriteArrowheadDefs(StringBuilder sb, Theme theme)`**
 
-Writes the SVG `<defs>` block containing six named marker elements: `arrowhead-open`
+Writes the SVG `<defs>` block containing seven named marker elements: `arrowhead-open`
 (hollow triangle), `arrowhead-filled` (solid triangle), `arrowhead-diamond` (hollow
 four-point polygon), `arrowhead-filled-diamond` (solid four-point polygon),
-`arrowhead-circle` (open circle), and `arrowhead-bar` (perpendicular line). All markers
+`arrowhead-circle` (open circle), `arrowhead-bar` (perpendicular line), and
+`arrowhead-open-crossbar` (hollow triangle with perpendicular crossbar). All markers
 use `theme.StrokeColor` and `theme.StrokeWidth`.
 
 **`RenderNode(StringBuilder sb, LayoutNode node, Theme theme, double scale)`**
@@ -111,7 +112,7 @@ zero or more left-aligned regular-weight body-font `<text>` rows.
 **`RenderLine(StringBuilder sb, LayoutLine line, Theme theme, double scale)`**
 
 Calls `BuildLinePath` to produce the path `d` attribute, then writes a `<path>` element
-with `fill="none"`. Adds `marker-start` or `marker-end` attributes for all six non-None
+with `fill="none"`. Adds `marker-start` or `marker-end` attributes for all seven non-None
 `ArrowheadStyle` values. Adds `stroke-dasharray` for `Dashed` and `Dotted` line styles.
 Writes an optional midpoint `<text>` element when `MidpointLabel` is non-null.
 

@@ -22,6 +22,7 @@ configuration are required beyond a standard .NET SDK installation.
   transition lines.
 - A state named only by a transition is still rendered as a box.
 - An outgoing and an incoming transition on the same edge use distinct anchor points.
+- Each transition edge carries an open arrowhead at the target state.
 - An empty workspace yields a canvas with no nodes.
 
 ##### Test Scenarios
@@ -32,3 +33,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `StateTransitionView_BuildLayout_UndeclaredStateInTransition_IsCreated` | Transition-only target rendered as a box |
 | `StateTransitionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas` | Canvas with no nodes |
 | `StateTransitionView_BuildLayout_InAndOutOnSameEdge_UseDistinctAnchors` | In/out transitions use distinct anchors |
+| `StateTransitionView_BuildLayout_TransitionEdge_HasOpenArrowhead` | Open arrowhead at target state |

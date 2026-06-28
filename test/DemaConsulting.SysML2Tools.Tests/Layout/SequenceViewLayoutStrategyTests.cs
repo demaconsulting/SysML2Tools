@@ -86,11 +86,11 @@ public sealed class SequenceViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: the message line is horizontal (equal Y) and has a filled arrowhead at the target
+        // Assert: the message line is horizontal (equal Y) and has an open arrowhead at the target
         var line = Assert.Single(layout.Nodes.OfType<LayoutLine>());
         Assert.Equal(line.Waypoints[0].Y, line.Waypoints[^1].Y, 6);
         Assert.NotEqual(line.Waypoints[0].X, line.Waypoints[^1].X);
-        Assert.Equal(ArrowheadStyle.Filled, line.TargetArrowhead);
+        Assert.Equal(ArrowheadStyle.Open, line.TargetArrowhead);
     }
 
     /// <summary>A workspace with no messages yields a minimal canvas.</summary>
@@ -105,5 +105,39 @@ public sealed class SequenceViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         Assert.Empty(layout.Nodes);
+    }
+
+    /// <summary>
+    ///     A sequence message arrow carries an open arrowhead at the receiver end.
+    /// </summary>
+    [Fact]
+    public void SequenceView_BuildLayout_MessageArrow_HasOpenArrowhead()
+    {
+        // Arrange: a single message sender -> receiver
+        var strategy = new SequenceViewLayoutStrategy();
+        var protocol = new SysmlDefinitionNode
+        {
+            Name = "P",
+            QualifiedName = "M::P",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlConnectionNode { Name = "call", ConnectionKeyword = "message", EndpointA = "sender.s", EndpointB = "receiver.r" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["M::P"] = protocol }
+        };
+        var context = new ViewContext("Sequence", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the message arrow has an open arrowhead at the receiver (target) end
+        var line = Assert.Single(layout.Nodes.OfType<LayoutLine>());
+        Assert.Equal(ArrowheadStyle.Open, line.TargetArrowhead);
+        Assert.Equal(ArrowheadStyle.None, line.SourceArrowhead);
     }
 }

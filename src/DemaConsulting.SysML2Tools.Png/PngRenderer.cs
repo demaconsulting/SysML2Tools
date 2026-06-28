@@ -743,6 +743,23 @@ public sealed class PngRenderer : IRenderer
                     break;
                 }
 
+            case ArrowheadStyle.OpenWithCrossbar:
+                {
+                    // Open V strokes + perpendicular crossbar at 2/3 arrowLen from tip
+                    paintObj.Style = SKPaintStyle.Stroke;
+                    var crossPos = arrowLen * (2f / 3f);
+                    using var p = new SKPath();
+                    p.MoveTo(tipX - dx * arrowLen + px * halfW, tipY - dy * arrowLen + py * halfW);
+                    p.LineTo(tipX, tipY);
+                    p.LineTo(tipX - dx * arrowLen - px * halfW, tipY - dy * arrowLen - py * halfW);
+                    canvas.DrawPath(p, paintObj);
+                    canvas.DrawLine(
+                        tipX - dx * crossPos + px * halfW, tipY - dy * crossPos + py * halfW,
+                        tipX - dx * crossPos - px * halfW, tipY - dy * crossPos - py * halfW,
+                        paintObj);
+                    break;
+                }
+
             case ArrowheadStyle.Filled:
                 {
                     // Filled solid triangle pointing toward the tip
