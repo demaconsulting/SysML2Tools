@@ -146,15 +146,17 @@ public sealed class SvgRenderer : IRenderer
         sb.AppendLine();
         sb.AppendLine(MarkerClose);
 
-        // Open-with-crossbar arrowhead marker — hollow triangle + perpendicular crossbar near tip
+        // Open-with-crossbar arrowhead marker — hollow triangle + perpendicular crossbar at ~2/3 from tip
+        // refX="9" matches arrowhead-open convention (apex at x=10, tip lands at line endpoint).
+        // Crossbar at x=7 (≈ 2/3 × 10) places it on the shaft behind the apex, matching the PNG renderer.
         sb.Append(CultureInfo.InvariantCulture,
-            $"""    <marker id="arrowhead-open-crossbar" markerWidth="12" markerHeight="7" refX="11" refY="3.5" orient="auto">""");
+            $"""    <marker id="arrowhead-open-crossbar" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">""");
         sb.AppendLine();
         sb.Append(CultureInfo.InvariantCulture,
             $"""      <polygon points="0 0, 10 3.5, 0 7" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
         sb.AppendLine();
         sb.Append(CultureInfo.InvariantCulture,
-            $"""      <line x1="10" y1="0" x2="10" y2="7" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+            $"""      <line x1="7" y1="0" x2="7" y2="7" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
         sb.AppendLine();
         sb.AppendLine(MarkerClose);
 
