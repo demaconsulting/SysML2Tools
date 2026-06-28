@@ -265,16 +265,34 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             connSlotPerPart[b].Add(c);
         }
 
-        // Assign port placements per part and index them by connection.
+        // Assign port placements per part and index them by connection; also count how many ports
+        // share each box side (used to decide where it is safe to align a connector).
         var portByPartConn = new Dictionary<(int Part, int Conn), PortPlacement>();
+        var sideCount = new Dictionary<(int Part, PortSide Side), int>();
         for (var i = 0; i < parts.Count; i++)
         {
             var placements = PortAssigner.Assign(requestsPerPart[i]);
             for (var k = 0; k < placements.Count; k++)
             {
                 portByPartConn[(i, connSlotPerPart[i][k])] = placements[k];
-                nodes.Add(new LayoutPort(placements[k].CentreX, placements[k].CentreY, placements[k].Side, null));
+                var sideKey = (i, placements[k].Side);
+                sideCount[sideKey] = sideCount.GetValueOrDefault(sideKey) + 1;
             }
+        }
+
+        // Alignment pass: where a connection's two ports each sit alone on facing edges and the boxes
+        // overlap along the connector axis, snap both ports to a common coordinate so the connector
+        // is a single straight line instead of having a small jog. Boxes are not moved, so this can
+        // never introduce an overlap.
+        for (var c = 0; c < pairs.Count; c++)
+        {
+            AlignConnectorPorts(pairs[c], c, partRects, sideCount, portByPartConn);
+        }
+
+        // Emit the (possibly aligned) port nodes.
+        foreach (var placement in portByPartConn.Values)
+        {
+            nodes.Add(new LayoutPort(placement.CentreX, placement.CentreY, placement.Side, null));
         }
 
         // Route a connector line for each connection between its two ports.
@@ -318,6 +336,65 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         }
 
         return crossings;
+    }
+
+    /// <summary>
+    /// Snaps both ports of a connection to a shared axis coordinate so the connector renders as a
+    /// straight line, but only when each port is alone on its (facing) edge and the two boxes overlap
+    /// along the connector axis. In every other case the placement is left untouched.
+    /// </summary>
+    private static void AlignConnectorPorts(
+        ConnPair pair,
+        int conn,
+        Rect[] partRects,
+        Dictionary<(int Part, PortSide Side), int> sideCount,
+        Dictionary<(int Part, int Conn), PortPlacement> portByPartConn)
+    {
+        if (!portByPartConn.TryGetValue((pair.A, conn), out var portA) ||
+            !portByPartConn.TryGetValue((pair.B, conn), out var portB))
+        {
+            return;
+        }
+
+        // Only safe when each port is the sole occupant of its edge.
+        if (sideCount.GetValueOrDefault((pair.A, portA.Side)) != 1 ||
+            sideCount.GetValueOrDefault((pair.B, portB.Side)) != 1)
+        {
+            return;
+        }
+
+        var boxA = partRects[pair.A];
+        var boxB = partRects[pair.B];
+
+        var verticalFacing =
+            (portA.Side == PortSide.Top && portB.Side == PortSide.Bottom) ||
+            (portA.Side == PortSide.Bottom && portB.Side == PortSide.Top);
+        var horizontalFacing =
+            (portA.Side == PortSide.Left && portB.Side == PortSide.Right) ||
+            (portA.Side == PortSide.Right && portB.Side == PortSide.Left);
+
+        if (verticalFacing)
+        {
+            var lo = Math.Max(boxA.X, boxB.X);
+            var hi = Math.Min(boxA.X + boxA.Width, boxB.X + boxB.Width);
+            if (lo <= hi)
+            {
+                var x = (lo + hi) / 2.0;
+                portByPartConn[(pair.A, conn)] = portA with { CentreX = x };
+                portByPartConn[(pair.B, conn)] = portB with { CentreX = x };
+            }
+        }
+        else if (horizontalFacing)
+        {
+            var lo = Math.Max(boxA.Y, boxB.Y);
+            var hi = Math.Min(boxA.Y + boxA.Height, boxB.Y + boxB.Height);
+            if (lo <= hi)
+            {
+                var y = (lo + hi) / 2.0;
+                portByPartConn[(pair.A, conn)] = portA with { CentreY = y };
+                portByPartConn[(pair.B, conn)] = portB with { CentreY = y };
+            }
+        }
     }
 
     /// <summary>Returns the centre point of a rectangle.</summary>

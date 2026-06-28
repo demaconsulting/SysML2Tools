@@ -113,10 +113,12 @@ internal static class ChannelRouter
         ArgumentNullException.ThrowIfNull(obstacles);
 
         // Step off each anchor's box edge with a perpendicular stub so connectors enter and leave
-        // boxes at right angles instead of sliding along the edge.
+        // boxes at right angles instead of sliding along the edge. The stub is capped so that two
+        // stubs facing each other across a small gap meet at the midline instead of overshooting
+        // (which would force a back-and-forth jog right at the arrowhead).
         var stub = clearance + 8.0;
-        var routeSource = StepOff(source, sourceSide, stub);
-        var routeTarget = StepOff(target, targetSide, stub);
+        var routeSource = StepOff(source, sourceSide, StubLength(source, sourceSide, target, stub));
+        var routeTarget = StepOff(target, targetSide, StubLength(target, targetSide, source, stub));
 
         // Try to find an obstacle-free orthogonal path, preferring the largest clearance that works.
         foreach (var c in ClearanceLevels(clearance))
@@ -128,7 +130,7 @@ internal static class ChannelRouter
                 xs, ys,
                 IndexOf(xs, routeSource.X), IndexOf(ys, routeSource.Y),
                 IndexOf(xs, routeTarget.X), IndexOf(ys, routeTarget.Y),
-                obstacles);
+                obstacles, c);
 
             if (path is not null)
             {
@@ -198,6 +200,27 @@ internal static class ChannelRouter
     };
 
     /// <summary>
+    /// Returns the stub length to step off <paramref name="anchor"/>'s edge: the base length, but
+    /// capped to half the distance to <paramref name="other"/> measured along the side's outward
+    /// normal when <paramref name="other"/> lies in that direction. This keeps two stubs that face
+    /// each other across a narrow gap from overshooting past the midline (which produces a visible
+    /// reversal at the connector's end).
+    /// </summary>
+    private static double StubLength(Point2D anchor, PortSide? side, Point2D other, double baseStub)
+    {
+        var projection = side switch
+        {
+            PortSide.Top => anchor.Y - other.Y,
+            PortSide.Bottom => other.Y - anchor.Y,
+            PortSide.Left => anchor.X - other.X,
+            PortSide.Right => other.X - anchor.X,
+            _ => double.PositiveInfinity,
+        };
+
+        return projection > 0 ? Math.Min(baseStub, projection / 2.0) : baseStub;
+    }
+
+    /// <summary>
     /// Builds the sorted, de-duplicated set of grid coordinates for one axis: the two endpoint
     /// coordinates plus each obstacle's near/far edge offset outward by the clearance.
     /// </summary>
@@ -255,7 +278,8 @@ internal static class ChannelRouter
         int startJ,
         int goalI,
         int goalJ,
-        IReadOnlyList<Rect> obstacles)
+        IReadOnlyList<Rect> obstacles,
+        double clearance)
     {
         var nx = xs.Length;
         var ny = ys.Length;
@@ -286,8 +310,8 @@ internal static class ChannelRouter
 
             foreach (var (ni, nj, nd) in Neighbors(ci, cj, nx, ny))
             {
-                // Skip moves whose segment passes through an obstacle interior.
-                if (SegmentBlocked(xs, ys, ci, cj, ni, nj, obstacles))
+                // Skip moves whose segment passes within the clearance of an obstacle.
+                if (SegmentBlocked(xs, ys, ci, cj, ni, nj, obstacles, clearance))
                 {
                     continue;
                 }
@@ -343,8 +367,10 @@ internal static class ChannelRouter
         Math.Abs(xs[i] - xs[goalI]) + Math.Abs(ys[j] - ys[goalJ]);
 
     /// <summary>
-    /// Determines whether the straight grid segment between two adjacent nodes passes through the
-    /// interior of any obstacle.
+    /// Determines whether the straight grid segment between two adjacent nodes passes within
+    /// <paramref name="clearance"/> of any obstacle (the obstacle rectangles are inflated by the
+    /// clearance and tested with strict inequalities, so a segment exactly one clearance away is
+    /// allowed).
     /// </summary>
     private static bool SegmentBlocked(
         double[] xs,
@@ -353,7 +379,8 @@ internal static class ChannelRouter
         int j1,
         int i2,
         int j2,
-        IReadOnlyList<Rect> obstacles)
+        IReadOnlyList<Rect> obstacles,
+        double clearance)
     {
         if (j1 == j2)
         {
@@ -363,8 +390,8 @@ internal static class ChannelRouter
             var xb = Math.Max(xs[i1], xs[i2]);
             foreach (var r in obstacles)
             {
-                if (r.Y < y && y < r.Y + r.Height &&
-                    Math.Max(xa, r.X) < Math.Min(xb, r.X + r.Width))
+                if (r.Y - clearance < y && y < r.Y + r.Height + clearance &&
+                    Math.Max(xa, r.X - clearance) < Math.Min(xb, r.X + r.Width + clearance))
                 {
                     return true;
                 }
@@ -378,8 +405,8 @@ internal static class ChannelRouter
             var yb = Math.Max(ys[j1], ys[j2]);
             foreach (var r in obstacles)
             {
-                if (r.X < x && x < r.X + r.Width &&
-                    Math.Max(ya, r.Y) < Math.Min(yb, r.Y + r.Height))
+                if (r.X - clearance < x && x < r.X + r.Width + clearance &&
+                    Math.Max(ya, r.Y - clearance) < Math.Min(yb, r.Y + r.Height + clearance))
                 {
                     return true;
                 }

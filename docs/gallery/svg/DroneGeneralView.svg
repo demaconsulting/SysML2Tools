@@ -125,6 +125,6 @@
   <rect x="281.76" y="714.00" width="194.28" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
   <text x="378.90" y="726.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«requirement def»</text>
   <text x="378.90" y="745.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">FlightTimeRequirement</text>
-  <path d="M 243.00 634.00 L 243.00 618.00 A 4.00 4.00 0 0 0 239.00 614.00 L 133.72 614.00 A 4.00 4.00 0 0 0 129.72 618.00 L 129.72 620.00 A 4.00 4.00 0 0 0 129.72 620.00 L 129.72 604.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
-  <path d="M 407.44 634.00 L 407.44 618.00 A 4.00 4.00 0 0 0 403.44 614.00 L 257.96 614.00 A 4.00 4.00 0 0 1 253.96 610.00 L 253.96 374.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 243.00 634.00 L 243.00 623.00 A 4.00 4.00 0 0 0 239.00 619.00 L 133.72 619.00 A 4.00 4.00 0 0 1 129.72 615.00 L 129.72 604.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
+  <path d="M 407.44 634.00 L 407.44 618.00 A 4.00 4.00 0 0 0 403.44 614.00 L 251.44 614.00 A 4.00 4.00 0 0 1 247.44 610.00 L 247.44 397.26 A 3.26 3.26 0 0 1 250.70 394.00 L 250.70 394.00 A 3.26 3.26 0 0 0 253.96 390.74 L 253.96 374.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-open)"/>
 </svg>

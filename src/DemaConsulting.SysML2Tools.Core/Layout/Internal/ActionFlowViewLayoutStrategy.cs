@@ -266,30 +266,32 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             hasIncoming[to] = true;
         }
 
-        var centreX = layered.Width / 2.0;
+        var fallbackX = layered.Width / 2.0;
 
-        // Start marker above the first layer.
+        // Centre the start marker over the action(s) it enters so the entry arrow stays vertical.
+        var starts = Enumerable.Range(0, actions.Count).Where(i => !hasIncoming[i]).ToList();
+        var startX = starts.Count > 0
+            ? starts.Average(i => rects[i].X + (rects[i].Width / 2.0))
+            : fallbackX;
         var startY = MarkerBand / 2.0;
-        nodes.Add(new LayoutBadge(centreX, startY, MarkerSize, BadgeShape.FilledCircle, null));
-        for (var i = 0; i < actions.Count; i++)
+        nodes.Add(new LayoutBadge(startX, startY, MarkerSize, BadgeShape.FilledCircle, null));
+        foreach (var i in starts)
         {
-            if (!hasIncoming[i])
-            {
-                nodes.Add(FlowLine(new Point2D(centreX, startY + (MarkerSize / 2.0)),
-                    new Point2D(rects[i].X + (rects[i].Width / 2.0), rects[i].Y)));
-            }
+            nodes.Add(FlowLine(new Point2D(startX, startY + (MarkerSize / 2.0)),
+                new Point2D(rects[i].X + (rects[i].Width / 2.0), rects[i].Y)));
         }
 
-        // Done marker below the last layer.
+        // Centre the done marker under the action(s) that reach it.
+        var ends = Enumerable.Range(0, actions.Count).Where(i => !hasOutgoing[i]).ToList();
+        var doneX = ends.Count > 0
+            ? ends.Average(i => rects[i].X + (rects[i].Width / 2.0))
+            : fallbackX;
         var doneY = MarkerBand + layered.Height + (MarkerBand / 2.0);
-        nodes.Add(new LayoutBadge(centreX, doneY, MarkerSize, BadgeShape.Bullseye, null));
-        for (var i = 0; i < actions.Count; i++)
+        nodes.Add(new LayoutBadge(doneX, doneY, MarkerSize, BadgeShape.Bullseye, null));
+        foreach (var i in ends)
         {
-            if (!hasOutgoing[i])
-            {
-                nodes.Add(FlowLine(new Point2D(rects[i].X + (rects[i].Width / 2.0), rects[i].Y + rects[i].Height),
-                    new Point2D(centreX, doneY - (MarkerSize / 2.0))));
-            }
+            nodes.Add(FlowLine(new Point2D(rects[i].X + (rects[i].Width / 2.0), rects[i].Y + rects[i].Height),
+                new Point2D(doneX, doneY - (MarkerSize / 2.0))));
         }
     }
 

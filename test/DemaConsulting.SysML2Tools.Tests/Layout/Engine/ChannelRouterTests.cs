@@ -183,6 +183,31 @@ public sealed class ChannelRouterTests
     }
 
     /// <summary>
+    ///     A clean route keeps the requested clearance from obstacles it passes, rather than grazing
+    ///     their edges.
+    /// </summary>
+    [Fact]
+    public void RouteWithStatus_CleanRoute_KeepsClearanceFromObstacles()
+    {
+        // Arrange: source sits just to the right of an obstacle; a straight drop would graze it.
+        var obstacle = new Rect(0, 40, 60, 80);
+        var obstacles = new[] { obstacle };
+
+        // Act: route from above-right of the obstacle to below it.
+        var result = ChannelRouter.RouteWithStatus(
+            new Point2D(62, 0), new Point2D(30, 200), obstacles, clearance: 10);
+
+        // Assert: routed cleanly and every segment stays at least (nearly) the clearance away.
+        Assert.False(result.Crossed);
+        for (var i = 0; i < result.Waypoints.Count - 1; i++)
+        {
+            Assert.True(
+                SegmentDistanceToRect(result.Waypoints[i], result.Waypoints[i + 1], obstacle) > 10.0 - 1e-6,
+                $"Segment {i} runs closer than the clearance to the obstacle.");
+        }
+    }
+
+    /// <summary>
     ///     Asserts that the path begins at the expected source and ends at the expected target.
     /// </summary>
     private static void AssertEndpoints(IReadOnlyList<Point2D> path, Point2D source, Point2D target)
@@ -248,5 +273,21 @@ public sealed class ChannelRouterTests
         var yb = Math.Max(a.Y, b.Y);
         return r.X < x && x < r.X + r.Width &&
                Math.Max(ya, r.Y) < Math.Min(yb, r.Y + r.Height);
+    }
+
+    /// <summary>
+    ///     Returns the Euclidean distance from an axis-aligned segment to an axis-aligned rectangle
+    ///     (0 when they intersect).
+    /// </summary>
+    private static double SegmentDistanceToRect(Point2D a, Point2D b, Rect r)
+    {
+        var xlo = Math.Min(a.X, b.X);
+        var xhi = Math.Max(a.X, b.X);
+        var ylo = Math.Min(a.Y, b.Y);
+        var yhi = Math.Max(a.Y, b.Y);
+
+        var dx = Math.Max(0.0, Math.Max(r.X - xhi, xlo - (r.X + r.Width)));
+        var dy = Math.Max(0.0, Math.Max(r.Y - yhi, ylo - (r.Y + r.Height)));
+        return Math.Sqrt((dx * dx) + (dy * dy));
     }
 }

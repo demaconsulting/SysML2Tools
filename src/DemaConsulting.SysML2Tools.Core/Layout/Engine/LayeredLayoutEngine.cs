@@ -74,7 +74,7 @@ internal static class LayeredLayoutEngine
         var layerGroups = GroupByLayer(layers);
         OrderLayers(layerGroups, acyclic);
 
-        return AssignCoordinates(nodes, layerGroups, layers, layerGap, nodeGap, padding);
+        return AssignCoordinates(nodes, layerGroups, layers, acyclic, layerGap, nodeGap, padding);
     }
 
     /// <summary>
@@ -292,17 +292,30 @@ internal static class LayeredLayoutEngine
         }
     }
 
-    /// <summary>Assigns absolute coordinates: layers stacked vertically, nodes spread horizontally.</summary>
+    /// <summary>Number of x-coordinate alignment sweeps (down + up) used to straighten the flow.</summary>
+    private const int AlignmentSweeps = 8;
+
+    /// <summary>
+    /// Assigns absolute coordinates: layers stacked vertically, nodes within a layer ordered and
+    /// given x-coordinates that align each node near the average position of its neighbors so the
+    /// flow forms a straight spine instead of left-aligning every layer.
+    /// </summary>
     private static LayeredResult AssignCoordinates(
         IReadOnlyList<LayeredNode> nodes,
         List<List<int>> layerGroups,
         int[] layers,
+        List<LayeredEdge> edges,
         double layerGap,
         double nodeGap,
         double padding)
     {
         var n = nodes.Count;
         var rects = new PackedRect[n];
+        var half = new double[n];
+        for (var i = 0; i < n; i++)
+        {
+            half[i] = nodes[i].Width / 2.0;
+        }
 
         // Layer heights and cumulative Y positions.
         var layerY = new double[layerGroups.Count];
@@ -314,32 +327,126 @@ internal static class LayeredLayoutEngine
             y += layerHeight + layerGap;
         }
 
-        // Horizontal positions within each layer, left to right.
+        // Initial x: centre each layer around 0 (preserving the crossing-reduced order).
+        var cx = new double[n];
+        foreach (var layer in layerGroups)
+        {
+            var total = layer.Sum(i => nodes[i].Width) + (Math.Max(0, layer.Count - 1) * nodeGap);
+            var pos = -total / 2.0;
+            foreach (var node in layer)
+            {
+                cx[node] = pos + half[node];
+                pos += nodes[node].Width + nodeGap;
+            }
+        }
+
+        // Neighbor lists in adjacent layers.
+        var up = new List<int>[n];
+        var down = new List<int>[n];
+        for (var i = 0; i < n; i++)
+        {
+            up[i] = [];
+            down[i] = [];
+        }
+
+        foreach (var e in edges)
+        {
+            down[e.From].Add(e.To);
+            up[e.To].Add(e.From);
+        }
+
+        // Relaxation: alternately pull each node toward the average centre of its Neighbors,
+        // resolving overlaps within the layer while preserving order.
+        for (var sweep = 0; sweep < AlignmentSweeps; sweep++)
+        {
+            if (sweep % 2 == 0)
+            {
+                for (var l = 1; l < layerGroups.Count; l++)
+                {
+                    AlignLayer(layerGroups[l], up, cx, half, nodeGap);
+                }
+            }
+            else
+            {
+                for (var l = layerGroups.Count - 2; l >= 0; l--)
+                {
+                    AlignLayer(layerGroups[l], down, cx, half, nodeGap);
+                }
+            }
+        }
+
+        // Normalize so the left-most node edge sits at padding, then build rects.
+        var minLeft = double.MaxValue;
+        for (var i = 0; i < n; i++)
+        {
+            minLeft = Math.Min(minLeft, cx[i] - half[i]);
+        }
+
+        var shift = padding - (n == 0 ? 0.0 : minLeft);
         var maxRight = padding;
         for (var l = 0; l < layerGroups.Count; l++)
         {
-            var x = padding;
             var layerHeight = layerGroups[l].Count == 0 ? 0.0 : layerGroups[l].Max(i => nodes[i].Height);
             foreach (var node in layerGroups[l])
             {
-                // Centre each node vertically within its layer band.
+                var nodeX = cx[node] + shift - half[node];
                 var nodeY = layerY[l] + ((layerHeight - nodes[node].Height) / 2.0);
-                rects[node] = new PackedRect(x, nodeY, nodes[node].Width, nodes[node].Height);
-                x += nodes[node].Width + nodeGap;
+                rects[node] = new PackedRect(nodeX, nodeY, nodes[node].Width, nodes[node].Height);
+                maxRight = Math.Max(maxRight, nodeX + nodes[node].Width);
             }
-
-            maxRight = Math.Max(maxRight, x - nodeGap);
         }
 
         var width = maxRight + padding;
 
-        // Total height: bottom of the last non-empty layer, plus padding.
         var lastLayerHeight = layerGroups[^1].Count == 0
             ? 0.0
             : layerGroups[^1].Max(i => nodes[i].Height);
         var height = layerY[^1] + lastLayerHeight + padding;
 
         return new LayeredResult(width, height, rects, layers);
+    }
+
+    /// <summary>
+    /// Pulls each node in a layer toward the average centre of its Neighbors in the adjacent layer,
+    /// then resolves overlaps while preserving the layer's order by averaging an order-preserving
+    /// left-to-right and right-to-left placement (both respect the minimum node gap, so their
+    /// average does too).
+    /// </summary>
+    private static void AlignLayer(List<int> layer, List<int>[] Neighbors, double[] cx, double[] half, double nodeGap)
+    {
+        var count = layer.Count;
+        if (count == 0)
+        {
+            return;
+        }
+
+        var desired = new double[count];
+        for (var i = 0; i < count; i++)
+        {
+            var ns = Neighbors[layer[i]];
+            desired[i] = ns.Count > 0 ? ns.Average(v => cx[v]) : cx[layer[i]];
+        }
+
+        var lr = new double[count];
+        lr[0] = desired[0];
+        for (var i = 1; i < count; i++)
+        {
+            var minCentre = lr[i - 1] + half[layer[i - 1]] + nodeGap + half[layer[i]];
+            lr[i] = Math.Max(desired[i], minCentre);
+        }
+
+        var rl = new double[count];
+        rl[count - 1] = desired[count - 1];
+        for (var i = count - 2; i >= 0; i--)
+        {
+            var maxCentre = rl[i + 1] - half[layer[i + 1]] - nodeGap - half[layer[i]];
+            rl[i] = Math.Min(desired[i], maxCentre);
+        }
+
+        for (var i = 0; i < count; i++)
+        {
+            cx[layer[i]] = (lr[i] + rl[i]) / 2.0;
+        }
     }
 }
 
