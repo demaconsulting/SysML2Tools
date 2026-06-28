@@ -10,12 +10,23 @@ remain clear.
 ```text
 SysMLModels/
   README.md          — this file
+  Custom/            — hand-authored models for parser/semantic coverage
   OMG/               — models from Systems-Modeling/SysML-v2-Release
     README.md        — source, license, and transformation notes
     examples/        — OMG example models
     training/        — OMG training models
     validation/      — OMG validation models
+  TestCases/         — minimal regression models for layout/rendering quality
+    README.md        — purpose, acceptance criteria table, and contribution guide
 ```
+
+## Folder purposes
+
+| Folder | Purpose |
+|---|---|
+| `Custom/` | Hand-authored models covering parser and semantic model breadth |
+| `OMG/` | Upstream OMG release models; provenance and license documented in subfolder README |
+| `TestCases/` | Minimal adversarial models that reproduce specific layout or rendering quality issues; grows monotonically as issues are discovered and fixed |
 
 ## Adding a New Origin
 
@@ -24,3 +35,7 @@ SysMLModels/
    and any filename transformations applied.
 3. Add a test in `DemaConsulting.SysML2Tools.Tests` that references the new
    folder.
+
+## Adding a Test Case
+
+See `TestCases/README.md` for the contribution workflow.
