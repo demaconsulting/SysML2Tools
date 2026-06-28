@@ -240,51 +240,75 @@ marker defs (already present). No new engines.
 **Visual gate:** state/action/sequence/general galleries match §3.3 end shapes; membership
 diamonds appear where membership is shown.
 
-### Phase 14 — Layout Engine v2
+### Phase 14a — Layout Engine v2: Core Pipeline
 
 Replace the ad-hoc placement and heat-expansion logic with a principled, axis-symmetric
-layout algorithm. This phase ships before any further notation or view-dynamics work
-because every subsequent phase adds edges and shapes that make routing congestion worse;
-building on a correct foundation avoids retroactive layout fixes.
-
-The full algorithm is specified in **`docs/layout/`** (compiled to
-`docs/generated/SysML2 Tools Layout Guide.pdf`). Summary of changes:
+layout algorithm — Steps 1–3 and 5–11 of the algorithm specified in `docs/layout/`
+(HighwayAssigner and corridor-constrained routing are deferred to Phase 14b, keeping
+this phase to a testable, visually verifiable unit).
 
 **New engines** (`Layout/Engine/`):
-- `ConnectivityAnalyzer` — affinity matrix, layer hints, cluster membership, barycenter
-  crossing-minimisation
-- `HighwayAssigner` — global routing on coarse grid; channel scoring; highway
-  classification and edge assignment; cost-discount map for `ChannelRouter`
+- `ConnectivityAnalyzer` — affinity matrix, layer hints, community/cluster membership,
+  barycenter crossing-minimisation (Step 1)
 - `GravityCompressor` — oversized-to-minimum compression loop; both-axis, monotone,
-  clearance-floored
+  clearance-floored; corridor constraints stubbed as pass-through (Step 8)
 - `GridQuantizer` — G-aligned position/size snapping; column-width and row-height
-  unification
+  unification (Steps 5 and 10)
 
 **Extended engines**:
 - `ForceDirectedEngine` — anisotropic hierarchy gravity `k_hier`; wire-pressure force;
-  kinetic energy as termination signal
-- `LayeredLayoutEngine` — Monte Carlo multi-seed option; per-seed crossing count
-- `ChannelRouter` — per-cell cost-multiplier map for highway discounts
+  kinetic energy as termination signal (Step 3)
+- `LayeredLayoutEngine` — Monte Carlo multi-seed option; per-seed crossing count (Step 2)
 
 **Strategy changes**:
-- `GeneralViewLayoutStrategy` — full replacement of placement phase (remove
-  `DetectRows`, `MeasureVerticalBandHeat`, `ApplyPerBandYShifts`, heat loop); wire new
-  pipeline (Free 2D mode)
-- `ActionFlowViewLayoutStrategy` — adopt Directed Flow mode with strong hierarchy gravity
-  and back-edge arc routing
+- `GeneralViewLayoutStrategy` — replace heat loop with Free 2D pipeline:
+  ConnectivityAnalyzer → LayeredLayoutEngine seeds → ForceDirectedEngine →
+  GridQuantizer → ChannelRouter → GravityCompressor → ChannelRouter → GridQuantizer
+- `ActionFlowViewLayoutStrategy` — adopt Directed Flow mode (strong `k_hier = 1.0`,
+  back-edge arc routing)
 - `StateTransitionViewLayoutStrategy` — same as Action Flow strategy
-- `InterconnectionViewLayoutStrategy` — retain existing force-directed placement;
+- `InterconnectionViewLayoutStrategy` — retain force-directed placement;
   add `GravityCompressor` and `GridQuantizer` passes
 
-**Documentation**: `docs/layout/` contains the design specification for this phase and
-ships as a compiled PDF alongside the implementation. SVG illustrations for each algorithm
-stage are committed under `docs/layout/images/`.
+**Documentation**: update `docs/layout/` to note which algorithm steps are live and
+confirm any implementation deviations from the specification.
 
-**Scope:** four new engines; three extended engines; three strategy rewrites; one strategy
-minor update; `docs/layout/` document.
+**Scope:** three new engines; two extended engines; three strategy rewrites; one strategy
+minor update.
 **Visual gate:** DroneGeneralView and all gallery models show compact balanced layout with
 no excessive whitespace; TrafficLightStates and OrderActionFlow show clean top-to-bottom
 flow; no regression on any existing gallery model.
+
+### Phase 14b — Layout Engine v2: Highway Routing
+
+Layer the highway assignment algorithm (Step 4) on top of the Phase 14a pipeline,
+upgrading GravityCompressor to honour corridor constraints and ChannelRouter to apply
+the highway cost-discount map.
+
+**New engines** (`Layout/Engine/`):
+- `HighwayAssigner` — global routing on coarse grid; channel scoring and highway
+  classification; edge-to-corridor assignment; peak concurrent occupancy via sweep-line;
+  two-phase width reservation (Step 4); cost-discount map for `ChannelRouter`
+
+**Extended engines**:
+- `ChannelRouter` — per-cell cost-multiplier map honouring highway corridor assignments;
+  corridor-membership hard constraints within a compression round (Steps 7 and 9)
+- `GravityCompressor` — upgrade stub from Phase 14a to honour `peak_lanes`-based
+  corridor floor constraints; bounded outer re-evaluation loop (Step 8)
+- `PortAssigner` — 4-component grouping key `(face, directionality, highway_id,
+  connector_type)`; merged trunk with comb fan-out; symmetric source- and
+  destination-side handling (Step 6)
+
+**Strategy changes**: wire `HighwayAssigner` into all strategies that use `ChannelRouter`
+(inserting it between coarse force-directed and grid quantisation).
+
+**Documentation**: update `docs/layout/` to confirm Step 4 and corridor-constrained
+Steps 7–9 are live; note any deviations.
+
+**Scope:** one new engine; three extended engines; highway wiring in four strategies.
+**Visual gate:** a model with six or more blocks sharing corridors (e.g. a specialization
+fan) shows visibly bundled wires; merged trunk notation appears on congested faces; no
+regression on any Phase 14a visual gate.
 
 ### Phase 15 — Additional relationship edges (General View)
 
@@ -370,7 +394,7 @@ per-package README notes incl. the SkiaSharp native-assets requirement for
 
 **Documentation:** the **README and User Guide must state that the Geometry View is not yet
 supported** (planned for 0.2.0). Finalise `docs/layout/` (the layout algorithm
-reference, authored during Phase 14) — add the §3 notation-conventions table, an
+reference, authored during Phases 14a–14b) — add the §3 notation-conventions table, an
 invariants/gotchas section, and any remaining SVG illustrations; wire into CI
 (`build.yaml`, `.fileassert.yaml`, `.reviewmark.yaml`).
 
