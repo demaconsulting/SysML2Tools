@@ -299,13 +299,22 @@ gaps computable in closed form (Step 6).
 
 3. **Classify by geometric necessity, not an absolute count.** A "minor road" is any
    channel a single default gap can serve; its capacity is `minor_capacity =
-   floor(min_gap / G)`. A channel is a **Highway** iff its required width exceeds what a
-   minor road can carry:
+   floor((min_gap − 2 × wire_margin) / G)` — the count of G-spaced lanes that fit inside a
+   default gap *after* both wire margins are reserved (using `floor(min_gap / G)` would
+   ignore the margins and misclassify a channel that is exactly full). A channel is a
+   **Highway** iff its required width exceeds what a minor road can carry:
 
    ```
-   required_width(channel) = channel_edge_count × G + 2 × wire_margin
+   peak_lanes(channel)     = max concurrent wires at any cross-section
+                             (see Peak Concurrent Occupancy below; peak_lanes ≤ channel_edge_count)
+   required_width(channel) = peak_lanes(channel) × G + 2 × wire_margin
    highway  ⇔  required_width(channel) > min_gap
    ```
+
+   Width is driven by *peak concurrent* occupancy rather than the raw `channel_edge_count`
+   because wires that tap off before the congested stretch never coexist there; using the
+   total would over-promote channels to highways and waste canvas (see Peak Concurrent
+   Occupancy). The two counts coincide only when every edge spans the channel's full length.
 
    This rule is scale-free and derived from `EdgeClearance`/`G`/`min_gap`, replacing the
    former magic `highway_threshold = 3`. It behaves correctly at both density extremes:
@@ -317,11 +326,11 @@ gaps computable in closed form (Step 6).
    single canvas-dominating corridor:
 
    ```
-   reserved_width = min( channel_edge_count × G + 2·wire_margin , W_cap )
+   reserved_width = min( peak_lanes(channel) × G + 2·wire_margin , W_cap )
    W_cap          = clamp( 0.25 × canvas_extent_estimate , 6·G , 24·G )
    ```
 
-   When `channel_edge_count × G` exceeds `W_cap` (typical of a single hub connected to
+   When `peak_lanes(channel) × G` exceeds `W_cap` (typical of a single hub connected to
    everything), the bundle is **split across two opposite faces of the hub** (PortAssigner-
    style) and/or arrowheads are stacked on the hub face; a `LayoutWarning` is emitted if a
    face still cannot present all ordered slots.
@@ -369,12 +378,18 @@ A bundle of 10 edges may require only 3G of width if at most 3 wires are ever ac
 simultaneously (the remaining 7 have tapped off to their destinations before reaching the
 congested stretch). Using the total count overestimates width and wastes canvas space.
 
-**Sweep-line algorithm** (O(k log k) per bundle, O(m log m) total):
+**Sweep-line algorithm** (O(k log k) per bundle, O(m log m) total). The events are taken
+from the committed routes recorded in Step 5 (the oversized waypoints), measured along the
+corridor's long axis:
 
-1. For each wire in the bundle, record an *entry event* (enters corridor) and an *exit
-   event* (taps off to destination), keyed by position along the corridor axis.
-2. Sort all events by position.
-3. Sweep: maintain a running count of active wires; take the maximum.
+1. For each wire in the bundle, its corridor span is `[entry, exit]`, where `entry` is the
+   smaller and `exit` the larger of the two coordinates at which the wire joins and leaves
+   the corridor along its long axis. Emit an *entry event* at `entry` and an *exit event*
+   at `exit`.
+2. Sort all events by position. **Tie-break: process entry events before exit events at the
+   same position**, so two wires that meet exactly at one cross-section are counted as
+   concurrent (the conservative, feasibility-preserving choice).
+3. Sweep: increment on entry, decrement on exit, and track the running maximum.
 
 ```
 peak_lanes = max( active_wire_count at each cross-section )
@@ -382,16 +397,31 @@ peak_lanes = max( active_wire_count at each cross-section )
 
 This value replaces the naïve `Σ wires` count in the Step 6 compression formula.
 
-**Lane position heuristic** (O(degree) per bundle, O(m) total): the optimal position for
-a bundle's merged trunk inside the corridor is the *barycenter* of the connected block
-centres:
+**Invariance under compaction.** `peak_lanes` is computed once from the Step 5 routes and is
+*invariant* under the order-preserving constraint-graph compaction used in Steps 6 and 8:
+compaction only shrinks gaps and never reorders endpoints, so the relative order of all
+entry/exit coordinates — and therefore every pairwise overlap relationship — is preserved.
+The peak can only stay equal or decrease, never increase. This is what lets Step 6 treat the
+peak-based width as a sound closed-form lower bound rather than an estimate that later
+re-routing could invalidate.
+
+**Lane position heuristic** (O(degree) per bundle, O(m) total): a bundle's merged trunk is
+placed inside the corridor at the *barycenter* of the connected block centres, measured on
+the corridor's **cross-axis** (the axis across the trunk — X for a vertical corridor, Y for
+a horizontal one):
 
 ```
-lane_y = mean(source.y, dest1.y, dest2.y, ...)
+lane_pos = mean(source.cross, dest1.cross, dest2.cross, ...)
 ```
 
-Sort bundles by `lane_y` to assign lane slots in non-crossing order — the same
-barycenter principle as the Sugiyama layer heuristic, applied to the corridor axis.
+Bundles are then sorted by `lane_pos` to assign lane slots. As with the Sugiyama barycenter
+heuristic this *reduces*, but does not provably eliminate, crossings; any residual crossings
+are resolved by the Step 7 1-D repulsion pass. **Edge case** — a single source fanning to
+many destinations spread across a wide range yields a `lane_pos` near the middle of that
+range, so the trunk is centred on the fan, which is exactly the configuration the centre-fed
+comb fan-out (below) assumes. The barycenter weights the single source equally with each
+destination, so where one endpoint should dominate (e.g. a tight source feeding a wide
+spread) the result is an accepted heuristic approximation, not a guaranteed optimum.
 
 ### Port Merging (Merged Trunk)
 
@@ -411,7 +441,12 @@ face and corridor wall).
   are sorted to match their target order inside the corridor.
 - **Stub area minimum length**: `ceil((N-1)/2) × G` so that the comb fans without
   crossings. This is a *derived* minimum block-to-corridor separation, not a magic
-  constant.
+  constant. The derivation assumes a **centre-fed** trunk: the comb fans symmetrically, so
+  the farthest lane is `ceil((N-1)/2)` lanes from the centre and each successive tooth must
+  peel off one grid unit `G` earlier than the next to keep the vertical risers from
+  overlapping. A purely **one-sided** fan (all lanes on one side of the trunk) instead needs
+  `(N-1) × G`; `PortAssigner` therefore centres the trunk on the lane span to obtain the
+  shorter bound.
 
 The merged trunk reduces per-face port demand from N slots to 1, resolving the port
 capacity constraint for most diagrams. Remaining overload is handled by the threshold
@@ -420,29 +455,57 @@ tiers below.
 ### Capacity Thresholds
 
 Even with merged trunks, a corridor can become too dense for comfortable reading. Three
-tiers apply, selected by comparing `peak_lanes` against two thresholds:
+tiers apply, selected by comparing `peak_lanes` against two thresholds.
 
 ![Highway capacity thresholds: three rendering tiers — normal wires, bundle notation, two-face split](images/highway-thresholds.svg)
 
-| Tier | Condition | Rendering |
-|------|-----------|-----------|
-| **Normal** | peak ≤ readability_cap (~6) | Individual wires, distinct colours/styles |
-| **Bundle notation** | readability_cap < peak ≤ face_capacity | Thick single wire + ×N label |
-| **Two-face split** | peak > face_capacity | Two corridors on opposite faces + `LayoutWarning` |
+The tiers are selected by the following **precedence** — the physical limit is always
+checked first, so the classification stays well-defined even when `face_capacity <
+readability_cap`:
 
 ```
-readability_cap = 6                                 // cognitive threshold (fixed)
-face_capacity   = min(src_face_h, dst_face_h) / G  // physical slot limit
+if    peak_lanes >  face_capacity:    tier = Two-face split
+elif  peak_lanes >  readability_cap:  tier = Bundle notation
+else:                                 tier = Normal
 ```
+
+| Tier | Selected when | Rendering |
+|------|---------------|-----------|
+| **Normal** | `peak_lanes ≤ min(readability_cap, face_capacity)` | Individual wires, distinct colours/styles |
+| **Bundle notation** | `readability_cap < peak_lanes ≤ face_capacity` | Thick single wire + ×N label |
+| **Two-face split** | `peak_lanes > face_capacity` | Two corridors on opposite faces + `LayoutWarning` if still over |
+
+```
+readability_cap = 6                                  // cognitive threshold (fixed)
+face_capacity   = trunk_face_h / G                   // physical slot limit of the face
+                                                     // hosting the merged trunk
+```
+
+**Boundary and degenerate cases:**
+
+- **`peak_lanes = face_capacity` exactly** — the comb just fits on one face, so the bundle
+  stays single-faced (Bundle notation if also above `readability_cap`, otherwise Normal).
+  The split is triggered only by strict overflow (`peak_lanes > face_capacity`).
+- **`peak_lanes = readability_cap` exactly** — rendered Normal (the cap is inclusive).
+- **`face_capacity < readability_cap`** (a short face) — the precedence above sends a peak in
+  `(face_capacity, readability_cap]` straight to Two-face split rather than Normal, because
+  it physically cannot fit even though it is under the cognitive cap. The Bundle-notation
+  band is empty in this case, which is correct.
+- **Two-face split still over capacity** — each face then carries `ceil(peak_lanes / 2)`
+  lanes; if `ceil(peak_lanes / 2) > face_capacity` even after splitting, a `LayoutWarning`
+  is emitted and the comb falls back to stacked arrowheads at minimum pitch `G`.
 
 `readability_cap ≈ 6` reflects the subitising limit: humans discriminate up to ~6 parallel
 wires without counting. Above this, a thick line with a multiplicity badge (×N) communicates
 "many connections" more clearly than literal parallel rendering.
 
 `face_capacity` is the hard physical limit: the number of G-spaced slots that fit on the
-shorter of the two connected block faces. Exceeding it means the comb cannot physically
-reach all wire lanes at minimum pitch G. The two-face split routes half the wires through
-each face; a `LayoutWarning` is emitted if even the split exceeds capacity.
+face that actually hosts the merged trunk (the congested face — the shared target face for a
+fan-in, the shared source face for a fan-out). It is *not* a blanket minimum over every
+connected block, since a block that contributes only one wire never constrains the bundle.
+Exceeding `face_capacity` means the comb cannot physically reach all wire lanes at minimum
+pitch G. The two-face split then routes `ceil(peak_lanes / 2)` wires through each of two
+opposite faces; a `LayoutWarning` is emitted if even the split exceeds capacity.
 
 ---
 
@@ -548,6 +611,15 @@ re-place blocks with the computed gaps (via the Step 3 constraint-graph compacti
 route edges within their committed corridors only
 ```
 
+**Why this is closed-form.** Both `sweep_line_peak(j)` (for vertical channels) and
+`sweep_line_peak(i)` (for horizontal bands) are evaluated *once*, from the committed Step 5
+routes, before any re-placement. They are not mutually dependent: each is read from the same
+fixed waypoint set, so there is no cross-axis fixed point to iterate toward. By the
+invariance property (see Peak Concurrent Occupancy), the order-preserving re-placement that
+follows can only reduce each peak, never raise it, so the gaps sized from the pre-placement
+peaks remain feasible lower bounds afterwards. This is the precise sense in which the
+corridor constraint makes the minimal gap computable without a convergence loop.
+
 **Bounded outer re-evaluation.** After the single closed-form sizing and the final route
 (Step 7), check whether any edge's corridor-constrained route is materially longer than
 its unconstrained route (i.e. an edge "wants" a different corridor). If so, recompute the
@@ -590,11 +662,16 @@ once if any block moved during snap.
 
 ## Step 9 — Post-Processing
 
-**Equidistant wire spacing**: within each highway, redistribute wire segments evenly
-across the reserved width. For a highway whose reserved width is `peak × G`, wire positions
-are G/2, 3G/2, 5G/2, … at each cross-section, with tapering in sections where fewer wires
-are active (see Peak Concurrent Occupancy). This is exact integer arithmetic because of
-the grid quantisation.
+**Equidistant wire spacing**: within each highway, wire segments are separated by the
+Phase 2 (Step 7) 1-D repulsion-relaxation pass rather than pre-assigned to fixed lanes. At a
+*fully occupied* cross-section (active wires = `peak_lanes`), repulsion inside a band of
+width `peak_lanes × G` settles to the even positions G/2, 3G/2, 5G/2, …; this is exact
+integer arithmetic because of the grid quantisation. In *under-occupied* sections (fewer
+than `peak_lanes` wires active, see Peak Concurrent Occupancy) the same relaxation spreads
+the present wires evenly across the band, so the bundle visually tapers toward its sparse
+ends instead of leaving a hard-edged empty lane. Equidistance is therefore an emergent
+property of the relaxation, consistent with the Two-Phase design, not a separate
+lane-assignment step.
 
 **Label placement**: edge-label bounding boxes are already reserved as channel clearance
 during Step 6, so space exists by construction. Here each label is *positioned* at the
@@ -654,8 +731,12 @@ container and compress its interior at the same density as the top level.
 Port-side assignment and slot distribution along a box edge. Extended in Layout Engine v2
 to be **highway-aware**: it chooses the box face pointing at an edge's committed corridor
 and orders slots along each face to match the corridor's wire order, so stubs do not cross
-at the box boundary. Also assigns container-boundary ports for edges that cross into a
-container.
+at the box boundary. When several wires share the same `(face, directionality, highway_id)`
+it collapses them into a single **merged trunk** with a comb fan-out (see Port Merging),
+exposing **one** corridor-facing port point on that face instead of N independent slots; the
+comb then fans the trunk, without crossings, into the N individual corridor lanes that carry
+the wires on to their separate far-end blocks. Also
+assigns container-boundary ports for edges that cross into a container.
 
 ## New Engines (Layout Engine v2)
 
@@ -705,12 +786,16 @@ Connectivity analysis builds affinity from specialization and membership edges, 
 one cluster — note that the older "all pairs above threshold" clique rule could not do
 this, because subtype-to-subtype affinity is zero. Free 2D force-directed produces
 clusters matching the model's package structure. Highway assignment bundles specialization
-fans — e.g. 6 subtypes converging on one supertype share a corridor. Compression sizes
-that corridor to `max(min_gap, 6·G + 2·wire_margin)`. The six arrowheads are presented as
-six ordered slots on the supertype's target face; if the face is shorter than `6·G` the
-slots spill to the adjacent face or stack (with a warning), so the fan never overflows a
-single face. Grid quantisation aligns all blocks to an implicit shared grid via
-constraint-graph compaction.
+fans — e.g. 6 subtypes converging on one supertype share a corridor. Because all six
+arrowheads coexist at the supertype face, `peak_lanes = 6` there and compression sizes that
+corridor to `max(min_gap, 6·G + 2·wire_margin)`. `PortAssigner` collapses the six incoming
+wires (same face, same directionality, same highway) into one merged trunk: a single shared
+arrowhead contacts the supertype's target face (the SysML shared-target "tree" notation) and
+a comb fans that trunk, without crossings, into six corridor lanes running on to the six
+subtypes. If the face is shorter than `6·G` (`face_capacity < 6`) the bundle follows the
+capacity-threshold tiers — splitting across the adjacent face, or stacking with a
+`LayoutWarning` — so the fan never overflows a single face. Grid quantisation aligns all
+blocks to an implicit shared grid via constraint-graph compaction.
 
 **Common issues in prior implementation**:
 
@@ -911,10 +996,11 @@ the resolution is reflected in the algorithm steps above.
    becoming infeasible on the fine grid.
 
 2. **Highway threshold** — *Resolved: geometric necessity rule.* The absolute
-   `highway_threshold = 3` is replaced by `highway ⇔ edge_count·G + 2·wire_margin >
-   min_gap` (Step H). This is scale-free, derived from `EdgeClearance`/`G`/`min_gap`, and
-   stays discriminating at both density extremes. Reserved width is capped at `W_cap`, and
-   hub bundles split across opposite faces.
+   `highway_threshold = 3` is replaced by `highway ⇔ peak_lanes·G + 2·wire_margin >
+   min_gap` (Step H), where `peak_lanes` is the peak concurrent occupancy. This is
+   scale-free, derived from `EdgeClearance`/`G`/`min_gap`, and stays discriminating at both
+   density extremes. Reserved width is capped at `W_cap`, and hub bundles split across
+   opposite faces.
 
 3. **Compression step size** — *Resolved: no stepping.* Because corridors are hard
    constraints, the minimal feasible gap is closed-form (Step 6); the fixed-step (and the

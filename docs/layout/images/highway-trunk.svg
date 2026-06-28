@@ -13,7 +13,7 @@
   <line x1="400" y1="0" x2="400" y2="345" stroke="#e5e7eb" stroke-width="1"/>
 
   <!-- Panel titles -->
-  <text x="200" y="22" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#111827">Before: individual port slots</text>
+  <text x="200" y="22" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#111827">Before: 4 individual wires</text>
   <text x="600" y="22" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#111827">After: merged trunk</text>
 
   <!-- ====== BEFORE PANEL ====== -->
@@ -22,8 +22,8 @@
   <text x="53" y="175" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#1e40af">Hub</text>
 
   <!-- Corridor (amber band) -->
-  <rect x="220" y="78" width="38" height="204" fill="#fef3c7" stroke="#d97706" stroke-width="1.2"/>
-  <text x="239" y="72" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#92400e">corridor</text>
+  <rect x="218" y="78" width="40" height="204" fill="#fef3c7" stroke="#d97706" stroke-width="1.2"/>
+  <text x="238" y="72" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#92400e">corridor</text>
 
   <!-- D blocks -->
   <rect x="272" y="91" width="60" height="26" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
@@ -41,29 +41,30 @@
   <circle cx="84" cy="172" r="3" fill="#374151"/>
   <circle cx="84" cy="196" r="3" fill="#374151"/>
 
-  <!-- Crossing diagonal stubs in stub area (ports mis-matched to corridor lanes) -->
-  <!-- Port at y=124 connected to D3 lane (y=204) — diagonal going down -->
-  <line x1="84" y1="124" x2="220" y2="204" stroke="#374151" stroke-width="1.5"/>
-  <!-- Port at y=148 connected to D1 lane (y=104) — diagonal going UP, crosses above -->
-  <line x1="84" y1="148" x2="220" y2="104" stroke="#374151" stroke-width="1.5"/>
-  <!-- Port at y=172 connected to D4 lane (y=254) — diagonal going down -->
-  <line x1="84" y1="172" x2="220" y2="254" stroke="#374151" stroke-width="1.5"/>
-  <!-- Port at y=196 connected to D2 lane (y=154) — diagonal going UP, crosses above -->
-  <line x1="84" y1="196" x2="220" y2="154" stroke="#374151" stroke-width="1.5"/>
+  <!-- 4 individual crossing stubs in stub area -->
+  <!-- Port y=124 connected to D3 lane (y=204): diagonal going DOWN -->
+  <line x1="84" y1="124" x2="218" y2="204" stroke="#374151" stroke-width="1.5"/>
+  <!-- Port y=148 connected to D1 lane (y=104): diagonal going UP, crosses above -->
+  <line x1="84" y1="148" x2="218" y2="104" stroke="#374151" stroke-width="1.5"/>
+  <!-- Port y=172 connected to D4 lane (y=254): diagonal going DOWN -->
+  <line x1="84" y1="172" x2="218" y2="254" stroke="#374151" stroke-width="1.5"/>
+  <!-- Port y=196 connected to D2 lane (y=154): diagonal going UP, crosses above -->
+  <line x1="84" y1="196" x2="218" y2="154" stroke="#374151" stroke-width="1.5"/>
 
-  <!-- Wires inside corridor + exit stubs to D blocks -->
-  <line x1="220" y1="104" x2="272" y2="104" stroke="#374151" stroke-width="1.5" marker-end="url(#ah-dark)"/>
-  <line x1="220" y1="154" x2="272" y2="154" stroke="#374151" stroke-width="1.5" marker-end="url(#ah-dark)"/>
-  <line x1="220" y1="204" x2="272" y2="204" stroke="#374151" stroke-width="1.5" marker-end="url(#ah-dark)"/>
-  <line x1="220" y1="254" x2="272" y2="254" stroke="#374151" stroke-width="1.5" marker-end="url(#ah-dark)"/>
+  <!-- 4 individual wires through corridor and out to D blocks -->
+  <line x1="218" y1="104" x2="272" y2="104" stroke="#374151" stroke-width="1.5" marker-end="url(#ah-dark)"/>
+  <line x1="218" y1="154" x2="272" y2="154" stroke="#374151" stroke-width="1.5" marker-end="url(#ah-dark)"/>
+  <line x1="218" y1="204" x2="272" y2="204" stroke="#374151" stroke-width="1.5" marker-end="url(#ah-dark)"/>
+  <line x1="218" y1="254" x2="272" y2="254" stroke="#374151" stroke-width="1.5" marker-end="url(#ah-dark)"/>
 
   <!-- "stubs cross!" callout -->
   <ellipse cx="148" cy="162" rx="26" ry="48" fill="none" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="4,3"/>
   <text x="178" y="150" font-family="sans-serif" font-size="9" fill="#dc2626">stubs</text>
   <text x="178" y="163" font-family="sans-serif" font-size="9" fill="#dc2626">cross!</text>
 
-  <!-- Zone labels -->
-  <text x="152" y="74" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#6b7280">stub area</text>
+  <!-- Zone labels (before) -->
+  <text x="148" y="73" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9ca3af">stub area</text>
+  <text x="318" y="73" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9ca3af">stubs</text>
 
   <!-- ====== AFTER PANEL ====== -->
   <!-- Hub block -->
@@ -71,40 +72,43 @@
   <text x="453" y="175" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#1e40af">Hub</text>
 
   <!-- Corridor (amber band) -->
-  <rect x="596" y="78" width="38" height="204" fill="#fef3c7" stroke="#d97706" stroke-width="1.2"/>
-  <text x="615" y="72" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#92400e">corridor</text>
+  <rect x="596" y="78" width="40" height="204" fill="#fef3c7" stroke="#d97706" stroke-width="1.2"/>
+  <text x="616" y="72" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#92400e">corridor</text>
 
   <!-- D blocks -->
-  <rect x="648" y="91" width="60" height="26" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
-  <text x="678" y="108" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D1</text>
-  <rect x="648" y="141" width="60" height="26" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
-  <text x="678" y="158" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D2</text>
-  <rect x="648" y="191" width="60" height="26" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
-  <text x="678" y="208" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D3</text>
-  <rect x="648" y="241" width="60" height="26" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
-  <text x="678" y="258" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D4</text>
+  <rect x="680" y="91" width="60" height="26" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="710" y="108" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D1</text>
+  <rect x="680" y="141" width="60" height="26" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="710" y="158" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D2</text>
+  <rect x="680" y="191" width="60" height="26" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="710" y="208" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D3</text>
+  <rect x="680" y="241" width="60" height="26" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="710" y="258" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1e40af">D4</text>
 
-  <!-- ONE port dot on Hub right face (merged) -->
+  <!-- ONE merged port dot on Hub right face -->
   <circle cx="484" cy="170" r="3.5" fill="#2563eb"/>
 
-  <!-- Merged trunk: Hub right face to comb spine (thick, single line) -->
-  <line x1="484" y1="170" x2="530" y2="170" stroke="#2563eb" stroke-width="3"/>
-  <text x="507" y="185" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#1d4ed8">merged trunk</text>
+  <!-- ONE thick merged trunk: Hub right face all the way through corridor to far wall -->
+  <line x1="484" y1="170" x2="636" y2="170" stroke="#2563eb" stroke-width="3"/>
+  <text x="558" y="185" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#1d4ed8">merged trunk</text>
 
-  <!-- Comb spine in stub area at x=530 (sorted fan-out, no crossings) -->
-  <line x1="530" y1="104" x2="530" y2="254" stroke="#2563eb" stroke-width="1.5"/>
-  <text x="530" y="272" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#1d4ed8">comb</text>
+  <!-- Comb fan-out at corridor EXIT (right wall x=636) -->
+  <!-- Comb spine: vertical from y=104 to y=254 at x=636 -->
+  <line x1="636" y1="104" x2="636" y2="254" stroke="#2563eb" stroke-width="1.5"/>
+  <!-- 4 exit wires from comb to D blocks (parallel, no crossings) -->
+  <line x1="636" y1="104" x2="680" y2="104" stroke="#2563eb" stroke-width="1.5" marker-end="url(#ah-blue)"/>
+  <line x1="636" y1="154" x2="680" y2="154" stroke="#2563eb" stroke-width="1.5" marker-end="url(#ah-blue)"/>
+  <line x1="636" y1="204" x2="680" y2="204" stroke="#2563eb" stroke-width="1.5" marker-end="url(#ah-blue)"/>
+  <line x1="636" y1="254" x2="680" y2="254" stroke="#2563eb" stroke-width="1.5" marker-end="url(#ah-blue)"/>
 
-  <!-- Comb teeth + corridor wires + exit stubs to D blocks (all parallel, no crossings) -->
-  <line x1="530" y1="104" x2="648" y2="104" stroke="#2563eb" stroke-width="1.5" marker-end="url(#ah-blue)"/>
-  <line x1="530" y1="154" x2="648" y2="154" stroke="#2563eb" stroke-width="1.5" marker-end="url(#ah-blue)"/>
-  <line x1="530" y1="204" x2="648" y2="204" stroke="#2563eb" stroke-width="1.5" marker-end="url(#ah-blue)"/>
-  <line x1="530" y1="254" x2="648" y2="254" stroke="#2563eb" stroke-width="1.5" marker-end="url(#ah-blue)"/>
+  <!-- Comb label -->
+  <text x="657" y="273" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#1d4ed8">comb fan-out</text>
 
-  <!-- Zone label -->
-  <text x="557" y="74" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#1d4ed8">stub area (clean)</text>
+  <!-- Zone labels (after) -->
+  <text x="558" y="73" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#1d4ed8">stub area (clean)</text>
+  <text x="657" y="73" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9ca3af">stubs</text>
 
-  <!-- Bottom annotations -->
-  <text x="400" y="308" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#374151">PortAssigner groups by (face, directionality, highway_id) &#x2192; one merged trunk per group</text>
-  <text x="400" y="322" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#6b7280">Stub area min length = ceil((N-1)/2) &#xd7; G &#x2014; space needed for the comb fan-out</text>
+  <!-- Bottom annotation -->
+  <text x="400" y="310" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#374151">PortAssigner groups by (face, directionality, highway_id) &#x2192; one merged trunk per group</text>
+  <text x="400" y="324" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#6b7280">One port slot on source face regardless of N &#x2014; comb fan-out at corridor exit, no stub crossings</text>
 </svg>
