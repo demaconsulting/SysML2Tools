@@ -21,6 +21,9 @@ includes:
   - docs/reqstream/sysml2-tools-core/layout/engine/port-assigner.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine/layered-layout-engine.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine/containment-packer.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/connectivity-analyzer.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/gravity-compressor.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/grid-quantizer.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/general-view-layout-strategy.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/interconnection-view-layout-strategy.yaml

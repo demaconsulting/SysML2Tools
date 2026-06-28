@@ -17,6 +17,9 @@ The subsystem contains the following units:
 | `LayeredLayoutEngine` | Places a directed graph in top-to-bottom layers |
 | `PortAssigner` | Assigns ports to box sides and distributes them along each edge |
 | `ContainmentPacker` | Packs sized boxes within a bounded container region |
+| `ConnectivityAnalyzer` | Computes sparse adjacency, layer hints, and community assignments |
+| `GravityCompressor` | Separates overlapping boxes to a minimum clearance |
+| `GridQuantizer` | Snaps boxes to a grid and unifies aligned column widths/row heights |
 
 #### Interfaces
 

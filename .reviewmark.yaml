@@ -454,6 +454,48 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/ContainmentPacker.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/ContainmentPackerTests.cs"
 
+  - id: SysML2Tools-Core-Layout-Engine-ConnectivityAnalyzer
+    title: Review that DemaConsulting.SysML2Tools Layout Engine ConnectivityAnalyzer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/connectivity-analyzer.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/connectivity-analyzer.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/connectivity-analyzer.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/ConnectivityAnalyzer.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/ConnectivityAnalyzerTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-GravityCompressor
+    title: Review that DemaConsulting.SysML2Tools Layout Engine GravityCompressor Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/gravity-compressor.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/gravity-compressor.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/gravity-compressor.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/GravityCompressor.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/GravityCompressorTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-GridQuantizer
+    title: Review that DemaConsulting.SysML2Tools Layout Engine GridQuantizer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/grid-quantizer.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/grid-quantizer.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/grid-quantizer.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/GridQuantizer.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/GridQuantizerTests.cs"
+
   # === Layout Internal subsystem and view-strategy units ===
   - id: SysML2Tools-Core-Layout-Internal
     title: Review that DemaConsulting.SysML2Tools Layout Internal Subsystem is Consistent and Complete

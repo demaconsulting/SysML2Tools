@@ -1,0 +1,59 @@
+---
+# ConnectivityAnalyzer Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the ConnectivityAnalyzer unit
+# - ConnectivityAnalyzer derives layer hints, communities, and adjacency from graph topology
+# - Requirements describe observable analysis properties, not the algorithm
+
+sections:
+  - title: ConnectivityAnalyzer Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-ConnectivityAnalyzer-EmptyInput
+        title: >-
+          When given no nodes, ConnectivityAnalyzer shall return empty layer hints, community ids,
+          and adjacency.
+        justification: |
+          An empty graph is a valid degenerate case. The analyser must return a well-formed empty
+          result rather than failing.
+        tests:
+          - Analyze_Empty_ReturnsEmpty
+
+      - id: SysML2Tools-Core-Layout-Engine-ConnectivityAnalyzer-SingleNode
+        title: >-
+          A single isolated node shall be assigned layer 0 and community 0 with empty adjacency.
+        justification: |
+          A lone node is the root of its own hierarchy and its own community, so its hints must be
+          predictable defaults.
+        tests:
+          - Analyze_SingleNode_LayerZeroCommunityZero
+
+      - id: SysML2Tools-Core-Layout-Engine-ConnectivityAnalyzer-LayerHints
+        title: >-
+          ConnectivityAnalyzer shall assign each node a longest-path layer from the sources, with
+          sources at layer 0.
+        justification: |
+          Layer hints provide the reading-direction bias used by directed-flow placement; a chain
+          must produce strictly increasing layers.
+        tests:
+          - Analyze_Chain_LayersAndOneCommunity
+
+      - id: SysML2Tools-Core-Layout-Engine-ConnectivityAnalyzer-Communities
+        title: >-
+          ConnectivityAnalyzer shall group connected nodes into communities, collapsing a
+          hub-and-spoke fan to one community and disconnected components to distinct communities.
+        justification: |
+          Community membership biases seeding and coarse placement; the clique rule cannot group a
+          fan, so label propagation is required.
+        tests:
+          - Analyze_Star_SameCommunity
+          - Analyze_TwoComponents_DifferentCommunities
+
+      - id: SysML2Tools-Core-Layout-Engine-ConnectivityAnalyzer-Deterministic
+        title: >-
+          ConnectivityAnalyzer shall produce identical analysis for identical input.
+        justification: |
+          Reproducible analysis is required so regenerating a view from unchanged input does not
+          produce spurious differences.
+        tests:
+          - Analyze_SameInput_IsDeterministic

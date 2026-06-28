@@ -63,6 +63,9 @@ system, subsystem, and unit levels:
       - **PortAssigner** (Unit) — assigns ports to box sides and distributes them along each edge
       - **LayeredLayoutEngine** (Unit) — layered (Sugiyama-style) top-to-bottom placement
       - **ContainmentPacker** (Unit) — packs sized boxes within a bounded container region
+      - **ConnectivityAnalyzer** (Unit) — sparse adjacency, layer hints, and community detection
+      - **GravityCompressor** (Unit) — separates overlapping boxes to a minimum clearance
+      - **GridQuantizer** (Unit) — snaps boxes to a grid and unifies aligned column widths/row heights
     - **Internal** (Subsystem) — per-view layout strategies
       - **GeneralViewLayoutStrategy** (Unit) — general view: grouped definitions with specialization edges
       - **InterconnectionViewLayoutStrategy** (Unit) — internal structure: nested parts, ports, connectors
