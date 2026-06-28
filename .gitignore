@@ -89,6 +89,7 @@ __pycache__/
 
 # Generated documentation
 **/generated/
+*.pdf
 
 # Test results
 TestResults/
