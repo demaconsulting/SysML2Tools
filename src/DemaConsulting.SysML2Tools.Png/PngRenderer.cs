@@ -190,10 +190,16 @@ public sealed class PngRenderer : IRenderer
         }
 
         // Final pass: draw every connector label on top of all wires and boxes, so that no later
-        // wire can draw over an earlier wire's label.
-        foreach (var line in CollectLines(layout.Nodes))
+        // wire can draw over an earlier wire's label. Positions are computed up front so that labels
+        // that would collide (for example where two connectors cross) are spread apart.
+        var lines = CollectLines(layout.Nodes).ToList();
+        var labelPositions = ConnectorLabelPlacer.Place(lines, options.Theme.FontSizeBody);
+        foreach (var line in lines)
         {
-            RenderLineLabel(canvas, line, options);
+            if (line.MidpointLabel is not null && labelPositions.TryGetValue(line, out var pos))
+            {
+                RenderLineLabel(canvas, line, options, pos.X, pos.Y);
+            }
         }
 
         // Encode as PNG and write to the output stream
@@ -624,7 +630,9 @@ public sealed class PngRenderer : IRenderer
     /// <param name="canvas">Canvas to draw on.</param>
     /// <param name="line">The line whose label is rendered.</param>
     /// <param name="options">Render options providing theme and scale.</param>
-    private static void RenderLineLabel(SKCanvas canvas, LayoutLine line, RenderOptions options)
+    /// <param name="midX">Pre-computed label centre X in logical pixels.</param>
+    /// <param name="midY">Pre-computed label centre Y in logical pixels.</param>
+    private static void RenderLineLabel(SKCanvas canvas, LayoutLine line, RenderOptions options, double midX, double midY)
     {
         if (line.MidpointLabel is null)
         {
@@ -634,7 +642,7 @@ public sealed class PngRenderer : IRenderer
         var theme = options.Theme;
         var scale = (float)options.Scale;
         var strokeColor = SKColor.Parse(theme.StrokeColor);
-        RenderLineMidpointLabel(canvas, line.Waypoints, line.MidpointLabel, theme, scale, strokeColor);
+        RenderLineMidpointLabel(canvas, midX, midY, line.MidpointLabel, theme, scale, strokeColor);
     }
 
     /// <summary>Recursively collects all <see cref="LayoutLine"/> nodes from a node tree.</summary>
@@ -827,21 +835,21 @@ public sealed class PngRenderer : IRenderer
     /// rectangle drawn first to ensure readability over the line stroke.
     /// </summary>
     /// <param name="canvas">Canvas to draw on.</param>
-    /// <param name="waypoints">Ordered waypoints of the line; must contain at least one entry.</param>
+    /// <param name="midX">Label centre X in logical pixels.</param>
+    /// <param name="midY">Label centre Y in logical pixels.</param>
     /// <param name="label">Label text to render.</param>
     /// <param name="theme">Theme providing font size and padding.</param>
     /// <param name="scale">Uniform scale factor.</param>
     /// <param name="strokeColor">Color used for the label text.</param>
     private static void RenderLineMidpointLabel(
         SKCanvas canvas,
-        IReadOnlyList<Point2D> waypoints,
+        double midX,
+        double midY,
         string label,
         Theme theme,
         float scale,
         SKColor strokeColor)
     {
-        // Compute the geometric midpoint of the waypoints list
-        var (midX, midY) = ComputeLineMidpoint(waypoints);
         var scaledX = (float)(midX * scale);
         var scaledY = (float)(midY * scale);
 
@@ -866,42 +874,6 @@ public sealed class PngRenderer : IRenderer
         }
 
         canvas.DrawText(label, scaledX, scaledY, textPaint);
-    }
-
-    /// <summary>
-    /// Computes the position for an edge's midpoint label: the midpoint of the longest segment of
-    /// the polyline. Long segments are the open runs between boxes, so the label is far less likely
-    /// to land on top of a box than the path's geometric midpoint would be.
-    /// </summary>
-    /// <param name="waypoints">Ordered waypoints; must contain at least one entry.</param>
-    /// <returns>The (X, Y) coordinates of the label position in logical pixels.</returns>
-    private static (double X, double Y) ComputeLineMidpoint(IReadOnlyList<Point2D> waypoints)
-    {
-        if (waypoints.Count == 1)
-        {
-            return (waypoints[0].X, waypoints[0].Y);
-        }
-
-        // Find the longest segment and return its midpoint.
-        var bestLength = -1.0;
-        var bestX = waypoints[0].X;
-        var bestY = waypoints[0].Y;
-        for (var i = 0; i < waypoints.Count - 1; i++)
-        {
-            var a = waypoints[i];
-            var b = waypoints[i + 1];
-            var dx = b.X - a.X;
-            var dy = b.Y - a.Y;
-            var length = (dx * dx) + (dy * dy);
-            if (length > bestLength)
-            {
-                bestLength = length;
-                bestX = (a.X + b.X) / 2.0;
-                bestY = (a.Y + b.Y) / 2.0;
-            }
-        }
-
-        return (bestX, bestY);
     }
 
     /// <summary>

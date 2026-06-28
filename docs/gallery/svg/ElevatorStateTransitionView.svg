@@ -56,7 +56,7 @@
   <text x="328.71" y="219.33" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[atFloor]</text>
   <text x="97.40" y="421.42" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[atFloor]</text>
   <text x="137.58" y="182.18" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[doorsAreOpen]</text>
-  <text x="358.15" y="230.83" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[timeout]</text>
+  <text x="264.04" y="112.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[timeout]</text>
   <text x="172.80" y="460.06" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[goingDown]</text>
   <text x="555.76" y="306.41" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[idleTimeout]</text>
 </svg>

@@ -91,10 +91,16 @@ public sealed class SvgRenderer : IRenderer
         }
 
         // Final pass: draw every connector label on top of all wires and boxes, so that no later
-        // wire can draw over an earlier wire's label.
-        foreach (var line in CollectLines(layout.Nodes))
+        // wire can draw over an earlier wire's label. Positions are computed up front so that labels
+        // that would collide (for example where two connectors cross) are spread apart.
+        var lines = CollectLines(layout.Nodes).ToList();
+        var labelPositions = ConnectorLabelPlacer.Place(lines, theme.FontSizeBody);
+        foreach (var line in lines)
         {
-            RenderLineLabel(sb, line, theme, options.Scale);
+            if (line.MidpointLabel is not null && labelPositions.TryGetValue(line, out var pos))
+            {
+                RenderLineLabel(sb, line, theme, options.Scale, pos.X, pos.Y);
+            }
         }
 
         // Close SVG root
@@ -545,14 +551,15 @@ public sealed class SvgRenderer : IRenderer
     /// <param name="line">The line whose label is rendered.</param>
     /// <param name="theme">Visual theme providing font and color settings.</param>
     /// <param name="scale">Uniform scale factor.</param>
-    private static void RenderLineLabel(StringBuilder sb, LayoutLine line, Theme theme, double scale)
+    /// <param name="midX">Pre-computed label centre X in logical pixels.</param>
+    /// <param name="midY">Pre-computed label centre Y in logical pixels.</param>
+    private static void RenderLineLabel(StringBuilder sb, LayoutLine line, Theme theme, double scale, double midX, double midY)
     {
         if (line.MidpointLabel is null)
         {
             return;
         }
 
-        var (midX, midY) = ComputeLineMidpoint(line.Waypoints);
         sb.Append(CultureInfo.InvariantCulture,
             $"""  <text x="{F(midX * scale)}" y="{F(midY * scale)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">{EscapeXml(line.MidpointLabel)}</text>""");
         sb.AppendLine();
@@ -693,42 +700,6 @@ public sealed class SvgRenderer : IRenderer
         }
 
         return sb.ToString();
-    }
-
-    /// <summary>
-    /// Computes the position for an edge's midpoint label: the midpoint of the longest segment of
-    /// the polyline. Long segments are the open runs between boxes, so the label is far less likely
-    /// to land on top of a box than the path's geometric midpoint would be.
-    /// </summary>
-    /// <param name="waypoints">Ordered waypoints; must contain at least one entry.</param>
-    /// <returns>The (X, Y) coordinates of the label position in logical pixels.</returns>
-    private static (double X, double Y) ComputeLineMidpoint(IReadOnlyList<Point2D> waypoints)
-    {
-        if (waypoints.Count == 1)
-        {
-            return (waypoints[0].X, waypoints[0].Y);
-        }
-
-        // Find the longest segment and return its midpoint.
-        var bestLength = -1.0;
-        var bestX = waypoints[0].X;
-        var bestY = waypoints[0].Y;
-        for (var i = 0; i < waypoints.Count - 1; i++)
-        {
-            var a = waypoints[i];
-            var b = waypoints[i + 1];
-            var dx = b.X - a.X;
-            var dy = b.Y - a.Y;
-            var length = (dx * dx) + (dy * dy);
-            if (length > bestLength)
-            {
-                bestLength = length;
-                bestX = (a.X + b.X) / 2.0;
-                bestY = (a.Y + b.Y) / 2.0;
-            }
-        }
-
-        return (bestX, bestY);
     }
 
     /// <summary>
