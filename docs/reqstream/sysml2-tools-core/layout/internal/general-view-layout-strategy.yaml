@@ -1,0 +1,76 @@
+---
+# GeneralViewLayoutStrategy Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the GeneralViewLayoutStrategy unit
+# - GeneralViewLayoutStrategy lays out a General View diagram from user definitions
+# - Requirements describe observable diagram content, not the placement algorithm
+
+sections:
+  - title: GeneralViewLayoutStrategy Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Definitions
+        title: >-
+          GeneralViewLayoutStrategy shall render each user-defined definition as a labelled box
+          that carries the definition's keyword.
+        justification: |
+          A General View shows the user's declared definitions of every kind (part, port,
+          interface, action, and so on). Rendering each as a keyword-labelled box is the
+          observable content the view exists to provide.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_OneUserPartDef_ProducesLayoutBox
+          - GeneralViewLayoutStrategy_BuildLayout_MixedDefinitionKinds_RendersAllWithKeywords
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-PackageGrouping
+        title: >-
+          GeneralViewLayoutStrategy shall group the definitions that belong to a package within a
+          folder-shaped container box labelled with the package name.
+        justification: |
+          Grouping a package's definitions inside a labelled folder communicates ownership and
+          keeps related definitions visually together, which is essential for readable diagrams
+          of larger models.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_PackagedDefinitions_ProducesFolderBox
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Compartments
+        title: >-
+          GeneralViewLayoutStrategy shall populate a definition box with compartments listing the
+          definition's owned usages.
+        justification: |
+          The usages a definition owns (attributes, ports, parts, and so on) are part of its
+          shown content. Listing them in compartments lets a reader see a definition's features
+          without opening another view.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Specialization
+        title: >-
+          GeneralViewLayoutStrategy shall connect a specialized definition to each of its
+          supertypes present in the workspace with a line ending in an open arrowhead at the
+          supertype.
+        justification: |
+          Specialization (generalization) relationships are core model structure. Drawing them
+          as open-arrowhead lines toward the supertype matches diagram notation and makes the
+          inheritance hierarchy visible.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_Subclassification_ProducesEdge
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-StdlibExclusion
+        title: >-
+          GeneralViewLayoutStrategy shall exclude standard-library definitions from the diagram.
+        justification: |
+          The General View is meant to show the user's model, not the imported standard library.
+          Excluding standard-library definitions keeps the diagram focused on user content.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_StdlibOnlyWorkspace_ReturnsMinimalCanvas
+          - GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-EmptyCanvas
+        title: >-
+          When the workspace contains no user-defined definitions, GeneralViewLayoutStrategy shall
+          return a minimal empty canvas with no nodes.
+        justification: |
+          A model with no user definitions has nothing to draw; returning a well-formed empty
+          canvas lets the renderer produce a valid blank diagram rather than failing.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas

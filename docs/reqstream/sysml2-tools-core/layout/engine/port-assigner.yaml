@@ -1,0 +1,50 @@
+---
+# PortAssigner Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the PortAssigner unit
+# - PortAssigner places connection ports on the sides of a box
+# - Requirements describe observable placement properties, not the assignment algorithm
+
+sections:
+  - title: PortAssigner Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-PortAssigner-SideFacingTarget
+        title: >-
+          PortAssigner shall place each port on the side of its box that faces the point its
+          connection travels toward.
+        justification: |
+          A port should leave its box on the side nearest the element it connects to, so the
+          connector takes the shortest, most readable route rather than wrapping around the box.
+        tests:
+          - Assign_SinglePort_ChoosesSideFacingTarget
+
+      - id: SysML2Tools-Core-Layout-Engine-PortAssigner-OnBoundary
+        title: >-
+          PortAssigner shall place each port's centre on the boundary of the box side it is
+          assigned to.
+        justification: |
+          A port represents an attachment point on the box edge. Its centre must lie exactly on the
+          assigned side so that connectors meet the box outline rather than floating inside or
+          outside it.
+        tests:
+          - Assign_Port_CentreLiesOnBoxBoundary
+
+      - id: SysML2Tools-Core-Layout-Engine-PortAssigner-EvenDistribution
+        title: >-
+          When multiple ports are assigned to the same box side, PortAssigner shall place them at
+          distinct, evenly spaced positions along that side.
+        justification: |
+          Ports stacked on top of one another are indistinguishable. Spreading the ports that share
+          a side across evenly spaced slots keeps each one visible and its connector separable.
+        tests:
+          - Assign_MultiplePortsSameSide_AreEvenlyDistributed
+
+      - id: SysML2Tools-Core-Layout-Engine-PortAssigner-EmptyInput
+        title: >-
+          When given no port requests, PortAssigner shall return no placements.
+        justification: |
+          A box with no ports is a valid case. The assigner must return an empty result rather than
+          failing.
+        tests:
+          - Assign_Empty_ReturnsEmpty

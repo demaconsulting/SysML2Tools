@@ -1,0 +1,52 @@
+---
+# LayeredLayoutEngine Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the LayeredLayoutEngine unit
+# - LayeredLayoutEngine arranges a directed graph into a top-to-bottom layered flow
+# - Requirements describe observable placement properties, not the layout algorithm
+
+sections:
+  - title: LayeredLayoutEngine Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-LayeredLayoutEngine-DownwardFlow
+        title: >-
+          LayeredLayoutEngine shall arrange a directed graph into layers so that each edge runs from
+          a lower layer to a higher layer, with lower layers positioned above higher layers.
+        justification: |
+          A directed diagram reads as a flow only when every connection advances in a single
+          direction. Source nodes must sit in a smaller layer, and therefore higher on the canvas,
+          than the nodes they point to.
+        tests:
+          - Place_Chain_AssignsIncreasingLayers
+          - Place_Branching_EdgesPointDownward
+
+      - id: SysML2Tools-Core-Layout-Engine-LayeredLayoutEngine-NoOverlap
+        title: >-
+          LayeredLayoutEngine shall position nodes that share a layer so that their rectangles do
+          not overlap.
+        justification: |
+          Nodes on the same layer are drawn side by side; if they overlapped they would be
+          unreadable. Each layer's nodes must be separated horizontally.
+        tests:
+          - Place_SameLayerNodes_DoNotOverlap
+
+      - id: SysML2Tools-Core-Layout-Engine-LayeredLayoutEngine-CyclesHandled
+        title: >-
+          When the directed graph contains a cycle, LayeredLayoutEngine shall still produce a
+          complete placement with every node positioned within the reported region bounds.
+        justification: |
+          Real models contain feedback loops. The engine must not fail to terminate or drop nodes
+          when a cycle is present; every node must still be placed inside the region.
+        tests:
+          - Place_Cycle_TerminatesAndPlacesAllNodes
+
+      - id: SysML2Tools-Core-Layout-Engine-LayeredLayoutEngine-EmptyInput
+        title: >-
+          When given no nodes, LayeredLayoutEngine shall return an empty placement whose region
+          consists solely of the requested padding.
+        justification: |
+          An empty graph is a valid degenerate case. The engine must return a well-formed, empty
+          result sized only by the padding rather than failing.
+        tests:
+          - Place_EmptyList_ReturnsPaddingOnlyRegion

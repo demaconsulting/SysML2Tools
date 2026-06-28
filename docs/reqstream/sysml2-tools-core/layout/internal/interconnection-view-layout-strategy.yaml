@@ -1,0 +1,42 @@
+---
+# InterconnectionViewLayoutStrategy Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the InterconnectionViewLayoutStrategy unit
+# - InterconnectionViewLayoutStrategy lays out the internals of one part definition
+# - Requirements describe observable diagram content, not the placement algorithm
+
+sections:
+  - title: InterconnectionViewLayoutStrategy Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Internals
+        title: >-
+          InterconnectionViewLayoutStrategy shall render the selected part definition as a
+          container box enclosing one box per nested part usage, a port on each part box for every
+          incident connection, and one connector line per connection.
+        justification: |
+          An Interconnection View exists to show the internal structure of a part definition — its
+          nested parts and how they are connected. The container box, part boxes, ports, and
+          connector lines are the observable content the view must provide.
+        tests:
+          - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NonOverlapping
+        title: >-
+          InterconnectionViewLayoutStrategy shall position the nested part boxes so that they do
+          not overlap one another.
+        justification: |
+          Overlapping part boxes produce an unreadable internal-structure diagram. Non-overlap is
+          an observable property of the produced geometry the strategy must guarantee.
+        tests:
+          - InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-EmptyCanvas
+        title: >-
+          When the workspace contains no part definition with renderable internals,
+          InterconnectionViewLayoutStrategy shall return a minimal empty canvas with no nodes.
+        justification: |
+          With no eligible part definition there is nothing to draw; a well-formed empty canvas
+          lets the renderer produce a valid blank diagram rather than failing.
+        tests:
+          - InterconnectionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas

@@ -1,0 +1,81 @@
+---
+# ContainmentPacker Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the ContainmentPacker unit
+# - ContainmentPacker arranges variable-size items into rows within a width budget
+# - Requirements describe observable placement properties, not the packing algorithm
+
+sections:
+  - title: ContainmentPacker Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-ContainmentPacker-SingleRow
+        title: >-
+          ContainmentPacker shall place items that together fit within the maximum content width on
+          a single row.
+        justification: |
+          When the available width can hold all the items, splitting them across rows would waste
+          vertical space. Items that fit must share one row, ordered left to right.
+        tests:
+          - Pack_ItemsFitInRow_ShareSameRow
+
+      - id: SysML2Tools-Core-Layout-Engine-ContainmentPacker-Wrapping
+        title: >-
+          ContainmentPacker shall wrap an item that would exceed the maximum content width onto a
+          new row positioned below the current row.
+        justification: |
+          A row may not grow past the width budget. When the next item would overflow it, the
+          packer must start a new row beneath the current one so the content stays within the
+          allotted width.
+        tests:
+          - Pack_ItemsExceedWidth_WrapToNewRow
+
+      - id: SysML2Tools-Core-Layout-Engine-ContainmentPacker-NoOverlap
+        title: >-
+          ContainmentPacker shall position items so that no two packed rectangles overlap.
+        justification: |
+          Overlapping items hide one another. Whatever mix of sizes is supplied, every packed
+          rectangle must be disjoint from every other.
+        tests:
+          - Pack_MixedSizes_ProducesNoOverlaps
+
+      - id: SysML2Tools-Core-Layout-Engine-ContainmentPacker-WithinBounds
+        title: >-
+          ContainmentPacker shall place every packed rectangle within the bounds of the region size
+          it reports.
+        justification: |
+          Callers size the container from the reported region width and height. Every packed
+          rectangle must lie inside those bounds so that nothing is clipped or drawn outside the
+          container.
+        tests:
+          - Pack_MixedSizes_AllRectsWithinBounds
+
+      - id: SysML2Tools-Core-Layout-Engine-ContainmentPacker-OversizedItem
+        title: >-
+          ContainmentPacker shall place an item wider than the maximum content width alone on its
+          own row and shall widen the region to contain it.
+        justification: |
+          An item that cannot fit the width budget still has to be placed. It must occupy its own
+          row, and the reported region must grow so the oversized item remains fully contained.
+        tests:
+          - Pack_ItemWiderThanContentWidth_PlacedAloneAndRegionWidens
+
+      - id: SysML2Tools-Core-Layout-Engine-ContainmentPacker-EmptyInput
+        title: >-
+          When given no items, ContainmentPacker shall return an empty result whose region consists
+          solely of the requested padding.
+        justification: |
+          An empty input is a valid degenerate case. The packer must return a well-formed, empty
+          result sized only by the padding rather than failing.
+        tests:
+          - Pack_EmptyList_ReturnsPaddingOnlyRegion
+
+      - id: SysML2Tools-Core-Layout-Engine-ContainmentPacker-SingleItem
+        title: >-
+          When given a single item, ContainmentPacker shall place it at the padding origin and size
+          the region to that item plus padding.
+        justification: |
+          A lone item has a predictable home: the padding origin, with the region sized to wrap it
+          exactly plus the requested padding on each side.
+        tests:
+          - Pack_SingleItem_PositionsAtPaddingOrigin

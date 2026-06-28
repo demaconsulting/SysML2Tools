@@ -1,0 +1,42 @@
+---
+# SequenceViewLayoutStrategy Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the SequenceViewLayoutStrategy unit
+# - SequenceViewLayoutStrategy lays out a Sequence View as lifelines and messages
+# - Requirements describe observable layout properties, not the arithmetic used
+
+sections:
+  - title: SequenceViewLayoutStrategy Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-Lifelines
+        title: >-
+          SequenceViewLayoutStrategy shall render each participant referenced by the messages as a
+          lifeline and each message as a line between lifelines, ordered top-to-bottom by
+          declaration order.
+        justification: |
+          A sequence diagram communicates an interaction by showing who participates and in what
+          order they exchange messages. Presenting one lifeline per participant and ordering the
+          messages from top to bottom matches sequence-diagram reading conventions.
+        tests:
+          - SequenceView_BuildLayout_Messages_ProducesLifelinesAndOrderedLines
+
+      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-HorizontalMessages
+        title: >-
+          SequenceViewLayoutStrategy shall draw a message between two lifelines as a horizontal line
+          from the sender to the receiver with a directional arrowhead at the receiver.
+        justification: |
+          A horizontal connector with an arrowhead pointing at the receiver shows the direction of
+          a message at a glance, which is the established notation for sequence messages.
+        tests:
+          - SequenceView_BuildLayout_Message_IsHorizontalBetweenLifelines
+
+      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-EmptyInput
+        title: >-
+          When the workspace contains no messages, SequenceViewLayoutStrategy shall produce an empty
+          diagram.
+        justification: |
+          With nothing to depict, the strategy must not invent content; an empty diagram avoids
+          rendering a misleading frame with no participants or messages.
+        tests:
+          - SequenceView_BuildLayout_NoMessages_ReturnsMinimalCanvas

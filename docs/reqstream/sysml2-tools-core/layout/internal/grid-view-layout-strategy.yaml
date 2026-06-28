@@ -1,0 +1,32 @@
+---
+# GridViewLayoutStrategy Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the GridViewLayoutStrategy unit
+# - GridViewLayoutStrategy lays out a Grid View as a specialization relationship matrix
+# - Requirements describe the observable matrix, not the arithmetic used
+
+sections:
+  - title: GridViewLayoutStrategy Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-SpecializationMatrix
+        title: >-
+          GridViewLayoutStrategy shall present the user-defined definitions as a matrix with a
+          header row and header column of definition names and a mark in each cell where the row
+          definition specializes the column definition.
+        justification: |
+          A relationship matrix lets a reader see at a glance which definitions specialize which
+          others. Header labels on both axes and a mark at each related intersection are the
+          conventional way to render such a matrix.
+        tests:
+          - GridView_BuildLayout_Specialization_ProducesMarkedMatrix
+
+      - id: SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-EmptyInput
+        title: >-
+          When the workspace contains no user-defined definitions, GridViewLayoutStrategy shall
+          produce an empty diagram.
+        justification: |
+          With no definitions to relate, an empty diagram avoids presenting an empty matrix frame
+          that could be mistaken for missing data.
+        tests:
+          - BrowserAndGrid_BuildLayout_EmptyWorkspace_ReturnMinimalCanvas

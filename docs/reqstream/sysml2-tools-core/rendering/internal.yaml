@@ -1,0 +1,35 @@
+---
+# Rendering Internal Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the internal implementation of the Rendering subsystem
+# - Internal components select the layout strategy for each view and exclude
+#   standard-library elements from user diagrams
+
+sections:
+  - title: Rendering Internal Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Core-Rendering-Internal-StrategySelection
+        title: >-
+          The internal rendering components shall select a view-specific layout strategy
+          for each view, based on the view's recognized kind, and shall fall back to the
+          general view strategy when the kind is not recognized.
+        justification: |
+          A single dispatch point keeps the renderer agnostic of how many view kinds exist
+          and lets new view kinds be added without changing the orchestration loop. Falling
+          back to the general view keeps unrecognized views renderable rather than failing.
+        tests:
+          - GetStrategy_InterconnectionNamedView_ReturnsInterconnectionStrategy
+          - GetStrategy_PlainView_ReturnsGeneralViewStrategy
+
+      - id: SysML2Tools-Core-Rendering-Internal-StdlibExclusion
+        title: >-
+          The internal rendering components shall exclude standard-library elements from
+          user diagrams.
+        justification: |
+          The implicitly loaded OMG standard library would otherwise flood every diagram
+          with library definitions. Excluding stdlib elements keeps diagrams focused on the
+          user's model.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded
+          - GeneralViewLayoutStrategy_BuildLayout_StdlibOnlyWorkspace_ReturnsMinimalCanvas

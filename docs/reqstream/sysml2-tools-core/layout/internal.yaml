@@ -1,0 +1,60 @@
+---
+# Layout Internal Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the Internal subsystem of the Layout subsystem
+# - The Internal subsystem holds the per-view layout strategies that turn the
+#   semantic workspace into a LayoutTree for one diagram view
+# - Requirements describe observable layout behavior, not the placement algorithms
+
+sections:
+  - title: Layout Internal Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Internal-ViewLayout
+        title: >-
+          Each view layout strategy shall transform the semantic workspace into a layout tree
+          describing the diagram for its view type.
+        justification: |
+          The renderers consume only the layout tree, so every supported view depends on a
+          strategy that maps the relevant model elements to boxes, ports, lines, and markers.
+          The produced tree is the observable result that proves the mapping occurred.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_OneUserPartDef_ProducesLayoutBox
+          - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
+          - StateTransitionView_BuildLayout_StatesAndTransitions_ProducesBoxesBadgeAndLines
+          - ActionFlowView_BuildLayout_ActionsAndSuccessions_ProducesBoxesMarkersAndFlows
+
+      - id: SysML2Tools-Core-Layout-Internal-EmptyCanvas
+        title: >-
+          When the workspace contains no elements relevant to a view, the view layout strategy
+          shall return a minimal empty canvas with no nodes.
+        justification: |
+          A view with nothing to show must still yield a well-formed, empty layout tree so the
+          renderer produces a valid (blank) diagram rather than failing. The empty node set is
+          the observable evidence of this behavior.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
+          - InterconnectionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
+          - StateTransitionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
+          - ActionFlowView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
+
+      - id: SysML2Tools-Core-Layout-Internal-StdlibExclusion
+        title: >-
+          The view layout strategies shall exclude standard-library elements from the produced
+          diagrams.
+        justification: |
+          Diagrams are meant to show the user's model, not the imported standard library.
+          Excluding standard-library elements keeps the rendered views focused and readable.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_StdlibOnlyWorkspace_ReturnsMinimalCanvas
+          - GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded
+
+      - id: SysML2Tools-Core-Layout-Internal-NonOverlapping
+        title: >-
+          The view layout strategies shall position the boxes of a diagram so that they do not
+          overlap one another.
+        justification: |
+          Overlapping boxes produce unreadable diagrams. Non-overlap is an observable property
+          of the produced geometry that every view layout must guarantee.
+        tests:
+          - InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap

@@ -1,0 +1,53 @@
+---
+# StateTransitionViewLayoutStrategy Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the StateTransitionViewLayoutStrategy unit
+# - StateTransitionViewLayoutStrategy lays out a State Transition View diagram
+# - Requirements describe observable diagram content, not the placement algorithm
+
+sections:
+  - title: StateTransitionViewLayoutStrategy Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-States
+        title: >-
+          StateTransitionViewLayoutStrategy shall render a box for each state, an initial
+          pseudo-state marker, and connect transitions as arrows labelled with their guard
+          conditions.
+        justification: |
+          A State Transition View exists to show the states of a machine, where it starts, and how
+          it moves between states under guarded transitions. The state boxes, initial marker, and
+          guard-labelled arrows are the observable content the view must provide.
+        tests:
+          - StateTransitionView_BuildLayout_StatesAndTransitions_ProducesBoxesBadgeAndLines
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ImplicitStates
+        title: >-
+          StateTransitionViewLayoutStrategy shall render a state box for any state referenced by a
+          transition even when that state is not separately declared.
+        justification: |
+          A transition can name a state that was never declared on its own. Showing it anyway keeps
+          the diagram complete so that no transition appears to lead nowhere.
+        tests:
+          - StateTransitionView_BuildLayout_UndeclaredStateInTransition_IsCreated
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-DistinctAnchors
+        title: >-
+          When a state edge carries both an outgoing and an incoming transition,
+          StateTransitionViewLayoutStrategy shall attach them at distinct anchor points.
+        justification: |
+          If an outgoing and an incoming transition shared one anchor, their arrows would coincide
+          and the direction of flow would be ambiguous. Distinct anchors keep each transition's
+          direction readable.
+        tests:
+          - StateTransitionView_BuildLayout_InAndOutOnSameEdge_UseDistinctAnchors
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-EmptyCanvas
+        title: >-
+          When the workspace contains no state definition, StateTransitionViewLayoutStrategy shall
+          return a minimal empty canvas with no nodes.
+        justification: |
+          With no state definition there is nothing to draw; a well-formed empty canvas lets the
+          renderer produce a valid blank diagram rather than failing.
+        tests:
+          - StateTransitionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas

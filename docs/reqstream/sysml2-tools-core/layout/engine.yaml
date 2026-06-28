@@ -1,0 +1,45 @@
+---
+# Layout Engine Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the Engine subsystem of the Layout subsystem
+# - Engines are reusable geometric layout components independent of the SysML model
+# - Requirements describe observable geometric behavior, not the algorithms used
+
+sections:
+  - title: Layout Engine Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-ModelIndependent
+        title: >-
+          The layout engines shall compute geometry from plain geometric inputs (sizes,
+          edges, anchors, and connections) without reference to the SysML semantic model.
+        justification: |
+          Keeping the engines independent of the semantic model allows every view strategy
+          to reuse the same engines and allows each engine to be tested in isolation with
+          synthetic geometric input.
+        tests:
+          - Route_NoObstacles_ProducesOrthogonalPath
+          - Place_ConnectedGraph_AllRectsWithinBounds
+          - Place_Chain_AssignsIncreasingLayers
+
+      - id: SysML2Tools-Core-Layout-Engine-NonOverlapping
+        title: >-
+          The placement engines shall position boxes so that boxes placed in the same
+          region do not overlap one another.
+        justification: |
+          Overlapping boxes produce unreadable diagrams. Non-overlap is an observable
+          property of the produced geometry that any placement engine must guarantee.
+        tests:
+          - Place_SameLayerNodes_DoNotOverlap
+          - Place_ConnectedGraph_ProducesNoOverlaps
+
+      - id: SysML2Tools-Core-Layout-Engine-Deterministic
+        title: >-
+          Given identical input, the layout engines shall produce identical geometry on
+          every invocation.
+        justification: |
+          Deterministic output is required for reproducible diagrams, stable golden-image
+          tests, and meaningful diffs between renders of the same model.
+        tests:
+          - Place_SameInput_IsDeterministic
+          - Route_AlignedEndpoints_ProducesStraightLine

@@ -14,7 +14,25 @@ includes:
   - docs/reqstream/sysml2-tools-core/semantic/internal/reference-resolver.yaml
   - docs/reqstream/sysml2-tools-core/semantic/internal/supertype-walker.yaml
   - docs/reqstream/sysml2-tools-core/layout.yaml
+  - docs/reqstream/sysml2-tools-core/layout/connector-label-placer.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/channel-router.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/force-directed-engine.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/port-assigner.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered-layout-engine.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/containment-packer.yaml
+  - docs/reqstream/sysml2-tools-core/layout/internal.yaml
+  - docs/reqstream/sysml2-tools-core/layout/internal/general-view-layout-strategy.yaml
+  - docs/reqstream/sysml2-tools-core/layout/internal/interconnection-view-layout-strategy.yaml
+  - docs/reqstream/sysml2-tools-core/layout/internal/state-transition-view-layout-strategy.yaml
+  - docs/reqstream/sysml2-tools-core/layout/internal/action-flow-view-layout-strategy.yaml
+  - docs/reqstream/sysml2-tools-core/layout/internal/sequence-view-layout-strategy.yaml
+  - docs/reqstream/sysml2-tools-core/layout/internal/grid-view-layout-strategy.yaml
+  - docs/reqstream/sysml2-tools-core/layout/internal/browser-view-layout-strategy.yaml
+  - docs/reqstream/sysml2-tools-core/layout/internal/layout-warnings.yaml
   - docs/reqstream/sysml2-tools-core/rendering.yaml
+  - docs/reqstream/sysml2-tools-core/rendering/internal.yaml
+  - docs/reqstream/sysml2-tools-core/rendering/internal/diagram-type-router.yaml
   - docs/reqstream/sysml2-tools-svg.yaml
   - docs/reqstream/sysml2-tools-png.yaml
   - docs/reqstream/sysml2-tools-tool.yaml

@@ -1,0 +1,41 @@
+---
+# ConnectorLabelPlacer Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the ConnectorLabelPlacer unit
+# - ConnectorLabelPlacer computes screen positions for connector (midpoint) labels
+# - Requirements describe observable placement properties, not the placement algorithm
+
+sections:
+  - title: ConnectorLabelPlacer Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-ConnectorLabelPlacer-LabelledLinesOnly
+        title: >-
+          ConnectorLabelPlacer shall compute a position for every line that carries a label and
+          shall omit lines that carry no label.
+        justification: |
+          Only labelled connectors need a label position. Omitting unlabelled lines keeps the
+          result limited to the connectors that are actually annotated.
+        tests:
+          - Place_LineWithoutLabel_IsOmitted
+
+      - id: SysML2Tools-Core-Layout-ConnectorLabelPlacer-PreferredPlacement
+        title: >-
+          ConnectorLabelPlacer shall place a connector's label at the midpoint of the connector's
+          longest segment.
+        justification: |
+          The longest segment is the most open run of a connector, so a label centered there is the
+          least likely to overlap boxes or bends and reads as belonging to that connector.
+        tests:
+          - Place_SingleLine_UsesLongestSegmentMidpoint
+
+      - id: SysML2Tools-Core-Layout-ConnectorLabelPlacer-Separation
+        title: >-
+          When two labels would otherwise overlap, ConnectorLabelPlacer shall separate them so the
+          placed labels do not collide, resolving the order deterministically from the input order.
+        justification: |
+          Overlapping labels are unreadable. Moving a colliding label clear of the ones already
+          placed keeps every label legible, and resolving collisions by input order makes the
+          result reproducible across renderers.
+        tests:
+          - Place_CollidingLabels_AreSeparated
