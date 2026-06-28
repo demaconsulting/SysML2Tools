@@ -240,7 +240,53 @@ marker defs (already present). No new engines.
 **Visual gate:** state/action/sequence/general galleries match §3.3 end shapes; membership
 diamonds appear where membership is shown.
 
-### Phase 14 — Additional relationship edges (General View)
+### Phase 14 — Layout Engine v2
+
+Replace the ad-hoc placement and heat-expansion logic with a principled, axis-symmetric
+layout algorithm. This phase ships before any further notation or view-dynamics work
+because every subsequent phase adds edges and shapes that make routing congestion worse;
+building on a correct foundation avoids retroactive layout fixes.
+
+The full algorithm is specified in **`docs/layout/`** (compiled to
+`docs/generated/SysML2 Tools Layout Guide.pdf`). Summary of changes:
+
+**New engines** (`Layout/Engine/`):
+- `ConnectivityAnalyzer` — affinity matrix, layer hints, cluster membership, barycenter
+  crossing-minimisation
+- `HighwayAssigner` — global routing on coarse grid; channel scoring; highway
+  classification and edge assignment; cost-discount map for `ChannelRouter`
+- `GravityCompressor` — oversized-to-minimum compression loop; both-axis, monotone,
+  clearance-floored
+- `GridQuantizer` — G-aligned position/size snapping; column-width and row-height
+  unification
+
+**Extended engines**:
+- `ForceDirectedEngine` — anisotropic hierarchy gravity `k_hier`; wire-pressure force;
+  kinetic energy as termination signal
+- `LayeredLayoutEngine` — Monte Carlo multi-seed option; per-seed crossing count
+- `ChannelRouter` — per-cell cost-multiplier map for highway discounts
+
+**Strategy changes**:
+- `GeneralViewLayoutStrategy` — full replacement of placement phase (remove
+  `DetectRows`, `MeasureVerticalBandHeat`, `ApplyPerBandYShifts`, heat loop); wire new
+  pipeline (Free 2D mode)
+- `ActionFlowViewLayoutStrategy` — adopt Directed Flow mode with strong hierarchy gravity
+  and back-edge arc routing
+- `StateTransitionViewLayoutStrategy` — same as Action Flow strategy
+- `InterconnectionViewLayoutStrategy` — retain existing force-directed placement;
+  add `GravityCompressor` and `GridQuantizer` passes
+
+**Documentation**: `docs/layout/` contains the design specification for this phase and
+ships as a compiled PDF alongside the implementation. SVG illustrations for each algorithm
+stage are committed under `docs/layout/images/`.
+
+**Scope:** four new engines; three extended engines; three strategy rewrites; one strategy
+minor update; `docs/layout/` document.
+**Visual gate:** DroneGeneralView and all gallery models show compact balanced layout with
+no excessive whitespace; TrafficLightStates and OrderActionFlow show clean top-to-bottom
+flow; no regression on any existing gallery model.
+
+### Phase 15 — Additional relationship edges (General View)
 
 Render the relationships currently omitted from the General View, each routed via
 `ChannelRouter` and carrying the correct §3.3 end shape:
@@ -254,7 +300,7 @@ Render the relationships currently omitted from the General View, each routed vi
 `GeneralViewLayoutStrategy` edge emission; resolver coverage.
 **Visual gate:** a model exercising each relationship renders distinct, correctly-headed edges.
 
-### Phase 15 — Annotating elements & compartment depth
+### Phase 16 — Annotating elements & compartment depth
 
 - Render **Documentation/Comment** notes as `BoxShape.Note` (folded-corner) nodes attached to
   their annotated element.
@@ -265,7 +311,7 @@ Render the relationships currently omitted from the General View, each routed vi
 and renderers; possibly `LayoutLabel`/compartment tweaks.
 **Visual gate:** a documented requirement/part renders its note and full compartments.
 
-### Phase 16 — View dynamics refinements
+### Phase 17 — View dynamics refinements (was Phase 16)
 
 - **Sequence View:** populate `LayoutActivation` execution bars; combined-fragment boxes
   (alt/opt/loop); async/reply message styling.
@@ -277,7 +323,7 @@ primitives (bar, diamond, pentagon, note). `LayoutActivation`/`LayoutBand` alrea
 **Visual gate:** sequence shows activation bars + a fragment; action flow shows a fork/join and
 a decision/merge with correct shapes.
 
-### Phase 17 — Release readiness
+### Phase 18 — Release readiness (was Phase 17)
 
 **Self-validation suite (expand from 3 to ~12 tests).** Downstream projects run
 `sysml2tools --validate` in their own environment as tool-qualification evidence, and the
@@ -323,10 +369,10 @@ per-package README notes incl. the SkiaSharp native-assets requirement for
 `DemaConsulting.SysML2Tools.Png` consumers.
 
 **Documentation:** the **README and User Guide must state that the Geometry View is not yet
-supported** (planned for 0.2.0). Author the `docs/rendering` techniques document — a
-pandoc-compiled PDF (peer to the user guide): the layout→render pipeline, engine catalog,
-connector-routing and label principles, the §3 notation-conventions table, and an
-invariants/gotchas section; wire into CI (`build.yaml`, `.fileassert.yaml`, `.reviewmark.yaml`).
+supported** (planned for 0.2.0). Finalise `docs/layout/` (the layout algorithm
+reference, authored during Phase 14) — add the §3 notation-conventions table, an
+invariants/gotchas section, and any remaining SVG illustrations; wire into CI
+(`build.yaml`, `.fileassert.yaml`, `.reviewmark.yaml`).
 
 **Gallery & packaging:** regenerate the gallery against the final notation and refresh
 `docs/gallery/README.md`; set version metadata, package descriptions/icons/tags, and 0.1.0
@@ -335,9 +381,9 @@ confirm `dotnet tool install` and library-package consumption paths.
 
 **Gate:** the self-validation suite passes on all three OSes; the package-validation script passes
 (tool installs and renders SVG + PNG; library consumer renders PNG); `--licenses` lists OFL text;
-README/User Guide note Geometry as unsupported; gallery reflects Phase 13–16 notation.
+README/User Guide note Geometry as unsupported; gallery reflects Phase 13–17 notation.
 
-### Phase 18 — 0.1.0 Release
+### Phase 19 — 0.1.0 Release (was Phase 18)
 
 Final full-suite validation; tag `v0.1.0`; publish the four NuGet packages; create the GitHub
 release with notes and gallery highlights. **Publishing requires maintainer authorization
