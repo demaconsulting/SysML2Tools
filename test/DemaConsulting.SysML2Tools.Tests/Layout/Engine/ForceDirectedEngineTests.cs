@@ -103,6 +103,37 @@ public sealed class ForceDirectedEngineTests
         }
     }
 
+    /// <summary>Hierarchy gravity (kHier=1.0) produces more vertical spread than the flat case.</summary>
+    [Fact]
+    public void Place_HierarchyGravity_IncreasesVerticalSpread()
+    {
+        var nodes = Enumerable.Range(0, 5).Select(_ => new ForceNode(50, 30)).ToList();
+        var edges = new[]
+        {
+            new ForceEdge(0, 1), new ForceEdge(1, 2), new ForceEdge(2, 3), new ForceEdge(3, 4),
+        };
+        var layers = new[] { 0, 1, 2, 3, 4 };
+
+        var flat = ForceDirectedEngine.Place(nodes, edges, spacing: 90, padding: 10, kHier: 0.0, layerHints: layers);
+        var hier = ForceDirectedEngine.Place(nodes, edges, spacing: 90, padding: 10, kHier: 1.0, layerHints: layers);
+
+        Assert.True(hier.Height > flat.Height, $"flat={flat.Height} hier={hier.Height}");
+    }
+
+    /// <summary>The kinetic-energy overload remains deterministic and backward-compatible.</summary>
+    [Fact]
+    public void Place_KineticTermination_IsDeterministicAndCompatible()
+    {
+        var nodes = Enumerable.Range(0, 4).Select(_ => new ForceNode(50, 30)).ToList();
+        var edges = new[] { new ForceEdge(0, 1), new ForceEdge(1, 2), new ForceEdge(2, 3) };
+
+        var a = ForceDirectedEngine.Place(nodes, edges, spacing: 80, padding: 10);
+        var b = ForceDirectedEngine.Place(nodes, edges, spacing: 80, padding: 10, kHier: 0.0, layerHints: null);
+
+        Assert.Equal(a.Width, b.Width, 9);
+        Assert.Equal(a.Height, b.Height, 9);
+    }
+
     /// <summary>Determines whether two rectangles overlap with a positive-area intersection.</summary>
     private static bool Overlaps(PackedRect a, PackedRect b) =>
         a.X < b.X + b.Width &&

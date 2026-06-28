@@ -39,14 +39,21 @@ internal sealed record ForceResult(double Width, double Height, IReadOnlyList<Pa
 /// </remarks>
 internal static class ForceDirectedEngine
 {
-    /// <summary>Number of force-application iterations.</summary>
+    /// <summary>Maximum number of force-application iterations.</summary>
     private const int Iterations = 300;
+
+    /// <summary>Consecutive low-energy iterations required before early termination.</summary>
+    private const int KineticEnergyWindow = 5;
+
+    /// <summary>Total squared displacement below which an iteration counts as settled.</summary>
+    private const double KineticEnergyThreshold = 300.0;
 
     /// <summary>Golden angle in radians, used to spread the deterministic initial seed.</summary>
     private const double GoldenAngle = 2.399963229728653;
 
     /// <summary>
-    /// Computes a force-directed placement for the given nodes and edges.
+    /// Computes a force-directed placement for the given nodes and edges. Hierarchy gravity is
+    /// disabled, matching the original flat (free-2D) behaviour.
     /// </summary>
     /// <param name="nodes">Nodes to place, in caller order.</param>
     /// <param name="edges">Edges contributing attractive forces (indices into <paramref name="nodes"/>).</param>
@@ -57,7 +64,31 @@ internal static class ForceDirectedEngine
         IReadOnlyList<ForceNode> nodes,
         IReadOnlyList<ForceEdge> edges,
         double spacing,
-        double padding)
+        double padding) =>
+        Place(nodes, edges, spacing, padding, kHier: 0.0, layerHints: null);
+
+    /// <summary>
+    /// Computes a force-directed placement with an optional anisotropic vertical hierarchy gravity.
+    /// When <paramref name="kHier"/> is positive and per-node layer hints are supplied, each node is
+    /// biased toward a reading-direction y-band proportional to its layer, producing a flow that is
+    /// flat for <c>kHier = 0</c> and increasingly columnar as <c>kHier</c> rises. A wire-pressure
+    /// outward force (annealed with the cooling temperature) opens dense regions early, and the
+    /// simulation terminates early once kinetic energy stays low for several consecutive iterations.
+    /// </summary>
+    /// <param name="nodes">Nodes to place, in caller order.</param>
+    /// <param name="edges">Edges contributing attractive forces (indices into <paramref name="nodes"/>).</param>
+    /// <param name="spacing">Nominal spacing between adjacent node centres (the spring rest length).</param>
+    /// <param name="padding">Uniform padding added around the placed region.</param>
+    /// <param name="kHier">Hierarchy/affinity ratio: 0 = flat, 1 = near-hard reading direction.</param>
+    /// <param name="layerHints">Optional per-node layer (0 = top); null disables hierarchy gravity.</param>
+    /// <returns>A <see cref="ForceResult"/> with one rectangle per node and the region size.</returns>
+    public static ForceResult Place(
+        IReadOnlyList<ForceNode> nodes,
+        IReadOnlyList<ForceEdge> edges,
+        double spacing,
+        double padding,
+        double kHier,
+        IReadOnlyList<int>? layerHints)
     {
         ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(edges);
@@ -91,7 +122,7 @@ internal static class ForceDirectedEngine
         var temperature = Math.Sqrt(area) / 2.0;
         var cooling = temperature / (Iterations + 1);
 
-        ApplyForces(nodes, edges, px, py, k, temperature, cooling);
+        ApplyForces(nodes, edges, px, py, k, temperature, cooling, kHier, layerHints, spacing);
         RemoveOverlaps(nodes, px, py, spacing);
 
         return BuildResult(nodes, px, py, padding);
@@ -105,18 +136,26 @@ internal static class ForceDirectedEngine
         double[] py,
         double k,
         double temperature,
-        double cooling)
+        double cooling,
+        double kHier,
+        IReadOnlyList<int>? layerHints,
+        double spacing)
     {
         var n = nodes.Count;
         var dx = new double[n];
         var dy = new double[n];
+        var initialTemp = temperature;
+        var hierarchy = kHier > 0.0 && layerHints is not null && layerHints.Count == n;
+        var settledRun = 0;
 
         for (var iter = 0; iter < Iterations; iter++)
         {
             Array.Clear(dx);
             Array.Clear(dy);
 
-            // Repulsive forces between every pair of nodes.
+            // Repulsive forces between every pair of nodes, plus an annealed wire-pressure term that
+            // pushes crowded pairs apart most strongly while the system is still hot.
+            var pressure = temperature / Math.Max(initialTemp, 0.01);
             for (var i = 0; i < n; i++)
             {
                 for (var j = i + 1; j < n; j++)
@@ -124,7 +163,7 @@ internal static class ForceDirectedEngine
                     var deltaX = px[i] - px[j];
                     var deltaY = py[i] - py[j];
                     var dist = Math.Max(Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY)), 0.01);
-                    var repulse = (k * k) / dist;
+                    var repulse = ((k * k) / dist) + (pressure * k * 0.25);
                     var ux = deltaX / dist;
                     var uy = deltaY / dist;
                     dx[i] += ux * repulse;
@@ -149,16 +188,35 @@ internal static class ForceDirectedEngine
                 dy[edge.B] += uy * attract;
             }
 
+            // Anisotropic hierarchy gravity: pull each node toward its layer's vertical band.
+            if (hierarchy)
+            {
+                for (var i = 0; i < n; i++)
+                {
+                    var targetY = layerHints![i] * spacing;
+                    dy[i] += kHier * (targetY - py[i]);
+                }
+            }
+
             // Displace each node, capped by the current temperature, then cool down.
+            var energy = 0.0;
             for (var i = 0; i < n; i++)
             {
                 var disp = Math.Max(Math.Sqrt((dx[i] * dx[i]) + (dy[i] * dy[i])), 0.01);
                 var capped = Math.Min(disp, temperature);
                 px[i] += (dx[i] / disp) * capped;
                 py[i] += (dy[i] / disp) * capped;
+                energy += capped * capped;
             }
 
             temperature = Math.Max(temperature - cooling, 0.0);
+
+            // Kinetic-energy termination: stop once the system stays nearly still for a few iterations.
+            settledRun = energy < KineticEnergyThreshold ? settledRun + 1 : 0;
+            if (settledRun >= KineticEnergyWindow)
+            {
+                break;
+            }
         }
     }
 

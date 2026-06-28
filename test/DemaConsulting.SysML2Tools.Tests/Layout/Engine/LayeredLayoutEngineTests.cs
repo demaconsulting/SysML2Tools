@@ -109,6 +109,47 @@ public sealed class LayeredLayoutEngineTests
         }
     }
 
+    /// <summary>PlaceMultiSeed with one seed matches Place exactly.</summary>
+    [Fact]
+    public void PlaceMultiSeed_OneSeed_MatchesPlace()
+    {
+        var nodes = Enumerable.Range(0, 5).Select(_ => new LayeredNode(60, 30)).ToList();
+        var edges = new[]
+        {
+            new LayeredEdge(0, 1), new LayeredEdge(0, 2), new LayeredEdge(1, 3), new LayeredEdge(2, 4),
+        };
+
+        var single = LayeredLayoutEngine.Place(nodes, edges, layerGap: 40, nodeGap: 20, padding: 10);
+        var multi = LayeredLayoutEngine.PlaceMultiSeed(nodes, edges, seeds: 1, layerGap: 40, nodeGap: 20, padding: 10);
+
+        Assert.Equal(single.Width, multi.Width, 9);
+        Assert.Equal(single.Height, multi.Height, 9);
+        for (var i = 0; i < single.Rects.Count; i++)
+        {
+            Assert.Equal(single.Rects[i].X, multi.Rects[i].X, 9);
+        }
+    }
+
+    /// <summary>Three seeds produce a valid, non-overlapping placement.</summary>
+    [Fact]
+    public void PlaceMultiSeed_ThreeSeeds_ValidPlacement()
+    {
+        var nodes = Enumerable.Range(0, 6).Select(_ => new LayeredNode(60, 30)).ToList();
+        var edges = new[]
+        {
+            new LayeredEdge(0, 3), new LayeredEdge(1, 4), new LayeredEdge(2, 5),
+            new LayeredEdge(0, 4), new LayeredEdge(1, 5),
+        };
+
+        var result = LayeredLayoutEngine.PlaceMultiSeed(nodes, edges, seeds: 3, layerGap: 40, nodeGap: 20, padding: 10);
+
+        Assert.Equal(6, result.Rects.Count);
+        foreach (var r in result.Rects)
+        {
+            Assert.True(r.X + r.Width <= result.Width + 1e-6);
+        }
+    }
+
     /// <summary>Determines whether two rectangles overlap with a positive-area intersection.</summary>
     private static bool Overlaps(PackedRect a, PackedRect b) =>
         a.X < b.X + b.Width &&

@@ -78,6 +78,87 @@ internal static class LayeredLayoutEngine
     }
 
     /// <summary>
+    /// Computes a layered placement by trying several deterministic per-seed within-layer
+    /// permutations and keeping the one with the lowest edge-crossing count. <c>seeds = 1</c> is
+    /// identical to <see cref="Place"/>; higher seed counts explore alternate orderings.
+    /// </summary>
+    /// <param name="nodes">Nodes to place, in caller order.</param>
+    /// <param name="edges">Directed edges (indices into <paramref name="nodes"/>).</param>
+    /// <param name="seeds">Number of orderings to evaluate (clamped to at least 1).</param>
+    /// <param name="layerGap">Vertical gap between adjacent layers.</param>
+    /// <param name="nodeGap">Horizontal gap between adjacent nodes in a layer.</param>
+    /// <param name="padding">Uniform padding added around the placed region.</param>
+    /// <returns>The lowest-crossing <see cref="LayeredResult"/> over all seeds.</returns>
+    public static LayeredResult PlaceMultiSeed(
+        IReadOnlyList<LayeredNode> nodes,
+        IReadOnlyList<LayeredEdge> edges,
+        int seeds,
+        double layerGap,
+        double nodeGap,
+        double padding)
+    {
+        ArgumentNullException.ThrowIfNull(nodes);
+        ArgumentNullException.ThrowIfNull(edges);
+
+        var baseResult = Place(nodes, edges, layerGap, nodeGap, padding);
+        if (seeds <= 1 || nodes.Count == 0)
+        {
+            return baseResult;
+        }
+
+        var acyclic = BreakCycles(nodes.Count, edges);
+        var layers = AssignLayers(nodes.Count, acyclic);
+        var best = baseResult;
+        var bestCrossings = TotalCrossings(GroupByLayerSeeded(layers, 0), acyclic);
+
+        for (var seed = 1; seed < seeds; seed++)
+        {
+            var groups = GroupByLayerSeeded(layers, seed);
+            OrderLayers(groups, acyclic);
+            var crossings = TotalCrossings(groups, acyclic);
+            if (crossings < bestCrossings)
+            {
+                bestCrossings = crossings;
+                best = AssignCoordinates(nodes, groups, layers, acyclic, layerGap, nodeGap, padding);
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>Groups nodes by layer using a deterministic per-seed within-layer permutation.</summary>
+    private static List<List<int>> GroupByLayerSeeded(int[] layers, int seed)
+    {
+        var groups = GroupByLayer(layers);
+        if (seed == 0)
+        {
+            return groups;
+        }
+
+        foreach (var group in groups)
+        {
+            // Deterministic shuffle keyed by seed and node index — no shared RNG state.
+            group.Sort((a, b) => ((a * 2654435761L) ^ (seed * 40503L)).GetHashCode()
+                .CompareTo(((b * 2654435761L) ^ (seed * 40503L)).GetHashCode()));
+        }
+
+        return groups;
+    }
+
+    /// <summary>Sums the crossing count across all adjacent layer pairs for the given ordering.</summary>
+    private static int TotalCrossings(List<List<int>> groups, List<LayeredEdge> edges)
+    {
+        var connEdges = edges.Select(e => new ConnectivityEdge(e.From, e.To)).ToList();
+        var total = 0;
+        for (var l = 0; l + 1 < groups.Count; l++)
+        {
+            total += ConnectivityAnalyzer.CrossingScore(groups[l], groups[l + 1], connEdges);
+        }
+
+        return total;
+    }
+
+    /// <summary>
     /// Returns the edge set with cycle-causing back edges reversed, using a DFS that classifies an
     /// edge to a node currently on the recursion stack as a back edge.
     /// </summary>
