@@ -38,5 +38,5 @@ configuration are required beyond a standard .NET SDK installation.
 | `GeneralViewLayoutStrategy_BuildLayout_Subclassification_ProducesEdge` | Line with open arrowhead at supertype |
 | `GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded` | Seed-listed definitions excluded; empty canvas |
 | `GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments` | Attribute and port compartments |
-| `GeneralViewLayoutStrategy_BuildLayout_CompositeMembership_ProducesFilledDiamondEdge` | Filled-diamond edge from member type to owner |
-| `GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesDiamondEdge` | Open-diamond edge from ref type to owner |
+| `GeneralViewLayoutStrategy_BuildLayout_CompositeMembership_ProducesFilledDiamondEdge` | Filled-diamond at owner |
+| `GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesDiamondEdge` | Open-diamond edge, ref→owner |
