@@ -81,24 +81,33 @@ sections:
           with keyword <c>part</c> or <c>port</c> with a filled-diamond arrowhead at the owning
           definition end.
         justification: |
-          Only structural containment relationships — part and port features — are shown as
-          filled-diamond edges in a General View. Attribute, ref, and other non-structural
-          features do not add membership edges, which keeps the diagram readable by reducing
-          visual clutter.
+          Structural containment relationships — part and port features — are shown as
+          filled-diamond edges in a General View. Non-structural features (attribute, value,
+          item, etc.) are already visible in compartments and do not need a separate arrow.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_CompositeMembership_ProducesFilledDiamondEdge
           - GeneralViewLayoutStrategy_BuildLayout_PortFeature_ProducesFilledDiamondEdge
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ReferenceMembership
         title: >-
-          GeneralViewLayoutStrategy shall NOT draw a membership edge for features with keywords
-          other than <c>part</c> or <c>port</c> (e.g. <c>ref</c>, <c>attribute</c>).
+          GeneralViewLayoutStrategy shall connect a definition to the type of each owned <c>ref</c>
+          feature with a hollow-diamond arrowhead at the owning definition end.
         justification: |
-          Reference and attribute features describe usage, not structural containment. Omitting
-          their edges prevents the General View from becoming cluttered with non-structural
-          relationships that are better left to other view types.
+          Reference membership (e.g. a requirement's subject feature) is a distinct SysML v2
+          relationship shown with a hollow diamond. Rendering it as a separate edge distinguishes
+          it visually from structural containment (filled diamond).
         tests:
-          - GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_DoesNotProduceEdge
+          - GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesHollowDiamondEdge
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NonStructuralMembership
+        title: >-
+          GeneralViewLayoutStrategy shall not draw membership edges for features with non-structural
+          keywords such as <c>attribute</c>, <c>value</c>, or <c>item</c>.
+        justification: |
+          Non-structural features describe usage, not containment or reference. Omitting their
+          edges prevents the General View from becoming cluttered with relationships that are
+          already readable as compartment text.
+        tests:
           - GeneralViewLayoutStrategy_BuildLayout_AttributeFeature_DoesNotProduceDiamondEdge
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AdaptiveGap
@@ -110,4 +119,4 @@ sections:
           proportionally to the crossing ratio and re-placing boxes up to four times reduces
           crossings without requiring manual layout hints from the user.
         tests:
-          - GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelIsWiderThanSparseModel
+          - GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelProducesCleanLayout

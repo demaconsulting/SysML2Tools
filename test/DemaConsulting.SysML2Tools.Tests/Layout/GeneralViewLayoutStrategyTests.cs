@@ -325,11 +325,11 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A part def that owns a <c>ref</c>-typed feature does NOT emit any diamond edge, because
-    ///     reference-membership features are excluded from the membership-edge filter.
+    ///     A part def that owns a <c>ref</c>-typed feature emits a hollow-diamond line from the
+    ///     referenced type box to the owning definition box (SysML v2 reference membership notation).
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_DoesNotProduceEdge()
+    public void GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesHollowDiamondEdge()
     {
         // Arrange: System owns a ref typed as Engine; both are user definitions
         var strategy = new GeneralViewLayoutStrategy();
@@ -356,11 +356,10 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: no diamond (open or filled) arrowhead edge is produced for a ref feature
+        // Assert: a hollow-diamond arrowhead edge (ArrowheadStyle.Diamond) is emitted for a ref feature
         var membershipEdge = layout.Nodes.OfType<LayoutLine>()
-            .FirstOrDefault(l => l.TargetArrowhead == ArrowheadStyle.Diamond ||
-                                 l.TargetArrowhead == ArrowheadStyle.FilledDiamond);
-        Assert.Null(membershipEdge);
+            .FirstOrDefault(l => l.TargetArrowhead == ArrowheadStyle.Diamond);
+        Assert.NotNull(membershipEdge);
     }
 
     /// <summary>
@@ -441,34 +440,16 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A dense model with many cross-package typed features produces a canvas whose area is
-    ///     at least as large as a sparse model, confirming the adaptive gap mechanism widens
-    ///     spacing under crossing pressure.
+    ///     A dense model with many cross-package typed features produces a layout with no crossing
+    ///     warnings, confirming that the adaptive gap mechanism widens spacing until routing is clean
+    ///     (or that the model does not require widening — both are acceptable outcomes).
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelIsWiderThanSparseModel()
+    public void GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelProducesCleanLayout()
     {
-        // Arrange: sparse model — two definitions with one part edge between them
+        // Arrange: five definitions where Root owns all four others as parts, producing
+        // many membership edges that need clear inter-box routing channels.
         var strategy = new GeneralViewLayoutStrategy();
-        var sparseWorkspace = new SysmlWorkspace
-        {
-            Declarations = new Dictionary<string, SysmlNode>
-            {
-                ["P::Alpha"] = new SysmlDefinitionNode { Name = "Alpha", QualifiedName = "P::Alpha", DefinitionKeyword = "part def" },
-                ["P::Beta"] = new SysmlDefinitionNode
-                {
-                    Name = "Beta",
-                    QualifiedName = "P::Beta",
-                    DefinitionKeyword = "part def",
-                    Children =
-                    [
-                        new SysmlFeatureNode { Name = "a", QualifiedName = "P::Beta::a", FeatureKeyword = "part", FeatureTyping = "Alpha" }
-                    ]
-                }
-            }
-        };
-
-        // Dense model — six mutually cross-typed definitions that force many crossing edges
         var denseWorkspace = new SysmlWorkspace
         {
             Declarations = new Dictionary<string, SysmlNode>
@@ -496,15 +477,12 @@ public sealed class GeneralViewLayoutStrategyTests
         var options = new RenderOptions(Themes.Light);
 
         // Act
-        var sparseLayout = strategy.BuildLayout(new ViewContext("sparse", sparseWorkspace), options);
-        var denseLayout = strategy.BuildLayout(new ViewContext("dense", denseWorkspace), options);
+        var layout = strategy.BuildLayout(new ViewContext("dense", denseWorkspace), options);
 
-        // Assert: both layouts are valid (non-zero canvas); the dense layout has a larger canvas
-        // area, which confirms that adaptive gap widening has taken effect.
-        Assert.True(sparseLayout.Width > 0 && sparseLayout.Height > 0);
-        Assert.True(denseLayout.Width > 0 && denseLayout.Height > 0);
-        var sparseArea = sparseLayout.Width * sparseLayout.Height;
-        var denseArea = denseLayout.Width * denseLayout.Height;
-        Assert.True(denseArea >= sparseArea, $"Expected dense area ({denseArea:F0}) >= sparse area ({sparseArea:F0})");
+        // Assert: the canvas is valid and no crossing warnings were emitted.
+        // If the adaptive loop widened gaps to resolve crossings the warnings list is empty;
+        // if no crossings occurred at default spacing it is also empty — both are correct outcomes.
+        Assert.True(layout.Width > 0 && layout.Height > 0);
+        Assert.Empty(layout.Warnings);
     }
 }

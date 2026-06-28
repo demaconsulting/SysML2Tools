@@ -540,8 +540,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
             foreach (var membership in def.Memberships)
             {
-                // Only emit diamond edges for structural keywords (part or port).
-                if (membership.Keyword != "part" && membership.Keyword != "port")
+                // Structural keywords emit diamond edges; non-structural keywords (attribute, value,
+                // item, etc.) are already shown as compartment text and do not need a separate arrow.
+                var arrowhead = membership.Keyword switch
+                {
+                    "part" or "port" => ArrowheadStyle.FilledDiamond,
+                    "ref" => ArrowheadStyle.Diamond,
+                    _ => ArrowheadStyle.None,
+                };
+
+                if (arrowhead == ArrowheadStyle.None)
                 {
                     continue;
                 }
@@ -552,8 +560,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     continue;
                 }
 
-                // Route from member-type box to owner box; filled diamond (TargetArrowhead) sits at the owner.
-                var (edge, crossed) = RouteMembershipEdge(memberTypeBox, ownerBox, placed, ArrowheadStyle.FilledDiamond);
+                // Route from member-type box to owner box; diamond (TargetArrowhead) sits at the owner.
+                var (edge, crossed) = RouteMembershipEdge(memberTypeBox, ownerBox, placed, arrowhead);
                 edges.Add(edge);
                 if (crossed)
                 {
