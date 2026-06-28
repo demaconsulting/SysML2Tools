@@ -433,7 +433,7 @@ face and corridor wall).
 ![Port merging: before (individual slots, crossing stubs) vs after (one merged trunk, comb fan-out)](images/highway-trunk.svg)
 
 `PortAssigner` eliminates stub crossings by grouping all connections sharing
-`(face, directionality, highway_id)` into a single **merged trunk**:
+`(face, directionality, highway_id, connector_type)` into a single **merged trunk**:
 
 - The block face exposes **one port point** per group regardless of the wire count N.
 - In the stub area a **comb fan-out** branches the trunk into individual wire lanes.
@@ -451,6 +451,61 @@ face and corridor wall).
 The merged trunk reduces per-face port demand from N slots to 1, resolving the port
 capacity constraint for most diagrams. Remaining overload is handled by the threshold
 tiers below.
+
+#### Grouping Key in Full
+
+The four-component key `(face, directionality, highway_id, connector_type)` is the minimal
+set needed for a correct merge:
+
+- **`face`** — connections exiting different faces of the same block are physically
+  separate and must not be merged (their stubs leave in opposite directions).
+- **`directionality`** — outgoing (source-side fan-out) and incoming (destination-side
+  fan-in) groups are handled symmetrically but independently; mixing them would reverse
+  arrowhead direction mid-trunk.
+- **`highway_id`** — connections sharing a face but routed through *different* corridors
+  occupy non-overlapping lane bands and must form separate trunks.
+- **`connector_type`** — in SysML2, connector types carry semantic meaning (usage,
+  composition, generalisation, dependency) expressed through distinct visual styles (colour,
+  dash pattern, arrowhead shape). Bundling different types into one trunk destroys this
+  distinction: the reader cannot determine from a thick trunk or a ×N badge what
+  relationship it represents. Keeping type in the key ensures each bundle inherits the
+  correct style, and multiple type-groups can coexist as separate sub-bundles within the
+  same corridor.
+
+#### Destination-Side Merging
+
+The algorithm is symmetric. If two source blocks `S1→Dest` and `S2→Dest` both arrive
+through the same corridor with the same connector type, they form a **destination-side
+bundle**: `(dest_face, incoming, highway_id, connector_type)` — the same four-component key
+as an outgoing group, with `directionality = incoming`. `Dest` exposes one merged trunk
+entry on its incoming face; the comb fans out in `Dest`'s stub area to the individual wires
+running back to `S1` and `S2`. `PortAssigner` runs once per block and processes outgoing and
+incoming groups with identical logic, so every face of every block is automatically
+optimised. (Here `S1`/`S2` are two source blocks feeding the shared destination `Dest`.)
+
+#### Mixed Exit Sides
+
+If Hub connects to D1, D2 on the left *and* D3, D4 on the right, two mechanisms
+independently prevent incorrect merging — no explicit special-case logic is required:
+
+1. **Face assignment**: `PortAssigner` assigns each connection to the hub face whose
+   outward normal has the largest projected component onto the source-to-destination vector
+   (i.e. the face pointing most directly toward the entry of the destination's committed
+   corridor). Hub→D1,D2 uses the left face; Hub→D3,D4 uses the right face. Different faces
+   yield different grouping keys → different trunks.
+
+2. **`highway_id`**: even connections sharing a face are only merged if they travel through
+   the *same* corridor. Connections to the same side but via different vertical corridors
+   carry different `highway_id` values and form separate trunks.
+
+The residual ambiguous case arises when the source-to-destination vector lies near 45° to
+two adjacent candidate faces, so their normals have near-equal projections and no face is a
+clear maximum — this is the **trunk-face selection problem** (the choice of which face hosts
+the merged trunk, whose extent then fixes `trunk_face_h` in the capacity formula above). The
+projection rule resolves the general, well-separated case; exact or near-ties are broken
+deterministically by a fixed fallback — prefer the face whose corridor yields the shorter
+total stub length, then a stable face ordering if even that ties — so the assignment is
+always single-valued.
 
 ### Capacity Thresholds
 
@@ -731,12 +786,14 @@ container and compress its interior at the same density as the top level.
 Port-side assignment and slot distribution along a box edge. Extended in Layout Engine v2
 to be **highway-aware**: it chooses the box face pointing at an edge's committed corridor
 and orders slots along each face to match the corridor's wire order, so stubs do not cross
-at the box boundary. When several wires share the same `(face, directionality, highway_id)`
-it collapses them into a single **merged trunk** with a comb fan-out (see Port Merging),
-exposing **one** corridor-facing port point on that face instead of N independent slots; the
-comb then fans the trunk, without crossings, into the N individual corridor lanes that carry
-the wires on to their separate far-end blocks. Also
-assigns container-boundary ports for edges that cross into a container.
+at the box boundary. When several wires share the same
+`(face, directionality, highway_id, connector_type)` it collapses them into a single
+**merged trunk** with a comb fan-out (see Port Merging), exposing **one** corridor-facing
+port point on that face instead of N independent slots; the comb then fans the trunk,
+without crossings, into the N individual corridor lanes that carry the wires on to their
+separate far-end blocks. Runs symmetrically for both outgoing groups (source-side fan-out)
+and incoming groups (destination-side fan-in) on every face of every block. Also assigns
+container-boundary ports for edges that cross into a container.
 
 ## New Engines (Layout Engine v2)
 
