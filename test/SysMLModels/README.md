@@ -23,10 +23,10 @@ SysMLModels/
 ## Folder purposes
 
 | Folder | Purpose |
-|---|---|
+| --- | --- |
 | `Custom/` | Hand-authored models covering parser and semantic model breadth |
 | `OMG/` | Upstream OMG release models; provenance and license documented in subfolder README |
-| `TestCases/` | Minimal adversarial models that reproduce specific layout or rendering quality issues; grows monotonically as issues are discovered and fixed |
+| `TestCases/` | Minimal adversarial regression models for layout and rendering quality; grows monotonically |
 
 ## Adding a New Origin
 

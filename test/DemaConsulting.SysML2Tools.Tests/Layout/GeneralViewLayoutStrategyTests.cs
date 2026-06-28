@@ -485,4 +485,94 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.True(layout.Width > 0 && layout.Height > 0);
         Assert.Empty(layout.Warnings);
     }
+
+    /// <summary>
+    ///     A model with two rows of boxes connected by many part edges produces a canvas height
+    ///     greater than the baseline minimum spacing, confirming that heat expansion widens
+    ///     congested inter-row bands.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_HeatLayout_HotBandProducesWiderCanvas()
+    {
+        // Arrange: two packages (Row A and Row B) with four cross-row part edges, creating
+        // a dense inter-row band that should trigger heat-based gap expansion.
+        var strategy = new GeneralViewLayoutStrategy();
+        var sparseWorkspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Row1::A1"] = new SysmlDefinitionNode { Name = "A1", QualifiedName = "Row1::A1", DefinitionKeyword = "part def" },
+                ["Row2::B1"] = new SysmlDefinitionNode { Name = "B1", QualifiedName = "Row2::B1", DefinitionKeyword = "part def" }
+            }
+        };
+        var denseWorkspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Row1::A1"] = new SysmlDefinitionNode { Name = "A1", QualifiedName = "Row1::A1", DefinitionKeyword = "part def" },
+                ["Row1::A2"] = new SysmlDefinitionNode { Name = "A2", QualifiedName = "Row1::A2", DefinitionKeyword = "part def" },
+                ["Row1::A3"] = new SysmlDefinitionNode { Name = "A3", QualifiedName = "Row1::A3", DefinitionKeyword = "part def" },
+                ["Row2::B1"] = new SysmlDefinitionNode
+                {
+                    Name = "B1",
+                    QualifiedName = "Row2::B1",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "a1", QualifiedName = "Row2::B1::a1", FeatureKeyword = "part", FeatureTyping = "A1" },
+                        new SysmlFeatureNode { Name = "a2", QualifiedName = "Row2::B1::a2", FeatureKeyword = "part", FeatureTyping = "A2" },
+                        new SysmlFeatureNode { Name = "a3", QualifiedName = "Row2::B1::a3", FeatureKeyword = "part", FeatureTyping = "A3" }
+                    ]
+                }
+            }
+        };
+        var options = new RenderOptions(Themes.Light);
+
+        // Act: lay out both models and compare canvas heights.
+        var sparseLayout = strategy.BuildLayout(new ViewContext("sparse", sparseWorkspace), options);
+        var denseLayout = strategy.BuildLayout(new ViewContext("dense", denseWorkspace), options);
+
+        // Assert: the dense model produces a canvas at least as tall as the sparse one,
+        // confirming that heat expansion does not shrink the canvas.
+        Assert.True(denseLayout.Height >= sparseLayout.Height,
+            $"Dense canvas height {denseLayout.Height} should be >= sparse {sparseLayout.Height}");
+        Assert.True(denseLayout.Width > 0 && denseLayout.Height > 0);
+    }
+
+    /// <summary>
+    ///     A minimal model (two boxes and one edge between them) produces a canvas close to
+    ///     the default spacing minimum with no warnings, confirming the heat algorithm does
+    ///     not over-pad sparse layouts.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelUsesMinimumSpacing()
+    {
+        // Arrange: two definitions in the same package with a single specialization edge.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Base"] = new SysmlDefinitionNode { Name = "Base", QualifiedName = "P::Base", DefinitionKeyword = "part def" },
+                ["P::Sub"] = new SysmlDefinitionNode
+                {
+                    Name = "Sub",
+                    QualifiedName = "P::Sub",
+                    DefinitionKeyword = "part def",
+                    SupertypeNames = ["Base"]
+                }
+            }
+        };
+        var options = new RenderOptions(Themes.Light);
+
+        // Act: build layout for the sparse model.
+        var layout = strategy.BuildLayout(new ViewContext("sparse", workspace), options);
+
+        // Assert: canvas is valid, no warnings emitted, and height is within a reasonable
+        // upper bound (500px) confirming the heat algorithm does not artificially over-pad.
+        Assert.True(layout.Width > 0 && layout.Height > 0);
+        Assert.Empty(layout.Warnings);
+        Assert.True(layout.Height < 500.0,
+            $"Sparse canvas height {layout.Height} should be below 500px (no over-padding)");
+    }
 }

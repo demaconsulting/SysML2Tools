@@ -12,7 +12,8 @@ between subtypes and their supertypes.
 
 `GeneralViewLayoutStrategy` has no instance state; all input arrives through the `BuildLayout`
 parameters. Layout constants (`MinBoxWidth`, `CharWidthFactor`, `EdgeClearance`, `MaxIterations`,
-`MaxGapMultiplier`) are declared as `private const` fields. Two private records carry intermediate
+`MaxGapMultiplier`, `HeatThreshold`, `RowClusterTolerance`, `PerEdgeExpansion`) are declared as `private const`
+fields. Two private records carry intermediate
 data: `DefBox` (a user definition with its computed size, keyword, supertype names, and
 compartments) and `PlacedBox` (a definition with absolute coordinates, used as an edge anchor).
 
@@ -22,12 +23,16 @@ compartments) and `PlacedBox` (a definition with absolute coordinates, used as a
 
 Entry point. Calls `CollectDefinitions` to gather user definitions; returns a minimal
 200×100 empty `LayoutTree` when none are found. Otherwise groups the definitions by package
-and enters an adaptive gap loop (up to `MaxIterations` iterations): calls `PlaceGroups` with
-the current `hGap`/`vGap` values, builds specialization and membership edges, and counts total
-crossings. If crossings remain, the gaps are scaled by `1 + crossings/totalEdges`, capped at
-`MaxGapMultiplier × initial gap`. The loop exits early when there are no crossings, the gap
-cap is reached, or the gap stops growing. After the loop the edges are appended to the node list
-and the assembled tree is returned with any crossing warnings.
+and enters a per-band heat loop (up to `MaxIterations` iterations): calls `PlaceGroups` with
+the current `hGap`/`vGap` values, builds specialization and membership edges, then calls
+`DetectRows` to cluster placed boxes into rows and `MeasureVerticalBandHeat` to count vertical
+edge segments passing through each inter-row band. For each band whose heat exceeds
+`HeatThreshold`, the required extra gap is computed as `(heat − HeatThreshold) × PerEdgeExpansion`.
+The maximum extra gap across all hot bands is added to `initialVGap` as a uniform `vGap`
+increase (simplified max-gap fallback), capped at `MaxGapMultiplier × initialVGap`. The loop
+exits early when no band is hot, the gap cap is reached, or the gap stops growing. After the
+loop the edges are appended to the node list and the assembled tree is returned with any crossing
+warnings. Horizontal band heat is not yet measured (deferred as a known limitation).
 
 ###### `CollectDefinitions(workspace, theme)`
 
@@ -66,6 +71,19 @@ line from the member-type box to the owner box, placing a filled-diamond arrowhe
 end. Features with other keywords (e.g. `ref`, `attribute`) are skipped to keep the diagram
 uncluttered. Routing uses `ChannelRouter` with `EdgeClearance` from unrelated boxes. Returns the
 routed lines and the count of edges that had to cross a box.
+
+###### `DetectRows(placed)`
+
+Clusters the placed boxes into horizontal rows by sorting them on their top-edge Y coordinate and
+greedily grouping boxes whose top-edges fall within `RowClusterTolerance` of the first box in
+each row. Returns the rows in ascending Y order as a list of index lists into `placed`.
+
+###### `MeasureVerticalBandHeat(rows, placed, edges)`
+
+Computes the inter-row band spans (bandTop = max bottom-edge of row i, bandBottom = min
+top-edge of row i+1) and counts, for each band, how many vertical edge segments (|ΔX| < 1.0)
+from `edges` overlap that band's Y interval. Returns one heat value per inter-row band
+(length = rows.Count − 1), or an empty list when there are fewer than two rows.
 
 ##### Error Handling
 

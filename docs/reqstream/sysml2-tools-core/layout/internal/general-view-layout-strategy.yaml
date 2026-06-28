@@ -112,11 +112,16 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AdaptiveGap
         title: >-
-          GeneralViewLayoutStrategy shall iteratively widen the gap between placed boxes when
-          edge crossings are detected, up to a maximum of eight times the initial gap.
+          GeneralViewLayoutStrategy shall iteratively widen the vertical gap between placed boxes
+          using per-band heat measurement, up to a maximum of eight times the initial gap.
         justification: |
-          Dense models can produce edge crossings with the default gap. Scaling the gap
-          proportionally to the crossing ratio and re-placing boxes up to four times reduces
-          crossings without requiring manual layout hints from the user.
+          Dense models can produce congested inter-row bands with many routed edge segments crossing
+          the same vertical gap. Measuring the heat (vertical edge-segment count) per band and
+          expanding the vertical gap proportionally to the excess heat reduces routing congestion
+          without requiring manual layout hints from the user. The simplified max-gap fallback
+          applies the largest required expansion uniformly across all bands because PlacedBox
+          records are immutable.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelProducesCleanLayout
+          - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_HotBandProducesWiderCanvas
+          - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelUsesMinimumSpacing

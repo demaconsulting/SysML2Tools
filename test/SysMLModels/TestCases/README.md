@@ -29,6 +29,6 @@ The test corpus grows monotonically — cases are never removed, only fixed.
 ## Test cases
 
 | File | Pattern exercised | Acceptance criterion |
-|---|---|---|
-| `dense-fan-out-membership.sysml` | One definition owns many typed `part`/`port` features — the fan-out of membership edges from a single box | Renders with no crossing warnings; parallel edge segments in the same channel are spread at least `EdgeClearance` apart |
-| `sparse-two-node.sysml` | Minimal two-box model with one specialization edge | Canvas dimensions are within 20% of the theoretical minimum (sum of box sizes + default gaps); no over-padding |
+| --- | --- | --- |
+| `dense-fan-out-membership.sysml` | Fan-out of membership edges | No crossings; spread ≥ `EdgeClearance` |
+| `sparse-two-node.sysml` | Two boxes with one specialization edge | Canvas within 20% of minimum; no over-padding |
