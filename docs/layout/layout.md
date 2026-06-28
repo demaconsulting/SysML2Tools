@@ -92,27 +92,27 @@ flowchart TD
         M3["Hard-coded\n(Sequence)"]
     end
     subgraph pipeline["Shared Pipeline"]
-        S0["Step 0 · Connectivity Analysis"]
-        S1["Step 1 · Monte Carlo Seeds"]
-        S2["Step 2 · Coarse Force-Directed"]
-        SH["Step H · Highway Assignment"]
-        S3["Step 3 · Grid Quantisation"]
-        S4["Step 4 · Oversized Placement"]
-        S5["Step 5 · Route Edges (initial)"]
-        S6["Step 6 · Gravity Compression"]
-        S7["Step 7 · Re-route (final)"]
-        S8["Step 8 · Grid Snap"]
-        S9["Step 9 · Post-Processing"]
-        S0 --> S1 --> S2 --> SH --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
+        S1["Step 1 · Connectivity Analysis"]
+        S2["Step 2 · Monte Carlo Seeds"]
+        S3["Step 3 · Coarse Force-Directed"]
+        S4["Step 4 · Highway Assignment"]
+        S5["Step 5 · Grid Quantisation"]
+        S6["Step 6 · Oversized Placement"]
+        S7["Step 7 · Route Edges (initial)"]
+        S8["Step 8 · Gravity Compression"]
+        S9["Step 9 · Re-route (final)"]
+        S10["Step 10 · Grid Snap"]
+        S11["Step 11 · Post-Processing"]
+        S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9 --> S10 --> S11
     end
-    M1 --> S0
-    M2 --> S0
-    M3 --> S9
+    M1 --> S1
+    M2 --> S1
+    M3 --> S11
 ```
 
 The three modes share all pipeline steps. They differ in the force parameters used in
-Steps 1–2 and in whether back-edge arc routing is active. Hard-coded Sequence View skips
-Steps 0–8 entirely and enters at Step 9.
+Steps 2–3 and in whether back-edge arc routing is active. Hard-coded Sequence View skips
+Steps 1–10 entirely and enters at Step 11.
 
 ## Three Layout Modes
 
@@ -130,7 +130,7 @@ flowchart LR
     end
     subgraph Hard["Hard-coded · Sequence"]
         H1["Rule-based positions"]
-        H2["Bypasses Steps 0–8"]
+        H2["Bypasses Steps 1–10"]
     end
 ```
 
@@ -138,7 +138,7 @@ flowchart LR
 
 # Detailed Algorithm
 
-## Step 0 — Connectivity Analysis
+## Step 1 — Connectivity Analysis
 
 Before any geometry is computed, analyse the graph topology.
 
@@ -177,7 +177,7 @@ locality.
 
 ---
 
-## Step 1 — Monte Carlo Seed Generation
+## Step 2 — Monte Carlo Seed Generation
 
 **Directed Flow mode**: block ordering within layers determines crossing count.
 
@@ -189,24 +189,24 @@ locality.
   run "to convergence" — it can cycle between two equal-crossing orderings, so the budget
   is fixed and the best result retained.
 - Score: `crossings × 10 + total_wire_length_estimate`
-- Keep best S = 3 orderings as seeds for Step 2
+- Keep best S = 3 orderings as seeds for Step 3
 
 **Free 2D mode**: generate `K = clamp(5, ⌈√n⌉, 30)` random 2D position clouds.
 
 - Positions are biased: blocks in the same cluster start within `cluster_radius` of each
   other; layer hint provides a soft initial y-band. Coincident seed positions are jittered
   deterministically (by node index) so the repulsion force is never singular.
-- All K seeds proceed to Step 2; Step 2 culls to the best
+- All K seeds proceed to Step 3; Step 3 culls to the best
 
 **Complexity**: O(K × n × m). Fast — pure graph arithmetic, no geometry.
 
 ---
 
-## Step 2 — Coarse Force-Directed Relaxation
+## Step 3 — Coarse Force-Directed Relaxation
 
 Place blocks on a coarse grid whose **cell size is an integer multiple of the fine grid
 unit G** — `cell = round(4 × avg_block / G) × G`. Run Fruchterman-Reingold relaxation at
-coarse resolution. An integer cell guarantees the coarse→fine mapping in Step 3 is an
+coarse resolution. An integer cell guarantees the coarse→fine mapping in Step 5 is an
 exact rescale with no interpolation drift.
 
 ![Force fields acting on a block in the coarse phase](images/force-fields.svg)
@@ -272,7 +272,7 @@ a 2×2 cluster; satellite blocks nestle against the nearest free face of the ker
 
 ---
 
-## Step H — Highway Assignment (Global Routing)
+## Step 4 — Highway Assignment (Global Routing)
 
 This step is the algorithmic centrepiece of the design. It is directly analogous to
 **global routing** in VLSI chip layout (Cadence Innovus, Synopsys ICC2) and to Holten's
@@ -286,11 +286,11 @@ channel commitment first. Crucially, the commitment is a **hard routing constrai
 a compression round** (not merely a soft cost discount): an edge routes only *within* its
 committed corridor for the duration of a round. This is what actually guarantees that a
 channel's wire count cannot change mid-compression, which in turn makes the compression
-gaps computable in closed form (Step 6).
+gaps computable in closed form (Step 8).
 
 **Procedure**:
 
-1. **Coarse-route all edges** on the coarse grid from Step 2 using a simplified A* that
+1. **Coarse-route all edges** on the coarse grid from Step 3 using a simplified A* that
    counts grid-cell traversals. Ties are broken by a stable key (edge index) for
    determinism. Complexity: O(m × n).
 
@@ -335,20 +335,20 @@ gaps computable in closed form (Step 6).
    style) and/or arrowheads are stacked on the hub face; a `LayoutWarning` is emitted if a
    face still cannot present all ordered slots.
 
-5. **Reserved widths become hard minimum clearance constraints** for Step 6: no gap
+5. **Reserved widths become hard minimum clearance constraints** for Step 8: no gap
    containing a highway can compress below that highway's reserved width.
 
-**A\* cost discount**: in Steps 5 and 7, traversing a committed-highway cell costs
+**A\* cost discount**: in Steps 7 and 9, traversing a committed-highway cell costs
 `highway_cost_factor = 0.6×` the normal per-cell cost, encouraging neat bundling *within*
 the corridor. (Within a compression round, leaving the corridor is forbidden outright; the
 discount only shapes the path inside it.)
 
 **Stability guarantee**: because corridor membership is a *hard* constraint within a
-round, re-routing in Steps 6–7 changes only intra-corridor paths, never which corridor an
+round, re-routing in Steps 8–9 changes only intra-corridor paths, never which corridor an
 edge uses. A wire therefore cannot immigrate into a channel and raise its floor mid-
 compression — the failure mode that would otherwise force a gap to expand and break
 monotonicity. Corridor assignments are re-evaluated only between rounds, at most twice
-(Step 6).
+(Step 8).
 
 ### Two-Phase Design
 
@@ -356,11 +356,11 @@ Highway assignment is intentionally split into two phases that answer different 
 
 **Phase 1 — Width Reservation (deterministic, closed-form):**
 Reserve a *width* for each corridor based on peak concurrent occupancy (see below).
-This width becomes a hard lower bound that Step 6 must honour. Because corridor
+This width becomes a hard lower bound that Step 8 must honour. Because corridor
 assignments are frozen for the round, the width is computable directly — no iteration.
 
 **Phase 2 — Wire Positioning (relaxation-based):**
-Within the reserved band, individual wire positions are determined in Step 7 by a 1-D
+Within the reserved band, individual wire positions are determined in Step 9 by a 1-D
 repulsion-relaxation pass. Wires float to well-separated positions inside the band rather
 than being pre-assigned to explicit lanes. This separates the structural question
 (*how wide?*) from the aesthetic question (*where exactly within the band?*) and
@@ -379,7 +379,7 @@ simultaneously (the remaining 7 have tapped off to their destinations before rea
 congested stretch). Using the total count overestimates width and wastes canvas space.
 
 **Sweep-line algorithm** (O(k log k) per bundle, O(m log m) total). The events are taken
-from the committed routes recorded in Step 5 (the oversized waypoints), measured along the
+from the committed routes recorded in Step 7 (the oversized waypoints), measured along the
 corridor's long axis:
 
 1. For each wire in the bundle, its corridor span is `[entry, exit]`, where `entry` is the
@@ -395,13 +395,13 @@ corridor's long axis:
 peak_lanes = max( active_wire_count at each cross-section )
 ```
 
-This value replaces the naïve `Σ wires` count in the Step 6 compression formula.
+This value replaces the naïve `Σ wires` count in the Step 8 compression formula.
 
-**Invariance under compaction.** `peak_lanes` is computed once from the Step 5 routes and is
-*invariant* under the order-preserving constraint-graph compaction used in Steps 6 and 8:
+**Invariance under compaction.** `peak_lanes` is computed once from the Step 7 routes and is
+*invariant* under the order-preserving constraint-graph compaction used in Steps 8 and 10:
 compaction only shrinks gaps and never reorders endpoints, so the relative order of all
 entry/exit coordinates — and therefore every pairwise overlap relationship — is preserved.
-The peak can only stay equal or decrease, never increase. This is what lets Step 6 treat the
+The peak can only stay equal or decrease, never increase. This is what lets Step 8 treat the
 peak-based width as a sound closed-form lower bound rather than an estimate that later
 re-routing could invalidate.
 
@@ -416,7 +416,7 @@ lane_pos = mean(source.cross, dest1.cross, dest2.cross, ...)
 
 Bundles are then sorted by `lane_pos` to assign lane slots. As with the Sugiyama barycenter
 heuristic this *reduces*, but does not provably eliminate, crossings; any residual crossings
-are resolved by the Step 7 1-D repulsion pass. **Edge case** — a single source fanning to
+are resolved by the Step 9 1-D repulsion pass. **Edge case** — a single source fanning to
 many destinations spread across a wide range yields a `lane_pos` near the middle of that
 range, so the trunk is centred on the fan, which is exactly the configuration the centre-fed
 comb fan-out (below) assumes. The barycenter weights the single source equally with each
@@ -474,14 +474,14 @@ set needed for a correct merge:
 
 #### Destination-Side Merging
 
-The algorithm is symmetric. If two source blocks `S1→Dest` and `S2→Dest` both arrive
+The algorithm is symmetric. If two source blocks `S2→Dest` and `S3→Dest` both arrive
 through the same corridor with the same connector type, they form a **destination-side
 bundle**: `(dest_face, incoming, highway_id, connector_type)` — the same four-component key
 as an outgoing group, with `directionality = incoming`. `Dest` exposes one merged trunk
 entry on its incoming face; the comb fans out in `Dest`'s stub area to the individual wires
-running back to `S1` and `S2`. `PortAssigner` runs once per block and processes outgoing and
+running back to `S2` and `S3`. `PortAssigner` runs once per block and processes outgoing and
 incoming groups with identical logic, so every face of every block is automatically
-optimised. (Here `S1`/`S2` are two source blocks feeding the shared destination `Dest`.)
+optimised. (Here `S2`/`S3` are two source blocks feeding the shared destination `Dest`.)
 
 #### Mixed Exit Sides
 
@@ -564,10 +564,10 @@ opposite faces; a `LayoutWarning` is emitted if even the split exceeds capacity.
 
 ---
 
-## Step 3 — Grid Quantisation (Constraint-Graph Compaction)
+## Step 5 — Grid Quantisation (Constraint-Graph Compaction)
 
 Scale coarse positions to the fine pixel grid. Because the coarse cell is an integer
-multiple of G (Step 2), this is an exact rescale, not an interpolation.
+multiple of G (Step 3), this is an exact rescale, not an interpolation.
 
 Block widths and heights round **up** to the nearest multiple of G. Positions are then
 fixed by **1-D constraint-graph compaction** per axis — *not* by independent per-block
@@ -599,7 +599,7 @@ feasible after quantisation.
 
 ---
 
-## Step 4 — Oversized Placement
+## Step 6 — Oversized Placement
 
 Expand all inter-block gaps to generous headroom:
 
@@ -617,7 +617,7 @@ compression.
 
 ---
 
-## Step 5 — Route Edges (Initial)
+## Step 7 — Route Edges (Initial)
 
 Route all edges using `ChannelRouter` (A* Hanan grid) with highway cost discounts active.
 
@@ -628,11 +628,11 @@ With oversized gaps and highway biasing:
 - Shared trunks emerge at highway merge points without explicit post-processing
 - No congestion — oversized gaps guarantee every path is reachable
 
-Record complete waypoints per edge; these serve as the clearance reference in Step 6.
+Record complete waypoints per edge; these serve as the clearance reference in Step 8.
 
 ---
 
-## Step 6 — Gravity Compression (Closed-Form, Corridor-Constrained)
+## Step 8 — Gravity Compression (Closed-Form, Corridor-Constrained)
 
 Shrink all gaps on both axes to their minimum feasible width. This replaces both the
 previous heat-expansion approach (which expanded from a too-tight baseline on the wrong
@@ -645,7 +645,7 @@ thrash. The corrected algorithm removes the iteration entirely.
 
 ![Gravity compression: three frames from oversized to minimum clearance](images/gravity-compression.svg)
 
-**Corridors are hard constraints (from Step H), so the minimal gap is closed-form.**
+**Corridors are hard constraints (from Step 4), so the minimal gap is closed-form.**
 Because every edge is confined to its committed corridor for the round, no edge can
 immigrate into a channel; therefore each channel's required width is *fixed*, and the
 minimal feasible gap is computed directly — no `compress_step`, no convergence loop, no
@@ -662,12 +662,12 @@ for each inter-row band i:
                + label_box_height(i)
     vGap[i]    = max(min_vGap, required_v, highway_reserved_height[i])
 
-re-place blocks with the computed gaps (via the Step 3 constraint-graph compaction)
+re-place blocks with the computed gaps (via the Step 5 constraint-graph compaction)
 route edges within their committed corridors only
 ```
 
 **Why this is closed-form.** Both `sweep_line_peak(j)` (for vertical channels) and
-`sweep_line_peak(i)` (for horizontal bands) are evaluated *once*, from the committed Step 5
+`sweep_line_peak(i)` (for horizontal bands) are evaluated *once*, from the committed Step 7
 routes, before any re-placement. They are not mutually dependent: each is read from the same
 fixed waypoint set, so there is no cross-axis fixed point to iterate toward. By the
 invariance property (see Peak Concurrent Occupancy), the order-preserving re-placement that
@@ -676,9 +676,9 @@ peaks remain feasible lower bounds afterwards. This is the precise sense in whic
 corridor constraint makes the minimal gap computable without a convergence loop.
 
 **Bounded outer re-evaluation.** After the single closed-form sizing and the final route
-(Step 7), check whether any edge's corridor-constrained route is materially longer than
+(Step 9), check whether any edge's corridor-constrained route is materially longer than
 its unconstrained route (i.e. an edge "wants" a different corridor). If so, recompute the
-Step H corridor assignment **at most once more**, recompute gaps, and keep the **best
+Step 4 corridor assignment **at most once more**, recompute gaps, and keep the **best
 feasible** result by total wire length. Corridor assignments are drawn from a finite set
 and the outer loop is capped at 2 rounds, so the procedure is guaranteed to terminate with
 a feasible, minimal layout; a `LayoutWarning` is emitted if a violation remains.
@@ -694,31 +694,31 @@ a feasible, minimal layout; a `LayoutWarning` is emitted if a violation remains.
 - **No magic constants**: all bounds derived from measured wire/label clearances.
 
 `wire_margin = EdgeClearance × 0.5`. Label boxes are included in `required_*` so that
-compression reserves label space rather than leaving Step 9 to resolve overlaps after the
+compression reserves label space rather than leaving Step 11 to resolve overlaps after the
 fact.
 
 ---
 
-## Step 7 — Re-route (Final Compact)
+## Step 9 — Re-route (Final Compact)
 
 One full A* re-route on the compressed, quantised layout with highway cost discounts
 active. This is the routing that appears in the output.
 
 ---
 
-## Step 8 — Grid Snap (Post-Compression)
+## Step 10 — Grid Snap (Post-Compression)
 
-Re-run the Step 3 constraint-graph compaction so every block coordinate is G-aligned while
+Re-run the Step 5 constraint-graph compaction so every block coordinate is G-aligned while
 order and minimum separations are preserved by construction. Blocks are **never** snapped
 independently (independent snapping can reorder neighbours or create overlaps). Re-route
 once if any block moved during snap.
 
 ---
 
-## Step 9 — Post-Processing
+## Step 11 — Post-Processing
 
 **Equidistant wire spacing**: within each highway, wire segments are separated by the
-Phase 2 (Step 7) 1-D repulsion-relaxation pass rather than pre-assigned to fixed lanes. At a
+Phase 2 (Step 9) 1-D repulsion-relaxation pass rather than pre-assigned to fixed lanes. At a
 *fully occupied* cross-section (active wires = `peak_lanes`), repulsion inside a band of
 width `peak_lanes × G` settles to the even positions G/2, 3G/2, 5G/2, …; this is exact
 integer arithmetic because of the grid quantisation. In *under-occupied* sections (fewer
@@ -729,7 +729,7 @@ property of the relaxation, consistent with the Two-Phase design, not a separate
 lane-assignment step.
 
 **Label placement**: edge-label bounding boxes are already reserved as channel clearance
-during Step 6, so space exists by construction. Here each label is *positioned* at the
+during Step 8, so space exists by construction. Here each label is *positioned* at the
 midpoint of the longest segment of its edge within that reserved space, collision-checked
 against blocks and other labels using `ConnectorLabelPlacer`.
 
@@ -812,7 +812,7 @@ cost-multiplier map plus hard corridor-membership constraints for `ChannelRouter
 
 ### GravityCompressor
 
-Implements the closed-form, corridor-constrained gap sizing (Step 6). Accepts the
+Implements the closed-form, corridor-constrained gap sizing (Step 8). Accepts the
 committed corridor assignments, wire-and-label bounding boxes, and highway floor
 constraints; returns the minimal feasible gap array and a feasibility flag. Includes the
 bounded (≤2) outer re-evaluation that keeps the best feasible result.
@@ -885,7 +885,7 @@ compression and quantisation steps).
 
 **How the algorithm applies**:
 Existing force-directed placement is retained — a port graph should not be forced into
-layers — but the **shared pipeline from Step H onward** is adopted (highway assignment,
+layers — but the **shared pipeline from Step 4 onward** is adopted (highway assignment,
 constraint-graph compaction, closed-form compression, post-processing) with **port-aware
 anchoring**. `HighwayAssigner` identifies connector bundles (e.g. a bus between two parts)
 and reserves corridor space. The highway-aware `PortAssigner` chooses each port's side to
@@ -993,15 +993,15 @@ inter-layer gap to its actual wire density.
 arranged horizontally; messages as horizontal arrows between lifelines; optional activation
 bars; combined fragments (alt/opt/loop).
 
-**Mode**: Hard-coded. Bypasses Steps 0–8.
+**Mode**: Hard-coded. Bypasses Steps 1–10.
 
 **How the algorithm applies**:
 Lifelines are placed in declaration order at equal horizontal spacing (minimum = label
-width + margin). Messages are placed at sequential vertical positions. Grid snap (Step 8)
+width + margin). Messages are placed at sequential vertical positions. Grid snap (Step 10)
 aligns lifeline X positions and message Y coordinates to G using an **order-preserving
 snap** that keeps a minimum 1-unit (`G`) separation between consecutive messages, so two
 closely-spaced messages can never collapse onto the same Y or reorder. Label collision
-check (Step 9) ensures message labels do not overlap adjacent lifelines.
+check (Step 11) ensures message labels do not overlap adjacent lifelines.
 
 **Common issues in prior implementation**:
 
@@ -1011,7 +1011,7 @@ check (Step 9) ensures message labels do not overlap adjacent lifelines.
 | Message label overlap | No collision check |
 
 **How the proposal mitigates**:
-Minimum lifeline spacing derived from label width. Label collision check added in Step 9.
+Minimum lifeline spacing derived from label width. Label collision check added in Step 11.
 
 ---
 
@@ -1020,7 +1020,7 @@ Minimum lifeline spacing derived from label width. Label collision check added i
 **What this view shows**: a relationship matrix — rows and columns are definition names;
 cells contain a marker when a relationship exists between the row and column elements.
 
-**Mode**: arithmetic (no placement algorithm). Grid snap (Step 8) aligns column widths to
+**Mode**: arithmetic (no placement algorithm). Grid snap (Step 10) aligns column widths to
 G for visual regularity.
 
 **Common issues in prior implementation**: none significant. This view is already
@@ -1049,18 +1049,18 @@ the resolution is reflected in the algorithm steps above.
 1. **Coarse-to-fine coupling** — *Resolved: integer coarse grid.* The coarse cell is sized
    as an integer multiple of G (`cell = round(4 × avg_block / G) × G`) so coarse positions
    map to fine positions by exact rescale. Fine placement uses constraint-graph compaction
-   (Step 3), not interpolation, eliminating the risk of a cluster that fits in coarse cells
+   (Step 5), not interpolation, eliminating the risk of a cluster that fits in coarse cells
    becoming infeasible on the fine grid.
 
 2. **Highway threshold** — *Resolved: geometric necessity rule.* The absolute
    `highway_threshold = 3` is replaced by `highway ⇔ peak_lanes·G + 2·wire_margin >
-   min_gap` (Step H), where `peak_lanes` is the peak concurrent occupancy. This is
+   min_gap` (Step 4), where `peak_lanes` is the peak concurrent occupancy. This is
    scale-free, derived from `EdgeClearance`/`G`/`min_gap`, and stays discriminating at both
    density extremes. Reserved width is capped at `W_cap`, and hub bundles split across
    opposite faces.
 
 3. **Compression step size** — *Resolved: no stepping.* Because corridors are hard
-   constraints, the minimal feasible gap is closed-form (Step 6); the fixed-step (and the
+   constraints, the minimal feasible gap is closed-form (Step 8); the fixed-step (and the
    binary-search alternative) are unnecessary. A bounded (≤2) outer re-evaluation of
    corridor assignments replaces per-step iteration.
 
@@ -1075,7 +1075,7 @@ the resolution is reflected in the algorithm steps above.
 
 6. **Interconnection View scope** — *Resolved: partial adoption.* Keep `ForceDirectedEngine`
    placement (do not impose layering on a port graph), but adopt the shared pipeline from
-   Step H onward with port-aware anchoring, plus an explicit self/nested-connection rule.
+   Step 4 onward with port-aware anchoring, plus an explicit self/nested-connection rule.
 
 7. **Highway stability after compression** — *Resolved: committed per round, ≤2
    re-evaluations.* Hard corridor membership means edge counts cannot drift within a round.
@@ -1083,8 +1083,8 @@ the resolution is reflected in the algorithm steps above.
    a warning is emitted otherwise.
 
 8. **Label highways** — *Resolved: yes.* Label bounding boxes are added to channel
-   `required_width`/`required_height` during compression (Step 6), so label space is
-   reserved by construction; Step 9 only *positions* labels within that reserved space.
+   `required_width`/`required_height` during compression (Step 8), so label space is
+   reserved by construction; Step 11 only *positions* labels within that reserved space.
 
 ---
 
@@ -1093,8 +1093,8 @@ the resolution is reflected in the algorithm steps above.
 For very large views the exact pipeline is bounded:
 
 - **Sparse affinity**: affinity is built as an adjacency list from edge/membership/
-  supertype lists in O(m); the dense n² matrix is never materialised (Step 0).
-- **Barnes–Hut repulsion**: the O(n²) per-iteration repulsion in Step 2 is replaced by an
+  supertype lists in O(m); the dense n² matrix is never materialised (Step 1).
+- **Barnes–Hut repulsion**: the O(n²) per-iteration repulsion in Step 3 is replaced by an
   O(n log n) quadtree approximation above a node-count threshold.
 - **Cluster-first fallback**: above `N_max` (≈ 300 blocks per view), communities are laid
   out as super-nodes, then each community's interior is laid out independently and
