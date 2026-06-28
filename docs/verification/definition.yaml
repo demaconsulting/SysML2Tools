@@ -2,6 +2,13 @@
 resource-path:
   - docs/verification
   - docs/verification/sysml2-tools-core
+  - docs/verification/sysml2-tools-core/semantic
+  - docs/verification/sysml2-tools-core/semantic/internal
+  - docs/verification/sysml2-tools-core/layout
+  - docs/verification/sysml2-tools-core/layout/engine
+  - docs/verification/sysml2-tools-core/layout/internal
+  - docs/verification/sysml2-tools-core/rendering
+  - docs/verification/sysml2-tools-core/rendering/internal
   - docs/verification/sysml2-tools-tool
   - docs/verification/sysml2-tools-tool/cli
   - docs/verification/sysml2-tools-tool/lint
@@ -24,6 +31,34 @@ input-files:
   - docs/verification/sysml2-tools-tool/utilities/path-helpers.md
   - docs/verification/sysml2-tools-core.md
   - docs/verification/sysml2-tools-core/parser.md
+  - docs/verification/sysml2-tools-core/semantic.md
+  - docs/verification/sysml2-tools-core/semantic/workspace-loader.md
+  - docs/verification/sysml2-tools-core/semantic/internal.md
+  - docs/verification/sysml2-tools-core/semantic/internal/sysml-node.md
+  - docs/verification/sysml2-tools-core/semantic/internal/ast-builder.md
+  - docs/verification/sysml2-tools-core/semantic/internal/symbol-table.md
+  - docs/verification/sysml2-tools-core/semantic/internal/reference-resolver.md
+  - docs/verification/sysml2-tools-core/semantic/internal/supertype-walker.md
+  - docs/verification/sysml2-tools-core/layout.md
+  - docs/verification/sysml2-tools-core/layout/connector-label-placer.md
+  - docs/verification/sysml2-tools-core/layout/engine.md
+  - docs/verification/sysml2-tools-core/layout/engine/channel-router.md
+  - docs/verification/sysml2-tools-core/layout/engine/force-directed-engine.md
+  - docs/verification/sysml2-tools-core/layout/engine/port-assigner.md
+  - docs/verification/sysml2-tools-core/layout/engine/layered-layout-engine.md
+  - docs/verification/sysml2-tools-core/layout/engine/containment-packer.md
+  - docs/verification/sysml2-tools-core/layout/internal.md
+  - docs/verification/sysml2-tools-core/layout/internal/general-view-layout-strategy.md
+  - docs/verification/sysml2-tools-core/layout/internal/interconnection-view-layout-strategy.md
+  - docs/verification/sysml2-tools-core/layout/internal/state-transition-view-layout-strategy.md
+  - docs/verification/sysml2-tools-core/layout/internal/action-flow-view-layout-strategy.md
+  - docs/verification/sysml2-tools-core/layout/internal/sequence-view-layout-strategy.md
+  - docs/verification/sysml2-tools-core/layout/internal/grid-view-layout-strategy.md
+  - docs/verification/sysml2-tools-core/layout/internal/browser-view-layout-strategy.md
+  - docs/verification/sysml2-tools-core/layout/internal/layout-warnings.md
+  - docs/verification/sysml2-tools-core/rendering.md
+  - docs/verification/sysml2-tools-core/rendering/internal.md
+  - docs/verification/sysml2-tools-core/rendering/internal/diagram-type-router.md
   - docs/verification/sysml2-tools-svg.md
   - docs/verification/sysml2-tools-png.md
   - docs/verification/ots.md

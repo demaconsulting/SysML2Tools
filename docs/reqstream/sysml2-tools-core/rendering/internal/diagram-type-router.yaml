@@ -1,0 +1,38 @@
+---
+# DiagramTypeRouter Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the DiagramTypeRouter unit
+# - DiagramTypeRouter selects the layout strategy for a given view
+# - Requirements describe observable selection behavior, not the matching algorithm
+
+sections:
+  - title: DiagramTypeRouter Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Rendering-Internal-DiagramTypeRouter-KindDispatch
+        title: >-
+          DiagramTypeRouter shall select the layout strategy that corresponds to a view's
+          kind, as identified from the view's name or its declared supertypes.
+        justification: |
+          Each view kind (interconnection, state transition, action flow, grid, browser,
+          sequence) requires a different layout. Selecting by the view's declared identity
+          lets an author choose a diagram type by naming or specializing the appropriate
+          viewpoint.
+        tests:
+          - GetStrategy_InterconnectionNamedView_ReturnsInterconnectionStrategy
+          - GetStrategy_ViewSpecializingInterconnection_ReturnsInterconnectionStrategy
+          - GetStrategy_StateTransitionNamedView_ReturnsStateStrategy
+          - GetStrategy_ActionFlowNamedView_ReturnsActionFlowStrategy
+          - GetStrategy_MatrixNamedView_ReturnsGridStrategy
+          - GetStrategy_BrowserNamedView_ReturnsBrowserStrategy
+          - GetStrategy_SequenceNamedView_ReturnsSequenceStrategy
+
+      - id: SysML2Tools-Core-Rendering-Internal-DiagramTypeRouter-DefaultGeneral
+        title: >-
+          When a view matches no recognized view kind, DiagramTypeRouter shall select the
+          general view strategy.
+        justification: |
+          A sensible default keeps every view renderable. The general view is the most
+          broadly applicable layout and is the natural fallback for an unspecified view kind.
+        tests:
+          - GetStrategy_PlainView_ReturnsGeneralViewStrategy

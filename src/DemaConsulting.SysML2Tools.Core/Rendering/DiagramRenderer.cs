@@ -47,7 +47,7 @@ public sealed class DiagramRenderer
             }
 
             // Skip stdlib view declarations — only user-defined views are considered
-            if (Internal.StdlibFilter.IsStdlibElement(qualifiedName))
+            if (Internal.StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
             {
                 continue;
             }
@@ -110,7 +110,7 @@ public sealed class DiagramRenderer
             }
 
             // Skip stdlib view declarations — only user-defined views are rendered
-            if (Internal.StdlibFilter.IsStdlibElement(qualifiedName))
+            if (Internal.StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
             {
                 continue;
             }
@@ -144,7 +144,7 @@ public sealed class DiagramRenderer
 
             // Derive a safe file name from the view name and add to results
             var fileName = SanitizeFileName(viewName) + renderer.DefaultExtension;
-            results.Add(new RenderOutput(fileName, renderer.MediaType, stream));
+            results.Add(new RenderOutput(fileName, renderer.MediaType, stream) { Warnings = layout.Warnings });
         }
 
         return results;
@@ -185,7 +185,7 @@ public sealed class DiagramRenderer
         foreach (var (qualifiedName, node) in workspace.Declarations)
         {
             // Skip stdlib elements — only user-defined declarations are considered
-            if (Internal.StdlibFilter.IsStdlibElement(qualifiedName))
+            if (Internal.StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
             {
                 continue;
             }

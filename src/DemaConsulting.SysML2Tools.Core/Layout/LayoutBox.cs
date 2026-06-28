@@ -14,6 +14,12 @@ public enum BoxShape
 
     /// <summary>Rectangle with rounded corners.</summary>
     RoundedRectangle,
+
+    /// <summary>Folder shape (rectangle with a tab on the top-left), used for packages.</summary>
+    Folder,
+
+    /// <summary>Note shape (rectangle with a folded-down top-right corner), used for documentation and comments.</summary>
+    Note,
 }
 
 /// <summary>
@@ -37,6 +43,11 @@ public sealed record LayoutCompartment(
 /// <param name="Shape">Visual shape of the box outline.</param>
 /// <param name="Compartments">Ordered list of compartments displayed below the label.</param>
 /// <param name="Children">Nested layout nodes contained spatially within this box.</param>
+/// <param name="Keyword">
+/// Optional SysML keyword (e.g. <c>"part def"</c>, <c>"port"</c>) rendered on a smaller line
+/// above the bold label, following the SysML v2 graphical convention. <see langword="null"/> when no
+/// keyword should be shown.
+/// </param>
 public sealed record LayoutBox(
     double X,
     double Y,
@@ -46,4 +57,5 @@ public sealed record LayoutBox(
     int Depth,
     BoxShape Shape,
     IReadOnlyList<LayoutCompartment> Compartments,
-    IReadOnlyList<LayoutNode> Children) : LayoutNode;
+    IReadOnlyList<LayoutNode> Children,
+    string? Keyword = null) : LayoutNode;

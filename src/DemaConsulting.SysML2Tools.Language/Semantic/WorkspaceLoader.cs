@@ -62,6 +62,9 @@ public static class WorkspaceLoader
         {
             Files = loadedFiles,
             Declarations = symbolTable.Symbols,
+            StdlibNames = seedSymbolTable is not null
+                ? new HashSet<string>(seedSymbolTable.Symbols.Keys, StringComparer.Ordinal)
+                : new HashSet<string>(StringComparer.Ordinal),
         };
 
         return new SysmlLoadResult(workspace, allDiagnostics);

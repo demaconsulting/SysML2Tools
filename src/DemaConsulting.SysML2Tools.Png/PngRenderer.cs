@@ -189,6 +189,19 @@ public sealed class PngRenderer : IRenderer
             RenderNode(canvas, node, options);
         }
 
+        // Final pass: draw every connector label on top of all wires and boxes, so that no later
+        // wire can draw over an earlier wire's label. Positions are computed up front so that labels
+        // that would collide (for example where two connectors cross) are spread apart.
+        var lines = CollectLines(layout.Nodes).ToList();
+        var labelPositions = ConnectorLabelPlacer.Place(lines, options.Theme.FontSizeBody);
+        foreach (var line in lines)
+        {
+            if (line.MidpointLabel is not null && labelPositions.TryGetValue(line, out var pos))
+            {
+                RenderLineLabel(canvas, line, options, pos.X, pos.Y);
+            }
+        }
+
         // Encode as PNG and write to the output stream
         using var image = SKImage.FromBitmap(bitmap);
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
@@ -260,60 +273,16 @@ public sealed class PngRenderer : IRenderer
     private static void RenderBox(SKCanvas canvas, LayoutBox box, RenderOptions options)
     {
         var theme = options.Theme;
-        var scale = (float)options.Scale;
 
-        var x = (float)(box.X * scale);
-        var y = (float)(box.Y * scale);
-        var rect = new SKRect(x, y, x + (float)(box.Width * scale), y + (float)(box.Height * scale));
-
-        // Corner radius for RoundedRectangle: double the line corner radius for visual prominence
-        var cornerR = (float)(theme.LineCornerRadius * 2.0 * scale);
-        var isRounded = box.Shape == BoxShape.RoundedRectangle && cornerR > 0;
-
-        // Fill the box with the theme color for this depth level
-        var fillHex = theme.DepthFillColors[box.Depth % theme.DepthFillColors.Count];
-        using (var fillPaint = new SKPaint())
-        {
-            fillPaint.Color = SKColor.Parse(fillHex);
-            fillPaint.Style = SKPaintStyle.Fill;
-            if (isRounded)
-            {
-                canvas.DrawRoundRect(rect, cornerR, cornerR, fillPaint);
-            }
-            else
-            {
-                canvas.DrawRect(rect, fillPaint);
-            }
-        }
-
-        // Draw the box border
         var strokeColor = SKColor.Parse(theme.StrokeColor);
-        using (var strokePaint = new SKPaint())
-        {
-            strokePaint.Color = strokeColor;
-            strokePaint.Style = SKPaintStyle.Stroke;
-            strokePaint.StrokeWidth = (float)theme.StrokeWidth * scale;
-            if (isRounded)
-            {
-                canvas.DrawRoundRect(rect, cornerR, cornerR, strokePaint);
-            }
-            else
-            {
-                canvas.DrawRect(rect, strokePaint);
-            }
-        }
+        var fillHex = theme.DepthFillColors[box.Depth % theme.DepthFillColors.Count];
+        var fillColor = SKColor.Parse(fillHex);
 
-        // Draw the centered label in the title area if present
-        if (box.Label != null)
-        {
-            using var textPaint = CreateTextPaint(strokeColor, (float)theme.FontSizeTitle * scale, bold: true, italic: false);
-            textPaint.TextAlign = SKTextAlign.Center;
-            var textX = (float)((box.X + box.Width / 2.0) * scale);
-            var availableWidth = (float)((box.Width - 2 * theme.LabelPadding) * scale);
-            textPaint.TextSize = FitFontSize(textPaint, box.Label, availableWidth, textPaint.TextSize);
-            var textY = (float)((box.Y + theme.LabelPadding + theme.FontSizeTitle) * scale);
-            canvas.DrawText(box.Label, textX, textY, textPaint);
-        }
+        // Draw the shape-specific outline (fill + border)
+        RenderBoxOutline(canvas, box, options, fillColor, strokeColor);
+
+        // Draw the keyword line and bold name label in the title area
+        RenderBoxTitle(canvas, box, options, strokeColor);
 
         // Render compartments below the label area with horizontal dividers
         if (box.Compartments.Count > 0)
@@ -325,6 +294,165 @@ public sealed class PngRenderer : IRenderer
         foreach (var child in box.Children)
         {
             RenderNode(canvas, child, options);
+        }
+    }
+
+    /// <summary>
+    /// Draws the fill and border of a <see cref="LayoutBox"/>, selecting geometry based on
+    /// <see cref="LayoutBox.Shape"/>.
+    /// </summary>
+    /// <param name="canvas">Canvas to draw on.</param>
+    /// <param name="box">Box whose outline is drawn.</param>
+    /// <param name="options">Render options providing theme and scale.</param>
+    /// <param name="fillColor">Fill color for the interior.</param>
+    /// <param name="strokeColor">Stroke color for the border.</param>
+    private static void RenderBoxOutline(
+        SKCanvas canvas,
+        LayoutBox box,
+        RenderOptions options,
+        SKColor fillColor,
+        SKColor strokeColor)
+    {
+        var theme = options.Theme;
+        var scale = (float)options.Scale;
+
+        var x = (float)(box.X * scale);
+        var y = (float)(box.Y * scale);
+        var rect = new SKRect(x, y, x + (float)(box.Width * scale), y + (float)(box.Height * scale));
+
+        using var fillPaint = new SKPaint { Color = fillColor, Style = SKPaintStyle.Fill, IsAntialias = true };
+        using var strokePaint = new SKPaint
+        {
+            Color = strokeColor,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = (float)theme.StrokeWidth * scale,
+            IsAntialias = true,
+        };
+
+        switch (box.Shape)
+        {
+            case BoxShape.Folder:
+                using (var path = BuildFolderPath(box, theme, scale))
+                {
+                    canvas.DrawPath(path, fillPaint);
+                    canvas.DrawPath(path, strokePaint);
+                }
+
+                break;
+
+            case BoxShape.Note:
+                RenderNotePng(canvas, box, scale, fillPaint, strokePaint);
+                break;
+
+            case BoxShape.RoundedRectangle when theme.LineCornerRadius > 0:
+                var cornerR = (float)(theme.LineCornerRadius * 2.0 * scale);
+                canvas.DrawRoundRect(rect, cornerR, cornerR, fillPaint);
+                canvas.DrawRoundRect(rect, cornerR, cornerR, strokePaint);
+                break;
+
+            default:
+                canvas.DrawRect(rect, fillPaint);
+                canvas.DrawRect(rect, strokePaint);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Builds the folder outline path (a tab at the top-left above a full-width body).
+    /// </summary>
+    private static SKPath BuildFolderPath(LayoutBox box, Theme theme, float scale)
+    {
+        var tabHeight = BoxMetrics.FolderTabHeight(theme);
+        var tabWidth = Math.Min(box.Width * 0.45, Math.Max(60.0, (box.Label?.Length ?? 4) * theme.FontSizeBody * 0.55 + 2.0 * theme.LabelPadding));
+
+        var x = (float)(box.X * scale);
+        var yTab = (float)(box.Y * scale);
+        var yBody = (float)((box.Y + tabHeight) * scale);
+        var xTabRight = (float)((box.X + tabWidth) * scale);
+        var xRight = (float)((box.X + box.Width) * scale);
+        var yBottom = (float)((box.Y + box.Height) * scale);
+
+        var path = new SKPath();
+        path.MoveTo(x, yBody);
+        path.LineTo(x, yTab);
+        path.LineTo(xTabRight, yTab);
+        path.LineTo(xTabRight, yBody);
+        path.LineTo(xRight, yBody);
+        path.LineTo(xRight, yBottom);
+        path.LineTo(x, yBottom);
+        path.Close();
+        return path;
+    }
+
+    /// <summary>
+    /// Draws a note-shaped box (a rectangle with a folded-down top-right corner).
+    /// </summary>
+    private static void RenderNotePng(
+        SKCanvas canvas,
+        LayoutBox box,
+        float scale,
+        SKPaint fillPaint,
+        SKPaint strokePaint)
+    {
+        var fold = Math.Min(Math.Min(box.Width, box.Height) * 0.25, 16.0);
+
+        var x = (float)(box.X * scale);
+        var y = (float)(box.Y * scale);
+        var xRight = (float)((box.X + box.Width) * scale);
+        var xFold = (float)((box.X + box.Width - fold) * scale);
+        var yFold = (float)((box.Y + fold) * scale);
+        var yBottom = (float)((box.Y + box.Height) * scale);
+
+        using var body = new SKPath();
+        body.MoveTo(x, y);
+        body.LineTo(xFold, y);
+        body.LineTo(xRight, yFold);
+        body.LineTo(xRight, yBottom);
+        body.LineTo(x, yBottom);
+        body.Close();
+        canvas.DrawPath(body, fillPaint);
+        canvas.DrawPath(body, strokePaint);
+
+        using var corner = new SKPath();
+        corner.MoveTo(xFold, y);
+        corner.LineTo(xFold, yFold);
+        corner.LineTo(xRight, yFold);
+        canvas.DrawPath(corner, strokePaint);
+    }
+
+    /// <summary>
+    /// Draws the optional keyword line and bold name label in the title area of a box.
+    /// </summary>
+    /// <param name="canvas">Canvas to draw on.</param>
+    /// <param name="box">Box whose title is drawn.</param>
+    /// <param name="options">Render options providing theme and scale.</param>
+    /// <param name="strokeColor">Text color.</param>
+    private static void RenderBoxTitle(SKCanvas canvas, LayoutBox box, RenderOptions options, SKColor strokeColor)
+    {
+        var theme = options.Theme;
+        var scale = (float)options.Scale;
+        var centerX = (float)((box.X + box.Width / 2.0) * scale);
+        var cursorY = box.Y + theme.LabelPadding;
+
+        // Keyword line (smaller, italic, guillemet-wrapped) above the name
+        if (box.Keyword != null)
+        {
+            using var kwPaint = CreateTextPaint(strokeColor, (float)theme.FontSizeBody * scale, bold: false, italic: true);
+            kwPaint.TextAlign = SKTextAlign.Center;
+            var kwY = (float)((cursorY + theme.FontSizeBody) * scale);
+            canvas.DrawText("\u00AB" + box.Keyword + "\u00BB", centerX, kwY, kwPaint);
+            cursorY += theme.FontSizeBody + theme.LabelPadding;
+        }
+
+        // Bold name label, shrink-to-fit
+        if (box.Label != null)
+        {
+            using var textPaint = CreateTextPaint(strokeColor, (float)theme.FontSizeTitle * scale, bold: true, italic: false);
+            textPaint.TextAlign = SKTextAlign.Center;
+            var availableWidth = (float)((box.Width - 2 * theme.LabelPadding) * scale);
+            textPaint.TextSize = FitFontSize(textPaint, box.Label, availableWidth, textPaint.TextSize);
+            var textY = (float)((cursorY + theme.FontSizeTitle) * scale);
+            canvas.DrawText(box.Label, centerX, textY, textPaint);
         }
     }
 
@@ -347,10 +475,8 @@ public sealed class PngRenderer : IRenderer
         var theme = options.Theme;
         var scale = (float)options.Scale;
 
-        // Compartments start below the label area (padding + font + padding when label present)
-        var labelAreaHeight = box.Label != null
-            ? theme.LabelPadding + theme.FontSizeTitle + theme.LabelPadding
-            : 0.0;
+        // Compartments start below the title area (keyword + label), computed via shared metrics
+        var labelAreaHeight = BoxMetrics.TitleAreaHeight(theme, box.Label != null, box.Keyword != null);
         var compartmentY = box.Y + labelAreaHeight;
 
         foreach (var compartment in box.Compartments)
@@ -390,6 +516,9 @@ public sealed class PngRenderer : IRenderer
                 canvas.DrawText(row, rowX, rowY, rowPaint);
                 compartmentY += theme.LabelPadding + theme.FontSizeBody;
             }
+
+            // Bottom gap so the last row clears the next compartment divider.
+            compartmentY += theme.LabelPadding;
         }
     }
 
@@ -490,10 +619,64 @@ public sealed class PngRenderer : IRenderer
                 new ArrowheadPaint(strokeColor, (float)theme.StrokeWidth * scale, scale));
         }
 
-        // Draw the optional midpoint label with a white background for readability
-        if (line.MidpointLabel != null)
+        // Note: the midpoint label is intentionally NOT drawn here. It is drawn in a final pass
+        // (see RenderLineLabel) so that no later wire can draw over an earlier wire's label.
+    }
+
+    /// <summary>
+    /// Draws a line's optional midpoint label, called in a final pass after all wires and boxes are
+    /// drawn so labels are never drawn over by another wire.
+    /// </summary>
+    /// <param name="canvas">Canvas to draw on.</param>
+    /// <param name="line">The line whose label is rendered.</param>
+    /// <param name="options">Render options providing theme and scale.</param>
+    /// <param name="midX">Pre-computed label centre X in logical pixels.</param>
+    /// <param name="midY">Pre-computed label centre Y in logical pixels.</param>
+    private static void RenderLineLabel(SKCanvas canvas, LayoutLine line, RenderOptions options, double midX, double midY)
+    {
+        if (line.MidpointLabel is null)
         {
-            RenderLineMidpointLabel(canvas, line.Waypoints, line.MidpointLabel, theme, scale, strokeColor);
+            return;
+        }
+
+        var theme = options.Theme;
+        var scale = (float)options.Scale;
+        var strokeColor = SKColor.Parse(theme.StrokeColor);
+        RenderLineMidpointLabel(canvas, midX, midY, line.MidpointLabel, theme, scale, strokeColor);
+    }
+
+    /// <summary>Recursively collects all <see cref="LayoutLine"/> nodes from a node tree.</summary>
+    /// <param name="nodes">Top-level nodes to walk.</param>
+    /// <returns>Every line node, including those nested inside boxes or bands.</returns>
+    private static IEnumerable<LayoutLine> CollectLines(IReadOnlyList<LayoutNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            switch (node)
+            {
+                case LayoutLine line:
+                    yield return line;
+                    break;
+
+                case LayoutBox box:
+                    foreach (var inner in CollectLines(box.Children))
+                    {
+                        yield return inner;
+                    }
+
+                    break;
+
+                case LayoutBand band:
+                    foreach (var inner in CollectLines(band.Children))
+                    {
+                        yield return inner;
+                    }
+
+                    break;
+
+                default:
+                    break;
+            }
         }
     }
 
@@ -652,21 +835,21 @@ public sealed class PngRenderer : IRenderer
     /// rectangle drawn first to ensure readability over the line stroke.
     /// </summary>
     /// <param name="canvas">Canvas to draw on.</param>
-    /// <param name="waypoints">Ordered waypoints of the line; must contain at least one entry.</param>
+    /// <param name="midX">Label centre X in logical pixels.</param>
+    /// <param name="midY">Label centre Y in logical pixels.</param>
     /// <param name="label">Label text to render.</param>
     /// <param name="theme">Theme providing font size and padding.</param>
     /// <param name="scale">Uniform scale factor.</param>
     /// <param name="strokeColor">Color used for the label text.</param>
     private static void RenderLineMidpointLabel(
         SKCanvas canvas,
-        IReadOnlyList<Point2D> waypoints,
+        double midX,
+        double midY,
         string label,
         Theme theme,
         float scale,
         SKColor strokeColor)
     {
-        // Compute the geometric midpoint of the waypoints list
-        var (midX, midY) = ComputeLineMidpoint(waypoints);
         var scaledX = (float)(midX * scale);
         var scaledY = (float)(midY * scale);
 
@@ -691,28 +874,6 @@ public sealed class PngRenderer : IRenderer
         }
 
         canvas.DrawText(label, scaledX, scaledY, textPaint);
-    }
-
-    /// <summary>
-    /// Computes the geometric midpoint of an ordered waypoint list. For an odd number of
-    /// waypoints the center element is returned; for an even count the average of the two
-    /// center elements is returned.
-    /// </summary>
-    /// <param name="waypoints">Ordered waypoints; must contain at least one entry.</param>
-    /// <returns>The (X, Y) coordinates of the midpoint in logical pixels.</returns>
-    private static (double X, double Y) ComputeLineMidpoint(IReadOnlyList<Point2D> waypoints)
-    {
-        var n = waypoints.Count;
-        if (n % 2 == 1)
-        {
-            // Odd: middle element is the exact midpoint
-            return (waypoints[n / 2].X, waypoints[n / 2].Y);
-        }
-
-        // Even: average the two center elements
-        var lo = waypoints[n / 2 - 1];
-        var hi = waypoints[n / 2];
-        return ((lo.X + hi.X) / 2.0, (lo.Y + hi.Y) / 2.0);
     }
 
     /// <summary>

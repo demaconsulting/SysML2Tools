@@ -2,6 +2,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+using DemaConsulting.SysML2Tools.Layout.Engine;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -10,405 +11,546 @@ using DemaConsulting.SysML2Tools.Semantic.Internal;
 namespace DemaConsulting.SysML2Tools.Layout.Internal;
 
 /// <summary>
-/// Layout strategy for GeneralView diagrams that renders all user-defined <c>part def</c>
-/// elements grouped by their parent package in a two-column grid.
+/// Layout strategy for GeneralView diagrams. Renders every user-defined <c>def</c> element
+/// (part, port, interface, requirement, action, …) as a keyword-labelled box, groups boxes by
+/// their owning package inside folder-shaped containers, and routes specialization edges
+/// orthogonally around the boxes.
 /// </summary>
 /// <remarks>
-/// Standard-library declarations are filtered out using <see cref="StdlibFilter"/>. Only
-/// <see cref="SysmlDefinitionNode"/> instances with
-/// <see cref="SysmlDefinitionNode.DefinitionKeyword"/> equal to <c>"part def"</c> are laid out.
-/// When no user-defined part defs are found, a minimal canvas
-/// <c>LayoutTree(200.0, 100.0, [])</c> is returned.
+/// Box placement uses <see cref="ContainmentPacker"/> at two levels — definition boxes within a
+/// package folder, and the folders themselves across the canvas. Specialization (generalization)
+/// edges are routed with <see cref="ChannelRouter"/> so they avoid unrelated boxes. Standard-library
+/// declarations are excluded via <see cref="StdlibFilter"/>.
 /// </remarks>
 internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 {
-    /// <summary>Layout margin around the entire diagram canvas.</summary>
-    private const double Margin = 20.0;
+    /// <summary>Minimum width of a definition box in logical pixels.</summary>
+    private const double MinBoxWidth = 130.0;
 
-    /// <summary>Horizontal gap between the two layout columns.</summary>
-    private const double ColumnGap = 30.0;
+    /// <summary>Approximate width-per-character factor relative to font size.</summary>
+    private const double CharWidthFactor = 0.62;
 
-    /// <summary>Vertical gap between group rows.</summary>
-    private const double RowGap = 20.0;
+    /// <summary>Clearance kept between routed edges and boxes.</summary>
+    private const double EdgeClearance = 12.0;
 
-    /// <summary>Minimum box width in logical pixels.</summary>
-    private const double MinBoxWidth = 120.0;
+    /// <summary>A user-defined definition together with its computed box size and supertypes.</summary>
+    private sealed record DefBox(
+        string QualifiedName,
+        string SimpleName,
+        string Keyword,
+        IReadOnlyList<string> SupertypeNames,
+        IReadOnlyList<LayoutCompartment> Compartments,
+        double Width,
+        double Height);
 
-    /// <summary>Minimum box height in logical pixels.</summary>
-    private const double MinBoxHeight = 40.0;
+    /// <summary>A placed definition box with absolute coordinates, used for edge anchoring.</summary>
+    private sealed record PlacedBox(string QualifiedName, string SimpleName, double X, double Y, double Width, double Height);
 
     /// <inheritdoc/>
     public LayoutTree BuildLayout(ViewContext context, RenderOptions options)
     {
-        // Collect all user-defined part defs from the workspace
-        var userPartDefs = CollectUserPartDefs(context.Workspace);
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(options);
 
-        // Return minimal canvas when no user part defs are present
-        if (userPartDefs.Count == 0)
+        var theme = options.Theme;
+
+        // Collect all user-defined definitions, sized for rendering.
+        var defs = CollectDefinitions(context.Workspace, theme);
+        if (defs.Count == 0)
         {
             return new LayoutTree(200.0, 100.0, []);
         }
 
-        // Group part defs by parent package (prefix before the last "::")
-        var groups = GroupByPackage(userPartDefs);
+        // Group definitions by their owning package (prefix before the last "::").
+        var groups = GroupByPackage(defs);
 
-        // Lay out groups in a two-column grid and collect all top-level nodes
-        return BuildGridLayout(groups, options.Theme, options.DepthLimit);
+        // Place groups (folders) and standalone definitions across the canvas.
+        var (nodes, placed, canvasWidth, canvasHeight) = PlaceGroups(groups, theme, options.DepthLimit);
+
+        // Route specialization edges between placed boxes.
+        var (edges, crossings) = BuildSpecializationEdges(defs, placed);
+        nodes.AddRange(edges);
+
+        var warnings = LayoutWarnings.ForCrossings(context.ViewName, crossings);
+        return new LayoutTree(canvasWidth, canvasHeight, nodes) { Warnings = warnings };
     }
 
     /// <summary>
-    /// Collects all user-defined <c>part def</c> declarations from the workspace,
-    /// filtering out standard-library elements.
+    /// Collects every user-defined <see cref="SysmlDefinitionNode"/> from the workspace and computes
+    /// each box's intrinsic size from its keyword and name.
     /// </summary>
-    /// <param name="workspace">The workspace whose declarations are scanned.</param>
-    /// <returns>
-    /// A list of (qualifiedName, node) pairs for every user-defined part def.
-    /// </returns>
-    private static IReadOnlyList<(string QualifiedName, SysmlDefinitionNode Node)> CollectUserPartDefs(
-        SysmlWorkspace workspace)
+    private static IReadOnlyList<DefBox> CollectDefinitions(SysmlWorkspace workspace, Theme theme)
     {
-        var result = new List<(string, SysmlDefinitionNode)>();
+        var result = new List<DefBox>();
 
         foreach (var (qualifiedName, declaration) in workspace.Declarations)
         {
-            // Skip non-definition nodes and non-part-def definitions
-            if (declaration is not SysmlDefinitionNode def ||
-                def.DefinitionKeyword != "part def")
+            if (declaration is not SysmlDefinitionNode def)
             {
                 continue;
             }
 
-            // Skip stdlib elements identified by their qualified-name prefix
-            if (StdlibFilter.IsStdlibElement(qualifiedName))
+            if (StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
             {
                 continue;
             }
 
-            result.Add((qualifiedName, def));
+            var simpleName = def.Name ?? qualifiedName;
+            var keyword = string.IsNullOrEmpty(def.DefinitionKeyword) ? "def" : def.DefinitionKeyword;
+
+            // Build compartments from the definition's owned usages (attributes, ports, parts, …).
+            var compartments = BuildCompartments(def);
+
+            var (width, height) = ComputeBoxSize(simpleName, keyword, compartments, theme);
+            result.Add(new DefBox(qualifiedName, simpleName, keyword, def.SupertypeNames, compartments, width, height));
         }
 
         return result;
     }
 
     /// <summary>
-    /// Groups part-def entries by their parent package.
+    /// Builds compartments for a definition by grouping its owned usage features by keyword and
+    /// formatting each as a <c>name : Type [n]</c> row.
     /// </summary>
-    /// <param name="partDefs">User-defined part defs to group.</param>
-    /// <returns>
-    /// An ordered list of (packageName, items) groups, where <c>packageName</c> is
-    /// the prefix before the last <c>::</c> separator, or <c>""</c> for top-level defs.
-    /// </returns>
-    private static IReadOnlyList<(string PackageName, IReadOnlyList<(string QualifiedName, SysmlDefinitionNode Node)> Items)>
-        GroupByPackage(IReadOnlyList<(string QualifiedName, SysmlDefinitionNode Node)> partDefs)
+    private static IReadOnlyList<LayoutCompartment> BuildCompartments(SysmlDefinitionNode def)
     {
-        // Use ordered dictionary to preserve insertion order of groups
-        var groups = new Dictionary<string, List<(string, SysmlDefinitionNode)>>(StringComparer.Ordinal);
+        // Preserve keyword first-seen order so compartments appear in declaration order.
+        var order = new List<string>();
+        var groups = new Dictionary<string, List<string>>(StringComparer.Ordinal);
 
-        foreach (var (qualifiedName, node) in partDefs)
+        foreach (var child in def.Children)
         {
-            // Extract parent package name from the qualified name
-            var lastSeparator = qualifiedName.LastIndexOf("::", StringComparison.Ordinal);
-            var packageName = lastSeparator >= 0
-                ? qualifiedName[..lastSeparator]
-                : string.Empty;
-
-            if (!groups.TryGetValue(packageName, out var group))
+            if (child is not SysmlFeatureNode feature)
             {
-                group = [];
-                groups[packageName] = group;
+                continue;
             }
 
-            group.Add((qualifiedName, node));
+            var keyword = string.IsNullOrEmpty(feature.FeatureKeyword) ? "feature" : feature.FeatureKeyword;
+            if (!groups.TryGetValue(keyword, out var rows))
+            {
+                rows = [];
+                groups[keyword] = rows;
+                order.Add(keyword);
+            }
+
+            rows.Add(FormatFeatureRow(feature));
         }
 
-        return groups
-            .Select(kvp => (kvp.Key, (IReadOnlyList<(string, SysmlDefinitionNode)>)kvp.Value))
-            .ToList();
+        return [.. order.Select(k => new LayoutCompartment(Pluralize(k), groups[k]))];
+    }
+
+    /// <summary>Formats a usage feature as a compartment row: <c>name : Type [n]</c>.</summary>
+    private static string FormatFeatureRow(SysmlFeatureNode feature)
+    {
+        var name = feature.Name ?? string.Empty;
+        var typing = feature.FeatureTyping is { Length: > 0 } t ? $" : {t}" : string.Empty;
+        var multiplicity = feature.Multiplicity is { Length: > 0 } m ? $" {m}" : string.Empty;
+        var row = $"{name}{typing}{multiplicity}".Trim();
+        return row.Length == 0 ? "\u2014" : row;
+    }
+
+    /// <summary>Returns a simple plural form of a usage keyword for use as a compartment title.</summary>
+    private static string Pluralize(string keyword) => keyword switch
+    {
+        "ref" => "references",
+        _ => keyword + "s",
+    };
+
+    /// <summary>Computes the intrinsic box size needed for the title and any compartments.</summary>
+    private static (double Width, double Height) ComputeBoxSize(
+        string name,
+        string keyword,
+        IReadOnlyList<LayoutCompartment> compartments,
+        Theme theme)
+    {
+        var nameWidth = (name.Length * theme.FontSizeTitle * CharWidthFactor) + (2.0 * theme.LabelPadding);
+        var keywordWidth = ((keyword.Length + 2) * theme.FontSizeBody * CharWidthFactor) + (2.0 * theme.LabelPadding);
+        var width = Math.Max(MinBoxWidth, Math.Max(nameWidth, keywordWidth));
+
+        // Widen to fit the longest compartment title or row.
+        foreach (var compartment in compartments)
+        {
+            if (compartment.Title is { } title)
+            {
+                width = Math.Max(width, (title.Length * theme.FontSizeBody * CharWidthFactor) + (2.0 * theme.LabelPadding));
+            }
+
+            foreach (var row in compartment.Rows)
+            {
+                width = Math.Max(width, (row.Length * theme.FontSizeBody * CharWidthFactor) + (3.0 * theme.LabelPadding));
+            }
+        }
+
+        // Title area holds the keyword line and the name line; add a little body breathing room.
+        var height = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true) + theme.LabelPadding;
+        foreach (var compartment in compartments)
+        {
+            height += ComputeCompartmentHeight(compartment, theme);
+        }
+
+        return (width, height);
     }
 
     /// <summary>
-    /// Builds a two-column grid layout from the grouped part defs.
+    /// Computes the rendered height of a compartment, matching the renderer's layout: an optional
+    /// title row followed by one row per entry.
     /// </summary>
-    /// <param name="groups">Part-def groups ordered by package name.</param>
-    /// <param name="theme">Visual theme providing size and color parameters.</param>
-    /// <param name="depthLimit">Maximum nesting depth to render; 0 means unlimited.</param>
-    /// <returns>A fully resolved <see cref="LayoutTree"/> with all box positions computed.</returns>
-    private static LayoutTree BuildGridLayout(
-        IReadOnlyList<(string PackageName, IReadOnlyList<(string QualifiedName, SysmlDefinitionNode Node)> Items)> groups,
+    private static double ComputeCompartmentHeight(LayoutCompartment compartment, Theme theme)
+    {
+        var height = 0.0;
+        if (compartment.Title is not null)
+        {
+            height += theme.LabelPadding + theme.FontSizeBody + theme.LabelPadding;
+        }
+
+        height += compartment.Rows.Count * (theme.LabelPadding + theme.FontSizeBody);
+
+        // Bottom gap added by the renderer after the last row.
+        height += theme.LabelPadding;
+        return height;
+    }
+
+    /// <summary>
+    /// Groups definitions by their parent package name (the qualified-name prefix before the last
+    /// <c>::</c>), preserving first-seen order. Top-level definitions use an empty package key.
+    /// </summary>
+    private static IReadOnlyList<(string Package, List<DefBox> Items)> GroupByPackage(IReadOnlyList<DefBox> defs)
+    {
+        var order = new List<string>();
+        var map = new Dictionary<string, List<DefBox>>(StringComparer.Ordinal);
+
+        foreach (var def in defs)
+        {
+            var sep = def.QualifiedName.LastIndexOf("::", StringComparison.Ordinal);
+            var package = sep >= 0 ? def.QualifiedName[..sep] : string.Empty;
+
+            if (!map.TryGetValue(package, out var list))
+            {
+                list = [];
+                map[package] = list;
+                order.Add(package);
+            }
+
+            list.Add(def);
+        }
+
+        return [.. order.Select(p => (p, map[p]))];
+    }
+
+    /// <summary>
+    /// Places each package group as a folder box (with its definitions packed inside) and each
+    /// top-level definition as a standalone box, packing all blocks across the canvas.
+    /// </summary>
+    private static (List<LayoutNode> Nodes, List<PlacedBox> Placed, double Width, double Height) PlaceGroups(
+        IReadOnlyList<(string Package, List<DefBox> Items)> groups,
         Theme theme,
         int depthLimit)
     {
-        // Compute the width required for each group box
-        var groupWidths = groups.Select(g => ComputeGroupWidth(g.PackageName, g.Items, theme)).ToList();
-        var groupHeights = groups.Select(g => ComputeGroupHeight(g.Items, theme)).ToList();
+        var margin = 2.0 * theme.LabelPadding;
+        var hGap = 4.0 * theme.LabelPadding;
 
-        // Determine column widths from the maximum group width in each column
-        var col0Width = 0.0;
-        var col1Width = 0.0;
-        for (var i = 0; i < groups.Count; i++)
+        // Vertical gap between packed rows. Kept generous so specialization edges between
+        // vertically-adjacent boxes have room for their arrowheads and a visible line segment.
+        var vGap = 5.0 * theme.LabelPadding;
+
+        // Reserve the full title area (package keyword + name) above a folder's contents so the
+        // label never overlaps the first child box. The renderer draws the smaller tab notch within.
+        var folderTitleHeight = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true);
+
+        // Folder contents sit at depth 1; truncate them when the depth limit forbids that level.
+        var truncateFolderContents = depthLimit > 0 && depthLimit <= 1;
+
+        // Pre-compute the outer size of each top-level block (folder or standalone box).
+        var blocks = new List<BlockPlan>();
+        foreach (var (package, items) in groups)
         {
-            if (i % 2 == 0)
+            if (string.IsNullOrEmpty(package))
             {
-                col0Width = Math.Max(col0Width, groupWidths[i]);
+                // Top-level definitions are individual blocks (no folder).
+                foreach (var def in items)
+                {
+                    blocks.Add(new BlockPlan(null, [def], def.Width, def.Height));
+                }
+            }
+            else if (truncateFolderContents)
+            {
+                // Replace the folder's definition boxes with a single ellipsis indicator.
+                var ellipsisWidth = Math.Max(MinBoxWidth, (2.0 * margin) + (items.Count.ToString(System.Globalization.CultureInfo.InvariantCulture).Length * 8.0) + 60.0);
+                var ellipsisHeight = (2.0 * margin) + theme.FontSizeTitle;
+                blocks.Add(new BlockPlan(package, items, ellipsisWidth, folderTitleHeight + ellipsisHeight) { Truncated = true });
             }
             else
             {
-                col1Width = Math.Max(col1Width, groupWidths[i]);
+                // Pack the package's definitions to size the folder content region.
+                var inner = ContainmentPacker.Pack(
+                    [.. items.Select(d => new PackItem(d.Width, d.Height))],
+                    maxContentWidth: ComputePackWidth(items),
+                    horizontalGap: hGap,
+                    verticalGap: vGap,
+                    padding: margin);
+
+                var folderWidth = inner.Width;
+                var folderHeight = folderTitleHeight + inner.Height;
+                blocks.Add(new BlockPlan(package, items, folderWidth, folderHeight) { Inner = inner });
             }
         }
 
-        // Suppress unused variable warning when col1Width is never consumed in grid positioning
-        _ = col1Width;
+        // Pack the blocks across the canvas.
+        var outer = ContainmentPacker.Pack(
+            [.. blocks.Select(b => new PackItem(b.Width, b.Height))],
+            maxContentWidth: ComputeCanvasWidth(blocks),
+            horizontalGap: hGap,
+            verticalGap: vGap,
+            padding: margin);
 
-        // Position each group box in the grid
         var nodes = new List<LayoutNode>();
-        var cursorX1 = Margin + col0Width + ColumnGap;
-        var cursorY0 = Margin;
-        var cursorY1 = Margin;
-        var maxX = Margin;
-        var maxY = Margin;
+        var placed = new List<PlacedBox>();
 
-        for (var i = 0; i < groups.Count; i++)
+        for (var i = 0; i < blocks.Count; i++)
         {
-            var (packageName, items) = groups[i];
-            var gw = groupWidths[i];
-            var gh = groupHeights[i];
-
-            double boxX;
-            double boxY;
-            if (i % 2 == 0)
-            {
-                // Left column
-                boxX = Margin;
-                boxY = cursorY0;
-                cursorY0 += gh + RowGap;
-            }
-            else
-            {
-                // Right column
-                boxX = cursorX1;
-                boxY = cursorY1;
-                cursorY1 += gh + RowGap;
-            }
-
-            // Build child part-def boxes
-            var children = BuildChildBoxes(items, boxX, boxY, gw, theme, depthLimit);
-            var label = string.IsNullOrEmpty(packageName) ? null : packageName;
-            var groupBox = new LayoutBox(boxX, boxY, gw, gh, label, 0, BoxShape.Rectangle, [], children);
-            nodes.Add(groupBox);
-
-            maxX = Math.Max(maxX, boxX + gw);
-            maxY = Math.Max(maxY, boxY + gh);
+            PlaceBlock(blocks[i], outer.Rects[i], folderTitleHeight, theme, nodes, placed);
         }
 
-        // Add specialization lines for part defs with supertypes
-        AddSpecializationLines(groups, nodes);
-
-        var canvasWidth = maxX + Margin;
-        var canvasHeight = maxY + Margin;
-        return new LayoutTree(canvasWidth, canvasHeight, nodes);
+        return (nodes, placed, outer.Width, outer.Height);
     }
 
-    /// <summary>
-    /// Computes the minimum width of a group box based on its label and child part defs.
-    /// </summary>
-    /// <param name="packageName">Parent package label text.</param>
-    /// <param name="items">Part-def items in the group.</param>
-    /// <param name="theme">Visual theme for font measurements.</param>
-    /// <returns>Minimum required width in logical pixels.</returns>
-    private static double ComputeGroupWidth(
-        string packageName,
-        IReadOnlyList<(string QualifiedName, SysmlDefinitionNode Node)> items,
-        Theme theme)
-    {
-        // Start with the package label width
-        var labelWidth = packageName.Length * theme.FontSizeTitle * 0.6 + 2 * theme.LabelPadding;
-        var maxWidth = Math.Max(MinBoxWidth, labelWidth);
-
-        // Expand to fit each child label
-        foreach (var (qualifiedName, node) in items)
-        {
-            var childLabel = node.Name ?? qualifiedName;
-            var childWidth = childLabel.Length * theme.FontSizeTitle * 0.6 + 4 * theme.LabelPadding;
-            maxWidth = Math.Max(maxWidth, Math.Max(MinBoxWidth, childWidth));
-        }
-
-        return maxWidth + 2 * theme.LabelPadding;
-    }
-
-    /// <summary>
-    /// Computes the total height of a group box based on its title area and child box heights.
-    /// </summary>
-    /// <param name="items">Part-def items in the group.</param>
-    /// <param name="theme">Visual theme for font measurements.</param>
-    /// <returns>Minimum required height in logical pixels.</returns>
-    private static double ComputeGroupHeight(
-        IReadOnlyList<(string QualifiedName, SysmlDefinitionNode Node)> items,
-        Theme theme)
-    {
-        // Title area height plus padding
-        var titleHeight = theme.FontSizeTitle + 2 * theme.LabelPadding;
-
-        // Sum child box heights with vertical spacing
-        var childrenHeight = items.Count * MinBoxHeight + (items.Count + 1) * theme.LabelPadding;
-
-        return titleHeight + childrenHeight;
-    }
-
-    /// <summary>
-    /// Builds the child <see cref="LayoutBox"/> nodes for part defs within a group.
-    /// </summary>
-    /// <param name="items">Part-def items to lay out.</param>
-    /// <param name="groupX">Left edge X of the parent group box.</param>
-    /// <param name="groupY">Top edge Y of the parent group box.</param>
-    /// <param name="groupWidth">Width of the parent group box.</param>
-    /// <param name="theme">Visual theme for font and size measurements.</param>
-    /// <param name="depthLimit">Maximum nesting depth to render; 0 means unlimited.</param>
-    /// <returns>List of child <see cref="LayoutBox"/> nodes with absolute coordinates.</returns>
-    private static IReadOnlyList<LayoutNode> BuildChildBoxes(
-        IReadOnlyList<(string QualifiedName, SysmlDefinitionNode Node)> items,
-        double groupX,
-        double groupY,
-        double groupWidth,
+    /// <summary>Emits the layout nodes for one placed block and records its definition boxes.</summary>
+    private static void PlaceBlock(
+        BlockPlan block,
+        PackedRect rect,
+        double folderTitleHeight,
         Theme theme,
-        int depthLimit)
+        List<LayoutNode> nodes,
+        List<PlacedBox> placed)
     {
+        if (block.Package is null)
+        {
+            // Standalone top-level definition box.
+            var def = block.Items[0];
+            nodes.Add(MakeDefBox(def, rect.X, rect.Y, depth: 0));
+            placed.Add(new PlacedBox(def.QualifiedName, def.SimpleName, rect.X, rect.Y, def.Width, def.Height));
+            return;
+        }
+
         var children = new List<LayoutNode>();
 
-        // Start below the group title area
-        var titleHeight = theme.FontSizeTitle + 2 * theme.LabelPadding;
-        var childX = groupX + theme.LabelPadding;
-        var childWidth = groupWidth - 2 * theme.LabelPadding;
-        var cursorY = groupY + titleHeight + theme.LabelPadding;
-
-        // Child part-def boxes are at depth 1; when the depth limit is active and met,
-        // replace all children with a single ellipsis label to indicate truncation
-        if (depthLimit > 0 && 1 >= depthLimit)
+        if (block.Truncated)
         {
+            // Show a visible truncation indicator instead of the hidden definition boxes.
             children.Add(new LayoutLabel(
-                X: childX,
-                Y: cursorY,
-                MaxWidth: childWidth,
-                Text: "…",
+                X: rect.X + theme.LabelPadding,
+                Y: rect.Y + folderTitleHeight + theme.LabelPadding + (theme.FontSizeTitle / 2.0),
+                MaxWidth: block.Width - (2.0 * theme.LabelPadding),
+                Text: $"+{block.Items.Count} more\u2026",
                 Align: TextAlign.Center,
                 Weight: FontWeight.Regular,
                 Style: FontStyle.Normal,
                 FontSize: theme.FontSizeTitle));
-            return children;
         }
-
-        foreach (var (qualifiedName, node) in items)
+        else
         {
-            var label = node.Name ?? qualifiedName;
-            var childBox = new LayoutBox(
-                X: childX,
-                Y: cursorY,
-                Width: childWidth,
-                Height: MinBoxHeight,
-                Label: label,
-                Depth: 1,
-                Shape: BoxShape.Rectangle,
-                Compartments: [],
-                Children: []);
-            children.Add(childBox);
-            cursorY += MinBoxHeight + theme.LabelPadding;
+            // Folder containing packed definition boxes.
+            var inner = block.Inner!;
+            for (var k = 0; k < block.Items.Count; k++)
+            {
+                var def = block.Items[k];
+                var childRect = inner.Rects[k];
+                var absX = rect.X + childRect.X;
+                var absY = rect.Y + folderTitleHeight + childRect.Y;
+                children.Add(MakeDefBox(def, absX, absY, depth: 1));
+                placed.Add(new PlacedBox(def.QualifiedName, def.SimpleName, absX, absY, def.Width, def.Height));
+            }
         }
 
-        return children;
+        nodes.Add(new LayoutBox(
+            X: rect.X,
+            Y: rect.Y,
+            Width: block.Width,
+            Height: block.Height,
+            Label: SimplePackageName(block.Package),
+            Depth: 0,
+            Shape: BoxShape.Folder,
+            Compartments: [],
+            Children: children,
+            Keyword: "package"));
     }
 
+    /// <summary>Creates a definition <see cref="LayoutBox"/> at the given absolute position.</summary>
+    private static LayoutBox MakeDefBox(DefBox def, double x, double y, int depth) =>
+        new(
+            X: x,
+            Y: y,
+            Width: def.Width,
+            Height: def.Height,
+            Label: def.SimpleName,
+            Depth: depth,
+            Shape: BoxShape.Rectangle,
+            Compartments: def.Compartments,
+            Children: [],
+            Keyword: def.Keyword);
+
     /// <summary>
-    /// Adds <see cref="LayoutLine"/> nodes for specialization relationships between part defs
-    /// that declare supertypes.
+    /// Builds specialization (generalization) edges between placed definition boxes, returning the
+    /// edges and the number that could not be routed without crossing a box.
     /// </summary>
-    /// <param name="groups">All part-def groups used to resolve supertype positions.</param>
-    /// <param name="nodes">Top-level node list to which lines are appended.</param>
-    /// <remarks>
-    /// Lines use <see cref="ArrowheadStyle.None"/> at the source (subtype) end and
-    /// <see cref="ArrowheadStyle.Open"/> at the target (supertype) end, following the
-    /// SysML convention that the open arrowhead points toward the general type.
-    /// Only supertypes resolvable within the same set of user part defs are connected;
-    /// missing supertypes produce no line.
-    /// </remarks>
-    private static void AddSpecializationLines(
-        IReadOnlyList<(string PackageName, IReadOnlyList<(string QualifiedName, SysmlDefinitionNode Node)> Items)> groups,
-        List<LayoutNode> nodes)
+    private static (List<LayoutNode> Edges, int Crossings) BuildSpecializationEdges(
+        IReadOnlyList<DefBox> defs,
+        IReadOnlyList<PlacedBox> placed)
     {
-        // Build a lookup table from qualifiedName -> LayoutBox position
-        var boxPositions = BuildBoxPositionLookup(nodes);
+        var edges = new List<LayoutNode>();
+        var crossings = 0;
 
-        foreach (var (_, items) in groups)
+        // Index placed boxes by both qualified and simple name for supertype resolution.
+        var byQualified = new Dictionary<string, PlacedBox>(StringComparer.Ordinal);
+        var bySimple = new Dictionary<string, PlacedBox>(StringComparer.Ordinal);
+        foreach (var p in placed)
         {
-            foreach (var (qualifiedName, node) in items)
+            byQualified.TryAdd(p.QualifiedName, p);
+            bySimple.TryAdd(p.SimpleName, p);
+        }
+
+        foreach (var def in defs)
+        {
+            if (!byQualified.TryGetValue(def.QualifiedName, out var fromBox))
             {
-                foreach (var supertypeName in node.SupertypeNames)
+                continue;
+            }
+
+            foreach (var supertype in def.SupertypeNames)
+            {
+                if (!TryResolve(supertype, byQualified, bySimple, out var target) ||
+                    target!.QualifiedName == def.QualifiedName)
                 {
-                    // Only draw lines to supertypes that are in our layout
-                    if (!boxPositions.TryGetValue(qualifiedName, out var fromBox) ||
-                        !boxPositions.TryGetValue(supertypeName, out var toBox))
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    // Create a simple 3-segment orthogonal line from subtype bottom to supertype bottom
-                    var fromX = fromBox.X + fromBox.Width / 2.0;
-                    var fromY = fromBox.Y + fromBox.Height;
-                    var toX = toBox.X + toBox.Width / 2.0;
-                    var toY = toBox.Y + toBox.Height;
-                    var midY = (fromY + toY) / 2.0;
-
-                    var waypoints = new List<Point2D>
-                    {
-                        new(fromX, fromY),
-                        new(fromX, midY),
-                        new(toX, midY),
-                        new(toX, toY)
-                    };
-
-                    nodes.Add(new LayoutLine(
-                        Waypoints: waypoints,
-                        SourceArrowhead: ArrowheadStyle.None,
-                        TargetArrowhead: ArrowheadStyle.Open,
-                        LineStyle: LineStyle.Solid,
-                        MidpointLabel: null));
+                var (edge, crossed) = RouteEdge(fromBox, target, placed);
+                edges.Add(edge);
+                if (crossed)
+                {
+                    crossings++;
                 }
             }
         }
+
+        return (edges, crossings);
     }
 
-    /// <summary>
-    /// Builds a flat lookup dictionary from qualified name to <see cref="LayoutBox"/> by
-    /// walking the tree of top-level nodes recursively.
-    /// </summary>
-    /// <param name="nodes">Top-level nodes to search.</param>
-    /// <returns>A dictionary mapping qualified name to the corresponding <see cref="LayoutBox"/>.</returns>
-    private static Dictionary<string, LayoutBox> BuildBoxPositionLookup(IReadOnlyList<LayoutNode> nodes)
+    /// <summary>Resolves a supertype reference to a placed box by qualified then simple name.</summary>
+    private static bool TryResolve(
+        string reference,
+        Dictionary<string, PlacedBox> byQualified,
+        Dictionary<string, PlacedBox> bySimple,
+        out PlacedBox? target)
     {
-        var result = new Dictionary<string, LayoutBox>(StringComparer.Ordinal);
-        CollectBoxes(nodes, result);
-        return result;
-    }
-
-    /// <summary>
-    /// Recursively collects labeled <see cref="LayoutBox"/> nodes and their positions.
-    /// </summary>
-    /// <param name="nodes">Nodes to walk.</param>
-    /// <param name="lookup">Dictionary to populate.</param>
-    private static void CollectBoxes(IEnumerable<LayoutNode> nodes, Dictionary<string, LayoutBox> lookup)
-    {
-        foreach (var node in nodes)
+        if (byQualified.TryGetValue(reference, out var q))
         {
-            if (node is LayoutBox box)
-            {
-                // Record by label (which is the simple name for child part-def boxes)
-                if (box.Label != null)
-                {
-                    lookup.TryAdd(box.Label, box);
-                }
-
-                // Recurse into children
-                CollectBoxes(box.Children, lookup);
-            }
+            target = q;
+            return true;
         }
+
+        // Fall back to the last segment of the reference matched against simple names.
+        var sep = reference.LastIndexOf("::", StringComparison.Ordinal);
+        var simple = sep >= 0 ? reference[(sep + 2)..] : reference;
+        if (bySimple.TryGetValue(simple, out var s))
+        {
+            target = s;
+            return true;
+        }
+
+        target = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Routes a single specialization edge from a subtype box to its supertype box, returning the
+    /// edge and whether it had to cross another box.
+    /// </summary>
+    private static (LayoutLine Edge, bool Crossed) RouteEdge(PlacedBox from, PlacedBox to, IReadOnlyList<PlacedBox> placed)
+    {
+        var fromCenter = new Point2D(from.X + (from.Width / 2.0), from.Y + (from.Height / 2.0));
+        var toCenter = new Point2D(to.X + (to.Width / 2.0), to.Y + (to.Height / 2.0));
+
+        var (source, sourceSide) = AnchorToward(from, toCenter);
+        var (target, targetSide) = AnchorToward(to, fromCenter);
+
+        // Obstacles are all boxes except the two endpoints of this edge.
+        var obstacles = placed
+            .Where(b => b.QualifiedName != from.QualifiedName && b.QualifiedName != to.QualifiedName)
+            .Select(b => new Rect(b.X, b.Y, b.Width, b.Height))
+            .ToList();
+
+        var route = ChannelRouter.RouteWithStatus(source, target, obstacles, EdgeClearance, sourceSide, targetSide);
+
+        // Generalization: open arrowhead points at the supertype (target) end.
+        var edge = new LayoutLine(
+            Waypoints: route.Waypoints,
+            SourceArrowhead: ArrowheadStyle.None,
+            TargetArrowhead: ArrowheadStyle.Open,
+            LineStyle: LineStyle.Solid,
+            MidpointLabel: null);
+        return (edge, route.Crossed);
+    }
+
+    /// <summary>
+    /// Returns the midpoint of the box side whose outward normal best points at the target, along
+    /// with that side.
+    /// </summary>
+    private static (Point2D Point, PortSide Side) AnchorToward(PlacedBox box, Point2D target)
+    {
+        var cx = box.X + (box.Width / 2.0);
+        var cy = box.Y + (box.Height / 2.0);
+        var dx = target.X - cx;
+        var dy = target.Y - cy;
+
+        if (Math.Abs(dx) >= Math.Abs(dy))
+        {
+            // Left or right side.
+            return dx >= 0
+                ? (new Point2D(box.X + box.Width, cy), PortSide.Right)
+                : (new Point2D(box.X, cy), PortSide.Left);
+        }
+
+        // Top or bottom side.
+        return dy >= 0
+            ? (new Point2D(cx, box.Y + box.Height), PortSide.Bottom)
+            : (new Point2D(cx, box.Y), PortSide.Top);
+    }
+
+    /// <summary>Computes the packing width used to lay out the definitions within a package folder.</summary>
+    private static double ComputePackWidth(IReadOnlyList<DefBox> items)
+    {
+        // Target a roughly 4:3 region by packing to the square root of the total item area.
+        var totalArea = items.Sum(d => (d.Width + 20.0) * (d.Height + 20.0));
+        var maxItemWidth = items.Max(d => d.Width);
+        var target = Math.Sqrt(totalArea) * 1.15;
+        return Math.Max(maxItemWidth, target);
+    }
+
+    /// <summary>Computes the packing width used to lay out top-level blocks across the canvas.</summary>
+    private static double ComputeCanvasWidth(IReadOnlyList<BlockPlan> blocks)
+    {
+        // Target a roughly 4:3 canvas by packing to the square root of the total block area.
+        var totalArea = blocks.Sum(b => (b.Width + 30.0) * (b.Height + 30.0));
+        var maxBlockWidth = blocks.Max(b => b.Width);
+        var target = Math.Sqrt(totalArea) * 1.25;
+        return Math.Max(maxBlockWidth, target);
+    }
+
+    /// <summary>Returns the last segment of a qualified package name for use as a folder label.</summary>
+    private static string SimplePackageName(string package)
+    {
+        var sep = package.LastIndexOf("::", StringComparison.Ordinal);
+        return sep >= 0 ? package[(sep + 2)..] : package;
+    }
+
+    /// <summary>Internal plan for one top-level block (a folder or a standalone definition box).</summary>
+    private sealed record BlockPlan(string? Package, List<DefBox> Items, double Width, double Height)
+    {
+        /// <summary>Packed inner layout of the folder's definition boxes, when this block is a folder.</summary>
+        public PackResult? Inner { get; init; }
+
+        /// <summary>When true, the folder's contents are replaced by an ellipsis truncation indicator.</summary>
+        public bool Truncated { get; init; }
     }
 }

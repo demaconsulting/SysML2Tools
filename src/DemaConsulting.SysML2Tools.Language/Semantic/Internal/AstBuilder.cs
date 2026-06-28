@@ -114,6 +114,475 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <inheritdoc/>
+    public override SysmlNode? VisitPortDefinition(SysMLv2Parser.PortDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "port def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitConnectionDefinition(SysMLv2Parser.ConnectionDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "connection def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitAllocationDefinition(SysMLv2Parser.AllocationDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "allocation def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitFlowDefinition(SysMLv2Parser.FlowDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "flow def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitOccurrenceDefinition(SysMLv2Parser.OccurrenceDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "occurrence def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitIndividualDefinition(SysMLv2Parser.IndividualDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "individual def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitRenderingDefinition(SysMLv2Parser.RenderingDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "rendering def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitMetadataDefinition(SysMLv2Parser.MetadataDefinitionContext context)
+    {
+        return BuildDefinitionNode(context.definition(), "metadata def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitEnumerationDefinition(SysMLv2Parser.EnumerationDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "enum def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitInterfaceDefinition(SysMLv2Parser.InterfaceDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "interface def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitActionDefinition(SysMLv2Parser.ActionDefinitionContext context)
+    {
+        var decl = context.definitionDeclaration();
+        var name = GetDeclaredName(decl?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var qualifiedName = QualifyName(name);
+        var supertypeNames = GetSubclassificationSupertypes(decl?.subclassificationPart());
+
+        // Collect the action body (action usages and successions) as children.
+        _namespaceStack.Add(name);
+        var children = CollectChildren(context.actionBody()?.actionBodyItem() ?? []);
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+
+        return new SysmlDefinitionNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            DefinitionKeyword = "action def",
+            SupertypeNames = supertypeNames,
+            Children = children,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitActionUsage(SysMLv2Parser.ActionUsageContext context)
+    {
+        var name = GetDeclaredName(context.actionUsageDeclaration()?.usageDeclaration()?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        return new SysmlFeatureNode
+        {
+            Name = name,
+            QualifiedName = QualifyName(name),
+            FeatureKeyword = "action",
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitSuccessionAsUsage(SysMLv2Parser.SuccessionAsUsageContext context)
+    {
+        // A succession links two action ends: first <source> then <target>.
+        var ends = context.connectorEndMember();
+        if (ends.Length < 2)
+        {
+            return null;
+        }
+
+        var source = ConnectorEndReference(ends[0]);
+        var target = ConnectorEndReference(ends[1]);
+        if (source is null || target is null)
+        {
+            return null;
+        }
+
+        return new SysmlTransitionNode
+        {
+            Source = source,
+            Target = target,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitStateDefinition(SysMLv2Parser.StateDefinitionContext context)
+    {
+        var decl = context.definitionDeclaration();
+        var name = GetDeclaredName(decl?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var qualifiedName = QualifyName(name);
+        var supertypeNames = GetSubclassificationSupertypes(decl?.subclassificationPart());
+
+        // Collect the state body (state usages and transitions) as children.
+        _namespaceStack.Add(name);
+        var children = CollectChildren(context.stateDefBody()?.stateBodyItem() ?? []);
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+
+        return new SysmlDefinitionNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            DefinitionKeyword = "state def",
+            SupertypeNames = supertypeNames,
+            Children = children,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitCalculationDefinition(SysMLv2Parser.CalculationDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "calc def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitConstraintDefinition(SysMLv2Parser.ConstraintDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "constraint def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitRequirementDefinition(SysMLv2Parser.RequirementDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "requirement def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitConcernDefinition(SysMLv2Parser.ConcernDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "concern def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitCaseDefinition(SysMLv2Parser.CaseDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "case def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitAnalysisCaseDefinition(SysMLv2Parser.AnalysisCaseDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "analysis def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitVerificationCaseDefinition(SysMLv2Parser.VerificationCaseDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "verification def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitUseCaseDefinition(SysMLv2Parser.UseCaseDefinitionContext context)
+    {
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "use case def");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitPartUsage(SysMLv2Parser.PartUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "part");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitPortUsage(SysMLv2Parser.PortUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "port");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitAttributeUsage(SysMLv2Parser.AttributeUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "attribute");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitItemUsage(SysMLv2Parser.ItemUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "item");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitReferenceUsage(SysMLv2Parser.ReferenceUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "ref");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitEnumerationUsage(SysMLv2Parser.EnumerationUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "enum");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitOccurrenceUsage(SysMLv2Parser.OccurrenceUsageContext context)
+    {
+        return BuildUsageNode(context.usage(), "occurrence");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitConnectionUsage(SysMLv2Parser.ConnectionUsageContext context)
+    {
+        var name = GetDeclaredName(context.usageDeclaration()?.identification());
+        var (endpointA, endpointB) = ExtractConnectorEnds(context.connectorPart());
+
+        return new SysmlConnectionNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            ConnectionKeyword = "connection",
+            EndpointA = endpointA,
+            EndpointB = endpointB,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitMessage(SysMLv2Parser.MessageContext context)
+    {
+        var decl = context.messageDeclaration();
+        var name = GetDeclaredName(decl?.usageDeclaration()?.identification());
+
+        // A message links two events: from <source> to <target>.
+        string? from = null;
+        string? to = null;
+        var events = decl?.messageEventMember();
+        if (events is { Length: >= 2 })
+        {
+            from = events[0].messageEvent()?.ownedReferenceSubsetting()?.GetText();
+            to = events[1].messageEvent()?.ownedReferenceSubsetting()?.GetText();
+        }
+
+        return new SysmlConnectionNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            ConnectionKeyword = "message",
+            EndpointA = from,
+            EndpointB = to,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitStateUsage(SysMLv2Parser.StateUsageContext context)
+    {
+        var name = GetDeclaredName(context.actionUsageDeclaration()?.usageDeclaration()?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        return new SysmlFeatureNode
+        {
+            Name = name,
+            QualifiedName = QualifyName(name),
+            FeatureKeyword = "state",
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitTransitionUsage(SysMLv2Parser.TransitionUsageContext context)
+    {
+        var name = GetDeclaredName(context.usageDeclaration()?.identification());
+
+        // Source is the feature chain after FIRST; target is the connector end after THEN.
+        var source = context.featureChainMember()?.GetText();
+        var target = ConnectorEndReference(
+            context.transitionSuccessionMember()?.transitionSuccession()?.connectorEndMember());
+        var guard = context.guardExpressionMember()?.ownedExpression()?.GetText();
+
+        return new SysmlTransitionNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            Source = source,
+            Target = target,
+            Guard = guard,
+        };
+    }
+
+    /// <summary>
+    ///     Extracts the two endpoint references of a binary connector (the features either side of
+    ///     <c>connect … to …</c>), or nulls when the connector is not a simple binary connection.
+    /// </summary>
+    private static (string? A, string? B) ExtractConnectorEnds(SysMLv2Parser.ConnectorPartContext? connectorPart)
+    {
+        var binary = connectorPart?.binaryConnectorPart();
+        if (binary is null)
+        {
+            return (null, null);
+        }
+
+        var ends = binary.connectorEndMember();
+        if (ends.Length < 2)
+        {
+            return (null, null);
+        }
+
+        return (ConnectorEndReference(ends[0]), ConnectorEndReference(ends[1]));
+    }
+
+    /// <summary>Returns the qualified feature reference named by a connector end, or null.</summary>
+    private static string? ConnectorEndReference(SysMLv2Parser.ConnectorEndMemberContext? member)
+    {
+        var end = member?.connectorEnd();
+        var reference = end?.ownedReferenceSubsetting();
+        return reference?.GetText();
+    }
+
+    /// <summary>
+    ///     Builds a usage/feature AST node from a <see cref="SysMLv2Parser.UsageContext"/>, capturing
+    ///     the keyword, declared name, feature typing, multiplicity, and any nested usage children.
+    /// </summary>
+    private SysmlFeatureNode? BuildUsageNode(SysMLv2Parser.UsageContext? usage, string keyword)
+    {
+        if (usage is null)
+        {
+            return null;
+        }
+
+        var decl = usage.usageDeclaration();
+        var name = GetDeclaredName(decl?.identification());
+        var typing = ExtractFeatureTyping(decl?.featureSpecializationPart());
+        var multiplicity = ExtractMultiplicity(decl?.featureSpecializationPart());
+
+        // Named usages contribute a namespace segment for any nested usages they own.
+        var qualifiedName = name is not null ? QualifyName(name) : null;
+        IReadOnlyList<SysmlNode> children = Array.Empty<SysmlNode>();
+        var body = usage.usageCompletion()?.usageBody()?.definitionBody();
+        if (body is not null)
+        {
+            if (name is not null)
+            {
+                _namespaceStack.Add(name);
+            }
+
+            children = CollectDefinitionBodyItems(body.definitionBodyItem());
+
+            if (name is not null)
+            {
+                _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+            }
+        }
+
+        return new SysmlFeatureNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            FeatureKeyword = keyword,
+            FeatureTyping = typing,
+            Multiplicity = multiplicity,
+            Children = children,
+        };
+    }
+
+    /// <summary>
+    ///     Extracts the first feature-typing qualified name from a feature specialization part
+    ///     (the type that follows <c>:</c> or <c>typed by</c>), or null when the feature is untyped.
+    /// </summary>
+    private static string? ExtractFeatureTyping(SysMLv2Parser.FeatureSpecializationPartContext? fsp)
+    {
+        if (fsp is null)
+        {
+            return null;
+        }
+
+        foreach (var fs in fsp.featureSpecialization())
+        {
+            var typings = fs.typings();
+            if (typings is null)
+            {
+                continue;
+            }
+
+            // The first typing is held by the typedBy clause; additional typings follow as a list.
+            var fromTypedBy = TypingName(typings.typedBy()?.featureTyping());
+            if (fromTypedBy is not null)
+            {
+                return fromTypedBy;
+            }
+
+            foreach (var ft in typings.featureTyping())
+            {
+                var name = TypingName(ft);
+                if (name is not null)
+                {
+                    return name;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Extracts the qualified type name from a single feature-typing context.</summary>
+    private static string? TypingName(SysMLv2Parser.FeatureTypingContext? ft)
+    {
+        if (ft is null)
+        {
+            return null;
+        }
+
+        var owned = ft.ownedFeatureTyping();
+        if (owned is not null)
+        {
+            return owned.GetText();
+        }
+
+        return ft.qualifiedName()?.GetText();
+    }
+
+    /// <summary>
+    ///     Extracts the multiplicity text (e.g. <c>[4]</c>) from a feature specialization part,
+    ///     or null when no multiplicity is declared.
+    /// </summary>
+    private static string? ExtractMultiplicity(SysMLv2Parser.FeatureSpecializationPartContext? fsp)
+    {
+        var multiplicity = fsp?.multiplicityPart()?.ownedMultiplicity();
+        var text = multiplicity?.GetText();
+        return string.IsNullOrEmpty(text) ? null : text;
+    }
+
+    /// <inheritdoc/>
     public override SysmlNode? VisitViewDefinition(SysMLv2Parser.ViewDefinitionContext context)
     {
         var name = GetDeclaredName(context.definitionDeclaration()?.identification());
@@ -316,6 +785,38 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
 
     /// <summary>
+    ///     Builds a definition AST node from a bare <see cref="SysMLv2Parser.DefinitionDeclarationContext"/>
+    ///     for definition kinds whose grammar rule uses a specialized body (e.g. action, state,
+    ///     requirement, enum) rather than the generic <c>definition</c> rule.
+    /// </summary>
+    /// <remarks>
+    ///     Only the declared name and supertype names are captured. The specialized body contents
+    ///     (nested usages and compartment members) are not yet collected; that is handled in a later
+    ///     phase that adds usage and compartment rendering.
+    /// </remarks>
+    private SysmlDefinitionNode? BuildDefinitionFromDeclaration(
+        SysMLv2Parser.DefinitionDeclarationContext? decl,
+        string keyword)
+    {
+        var name = GetDeclaredName(decl?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var qualifiedName = QualifyName(name);
+        var supertypeNames = GetSubclassificationSupertypes(decl?.subclassificationPart());
+
+        return new SysmlDefinitionNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            DefinitionKeyword = keyword,
+            SupertypeNames = supertypeNames,
+        };
+    }
+
+    /// <summary>
     ///     Builds a definition AST node from the given <see cref="SysMLv2Parser.DefinitionContext"/>.
     /// </summary>
     private SysmlDefinitionNode? BuildDefinitionNode(
@@ -412,6 +913,26 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
         // Alt 3: just the declared name
         return names[0].GetText();
+    }
+
+    /// <summary>
+    ///     Collects child nodes by visiting an arbitrary sequence of parse-tree contexts, keeping
+    ///     each non-null result. Used for specialized bodies (e.g. state bodies) whose item type
+    ///     differs from the generic definition body item.
+    /// </summary>
+    private IReadOnlyList<SysmlNode> CollectChildren(IEnumerable<Antlr4.Runtime.Tree.IParseTree> items)
+    {
+        var result = new List<SysmlNode>();
+        foreach (var item in items)
+        {
+            var node = Visit(item);
+            if (node is not null)
+            {
+                result.Add(node);
+            }
+        }
+
+        return result;
     }
 
     /// <summary>

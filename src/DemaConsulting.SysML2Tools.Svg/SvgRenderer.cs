@@ -84,10 +84,23 @@ public sealed class SvgRenderer : IRenderer
         // Write defs section with all arrowhead markers
         WriteArrowheadDefs(sb, theme);
 
-        // Render all top-level nodes recursively
+        // Render all top-level nodes recursively (wires are drawn without their labels here)
         foreach (var node in layout.Nodes)
         {
             RenderNode(sb, node, theme, options.Scale);
+        }
+
+        // Final pass: draw every connector label on top of all wires and boxes, so that no later
+        // wire can draw over an earlier wire's label. Positions are computed up front so that labels
+        // that would collide (for example where two connectors cross) are spread apart.
+        var lines = CollectLines(layout.Nodes).ToList();
+        var labelPositions = ConnectorLabelPlacer.Place(lines, theme.FontSizeBody);
+        foreach (var line in lines)
+        {
+            if (line.MidpointLabel is not null && labelPositions.TryGetValue(line, out var pos))
+            {
+                RenderLineLabel(sb, line, theme, options.Scale, pos.X, pos.Y);
+            }
         }
 
         // Close SVG root
@@ -168,6 +181,13 @@ public sealed class SvgRenderer : IRenderer
         sb.AppendLine();
         sb.AppendLine(MarkerClose);
 
+        // Auto-sizing white background for text drawn over lines (e.g. message and guard labels).
+        // The filter region defaults to the text bounding box; the small negative inset adds padding.
+        sb.AppendLine("""    <filter id="label-bg" x="-0.05" y="-0.05" width="1.1" height="1.1">""");
+        sb.AppendLine("""      <feFlood flood-color="#FFFFFF"/>""");
+        sb.AppendLine("""      <feComposite in="SourceGraphic" operator="over"/>""");
+        sb.AppendLine("    </filter>");
+
         sb.AppendLine("  </defs>");
     }
 
@@ -241,30 +261,11 @@ public sealed class SvgRenderer : IRenderer
         // Derive fill color from theme using depth modulo wrapping
         var fillColor = theme.DepthFillColors[box.Depth % theme.DepthFillColors.Count];
 
-        var x = box.X * scale;
-        var y = box.Y * scale;
-        var w = box.Width * scale;
-        var h = box.Height * scale;
+        // Draw the box outline (shape-specific)
+        RenderBoxOutline(sb, box, theme, fillColor, scale);
 
-        // Add rx/ry for rounded rectangle; corner radius doubles the line radius for prominence
-        var cornerStr = box.Shape == BoxShape.RoundedRectangle && theme.LineCornerRadius > 0
-            ? $" rx=\"{F(theme.LineCornerRadius * 2.0 * scale)}\" ry=\"{F(theme.LineCornerRadius * 2.0 * scale)}\""
-            : string.Empty;
-
-        sb.Append(CultureInfo.InvariantCulture,
-            $"""  <rect x="{F(x)}" y="{F(y)}" width="{F(w)}" height="{F(h)}" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"{cornerStr}/>""");
-        sb.AppendLine();
-
-        // Draw the centered label in the title area if present
-        if (box.Label != null)
-        {
-            var textX = (box.X + box.Width / 2.0) * scale;
-            var textY = (box.Y + theme.LabelPadding + theme.FontSizeTitle / 2.0) * scale;
-            var availableWidth = (box.Width - 2 * theme.LabelPadding) * scale;
-            sb.Append(CultureInfo.InvariantCulture,
-                $"""  <text x="{F(textX)}" y="{F(textY)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeTitle * scale)}" font-weight="bold" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle" textLength="{F(availableWidth)}" lengthAdjust="spacingAndGlyphs">{EscapeXml(box.Label)}</text>""");
-            sb.AppendLine();
-        }
+        // Draw the keyword and label in the title area
+        RenderBoxTitle(sb, box, theme, scale);
 
         // Render compartments below the label area
         if (box.Compartments.Count > 0)
@@ -280,6 +281,155 @@ public sealed class SvgRenderer : IRenderer
     }
 
     /// <summary>
+    /// Renders the outline (border and fill) of a <see cref="LayoutBox"/>, selecting the path
+    /// geometry based on <see cref="LayoutBox.Shape"/>.
+    /// </summary>
+    /// <param name="sb">String builder receiving the SVG markup.</param>
+    /// <param name="box">The box whose outline is drawn.</param>
+    /// <param name="theme">Visual theme providing stroke settings and corner radius.</param>
+    /// <param name="fillColor">Resolved fill color for the box interior.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    private static void RenderBoxOutline(StringBuilder sb, LayoutBox box, Theme theme, string fillColor, double scale)
+    {
+        var x = box.X * scale;
+        var y = box.Y * scale;
+        var w = box.Width * scale;
+        var h = box.Height * scale;
+
+        switch (box.Shape)
+        {
+            case BoxShape.Folder:
+                RenderFolderOutline(sb, box, theme, fillColor, scale);
+                break;
+
+            case BoxShape.Note:
+                RenderNoteOutline(sb, box, theme, fillColor, scale);
+                break;
+
+            case BoxShape.RoundedRectangle:
+                var cornerStr = theme.LineCornerRadius > 0
+                    ? $" rx=\"{F(theme.LineCornerRadius * 2.0 * scale)}\" ry=\"{F(theme.LineCornerRadius * 2.0 * scale)}\""
+                    : string.Empty;
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <rect x="{F(x)}" y="{F(y)}" width="{F(w)}" height="{F(h)}" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"{cornerStr}/>""");
+                sb.AppendLine();
+                break;
+
+            default:
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""  <rect x="{F(x)}" y="{F(y)}" width="{F(w)}" height="{F(h)}" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+                sb.AppendLine();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Renders a folder-shaped outline (a tab at the top-left above a full-width body),
+    /// used for package nodes.
+    /// </summary>
+    private static void RenderFolderOutline(StringBuilder sb, LayoutBox box, Theme theme, string fillColor, double scale)
+    {
+        var tabHeight = BoxMetrics.FolderTabHeight(theme);
+        var tabWidth = Math.Min(box.Width * 0.45, Math.Max(60.0, (box.Label?.Length ?? 4) * theme.FontSizeBody * 0.55 + 2.0 * theme.LabelPadding));
+
+        var x = box.X * scale;
+        var yTab = box.Y * scale;
+        var yBody = (box.Y + tabHeight) * scale;
+        var xTabRight = (box.X + tabWidth) * scale;
+        var xRight = (box.X + box.Width) * scale;
+        var yBottom = (box.Y + box.Height) * scale;
+
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""  <path d="M {F(x)} {F(yBody)} L {F(x)} {F(yTab)} L {F(xTabRight)} {F(yTab)} L {F(xTabRight)} {F(yBody)} L {F(xRight)} {F(yBody)} L {F(xRight)} {F(yBottom)} L {F(x)} {F(yBottom)} Z" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Renders a note-shaped outline (a rectangle with a folded-down top-right corner),
+    /// used for documentation and comment nodes.
+    /// </summary>
+    private static void RenderNoteOutline(StringBuilder sb, LayoutBox box, Theme theme, string fillColor, double scale)
+    {
+        var fold = Math.Min(box.Width, box.Height) * 0.25;
+        fold = Math.Min(fold, 16.0);
+
+        var x = box.X * scale;
+        var y = box.Y * scale;
+        var xRight = (box.X + box.Width) * scale;
+        var xFold = (box.X + box.Width - fold) * scale;
+        var yFold = (box.Y + fold) * scale;
+        var yBottom = (box.Y + box.Height) * scale;
+
+        // Main body with the top-right corner cut
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""  <path d="M {F(x)} {F(y)} L {F(xFold)} {F(y)} L {F(xRight)} {F(yFold)} L {F(xRight)} {F(yBottom)} L {F(x)} {F(yBottom)} Z" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+
+        // The folded corner triangle
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""  <path d="M {F(xFold)} {F(y)} L {F(xFold)} {F(yFold)} L {F(xRight)} {F(yFold)}" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+        sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Renders the optional keyword line and bold name label in the title area of a box.
+    /// </summary>
+    /// <param name="sb">String builder receiving the SVG markup.</param>
+    /// <param name="box">Box whose title is rendered.</param>
+    /// <param name="theme">Visual theme providing font sizes and padding.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    private static void RenderBoxTitle(StringBuilder sb, LayoutBox box, Theme theme, double scale)
+    {
+        var centerX = (box.X + box.Width / 2.0) * scale;
+        var cursorY = box.Y + theme.LabelPadding;
+
+        // Keyword line (smaller, italic, guillemet-wrapped) above the name
+        if (box.Keyword != null)
+        {
+            var kwY = (cursorY + theme.FontSizeBody / 2.0) * scale;
+            sb.Append(CultureInfo.InvariantCulture,
+                $"""  <text x="{F(centerX)}" y="{F(kwY)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" font-style="italic" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle">{EscapeXml("\u00AB" + box.Keyword + "\u00BB")}</text>""");
+            sb.AppendLine();
+            cursorY += theme.FontSizeBody + theme.LabelPadding;
+        }
+
+        // Bold name label — only constrain width when the text would actually overflow the box,
+        // so short labels render at their natural size instead of being stretched to fill.
+        if (box.Label != null)
+        {
+            var textY = (cursorY + theme.FontSizeTitle / 2.0) * scale;
+            var availableWidth = box.Width - (2 * theme.LabelPadding);
+            var fit = FitTextLength(box.Label, theme.FontSizeTitle, availableWidth, scale);
+            sb.Append(CultureInfo.InvariantCulture,
+                $"""  <text x="{F(centerX)}" y="{F(textY)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeTitle * scale)}" font-weight="bold" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle"{fit}>{EscapeXml(box.Label)}</text>""");
+            sb.AppendLine();
+        }
+    }
+
+    /// <summary>
+    /// Returns an SVG <c>textLength</c>/<c>lengthAdjust</c> attribute fragment that constrains text
+    /// to <paramref name="availableWidth"/> only when the text's estimated natural width exceeds it;
+    /// otherwise returns an empty string so the text renders at its natural width (no stretching).
+    /// </summary>
+    /// <param name="text">The text to be rendered.</param>
+    /// <param name="fontSize">Unscaled font size of the text.</param>
+    /// <param name="availableWidth">Unscaled width available for the text.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    /// <returns>A leading-space attribute fragment, or an empty string when no constraint is needed.</returns>
+    private static string FitTextLength(string text, double fontSize, double availableWidth, double scale)
+    {
+        // Rough average glyph-width estimate; matches the layout engine's sizing factor.
+        const double GlyphWidthFactor = 0.6;
+        var estimatedWidth = text.Length * fontSize * GlyphWidthFactor;
+        if (availableWidth <= 0 || estimatedWidth <= availableWidth)
+        {
+            return string.Empty;
+        }
+
+        return $""" textLength="{F(availableWidth * scale)}" lengthAdjust="spacingAndGlyphs" """.TrimEnd();
+    }
+
+    /// <summary>
     /// Renders the compartments of a <see cref="LayoutBox"/> below the title area as SVG
     /// <c>&lt;line&gt;</c> dividers and <c>&lt;text&gt;</c> elements.
     /// </summary>
@@ -289,10 +439,8 @@ public sealed class SvgRenderer : IRenderer
     /// <param name="scale">Uniform scale factor.</param>
     private static void RenderBoxCompartments(StringBuilder sb, LayoutBox box, Theme theme, double scale)
     {
-        // Compartments start below the label area (padding + font + padding when label present)
-        var labelAreaHeight = box.Label != null
-            ? theme.LabelPadding + theme.FontSizeTitle + theme.LabelPadding
-            : 0.0;
+        // Compartments start below the title area (keyword + label), computed via shared metrics
+        var labelAreaHeight = BoxMetrics.TitleAreaHeight(theme, box.Label != null, box.Keyword != null);
         var compartmentY = box.Y + labelAreaHeight;
 
         foreach (var compartment in box.Compartments)
@@ -323,6 +471,9 @@ public sealed class SvgRenderer : IRenderer
                 sb.AppendLine();
                 compartmentY += theme.LabelPadding + theme.FontSizeBody;
             }
+
+            // Bottom gap so the last row clears the next compartment divider.
+            compartmentY += theme.LabelPadding;
         }
     }
 
@@ -387,13 +538,65 @@ public sealed class SvgRenderer : IRenderer
             $"""  <path d="{pathData}" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"{markerStart}{markerEnd}{dashArray}/>""");
         sb.AppendLine();
 
-        // Draw the optional midpoint label as a centered text element
-        if (line.MidpointLabel != null)
+        // Note: the midpoint label is intentionally NOT drawn here. It is drawn in a final pass
+        // (see RenderLineLabel) so that no later wire can draw over an earlier wire's label.
+    }
+
+    /// <summary>
+    /// Renders a line's optional midpoint label as a centered text element with an auto-sizing white
+    /// background (via the <c>label-bg</c> filter). Called in a final pass after all wires and boxes
+    /// are drawn so labels are never drawn over by another wire.
+    /// </summary>
+    /// <param name="sb">String builder receiving the SVG markup.</param>
+    /// <param name="line">The line whose label is rendered.</param>
+    /// <param name="theme">Visual theme providing font and color settings.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    /// <param name="midX">Pre-computed label centre X in logical pixels.</param>
+    /// <param name="midY">Pre-computed label centre Y in logical pixels.</param>
+    private static void RenderLineLabel(StringBuilder sb, LayoutLine line, Theme theme, double scale, double midX, double midY)
+    {
+        if (line.MidpointLabel is null)
         {
-            var (midX, midY) = ComputeLineMidpoint(line.Waypoints);
-            sb.Append(CultureInfo.InvariantCulture,
-                $"""  <text x="{F(midX * scale)}" y="{F(midY * scale)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle">{EscapeXml(line.MidpointLabel)}</text>""");
-            sb.AppendLine();
+            return;
+        }
+
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""  <text x="{F(midX * scale)}" y="{F(midY * scale)}" font-family="Noto Sans, sans-serif" font-size="{F(theme.FontSizeBody * scale)}" fill="{theme.StrokeColor}" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">{EscapeXml(line.MidpointLabel)}</text>""");
+        sb.AppendLine();
+    }
+
+    /// <summary>Recursively collects all <see cref="LayoutLine"/> nodes from a node tree.</summary>
+    /// <param name="nodes">Top-level nodes to walk.</param>
+    /// <returns>Every line node, including those nested inside boxes or bands.</returns>
+    private static IEnumerable<LayoutLine> CollectLines(IReadOnlyList<LayoutNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            switch (node)
+            {
+                case LayoutLine line:
+                    yield return line;
+                    break;
+
+                case LayoutBox box:
+                    foreach (var inner in CollectLines(box.Children))
+                    {
+                        yield return inner;
+                    }
+
+                    break;
+
+                case LayoutBand band:
+                    foreach (var inner in CollectLines(band.Children))
+                    {
+                        yield return inner;
+                    }
+
+                    break;
+
+                default:
+                    break;
+            }
         }
     }
 
@@ -500,26 +703,6 @@ public sealed class SvgRenderer : IRenderer
     }
 
     /// <summary>
-    /// Computes the geometric midpoint of an ordered waypoint list. For an odd count the
-    /// center element is returned; for an even count the average of the two center elements
-    /// is returned.
-    /// </summary>
-    /// <param name="waypoints">Ordered waypoints; must contain at least one entry.</param>
-    /// <returns>The (X, Y) coordinates of the midpoint in logical pixels.</returns>
-    private static (double X, double Y) ComputeLineMidpoint(IReadOnlyList<Point2D> waypoints)
-    {
-        var n = waypoints.Count;
-        if (n % 2 == 1)
-        {
-            return (waypoints[n / 2].X, waypoints[n / 2].Y);
-        }
-
-        var lo = waypoints[n / 2 - 1];
-        var hi = waypoints[n / 2];
-        return ((lo.X + hi.X) / 2.0, (lo.Y + hi.Y) / 2.0);
-    }
-
-    /// <summary>
     /// Renders a <see cref="LayoutLabel"/> as an SVG <c>&lt;text&gt;</c> element with
     /// <c>text-anchor</c> derived from <see cref="TextAlign"/>.
     /// </summary>
@@ -539,12 +722,12 @@ public sealed class SvgRenderer : IRenderer
         };
         var fontWeight = label.Weight == FontWeight.Bold ? "bold" : "normal";
         var fontStyle = label.Style == FontStyle.Italic ? "italic" : "normal";
-        var textLengthAttr = label.MaxWidth > 0
-            ? $""" textLength="{F(label.MaxWidth * scale)}" lengthAdjust="spacingAndGlyphs" """
-            : " ";
+
+        // Only constrain width when the text would overflow MaxWidth (no stretching of short text).
+        var textLengthAttr = FitTextLength(label.Text, label.FontSize, label.MaxWidth, scale);
 
         sb.Append(CultureInfo.InvariantCulture,
-            $"""  <text x="{F(x)}" y="{F(y)}" font-family="Noto Sans, sans-serif" font-size="{F(label.FontSize * scale)}" font-weight="{fontWeight}" font-style="{fontStyle}" fill="{theme.StrokeColor}" text-anchor="{anchor}" dominant-baseline="middle"{textLengthAttr.TrimEnd()}>{EscapeXml(label.Text)}</text>""");
+            $"""  <text x="{F(x)}" y="{F(y)}" font-family="Noto Sans, sans-serif" font-size="{F(label.FontSize * scale)}" font-weight="{fontWeight}" font-style="{fontStyle}" fill="{theme.StrokeColor}" text-anchor="{anchor}" dominant-baseline="middle"{textLengthAttr}>{EscapeXml(label.Text)}</text>""");
         sb.AppendLine();
     }
 

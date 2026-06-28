@@ -4,6 +4,7 @@
 
 using DemaConsulting.SysML2Tools.Layout.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
+using DemaConsulting.SysML2Tools.Semantic.Internal;
 
 namespace DemaConsulting.SysML2Tools.Rendering.Internal;
 
@@ -12,9 +13,9 @@ namespace DemaConsulting.SysML2Tools.Rendering.Internal;
 /// based on the view type.
 /// </summary>
 /// <remarks>
-/// Phase 4 simplification: all view types are routed to <see cref="GeneralViewLayoutStrategy"/>.
-/// Future phases will inspect the view's stereotype or keyword to select a specialized strategy
-/// (e.g., IBD, sequence, activity).
+/// Dispatch inspects the view's declared supertype names (and its own name) for a recognized view
+/// kind. A view that specializes a name containing <c>Interconnection</c> routes to the
+/// interconnection strategy; everything else falls back to the general view strategy.
 /// </remarks>
 internal static class DiagramTypeRouter
 {
@@ -36,11 +37,55 @@ internal static class DiagramTypeRouter
         SysmlWorkspace workspace,
         out string? unsupportedMessage)
     {
-        // Phase 4 simplification: route all view types to the general view strategy.
-        // Future phases will add stereotype inspection to select specialized strategies.
-        _ = viewNode;
         _ = workspace;
         unsupportedMessage = null;
+
+        if (viewNode is SysmlViewNode view)
+        {
+            if (Matches(view, "Interconnection"))
+            {
+                return new InterconnectionViewLayoutStrategy();
+            }
+
+            if (Matches(view, "StateTransition") || Matches(view, "State"))
+            {
+                return new StateTransitionViewLayoutStrategy();
+            }
+
+            if (Matches(view, "ActionFlow") || Matches(view, "Action"))
+            {
+                return new ActionFlowViewLayoutStrategy();
+            }
+
+            if (Matches(view, "Grid") || Matches(view, "Matrix") || Matches(view, "Tabular"))
+            {
+                return new GridViewLayoutStrategy();
+            }
+
+            if (Matches(view, "Browser") || Matches(view, "Tree"))
+            {
+                return new BrowserViewLayoutStrategy();
+            }
+
+            if (Matches(view, "Sequence"))
+            {
+                return new SequenceViewLayoutStrategy();
+            }
+        }
+
         return new GeneralViewLayoutStrategy();
+    }
+
+    /// <summary>
+    /// Determines whether a view declares the given view-kind marker in its name or a supertype.
+    /// </summary>
+    private static bool Matches(SysmlViewNode view, string marker)
+    {
+        if (view.Name is not null && view.Name.Contains(marker, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return view.SupertypeNames.Any(s => s.Contains(marker, StringComparison.OrdinalIgnoreCase));
     }
 }

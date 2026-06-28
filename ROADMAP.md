@@ -19,14 +19,14 @@ onward) needed to reach full SysML v2 view coverage.
 
 | # | View Type | Purpose | Our Status |
 |---|-----------|---------|------------|
-| 1 | **General View** | Any model element; foundational "catch-all" view | 🟡 Partial |
-| 2 | **Interconnection View** | Structural contents of a Usage (parts, ports, connectors) | 🔴 Unsupported |
-| 3 | **Action Flow View** | Input/output flows between actions (behavioral dynamics) | 🔴 Unsupported |
-| 4 | **State Transition View** | States and transitions (behavioral dynamics) | 🔴 Unsupported |
-| 5 | **Sequence View** | Chronological event occurrences on lifelines | 🔴 Unsupported |
-| 6 | **Grid View** | Elements in structured rectangular grid (tabular/matrix) | 🔴 Unsupported |
-| 7 | **Browser View** | Hierarchical membership structure from a root element | 🔴 Unsupported |
-| 8 | **Geometry View** | Spatial items in 2D or 3D | 🔴 Unsupported |
+| 1 | **General View** | Any model element; foundational "catch-all" view | 🟢 Implemented |
+| 2 | **Interconnection View** | Structural contents of a Usage (parts, ports, connectors) | 🟢 Implemented |
+| 3 | **Action Flow View** | Input/output flows between actions (behavioral dynamics) | 🟢 Implemented |
+| 4 | **State Transition View** | States and transitions (behavioral dynamics) | 🟢 Implemented |
+| 5 | **Sequence View** | Chronological event occurrences on lifelines | 🟢 Implemented |
+| 6 | **Grid View** | Elements in structured rectangular grid (tabular/matrix) | 🟢 Implemented |
+| 7 | **Browser View** | Hierarchical membership structure from a root element | 🟢 Implemented |
+| 8 | **Geometry View** | Spatial items in 2D or 3D | 🔴 Unsupported (deferred) |
 
 ---
 
@@ -273,11 +273,11 @@ Grid, Browser, Geometry) require no engine — pure arithmetic in the strategy c
 
 | Engine | Category | First Used In | Reused In |
 |--------|----------|---------------|-----------|
-| `ContainmentPacker` | Bottom-up size, bin packing | Phase 6 | Phase 7, 8 |
-| `ChannelRouter` | Orthogonal edge routing around obstacles | Phase 6 | Phase 7, 8 |
-| `ForceDirectedEngine` | Fruchterman-Reingold spring layout | Phase 8 | Phase 9 |
-| `PortAssigner` | Port-side and slot heuristic | Phase 8 | — |
-| `LayeredLayoutEngine` | Simplified Sugiyama DAG layout | Phase 10 | — |
+| `ContainmentPacker` ✅ | Bottom-up size, bin packing | Phase 6 | Phase 7, 8 |
+| `ChannelRouter` ✅ | Orthogonal edge routing around obstacles | Phase 6 | Phase 7, 8 |
+| `ForceDirectedEngine` ✅ | Fruchterman-Reingold spring layout | Phase 8 | Phase 9 |
+| `PortAssigner` ✅ | Port-side and slot heuristic | Phase 8 | — |
+| `LayeredLayoutEngine` ✅ | Simplified Sugiyama DAG layout | Phase 10 | — |
 
 All engines live in `Layout/Engine/` and have their own unit tests with **synthetic
 inputs** (no parser or view code required). Integration is validated through the
@@ -285,7 +285,13 @@ existing render integration tests.
 
 ---
 
-### Phase 6 — General View: All Definitions + Edges + ContainmentPacker + ChannelRouter (2–3 sessions)
+### Phase 6 — General View: All Definitions + Edges + ContainmentPacker + ChannelRouter (2–3 sessions) — ✅ COMPLETE
+
+> **Status:** Complete. All definition kinds render with keyword labels; packages render as
+> folder-tab containers; `ContainmentPacker` and `ChannelRouter` engines implemented and
+> unit-tested; specialization edges route around boxes. Standard-library filtering switched from
+> a fixed prefix list to seed-origin tracking (`SysmlWorkspace.StdlibNames`). Visual gate passed
+> against `2a-PartsInterconnection`, `1a-PartsTree`, and `nested-packages-with-view`.
 
 Highest-value incremental improvement: complete the General View to show all
 Definition types and relationship edges, and simultaneously introduce the two layout
@@ -347,7 +353,20 @@ Agent views each PNG and asserts:
 
 ---
 
-### Phase 7 — General View: Usage Nodes, Compartments + Annotating Elements (2–3 sessions)
+### Phase 7 — General View: Usage Nodes, Compartments + Annotating Elements (2–3 sessions) — ✅ COMPLETE (compartment style)
+
+> **Status:** Complete. Definitions now render their owned usages as keyword-grouped compartments
+> (e.g. *attributes*, *ports*, *parts*) with `name : Type [n]` rows. `SysmlFeatureNode` gained
+> `FeatureKeyword`, `FeatureTyping`, and `Multiplicity`; `AstBuilder` visits part/port/attribute/
+> item/reference/enum/occurrence usages and extracts the type from both the `typed by` clause and
+> the typing list. Compartment row spacing improved in both renderers.
+>
+> **Design decision:** In the General View, usages render as *compartment rows* (matching the SysON
+> General View compartment style) rather than nested rounded boxes. Nested-box containment with
+> ports and connectors is the defining purpose of the **Interconnection View (Phase 8)** and is
+> implemented there to avoid duplicating containment layout. Documentation/Comment note-shape nodes
+> are deferred — the `BoxShape.Note` primitive is implemented and ready, but annotating-element AST
+> capture is left to a follow-up. Visual gate passed against `vehicle-with-usages`.
 
 Extend the semantic model and layout to capture Usage (feature) elements and render
 compartments and annotation nodes. No new engines required.
@@ -395,7 +414,17 @@ Agent views each PNG and asserts:
 
 ---
 
-### Phase 8 — Interconnection View + ForceDirectedEngine + PortAssigner (2–3 sessions)
+### Phase 8 — Interconnection View + ForceDirectedEngine + PortAssigner (2–3 sessions) — ✅ COMPLETE
+
+> **Status:** Complete. `ForceDirectedEngine` (deterministic Fruchterman-Reingold with overlap
+> removal) and `PortAssigner` (side selection + even slot distribution) implemented and unit-tested.
+> `InterconnectionViewLayoutStrategy` renders a part definition's interior: nested part usages as
+> rounded boxes placed by the force engine, ports on box boundaries via `PortAssigner`, and
+> connection usages routed as orthogonal connectors via `ChannelRouter`. `AstBuilder` captures
+> connection usages with both endpoints (`SysmlConnectionNode`). `DiagramTypeRouter` dispatches to
+> the interconnection strategy when a view's name or supertype contains "Interconnection".
+> Visual gate passed against `power-system-interconnection` (drivetrain chain with port-to-port
+> connectors, no overlaps).
 
 Implement the Interconnection View, introducing two new engines that will also be
 reused by the State Transition View in Phase 9.
@@ -455,7 +484,20 @@ Agent views each PNG and asserts:
 
 ---
 
-### Phase 9 — State Transition View + Bezier Routing (2–3 sessions)
+### Phase 9 — State Transition View + Bezier Routing (2–3 sessions) — ✅ COMPLETE (orthogonal routing)
+
+> **Status:** Complete. `SysmlTransitionNode` captures transition source/target/guard;
+> `AstBuilder` visits state usages (`VisitStateUsage`) and transitions (`VisitTransitionUsage`),
+> and `VisitStateDefinition` now collects the state-def body (states + transitions) via a generic
+> `CollectChildren` helper. `StateTransitionViewLayoutStrategy` places states with the
+> force-directed engine, draws an initial pseudo-state (filled circle) into the first declared
+> state, and renders transitions with filled arrowheads and `[guard]` midpoint labels; self-
+> transitions render as a small loop. `DiagramTypeRouter` dispatches on "StateTransition"/"State".
+>
+> **Design decision:** Transitions use orthogonal routing via `ChannelRouter` rather than Bezier
+> curves — orthogonal state diagrams are clear and reuse the existing routing engine. Bezier
+> curve rendering remains a possible future enhancement. Visual gate passed against
+> `traffic-light-states` (three states, initial marker, guarded transitions, no overlaps).
 
 Implement the State Transition View. Reuses `ForceDirectedEngine` from Phase 8;
 adds curved/Bezier edge routing for the general-graph topology.
@@ -507,7 +549,20 @@ Agent views the PNG and asserts:
 
 ---
 
-### Phase 10 — Action Flow View + LayeredLayoutEngine (2–3 sessions)
+### Phase 10 — Action Flow View + LayeredLayoutEngine (2–3 sessions) — ✅ COMPLETE (orthogonal flows)
+
+> **Status:** Complete. `LayeredLayoutEngine` (simplified Sugiyama: DFS cycle removal, longest-path
+> layer assignment, barycenter crossing-reduction sweeps, coordinate assignment) implemented and
+> unit-tested (5 tests: layer ordering, downward edges, no same-layer overlap, cycle handling).
+> `AstBuilder` captures action usages (`VisitActionUsage`) and successions (`VisitSuccessionAsUsage`
+> → `SysmlTransitionNode`); `VisitActionDefinition` collects the action body.
+> `ActionFlowViewLayoutStrategy` lays actions out top-to-bottom in layers, adds a start node
+> (filled circle) into the initial actions and a done node (bullseye) from the final actions, and
+> routes successions as flow arrows. `DiagramTypeRouter` dispatches on "ActionFlow"/"Action".
+>
+> **Design decision:** Decision/fork/join nodes render as regular action boxes (branch points);
+> dedicated diamond/bar shapes for decision and fork/join detection are a future enhancement.
+> Visual gate passed against `order-action-flow` (branch + join, correct layering, no overlaps).
 
 Implement the Action Flow View, introducing the Sugiyama-style layered layout engine.
 
@@ -567,7 +622,18 @@ Agent views the PNG and asserts:
 
 ---
 
-### Phase 11 — Sequence View (1–2 sessions)
+### Phase 11 — Sequence View (1–2 sessions) — ✅ COMPLETE (core)
+
+> **Status:** Complete. `AstBuilder.VisitMessage` captures message usages (name + from/to event
+> references) as `SysmlConnectionNode` with keyword "message". `SequenceViewLayoutStrategy` renders
+> the participating lifelines (distinct first-segment participants) as dashed stems with header
+> boxes and draws each message as a horizontal arrow between lifelines, ordered top-to-bottom by
+> declaration order, with the message name as the arrow label; self-messages render as a small loop.
+> `DiagramTypeRouter` dispatches on "Sequence".
+>
+> **Deferred enhancements:** Activation bars and combined fragments (alt/loop/opt) — the
+> `LayoutActivation` primitive is implemented and ready. Visual gate passed against
+> `client-server-sequence` (two lifelines, three ordered messages with correct arrow directions).
 
 Implement the Sequence View. No new engines — pure column-and-time-axis arithmetic.
 
@@ -617,7 +683,16 @@ Agent views the PNG and asserts:
 
 ---
 
-### Phase 12 — Grid View + Browser View (1–2 sessions)
+### Phase 12 — Grid View + Browser View (1–2 sessions) — ✅ COMPLETE
+
+> **Status:** Complete. Both views are pure-arithmetic strategies (no new engine, no new AST).
+> `BrowserViewLayoutStrategy` builds the membership tree from the qualified-name hierarchy of
+> non-stdlib declarations and renders indented rows with parent→child connector lines.
+> `GridViewLayoutStrategy` renders a specialization relationship matrix (definitions × definitions,
+> marked where the row specializes the column) via `LayoutGrid` with styled header row/column.
+> `DiagramTypeRouter` dispatches on "Browser"/"Tree" and "Grid"/"Matrix"/"Tabular".
+> Visual gate passed against `catalog-browser-grid` (indented tree; specialization matrix with
+> correct marks).
 
 Implement tabular and tree views. No new engines — pure geometric arithmetic.
 
@@ -676,18 +751,19 @@ Current coverage:
 
 | Primitive | Used By | Status |
 |---|---|---|
-| `LayoutBox` | All views | ✅ Implemented + rendered |
-| `LayoutLabel` | All views | ✅ Implemented + rendered |
-| `LayoutLine` | General View (edges) | ✅ Implemented + rendered |
-| `LayoutCompartment` | General View, Interconnection | ✅ Defined, not yet populated |
-| `LayoutPort` | Interconnection View | ✅ Defined, not yet rendered |
-| `LayoutLifeline` | Sequence View | ✅ Defined, not yet rendered |
-| `LayoutBand` | Action Flow View (swim-lanes) | ✅ Defined, not yet rendered |
-| `LayoutBadge` | Annotations / decorators | ✅ Defined, not yet rendered |
-| `LayoutGrid` | Grid View, Browser View | ✅ Defined, not yet rendered |
+| `LayoutBox` | All structural views | ✅ Implemented + rendered |
+| `LayoutLabel` | Browser, truncation indicators | ✅ Implemented + rendered |
+| `LayoutLine` | All views (edges/arrows) | ✅ Implemented + rendered |
+| `LayoutCompartment` | General View | ✅ Populated + rendered (Phase 7) |
+| `LayoutPort` | Interconnection View | ✅ Rendered (Phase 8) |
+| `LayoutLifeline` | Sequence View | ✅ Rendered (Phase 11) |
+| `LayoutBand` | Action Flow swim-lanes | ✅ Defined, not yet populated (future) |
+| `LayoutBadge` | State/Action markers | ✅ Rendered (Phases 9–10) |
+| `LayoutGrid` | Grid View | ✅ Rendered (Phase 12) |
 
-The vocabulary is complete. No structural breaking changes to `IRenderer` are expected
-as new view implementations are added.
+The vocabulary is complete and the renderers handle every primitive. `LayoutActivation` (sequence
+activation bars) and `LayoutBand` (action swim-lanes) are rendered/available but not yet populated
+by their strategies — reserved for future refinements.
 
 ---
 
@@ -748,17 +824,23 @@ Layout/
 | Phase 1 — Parser + Stdlib | ✅ Complete | |
 | Phase 2 — Semantic Model | ✅ Complete | |
 | Phase 3 — LayoutTree Design | ✅ Complete | All 8 view primitives defined |
-| Phase 4 — GeneralView + Renderers | ✅ Complete | `part def` only |
+| Phase 4 — GeneralView + Renderers | ✅ Complete | All definition kinds + usages (Phases 6–7) |
 | Phase 5 — Polish + Self-test | ✅ Complete | `--validate`, `--auto`, themes |
+| Phases 6–7 — General View (complete) | ✅ Complete | All definitions, compartments, edges, folder packages |
+| Phase 8 — Interconnection View | ✅ Complete | Force-directed parts, ports, connectors |
+| Phase 9 — State Transition View | ✅ Complete | Force-directed states, transitions, initial marker |
+| Phase 10 — Action Flow View | ✅ Complete | Layered (Sugiyama) actions, start/done markers |
+| Phase 11 — Sequence View | ✅ Complete | Lifelines + messages (activations deferred) |
+| Phase 12 — Grid + Browser Views | ✅ Complete | Relationship matrix + membership tree |
+| Phase 13 — Geometry View | 🟢 Deferred | Requires spatial coordinate data (future) |
 | Open Concern #1 — LayoutTree covers all 8 views | ✅ Resolved | Vocabulary is sufficient |
 | Open Concern #2 — IRenderer API stability | ✅ Stable | No breaking changes needed |
 | Open Concern #3 — SkiaSharp native assets | 🟡 Documented | Needs package README |
 | Open Concern #4 — Noto Sans OFL attribution | 🟡 Pending | Needs `--licenses` output |
 | Open Concern #5 — spec42 competitive risk | 🟢 Low | Unchanged |
-| Open Concern #6 — Theme file format for v2 | 🟢 Deferred | YAML/JSON, Phase 6+ |
+| Open Concern #6 — Theme file format for v2 | 🟢 Deferred | YAML/JSON, future |
 | SARIF output | 🟢 Deferred | Infrastructure ready |
-| Loadable theme files | 🟢 Deferred | Phase 6+ |
-| `export` verb | 🟢 Deferred | Phase 6+ |
-| Non-`GeneralView` rendering | 🔴 Not started | Phases 8–13 |
-| Full OMG graphical notation conformance | 🟡 In progress | Phases 6–13 |
-| `feature/auto-flag` branch | 🟡 Open PR | Needs lint + PR |
+| Loadable theme files | 🟢 Deferred | Future |
+| `export` verb | 🟢 Deferred | Future |
+| Non-`GeneralView` rendering | ✅ Complete | 7 of 8 view types implemented |
+| Full OMG graphical notation conformance | 🟡 In progress | 7 of 8 views; refinements ongoing |

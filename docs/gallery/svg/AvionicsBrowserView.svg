@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="319.76" height="743.00" viewBox="0 0 319.76 743.00">
+  <defs>
+    <marker id="arrowhead-open" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-filled" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-filled-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-circle" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <circle cx="5" cy="5" r="4" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-bar" markerWidth="4" markerHeight="12" refX="2" refY="6" orient="auto">
+      <line x1="2" y1="0" x2="2" y2="12" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <filter id="label-bg" x="-0.05" y="-0.05" width="1.1" height="1.1">
+      <feFlood flood-color="#FFFFFF"/>
+      <feComposite in="SourceGraphic" operator="over"/>
+    </filter>
+  </defs>
+  <rect x="12.00" y="12.00" width="187.68" height="26.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="105.84" y="25.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="175.68" lengthAdjust="spacingAndGlyphs">package AvionicsSystem</text>
+  <path d="M 26.00 38.00 L 26.00 50.00 A 4.00 4.00 0 0 0 30.00 54.00 L 40.00 54.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="40.00" y="41.00" width="232.32" height="26.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="156.16" y="54.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="220.32" lengthAdjust="spacingAndGlyphs">view def AvionicsBrowserView</text>
+  <path d="M 26.00 38.00 L 26.00 79.00 A 4.00 4.00 0 0 0 30.00 83.00 L 40.00 83.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="40.00" y="70.00" width="187.68" height="26.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="133.84" y="83.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="175.68" lengthAdjust="spacingAndGlyphs">package Communications</text>
+  <path d="M 54.00 96.00 L 54.00 108.00 A 4.00 4.00 0 0 0 58.00 112.00 L 68.00 112.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="68.00" y="99.00" width="187.68" height="26.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="161.84" y="112.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="175.68" lengthAdjust="spacingAndGlyphs">interface def DataLink</text>
+  <path d="M 54.00 96.00 L 54.00 137.00 A 4.00 4.00 0 0 0 58.00 141.00 L 68.00 141.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="68.00" y="128.00" width="210.00" height="26.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="173.00" y="141.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="198.00" lengthAdjust="spacingAndGlyphs">part def RadioTransceiver</text>
+  <path d="M 54.00 96.00 L 54.00 166.00 A 4.00 4.00 0 0 0 58.00 170.00 L 68.00 170.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="68.00" y="157.00" width="172.80" height="26.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="154.40" y="170.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="160.80" lengthAdjust="spacingAndGlyphs">part def Transponder</text>
+  <path d="M 26.00 38.00 L 26.00 195.00 A 4.00 4.00 0 0 0 30.00 199.00 L 40.00 199.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="40.00" y="186.00" width="143.04" height="26.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="111.52" y="199.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="131.04" lengthAdjust="spacingAndGlyphs">package Displays</text>
+  <path d="M 54.00 212.00 L 54.00 224.00 A 4.00 4.00 0 0 0 58.00 228.00 L 68.00 228.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="68.00" y="215.00" width="217.44" height="26.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="176.72" y="228.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="205.44" lengthAdjust="spacingAndGlyphs">part def NavigationDisplay</text>
+  <path d="M 54.00 212.00 L 54.00 253.00 A 4.00 4.00 0 0 0 58.00 257.00 L 68.00 257.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="68.00" y="244.00" width="239.76" height="26.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="187.88" y="257.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="227.76" lengthAdjust="spacingAndGlyphs">part def PrimaryFlightDisplay</text>
+  <path d="M 26.00 38.00 L 26.00 282.00 A 4.00 4.00 0 0 0 30.00 286.00 L 40.00 286.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="40.00" y="273.00" width="187.68" height="26.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="133.84" y="286.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="175.68" lengthAdjust="spacingAndGlyphs">package FlightControls</text>
+  <path d="M 54.00 299.00 L 54.00 311.00 A 4.00 4.00 0 0 0 58.00 315.00 L 68.00 315.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="68.00" y="302.00" width="150.48" height="26.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="143.24" y="315.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="138.48" lengthAdjust="spacingAndGlyphs">part def Actuator</text>
+  <path d="M 54.00 299.00 L 54.00 340.00 A 4.00 4.00 0 0 0 58.00 344.00 L 68.00 344.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="68.00" y="331.00" width="217.44" height="26.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="176.72" y="344.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="205.44" lengthAdjust="spacingAndGlyphs">part def AutopilotComputer</text>
+  <path d="M 54.00 299.00 L 54.00 369.00 A 4.00 4.00 0 0 0 58.00 373.00 L 68.00 373.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="68.00" y="360.00" width="172.80" height="26.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="154.40" y="373.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="160.80" lengthAdjust="spacingAndGlyphs">port def ControlPort</text>
+  <path d="M 54.00 299.00 L 54.00 398.00 A 4.00 4.00 0 0 0 58.00 402.00 L 68.00 402.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="68.00" y="389.00" width="143.04" height="26.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="139.52" y="402.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="131.04" lengthAdjust="spacingAndGlyphs">package Surfaces</text>
+  <path d="M 82.00 415.00 L 82.00 427.00 A 4.00 4.00 0 0 0 86.00 431.00 L 96.00 431.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="96.00" y="418.00" width="143.04" height="26.00" fill="#C0D8F8" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="167.52" y="431.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="131.04" lengthAdjust="spacingAndGlyphs">part def Aileron</text>
+  <path d="M 82.00 415.00 L 82.00 456.00 A 4.00 4.00 0 0 0 86.00 460.00 L 96.00 460.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="96.00" y="447.00" width="150.48" height="26.00" fill="#C0D8F8" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="171.24" y="460.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="138.48" lengthAdjust="spacingAndGlyphs">part def Elevator</text>
+  <path d="M 82.00 415.00 L 82.00 485.00 A 4.00 4.00 0 0 0 86.00 489.00 L 96.00 489.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="96.00" y="476.00" width="135.60" height="26.00" fill="#C0D8F8" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="163.80" y="489.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="123.60" lengthAdjust="spacingAndGlyphs">part def Rudder</text>
+  <path d="M 26.00 38.00 L 26.00 514.00 A 4.00 4.00 0 0 0 30.00 518.00 L 40.00 518.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="40.00" y="505.00" width="157.92" height="26.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="118.96" y="518.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="145.92" lengthAdjust="spacingAndGlyphs">package Navigation</text>
+  <path d="M 54.00 531.00 L 54.00 543.00 A 4.00 4.00 0 0 0 58.00 547.00 L 68.00 547.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="68.00" y="534.00" width="202.56" height="26.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="169.28" y="547.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="190.56" lengthAdjust="spacingAndGlyphs">part def AirDataComputer</text>
+  <path d="M 54.00 531.00 L 54.00 572.00 A 4.00 4.00 0 0 0 58.00 576.00 L 68.00 576.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="68.00" y="563.00" width="172.80" height="26.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="154.40" y="576.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="160.80" lengthAdjust="spacingAndGlyphs">part def GpsReceiver</text>
+  <path d="M 54.00 531.00 L 54.00 601.00 A 4.00 4.00 0 0 0 58.00 605.00 L 68.00 605.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="68.00" y="592.00" width="180.24" height="26.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="158.12" y="605.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="168.24" lengthAdjust="spacingAndGlyphs">part def InertialUnit</text>
+  <path d="M 54.00 531.00 L 54.00 630.00 A 4.00 4.00 0 0 0 58.00 634.00 L 68.00 634.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="68.00" y="621.00" width="135.60" height="26.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="135.80" y="634.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="123.60" lengthAdjust="spacingAndGlyphs">package Sensors</text>
+  <path d="M 82.00 647.00 L 82.00 659.00 A 4.00 4.00 0 0 0 86.00 663.00 L 96.00 663.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="96.00" y="650.00" width="187.68" height="26.00" fill="#C0D8F8" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="189.84" y="663.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="175.68" lengthAdjust="spacingAndGlyphs">part def Accelerometer</text>
+  <path d="M 82.00 647.00 L 82.00 688.00 A 4.00 4.00 0 0 0 86.00 692.00 L 96.00 692.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="96.00" y="679.00" width="157.92" height="26.00" fill="#C0D8F8" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="174.96" y="692.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="145.92" lengthAdjust="spacingAndGlyphs">part def Gyroscope</text>
+  <path d="M 82.00 647.00 L 82.00 717.00 A 4.00 4.00 0 0 0 86.00 721.00 L 96.00 721.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="96.00" y="708.00" width="180.24" height="26.00" fill="#C0D8F8" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="186.12" y="721.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" textLength="168.24" lengthAdjust="spacingAndGlyphs">part def Magnetometer</text>
+</svg>

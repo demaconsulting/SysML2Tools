@@ -13,4 +13,11 @@ namespace DemaConsulting.SysML2Tools.Layout;
 public sealed record LayoutTree(
     double Width,
     double Height,
-    IReadOnlyList<LayoutNode> Nodes);
+    IReadOnlyList<LayoutNode> Nodes)
+{
+    /// <summary>
+    /// Gets non-fatal layout-quality warnings produced while building this view (e.g. connectors
+    /// that could not be routed without crossing a box). Empty when the layout is clean.
+    /// </summary>
+    public IReadOnlyList<string> Warnings { get; init; } = [];
+}

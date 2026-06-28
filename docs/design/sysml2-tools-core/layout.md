@@ -180,48 +180,23 @@ decisions recorded here reflect constraints imposed during the Phase 3 vocabular
   are in the same `DemaConsulting.SysML2Tools.Layout` namespace, so no cross-namespace
   import is required.
 
-### Internal Subsystem
+### Subsystem Structure
 
-#### GeneralViewLayoutStrategy
+Beyond the `LayoutTree` data model described above, the Layout subsystem contains two
+sub-subsystems and one helper unit, each documented in its own chapter:
 
-##### Purpose
+- **Engine** — the reusable, model-independent geometric layout engines (`ChannelRouter`,
+  `ForceDirectedEngine`, `PortAssigner`, `LayeredLayoutEngine`, `ContainmentPacker`). See
+  the *Layout Engine Subsystem* chapter.
+- **Internal** — the per-view layout strategies that map the semantic model to a
+  `LayoutTree` (general, interconnection, state transition, action flow, sequence, grid, and
+  browser views), plus `LayoutWarnings`. See the *Layout Internal Subsystem* chapter.
+- **ConnectorLabelPlacer** — collision-aware placement of connector midpoint labels. See its
+  own unit chapter.
 
-`GeneralViewLayoutStrategy` implements `ILayoutStrategy` to produce a two-column grid
-layout for general view diagrams. It collects all user-defined `part def` elements from
-the workspace, groups them by parent package, and arranges the group boxes into two
-left-to-right columns. Specialization relationships between `part def` elements with
-declared supertypes are represented as `LayoutLine` nodes with open arrowheads.
-
-##### Data Model
-
-`GeneralViewLayoutStrategy` has no instance state. All inputs are supplied through
-`BuildLayout` parameters. Layout constants (margins, gaps, minimum box sizes) are
-declared as `private const double` fields.
-
-##### Key Methods
-
-**`BuildLayout(ViewContext context, RenderOptions options)`**
-
-Entry point. Calls `CollectUserPartDefs` to gather non-stdlib `part def` declarations.
-Returns a minimal 200×100 `LayoutTree` when no user part defs are found. Otherwise
-calls `GroupByPackage` and `BuildGridLayout` to produce the full layout tree.
-
-**`CollectUserPartDefs(SysmlWorkspace workspace)`**
-
-Iterates `workspace.Declarations`, keeping only `SysmlDefinitionNode` entries with
-`DefinitionKeyword == "part def"` that pass `StdlibFilter.IsStdlibElement`.
-
-**`BuildGridLayout(groups, theme)`**
-
-Places group `LayoutBox` nodes alternately in left and right columns. Computes column
-widths from the maximum group width in each column, then assigns absolute `(X, Y)`
-coordinates. Calls `AddSpecializationLines` to append `LayoutLine` nodes.
-
-##### Dependencies
-
-- `ILayoutStrategy` (in `DemaConsulting.SysML2Tools.Rendering`) — interface
-- `StdlibFilter` (in `DemaConsulting.SysML2Tools.Rendering.Internal`) — stdlib exclusion
-- `SysmlDefinitionNode` (in `DemaConsulting.SysML2Tools.Semantic.Internal`) — part def nodes
+The view strategies own the mapping from the SysML semantic model into geometric input,
+invoke one or more engines to compute geometry, and assemble the resulting `LayoutTree`. The
+engines themselves never reference the semantic model.
 
 ### Requirements Traceability
 

@@ -1,0 +1,32 @@
+---
+# BrowserViewLayoutStrategy Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the BrowserViewLayoutStrategy unit
+# - BrowserViewLayoutStrategy lays out a Browser View as an indented membership tree
+# - Requirements describe the observable tree, not the arithmetic used
+
+sections:
+  - title: BrowserViewLayoutStrategy Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-IndentedTree
+        title: >-
+          BrowserViewLayoutStrategy shall render the membership hierarchy as an indented tree of
+          rows in which a nested element is indented further than its containing element, with a
+          connector from each parent to its children.
+        justification: |
+          A browser view communicates containment. Indenting children beyond their parents and
+          drawing parent-to-child connectors makes the membership hierarchy immediately readable,
+          matching the tree presentation users expect from a model browser.
+        tests:
+          - BrowserView_BuildLayout_NestedElements_AreIndentedByDepth
+
+      - id: SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-EmptyInput
+        title: >-
+          When the workspace contains no user-defined elements, BrowserViewLayoutStrategy shall
+          produce an empty diagram.
+        justification: |
+          With no elements to show, an empty diagram avoids rendering an empty tree frame that
+          could be mistaken for missing content.
+        tests:
+          - BrowserAndGrid_BuildLayout_EmptyWorkspace_ReturnMinimalCanvas

@@ -1,0 +1,42 @@
+---
+# ActionFlowViewLayoutStrategy Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the ActionFlowViewLayoutStrategy unit
+# - ActionFlowViewLayoutStrategy lays out an Action Flow View diagram
+# - Requirements describe observable diagram content, not the placement algorithm
+
+sections:
+  - title: ActionFlowViewLayoutStrategy Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-Actions
+        title: >-
+          ActionFlowViewLayoutStrategy shall render a box for each action, a start marker entering
+          the initial actions, a done marker leaving the final actions, and a flow arrow for each
+          succession.
+        justification: |
+          An Action Flow View exists to show the actions of a behavior, where the flow starts and
+          ends, and how control passes between actions. The action boxes, start and done markers,
+          and flow arrows are the observable content the view must provide.
+        tests:
+          - ActionFlowView_BuildLayout_ActionsAndSuccessions_ProducesBoxesMarkersAndFlows
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-TopToBottom
+        title: >-
+          ActionFlowViewLayoutStrategy shall place the target action of a succession below its
+          source action.
+        justification: |
+          Reading an action flow top-to-bottom is the diagram convention; placing each successor
+          below its predecessor makes the direction of control flow immediately apparent.
+        tests:
+          - ActionFlowView_BuildLayout_Successions_FlowTopToBottom
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-EmptyCanvas
+        title: >-
+          When the workspace contains no action definition, ActionFlowViewLayoutStrategy shall
+          return a minimal empty canvas with no nodes.
+        justification: |
+          With no action definition there is nothing to draw; a well-formed empty canvas lets the
+          renderer produce a valid blank diagram rather than failing.
+        tests:
+          - ActionFlowView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas

@@ -1,0 +1,32 @@
+---
+# LayoutWarnings Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the LayoutWarnings unit
+# - LayoutWarnings builds the non-fatal layout-quality warning messages for a view
+# - Requirements describe the observable warning output, not how it is formatted
+
+sections:
+  - title: LayoutWarnings Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings-NoCrossings
+        title: >-
+          When no connector had to cross a box, LayoutWarnings shall produce no warning.
+        justification: |
+          A clean diagram must not be flagged. Emitting no warning when there are no crossings
+          keeps the user's attention on real layout-quality problems.
+        tests:
+          - ForCrossings_Zero_ReturnsEmpty
+
+      - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings-CrossingWarning
+        title: >-
+          When one or more connectors had to cross a box, LayoutWarnings shall produce a warning
+          that names the view and reports the number of crossing connectors, with grammatical
+          agreement for singular and plural counts.
+        justification: |
+          Crossing connectors make a diagram harder to read, so the condition must be surfaced.
+          Naming the view and giving an accurate, grammatically correct count lets the user judge
+          the severity and find the affected diagram.
+        tests:
+          - ForCrossings_One_ReturnsSingularWarning
+          - ForCrossings_Many_ReturnsPluralWarning

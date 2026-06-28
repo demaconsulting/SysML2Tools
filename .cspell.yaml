@@ -30,6 +30,8 @@ words:
   - docversion
   - errorlevel
   - fileassert
+  - Fruchterman
+  - Hanan
   - KEBNF
   - MBSE
   - xunit
@@ -38,12 +40,16 @@ words:
   - Noto
   - Pandoc
   - Qube
+  - Quadcopter
+  - Reingold
   - reqstream
   - reviewmark
   - SARIF
   - sarifmark
   - setlocal
   - Skia
+  - Subsetting
+  - Sugiyama
   - SkiaSharp
   - snupkg
   - sonarmark

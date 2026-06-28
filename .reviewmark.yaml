@@ -373,6 +373,252 @@ reviews:
       - "docs/verification/sysml2-tools-core.md"
       - "docs/verification/sysml2-tools-core/rendering.md"
 
+  # === Layout Engine subsystem and units (rendering subsystem implementation reviews) ===
+  - id: SysML2Tools-Core-Layout-Engine
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Subsystem is Consistent and Complete
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine.md"
+      - "docs/verification/sysml2-tools-core/layout/engine.md"
+
+  - id: SysML2Tools-Core-Layout-Engine-ChannelRouter
+    title: Review that DemaConsulting.SysML2Tools Layout Engine ChannelRouter Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/channel-router.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/channel-router.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/channel-router.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/ChannelRouter.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/ChannelRouterTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-ForceDirectedEngine
+    title: Review that DemaConsulting.SysML2Tools Layout Engine ForceDirectedEngine Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/force-directed-engine.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/force-directed-engine.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/force-directed-engine.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/ForceDirectedEngine.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/ForceDirectedEngineTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-PortAssigner
+    title: Review that DemaConsulting.SysML2Tools Layout Engine PortAssigner Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/port-assigner.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/port-assigner.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/port-assigner.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/PortAssigner.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/PortAssignerTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-LayeredLayoutEngine
+    title: Review that DemaConsulting.SysML2Tools Layout Engine LayeredLayoutEngine Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered-layout-engine.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered-layout-engine.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered-layout-engine.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/LayeredLayoutEngine.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/LayeredLayoutEngineTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-ContainmentPacker
+    title: Review that DemaConsulting.SysML2Tools Layout Engine ContainmentPacker Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/containment-packer.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/containment-packer.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/containment-packer.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/ContainmentPacker.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/ContainmentPackerTests.cs"
+
+  # === Layout Internal subsystem and view-strategy units ===
+  - id: SysML2Tools-Core-Layout-Internal
+    title: Review that DemaConsulting.SysML2Tools Layout Internal Subsystem is Consistent and Complete
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/internal.yaml"
+      - "docs/design/sysml2-tools-core/layout/internal.md"
+      - "docs/verification/sysml2-tools-core/layout/internal.md"
+
+  - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy
+    title: Review that DemaConsulting.SysML2Tools Layout Internal GeneralViewLayoutStrategy Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/internal.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/internal/general-view-layout-strategy.yaml"
+      - "docs/design/sysml2-tools-core/layout/internal/general-view-layout-strategy.md"
+      - "docs/verification/sysml2-tools-core/layout/internal/general-view-layout-strategy.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/GeneralViewLayoutStrategy.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/GeneralViewLayoutStrategyTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy
+    title: >-
+      Review that DemaConsulting.SysML2Tools Layout Internal
+      InterconnectionViewLayoutStrategy Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/internal.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/internal/interconnection-view-layout-strategy.yaml"
+      - "docs/design/sysml2-tools-core/layout/internal/interconnection-view-layout-strategy.md"
+      - "docs/verification/sysml2-tools-core/layout/internal/interconnection-view-layout-strategy.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/InterconnectionViewLayoutStrategy.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/InterconnectionViewLayoutStrategyTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy
+    title: >-
+      Review that DemaConsulting.SysML2Tools Layout Internal
+      StateTransitionViewLayoutStrategy Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/internal.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/internal/state-transition-view-layout-strategy.yaml"
+      - "docs/design/sysml2-tools-core/layout/internal/state-transition-view-layout-strategy.md"
+      - "docs/verification/sysml2-tools-core/layout/internal/state-transition-view-layout-strategy.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/StateTransitionViewLayoutStrategy.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/StateTransitionViewLayoutStrategyTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy
+    title: Review that DemaConsulting.SysML2Tools Layout Internal ActionFlowViewLayoutStrategy Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/internal.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/internal/action-flow-view-layout-strategy.yaml"
+      - "docs/design/sysml2-tools-core/layout/internal/action-flow-view-layout-strategy.md"
+      - "docs/verification/sysml2-tools-core/layout/internal/action-flow-view-layout-strategy.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/ActionFlowViewLayoutStrategy.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/ActionFlowViewLayoutStrategyTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy
+    title: Review that DemaConsulting.SysML2Tools Layout Internal SequenceViewLayoutStrategy Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/internal.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/internal/sequence-view-layout-strategy.yaml"
+      - "docs/design/sysml2-tools-core/layout/internal/sequence-view-layout-strategy.md"
+      - "docs/verification/sysml2-tools-core/layout/internal/sequence-view-layout-strategy.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/SequenceViewLayoutStrategy.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/SequenceViewLayoutStrategyTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy
+    title: Review that DemaConsulting.SysML2Tools Layout Internal GridViewLayoutStrategy Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/internal.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/internal/grid-view-layout-strategy.yaml"
+      - "docs/design/sysml2-tools-core/layout/internal/grid-view-layout-strategy.md"
+      - "docs/verification/sysml2-tools-core/layout/internal/grid-view-layout-strategy.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/GridViewLayoutStrategy.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/BrowserAndGridViewLayoutStrategyTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy
+    title: Review that DemaConsulting.SysML2Tools Layout Internal BrowserViewLayoutStrategy Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/internal.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/internal/browser-view-layout-strategy.yaml"
+      - "docs/design/sysml2-tools-core/layout/internal/browser-view-layout-strategy.md"
+      - "docs/verification/sysml2-tools-core/layout/internal/browser-view-layout-strategy.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/BrowserViewLayoutStrategy.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/BrowserAndGridViewLayoutStrategyTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings
+    title: Review that DemaConsulting.SysML2Tools Layout Internal LayoutWarnings Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/internal.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/internal/layout-warnings.yaml"
+      - "docs/design/sysml2-tools-core/layout/internal/layout-warnings.md"
+      - "docs/verification/sysml2-tools-core/layout/internal/layout-warnings.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Internal/LayoutWarnings.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/LayoutWarningsTests.cs"
+
+  - id: SysML2Tools-Core-Layout-ConnectorLabelPlacer
+    title: Review that DemaConsulting.SysML2Tools Layout ConnectorLabelPlacer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/connector-label-placer.yaml"
+      - "docs/design/sysml2-tools-core/layout/connector-label-placer.md"
+      - "docs/verification/sysml2-tools-core/layout/connector-label-placer.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/ConnectorLabelPlacer.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/ConnectorLabelPlacerTests.cs"
+
+  # === Rendering Internal subsystem and units ===
+  - id: SysML2Tools-Core-Rendering-Internal
+    title: Review that DemaConsulting.SysML2Tools Rendering Internal Subsystem is Consistent and Complete
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-core/rendering/internal.yaml"
+      - "docs/design/sysml2-tools-core/rendering/internal.md"
+      - "docs/verification/sysml2-tools-core/rendering/internal.md"
+
+  - id: SysML2Tools-Core-Rendering-Internal-DiagramTypeRouter
+    title: Review that DemaConsulting.SysML2Tools Rendering Internal DiagramTypeRouter Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/rendering.md
+      - docs/design/sysml2-tools-core/rendering/internal.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/rendering/internal/diagram-type-router.yaml"
+      - "docs/design/sysml2-tools-core/rendering/internal/diagram-type-router.md"
+      - "docs/verification/sysml2-tools-core/rendering/internal/diagram-type-router.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/Internal/DiagramTypeRouter.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Rendering/DiagramTypeRouterTests.cs"
+
   # SysML2Tools SVG Renderer
   - id: SysML2Tools-Svg-Architecture
     title: Review that DemaConsulting.SysML2Tools.Svg Architecture Satisfies Requirements

@@ -433,5 +433,320 @@ public sealed class WorkspaceLoaderTests
             File.Delete(tempFile);
         }
     }
+
+    /// <summary>
+    ///     A model declaring several definition kinds registers each with the correct definition
+    ///     keyword, confirming the AST builder visits all definition rule variants.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_MixedDefinitionKinds_RegistersKeywords()
+    {
+        // Arrange: a package declaring part, port, interface, requirement, and enum definitions
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package Demo {
+                    part def Vehicle;
+                    port def FuelPort;
+                    interface def FuelInterface;
+                    requirement def MassReq;
+                    enum def Gear;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: each definition is registered with its expected keyword
+            Assert.NotNull(result.Workspace);
+            AssertKeyword(result.Workspace!, "Demo::Vehicle", "part def");
+            AssertKeyword(result.Workspace!, "Demo::FuelPort", "port def");
+            AssertKeyword(result.Workspace!, "Demo::FuelInterface", "interface def");
+            AssertKeyword(result.Workspace!, "Demo::MassReq", "requirement def");
+            AssertKeyword(result.Workspace!, "Demo::Gear", "enum def");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Loading with a stdlib seed populates the workspace's <see cref="SysmlWorkspace.StdlibNames"/>
+    ///     set with the seed's qualified names while excluding user declarations.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_PopulatesStdlibNamesFromSeed()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "package UserPkg { part def UserPart; }", TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: stdlib names are recorded and the user declaration is not among them
+            Assert.NotNull(result.Workspace);
+            Assert.NotEmpty(result.Workspace!.StdlibNames);
+            Assert.DoesNotContain("UserPkg::UserPart", result.Workspace.StdlibNames);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A definition owning usages registers them as feature children carrying the usage keyword,
+    ///     declared name, and feature typing (including the type held by the <c>typed by</c> clause).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DefinitionUsages_CaptureKeywordAndTyping()
+    {
+        // Arrange: a part def owning an attribute, a port, and a multiplicity-bearing part usage
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package Demo {
+                    part def Engine;
+                    port def FuelPort;
+                    part def Vehicle {
+                        attribute mass : Real;
+                        port fuelInlet : FuelPort;
+                        part engine : Engine;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: the Vehicle definition owns three feature children with the expected typing
+            Assert.NotNull(result.Workspace);
+            var vehicle = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["Demo::Vehicle"]);
+            var features = vehicle.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlFeatureNode>()
+                .ToList();
+
+            AssertFeature(features, "mass", "attribute", "Real");
+            AssertFeature(features, "fuelInlet", "port", "FuelPort");
+            AssertFeature(features, "engine", "part", "Engine");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A part definition with connection usages captures each connection's two endpoints.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionUsages_CaptureEndpoints()
+    {
+        // Arrange: a part def with two parts and a connection between them
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package Demo {
+                    part def Engine;
+                    part def Gearbox;
+                    part def Drivetrain {
+                        part engine : Engine;
+                        part gearbox : Gearbox;
+                        connection link connect engine to gearbox;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: the Drivetrain owns a connection node referencing both parts
+            Assert.NotNull(result.Workspace);
+            var drivetrain = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["Demo::Drivetrain"]);
+            var connection = drivetrain.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlConnectionNode>()
+                .Single();
+            Assert.Equal("engine", connection.EndpointA);
+            Assert.Equal("gearbox", connection.EndpointB);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A state definition captures its declared state usages and transitions, recording each
+    ///     transition's source, target, and guard.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_StateDefinition_CapturesStatesAndTransitions()
+    {
+        // Arrange: a state def with three states and guarded transitions
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package SM {
+                    state def Light {
+                        state stop;
+                        state go;
+                        transition first stop if t then go;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: the state def owns two state features and one transition
+            Assert.NotNull(result.Workspace);
+            var light = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["SM::Light"]);
+            var states = light.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlFeatureNode>()
+                .Where(f => f.FeatureKeyword == "state")
+                .ToList();
+            Assert.Equal(2, states.Count);
+
+            var transition = light.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlTransitionNode>()
+                .Single();
+            Assert.Equal("stop", transition.Source);
+            Assert.Equal("go", transition.Target);
+            Assert.Equal("t", transition.Guard);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     An action definition captures its action usages and successions (as transition nodes).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ActionDefinition_CapturesActionsAndSuccessions()
+    {
+        // Arrange: an action def with two actions and a succession between them
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package AF {
+                    action def Flow {
+                        action stepA;
+                        action stepB;
+                        first stepA then stepB;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: the action def owns two action features and one succession
+            Assert.NotNull(result.Workspace);
+            var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["AF::Flow"]);
+            var actions = flow.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlFeatureNode>()
+                .Count(f => f.FeatureKeyword == "action");
+            Assert.Equal(2, actions);
+
+            var succession = flow.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlTransitionNode>()
+                .Single();
+            Assert.Equal("stepA", succession.Source);
+            Assert.Equal("stepB", succession.Target);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A definition with message usages captures each message's name and from/to endpoints.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_Messages_CaptureEndpoints()
+    {
+        // Arrange: a part def with two parts (each with an event) and a message between them
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package Seq {
+                    part def Protocol {
+                        part client { event occurrence s; }
+                        part server { event occurrence r; }
+                        message request from client.s to server.r;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: the protocol owns a message connection with the expected endpoints
+            Assert.NotNull(result.Workspace);
+            var protocol = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["Seq::Protocol"]);
+            var message = protocol.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlConnectionNode>()
+                .Single(c => c.ConnectionKeyword == "message");
+            Assert.Equal("request", message.Name);
+            Assert.Equal("client.s", message.EndpointA);
+            Assert.Equal("server.r", message.EndpointB);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>Asserts that a feature with the given name has the expected keyword and typing.</summary>
+    private static void AssertFeature(
+        IEnumerable<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlFeatureNode> features,
+        string name,
+        string keyword,
+        string typing)
+    {
+        var feature = features.FirstOrDefault(f => f.Name == name);
+        Assert.NotNull(feature);
+        Assert.Equal(keyword, feature!.FeatureKeyword);
+        Assert.Equal(typing, feature.FeatureTyping);
+    }
+
+    /// <summary>Asserts that the named declaration exists and is a definition with the given keyword.</summary>
+    private static void AssertKeyword(SysmlWorkspace workspace, string qualifiedName, string expectedKeyword)
+    {
+        Assert.True(workspace.Declarations.TryGetValue(qualifiedName, out var node), $"Missing {qualifiedName}");
+        var def = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlDefinitionNode>(node);
+        Assert.Equal(expectedKeyword, def.DefinitionKeyword);
+    }
 }
 

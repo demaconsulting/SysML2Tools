@@ -1,0 +1,67 @@
+---
+# ChannelRouter Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the ChannelRouter unit
+# - ChannelRouter routes an orthogonal connector between two anchor points
+# - Requirements describe observable path properties, not the routing algorithm
+
+sections:
+  - title: ChannelRouter Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-ChannelRouter-Orthogonal
+        title: >-
+          ChannelRouter shall produce a path of axis-aligned segments connecting the source
+          anchor to the target anchor.
+        justification: |
+          Orthogonal (axis-aligned) connectors are the convention for the block, state, and
+          activity diagrams the tool renders. Consecutive waypoints therefore always share an
+          X or a Y coordinate.
+        tests:
+          - Route_NoObstacles_ProducesOrthogonalPath
+          - Route_AlignedEndpoints_ProducesStraightLine
+
+      - id: SysML2Tools-Core-Layout-Engine-ChannelRouter-AvoidObstacles
+        title: >-
+          When an obstacle-free path exists, ChannelRouter shall route around obstacle
+          rectangles without passing through their interiors.
+        justification: |
+          Connectors that cut through unrelated boxes are unreadable. The router must steer
+          segments around obstacles whenever the geometry allows.
+        tests:
+          - Route_ObstacleBetween_RoutesAround
+          - Route_MultipleObstacles_RemainsValid
+          - RouteWithStatus_ObstacleBetween_RoutesAroundWithoutCrossing
+
+      - id: SysML2Tools-Core-Layout-Engine-ChannelRouter-Clearance
+        title: >-
+          When an obstacle-free path is achievable, ChannelRouter shall keep routed segments
+          clear of obstacles by the caller-specified clearance distance.
+        justification: |
+          A connector that grazes the edge of a box reads as touching it. Honoring a
+          clearance keeps visible breathing space between connectors and unrelated boxes.
+        tests:
+          - RouteWithStatus_CleanRoute_KeepsClearanceFromObstacles
+
+      - id: SysML2Tools-Core-Layout-Engine-ChannelRouter-PerpendicularEnds
+        title: >-
+          When an anchor is given with the box side it sits on, ChannelRouter shall leave or
+          enter that anchor with a segment perpendicular to the side.
+        justification: |
+          Connectors that meet a box edge at a right angle read as attached to the box rather
+          than sliding along its border, matching diagram notation conventions.
+        tests:
+          - Route_WithSourceSide_LeavesPerpendicular
+          - Route_WithTargetSide_EntersPerpendicular
+
+      - id: SysML2Tools-Core-Layout-Engine-ChannelRouter-CrossingStatus
+        title: >-
+          ChannelRouter shall report whether the produced path could not be routed without
+          crossing an obstacle.
+        justification: |
+          When geometry forces a connector through a box (for example an enclosed target),
+          callers need to know so the condition can be surfaced as a layout warning rather
+          than silently producing a misleading diagram.
+        tests:
+          - RouteWithStatus_NoBlockingObstacle_ReportsNotCrossed
+          - RouteWithStatus_TargetEnclosedByObstacle_ReportsCrossed

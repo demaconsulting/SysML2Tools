@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="362.70" height="1026.00" viewBox="0 0 362.70 1026.00">
+  <defs>
+    <marker id="arrowhead-open" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-filled" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-filled-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-circle" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <circle cx="5" cy="5" r="4" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="arrowhead-bar" markerWidth="4" markerHeight="12" refX="2" refY="6" orient="auto">
+      <line x1="2" y1="0" x2="2" y2="12" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <filter id="label-bg" x="-0.05" y="-0.05" width="1.1" height="1.1">
+      <feFlood flood-color="#FFFFFF"/>
+      <feComposite in="SourceGraphic" operator="over"/>
+    </filter>
+  </defs>
+  <rect x="132.86" y="74.00" width="110.00" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="187.86" y="86.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="187.86" y="105.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">checkout</text>
+  <rect x="93.40" y="166.00" width="188.92" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="187.86" y="178.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="187.86" y="197.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">restoreDependencies</text>
+  <rect x="132.86" y="258.00" width="110.00" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="187.86" y="270.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="187.86" y="289.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">build</text>
+  <rect x="59.32" y="350.00" width="110.00" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="114.32" y="362.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="114.32" y="381.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">unitTest</text>
+  <rect x="110.76" y="442.00" width="154.20" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="187.86" y="454.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="187.86" y="473.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">integrationTest</text>
+  <rect x="197.32" y="350.00" width="128.16" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="261.40" y="362.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="261.40" y="381.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">securityScan</text>
+  <rect x="128.12" y="534.00" width="119.48" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="187.86" y="546.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="187.86" y="565.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">qualityGate</text>
+  <rect x="119.44" y="626.00" width="136.84" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="187.86" y="638.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="187.86" y="657.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">deployStaging</text>
+  <rect x="132.86" y="718.00" width="110.00" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="187.86" y="730.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="187.86" y="749.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">smokeTest</text>
+  <rect x="24.00" y="810.00" width="162.88" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="105.44" y="822.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="105.44" y="841.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">deployProduction</text>
+  <rect x="215.28" y="810.00" width="110.00" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="270.28" y="822.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="270.28" y="841.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">rollback</text>
+  <rect x="37.02" y="902.00" width="136.84" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="105.44" y="914.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="105.44" y="933.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">notifySuccess</text>
+  <rect x="201.86" y="902.00" width="136.84" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="270.28" y="914.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="270.28" y="933.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">notifyFailure</text>
+  <path d="M 187.86 124.00 L 187.86 166.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 187.86 216.00 L 187.86 258.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 187.86 308.00 L 187.86 322.00 A 4.00 4.00 0 0 1 183.86 326.00 L 118.32 326.00 A 4.00 4.00 0 0 0 114.32 330.00 L 114.32 350.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 187.86 308.00 L 187.86 322.00 A 4.00 4.00 0 0 0 191.86 326.00 L 257.40 326.00 A 4.00 4.00 0 0 1 261.40 330.00 L 261.40 350.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 114.32 400.00 L 114.32 414.00 A 4.00 4.00 0 0 0 118.32 418.00 L 183.86 418.00 A 4.00 4.00 0 0 1 187.86 422.00 L 187.86 442.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 187.86 492.00 L 187.86 534.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 261.40 400.00 L 261.40 414.00 A 4.00 4.00 0 0 0 265.40 418.00 L 270.96 418.00 A 4.00 4.00 0 0 1 274.96 422.00 L 274.96 512.00 A 4.00 4.00 0 0 1 270.96 516.00 L 191.86 516.00 A 4.00 4.00 0 0 0 187.86 520.00 L 187.86 534.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 187.86 584.00 L 187.86 626.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 187.86 676.00 L 187.86 718.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 187.86 768.00 L 187.86 782.00 A 4.00 4.00 0 0 1 183.86 786.00 L 109.44 786.00 A 4.00 4.00 0 0 0 105.44 790.00 L 105.44 810.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 187.86 768.00 L 187.86 782.00 A 4.00 4.00 0 0 0 191.86 786.00 L 266.28 786.00 A 4.00 4.00 0 0 1 270.28 790.00 L 270.28 810.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 105.44 860.00 L 105.44 902.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 270.28 860.00 L 270.28 902.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <circle cx="187.86" cy="25.00" r="10.00" fill="#1A1A2E"/>
+  <path d="M 187.86 35.00 L 187.86 74.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <circle cx="187.86" cy="1001.00" r="10.00" fill="#1A1A2E"/>
+  <circle cx="187.86" cy="1001.00" r="3.33" fill="white" stroke="#1A1A2E" stroke-width="1.50"/>
+  <path d="M 105.44 952.00 L 105.44 967.50 A 4.00 4.00 0 0 0 109.44 971.50 L 183.86 971.50 A 4.00 4.00 0 0 1 187.86 975.50 L 187.86 991.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+  <path d="M 270.28 952.00 L 270.28 967.50 A 4.00 4.00 0 0 1 266.28 971.50 L 191.86 971.50 A 4.00 4.00 0 0 0 187.86 975.50 L 187.86 991.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
+</svg>

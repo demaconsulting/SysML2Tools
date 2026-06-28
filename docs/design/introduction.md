@@ -55,10 +55,29 @@ system, subsystem, and unit levels:
 - **StdlibGen** (Build-time tool) — console tool that parses stdlib source files and writes stdlib.bin
   - **Program** (Unit) — entry point: parses stdlib, runs resolution, serializes to stdlib.bin
 - **DemaConsulting.SysML2Tools** (System) — core library: layout, rendering interfaces, and DiagramRenderer
-  - **Layout** (Subsystem) — LayoutTree intermediate representation: nine node types covering all SysML diagram elements
-    - **Internal** (Subsystem) — internal layout implementation
-      - **GeneralViewLayoutStrategy** (Unit) — two-column grid layout for general view diagrams
-  - **Rendering** (Subsystem) — rendering pipeline interfaces: IRenderer, ILayoutStrategy, Theme, RenderOptions, DiagramRenderer
+  - **Layout** (Subsystem) — LayoutTree intermediate representation (node types covering all SysML
+    diagram elements), reusable layout engines, and per-view layout strategies
+    - **Engine** (Subsystem) — reusable, model-independent geometric layout engines
+      - **ChannelRouter** (Unit) — orthogonal connector routing with obstacle avoidance and clearance
+      - **ForceDirectedEngine** (Unit) — force-directed node placement from connection springs
+      - **PortAssigner** (Unit) — assigns ports to box sides and distributes them along each edge
+      - **LayeredLayoutEngine** (Unit) — layered (Sugiyama-style) top-to-bottom placement
+      - **ContainmentPacker** (Unit) — packs sized boxes within a bounded container region
+    - **Internal** (Subsystem) — per-view layout strategies
+      - **GeneralViewLayoutStrategy** (Unit) — general view: grouped definitions with specialization edges
+      - **InterconnectionViewLayoutStrategy** (Unit) — internal structure: nested parts, ports, connectors
+      - **StateTransitionViewLayoutStrategy** (Unit) — state machine: states and guarded transitions
+      - **ActionFlowViewLayoutStrategy** (Unit) — layered action flow with start/done markers
+      - **SequenceViewLayoutStrategy** (Unit) — lifelines and ordered messages
+      - **GridViewLayoutStrategy** (Unit) — specialization/relationship matrix
+      - **BrowserViewLayoutStrategy** (Unit) — indented membership tree
+      - **LayoutWarnings** (Unit) — builder for layout diagnostic warning messages
+    - **ConnectorLabelPlacer** (Unit) — collision-aware placement of connector midpoint labels
+  - **Rendering** (Subsystem) — rendering pipeline: the `IRenderer`/`ILayoutStrategy` interfaces,
+    `Theme`, `RenderOptions`, `RenderOutput`, the `DiagramRenderer` orchestrator, and the
+    `StdlibFilter` helper that excludes standard-library elements from diagrams
+    - **Internal** (Subsystem) — internal rendering implementation
+      - **DiagramTypeRouter** (Unit) — selects a layout strategy from a view's resolved kind
 - **DemaConsulting.SysML2Tools.Svg** (System) — SVG renderer: renders `LayoutTree` to
   SVG output with zero external dependencies
   - **SvgRenderer** (Unit) — translates a `LayoutTree` to a self-contained SVG 1.1 document
