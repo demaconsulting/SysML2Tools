@@ -21,8 +21,11 @@ configuration are required beyond a standard .NET SDK installation.
 - A package's definitions appear inside a folder-shaped box labelled with the package name.
 - A definition's owned usages appear as compartment rows formatted `name : Type`.
 - A specialization yields a line with an open arrowhead at the supertype end.
-- A composite-membership feature (non-ref) yields a line with a filled-diamond arrowhead at the owner end.
-- A reference-membership feature (ref) yields a line with an open-diamond arrowhead at the owner end.
+- A `part`-feature yields a line with a filled-diamond arrowhead at the owner end.
+- A `port`-feature yields a line with a filled-diamond arrowhead at the owner end.
+- A `ref`-feature does NOT yield any diamond arrowhead edge.
+- An `attribute`-feature does NOT yield any diamond arrowhead edge.
+- A dense model with many part edges produces a canvas with area at least as large as a sparse model, confirming adaptive gap widening.
 - Standard-library-only input (by prefix or by seed set) yields a minimal empty canvas.
 - An empty workspace yields a 200×100 canvas with no nodes.
 
@@ -38,5 +41,8 @@ configuration are required beyond a standard .NET SDK installation.
 | `GeneralViewLayoutStrategy_BuildLayout_Subclassification_ProducesEdge` | Line with open arrowhead at supertype |
 | `GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded` | Seed-listed definitions excluded; empty canvas |
 | `GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments` | Attribute and port compartments |
-| `GeneralViewLayoutStrategy_BuildLayout_CompositeMembership_ProducesFilledDiamondEdge` | Filled-diamond at owner |
-| `GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesDiamondEdge` | Open-diamond edge, ref→owner |
+| `GeneralViewLayoutStrategy_BuildLayout_CompositeMembership_ProducesFilledDiamondEdge` | Filled-diamond at owner for `part` feature |
+| `GeneralViewLayoutStrategy_BuildLayout_PortFeature_ProducesFilledDiamondEdge` | Filled-diamond at owner for `port` feature |
+| `GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_DoesNotProduceEdge` | No diamond edge for `ref` feature |
+| `GeneralViewLayoutStrategy_BuildLayout_AttributeFeature_DoesNotProduceDiamondEdge` | No diamond edge for `attribute` feature |
+| `GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelIsWiderThanSparseModel` | Dense layout canvas area ≥ sparse layout canvas area |

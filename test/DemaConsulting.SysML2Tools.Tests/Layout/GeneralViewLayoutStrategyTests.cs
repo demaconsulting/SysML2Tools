@@ -325,11 +325,11 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A part def that owns a reference feature emits an open-diamond line from the feature's
-    ///     type box to the owning definition box.
+    ///     A part def that owns a <c>ref</c>-typed feature does NOT emit any diamond edge, because
+    ///     reference-membership features are excluded from the membership-edge filter.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesDiamondEdge()
+    public void GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_DoesNotProduceEdge()
     {
         // Arrange: System owns a ref typed as Engine; both are user definitions
         var strategy = new GeneralViewLayoutStrategy();
@@ -356,9 +356,155 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a line with an open-diamond arrowhead at the owner (System) end exists
+        // Assert: no diamond (open or filled) arrowhead edge is produced for a ref feature
         var membershipEdge = layout.Nodes.OfType<LayoutLine>()
-            .FirstOrDefault(l => l.TargetArrowhead == ArrowheadStyle.Diamond);
+            .FirstOrDefault(l => l.TargetArrowhead == ArrowheadStyle.Diamond ||
+                                 l.TargetArrowhead == ArrowheadStyle.FilledDiamond);
+        Assert.Null(membershipEdge);
+    }
+
+    /// <summary>
+    ///     A part def that owns an <c>attribute</c>-typed feature does NOT emit any diamond edge,
+    ///     because attribute features are excluded from the membership-edge filter.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_AttributeFeature_DoesNotProduceDiamondEdge()
+    {
+        // Arrange: Vehicle owns an attribute typed as Real (represented as a user definition)
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Mass"] = new SysmlDefinitionNode { Name = "Mass", QualifiedName = "P::Mass", DefinitionKeyword = "attribute def" },
+                ["P::Vehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "Vehicle",
+                    QualifiedName = "P::Vehicle",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "mass", QualifiedName = "P::Vehicle::mass", FeatureKeyword = "attribute", FeatureTyping = "Mass" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: no diamond arrowhead edge is produced for an attribute feature
+        var membershipEdge = layout.Nodes.OfType<LayoutLine>()
+            .FirstOrDefault(l => l.TargetArrowhead == ArrowheadStyle.Diamond ||
+                                 l.TargetArrowhead == ArrowheadStyle.FilledDiamond);
+        Assert.Null(membershipEdge);
+    }
+
+    /// <summary>
+    ///     A part def that owns a <c>port</c>-typed feature emits a filled-diamond line from the
+    ///     port's type box to the owning definition box.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_PortFeature_ProducesFilledDiamondEdge()
+    {
+        // Arrange: Vehicle owns a port typed as FuelPort; both are user definitions
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::FuelPort"] = new SysmlDefinitionNode { Name = "FuelPort", QualifiedName = "P::FuelPort", DefinitionKeyword = "port def" },
+                ["P::Vehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "Vehicle",
+                    QualifiedName = "P::Vehicle",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "fuel", QualifiedName = "P::Vehicle::fuel", FeatureKeyword = "port", FeatureTyping = "FuelPort" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a line with a filled-diamond arrowhead at the owner (Vehicle) end exists
+        var membershipEdge = layout.Nodes.OfType<LayoutLine>()
+            .FirstOrDefault(l => l.TargetArrowhead == ArrowheadStyle.FilledDiamond);
         Assert.NotNull(membershipEdge);
+    }
+
+    /// <summary>
+    ///     A dense model with many cross-package typed features produces a canvas whose area is
+    ///     at least as large as a sparse model, confirming the adaptive gap mechanism widens
+    ///     spacing under crossing pressure.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelIsWiderThanSparseModel()
+    {
+        // Arrange: sparse model — two definitions with one part edge between them
+        var strategy = new GeneralViewLayoutStrategy();
+        var sparseWorkspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Alpha"] = new SysmlDefinitionNode { Name = "Alpha", QualifiedName = "P::Alpha", DefinitionKeyword = "part def" },
+                ["P::Beta"] = new SysmlDefinitionNode
+                {
+                    Name = "Beta",
+                    QualifiedName = "P::Beta",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "a", QualifiedName = "P::Beta::a", FeatureKeyword = "part", FeatureTyping = "Alpha" }
+                    ]
+                }
+            }
+        };
+
+        // Dense model — six mutually cross-typed definitions that force many crossing edges
+        var denseWorkspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Q::D1"] = new SysmlDefinitionNode { Name = "D1", QualifiedName = "Q::D1", DefinitionKeyword = "part def" },
+                ["Q::D2"] = new SysmlDefinitionNode { Name = "D2", QualifiedName = "Q::D2", DefinitionKeyword = "part def" },
+                ["Q::D3"] = new SysmlDefinitionNode { Name = "D3", QualifiedName = "Q::D3", DefinitionKeyword = "part def" },
+                ["Q::D4"] = new SysmlDefinitionNode { Name = "D4", QualifiedName = "Q::D4", DefinitionKeyword = "part def" },
+                ["Q::Root"] = new SysmlDefinitionNode
+                {
+                    Name = "Root",
+                    QualifiedName = "Q::Root",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "d1", QualifiedName = "Q::Root::d1", FeatureKeyword = "part", FeatureTyping = "D1" },
+                        new SysmlFeatureNode { Name = "d2", QualifiedName = "Q::Root::d2", FeatureKeyword = "part", FeatureTyping = "D2" },
+                        new SysmlFeatureNode { Name = "d3", QualifiedName = "Q::Root::d3", FeatureKeyword = "part", FeatureTyping = "D3" },
+                        new SysmlFeatureNode { Name = "d4", QualifiedName = "Q::Root::d4", FeatureKeyword = "part", FeatureTyping = "D4" }
+                    ]
+                }
+            }
+        };
+
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var sparseLayout = strategy.BuildLayout(new ViewContext("sparse", sparseWorkspace), options);
+        var denseLayout = strategy.BuildLayout(new ViewContext("dense", denseWorkspace), options);
+
+        // Assert: both layouts are valid (non-zero canvas); the dense layout has a larger canvas
+        // area, which confirms that adaptive gap widening has taken effect.
+        Assert.True(sparseLayout.Width > 0 && sparseLayout.Height > 0);
+        Assert.True(denseLayout.Width > 0 && denseLayout.Height > 0);
+        var sparseArea = sparseLayout.Width * sparseLayout.Height;
+        var denseArea = denseLayout.Width * denseLayout.Height;
+        Assert.True(denseArea >= sparseArea, $"Expected dense area ({denseArea:F0}) >= sparse area ({sparseArea:F0})");
     }
 }

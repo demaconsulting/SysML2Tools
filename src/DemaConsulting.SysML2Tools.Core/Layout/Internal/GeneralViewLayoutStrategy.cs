@@ -33,6 +33,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <summary>Clearance kept between routed edges and boxes.</summary>
     private const double EdgeClearance = 12.0;
 
+    /// <summary>Maximum number of gap-scaling iterations in the adaptive placement loop.</summary>
+    private const int MaxIterations = 4;
+
+    /// <summary>Maximum multiplier applied to the initial gap before capping.</summary>
+    private const double MaxGapMultiplier = 8.0;
+
     /// <summary>A feature membership: the keyword and the raw typing reference of one owned feature.</summary>
     private sealed record FeatureMembership(string Keyword, string TypeName);
 
@@ -68,15 +74,49 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Group definitions by their owning package (prefix before the last "::").
         var groups = GroupByPackage(defs);
 
-        // Place groups (folders) and standalone definitions across the canvas.
-        var (nodes, placed, canvasWidth, canvasHeight) = PlaceGroups(groups, theme, options.DepthLimit);
+        // Adaptive gap loop: start with baseline gaps and widen them when edge crossings are
+        // detected, up to MaxGapMultiplier × initial gap and at most MaxIterations attempts.
+        var hGap = 4.0 * theme.LabelPadding;
+        var vGap = 5.0 * theme.LabelPadding;
+        var maxHGap = MaxGapMultiplier * hGap;
+        var maxVGap = MaxGapMultiplier * vGap;
 
-        // Route specialization edges between placed boxes.
-        var (specEdges, specCrossings) = BuildSpecializationEdges(defs, placed);
+        List<LayoutNode> nodes = [];
+        List<PlacedBox> placed = [];
+        double canvasWidth = 200.0, canvasHeight = 100.0;
+        List<LayoutNode> specEdges = [];
+        List<LayoutNode> memberEdges = [];
+        int specCrossings = 0, memberCrossings = 0;
+
+        for (var iteration = 0; iteration < MaxIterations; iteration++)
+        {
+            (nodes, placed, canvasWidth, canvasHeight) = PlaceGroups(groups, theme, options.DepthLimit, hGap, vGap);
+
+            (specEdges, specCrossings) = BuildSpecializationEdges(defs, placed);
+            (memberEdges, memberCrossings) = BuildMembershipEdges(defs, placed);
+
+            var totalCrossings = specCrossings + memberCrossings;
+            var totalEdges = specEdges.Count + memberEdges.Count;
+
+            if (totalCrossings == 0 || totalEdges == 0)
+            {
+                break;
+            }
+
+            // Scale gaps proportionally to the crossing ratio, capped at the maximum.
+            var newHGap = Math.Min(hGap * (1.0 + ((double)totalCrossings / totalEdges)), maxHGap);
+            var newVGap = Math.Min(vGap * (1.0 + ((double)totalCrossings / totalEdges)), maxVGap);
+
+            if (newHGap <= hGap && newVGap <= vGap)
+            {
+                break;
+            }
+
+            hGap = newHGap;
+            vGap = newVGap;
+        }
+
         nodes.AddRange(specEdges);
-
-        // Route feature-membership edges between placed boxes.
-        var (memberEdges, memberCrossings) = BuildMembershipEdges(defs, placed);
         nodes.AddRange(memberEdges);
 
         var warnings = LayoutWarnings.ForCrossings(context.ViewName, specCrossings + memberCrossings);
@@ -277,14 +317,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     private static (List<LayoutNode> Nodes, List<PlacedBox> Placed, double Width, double Height) PlaceGroups(
         IReadOnlyList<(string Package, List<DefBox> Items)> groups,
         Theme theme,
-        int depthLimit)
+        int depthLimit,
+        double hGap,
+        double vGap)
     {
         var margin = 2.0 * theme.LabelPadding;
-        var hGap = 4.0 * theme.LabelPadding;
-
-        // Vertical gap between packed rows. Kept generous so specialization edges between
-        // vertically-adjacent boxes have room for their arrowheads and a visible line segment.
-        var vGap = 5.0 * theme.LabelPadding;
 
         // Reserve the full title area (package keyword + name) above a folder's contents so the
         // label never overlaps the first child box. The renderer draws the smaller tab notch within.
@@ -474,10 +511,9 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// the number that could not be routed without crossing a box.
     /// </summary>
     /// <remarks>
-    /// Composite-membership features (all keywords except "ref") emit a filled-diamond arrowhead
-    /// at the owner end; reference memberships ("ref") emit an open-diamond arrowhead at the owner
-    /// end. Each edge is routed from the member-type box toward the owner box so the diamond sits
-    /// on the owner.
+    /// Only structural-membership features with keyword <c>part</c> or <c>port</c> emit an edge.
+    /// Each emitted edge carries a filled-diamond arrowhead at the owner end, routed from the
+    /// member-type box toward the owner box so the diamond sits on the owner.
     /// </remarks>
     private static (List<LayoutNode> Edges, int Crossings) BuildMembershipEdges(
         IReadOnlyList<DefBox> defs,
@@ -504,18 +540,20 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
             foreach (var membership in def.Memberships)
             {
+                // Only emit diamond edges for structural keywords (part or port).
+                if (membership.Keyword != "part" && membership.Keyword != "port")
+                {
+                    continue;
+                }
+
                 if (!TryResolve(membership.TypeName, byQualified, bySimple, out var memberTypeBox) ||
                     memberTypeBox!.QualifiedName == def.QualifiedName)
                 {
                     continue;
                 }
 
-                var arrowhead = membership.Keyword == "ref"
-                    ? ArrowheadStyle.Diamond
-                    : ArrowheadStyle.FilledDiamond;
-
-                // Route from member-type box to owner box; diamond (TargetArrowhead) sits at the owner.
-                var (edge, crossed) = RouteMembershipEdge(memberTypeBox, ownerBox, placed, arrowhead);
+                // Route from member-type box to owner box; filled diamond (TargetArrowhead) sits at the owner.
+                var (edge, crossed) = RouteMembershipEdge(memberTypeBox, ownerBox, placed, ArrowheadStyle.FilledDiamond);
                 edges.Add(edge);
                 if (crossed)
                 {

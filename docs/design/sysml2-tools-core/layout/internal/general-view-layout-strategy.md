@@ -11,19 +11,23 @@ between subtypes and their supertypes.
 ##### Data Model
 
 `GeneralViewLayoutStrategy` has no instance state; all input arrives through the `BuildLayout`
-parameters. Layout constants (`MinBoxWidth`, `CharWidthFactor`, `EdgeClearance`) are declared as
-`private const double` fields. Two private records carry intermediate data: `DefBox` (a
-user definition with its computed size, keyword, supertype names, and compartments) and
-`PlacedBox` (a definition with absolute coordinates, used as an edge anchor).
+parameters. Layout constants (`MinBoxWidth`, `CharWidthFactor`, `EdgeClearance`, `MaxIterations`,
+`MaxGapMultiplier`) are declared as `private const` fields. Two private records carry intermediate
+data: `DefBox` (a user definition with its computed size, keyword, supertype names, and
+compartments) and `PlacedBox` (a definition with absolute coordinates, used as an edge anchor).
 
 ##### Key Methods
 
 ###### `BuildLayout(ViewContext context, RenderOptions options)`
 
 Entry point. Calls `CollectDefinitions` to gather user definitions; returns a minimal
-200×100 empty `LayoutTree` when none are found. Otherwise groups the definitions by package,
-places the groups, routes the specialization edges and feature-membership edges, and returns the
-assembled tree with any crossing warnings attached.
+200×100 empty `LayoutTree` when none are found. Otherwise groups the definitions by package
+and enters an adaptive gap loop (up to `MaxIterations` iterations): calls `PlaceGroups` with
+the current `hGap`/`vGap` values, builds specialization and membership edges, and counts total
+crossings. If crossings remain, the gaps are scaled by `1 + crossings/totalEdges`, capped at
+`MaxGapMultiplier × initial gap`. The loop exits early when there are no crossings, the gap
+cap is reached, or the gap stops growing. After the loop the edges are appended to the node list
+and the assembled tree is returned with any crossing warnings.
 
 ###### `CollectDefinitions(workspace, theme)`
 
@@ -37,13 +41,15 @@ the compartments from the owned usage features (grouped by keyword, each formatt
 Groups definitions by the qualified-name prefix before the last `::`, preserving first-seen
 order. Top-level definitions (no package prefix) form their own standalone blocks.
 
-###### `PlaceGroups(groups, theme, depthLimit)`
+###### `PlaceGroups(groups, theme, depthLimit, hGap, vGap)`
 
 Packs the definition boxes of each package inside a folder box using `ContainmentPacker`, then
 packs the folder boxes and standalone boxes across the canvas with a second `ContainmentPacker`
-pass. A full title area is reserved above each folder's contents so the package label never
-overlaps the first child. When the depth limit forbids the nested level, a folder's contents are
-replaced with a single ellipsis indicator.
+pass. The `hGap` and `vGap` parameters control horizontal and vertical spacing; these are
+supplied by the `BuildLayout` adaptive loop and may grow across iterations. A full title area is
+reserved above each folder's contents so the package label never overlaps the first child. When
+the depth limit forbids the nested level, a folder's contents are replaced with a single ellipsis
+indicator.
 
 ###### `BuildSpecializationEdges(defs, placed)`
 
@@ -54,12 +60,12 @@ the routed lines and the count of edges that had to cross a box.
 
 ###### `BuildMembershipEdges(defs, placed)`
 
-For each definition with typed owned features, resolves each feature's type to a placed box and
-routes an orthogonal line from the member-type box to the owner box, placing a filled-diamond
-arrowhead at the owner end for composite-membership features (all keywords except `ref`) and an
-open-diamond arrowhead for reference-membership features (`ref` keyword). Routing uses
-`ChannelRouter` with `EdgeClearance` from unrelated boxes. Returns the routed lines and the count
-of edges that had to cross a box.
+For each definition with typed owned features, filters to only features with keyword `part` or
+`port`. For each qualifying feature, resolves its type to a placed box and routes an orthogonal
+line from the member-type box to the owner box, placing a filled-diamond arrowhead at the owner
+end. Features with other keywords (e.g. `ref`, `attribute`) are skipped to keep the diagram
+uncluttered. Routing uses `ChannelRouter` with `EdgeClearance` from unrelated boxes. Returns the
+routed lines and the count of edges that had to cross a box.
 
 ##### Error Handling
 

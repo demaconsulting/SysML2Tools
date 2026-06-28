@@ -77,21 +77,37 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CompositeMembership
         title: >-
-          GeneralViewLayoutStrategy shall connect a definition to the type of each composite-membership
-          feature it owns with a filled-diamond arrowhead at the owning definition end.
+          GeneralViewLayoutStrategy shall connect a definition to the type of each owned feature
+          with keyword <c>part</c> or <c>port</c> with a filled-diamond arrowhead at the owning
+          definition end.
         justification: |
-          Composite membership (owned features) is shown in SysML v2 diagrams using a filled diamond
-          at the owner end. Drawing this edge makes part/attribute ownership visible in the General View.
+          Only structural containment relationships — part and port features — are shown as
+          filled-diamond edges in a General View. Attribute, ref, and other non-structural
+          features do not add membership edges, which keeps the diagram readable by reducing
+          visual clutter.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_CompositeMembership_ProducesFilledDiamondEdge
+          - GeneralViewLayoutStrategy_BuildLayout_PortFeature_ProducesFilledDiamondEdge
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ReferenceMembership
         title: >-
-          GeneralViewLayoutStrategy shall connect a definition to the type of each reference-membership
-          feature it owns with an open-diamond arrowhead at the owning definition end.
+          GeneralViewLayoutStrategy shall NOT draw a membership edge for features with keywords
+          other than <c>part</c> or <c>port</c> (e.g. <c>ref</c>, <c>attribute</c>).
         justification: |
-          Reference membership (ref features) is shown in SysML v2 diagrams using an open diamond at
-          the owner end. Drawing this edge distinguishes reference membership from composite membership
-          in the General View.
+          Reference and attribute features describe usage, not structural containment. Omitting
+          their edges prevents the General View from becoming cluttered with non-structural
+          relationships that are better left to other view types.
         tests:
-          - GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesDiamondEdge
+          - GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_DoesNotProduceEdge
+          - GeneralViewLayoutStrategy_BuildLayout_AttributeFeature_DoesNotProduceDiamondEdge
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AdaptiveGap
+        title: >-
+          GeneralViewLayoutStrategy shall iteratively widen the gap between placed boxes when
+          edge crossings are detected, up to a maximum of eight times the initial gap.
+        justification: |
+          Dense models can produce edge crossings with the default gap. Scaling the gap
+          proportionally to the crossing ratio and re-placing boxes up to four times reduces
+          crossings without requiring manual layout hints from the user.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelIsWiderThanSparseModel
