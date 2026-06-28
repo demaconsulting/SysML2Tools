@@ -1,0 +1,12 @@
+---
+title: SysML2 Tools Layout Guide
+subtitle: Algorithms, Engines, and Per-View Design
+author: DEMA Consulting
+description: Technical reference for the SysML2Tools layout pipeline
+lang: en-US
+keywords:
+  - SysML2 Tools
+  - Layout
+  - Graph Drawing
+  - Algorithms
+---
