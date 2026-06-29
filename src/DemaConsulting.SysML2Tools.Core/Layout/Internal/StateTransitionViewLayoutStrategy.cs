@@ -100,8 +100,19 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         // Initial pseudo-state entering the first declared state.
         AddInitialMarker(stateRects[0], nodes);
 
+        // Highway routing: bundle parallel transitions onto shared corridors with cost bands so the
+        // detailed router prefers them, reducing wire overlap. The force/layer placement is preserved
+        // (no compression pass) so the established state arrangement and back-edge clearance are kept.
+        var highwayBoxes = stateRects.Select((r, i) => new HighwayBox(r.X, r.Y, r.Width, r.Height, i.ToString())).ToList();
+        var highwayEdges = transitions.Where(t => t.Source != t.Target).Select(t => new HighwayEdge(t.Source, t.Target, "transition")).ToList();
+        var highway = HighwayAssigner.Assign(highwayBoxes, highwayEdges, theme.LabelPadding * 2.0, TransitionClearance, TransitionClearance * 2.0);
+        var costBands = highway.Corridors
+            .Where(c => c.IsHighway)
+            .Select(c => new CostBand(c.IsHorizontal, c.Position - (c.ReservedWidth / 2.0), c.Position + (c.ReservedWidth / 2.0), 0.6))
+            .ToList();
+
         // Transition edges with guard labels.
-        var crossings = AddTransitions(transitions, stateRects, nodes, connectivity.LayerHints);
+        var crossings = AddTransitions(transitions, stateRects, nodes, connectivity.LayerHints, costBands);
 
         var warnings = LayoutWarnings.ForCrossings(context.ViewName, crossings);
         return new LayoutTree(force.Width, force.Height, nodes) { Warnings = warnings };
@@ -260,7 +271,8 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         IReadOnlyList<TransitionItem> transitions,
         Rect[] stateRects,
         List<LayoutNode> nodes,
-        IReadOnlyList<int> layerHints)
+        IReadOnlyList<int> layerHints,
+        IReadOnlyList<CostBand> costBands)
     {
         var count = transitions.Count;
         var srcSide = new PortSide[count];
@@ -359,7 +371,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             var isBackEdge = transition.Source < layerHints.Count && transition.Target < layerHints.Count &&
                 layerHints[transition.Source] > layerHints[transition.Target];
             var clearance = isBackEdge ? TransitionClearance * 2.5 : TransitionClearance;
-            var route = ChannelRouter.RouteWithStatus(srcPoint[i], tgtPoint[i], obstacles, clearance, srcSide[i], tgtSide[i]);
+            var route = ChannelRouter.RouteWithStatus(srcPoint[i], tgtPoint[i], obstacles, clearance, srcSide[i], tgtSide[i], costBands);
             if (route.Crossed)
             {
                 crossings++;

@@ -73,9 +73,15 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var vGap = 5.0 * theme.LabelPadding;
         var (nodes, placed, canvasWidth, canvasHeight) = PlaceGroups(groups, theme, options.DepthLimit, hGap, vGap);
 
+        // Highway routing: detect bundling corridors between the placed boxes from the same edge set
+        // the router will draw, then bias the two routing sites toward those corridors with cost bands.
+        // GeneralView is cost-band-only by design: boxes are packed in folders, so a compression pass
+        // would disturb the deliberate package grouping; biasing the router is the low-risk improvement.
+        var costBands = BuildHighwayCostBands(defs, placed);
+
         // Route edges for the placement.
-        var (specEdges, specCrossings) = BuildSpecializationEdges(defs, placed);
-        var (memberEdges, memberCrossings) = BuildMembershipEdges(defs, placed);
+        var (specEdges, specCrossings) = BuildSpecializationEdges(defs, placed, costBands);
+        var (memberEdges, memberCrossings) = BuildMembershipEdges(defs, placed, costBands);
 
         nodes.AddRange(specEdges);
         nodes.AddRange(memberEdges);
@@ -421,12 +427,84 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             Keyword: def.Keyword);
 
     /// <summary>
+    /// Detects bundling corridors over the placed boxes and the edges that will be drawn between them,
+    /// then derives cost bands that bias the channel router toward those corridors. GeneralView applies
+    /// the highway only as a routing bias — no compression pass — so the deliberate package-folder
+    /// packing is preserved while parallel edges collapse onto shared lanes for less wire overlap.
+    /// </summary>
+    private static IReadOnlyList<CostBand> BuildHighwayCostBands(
+        IReadOnlyList<DefBox> defs,
+        IReadOnlyList<PlacedBox> placed)
+    {
+        // Index placed boxes by name and position so resolved edges become box-index pairs.
+        var byQualified = new Dictionary<string, int>(StringComparer.Ordinal);
+        var bySimple = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < placed.Count; i++)
+        {
+            byQualified.TryAdd(placed[i].QualifiedName, i);
+            bySimple.TryAdd(placed[i].SimpleName, i);
+        }
+
+        // Collect the same edges the two routing sites will draw: specializations and structural memberships.
+        var edges = new List<HighwayEdge>();
+        foreach (var def in defs)
+        {
+            if (!byQualified.TryGetValue(def.QualifiedName, out var fromIndex))
+            {
+                continue;
+            }
+
+            foreach (var supertype in def.SupertypeNames)
+            {
+                if (TryResolveIndex(supertype, byQualified, bySimple, out var toIndex) && toIndex != fromIndex)
+                {
+                    edges.Add(new HighwayEdge(fromIndex, toIndex, "specialization"));
+                }
+            }
+
+            foreach (var membership in def.Memberships)
+            {
+                if (membership.Keyword is not ("part" or "port" or "ref"))
+                {
+                    continue;
+                }
+
+                if (TryResolveIndex(membership.TypeName, byQualified, bySimple, out var toIndex) && toIndex != fromIndex)
+                {
+                    edges.Add(new HighwayEdge(toIndex, fromIndex, "membership"));
+                }
+            }
+        }
+
+        var boxes = placed.Select((b, i) => new HighwayBox(b.X, b.Y, b.Width, b.Height, i.ToString())).ToList();
+        var highway = HighwayAssigner.Assign(boxes, edges, EdgeClearance, EdgeClearance, EdgeClearance * 2.0);
+        return highway.Corridors
+            .Where(c => c.IsHighway)
+            .Select(c => new CostBand(c.IsHorizontal, c.Position - (c.ReservedWidth / 2.0), c.Position + (c.ReservedWidth / 2.0), 0.6))
+            .ToList();
+    }
+
+    /// <summary>Resolves a supertype/type reference to a placed-box index by qualified then simple name.</summary>
+    private static bool TryResolveIndex(string reference, Dictionary<string, int> byQualified, Dictionary<string, int> bySimple, out int index)
+    {
+        if (byQualified.TryGetValue(reference, out index))
+        {
+            return true;
+        }
+
+        var sep = reference.LastIndexOf("::", StringComparison.Ordinal);
+        var simple = sep >= 0 ? reference[(sep + 2)..] : reference;
+        return bySimple.TryGetValue(simple, out index);
+    }
+
+    /// <summary>
     /// Builds specialization (generalization) edges between placed definition boxes, returning the
     /// edges and the number that could not be routed without crossing a box.
     /// </summary>
     private static (List<LayoutNode> Edges, int Crossings) BuildSpecializationEdges(
         IReadOnlyList<DefBox> defs,
-        IReadOnlyList<PlacedBox> placed)
+        IReadOnlyList<PlacedBox> placed,
+        IReadOnlyList<CostBand> costBands)
     {
         var edges = new List<LayoutNode>();
         var crossings = 0;
@@ -455,7 +533,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     continue;
                 }
 
-                var (edge, crossed) = RouteEdge(fromBox, target, placed);
+                var (edge, crossed) = RouteEdge(fromBox, target, placed, costBands);
                 edges.Add(edge);
                 if (crossed)
                 {
@@ -478,7 +556,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// </remarks>
     private static (List<LayoutNode> Edges, int Crossings) BuildMembershipEdges(
         IReadOnlyList<DefBox> defs,
-        IReadOnlyList<PlacedBox> placed)
+        IReadOnlyList<PlacedBox> placed,
+        IReadOnlyList<CostBand> costBands)
     {
         var edges = new List<LayoutNode>();
         var crossings = 0;
@@ -522,7 +601,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 }
 
                 // Route from member-type box to owner box; diamond (TargetArrowhead) sits at the owner.
-                var (edge, crossed) = RouteMembershipEdge(memberTypeBox, ownerBox, placed, arrowhead);
+                var (edge, crossed) = RouteMembershipEdge(memberTypeBox, ownerBox, placed, arrowhead, costBands);
                 edges.Add(edge);
                 if (crossed)
                 {
@@ -542,7 +621,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         PlacedBox memberType,
         PlacedBox owner,
         IReadOnlyList<PlacedBox> placed,
-        ArrowheadStyle diamond)
+        ArrowheadStyle diamond,
+        IReadOnlyList<CostBand> costBands)
     {
         var memberCenter = new Point2D(memberType.X + (memberType.Width / 2.0), memberType.Y + (memberType.Height / 2.0));
         var ownerCenter = new Point2D(owner.X + (owner.Width / 2.0), owner.Y + (owner.Height / 2.0));
@@ -555,7 +635,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             .Select(b => new Rect(b.X, b.Y, b.Width, b.Height))
             .ToList();
 
-        var route = ChannelRouter.RouteWithStatus(source, target, obstacles, EdgeClearance, sourceSide, targetSide);
+        var route = ChannelRouter.RouteWithStatus(source, target, obstacles, EdgeClearance, sourceSide, targetSide, costBands);
 
         var edge = new LayoutLine(
             Waypoints: route.Waypoints,
@@ -596,7 +676,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// Routes a single specialization edge from a subtype box to its supertype box, returning the
     /// edge and whether it had to cross another box.
     /// </summary>
-    private static (LayoutLine Edge, bool Crossed) RouteEdge(PlacedBox from, PlacedBox to, IReadOnlyList<PlacedBox> placed)
+    private static (LayoutLine Edge, bool Crossed) RouteEdge(PlacedBox from, PlacedBox to, IReadOnlyList<PlacedBox> placed, IReadOnlyList<CostBand> costBands)
     {
         var fromCenter = new Point2D(from.X + (from.Width / 2.0), from.Y + (from.Height / 2.0));
         var toCenter = new Point2D(to.X + (to.Width / 2.0), to.Y + (to.Height / 2.0));
@@ -610,7 +690,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             .Select(b => new Rect(b.X, b.Y, b.Width, b.Height))
             .ToList();
 
-        var route = ChannelRouter.RouteWithStatus(source, target, obstacles, EdgeClearance, sourceSide, targetSide);
+        var route = ChannelRouter.RouteWithStatus(source, target, obstacles, EdgeClearance, sourceSide, targetSide, costBands);
 
         // Generalization: open arrowhead points at the supertype (target) end.
         var edge = new LayoutLine(

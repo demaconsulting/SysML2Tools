@@ -79,7 +79,18 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             nodes.Add(MakeActionBox(actions[i], rects[i]));
         }
 
-        var crossings = AddSuccessionEdges(edges, rects, nodes, layered.Layers);
+        // Highway routing: bundle parallel successions onto shared corridors with cost bands so the
+        // detailed router prefers them, reducing wire overlap. The layered placement is preserved
+        // (no compression pass) to keep the deliberate top-to-bottom action ordering.
+        var highwayBoxes = rects.Select((r, i) => new HighwayBox(r.X, r.Y, r.Width, r.Height, i.ToString())).ToList();
+        var highwayEdges = edges.Select(e => new HighwayEdge(e.From, e.To, "succession")).ToList();
+        var highway = HighwayAssigner.Assign(highwayBoxes, highwayEdges, theme.LabelPadding * 2.0, FlowClearance, FlowClearance * 2.0);
+        var costBands = highway.Corridors
+            .Where(c => c.IsHighway)
+            .Select(c => new CostBand(c.IsHorizontal, c.Position - (c.ReservedWidth / 2.0), c.Position + (c.ReservedWidth / 2.0), 0.6))
+            .ToList();
+
+        var crossings = AddSuccessionEdges(edges, rects, nodes, layered.Layers, costBands);
         AddStartAndDone(actions, rects, edges, layered, nodes);
 
         var width = layered.Width;
@@ -212,7 +223,8 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         IReadOnlyList<(int From, int To)> edges,
         Rect[] rects,
         List<LayoutNode> nodes,
-        IReadOnlyList<int> layers)
+        IReadOnlyList<int> layers,
+        IReadOnlyList<CostBand> costBands)
     {
         var crossings = 0;
         foreach (var (from, to) in edges)
@@ -235,7 +247,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             var clearance = isBackEdge ? FlowClearance * 2.5 : FlowClearance;
             var route = ChannelRouter.RouteWithStatus(
                 source, target, obstacles, clearance,
-                sourceSide: PortSide.Bottom, targetSide: PortSide.Top);
+                sourceSide: PortSide.Bottom, targetSide: PortSide.Top, costBands: costBands);
             if (route.Crossed)
             {
                 crossings++;
