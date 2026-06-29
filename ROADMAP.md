@@ -310,6 +310,79 @@ Steps 7–9 are live; note any deviations.
 fan) shows visibly bundled wires; merged trunk notation appears on congested faces; no
 regression on any Phase 14a visual gate.
 
+### Phase 14c — Layout Quality: Approach Zones & Connector Clarity
+
+Eliminate the remaining visual defects in block-and-connector diagrams by
+making the placement-to-routing handoff connector-aware. The three identified
+failure modes are:
+
+1. **Invisible border connectors** — a connector between two boxes whose
+   shared boundary carries zero gap renders on both box borders simultaneously
+   and is indistinguishable from the border line.
+2. **Late trunk merge** — connectors sharing a destination face run as separate
+   parallel lines for the majority of their length, merging only just before
+   the target box instead of at the furthest reasonable merge point.
+3. **Port face crowding** — multiple connectors arrive at the same point on a
+   box face and are individually untraceable.
+
+All three stem from the same root: the `GravityCompressor` and `GridQuantizer`
+enforce uniform 2D box separation, but routing requires *directional clearance*
+along each connector's primary axis that is independent of 2D overlap.
+
+**Algorithm concept — approach zones:**
+
+Every connector needs a clear approach zone between the routing corridor and
+the box face it connects to:
+
+```
+[box face]  [approach zone]  [corridor trunk]  [approach zone]  [box face]
+            ← stub + bend →                  ← stub + bend →
+```
+
+The approach zone is theme-derived:
+```
+approachZone = theme.ConnectorStub + theme.BendRadius + theme.ConnectorClearance
+```
+
+`CorridorConstraint.MinWidth` must include both approach zones:
+```
+minWidth = approachZone + trunkWidth + approachZone
+```
+
+A dedicated **connected-pair clearance pass** runs after `GridQuantizer`,
+enforcing `approachZone` clearance in the connector's primary routing direction
+for every connected box pair — independently of 2D overlap. This replaces the
+ad-hoc second `GravityCompressor` pass added in Phase 14b.
+
+**Additional fixes:**
+
+- **Steiner-style collective routing** in `PortAssigner`: connectors sharing a
+  destination face compute a shared merge-point at the furthest reasonable
+  distance from the target box, then travel as a single trunk.
+- **Uniform face slot allocation** in `PortAssigner`: ports on a face are
+  distributed into evenly-spaced slots (face-length ÷ (n+1)), guaranteeing
+  minimum port-to-port separation.
+
+**Theme additions** (all derived, not magic numbers):
+- `ConnectorStub` — perpendicular step-off distance from a box face
+- `BendRadius` — corner arc radius used by the router
+- Approach zone computed from above; no standalone constant
+
+**Documentation**: update `docs/layout/detailed-algorithm.md` to specify the
+approach-zone concept, the connected-pair clearance pass, and the Steiner merge
+point calculation. Update the `Theme` design doc.
+
+**Scope:** new connected-pair clearance pass; `PortAssigner` Steiner trunk
+merge and face slot allocation; `Theme` additions; `CorridorConstraint`
+`MinWidth` formula updated.
+
+**Visual gate** (using `.github/standards/diagram-quality.md`):
+- `WorkstationInterconnectionView`: board↔graphics connector visible (C2 PASS)
+- `DroneGeneralView`: Battery connections merge into trunk before reaching
+  the box (C5 PASS); FlightController face connectors individually traceable
+  (C6 PASS); Battery/FlightController gap fits decorations (B2 PASS)
+- All gallery diagrams: I1–I3, B1–B5, C1–C7 all PASS
+
 ### Phase 15 — Additional relationship edges (General View)
 
 Render the relationships currently omitted from the General View, each routed via
