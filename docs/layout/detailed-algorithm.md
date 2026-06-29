@@ -6,7 +6,7 @@ Before any geometry is computed, analyse the graph topology.
 
 **Affinity weight** between every block pair:
 
-```
+```text
 W(A, B) = edge_count(A, B) × 3
         + package_co_membership(A, B) × 1
         + shared_supertype(A, B) × 2
@@ -77,7 +77,7 @@ exact rescale with no interpolation drift.
 length* and a *normalised affinity*, so behaviour is invariant to theme scale, block size,
 and graph density:
 
-```
+```text
 L      = mean(block_diagonal) + EdgeClearance      (characteristic spacing unit)
 ŵ(A,B) = W(A,B) / W_max ∈ (0,1]                     (normalised affinity)
 k      = L                                          (FR optimal distance)
@@ -90,7 +90,7 @@ connected pair ≈ 1.5 L apart — equilibrium spacing now scales with block siz
 independent of block size, causing systematic overlap).
 
 | Force | Formula | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | Affinity spring | `(d − r(ŵ)) / k` toward rest length | Pull connected blocks to a size-aware distance |
 | Hierarchy gravity | `κ_h × (Δlevel·L − Δy) / k` | Soft reading-direction bias (dimensionless ratio) |
 | Block repulsion | `k² / d` (d clamped at `d_min`) | Prevent overlap; comparable to spring at `d ≈ k` |
@@ -108,7 +108,7 @@ gravity field, which has a proper energy function and settles. A cooling schedul
 **Mode parameters** — the two modes differ only in **two dimensionless ratios**:
 
 | Ratio | Free 2D | Directed Flow | Meaning |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `κ_h` (hierarchy / affinity) | 0.15 | 1.0 | soft vs. near-hard reading direction |
 | `κ_c` (canvas / affinity) | derived for radius `√n·L` | derived × 1.3 (tighter column) | canvas compaction |
 
@@ -166,7 +166,7 @@ gaps computable in closed form (Step 8).
    ignore the margins and misclassify a channel that is exactly full). A channel is a
    **Highway** iff its required width exceeds what a minor road can carry:
 
-   ```
+   ```text
    peak_lanes(channel)     = max concurrent wires at any cross-section
                              (see Peak Concurrent Occupancy below; peak_lanes ≤ channel_edge_count)
    required_width(channel) = peak_lanes(channel) × G + 2 × wire_margin
@@ -187,7 +187,7 @@ gaps computable in closed form (Step 8).
 4. **Assign edges to highways** with a *capped* reserved width so a hub cannot create a
    single canvas-dominating corridor:
 
-   ```
+   ```text
    reserved_width = min( peak_lanes(channel) × G + 2·wire_margin , W_cap )
    W_cap          = clamp( 0.25 × canvas_extent_estimate , 6·G , 24·G )
    ```
@@ -253,7 +253,7 @@ corridor's long axis:
    concurrent (the conservative, feasibility-preserving choice).
 3. Sweep: increment on entry, decrement on exit, and track the running maximum.
 
-```
+```text
 peak_lanes = max( active_wire_count at each cross-section )
 ```
 
@@ -272,7 +272,7 @@ placed inside the corridor at the *barycenter* of the connected block centres, m
 the corridor's **cross-axis** (the axis across the trunk — X for a vertical corridor, Y for
 a horizontal one):
 
-```
+```text
 lane_pos = mean(source.cross, dest1.cross, dest2.cross, ...)
 ```
 
@@ -380,19 +380,19 @@ The tiers are selected by the following **precedence** — the physical limit is
 checked first, so the classification stays well-defined even when `face_capacity <
 readability_cap`:
 
-```
+```text
 if    peak_lanes >  face_capacity:    tier = Two-face split
 elif  peak_lanes >  readability_cap:  tier = Bundle notation
 else:                                 tier = Normal
 ```
 
 | Tier | Selected when | Rendering |
-|------|---------------|-----------|
+| ------ | --------------- | ----------- |
 | **Normal** | `peak_lanes ≤ min(readability_cap, face_capacity)` | Individual wires, distinct colours/styles |
 | **Bundle notation** | `readability_cap < peak_lanes ≤ face_capacity` | Thick single wire + ×N label |
 | **Two-face split** | `peak_lanes > face_capacity` | Two corridors on opposite faces + `LayoutWarning` if still over |
 
-```
+```text
 readability_cap = 6                                  // cognitive threshold (fixed)
 face_capacity   = trunk_face_h / G                   // physical slot limit of the face
                                                      // hosting the merged trunk
@@ -465,7 +465,7 @@ feasible after quantisation.
 
 Expand all inter-block gaps to generous headroom:
 
-```
+```text
 vGap[i] = max(min_vGap, highway_reserved_height[i] × expansion_factor)
 hGap[j] = max(min_hGap, highway_reserved_width[j]  × expansion_factor)
 ```
@@ -513,7 +513,7 @@ immigrate into a channel; therefore each channel's required width is *fixed*, an
 minimal feasible gap is computed directly — no `compress_step`, no convergence loop, no
 measurement aliasing:
 
-```
+```text
 for each inter-column channel j:
     required_h = sweep_line_peak(j) × G + 2·wire_margin   // peak concurrent, not total count
                + label_box_width(j)                        // labels reserve space here, not post-hoc

@@ -13,7 +13,7 @@ blocks sit, how connectors route between them, and how much space separates them
 ## Relationship to Other Documents
 
 | Document | Covers |
-|---|---|
+| --- | --- |
 | User Guide | CLI usage, output formats, view selection |
 | Design (`docs/design/`) | Per-component architecture and interfaces |
 | Verification (`docs/verification/`) | Test scenarios and acceptance criteria |

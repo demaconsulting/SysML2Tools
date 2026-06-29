@@ -29,7 +29,7 @@ blocks to an implicit shared grid via constraint-graph compaction.
 **Common issues in prior implementation**:
 
 | Issue | Root Cause |
-|---|---|
+| --- | --- |
 | Massive inter-row whitespace | Broken compounding heat loop (applied to already-shifted positions) |
 | Horizontal crowding ignored | Only vertical gaps were expanded; wrong axis |
 | No crossing minimisation | Blocks ordered by discovery, not connectivity |
@@ -69,7 +69,7 @@ a small external arc and excluded from highway assignment.
 **Common issues in prior implementation**:
 
 | Issue | Root Cause |
-|---|---|
+| --- | --- |
 | Empty regions after force-directed | No post-placement compression |
 | Connector bundles not reserved | No highway concept |
 
@@ -112,7 +112,7 @@ shared error state).
 **Common issues in prior implementation**:
 
 | Issue | Root Cause |
-|---|---|
+| --- | --- |
 | States scatter with unclear flow direction | Force-directed without directional bias |
 | No layer assignment | No concept of execution order |
 | Loop-back transitions cut across forward flow | No back-edge treatment |
@@ -148,7 +148,7 @@ nesting-depth radius) handle loop-back actions.
 **Common issues in prior implementation**:
 
 | Issue | Root Cause |
-|---|---|
+| --- | --- |
 | Parallel branches between fork/join may cross | No highway bundling, no crossing minimisation |
 | Fixed inter-layer gaps | Not derived from actual wire density |
 
@@ -178,7 +178,7 @@ check (Step 11) ensures message labels do not overlap adjacent lifelines.
 **Common issues in prior implementation**:
 
 | Issue | Root Cause |
-|---|---|
+| --- | --- |
 | Fixed lifeline spacing regardless of label width | No adaptive spacing |
 | Message label overlap | No collision check |
 

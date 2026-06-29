@@ -111,6 +111,50 @@ words:
   - Rects
   - RRGGBB
   - RRGGBBAA
+  - analyse
+  - analyser
+  - analysing
+  - behaviour
+  - Behaviour
+  - centrepiece
+  - colours
+  - elif
+  - emphasised
+  - generalisation
+  - hier
+  - Hier
+  - Holten
+  - Innovus
+  - materialised
+  - materialises
+  - minimisation
+  - minimise
+  - minimiser
+  - minimises
+  - neighbour
+  - Neighbour
+  - neighbours
+  - normalised
+  - optimise
+  - optimised
+  - quadtree
+  - quantisation
+  - Quantisation
+  - quantise
+  - quantised
+  - Quantises
+  - quantises
+  - quantising
+  - quantizer
+  - Quantizer
+  - recognised
+  - recognises
+  - subitising
+  - tertile
+  - uncongested
+  - visualisation
+  - VLSI
+  - Δlevel
 
 # Exclude common build artifacts, dependencies, and vendored third-party code
 ignorePaths:
