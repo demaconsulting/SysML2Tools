@@ -95,7 +95,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
         // Gravity-compress overlaps to a tight minimum gap, then quantise to the grid so part
         // anchors fall on predictable lines before ports and connectors are routed.
-        partRects = CompressAndQuantize(partRects, theme, corridorConstraints);
+        partRects = CompressAndQuantize(partRects, theme, corridorConstraints, pairs);
 
         var nodes = new List<LayoutNode>();
 
@@ -428,7 +428,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// so the connectors that follow have predictable, well-separated anchor lines. Falls back to the
     /// uncompressed positions if compression cannot find a non-overlapping arrangement.
     /// </summary>
-    private static Rect[] CompressAndQuantize(Rect[] partRects, Theme theme, IReadOnlyList<CorridorConstraint> corridors)
+    private static Rect[] CompressAndQuantize(Rect[] partRects, Theme theme, IReadOnlyList<CorridorConstraint> corridors, IReadOnlyList<ConnPair> pairs)
     {
         if (partRects.Length == 0)
         {
@@ -453,15 +453,21 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             grid,
             theme.LabelPadding);
 
-        // Re-compress after quantisation: grid-snapping can reduce inter-box gaps below minGap,
-        // which causes connectors to route through box interiors. A second pass restores clearance.
+        // Push connected pairs apart along their dominant axis so two boxes sharing a boundary edge
+        // keep a visible approach zone for the connector between them; quantisation can erase it.
+        var spaced = ConnectedPairSpacer.Space(
+            [.. quantised.Select(q => new Rect(q.X, q.Y, q.Width, q.Height))],
+            [.. pairs.Select(p => new ConnectedPair(p.A, p.B))],
+            theme.ConnectorApproachZone(ConnectorClearance));
+
+        // Final no-grid cleanup restores any 2D clearances the 1D pushes disturbed without re-snapping.
         var recompressed = GravityCompressor.Compress(
-            [.. quantised.Select(q => new CompressBox(q.X, q.Y, q.Width, q.Height, q.Width, q.Height))],
+            [.. spaced.Select(s => new CompressBox(s.X, s.Y, s.Width, s.Height, s.Width, s.Height))],
             minGap,
             gridUnit: 0.0);
 
         return recompressed.Feasible
-            ? [.. recompressed.Positions.Select((p, i) => new Rect(p.X, p.Y, quantised[i].Width, quantised[i].Height))]
-            : [.. quantised.Select(q => new Rect(q.X, q.Y, q.Width, q.Height))];
+            ? [.. recompressed.Positions.Select((p, i) => new Rect(p.X, p.Y, spaced[i].Width, spaced[i].Height))]
+            : [.. spaced];
     }
 }

@@ -130,6 +130,7 @@ internal static class ChannelRouter
         // boxes at right angles instead of sliding along the edge. The stub is capped so that two
         // stubs facing each other across a small gap meet at the midline instead of overshooting
         // (which would force a back-and-forth jog right at the arrowhead).
+        // FUTURE (Phase 14c cleanup): replace this magic 8.0 with theme.ConnectorApproachZone.
         var stub = clearance + 8.0;
         var routeSource = StepOff(source, sourceSide, StubLength(source, sourceSide, target, stub));
         var routeTarget = StepOff(target, targetSide, StubLength(target, targetSide, source, stub));

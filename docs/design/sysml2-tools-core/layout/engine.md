@@ -18,6 +18,7 @@ The subsystem contains the following units:
 | `PortAssigner` | Assigns ports to box sides and distributes them along each edge |
 | `ContainmentPacker` | Packs sized boxes within a bounded container region |
 | `ConnectivityAnalyzer` | Computes sparse adjacency, layer hints, and community assignments |
+| `ConnectedPairSpacer` | Pushes connected box pairs apart to keep a visible connector approach zone |
 | `GravityCompressor` | Separates overlapping boxes to a minimum clearance |
 | `GridQuantizer` | Snaps boxes to a grid and unifies aligned column widths/row heights |
 | `HighwayAssigner` | Detects routing corridors, bundles wires, and reserves highway trunks |

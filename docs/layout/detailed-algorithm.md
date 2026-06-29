@@ -599,3 +599,145 @@ against blocks and other labels using `ConnectorLabelPlacer`.
 any remaining violations.
 
 ---
+
+## Phase 14c Additions — Approach Zones and Connector Clarity
+
+### Theme Additions
+
+Add the following fields to the `Theme` record in `Theme.cs`:
+
+- `ConnectorStub` (double) — perpendicular step-off distance from a box face before bending.
+  Light/Dark = 8.0, Print = 6.0.
+- `BendRadius` (double) — corner arc radius used in SVG output. Light/Dark = 4.0, Print = 0.0.
+
+Define the computed helper:
+
+```text
+approachZone = ConnectorStub + BendRadius + ConnectorClearance
+```
+
+`approachZone` replaces the magic constant `clearance + 8.0` in `ChannelRouter` (stub) and
+the ad-hoc `minGap` values in strategies. `CorridorConstraint.MinWidth` becomes:
+
+```text
+2 × approachZone + peak_lanes × wireSpacing
+```
+
+---
+
+### Fix 1 — Connected-Pair Clearance (`ConnectedPairSpacer`)
+
+**Problem**: `GravityCompressor.SeparatePairs` only separates box pairs with positive 2D
+overlap (both X and Y). Two boxes that share a boundary edge but sit in different
+rows/columns — zero Y-overlap — are never separated, leaving a zero gap. A connector
+between them routes along the shared border and is invisible.
+
+**Algorithm**: After `GridQuantizer`, run a new engine `ConnectedPairSpacer`:
+
+```text
+for each connected pair (A, B) in the connectivity list:
+    primaryAxis = X if |cx_B - cx_A| >= |cy_B - cy_A| else Y
+    facingGap   = gap between A and B on primaryAxis
+                  (i.e. max(0, nearEdge_B - farEdge_A) on that axis)
+    gapNeeded   = 2 × approachZone   (one per box face)
+    if facingGap < gapNeeded:
+        deficit = gapNeeded - facingGap
+        push centres of A and B apart by deficit/2 each on primaryAxis
+
+run iteratively (max 500 passes) until no pair moves
+if infeasible: fall back to quantised positions
+```
+
+After `ConnectedPairSpacer`, run a final no-grid `GravityCompressor` pass (`gridUnit = 0`)
+to restore any 2D clearances disturbed by the 1D pushes.
+
+**Key properties**:
+
+- Only operates on connected pairs — unconnected boxes are untouched.
+- No re-snapping (`gridUnit = 0`) — grid alignment is not disturbed.
+- Primary axis matches `HighwayAssigner`'s `useHorizontal` test — corridor and spacer agree
+  on routing direction.
+- Tie-break on `|dx| == |dy|`: pick X for determinism.
+
+**Pipeline position**: replaces the ad-hoc second `GravityCompressor` call in
+`CompressAndQuantize`.
+
+---
+
+### Fix 2 — Off-Face Trunk Merge Point (`PortAssigner`)
+
+**Problem**: `AssignHighway` places the shared trunk anchor at `MidpointOnSide(box, face)` —
+a point on the box face. All grouped connectors converge at that point, meaning they run as
+parallel lines until the last moment before the target.
+
+**Algorithm**: Replace `MidpointOnSide` with `MergePoint(box, face, sourcePositions, approachZone)`:
+
+```text
+mergeOffset = clamp(approachZone, approachZone, min_i(dist(source_i, face)) / 2)
+mergeAlong  = mean(source_i projected onto face axis)
+              clamped to [faceStart + approachZone, faceEnd - approachZone]
+```
+
+For a bottom face at `y = faceY`:
+
+- `mergeY = faceY + mergeOffset` (offset outward from face)
+- `mergeX = mean(source X coordinates)` clamped within box width
+
+The trunk forms at `(mergeX, mergeY)`, then fans out to evenly-spaced port slots on the
+face. Individual wires travel directly to the merge point, then share the trunk stub into
+the face.
+
+**Edge cases**:
+
+- Single connector in group: no merge point needed, route directly to face slot.
+- Sources straddling face: clamp `mergeAlong` to box width.
+- `mergeOffset` exceeds inter-box gap: clamp to `gap / 2` (same logic as
+  `ChannelRouter.StubLength`).
+
+---
+
+### Fix 3 — Minimum Face Slot Width (`PortAssigner`)
+
+**Problem**: `DistributeAlongSide` spaces port slots at `fraction = (slot+1)/(count+1)` with
+no minimum. On short faces with many connectors, the slots cluster together and connectors
+are individually untraceable.
+
+**Algorithm**: Use a guaranteed minimum slot width:
+
+```text
+minSlot = ConnectorStub + StrokeWidth × 2   (≈ 11px at Light theme)
+
+if count × minSlot <= faceLength:
+    use even (slot+1)/(count+1) spacing (existing behaviour)
+else:
+    space slots at exactly minSlot, centred on face midpoint
+    if still overflowing:
+        force box minimum width = max(MinPartWidth, count × minSlot)
+        re-run layout from GravityCompressor
+```
+
+Per-face calculation is independent. Sort connector assignments by source angle to minimise
+crossings (existing sort is preserved).
+
+---
+
+### Updated Pipeline Summary
+
+```text
+Step 1:       ConnectivityAnalyzer
+Step 2:       Monte Carlo seed generation
+Step 3:       ForceDirectedEngine
+Step 4:       HighwayAssigner  (MinWidth = 2×approachZone + peak_lanes×wireSpacing)
+Step 5:       GridQuantizer
+Step 6:       Oversized placement
+Step 7:       ChannelRouter (initial)
+Step 8:       GravityCompressor (corridor-constrained)
+Step 9:       ChannelRouter (final compact)
+Step 10:      GridQuantizer (post-compression snap)
+[NEW 14c]     ConnectedPairSpacer (1D directional clearance for connected pairs)
+[NEW 14c]     GravityCompressor (cleanup pass, no grid)
+[NEW 14c]     PortAssigner (off-face merge point + minimum slot width)
+Step 11:      Post-processing (label placement, final verification)
+```
+
+---

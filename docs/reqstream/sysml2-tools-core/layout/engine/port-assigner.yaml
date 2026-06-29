@@ -61,3 +61,24 @@ sections:
           - AssignHighway_SameKey_ShareTrunkGroup
           - AssignHighway_DifferentConnectorType_DistinctGroups
           - AssignHighway_NoCorridor_StaysIndependent
+
+      - id: SysML2Tools-Core-Layout-Engine-PortAssigner-MergePoint
+        title: >-
+          When two or more highway ports merge, PortAssigner shall form their trunk one approach zone
+          off the box face; a single corridor port shall route directly to the face.
+        justification: |
+          An off-face merge point lets bundled wires converge before the face so they read as a trunk
+          instead of parallel lines, while a single port needs no merge and goes straight to the face.
+        tests:
+          - AssignHighway_MergedGroup_TrunkSitsOffFace
+          - AssignHighway_SingleCorridorPort_RoutesToFace
+
+      - id: SysML2Tools-Core-Layout-Engine-PortAssigner-MinimumSlot
+        title: >-
+          When a face is too short for evenly spaced ports, PortAssigner shall space ports at a
+          guaranteed minimum slot width centred on the face midpoint.
+        justification: |
+          Even spacing collapses ports together on short faces; a minimum slot keeps each connector
+          individually traceable.
+        tests:
+          - Assign_ManyPortsOnShortFace_UsesMinimumSlot

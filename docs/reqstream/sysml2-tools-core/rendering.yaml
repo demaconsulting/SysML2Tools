@@ -43,7 +43,7 @@ sections:
         title: >-
           The Rendering subsystem shall define a Theme record containing DepthFillColors,
           StrokeColor, StrokeWidth, LineCornerRadius, FontSizeTitle, FontSizeBody,
-          LabelPadding, and Font fields.
+          LabelPadding, ConnectorStub, and BendRadius fields.
         justification: |
           Centralizing all visual parameters in a Theme record allows the entire appearance
           of a rendered diagram to be changed by substituting a single object, without
@@ -53,6 +53,17 @@ sections:
           - Themes_Light_IsInitialized
           - Themes_Dark_IsInitialized
           - Themes_Print_IsInitialized
+          - Themes_HaveExpectedConnectorGeometry
+
+      - id: SysML2Tools-Core-Rendering-ThemeApproachZone
+        title: >-
+          The Theme shall expose a ConnectorApproachZone helper returning the sum of ConnectorStub,
+          BendRadius, and the supplied connector clearance.
+        justification: |
+          The approach zone is the clear distance a connector needs off a box face before bending;
+          deriving it from the theme keeps connector geometry consistent across layout and routing.
+        tests:
+          - ConnectorApproachZone_SumsStubBendAndClearance
 
       - id: SysML2Tools-Core-Rendering-ThemeDepthWrap
         title: >-

@@ -38,10 +38,17 @@ Computes the placements. The algorithm is:
 
 Computes highway-aware placements: each `HighwayPortRequest` carries a connector type, a committed
 corridor id, and a direction. Requests sharing the same `(side, isOutgoing, corridorId, connectorType)`
-key (with corridor id ≠ -1) merge onto a single trunk point on that side and share a positive
-`TrunkGroupId`, so wires bound for the same corridor leave the box as one bundle. Requests with
-corridor id -1 or a differing key stay independent with group id -1. The original `Assign` is retained
-for non-highway callers.
+key (with corridor id ≠ -1) merge onto a single trunk and share a positive `TrunkGroupId`, so wires
+bound for the same corridor leave the box as one bundle. Two or more merged ports form their trunk
+one approach zone off the face via `MergePoint`, aligned to the mean source position; a single
+corridor port routes directly to the face midpoint. Requests with corridor id -1 or a differing key
+stay independent with group id -1. The original `Assign` is retained for non-highway callers.
+
+###### Minimum slot width
+
+When a side is too short for `count` evenly spaced ports (`count × MinPortSlot` exceeds the face
+length), ports compress to the guaranteed `MinPortSlot` spacing centred on the face midpoint so each
+connector stays individually traceable; otherwise the even `(s + 1) / (count + 1)` spacing applies.
 
 ##### Error Handling
 

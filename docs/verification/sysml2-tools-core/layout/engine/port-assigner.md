@@ -32,3 +32,6 @@ configuration are required beyond a standard .NET SDK installation.
 | `AssignHighway_SameKey_ShareTrunkGroup` | Matching corridor ports merge to a shared trunk group |
 | `AssignHighway_DifferentConnectorType_DistinctGroups` | Differing connector type yields distinct groups |
 | `AssignHighway_NoCorridor_StaysIndependent` | Corridor id -1 stays independent (group -1) |
+| `AssignHighway_MergedGroup_TrunkSitsOffFace` | A merged group forms its trunk one approach zone off the face |
+| `AssignHighway_SingleCorridorPort_RoutesToFace` | A single corridor port routes to the face midpoint |
+| `Assign_ManyPortsOnShortFace_UsesMinimumSlot` | Short faces compress ports to a centred minimum slot |

@@ -43,4 +43,12 @@ the resolution is reflected in the algorithm steps above.
    `required_width`/`required_height` during compression (Step 8), so label space is
    reserved by construction; Step 11 only *positions* labels within that reserved space.
 
+9. **Approach-zone enforcement — spacer vs. block inflation** — *TODO: deferred beyond
+   Phase 14c.* `ConnectedPairSpacer` is used in Phase 14c as it is sufficient for the
+   current defects. The cleaner long-term approach is asymmetric block inflation: inflate
+   each `CompressBox.MinW`/`MinH` per face based on the decoration types of incoming and
+   outgoing connectors (a diamond needs more clearance than a plain stub). The
+   `GravityCompressor` already carries separate `Width`/`MinW` fields that could accept
+   per-face margins naturally. Revisit when decoration-aware sizing is needed.
+
 ---

@@ -21,6 +21,8 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 /// <param name="FontSizeTitle">Font size for title / heading text.</param>
 /// <param name="FontSizeBody">Font size for body / row text.</param>
 /// <param name="LabelPadding">Internal padding between text and its bounding box.</param>
+/// <param name="ConnectorStub">Perpendicular step-off distance from a box face before a connector bends.</param>
+/// <param name="BendRadius">Corner arc radius used for connector elbows in SVG output.</param>
 public sealed record Theme(
     IReadOnlyList<string> DepthFillColors,
     string StrokeColor,
@@ -28,7 +30,20 @@ public sealed record Theme(
     double LineCornerRadius,
     double FontSizeTitle,
     double FontSizeBody,
-    double LabelPadding);
+    double LabelPadding,
+    double ConnectorStub,
+    double BendRadius)
+{
+    /// <summary>
+    /// Computes the connector approach zone: the clear distance a connector needs off a box face
+    /// before it can bend, combining the perpendicular stub, the corner bend radius, and the
+    /// caller-supplied connector clearance.
+    /// </summary>
+    /// <param name="connectorClearance">Clearance kept between routed connectors and part boxes.</param>
+    /// <returns>The required approach-zone distance in logical pixels.</returns>
+    public double ConnectorApproachZone(double connectorClearance) =>
+        ConnectorStub + BendRadius + connectorClearance;
+}
 
 /// <summary>
 /// Built-in themes for common rendering scenarios.
@@ -45,7 +60,9 @@ public static class Themes
         LineCornerRadius: 4.0,
         FontSizeTitle: 14.0,
         FontSizeBody: 12.0,
-        LabelPadding: 6.0);
+        LabelPadding: 6.0,
+        ConnectorStub: 8.0,
+        BendRadius: 4.0);
 
     /// <summary>
     /// Gets a dark theme suitable for dark-mode screen display.
@@ -57,7 +74,9 @@ public static class Themes
         LineCornerRadius: 4.0,
         FontSizeTitle: 14.0,
         FontSizeBody: 12.0,
-        LabelPadding: 6.0);
+        LabelPadding: 6.0,
+        ConnectorStub: 8.0,
+        BendRadius: 4.0);
 
     /// <summary>
     /// Gets a print theme optimized for black-and-white output.
@@ -69,5 +88,7 @@ public static class Themes
         LineCornerRadius: 0.0,
         FontSizeTitle: 12.0,
         FontSizeBody: 10.0,
-        LabelPadding: 4.0);
+        LabelPadding: 4.0,
+        ConnectorStub: 6.0,
+        BendRadius: 0.0);
 }

@@ -22,6 +22,7 @@ includes:
   - docs/reqstream/sysml2-tools-core/layout/engine/layered-layout-engine.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine/containment-packer.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine/connectivity-analyzer.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/connected-pair-spacer.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine/gravity-compressor.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine/grid-quantizer.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine/highway-assigner.yaml

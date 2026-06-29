@@ -94,7 +94,7 @@ public sealed class PortAssignerTests
         };
 
         // Act
-        var placements = PortAssigner.AssignHighway(requests);
+        var placements = PortAssigner.AssignHighway(requests, approachZone: 18.0);
 
         // Assert: both ports collapse onto a single trunk with a shared positive group id
         Assert.NotEqual(-1, placements[0].TrunkGroupId);
@@ -116,7 +116,7 @@ public sealed class PortAssignerTests
         };
 
         // Act
-        var placements = PortAssigner.AssignHighway(requests);
+        var placements = PortAssigner.AssignHighway(requests, approachZone: 18.0);
 
         // Assert: each port forms its own trunk group
         Assert.NotEqual(placements[0].TrunkGroupId, placements[1].TrunkGroupId);
@@ -129,8 +129,67 @@ public sealed class PortAssignerTests
         var box = new Rect(0, 0, 100, 100);
         var requests = new[] { new HighwayPortRequest(box, new Point2D(500, 50), "flow", CorridorId: -1, IsOutgoing: true) };
 
-        var placements = PortAssigner.AssignHighway(requests);
+        var placements = PortAssigner.AssignHighway(requests, approachZone: 18.0);
 
         Assert.Equal(-1, placements[0].TrunkGroupId);
+    }
+
+    /// <summary>A merged group of two ports forms its trunk one approach zone off the face.</summary>
+    [Fact]
+    public void AssignHighway_MergedGroup_TrunkSitsOffFace()
+    {
+        // Arrange: two outgoing ports heading right share a corridor, so they merge off the right face
+        var box = new Rect(0, 0, 100, 100);
+        var requests = new[]
+        {
+            new HighwayPortRequest(box, new Point2D(500, 20), "flow", CorridorId: 2, IsOutgoing: true),
+            new HighwayPortRequest(box, new Point2D(500, 80), "flow", CorridorId: 2, IsOutgoing: true),
+        };
+
+        // Act
+        var placements = PortAssigner.AssignHighway(requests, approachZone: 18.0);
+
+        // Assert: the trunk sits one approach zone beyond the right face (x = 100 + 18)
+        Assert.Equal(PortSide.Right, placements[0].Side);
+        Assert.Equal(118.0, placements[0].CentreX, 6);
+    }
+
+    /// <summary>A single corridor port routes to the face midpoint, not an off-face merge point.</summary>
+    [Fact]
+    public void AssignHighway_SingleCorridorPort_RoutesToFace()
+    {
+        // Arrange: one outgoing port on a corridor heads right
+        var box = new Rect(0, 0, 100, 100);
+        var requests = new[] { new HighwayPortRequest(box, new Point2D(500, 50), "flow", CorridorId: 2, IsOutgoing: true) };
+
+        // Act
+        var placements = PortAssigner.AssignHighway(requests, approachZone: 18.0);
+
+        // Assert: the port sits on the right face, not stepped off it
+        Assert.Equal(100.0, placements[0].CentreX, 6);
+    }
+
+    /// <summary>On a short face, many ports compress to the minimum slot width centred on the face.</summary>
+    [Fact]
+    public void Assign_ManyPortsOnShortFace_UsesMinimumSlot()
+    {
+        // Arrange: a 30-wide top face cannot hold five even slots, so it compresses to 11px slots
+        var box = new Rect(0, 0, 30, 100);
+        var requests = new[]
+        {
+            new PortRequest(box, new Point2D(-5, -500)),
+            new PortRequest(box, new Point2D(0, -500)),
+            new PortRequest(box, new Point2D(5, -500)),
+            new PortRequest(box, new Point2D(10, -500)),
+            new PortRequest(box, new Point2D(15, -500)),
+        };
+
+        // Act
+        var placements = PortAssigner.Assign(requests);
+
+        // Assert: adjacent ports are exactly 11px apart and centred on the face midpoint (x=15)
+        var xs = placements.Select(p => p.CentreX).OrderBy(x => x).ToList();
+        Assert.Equal(11.0, xs[1] - xs[0], 6);
+        Assert.Equal(15.0, (xs[0] + xs[^1]) / 2.0, 6);
     }
 }

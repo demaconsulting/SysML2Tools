@@ -103,8 +103,9 @@ internal static class PortAssigner
     /// receive group -1 and an independently distributed slot.
     /// </remarks>
     /// <param name="requests">The highway port requests; all should reference boxes in the same diagram.</param>
+    /// <param name="approachZone">Off-face merge distance and slot inset; the trunk forms one approach zone off the face.</param>
     /// <returns>One <see cref="HighwayPortPlacement"/> per request, in input order.</returns>
-    public static IReadOnlyList<HighwayPortPlacement> AssignHighway(IReadOnlyList<HighwayPortRequest> requests)
+    public static IReadOnlyList<HighwayPortPlacement> AssignHighway(IReadOnlyList<HighwayPortRequest> requests, double approachZone)
     {
         ArgumentNullException.ThrowIfNull(requests);
 
@@ -137,12 +138,17 @@ internal static class PortAssigner
             list.Add(i);
         }
 
-        // Assign a stable trunk group id per merged corridor group; collapse each to a shared midpoint.
+        // Assign a stable trunk group id per merged corridor group; collapse each to a shared merge point
+        // a single connector falls back to a face slot, multiple connectors merge off-face into a trunk.
         var nextTrunk = 0;
         foreach (var (_, indices) in groups.OrderBy(g => g.Value[0]))
         {
             var trunk = nextTrunk++;
-            var (x, y) = MidpointOnSide(requests[indices[0]].Box, sides[indices[0]]);
+            var box = requests[indices[0]].Box;
+            var side = sides[indices[0]];
+            var (x, y) = indices.Count > 1
+                ? MergePoint(box, side, indices.Select(i => requests[i].Toward).ToList(), approachZone)
+                : MidpointOnSide(box, side);
             foreach (var idx in indices)
             {
                 placements[idx] = new HighwayPortPlacement(x, y, sides[idx], trunk);
@@ -170,6 +176,41 @@ internal static class PortAssigner
         PortSide.Left => (box.X, box.Y + (box.Height / 2.0)),
         _ => (box.X + box.Width, box.Y + (box.Height / 2.0)),
     };
+
+    /// <summary>
+    /// Computes the off-face trunk merge point for a group of connectors sharing one box face: a point
+    /// stepped one approach zone outward from the face, aligned to the mean of the sources along the
+    /// face axis. Bundled wires reach this point first, then share a single stub into the face.
+    /// </summary>
+    private static (double X, double Y) MergePoint(Rect box, PortSide side, IReadOnlyList<Point2D> sources, double approachZone)
+    {
+        var horizontal = side is PortSide.Top or PortSide.Bottom;
+        var faceCoord = side switch
+        {
+            PortSide.Top => box.Y,
+            PortSide.Bottom => box.Y + box.Height,
+            PortSide.Left => box.X,
+            _ => box.X + box.Width,
+        };
+
+        // Clamp the outward offset to half the closest source's distance from the face (stub logic).
+        var minDist = sources.Min(s => Math.Abs((horizontal ? s.Y : s.X) - faceCoord));
+        var mergeOffset = Math.Max(approachZone, Math.Min(approachZone, minDist / 2.0));
+
+        // Mean source position projected onto the face axis, clamped one approach zone in from each end.
+        var mean = horizontal ? sources.Average(s => s.X) : sources.Average(s => s.Y);
+        var (start, len) = horizontal ? (box.X, box.Width) : (box.Y, box.Height);
+        var along = Math.Clamp(mean, start + approachZone, start + len - approachZone);
+
+        return side switch
+        {
+            PortSide.Top => (along, box.Y - mergeOffset),
+            PortSide.Bottom => (along, box.Y + box.Height + mergeOffset),
+            PortSide.Left => (box.X - mergeOffset, along),
+            _ => (box.X + box.Width + mergeOffset, along),
+        };
+    }
+
     private static PortSide ChooseSide(Rect box, Point2D toward)
     {
         var cx = box.X + (box.Width / 2.0);
@@ -189,6 +230,9 @@ internal static class PortAssigner
     /// Places the given port indices at evenly spaced slots along the specified box side, ordered
     /// by their target coordinate along that side so connections cross as little as possible.
     /// </summary>
+    /// <summary>Minimum spacing between adjacent port slots so connectors stay individually traceable.</summary>
+    private const double MinPortSlot = 11.0;
+
     private static void DistributeAlongSide(
         IReadOnlyList<PortRequest> requests,
         PortSide side,
@@ -197,6 +241,7 @@ internal static class PortAssigner
     {
         var box = requests[indices[0]].Box;
         var horizontal = side is PortSide.Top or PortSide.Bottom;
+        var faceLen = horizontal ? box.Width : box.Height;
 
         // Order ports by their target's coordinate along the edge to reduce crossings.
         indices.Sort((a, b) => horizontal
@@ -204,15 +249,20 @@ internal static class PortAssigner
             : requests[a].Toward.Y.CompareTo(requests[b].Toward.Y));
 
         var count = indices.Count;
+        var even = count * MinPortSlot <= faceLen;
+        var faceStart = horizontal ? box.X : box.Y;
         for (var slot = 0; slot < count; slot++)
         {
-            var fraction = (slot + 1.0) / (count + 1.0);
+            // Even spacing when the face is wide enough; otherwise compress to a centred minimum-slot band.
+            var offset = even
+                ? (slot + 1.0) / (count + 1.0) * faceLen
+                : (faceLen / 2.0) - ((count - 1) * MinPortSlot / 2.0) + (slot * MinPortSlot);
             var (x, y) = side switch
             {
-                PortSide.Top => (box.X + (fraction * box.Width), box.Y),
-                PortSide.Bottom => (box.X + (fraction * box.Width), box.Y + box.Height),
-                PortSide.Left => (box.X, box.Y + (fraction * box.Height)),
-                _ => (box.X + box.Width, box.Y + (fraction * box.Height)),
+                PortSide.Top => (faceStart + offset, box.Y),
+                PortSide.Bottom => (faceStart + offset, box.Y + box.Height),
+                PortSide.Left => (box.X, faceStart + offset),
+                _ => (box.X + box.Width, faceStart + offset),
             };
 
             placements[indices[slot]] = new PortPlacement(x, y, side);
