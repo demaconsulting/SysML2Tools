@@ -1,0 +1,55 @@
+---
+# LayeredPlacer Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the LayeredPlacer unit
+# - LayeredPlacer assigns nodes to BFS-derived layers, computes corridor widths, and
+#   produces non-overlapping rectangles for the Interconnection View
+# - Requirements describe observable geometric properties, not the algorithm
+
+sections:
+  - title: LayeredPlacer Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-LayeredPlacer-Layering
+        title: >-
+          LayeredPlacer shall assign the highest-degree node to layer 0 and BFS-assign each
+          unvisited neighbour to parent_layer + 1, with isolated nodes receiving layer 0.
+        justification: |
+          Placing the most-connected node first and spreading outward produces a layered view
+          where highly connected hubs appear at the left and leaf nodes at the right, matching
+          the typical interconnection diagram reading direction.
+        tests:
+          - LayeredPlacer_Place_LinearChain_ThreeLayers
+          - LayeredPlacer_Place_StarTopology_CenterInLayer0_SpokesInLayer1
+          - LayeredPlacer_Place_NoEdges_AllInLayer0
+
+      - id: SysML2Tools-Core-Layout-Engine-LayeredPlacer-NonOverlapping
+        title: >-
+          LayeredPlacer shall produce node rectangles that do not overlap.
+        justification: |
+          Overlapping boxes prevent readable diagrams; the layered column structure and
+          per-column vertical stacking guarantee non-overlap by construction.
+        tests:
+          - LayeredPlacer_Place_AllRects_NonOverlapping
+
+      - id: SysML2Tools-Core-Layout-Engine-LayeredPlacer-CorridorScaling
+        title: >-
+          LayeredPlacer shall compute corridor width as
+          max(minCorridorWidth, edgesCrossing × edgeSpacing + 2 × clearance) so corridors
+          widen when more edges pass through them.
+        justification: |
+          Wider corridors provide more horizontal space for slot-based connector routing; the
+          number of available slot positions must grow with the number of connectors that need
+          to pass through the corridor.
+        tests:
+          - LayeredPlacer_Place_DenseCorridorEdges_CorridorWidthScales
+
+      - id: SysML2Tools-Core-Layout-Engine-LayeredPlacer-Deterministic
+        title: >-
+          Given identical input, LayeredPlacer shall produce identical geometry on every invocation.
+        justification: |
+          Reproducible layout is required so regenerating a view from unchanged input does not
+          shift boxes or change connector routes.
+        tests:
+          - LayeredPlacer_Place_LinearChain_ThreeLayers
+          - LayeredPlacer_Place_StarTopology_CenterInLayer0_SpokesInLayer1

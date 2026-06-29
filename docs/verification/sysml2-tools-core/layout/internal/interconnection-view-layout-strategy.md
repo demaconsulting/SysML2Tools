@@ -7,7 +7,8 @@
 part definition with nested parts and connections, invoke `BuildLayout`, and assert on the
 returned `LayoutTree`. Assertions count the container box, rounded part boxes, port nodes, and
 connector lines, and a geometric helper confirms that no two part boxes overlap. No mocking is
-required; the strategy depends only on the in-memory model, the geometric engines, and the theme.
+required; the strategy depends only on the in-memory model, the layered placement engine, and
+the theme.
 
 ##### Test Environment
 

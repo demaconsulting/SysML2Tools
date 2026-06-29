@@ -64,7 +64,7 @@ system, subsystem, and unit levels:
       - **LayeredLayoutEngine** (Unit) — layered (Sugiyama-style) top-to-bottom placement
       - **ContainmentPacker** (Unit) — packs sized boxes within a bounded container region
       - **ConnectivityAnalyzer** (Unit) — sparse adjacency, layer hints, and community detection
-      - **ConnectedPairSpacer** (Unit) — pushes connected box pairs apart for a visible connector approach zone
+      - **LayeredPlacer** (Unit) — layered placement for interconnection views: BFS layering, barycentric node ordering, and slot-based corridor sizing
       - **GravityCompressor** (Unit) — separates overlapping boxes to a minimum clearance
       - **GridQuantizer** (Unit) — snaps boxes to a grid and unifies aligned column widths/row heights
     - **Internal** (Subsystem) — per-view layout strategies

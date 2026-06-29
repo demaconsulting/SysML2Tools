@@ -12,9 +12,9 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 
 /// <summary>
 /// Layout strategy for Interconnection View diagrams. Shows the internal structure of a single part
-/// definition: its nested part usages as boxes placed by the force-directed engine, ports on the box
-/// boundaries assigned by <see cref="PortAssigner"/>, and connection usages routed as orthogonal
-/// connector lines between the ports.
+/// definition: its nested part usages as boxes placed by the layered engine, ports on the box
+/// boundaries, and connection usages routed as orthogonal connector lines between the ports, all
+/// enclosed by a container box for the host definition.
 /// </summary>
 internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 {
@@ -24,8 +24,14 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <summary>Approximate width-per-character factor relative to font size.</summary>
     private const double CharWidthFactor = 0.62;
 
-    /// <summary>Nominal spacing between adjacent part centres in the force layout.</summary>
-    private const double PartSpacing = 150.0;
+    /// <summary>Minimum vertical gap between nodes in the same layer column.</summary>
+    private const double NodeSpacing = 20.0;
+
+    /// <summary>Minimum width of each inter-layer corridor, regardless of edge count.</summary>
+    private const double MinCorridorWidth = 60.0;
+
+    /// <summary>Additional corridor width added per edge that crosses the corridor.</summary>
+    private const double EdgeSpacing = 12.0;
 
     /// <summary>Clearance kept between routed connectors and part boxes.</summary>
     private const double ConnectorClearance = 10.0;
@@ -60,12 +66,17 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var partIndex = BuildPartIndex(parts);
         var pairs = ResolveConnections(root, partIndex);
 
-        // Place the part boxes with the force-directed engine using connections as springs.
-        var force = ForceDirectedEngine.Place(
-            [.. parts.Select(p => new ForceNode(p.Width, p.Height))],
-            [.. pairs.Select(c => new ForceEdge(c.A, c.B))],
-            spacing: PartSpacing,
-            padding: theme.LabelPadding * 4.0);
+        // Place the part boxes with the layered engine: BFS-derived layer columns separated by
+        // corridors whose width scales with the number of edges that pass through them.
+        var layerNodes = parts.Select(p => new LayerNode(p.Width, p.Height)).ToList();
+        var layerEdges = pairs.Select(p => new LayerEdge(p.A, p.B)).ToList();
+        var placed = LayeredPlacer.Place(
+            layerNodes,
+            layerEdges,
+            nodeSpacing: NodeSpacing,
+            minCorridorWidth: MinCorridorWidth,
+            edgeSpacing: EdgeSpacing,
+            clearance: ConnectorClearance);
 
         // Offset the placed parts to sit below the container title area.
         var titleArea = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true);
@@ -75,35 +86,17 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var partRects = new Rect[parts.Count];
         for (var i = 0; i < parts.Count; i++)
         {
-            var r = force.Rects[i];
+            var r = placed.Rects[i];
             partRects[i] = new Rect(r.X + offsetX, r.Y + offsetY, r.Width, r.Height);
         }
 
-        // Highway routing: detect corridors between the placed blocks, feed their floor widths into
-        // gravity compression, then bias connector routing toward the bundled highways with cost bands.
-        var highwayBoxes = partRects.Select((r, i) => new HighwayBox(r.X, r.Y, r.Width, r.Height, i.ToString())).ToList();
-        var highwayEdges = pairs.Select(p => new HighwayEdge(p.A, p.B, "connection")).ToList();
-        var highway = HighwayAssigner.Assign(highwayBoxes, highwayEdges, theme.LabelPadding * 2.0, ConnectorClearance, ConnectorClearance * 2.0);
-        var corridorConstraints = highway.Corridors
-            .Where(c => c.IsHighway)
-            .Select(c => new CorridorConstraint(c.IsHorizontal, c.Position, c.ReservedWidth))
-            .ToList();
-        var costBands = highway.Corridors
-            .Where(c => c.IsHighway)
-            .Select(c => new CostBand(c.IsHorizontal, c.Position - (c.ReservedWidth / 2.0), c.Position + (c.ReservedWidth / 2.0), 0.6))
-            .ToList();
-
-        // Gravity-compress overlaps to a tight minimum gap, then quantise to the grid so part
-        // anchors fall on predictable lines before ports and connectors are routed.
-        partRects = CompressAndQuantize(partRects, theme, corridorConstraints, pairs);
+        // Size the container box to enclose all placed parts with uniform padding.
+        var containerWidth = placed.TotalWidth + (offsetX * 2.0);
+        var containerHeight = placed.TotalHeight + offsetY + (theme.LabelPadding * 2.0);
 
         var nodes = new List<LayoutNode>();
 
-        // Container box for the root part definition, sized to fit the compressed/quantised parts.
-        var contentRight = parts.Count == 0 ? force.Width : partRects.Max(r => r.X + r.Width);
-        var contentBottom = parts.Count == 0 ? force.Height : partRects.Max(r => r.Y + r.Height);
-        var containerWidth = Math.Max(force.Width + (offsetX * 2.0), contentRight + offsetX);
-        var containerHeight = Math.Max(offsetY + force.Height + (theme.LabelPadding * 2.0), contentBottom + (theme.LabelPadding * 2.0));
+        // Container box for the root part definition.
         nodes.Add(new LayoutBox(
             X: 0,
             Y: 0,
@@ -122,8 +115,9 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             nodes.Add(MakePartBox(parts[i], partRects[i]));
         }
 
-        // Ports and connectors.
-        var crossings = AddPortsAndConnectors(parts, partRects, pairs, nodes, costBands);
+        // Ports and connectors via slot-based routing for cross-layer pairs and channel routing
+        // for same-layer pairs.
+        var crossings = AddPortsAndConnectors(parts, partRects, pairs, placed.NodeLayers, nodes);
 
         var warnings = LayoutWarnings.ForCrossings(context.ViewName, crossings);
         return new LayoutTree(containerWidth, containerHeight, nodes) { Warnings = warnings };
@@ -257,18 +251,202 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Assigns ports to each part box for its incident connections and routes a connector line for
-    /// each connection between the two ports, appending the port and line nodes to the output and
-    /// returning the number of connectors that had to cross a box.
+    /// Assigns ports and routes connectors for all connections, appending the resulting port and
+    /// line nodes to <paramref name="nodes"/> and returning the number of connectors that had to
+    /// cross a box.
     /// </summary>
+    /// <remarks>
+    /// Two routing paths are used depending on whether the two endpoints of a connection occupy
+    /// different layers or the same layer:
+    /// <list type="bullet">
+    ///   <item><description>
+    ///     <strong>Cross-layer</strong>: the lower-layer node connects on its right face and the
+    ///     higher-layer node on its left face; a vertical slot in the corridor between them routes
+    ///     the connector as a Z-path. Slots are spaced by <see cref="EdgeSpacing"/> so connectors
+    ///     in the same corridor never share a vertical segment.
+    ///   </description></item>
+    ///   <item><description>
+    ///     <strong>Same-layer</strong>: <see cref="PortAssigner"/> assigns port sides and
+    ///     <see cref="ChannelRouter"/> routes orthogonally around obstacles, as before.
+    ///   </description></item>
+    /// </list>
+    /// </remarks>
     private static int AddPortsAndConnectors(
         IReadOnlyList<PartItem> parts,
         Rect[] partRects,
         IReadOnlyList<ConnPair> pairs,
-        List<LayoutNode> nodes,
-        IReadOnlyList<CostBand> costBands)
+        IReadOnlyList<int> nodeLayers,
+        List<LayoutNode> nodes)
     {
-        // For each part, collect a port request per incident connection (toward the other part).
+        // Separate pairs into cross-layer (slot routing) and same-layer (channel routing) buckets.
+        var crossLayerPairs = new List<(int PairIdx, int SrcNode, int TgtNode)>();
+        var sameLayerIndices = new List<int>();
+
+        for (var c = 0; c < pairs.Count; c++)
+        {
+            var (a, b) = (pairs[c].A, pairs[c].B);
+            if (nodeLayers[a] == nodeLayers[b])
+            {
+                sameLayerIndices.Add(c);
+            }
+            else
+            {
+                // Normalise so SrcNode is the lower-layer endpoint (uses right face)
+                var (src, tgt) = nodeLayers[a] < nodeLayers[b] ? (a, b) : (b, a);
+                crossLayerPairs.Add((c, src, tgt));
+            }
+        }
+
+        // Path A: slot-based Z-path routing for cross-layer pairs (never crosses an obstacle)
+        var crossings = RouteCrossLayerPairs(partRects, pairs, crossLayerPairs, nodeLayers, nodes);
+
+        // Path B: PortAssigner + ChannelRouter for same-layer pairs (may cross when over-dense)
+        crossings += RouteSameLayerPairs(parts, partRects, pairs, sameLayerIndices, nodes);
+
+        return crossings;
+    }
+
+    /// <summary>
+    /// Routes cross-layer connections using slot-based Z-paths: the connector leaves the source's
+    /// right face, travels horizontally to a reserved slot in the inter-layer corridor, runs
+    /// vertically to the target's Y, then enters the target's left face. Slot X coordinates are
+    /// spaced by <see cref="EdgeSpacing"/> so no two connectors in the same corridor share a
+    /// vertical segment. Returns 0 (slot routing never crosses an obstacle by construction).
+    /// </summary>
+    private static int RouteCrossLayerPairs(
+        Rect[] partRects,
+        IReadOnlyList<ConnPair> pairs,
+        IReadOnlyList<(int PairIdx, int SrcNode, int TgtNode)> crossLayerPairs,
+        IReadOnlyList<int> nodeLayers,
+        List<LayoutNode> nodes)
+    {
+        if (crossLayerPairs.Count == 0)
+        {
+            return 0;
+        }
+
+        // Distribute source ports evenly along the right face of each source box, ordered by
+        // the target centre Y so connections cross as little as possible.
+        var srcPortY = new double[pairs.Count];
+        foreach (var srcGroup in crossLayerPairs.GroupBy(p => p.SrcNode))
+        {
+            var box = partRects[srcGroup.Key];
+            var items = srcGroup
+                .OrderBy(p => partRects[p.TgtNode].Y + (partRects[p.TgtNode].Height / 2.0))
+                .ThenBy(p => p.PairIdx)
+                .ToList();
+            DistributePortsAlongFace(items.Select(p => p.PairIdx).ToList(), box, srcPortY);
+        }
+
+        // Distribute target ports evenly along the left face of each target box, ordered by
+        // the source centre Y.
+        var tgtPortY = new double[pairs.Count];
+        foreach (var tgtGroup in crossLayerPairs.GroupBy(p => p.TgtNode))
+        {
+            var box = partRects[tgtGroup.Key];
+            var items = tgtGroup
+                .OrderBy(p => partRects[p.SrcNode].Y + (partRects[p.SrcNode].Height / 2.0))
+                .ThenBy(p => p.PairIdx)
+                .ToList();
+            DistributePortsAlongFace(items.Select(p => p.PairIdx).ToList(), box, tgtPortY);
+        }
+
+        // Compute the rightmost X of all boxes in each layer — slot X starts just beyond this edge.
+        var maxRightPerLayer = new Dictionary<int, double>();
+        for (var i = 0; i < partRects.Length; i++)
+        {
+            var layer = nodeLayers[i];
+            var right = partRects[i].X + partRects[i].Width;
+            if (!maxRightPerLayer.TryGetValue(layer, out var cur) || right > cur)
+            {
+                maxRightPerLayer[layer] = right;
+            }
+        }
+
+        // Assign slot X per pair: group by source layer, sort by mean port Y so slots are ordered
+        // top-to-bottom, then step right by EdgeSpacing for each additional slot in the corridor.
+        var slotX = new double[pairs.Count];
+        foreach (var corridorGroup in crossLayerPairs.GroupBy(p => nodeLayers[p.SrcNode]))
+        {
+            var maxRight = maxRightPerLayer.GetValueOrDefault(corridorGroup.Key);
+            var sorted = corridorGroup
+                .OrderBy(p => (srcPortY[p.PairIdx] + tgtPortY[p.PairIdx]) / 2.0)
+                .ThenBy(p => p.PairIdx)
+                .ToList();
+
+            for (var s = 0; s < sorted.Count; s++)
+            {
+                slotX[sorted[s].PairIdx] = maxRight + ConnectorClearance + (s * EdgeSpacing);
+            }
+        }
+
+        // Emit a right-face port and a left-face port for each cross-layer pair, then route a
+        // Z-path: source → (slotX, srcY) → (slotX, tgtY) → target.
+        foreach (var (pairIdx, srcNode, tgtNode) in crossLayerPairs)
+        {
+            var srcBox = partRects[srcNode];
+            var tgtBox = partRects[tgtNode];
+            var srcX = srcBox.X + srcBox.Width;
+            var srcY = srcPortY[pairIdx];
+            var tgtX = tgtBox.X;
+            var tgtY = tgtPortY[pairIdx];
+            var sx = slotX[pairIdx];
+
+            nodes.Add(new LayoutPort(srcX, srcY, PortSide.Right, null));
+            nodes.Add(new LayoutPort(tgtX, tgtY, PortSide.Left, null));
+
+            // Z-path: step right off the source → vertical slot → step right into the target
+            nodes.Add(new LayoutLine(
+                Waypoints: [new(srcX, srcY), new(sx, srcY), new(sx, tgtY), new(tgtX, tgtY)],
+                SourceArrowhead: ArrowheadStyle.None,
+                TargetArrowhead: ArrowheadStyle.None,
+                LineStyle: LineStyle.Solid,
+                MidpointLabel: null));
+        }
+
+        // Slot routing is obstacle-free by construction; no crossings to report
+        return 0;
+    }
+
+    /// <summary>
+    /// Fills <paramref name="portY"/> with evenly distributed Y coordinates for the ports in
+    /// <paramref name="pairIndices"/> along the vertical extent of <paramref name="box"/>, keeping
+    /// <see cref="ConnectorClearance"/> inset from the top and bottom edges. When there is only
+    /// one port it is centred. The indices are assumed to be pre-sorted in top-to-bottom order.
+    /// </summary>
+    private static void DistributePortsAlongFace(IReadOnlyList<int> pairIndices, Rect box, double[] portY)
+    {
+        var count = pairIndices.Count;
+        var margin = ConnectorClearance;
+
+        for (var k = 0; k < count; k++)
+        {
+            var y = count == 1
+                ? box.Y + (box.Height / 2.0)
+                : box.Y + margin + (k * (box.Height - (2.0 * margin)) / (count - 1));
+
+            portY[pairIndices[k]] = Math.Clamp(y, box.Y + margin, box.Y + box.Height - margin);
+        }
+    }
+
+    /// <summary>
+    /// Routes same-layer connections using <see cref="PortAssigner"/> for port placement and
+    /// <see cref="ChannelRouter"/> for obstacle-avoiding orthogonal routing. Returns the number
+    /// of connectors that had to cross an obstacle.
+    /// </summary>
+    private static int RouteSameLayerPairs(
+        IReadOnlyList<PartItem> parts,
+        Rect[] partRects,
+        IReadOnlyList<ConnPair> pairs,
+        IReadOnlyList<int> sameLayerIndices,
+        List<LayoutNode> nodes)
+    {
+        if (sameLayerIndices.Count == 0)
+        {
+            return 0;
+        }
+
+        // Collect a port request per incident same-layer connection for each part.
         var requestsPerPart = new List<PortRequest>[parts.Count];
         var connSlotPerPart = new List<int>[parts.Count];
         for (var i = 0; i < parts.Count; i++)
@@ -277,7 +455,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             connSlotPerPart[i] = [];
         }
 
-        for (var c = 0; c < pairs.Count; c++)
+        foreach (var c in sameLayerIndices)
         {
             var (a, b) = (pairs[c].A, pairs[c].B);
             requestsPerPart[a].Add(new PortRequest(partRects[a], Centre(partRects[b])));
@@ -301,11 +479,9 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             }
         }
 
-        // Alignment pass: where a connection's two ports each sit alone on facing edges and the boxes
-        // overlap along the connector axis, snap both ports to a common coordinate so the connector
-        // is a single straight line instead of having a small jog. Boxes are not moved, so this can
-        // never introduce an overlap.
-        for (var c = 0; c < pairs.Count; c++)
+        // Alignment pass: snap the two ports of a connection to a shared axis coordinate so the
+        // connector is a straight line when safe to do so.
+        foreach (var c in sameLayerIndices)
         {
             AlignConnectorPorts(pairs[c], c, partRects, sideCount, portByPartConn);
         }
@@ -316,9 +492,9 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             nodes.Add(new LayoutPort(placement.CentreX, placement.CentreY, placement.Side, null));
         }
 
-        // Route a connector line for each connection between its two ports.
+        // Route a connector line for each same-layer connection between its two ports.
         var crossings = 0;
-        for (var c = 0; c < pairs.Count; c++)
+        foreach (var c in sameLayerIndices)
         {
             var (a, b) = (pairs[c].A, pairs[c].B);
             if (!portByPartConn.TryGetValue((a, c), out var portA) ||
@@ -342,8 +518,8 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                 obstacles,
                 ConnectorClearance,
                 sourceSide: portA.Side,
-                targetSide: portB.Side,
-                costBands: costBands);
+                targetSide: portB.Side);
+
             if (route.Crossed)
             {
                 crossings++;
@@ -422,52 +598,4 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <summary>Returns the centre point of a rectangle.</summary>
     private static Point2D Centre(Rect rect) =>
         new(rect.X + (rect.Width / 2.0), rect.Y + (rect.Height / 2.0));
-
-    /// <summary>
-    /// Gravity-compresses the placed part boxes to a tight minimum gap and quantises them to a grid
-    /// so the connectors that follow have predictable, well-separated anchor lines. Falls back to the
-    /// uncompressed positions if compression cannot find a non-overlapping arrangement.
-    /// </summary>
-    private static Rect[] CompressAndQuantize(Rect[] partRects, Theme theme, IReadOnlyList<CorridorConstraint> corridors, IReadOnlyList<ConnPair> pairs)
-    {
-        if (partRects.Length == 0)
-        {
-            return partRects;
-        }
-
-        var minGap = ConnectorClearance * 2.0;
-        var grid = theme.LabelPadding * 2.0;
-
-        var compressed = GravityCompressor.Compress(
-            [.. partRects.Select(r => new CompressBox(r.X, r.Y, r.Width, r.Height, r.Width, r.Height))],
-            minGap,
-            grid,
-            corridors.Count > 0 ? corridors : null);
-        if (!compressed.Feasible)
-        {
-            return partRects;
-        }
-
-        var quantised = GridQuantizer.Quantize(
-            [.. partRects.Select((r, i) => new QuantizeBox(compressed.Positions[i].X, compressed.Positions[i].Y, r.Width, r.Height))],
-            grid,
-            theme.LabelPadding);
-
-        // Push connected pairs apart along their dominant axis so two boxes sharing a boundary edge
-        // keep a visible approach zone for the connector between them; quantisation can erase it.
-        var spaced = ConnectedPairSpacer.Space(
-            [.. quantised.Select(q => new Rect(q.X, q.Y, q.Width, q.Height))],
-            [.. pairs.Select(p => new ConnectedPair(p.A, p.B))],
-            theme.ConnectorApproachZone(ConnectorClearance));
-
-        // Final no-grid cleanup restores any 2D clearances the 1D pushes disturbed without re-snapping.
-        var recompressed = GravityCompressor.Compress(
-            [.. spaced.Select(s => new CompressBox(s.X, s.Y, s.Width, s.Height, s.Width, s.Height))],
-            minGap,
-            gridUnit: 0.0);
-
-        return recompressed.Feasible
-            ? [.. recompressed.Positions.Select((p, i) => new Rect(p.X, p.Y, spaced[i].Width, spaced[i].Height))]
-            : [.. spaced];
-    }
 }
