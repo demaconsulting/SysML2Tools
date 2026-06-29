@@ -279,7 +279,7 @@ minor update.
 no excessive whitespace; TrafficLightStates and OrderActionFlow show clean top-to-bottom
 flow; no regression on any existing gallery model.
 
-### Phase 14b — Layout Engine v2: Highway Routing
+### Phase 14b — Layout Engine v2: Highway Routing — ✅ Complete
 
 Layer the highway assignment algorithm (Step 4) on top of the Phase 14a pipeline,
 upgrading GravityCompressor to honour corridor constraints and ChannelRouter to apply
