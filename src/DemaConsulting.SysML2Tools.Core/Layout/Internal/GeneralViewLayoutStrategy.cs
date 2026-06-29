@@ -73,17 +73,15 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var vGap = 5.0 * theme.LabelPadding;
         var (nodes, placed, canvasWidth, canvasHeight) = PlaceGroups(groups, theme, options.DepthLimit, hGap, vGap);
 
-        // Highway routing: detect bundling corridors between the placed boxes and derive cost bands
-        // that bias routing toward those corridors, plus per-edge corridor assignments used to merge
-        // ports sharing a corridor into a single trunk so parallel edges leave a box as one bundle.
-        // GeneralView applies the highway only as a routing bias — no compression pass — so the
-        // deliberate package-folder packing is preserved while parallel edges collapse onto shared lanes.
-        var (costBands, highway, highwayEdges) = BuildHighwayData(defs, placed);
-        var portPlacements = BuildHighwayPortPlacements(placed, highwayEdges, highway.Assignments, theme.ConnectorApproachZone(EdgeClearance));
+        // Highway routing: detect bundling corridors between the placed boxes from the same edge set
+        // the router will draw, then bias the two routing sites toward those corridors with cost bands.
+        // GeneralView is cost-band-only by design: boxes are packed in folders, so a compression pass
+        // would disturb the deliberate package grouping; biasing the router is the low-risk improvement.
+        var costBands = BuildHighwayCostBands(defs, placed);
 
         // Route edges for the placement.
-        var (specEdges, specCrossings) = BuildSpecializationEdges(defs, placed, costBands, portPlacements, highwayEdges);
-        var (memberEdges, memberCrossings) = BuildMembershipEdges(defs, placed, costBands, portPlacements, highwayEdges);
+        var (specEdges, specCrossings) = BuildSpecializationEdges(defs, placed, costBands);
+        var (memberEdges, memberCrossings) = BuildMembershipEdges(defs, placed, costBands);
 
         nodes.AddRange(specEdges);
         nodes.AddRange(memberEdges);
@@ -429,19 +427,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             Keyword: def.Keyword);
 
     /// <summary>
-    /// Detects bundling corridors over the placed boxes and the edges that will be drawn between them.
-    /// Returns cost bands that bias the channel router toward those corridors, the full highway result
-    /// (including per-edge corridor assignments), and the ordered edge list used for port placement.
+    /// Detects bundling corridors over the placed boxes and the edges that will be drawn between them,
+    /// then derives cost bands that bias the channel router toward those corridors. GeneralView applies
+    /// the highway only as a routing bias — no compression pass — so the deliberate package-folder
+    /// packing is preserved while parallel edges collapse onto shared lanes for less wire overlap.
     /// </summary>
-    /// <remarks>
-    /// GeneralView applies the highway only as a routing bias — no compression pass — so the deliberate
-    /// package-folder packing is preserved while parallel edges collapse onto shared lanes.
-    /// </remarks>
-    private static (IReadOnlyList<CostBand> CostBands, HighwayResult Highway, IReadOnlyList<IndexedEdge> Edges) BuildHighwayData(
+    private static IReadOnlyList<CostBand> BuildHighwayCostBands(
         IReadOnlyList<DefBox> defs,
         IReadOnlyList<PlacedBox> placed)
     {
-        // Index placed boxes by name so resolved edges become box-index pairs.
+        // Index placed boxes by name and position so resolved edges become box-index pairs.
         var byQualified = new Dictionary<string, int>(StringComparer.Ordinal);
         var bySimple = new Dictionary<string, int>(StringComparer.Ordinal);
         for (var i = 0; i < placed.Count; i++)
@@ -450,10 +445,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             bySimple.TryAdd(placed[i].SimpleName, i);
         }
 
-        // Collect the same edges the two routing methods will draw: specializations and structural memberships.
-        // The indexedEdges list mirrors the HighwayEdge list order so corridor assignments align by index.
-        var hwEdges = new List<HighwayEdge>();
-        var indexedEdges = new List<IndexedEdge>();
+        // Collect the same edges the two routing sites will draw: specializations and structural memberships.
+        var edges = new List<HighwayEdge>();
         foreach (var def in defs)
         {
             if (!byQualified.TryGetValue(def.QualifiedName, out var fromIndex))
@@ -465,10 +458,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             {
                 if (TryResolveIndex(supertype, byQualified, bySimple, out var toIndex) && toIndex != fromIndex)
                 {
-                    hwEdges.Add(new HighwayEdge(fromIndex, toIndex, "specialization"));
-                    indexedEdges.Add(new IndexedEdge(
-                        fromIndex, toIndex, "specialization",
-                        placed[fromIndex].QualifiedName, placed[toIndex].QualifiedName));
+                    edges.Add(new HighwayEdge(fromIndex, toIndex, "specialization"));
                 }
             }
 
@@ -481,102 +471,17 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
                 if (TryResolveIndex(membership.TypeName, byQualified, bySimple, out var toIndex) && toIndex != fromIndex)
                 {
-                    // Membership edges go from member-type (toIndex) toward owner (fromIndex).
-                    hwEdges.Add(new HighwayEdge(toIndex, fromIndex, "membership"));
-                    indexedEdges.Add(new IndexedEdge(
-                        toIndex, fromIndex, "membership",
-                        placed[toIndex].QualifiedName, placed[fromIndex].QualifiedName));
+                    edges.Add(new HighwayEdge(toIndex, fromIndex, "membership"));
                 }
             }
         }
 
         var boxes = placed.Select((b, i) => new HighwayBox(b.X, b.Y, b.Width, b.Height, i.ToString())).ToList();
-        var highway = HighwayAssigner.Assign(boxes, hwEdges, EdgeClearance, EdgeClearance, EdgeClearance * 2.0);
-        var costBands = highway.Corridors
+        var highway = HighwayAssigner.Assign(boxes, edges, EdgeClearance, EdgeClearance, EdgeClearance * 2.0);
+        return highway.Corridors
             .Where(c => c.IsHighway)
             .Select(c => new CostBand(c.IsHorizontal, c.Position - (c.ReservedWidth / 2.0), c.Position + (c.ReservedWidth / 2.0), 0.6))
             .ToList();
-
-        return (costBands, highway, indexedEdges);
-    }
-
-    /// <summary>
-    /// Computes highway-aware port placements for all edges in <paramref name="edges"/>: ports that
-    /// share a box face, outgoing direction, committed corridor, and connector type are merged onto a
-    /// single trunk point; all other ports get independent midpoint anchors.
-    /// </summary>
-    /// <param name="placed">All placed boxes in diagram order (index matches <see cref="IndexedEdge.FromIndex"/>/<see cref="IndexedEdge.ToIndex"/>).</param>
-    /// <param name="edges">Ordered edge list produced by <see cref="BuildHighwayData"/>.</param>
-    /// <param name="assignments">Per-edge corridor assignments from <see cref="HighwayResult.Assignments"/>.</param>
-    /// <param name="approachZone">Off-face distance used by <see cref="PortAssigner.AssignHighway"/> for trunk merging.</param>
-    /// <returns>
-    /// A dictionary mapping <c>(boxIndex, edgeIndex, isSource)</c> to a <see cref="HighwayPortPlacement"/>.
-    /// Not every box/edge combination is guaranteed to be present when the edge was not resolved.
-    /// </returns>
-    private static Dictionary<(int BoxIndex, int EdgeIndex, bool IsSource), HighwayPortPlacement> BuildHighwayPortPlacements(
-        IReadOnlyList<PlacedBox> placed,
-        IReadOnlyList<IndexedEdge> edges,
-        IReadOnlyList<EdgeAssignment> assignments,
-        double approachZone)
-    {
-        // Accumulate one HighwayPortRequest per edge-endpoint, grouped by box index.
-        var requestsByBox = new Dictionary<int, List<(int EdgeIndex, bool IsSource, HighwayPortRequest Request)>>();
-
-        for (var e = 0; e < edges.Count; e++)
-        {
-            var edge = edges[e];
-            var corridorId = e < assignments.Count ? assignments[e].CorridorIndex : -1;
-
-            // Source side: connection leaves the From box heading toward the To box centre.
-            var fromBox = placed[edge.FromIndex];
-            var toCenter = Centre(placed[edge.ToIndex]);
-            var fromReq = new HighwayPortRequest(
-                new Rect(fromBox.X, fromBox.Y, fromBox.Width, fromBox.Height),
-                toCenter,
-                edge.ConnectorType,
-                corridorId,
-                IsOutgoing: true);
-            if (!requestsByBox.TryGetValue(edge.FromIndex, out var fromList))
-            {
-                fromList = [];
-                requestsByBox[edge.FromIndex] = fromList;
-            }
-
-            fromList.Add((e, true, fromReq));
-
-            // Target side: connection arrives at the To box from the From box centre.
-            var toBox = placed[edge.ToIndex];
-            var fromCenter = Centre(placed[edge.FromIndex]);
-            var toReq = new HighwayPortRequest(
-                new Rect(toBox.X, toBox.Y, toBox.Width, toBox.Height),
-                fromCenter,
-                edge.ConnectorType,
-                corridorId,
-                IsOutgoing: false);
-            if (!requestsByBox.TryGetValue(edge.ToIndex, out var toList))
-            {
-                toList = [];
-                requestsByBox[edge.ToIndex] = toList;
-            }
-
-            toList.Add((e, false, toReq));
-        }
-
-        // Assign port placements per box, then index them by (boxIndex, edgeIndex, isSource).
-        var result = new Dictionary<(int, int, bool), HighwayPortPlacement>();
-        foreach (var (boxIdx, items) in requestsByBox)
-        {
-            var placements = PortAssigner.AssignHighway(
-                [.. items.Select(item => item.Request)],
-                approachZone);
-            for (var k = 0; k < items.Count; k++)
-            {
-                var (edgeIdx, isSource, _) = items[k];
-                result[(boxIdx, edgeIdx, isSource)] = placements[k];
-            }
-        }
-
-        return result;
     }
 
     /// <summary>Resolves a supertype/type reference to a placed-box index by qualified then simple name.</summary>
@@ -599,9 +504,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     private static (List<LayoutNode> Edges, int Crossings) BuildSpecializationEdges(
         IReadOnlyList<DefBox> defs,
         IReadOnlyList<PlacedBox> placed,
-        IReadOnlyList<CostBand> costBands,
-        Dictionary<(int BoxIndex, int EdgeIndex, bool IsSource), HighwayPortPlacement> portPlacements,
-        IReadOnlyList<IndexedEdge> highwayEdges)
+        IReadOnlyList<CostBand> costBands)
     {
         var edges = new List<LayoutNode>();
         var crossings = 0;
@@ -609,33 +512,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Index placed boxes by both qualified and simple name for supertype resolution.
         var byQualified = new Dictionary<string, PlacedBox>(StringComparer.Ordinal);
         var bySimple = new Dictionary<string, PlacedBox>(StringComparer.Ordinal);
-        var boxIndex = new Dictionary<string, int>(StringComparer.Ordinal);
-        for (var i = 0; i < placed.Count; i++)
+        foreach (var p in placed)
         {
-            byQualified.TryAdd(placed[i].QualifiedName, placed[i]);
-            bySimple.TryAdd(placed[i].SimpleName, placed[i]);
-            boxIndex.TryAdd(placed[i].QualifiedName, i);
-        }
-
-        // Build a queued lookup from (fromQualName, toQualName) to highway edge indices so that
-        // each routed edge can retrieve its pre-computed corridor-aware port placement.
-        var edgeLookup = new Dictionary<(string From, string To), Queue<int>>();
-        for (var i = 0; i < highwayEdges.Count; i++)
-        {
-            var e = highwayEdges[i];
-            if (!string.Equals(e.ConnectorType, "specialization", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var key = (e.FromQualName, e.ToQualName);
-            if (!edgeLookup.TryGetValue(key, out var q))
-            {
-                q = new Queue<int>();
-                edgeLookup[key] = q;
-            }
-
-            q.Enqueue(i);
+            byQualified.TryAdd(p.QualifiedName, p);
+            bySimple.TryAdd(p.SimpleName, p);
         }
 
         foreach (var def in defs)
@@ -653,36 +533,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     continue;
                 }
 
-                // Attempt to look up the highway port placements for this edge endpoint pair.
-                var hwIdx = edgeLookup.TryGetValue((fromBox.QualifiedName, target.QualifiedName), out var queue) && queue.Count > 0
-                    ? queue.Dequeue() : -1;
-
-                Point2D sourcePoint, targetPoint;
-                PortSide sourceSide, targetSide;
-                if (hwIdx >= 0
-                    && boxIndex.TryGetValue(fromBox.QualifiedName, out var fromIdx)
-                    && portPlacements.TryGetValue((fromIdx, hwIdx, true), out var fromPlace)
-                    && boxIndex.TryGetValue(target.QualifiedName, out var toIdx)
-                    && portPlacements.TryGetValue((toIdx, hwIdx, false), out var toPlace))
-                {
-                    // Use the highway-assigned side for consistent port clustering across correlated edges,
-                    // but route from the face midpoint rather than any off-face trunk point so that the
-                    // channel router receives a standard on-box anchor it can build a clean stub from.
-                    sourceSide = fromPlace.Side;
-                    sourcePoint = FaceMidpoint(fromBox, sourceSide);
-                    targetSide = toPlace.Side;
-                    targetPoint = FaceMidpoint(target, targetSide);
-                }
-                else
-                {
-                    // Fallback: simple midpoint anchoring when no highway data is available.
-                    var toCenter = Centre(target);
-                    var fromCenter = Centre(fromBox);
-                    (sourcePoint, sourceSide) = AnchorToward(fromBox, toCenter);
-                    (targetPoint, targetSide) = AnchorToward(target, fromCenter);
-                }
-
-                var (edge, crossed) = RouteEdge(fromBox, target, sourcePoint, sourceSide, targetPoint, targetSide, placed, costBands);
+                var (edge, crossed) = RouteEdge(fromBox, target, placed, costBands);
                 edges.Add(edge);
                 if (crossed)
                 {
@@ -706,9 +557,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     private static (List<LayoutNode> Edges, int Crossings) BuildMembershipEdges(
         IReadOnlyList<DefBox> defs,
         IReadOnlyList<PlacedBox> placed,
-        IReadOnlyList<CostBand> costBands,
-        Dictionary<(int BoxIndex, int EdgeIndex, bool IsSource), HighwayPortPlacement> portPlacements,
-        IReadOnlyList<IndexedEdge> highwayEdges)
+        IReadOnlyList<CostBand> costBands)
     {
         var edges = new List<LayoutNode>();
         var crossings = 0;
@@ -716,33 +565,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Index placed boxes by both qualified and simple name for type resolution.
         var byQualified = new Dictionary<string, PlacedBox>(StringComparer.Ordinal);
         var bySimple = new Dictionary<string, PlacedBox>(StringComparer.Ordinal);
-        var boxIndex = new Dictionary<string, int>(StringComparer.Ordinal);
-        for (var i = 0; i < placed.Count; i++)
+        foreach (var p in placed)
         {
-            byQualified.TryAdd(placed[i].QualifiedName, placed[i]);
-            bySimple.TryAdd(placed[i].SimpleName, placed[i]);
-            boxIndex.TryAdd(placed[i].QualifiedName, i);
-        }
-
-        // Build a queued lookup from (memberTypeQualName, ownerQualName) to highway edge indices.
-        // Membership highway edges have FromIndex = memberType, ToIndex = owner.
-        var edgeLookup = new Dictionary<(string From, string To), Queue<int>>();
-        for (var i = 0; i < highwayEdges.Count; i++)
-        {
-            var e = highwayEdges[i];
-            if (!string.Equals(e.ConnectorType, "membership", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var key = (e.FromQualName, e.ToQualName);
-            if (!edgeLookup.TryGetValue(key, out var q))
-            {
-                q = new Queue<int>();
-                edgeLookup[key] = q;
-            }
-
-            q.Enqueue(i);
+            byQualified.TryAdd(p.QualifiedName, p);
+            bySimple.TryAdd(p.SimpleName, p);
         }
 
         foreach (var def in defs)
@@ -774,37 +600,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     continue;
                 }
 
-                // Look up the highway port placements for this member-type → owner edge.
-                var hwIdx = edgeLookup.TryGetValue((memberTypeBox.QualifiedName, ownerBox.QualifiedName), out var queue) && queue.Count > 0
-                    ? queue.Dequeue() : -1;
-
-                Point2D sourcePoint, targetPoint;
-                PortSide sourceSide, targetSide;
-                if (hwIdx >= 0
-                    && boxIndex.TryGetValue(memberTypeBox.QualifiedName, out var memberIdx)
-                    && portPlacements.TryGetValue((memberIdx, hwIdx, true), out var memberPlace)
-                    && boxIndex.TryGetValue(ownerBox.QualifiedName, out var ownerIdx)
-                    && portPlacements.TryGetValue((ownerIdx, hwIdx, false), out var ownerPlace))
-                {
-                    // Use the highway-assigned side for consistent port clustering across correlated edges,
-                    // but route from the face midpoint rather than any off-face trunk point so that the
-                    // channel router receives a standard on-box anchor it can build a clean stub from.
-                    sourceSide = memberPlace.Side;
-                    sourcePoint = FaceMidpoint(memberTypeBox, sourceSide);
-                    targetSide = ownerPlace.Side;
-                    targetPoint = FaceMidpoint(ownerBox, targetSide);
-                }
-                else
-                {
-                    // Fallback: simple midpoint anchoring when no highway data is available.
-                    var ownerCenter = Centre(ownerBox);
-                    var memberCenter = Centre(memberTypeBox);
-                    (sourcePoint, sourceSide) = AnchorToward(memberTypeBox, ownerCenter);
-                    (targetPoint, targetSide) = AnchorToward(ownerBox, memberCenter);
-                }
-
                 // Route from member-type box to owner box; diamond (TargetArrowhead) sits at the owner.
-                var (edge, crossed) = RouteMembershipEdge(memberTypeBox, ownerBox, sourcePoint, sourceSide, targetPoint, targetSide, placed, arrowhead, costBands);
+                var (edge, crossed) = RouteMembershipEdge(memberTypeBox, ownerBox, placed, arrowhead, costBands);
                 edges.Add(edge);
                 if (crossed)
                 {
@@ -818,26 +615,27 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Routes a single membership edge from the member-type box to the owner box, placing the
-    /// diamond arrowhead at the owner (target) end. The caller supplies pre-computed anchor points
-    /// (from highway port placement or simple midpoint anchoring).
+    /// diamond arrowhead at the owner (target) end.
     /// </summary>
     private static (LayoutLine Edge, bool Crossed) RouteMembershipEdge(
         PlacedBox memberType,
         PlacedBox owner,
-        Point2D sourcePoint,
-        PortSide sourceSide,
-        Point2D targetPoint,
-        PortSide targetSide,
         IReadOnlyList<PlacedBox> placed,
         ArrowheadStyle diamond,
         IReadOnlyList<CostBand> costBands)
     {
+        var memberCenter = new Point2D(memberType.X + (memberType.Width / 2.0), memberType.Y + (memberType.Height / 2.0));
+        var ownerCenter = new Point2D(owner.X + (owner.Width / 2.0), owner.Y + (owner.Height / 2.0));
+
+        var (source, sourceSide) = AnchorToward(memberType, ownerCenter);
+        var (target, targetSide) = AnchorToward(owner, memberCenter);
+
         var obstacles = placed
             .Where(b => b.QualifiedName != memberType.QualifiedName && b.QualifiedName != owner.QualifiedName)
             .Select(b => new Rect(b.X, b.Y, b.Width, b.Height))
             .ToList();
 
-        var route = ChannelRouter.RouteWithStatus(sourcePoint, targetPoint, obstacles, EdgeClearance, sourceSide, targetSide, costBands);
+        var route = ChannelRouter.RouteWithStatus(source, target, obstacles, EdgeClearance, sourceSide, targetSide, costBands);
 
         var edge = new LayoutLine(
             Waypoints: route.Waypoints,
@@ -876,26 +674,23 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Routes a single specialization edge from a subtype box to its supertype box, returning the
-    /// edge and whether it had to cross another box. The caller supplies pre-computed anchor points
-    /// (from highway port placement or simple midpoint anchoring).
+    /// edge and whether it had to cross another box.
     /// </summary>
-    private static (LayoutLine Edge, bool Crossed) RouteEdge(
-        PlacedBox from,
-        PlacedBox to,
-        Point2D sourcePoint,
-        PortSide sourceSide,
-        Point2D targetPoint,
-        PortSide targetSide,
-        IReadOnlyList<PlacedBox> placed,
-        IReadOnlyList<CostBand> costBands)
+    private static (LayoutLine Edge, bool Crossed) RouteEdge(PlacedBox from, PlacedBox to, IReadOnlyList<PlacedBox> placed, IReadOnlyList<CostBand> costBands)
     {
+        var fromCenter = new Point2D(from.X + (from.Width / 2.0), from.Y + (from.Height / 2.0));
+        var toCenter = new Point2D(to.X + (to.Width / 2.0), to.Y + (to.Height / 2.0));
+
+        var (source, sourceSide) = AnchorToward(from, toCenter);
+        var (target, targetSide) = AnchorToward(to, fromCenter);
+
         // Obstacles are all boxes except the two endpoints of this edge.
         var obstacles = placed
             .Where(b => b.QualifiedName != from.QualifiedName && b.QualifiedName != to.QualifiedName)
             .Select(b => new Rect(b.X, b.Y, b.Width, b.Height))
             .ToList();
 
-        var route = ChannelRouter.RouteWithStatus(sourcePoint, targetPoint, obstacles, EdgeClearance, sourceSide, targetSide, costBands);
+        var route = ChannelRouter.RouteWithStatus(source, target, obstacles, EdgeClearance, sourceSide, targetSide, costBands);
 
         // Generalization: open arrowhead points at the supertype (target) end.
         var edge = new LayoutLine(
@@ -930,28 +725,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         return dy >= 0
             ? (new Point2D(cx, box.Y + box.Height), PortSide.Bottom)
             : (new Point2D(cx, box.Y), PortSide.Top);
-    }
-
-    /// <summary>Computes the centre point of a placed box.</summary>
-    private static Point2D Centre(PlacedBox box) =>
-        new(box.X + (box.Width / 2.0), box.Y + (box.Height / 2.0));
-
-    /// <summary>
-    /// Returns the midpoint of the specified face of the given box as a routing anchor. Used to
-    /// convert a highway port placement (which may carry an off-face trunk coordinate) into a
-    /// standard on-box anchor so the channel router generates a clean, perpendicular exit stub.
-    /// </summary>
-    private static Point2D FaceMidpoint(PlacedBox box, PortSide side)
-    {
-        var cx = box.X + (box.Width / 2.0);
-        var cy = box.Y + (box.Height / 2.0);
-        return side switch
-        {
-            PortSide.Top => new Point2D(cx, box.Y),
-            PortSide.Bottom => new Point2D(cx, box.Y + box.Height),
-            PortSide.Left => new Point2D(box.X, cy),
-            _ => new Point2D(box.X + box.Width, cy),
-        };
     }
 
     /// <summary>Computes the packing width used to lay out the definitions within a package folder.</summary>
@@ -990,16 +763,4 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         /// <summary>When true, the folder's contents are replaced by an ellipsis truncation indicator.</summary>
         public bool Truncated { get; init; }
     }
-
-    /// <summary>
-    /// An edge resolved to placed-box indices, carrying both the geometric indices and the qualified
-    /// names of the endpoints. Used to correlate highway corridor assignments with routed edges so
-    /// that port placements can be retrieved by (boxIndex, edgeIndex) key.
-    /// </summary>
-    private sealed record IndexedEdge(
-        int FromIndex,
-        int ToIndex,
-        string ConnectorType,
-        string FromQualName,
-        string ToQualName);
 }

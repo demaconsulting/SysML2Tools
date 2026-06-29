@@ -60,7 +60,7 @@ For each **connection** in the diagram:
 Use this text verbatim as the instruction to the multimodal model, providing
 the `.sysml` source path and the `.png` image path as inputs:
 
-```text
+```
 You are a SysML diagram quality inspector. You are given:
   - A SysML model source file (path: {SYSML_PATH})
   - A rendered PNG image of the diagram (path: {PNG_PATH})
@@ -129,20 +129,13 @@ Do NOT say "looks good" or "appears correct" in aggregate.
      Parallel same-destination runs covering more than ~30% of total
      connector length are a defect.
 
-[C6] No two independent connectors share the same port point on a box face.
-     Every connector on a given face must have its own distinct entry/exit point
-     — port markers (filled squares) must not overlap. If two connectors connect
-     to different boxes, they are independent and must be at separate points
-     regardless of how close together they appear.
+[C6] On any given box face, each connector arrives at a visibly distinct port
+     point. Connectors must be individually traceable — a cluster of connectors
+     at the same point on a face where you cannot tell them apart is a defect.
 
 [C7] Every connector takes a reasonably direct route. A gratuitous detour
      significantly longer than a direct orthogonal path between the two boxes
      is a defect.
-
-[C8] No two independent connectors share a routing segment. If two connectors
-     that connect to different boxes travel along the same line for any
-     meaningful length, they are indistinguishable and one appears missing.
-     Independent connectors must use distinct paths throughout their routes.
 
 --- SUMMARY ---
 
@@ -156,16 +149,16 @@ After evaluating all criteria, output:
 
 ## Defect Severity
 
-| Severity     | Description                                | Action                                         |
-|--------------|--------------------------------------------|------------------------------------------------|
-| **Blocking** | Any criterion FAIL                         | Do not commit; fix layout engine and re-render |
-| **Warning**  | Minor label crowding not causing confusion | Document in commit message; fix in next pass   |
+| Severity | Description | Action |
+|----------|-------------|--------|
+| **Blocking** | Any criterion FAIL | Do not commit; fix layout engine and re-render |
+| **Warning** | Minor label crowding not causing confusion | Document in commit message; fix in next pass |
 
 ---
 
 ## Agent Checklist (Before Committing Rendered Images)
 
-```text
+```
 [ ] Ran visual QA on all affected PNGs using this prompt (sysml + png paths)
 [ ] Recorded per-criterion PASS/FAIL verdicts (not just "looks OK")
 [ ] All I1–I3 inventory checks passed
