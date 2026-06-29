@@ -316,8 +316,9 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             nodes.Add(new LayoutPort(placement.CentreX, placement.CentreY, placement.Side, null));
         }
 
-        // Route a connector line for each connection between its two ports.
-        var crossings = 0;
+        // Collect all routes first, then nudge conflicting segments before emitting lines.
+        var collectedRoutes = new List<RouteResult>();
+
         for (var c = 0; c < pairs.Count; c++)
         {
             var (a, b) = (pairs[c].A, pairs[c].B);
@@ -344,13 +345,25 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                 sourceSide: portA.Side,
                 targetSide: portB.Side,
                 costBands: costBands);
-            if (route.Crossed)
+
+            collectedRoutes.Add(route);
+        }
+
+        // Nudge conflicting co-linear segments so they don't overlap.
+        var nudgedWaypoints = RouteNudger.NudgeConflicts(
+            [.. collectedRoutes.Select(r => r.Waypoints)],
+            ConnectorClearance);
+
+        var crossings = 0;
+        for (var i = 0; i < collectedRoutes.Count; i++)
+        {
+            if (collectedRoutes[i].Crossed)
             {
                 crossings++;
             }
 
             nodes.Add(new LayoutLine(
-                Waypoints: route.Waypoints,
+                Waypoints: nudgedWaypoints[i],
                 SourceArrowhead: ArrowheadStyle.None,
                 TargetArrowhead: ArrowheadStyle.None,
                 LineStyle: LineStyle.Solid,
