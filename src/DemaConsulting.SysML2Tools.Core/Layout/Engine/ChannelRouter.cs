@@ -218,7 +218,9 @@ internal static class ChannelRouter
     /// capped to half the distance to <paramref name="other"/> measured along the side's outward
     /// normal when <paramref name="other"/> lies in that direction. This keeps two stubs that face
     /// each other across a narrow gap from overshooting past the midline (which produces a visible
-    /// reversal at the connector's end).
+    /// reversal at the connector's end). When the projection is exactly zero (ports at the same
+    /// coordinate on facing sides, e.g. touching-edge boxes), the stub collapses to zero so the
+    /// connector routes directly between the ports without stepping into the opposite box.
     /// </summary>
     private static double StubLength(Point2D anchor, PortSide? side, Point2D other, double baseStub)
     {
@@ -231,7 +233,7 @@ internal static class ChannelRouter
             _ => double.PositiveInfinity,
         };
 
-        return projection > 0 ? Math.Min(baseStub, projection / 2.0) : baseStub;
+        return projection >= 0 ? Math.Min(baseStub, projection / 2.0) : baseStub;
     }
 
     /// <summary>

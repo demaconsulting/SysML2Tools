@@ -453,6 +453,15 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             grid,
             theme.LabelPadding);
 
-        return [.. quantised.Select(q => new Rect(q.X, q.Y, q.Width, q.Height))];
+        // Re-compress after quantisation: grid-snapping can reduce inter-box gaps below minGap,
+        // which causes connectors to route through box interiors. A second pass restores clearance.
+        var recompressed = GravityCompressor.Compress(
+            [.. quantised.Select(q => new CompressBox(q.X, q.Y, q.Width, q.Height, q.Width, q.Height))],
+            minGap,
+            gridUnit: 0.0);
+
+        return recompressed.Feasible
+            ? [.. recompressed.Positions.Select((p, i) => new Rect(p.X, p.Y, quantised[i].Width, quantised[i].Height))]
+            : [.. quantised.Select(q => new Rect(q.X, q.Y, q.Width, q.Height))];
     }
 }
