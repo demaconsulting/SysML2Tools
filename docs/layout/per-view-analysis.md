@@ -52,30 +52,47 @@ constants.
 usages on box boundaries; `connection` usages as lines between ports; optionally nested
 parts.
 
-**Mode**: Free 2D (using existing `ForceDirectedEngine` placement, supplemented by new
-compression and quantisation steps).
+**Mode**: Layered (Phase 15+). Column assignment by degree-biased BFS; slot-based Z-routing.
 
-**How the algorithm applies**:
-Existing force-directed placement is retained — a port graph should not be forced into
-layers — but the **shared pipeline from Step 4 onward** is adopted (highway assignment,
-constraint-graph compaction, closed-form compression, post-processing) with **port-aware
-anchoring**. `HighwayAssigner` identifies connector bundles (e.g. a bus between two parts)
-and reserves corridor space. The highway-aware `PortAssigner` chooses each port's side to
-face its corridor and orders slots to match the corridor's wire order. `GravityCompressor`
-removes empty regions left by force-directed settlement. A **self/nested connection** (a
-connection between two ports on the same part) carries no highway meaning; it is routed as
-a small external arc and excluded from highway assignment.
+**How the algorithm applies** (Phase 15):
 
-**Common issues in prior implementation**:
+`LayeredPlacer` assigns each part to a column based on connectivity. The most-connected
+node goes in the leftmost column; its neighbours fan rightward by BFS. Corridors between
+columns are sized to hold all crossing edges with no overlap:
 
-| Issue | Root Cause |
-| --- | --- |
-| Empty regions after force-directed | No post-placement compression |
-| Connector bundles not reserved | No highway concept |
+```text
+corridorWidth = max(minWidth, crossingEdges × edgeSpacing + 2 × clearance)
+```
 
-**How the proposal mitigates**:
-`GravityCompressor` collapses empty regions. `HighwayAssigner` reserves bundle corridors.
-`GridQuantizer` aligns port slots to predictable positions.
+Each edge in a corridor is then assigned a unique horizontal slot (slotX) before any
+coordinates are committed. The route is a simple 4-point Z-shape:
+
+```text
+sourcePort → (slotX, sourcePort.Y) → (slotX, targetPort.Y) → targetPort
+```
+
+Because every slot is unique, segment conflicts (two connectors sharing the same vertical
+segment) are structurally impossible.
+
+Port Y positions along each box face are redistributed evenly after slot assignment, so
+multiple connectors leaving or entering the same face are spread cleanly rather than stacked
+at the centre.
+
+**Why force-directed was replaced**: force-directed placement commits coordinates before
+routing. A\* routing then assigns each connector independently, with no mechanism to
+prevent two routes from occupying the same segment. All Phase 14c patch attempts
+(GravityCompressor, GridQuantizer, ConnectedPairSpacer, HighwayAssigner, RouteNudger)
+failed or introduced new defects because the conflict is architectural: the placement and
+routing steps are coupled in ELK-style algorithms but were decoupled in the prior approach.
+
+**Common issues resolved by Phase 15**:
+
+| Issue | Root Cause | Resolution |
+|-------|-----------|------------|
+| Shared vertical segments (C8) | A\* routes independently, no slot reservation | Slot assignment before coordinates committed |
+| Port clustering on shared face (C6) | PortAssigner used face midpoint | Even redistribution of port Y after slot assignment |
+| Excessive whitespace | Force-directed over-separation + imperfect compression | Column layout + measured corridor sizing |
+| Invisible connectors on touching edges | Zero-gap after GridQuantizer | Corridor always ≥ `minCorridorWidth = 60px` |
 
 ---
 

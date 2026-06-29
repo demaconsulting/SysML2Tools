@@ -600,6 +600,179 @@ any remaining violations.
 
 ---
 
+## Phase 15 — Interconnection View: Layered Placement and Slot Routing
+
+### Motivation
+
+Phase 14c attempted to fix segment-conflict defects in the InterconnectionView by patching
+the existing A\*/force-directed pipeline (ConnectedPairSpacer, GridQuantizer, HighwayAssigner,
+ConnectedPairSpacer, RouteNudger). All approaches failed or introduced new defects. Root
+cause: A\* commits every connector's coordinates independently; there is no mechanism to
+guarantee that two routes do not share the same segment. The defect is architectural — it
+cannot be fixed by post-processing.
+
+The correct solution, confirmed by empirical verification against Eclipse ELK, is to assign
+routing corridors **before** coordinates are committed, so conflicts are structurally
+impossible.
+
+---
+
+### New Engine: `LayeredPlacer`
+
+Replaces `ForceDirectedEngine` + `GravityCompressor` + `GridQuantizer` +
+`ConnectedPairSpacer` for the InterconnectionView.
+
+**Inputs:**
+
+- `nodes`: list of `(width, height)` per part
+- `edges`: list of `(sourceIndex, targetIndex)` pairs (undirected connections)
+- `nodeSpacing`: vertical gap between nodes in the same column (default `3 × LabelPadding`)
+- `minCorridorWidth`: minimum horizontal corridor between columns (default 60 px)
+- `edgeSpacing`: horizontal slot pitch within a corridor (default 12 px)
+- `clearance`: minimum gap between a column's right edge and the first slot (default `ConnectorClearance`)
+
+**Algorithm:**
+
+#### Step 1 — Degree-biased column assignment
+
+Connections in an InterconnectionView are undirected (no semantic source/target). Column
+assignment uses a **degree-descending BFS**:
+
+```text
+sort nodes by degree descending (ties broken by index)
+highestDegreeNode → column 0
+BFS outward: each unvisited neighbour → column = parent_column + 1
+any remaining unvisited nodes (disconnected) → column 0
+```
+
+This places the most-connected node (e.g. the motherboard or flight controller) in the
+leftmost column with all its neighbours fanned to the right — matching the visual intuition
+of a hub-and-spoke diagram.
+
+#### Step 2 — Node ordering within each column
+
+Within each column, sort nodes by the mean Y of their **already-placed** connected
+neighbours in adjacent columns. On the first pass all Y values are 0; use node index as
+deterministic tiebreak. One barycentric iteration is sufficient for diagrams of this scale
+(< 20 nodes).
+
+#### Step 3 — Corridor sizing
+
+For each gap between column `i` and column `i+1`:
+
+```text
+crossingEdges = count of edges with one endpoint in column i and one in column i+1
+                (edges spanning multiple columns count only at the nearest gap)
+corridorWidth = max(minCorridorWidth, crossingEdges × edgeSpacing + 2 × clearance)
+```
+
+This guarantees every crossing edge gets a unique horizontal slot with `clearance` on each
+side, making conflicts structurally impossible.
+
+#### Step 4 — X assignment
+
+```text
+x[0] = 0
+x[i+1] = x[i] + maxNodeWidthInColumn[i] + corridorWidth[i]
+```
+
+#### Step 5 — Y assignment
+
+Within each column, place nodes top-to-bottom with `nodeSpacing` between them, then
+centre each column vertically relative to the tallest column:
+
+```text
+for each column c:
+    totalH = sum(node.Height for nodes in c) + (count-1) × nodeSpacing
+    topOffset = (maxColumnHeight - totalH) / 2
+    y[firstNodeInColumn_c] = topOffset
+    y[nextNode] = y[prevNode] + prevNode.Height + nodeSpacing
+```
+
+**Output:** `LayerResult` — `IReadOnlyList<Rect>` positions, `IReadOnlyList<int> NodeColumns`,
+`double TotalWidth`, `double TotalHeight`.
+
+---
+
+### New Routing: Slot-Based Z-Routing
+
+Replaces `PortAssigner.Assign()` + `ChannelRouter.RouteWithStatus()` for the
+InterconnectionView.
+
+**Algorithm:**
+
+For each corridor (gap between column `i` and column `i+1`):
+
+1. Collect all edges with one endpoint in column `i` and one in column `i+1`.
+2. Sort by mean-Y of endpoints: `(sourceRect.CentreY + targetRect.CentreY) / 2` ascending.
+3. Assign slot index `k = 0, 1, 2, …` in sorted order.
+4. Compute slot X:
+
+   ```text
+   corridorLeft = max(rect.X + rect.Width) for all nodes in column i
+   slotX[k]     = corridorLeft + clearance + k × edgeSpacing
+   ```
+
+5. Place ports:
+   - Source port: right face of source box at `clamp(centreY, box.Y + margin, box.Y + box.Height - margin)`
+   - Target port: left face of target box at same clamp
+6. Route (4-point Z-shape):
+
+   ```text
+   [sourcePort, (slotX, sourcePort.Y), (slotX, targetPort.Y), targetPort]
+   ```
+
+**Port Y redistribution** (prevents stacking when a box has many right-face connections):
+
+After computing all `(portY, slotX)` pairs for a given box face, sort by portY and
+redistribute evenly:
+
+```text
+if count == 1:
+    portY = box.CentreY
+else:
+    portY[k] = box.Y + margin + k × (box.Height - 2×margin) / (count - 1)
+```
+
+Update both the port node and the first bend point of the corresponding route.
+
+**Why this is conflict-free by construction:** Each edge in a corridor gets a unique `slotX`
+(assigned before coordinates are committed). Two edges can only share a vertical segment if
+they are assigned the same slot — which cannot happen because slots are enumerated
+sequentially within the corridor.
+
+**Fallback for same-column edges** (should be rare; self-connections not expected in
+InterconnectionView): use `PortAssigner.Assign()` + `ChannelRouter.Route()` as before.
+
+---
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `Layout/Engine/LayeredPlacer.cs` | **NEW** — column assignment + corridor sizing |
+| `Layout/Internal/InterconnectionViewLayoutStrategy.cs` | **REWRITE** placement + routing sections |
+| `Layout/Engine/ConnectedPairSpacer.cs` | **DELETED** — superseded by slot routing |
+| `Layout/Engine/GravityCompressor.cs` | Kept — still used by GeneralViewLayoutStrategy |
+| `Layout/Engine/GridQuantizer.cs` | Kept — still used by GeneralViewLayoutStrategy |
+| `Layout/Engine/HighwayAssigner.cs` | Kept — still used by GeneralViewLayoutStrategy |
+| `Layout/Engine/ChannelRouter.cs` | Kept — still used by GeneralViewLayoutStrategy |
+| `Layout/Engine/PortAssigner.cs` | Kept — used for port Y redistribution step |
+
+---
+
+### Updated Pipeline (InterconnectionView only)
+
+```text
+[Phase 15]    LayeredPlacer        (column assignment, corridor sizing, X/Y coordinates)
+[Phase 15]    Slot routing         (Z-route per edge, unique slotX per corridor gap)
+[Phase 15]    Port redistribution  (even Y spread when multiple ports on same face)
+              PortAssigner.Assign  (fallback for same-column edges only)
+              ConnectorLabelPlacer (label midpoint placement — unchanged)
+```
+
+---
+
 ## Phase 14c Additions — Approach Zones and Connector Clarity
 
 ### Theme Additions

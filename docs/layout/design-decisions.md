@@ -43,12 +43,20 @@ the resolution is reflected in the algorithm steps above.
    `required_width`/`required_height` during compression (Step 8), so label space is
    reserved by construction; Step 11 only *positions* labels within that reserved space.
 
-9. **Approach-zone enforcement — spacer vs. block inflation** — *TODO: deferred beyond
-   Phase 14c.* `ConnectedPairSpacer` is used in Phase 14c as it is sufficient for the
-   current defects. The cleaner long-term approach is asymmetric block inflation: inflate
-   each `CompressBox.MinW`/`MinH` per face based on the decoration types of incoming and
-   outgoing connectors (a diamond needs more clearance than a plain stub). The
-   `GravityCompressor` already carries separate `Width`/`MinW` fields that could accept
-   per-face margins naturally. Revisit when decoration-aware sizing is needed.
+9. **Approach-zone enforcement — spacer vs. block inflation** — *Superseded by Phase 15.*
+   `ConnectedPairSpacer` was used in Phase 14c as a targeted fix, but the root defect was
+   architectural: force-directed placement + A\* routing cannot guarantee segment separation.
+   Block inflation is now moot for the InterconnectionView since `LayeredPlacer` and
+   slot-based routing make conflicts structurally impossible. Block inflation may still be
+   relevant for `GeneralViewLayoutStrategy` if decoration-aware sizing is needed in future.
+
+10. **InterconnectionView placement — force-directed vs. layered** — *Resolved: layered
+    (Phase 15).* Force-directed placement was retained through Phase 14c on the reasoning
+    that "a port graph should not be forced into layers." This proved incorrect: the visual
+    quality of a force-directed diagram with a hub-and-spoke topology is equivalent to a
+    left-right layered diagram, and layered placement is the *only* approach that enables
+    conflict-free routing. Degree-biased BFS column assignment (highest-degree node in
+    column 0, BFS outward) naturally produces hub-left, spokes-right layouts that match
+    user expectations for interconnection diagrams.
 
 ---
