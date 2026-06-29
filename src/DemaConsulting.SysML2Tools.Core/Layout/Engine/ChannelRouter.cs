@@ -25,6 +25,16 @@ internal readonly record struct Rect(double X, double Y, double Width, double He
 internal readonly record struct RouteResult(IReadOnlyList<Point2D> Waypoints, bool Crossed);
 
 /// <summary>
+/// A cost band: a region of the canvas where routing is cheaper (or dearer) than normal, used to bias
+/// the router toward bundling wires along committed highways.
+/// </summary>
+/// <param name="IsHorizontal">True when the band spans a horizontal stripe (Y range), false for vertical (X range).</param>
+/// <param name="Start">Lower bound of the band on its perpendicular axis, in logical pixels.</param>
+/// <param name="End">Upper bound of the band on its perpendicular axis, in logical pixels.</param>
+/// <param name="Multiplier">Cost factor applied to segments inside the band (0.6 cheaper, 1.0 neutral).</param>
+internal readonly record struct CostBand(bool IsHorizontal, double Start, double End, double Multiplier);
+
+/// <summary>
 /// Routes orthogonal (right-angle) connector lines between two points while avoiding a set of
 /// rectangular obstacles.
 /// </summary>
@@ -74,6 +84,7 @@ internal static class ChannelRouter
     /// short stub perpendicular to that side before routing freely, so connectors exit boxes cleanly.
     /// </param>
     /// <param name="targetSide">Optional box side the target anchor sits on; see <paramref name="sourceSide"/>.</param>
+    /// <param name="costBands">Optional cost bands biasing the route toward highway corridors; null leaves cost neutral.</param>
     /// <returns>
     /// An ordered list of waypoints beginning with <paramref name="source"/> and ending with
     /// <paramref name="target"/>. Consecutive waypoints always share an X or a Y coordinate.
@@ -84,8 +95,9 @@ internal static class ChannelRouter
         IReadOnlyList<Rect> obstacles,
         double clearance,
         PortSide? sourceSide = null,
-        PortSide? targetSide = null) =>
-        RouteWithStatus(source, target, obstacles, clearance, sourceSide, targetSide).Waypoints;
+        PortSide? targetSide = null,
+        IReadOnlyList<CostBand>? costBands = null) =>
+        RouteWithStatus(source, target, obstacles, clearance, sourceSide, targetSide, costBands).Waypoints;
 
     /// <summary>
     /// Computes an orthogonal route and reports whether it had to cross an obstacle. The route is
@@ -99,6 +111,7 @@ internal static class ChannelRouter
     /// <param name="clearance">Preferred gap between routed segments and obstacles.</param>
     /// <param name="sourceSide">Optional box side the source anchor sits on (adds a perpendicular stub).</param>
     /// <param name="targetSide">Optional box side the target anchor sits on (adds a perpendicular stub).</param>
+    /// <param name="costBands">Optional cost bands biasing the route toward highway corridors; null leaves cost neutral.</param>
     /// <returns>The waypoints and a flag indicating whether the route crosses an obstacle.</returns>
     public static RouteResult RouteWithStatus(
         Point2D source,
@@ -106,7 +119,8 @@ internal static class ChannelRouter
         IReadOnlyList<Rect> obstacles,
         double clearance,
         PortSide? sourceSide = null,
-        PortSide? targetSide = null)
+        PortSide? targetSide = null,
+        IReadOnlyList<CostBand>? costBands = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
@@ -130,7 +144,7 @@ internal static class ChannelRouter
                 xs, ys,
                 IndexOf(xs, routeSource.X), IndexOf(ys, routeSource.Y),
                 IndexOf(xs, routeTarget.X), IndexOf(ys, routeTarget.Y),
-                obstacles, c);
+                obstacles, c, costBands);
 
             if (path is not null)
             {
@@ -279,7 +293,8 @@ internal static class ChannelRouter
         int goalI,
         int goalJ,
         IReadOnlyList<Rect> obstacles,
-        double clearance)
+        double clearance,
+        IReadOnlyList<CostBand>? costBands)
     {
         var nx = xs.Length;
         var ny = ys.Length;
@@ -319,8 +334,9 @@ internal static class ChannelRouter
                 var stepLength = nd == Dir.Horizontal
                     ? Math.Abs(xs[ni] - xs[ci])
                     : Math.Abs(ys[nj] - ys[cj]);
+                var bandMultiplier = SegmentCostMultiplier(xs, ys, ci, cj, ni, nj, costBands);
                 var turnCost = cd != Dir.None && cd != nd ? TurnPenalty : 0.0;
-                var tentative = g + stepLength + turnCost;
+                var tentative = g + (stepLength * bandMultiplier) + turnCost;
 
                 var neighborState = (ni, nj, nd);
                 if (best.TryGetValue(neighborState, out var existing) && tentative >= existing)
@@ -365,6 +381,41 @@ internal static class ChannelRouter
     /// <summary>Manhattan-distance heuristic between two grid nodes.</summary>
     private static double Heuristic(double[] xs, double[] ys, int i, int j, int goalI, int goalJ) =>
         Math.Abs(xs[i] - xs[goalI]) + Math.Abs(ys[j] - ys[goalJ]);
+
+    /// <summary>
+    /// Returns the cheapest cost multiplier for a segment by testing whether its midpoint lies inside
+    /// any cost band; a highway band (multiplier &lt; 1) makes bundled runs cheaper so the router
+    /// prefers them. When no band applies the cost is neutral (1.0).
+    /// </summary>
+    private static double SegmentCostMultiplier(
+        double[] xs,
+        double[] ys,
+        int i1,
+        int j1,
+        int i2,
+        int j2,
+        IReadOnlyList<CostBand>? bands)
+    {
+        if (bands is null || bands.Count == 0)
+        {
+            return 1.0;
+        }
+
+        // Sample the segment midpoint; bands are stripes, so a point test is enough to classify it.
+        var mx = (xs[i1] + xs[i2]) / 2.0;
+        var my = (ys[j1] + ys[j2]) / 2.0;
+        var best = 1.0;
+        foreach (var band in bands)
+        {
+            var coord = band.IsHorizontal ? my : mx;
+            if (coord >= band.Start && coord <= band.End)
+            {
+                best = Math.Min(best, band.Multiplier);
+            }
+        }
+
+        return best;
+    }
 
     /// <summary>
     /// Determines whether the straight grid segment between two adjacent nodes passes within

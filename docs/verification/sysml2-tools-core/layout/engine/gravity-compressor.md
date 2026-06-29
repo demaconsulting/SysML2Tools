@@ -29,3 +29,5 @@ configuration are required beyond a standard .NET SDK installation.
 | `Compress_ThreeChainOneOverlap_AdjustsOnlyThatGap` | Only the overlapping gap changes |
 | `Compress_Impossible_ReturnsInfeasible` | Infeasible request flagged false |
 | `Compress_SameInput_IsDeterministic` | Identical input yields identical positions |
+| `Compress_CorridorConstraint_GapExpandsToMinWidth` | Corridor gap widens to its minimum width |
+| `Compress_NoCorridor_ExistingBehaviourUnchanged` | Null corridors leave separation behaviour intact |

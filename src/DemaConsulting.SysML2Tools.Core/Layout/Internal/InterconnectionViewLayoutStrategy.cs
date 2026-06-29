@@ -79,9 +79,23 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             partRects[i] = new Rect(r.X + offsetX, r.Y + offsetY, r.Width, r.Height);
         }
 
+        // Highway routing: detect corridors between the placed blocks, feed their floor widths into
+        // gravity compression, then bias connector routing toward the bundled highways with cost bands.
+        var highwayBoxes = partRects.Select((r, i) => new HighwayBox(r.X, r.Y, r.Width, r.Height, i.ToString())).ToList();
+        var highwayEdges = pairs.Select(p => new HighwayEdge(p.A, p.B, "connection")).ToList();
+        var highway = HighwayAssigner.Assign(highwayBoxes, highwayEdges, theme.LabelPadding * 2.0, ConnectorClearance, ConnectorClearance * 2.0);
+        var corridorConstraints = highway.Corridors
+            .Where(c => c.IsHighway)
+            .Select(c => new CorridorConstraint(c.IsHorizontal, c.Position, c.ReservedWidth))
+            .ToList();
+        var costBands = highway.Corridors
+            .Where(c => c.IsHighway)
+            .Select(c => new CostBand(c.IsHorizontal, c.Position - (c.ReservedWidth / 2.0), c.Position + (c.ReservedWidth / 2.0), 0.6))
+            .ToList();
+
         // Gravity-compress overlaps to a tight minimum gap, then quantise to the grid so part
         // anchors fall on predictable lines before ports and connectors are routed.
-        partRects = CompressAndQuantize(partRects, theme);
+        partRects = CompressAndQuantize(partRects, theme, corridorConstraints);
 
         var nodes = new List<LayoutNode>();
 
@@ -109,7 +123,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         }
 
         // Ports and connectors.
-        var crossings = AddPortsAndConnectors(parts, partRects, pairs, nodes);
+        var crossings = AddPortsAndConnectors(parts, partRects, pairs, nodes, costBands);
 
         var warnings = LayoutWarnings.ForCrossings(context.ViewName, crossings);
         return new LayoutTree(containerWidth, containerHeight, nodes) { Warnings = warnings };
@@ -251,7 +265,8 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         IReadOnlyList<PartItem> parts,
         Rect[] partRects,
         IReadOnlyList<ConnPair> pairs,
-        List<LayoutNode> nodes)
+        List<LayoutNode> nodes,
+        IReadOnlyList<CostBand> costBands)
     {
         // For each part, collect a port request per incident connection (toward the other part).
         var requestsPerPart = new List<PortRequest>[parts.Count];
@@ -327,7 +342,8 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                 obstacles,
                 ConnectorClearance,
                 sourceSide: portA.Side,
-                targetSide: portB.Side);
+                targetSide: portB.Side,
+                costBands: costBands);
             if (route.Crossed)
             {
                 crossings++;
@@ -412,7 +428,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// so the connectors that follow have predictable, well-separated anchor lines. Falls back to the
     /// uncompressed positions if compression cannot find a non-overlapping arrangement.
     /// </summary>
-    private static Rect[] CompressAndQuantize(Rect[] partRects, Theme theme)
+    private static Rect[] CompressAndQuantize(Rect[] partRects, Theme theme, IReadOnlyList<CorridorConstraint> corridors)
     {
         if (partRects.Length == 0)
         {
@@ -425,7 +441,8 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var compressed = GravityCompressor.Compress(
             [.. partRects.Select(r => new CompressBox(r.X, r.Y, r.Width, r.Height, r.Width, r.Height))],
             minGap,
-            grid);
+            grid,
+            corridors.Count > 0 ? corridors : null);
         if (!compressed.Feasible)
         {
             return partRects;

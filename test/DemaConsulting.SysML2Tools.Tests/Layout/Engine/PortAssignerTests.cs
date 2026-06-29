@@ -80,4 +80,57 @@ public sealed class PortAssignerTests
     {
         Assert.Empty(PortAssigner.Assign([]));
     }
+
+    /// <summary>Ports sharing side, direction, corridor, and connector type merge to one trunk group.</summary>
+    [Fact]
+    public void AssignHighway_SameKey_ShareTrunkGroup()
+    {
+        // Arrange: two outgoing ports on the same box heading right, same corridor and connector type
+        var box = new Rect(0, 0, 100, 100);
+        var requests = new[]
+        {
+            new HighwayPortRequest(box, new Point2D(500, 10), "flow", CorridorId: 3, IsOutgoing: true),
+            new HighwayPortRequest(box, new Point2D(500, 90), "flow", CorridorId: 3, IsOutgoing: true),
+        };
+
+        // Act
+        var placements = PortAssigner.AssignHighway(requests);
+
+        // Assert: both ports collapse onto a single trunk with a shared positive group id
+        Assert.NotEqual(-1, placements[0].TrunkGroupId);
+        Assert.Equal(placements[0].TrunkGroupId, placements[1].TrunkGroupId);
+        Assert.Equal(placements[0].CentreX, placements[1].CentreX, 6);
+        Assert.Equal(placements[0].CentreY, placements[1].CentreY, 6);
+    }
+
+    /// <summary>A differing connector type prevents merging, producing distinct trunk groups.</summary>
+    [Fact]
+    public void AssignHighway_DifferentConnectorType_DistinctGroups()
+    {
+        // Arrange: two outgoing ports, same corridor/side, but different connector types
+        var box = new Rect(0, 0, 100, 100);
+        var requests = new[]
+        {
+            new HighwayPortRequest(box, new Point2D(500, 10), "flow", CorridorId: 3, IsOutgoing: true),
+            new HighwayPortRequest(box, new Point2D(500, 90), "binding", CorridorId: 3, IsOutgoing: true),
+        };
+
+        // Act
+        var placements = PortAssigner.AssignHighway(requests);
+
+        // Assert: each port forms its own trunk group
+        Assert.NotEqual(placements[0].TrunkGroupId, placements[1].TrunkGroupId);
+    }
+
+    /// <summary>A port with corridor id -1 stays independent (trunk group -1).</summary>
+    [Fact]
+    public void AssignHighway_NoCorridor_StaysIndependent()
+    {
+        var box = new Rect(0, 0, 100, 100);
+        var requests = new[] { new HighwayPortRequest(box, new Point2D(500, 50), "flow", CorridorId: -1, IsOutgoing: true) };
+
+        var placements = PortAssigner.AssignHighway(requests);
+
+        Assert.Equal(-1, placements[0].TrunkGroupId);
+    }
 }

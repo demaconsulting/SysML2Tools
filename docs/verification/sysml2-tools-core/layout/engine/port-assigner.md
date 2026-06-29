@@ -29,3 +29,6 @@ configuration are required beyond a standard .NET SDK installation.
 | `Assign_Port_CentreLiesOnBoxBoundary` | Port centre sits on the assigned side's edge, within the box extent |
 | `Assign_MultiplePortsSameSide_AreEvenlyDistributed` | Same-side ports occupy distinct, evenly spaced slots |
 | `Assign_Empty_ReturnsEmpty` | An empty request list yields no placements |
+| `AssignHighway_SameKey_ShareTrunkGroup` | Matching corridor ports merge to a shared trunk group |
+| `AssignHighway_DifferentConnectorType_DistinctGroups` | Differing connector type yields distinct groups |
+| `AssignHighway_NoCorridor_StaysIndependent` | Corridor id -1 stays independent (group -1) |

@@ -27,13 +27,23 @@ internal readonly record struct CompressedPosition(double X, double Y);
 internal sealed record CompressResult(IReadOnlyList<CompressedPosition> Positions, bool Feasible);
 
 /// <summary>
+/// A corridor floor that must remain clear between adjacent block clusters: boxes on either side of
+/// the corridor are pushed apart until the gap is at least <paramref name="MinWidth"/>.
+/// </summary>
+/// <param name="IsHorizontal">True for a horizontal corridor (a gap between rows), false for vertical.</param>
+/// <param name="Position">Centre of the corridor on its perpendicular axis, in logical pixels.</param>
+/// <param name="MinWidth">Minimum clear width the corridor must keep, in logical pixels.</param>
+internal readonly record struct CorridorConstraint(bool IsHorizontal, double Position, double MinWidth);
+
+/// <summary>
 /// Removes overlaps between placed boxes by separating each colliding pair to exactly the requested
 /// minimum gap, leaving already-clear pairs untouched. Box positions move monotonically apart along
 /// the axis of least penetration; the label-inclusive minimum extents reserve clearance for labels.
 /// </summary>
 /// <remarks>
-/// The optional corridor argument is accepted for forward compatibility with highway-constrained
-/// compression and is ignored in this phase. The pass is deterministic and order-stable.
+/// When corridor constraints are supplied, the pass first widens each corridor gap to its reserved
+/// width (so highway trunks fit) before separating residual overlaps; when no corridors are supplied
+/// the behaviour is unchanged. The pass is deterministic and order-stable.
 /// </remarks>
 internal static class GravityCompressor
 {
@@ -46,16 +56,15 @@ internal static class GravityCompressor
     /// <param name="boxes">Boxes to compress, in caller order.</param>
     /// <param name="minGap">Minimum clearance to keep between any two boxes.</param>
     /// <param name="gridUnit">Grid unit the resulting positions snap to (ignored when not positive).</param>
-    /// <param name="corridor">Reserved corridor constraints; ignored in this phase.</param>
+    /// <param name="corridors">Optional corridor floors; each gap is widened to its reserved width before separation.</param>
     /// <returns>A <see cref="CompressResult"/> with one position per box and a feasibility flag.</returns>
     public static CompressResult Compress(
         IReadOnlyList<CompressBox> boxes,
         double minGap,
         double gridUnit,
-        IReadOnlyList<object>? corridor = null)
+        IReadOnlyList<CorridorConstraint>? corridors = null)
     {
         ArgumentNullException.ThrowIfNull(boxes);
-        _ = corridor; // Reserved for highway-constrained compression (phase 14b).
 
         var n = boxes.Count;
         if (n == 0)
@@ -80,6 +89,12 @@ internal static class GravityCompressor
             py[i] = boxes[i].Y + (boxes[i].Height / 2.0);
         }
 
+        // Open each corridor to its reserved width before pairwise separation, so highway trunks fit.
+        if (corridors is { Count: > 0 })
+        {
+            EnsureCorridors(corridors, boxes, px, py, halfW, halfH);
+        }
+
         var feasible = SeparatePairs(n, px, py, halfW, halfH, minGap);
 
         var positions = new CompressedPosition[n];
@@ -91,6 +106,67 @@ internal static class GravityCompressor
         }
 
         return new CompressResult(positions, feasible);
+    }
+
+    /// <summary>
+    /// Widens each corridor gap to its reserved width by pushing the boxes on either side of the
+    /// corridor outward symmetrically. A horizontal corridor pushes along Y, a vertical along X.
+    /// </summary>
+    private static void EnsureCorridors(
+        IReadOnlyList<CorridorConstraint> corridors,
+        IReadOnlyList<CompressBox> boxes,
+        double[] px,
+        double[] py,
+        double[] halfW,
+        double[] halfH)
+    {
+        var n = boxes.Count;
+        foreach (var corridor in corridors)
+        {
+            // Centres on the corridor's perpendicular axis and their half-extents toward the corridor.
+            var centres = corridor.IsHorizontal ? py : px;
+            var halves = corridor.IsHorizontal ? halfH : halfW;
+
+            // Each box's nearest edge to the corridor centre defines the gap to be widened.
+            var lowEdge = double.NegativeInfinity;
+            var highEdge = double.PositiveInfinity;
+            for (var i = 0; i < n; i++)
+            {
+                if (centres[i] <= corridor.Position)
+                {
+                    lowEdge = Math.Max(lowEdge, centres[i] + halves[i]);
+                }
+                else
+                {
+                    highEdge = Math.Min(highEdge, centres[i] - halves[i]);
+                }
+            }
+
+            if (double.IsInfinity(lowEdge) || double.IsInfinity(highEdge))
+            {
+                continue;
+            }
+
+            // If the existing gap is already wide enough, leave the boxes untouched.
+            var deficit = corridor.MinWidth - (highEdge - lowEdge);
+            if (deficit <= 0.0)
+            {
+                continue;
+            }
+
+            var shift = deficit / 2.0;
+            for (var i = 0; i < n; i++)
+            {
+                if (centres[i] <= corridor.Position)
+                {
+                    centres[i] -= shift;
+                }
+                else
+                {
+                    centres[i] += shift;
+                }
+            }
+        }
     }
 
     /// <summary>Iteratively pushes apart overlapping boxes along the least-penetration axis.</summary>

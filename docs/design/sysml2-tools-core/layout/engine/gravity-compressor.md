@@ -11,21 +11,23 @@ labels. It tightens an oversized placement to a feasible, readable footprint bef
 
 `GravityCompressor` is a static class with no instance state. Inputs are a list of `CompressBox`
 records (position, drawn size, and label-inclusive minimum extent), a `minGap`, a `gridUnit`, and an
-optional corridor argument reserved for highway-constrained compression. The result is a
+optional list of `CorridorConstraint` records carrying highway floor widths. The result is a
 `CompressResult` record carrying the `Positions` (one `CompressedPosition` per box) and a `Feasible`
 flag.
 
 ##### Key Methods
 
-###### `Compress(boxes, minGap, gridUnit, corridor)`
+###### `Compress(boxes, minGap, gridUnit, corridors)`
 
 1. **Degenerate cases.** An empty list is feasible with no positions; a negative `minGap` is
    infeasible.
-2. **Separation.** Centres are pushed apart pairwise until every pair clears `minGap`, resolving
+2. **Corridors.** When constraints are supplied, each corridor gap is first widened to its minimum
+   width by pushing the adjacent box clusters apart; with no corridors the pass is unchanged.
+3. **Separation.** Centres are pushed apart pairwise until every pair clears `minGap`, resolving
    along the least-penetration axis. Already-clear pairs are not moved.
-3. **Snap.** Resulting positions snap to the grid unit when one is supplied.
-4. **Feasibility.** If overlaps remain after a bounded number of passes the result is flagged
-   infeasible. The corridor argument is accepted but ignored in this phase.
+4. **Snap.** Resulting positions snap to the grid unit when one is supplied.
+5. **Feasibility.** If overlaps remain after a bounded number of passes the result is flagged
+   infeasible.
 
 ##### Error Handling
 

@@ -47,3 +47,14 @@ sections:
           shift boxes.
         tests:
           - Compress_SameInput_IsDeterministic
+
+      - id: SysML2Tools-Core-Layout-Engine-GravityCompressor-Corridors
+        title: >-
+          When corridor constraints are supplied, GravityCompressor shall widen each corridor gap to
+          at least its minimum width, and shall leave behaviour unchanged when none are supplied.
+        justification: |
+          Highway trunks need a reserved gap between block clusters; the compressor must open that gap
+          while keeping the original separation behaviour for callers that pass no corridors.
+        tests:
+          - Compress_CorridorConstraint_GapExpandsToMinWidth
+          - Compress_NoCorridor_ExistingBehaviourUnchanged

@@ -34,6 +34,15 @@ Computes the placements. The algorithm is:
 4. **Coordinate computation.** Each slot fraction is mapped to an absolute point on the chosen side
    of the box rectangle.
 
+###### `AssignHighway(requests)`
+
+Computes highway-aware placements: each `HighwayPortRequest` carries a connector type, a committed
+corridor id, and a direction. Requests sharing the same `(side, isOutgoing, corridorId, connectorType)`
+key (with corridor id ≠ -1) merge onto a single trunk point on that side and share a positive
+`TrunkGroupId`, so wires bound for the same corridor leave the box as one bundle. Requests with
+corridor id -1 or a differing key stay independent with group id -1. The original `Assign` is retained
+for non-highway callers.
+
 ##### Error Handling
 
 A null `requests` argument throws `ArgumentNullException`. An empty request list returns an empty

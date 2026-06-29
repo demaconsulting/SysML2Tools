@@ -496,6 +496,20 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/GridQuantizer.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/GridQuantizerTests.cs"
 
+  - id: SysML2Tools-Core-Layout-Engine-HighwayAssigner
+    title: Review that DemaConsulting.SysML2Tools Layout Engine HighwayAssigner Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/highway-assigner.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/highway-assigner.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/highway-assigner.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/HighwayAssigner.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/HighwayAssignerTests.cs"
+
   # === Layout Internal subsystem and view-strategy units ===
   - id: SysML2Tools-Core-Layout-Internal
     title: Review that DemaConsulting.SysML2Tools Layout Internal Subsystem is Consistent and Complete

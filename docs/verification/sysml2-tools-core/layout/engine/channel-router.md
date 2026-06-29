@@ -37,3 +37,4 @@ files, or configuration are required beyond a standard .NET SDK installation.
 | `RouteWithStatus_ObstacleBetween_RoutesAroundWithoutCrossing` | Routed around; not crossed |
 | `RouteWithStatus_CleanRoute_KeepsClearanceFromObstacles` | Segments respect clearance |
 | `RouteWithStatus_TargetEnclosedByObstacle_ReportsCrossed` | Enclosed target reports crossed |
+| `RouteWithStatus_HighwayBand_PrefersBandedDetour` | Route prefers a cheaper cost band |

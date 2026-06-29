@@ -95,4 +95,42 @@ public sealed class GravityCompressorTests
 
         Assert.Equal(a.Positions[1].X, b.Positions[1].X, 9);
     }
+
+    /// <summary>A corridor constraint expands the gap between row clusters to its minimum width.</summary>
+    [Fact]
+    public void Compress_CorridorConstraint_GapExpandsToMinWidth()
+    {
+        // Arrange: two rows of boxes close together with a horizontal corridor between them
+        var boxes = new[]
+        {
+            new CompressBox(0, 0, 100, 40, 100, 40),
+            new CompressBox(0, 60, 100, 40, 100, 40),
+        };
+        var corridors = new[] { new CorridorConstraint(IsHorizontal: true, Position: 50, MinWidth: 120) };
+
+        // Act
+        var result = GravityCompressor.Compress(boxes, minGap: 20, gridUnit: 0, corridors);
+
+        // Assert: the vertical gap between the two boxes opens to at least the corridor width
+        var gap = result.Positions[1].Y - (result.Positions[0].Y + 40);
+        Assert.True(gap >= 120 - 1e-6, $"corridor gap was {gap}");
+    }
+
+    /// <summary>Passing a null corridor list preserves the original separation behaviour.</summary>
+    [Fact]
+    public void Compress_NoCorridor_ExistingBehaviourUnchanged()
+    {
+        var boxes = new[]
+        {
+            new CompressBox(0, 0, 100, 40, 100, 40),
+            new CompressBox(50, 0, 100, 40, 100, 40),
+        };
+
+        var result = GravityCompressor.Compress(boxes, minGap: 20, gridUnit: 0, corridors: null);
+
+        Assert.True(result.Feasible);
+        var clearX = result.Positions[1].X + 100 <= result.Positions[0].X || result.Positions[0].X + 100 <= result.Positions[1].X;
+        var clearY = result.Positions[1].Y + 40 <= result.Positions[0].Y || result.Positions[0].Y + 40 <= result.Positions[1].Y;
+        Assert.True(clearX || clearY, "boxes still overlap");
+    }
 }

@@ -21,6 +21,27 @@ internal readonly record struct PortRequest(Rect Box, Point2D Toward);
 internal readonly record struct PortPlacement(double CentreX, double CentreY, PortSide Side);
 
 /// <summary>
+/// A highway-aware port request: a connection that should be aligned to a committed corridor instead
+/// of placed independently, so wires sharing a corridor leave a box as one trunk.
+/// </summary>
+/// <param name="Box">The bounding rectangle of the box that owns the port.</param>
+/// <param name="Toward">The point the port's connection heads toward; selects the box side.</param>
+/// <param name="ConnectorType">Connector category; only ports of the same type bundle together.</param>
+/// <param name="CorridorId">Committed corridor id; -1 means the port joins no corridor and stays independent.</param>
+/// <param name="IsOutgoing">True for source-side fan-out, false for destination-side fan-in.</param>
+internal readonly record struct HighwayPortRequest(Rect Box, Point2D Toward, string ConnectorType, int CorridorId, bool IsOutgoing);
+
+/// <summary>
+/// A highway-aware port placement: absolute centre and side, plus a trunk group shared by ports that
+/// merged into a common corridor-facing point. A group id of -1 marks an independent port.
+/// </summary>
+/// <param name="CentreX">Absolute X of the port centre in logical pixels.</param>
+/// <param name="CentreY">Absolute Y of the port centre in logical pixels.</param>
+/// <param name="Side">The box side the port is attached to.</param>
+/// <param name="TrunkGroupId">Shared trunk id for merged ports; -1 when the port stands alone.</param>
+internal readonly record struct HighwayPortPlacement(double CentreX, double CentreY, PortSide Side, int TrunkGroupId);
+
+/// <summary>
 /// Assigns ports to box sides and distributes multiple ports evenly along each side.
 /// </summary>
 /// <remarks>
@@ -70,7 +91,85 @@ internal static class PortAssigner
         return placements;
     }
 
-    /// <summary>Chooses the box side whose outward normal best points toward the target.</summary>
+    /// <summary>
+    /// Computes highway-aware placements: ports that share a box face, direction, committed corridor,
+    /// and connector type collapse into a single trunk point so wires bound for the same corridor leave
+    /// the box as one bundle; all other ports stay independent.
+    /// </summary>
+    /// <remarks>
+    /// Merging the corridor-facing stubs is what makes a highway look like a trunk: rather than N
+    /// parallel slots, the merged ports share one centre and a positive <see cref="HighwayPortPlacement.TrunkGroupId"/>,
+    /// and the downstream comb fan-out separates them into individual lanes. Ports with corridor id -1
+    /// receive group -1 and an independently distributed slot.
+    /// </remarks>
+    /// <param name="requests">The highway port requests; all should reference boxes in the same diagram.</param>
+    /// <returns>One <see cref="HighwayPortPlacement"/> per request, in input order.</returns>
+    public static IReadOnlyList<HighwayPortPlacement> AssignHighway(IReadOnlyList<HighwayPortRequest> requests)
+    {
+        ArgumentNullException.ThrowIfNull(requests);
+
+        if (requests.Count == 0)
+        {
+            return [];
+        }
+
+        var placements = new HighwayPortPlacement[requests.Count];
+
+        // Choose a side per request and group merge candidates by (side, outgoing, corridor, type).
+        var sides = new PortSide[requests.Count];
+        var groups = new Dictionary<(PortSide, bool, int, string), List<int>>();
+        for (var i = 0; i < requests.Count; i++)
+        {
+            var r = requests[i];
+            sides[i] = ChooseSide(r.Box, r.Toward);
+            if (r.CorridorId == -1)
+            {
+                continue;
+            }
+
+            var key = (sides[i], r.IsOutgoing, r.CorridorId, r.ConnectorType);
+            if (!groups.TryGetValue(key, out var list))
+            {
+                list = [];
+                groups[key] = list;
+            }
+
+            list.Add(i);
+        }
+
+        // Assign a stable trunk group id per merged corridor group; collapse each to a shared midpoint.
+        var nextTrunk = 0;
+        foreach (var (_, indices) in groups.OrderBy(g => g.Value[0]))
+        {
+            var trunk = nextTrunk++;
+            var (x, y) = MidpointOnSide(requests[indices[0]].Box, sides[indices[0]]);
+            foreach (var idx in indices)
+            {
+                placements[idx] = new HighwayPortPlacement(x, y, sides[idx], trunk);
+            }
+        }
+
+        // Independent ports (corridor id -1) sit at the midpoint of their chosen side, group -1.
+        for (var i = 0; i < requests.Count; i++)
+        {
+            if (requests[i].CorridorId == -1)
+            {
+                var (x, y) = MidpointOnSide(requests[i].Box, sides[i]);
+                placements[i] = new HighwayPortPlacement(x, y, sides[i], -1);
+            }
+        }
+
+        return placements;
+    }
+
+    /// <summary>Returns the centre point of the given box side.</summary>
+    private static (double X, double Y) MidpointOnSide(Rect box, PortSide side) => side switch
+    {
+        PortSide.Top => (box.X + (box.Width / 2.0), box.Y),
+        PortSide.Bottom => (box.X + (box.Width / 2.0), box.Y + box.Height),
+        PortSide.Left => (box.X, box.Y + (box.Height / 2.0)),
+        _ => (box.X + box.Width, box.Y + (box.Height / 2.0)),
+    };
     private static PortSide ChooseSide(Rect box, Point2D toward)
     {
         var cx = box.X + (box.Width / 2.0);

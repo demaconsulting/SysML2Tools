@@ -48,3 +48,16 @@ sections:
           failing.
         tests:
           - Assign_Empty_ReturnsEmpty
+
+      - id: SysML2Tools-Core-Layout-Engine-PortAssigner-HighwayTrunk
+        title: >-
+          When highway requests share a side, direction, corridor, and connector type, PortAssigner
+          shall merge them onto a shared trunk point with a common trunk group id, and shall keep
+          requests with corridor id -1 or differing keys independent.
+        justification: |
+          Bundled wires that share a corridor must leave a box as one trunk so the diagram shows a
+          highway, while unrelated ports must stay separate to avoid false bundling.
+        tests:
+          - AssignHighway_SameKey_ShareTrunkGroup
+          - AssignHighway_DifferentConnectorType_DistinctGroups
+          - AssignHighway_NoCorridor_StaysIndependent
