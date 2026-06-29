@@ -468,19 +468,19 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/ConnectivityAnalyzer.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/ConnectivityAnalyzerTests.cs"
 
-  - id: SysML2Tools-Core-Layout-Engine-ConnectedPairSpacer
-    title: Review that DemaConsulting.SysML2Tools Layout Engine ConnectedPairSpacer Implementation is Correct
+  - id: SysML2Tools-Core-Layout-Engine-LayeredPlacer
+    title: Review that DemaConsulting.SysML2Tools Layout Engine LayeredPlacer Implementation is Correct
     context:
       - docs/design/sysml2-tools-core.md
       - docs/reqstream/sysml2-tools-core.yaml
       - docs/design/sysml2-tools-core/layout.md
       - docs/design/sysml2-tools-core/layout/engine.md
     paths:
-      - "docs/reqstream/sysml2-tools-core/layout/engine/connected-pair-spacer.yaml"
-      - "docs/design/sysml2-tools-core/layout/engine/connected-pair-spacer.md"
-      - "docs/verification/sysml2-tools-core/layout/engine/connected-pair-spacer.md"
-      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/ConnectedPairSpacer.cs"
-      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/ConnectedPairSpacerTests.cs"
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered-placer.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered-placer.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered-placer.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/LayeredPlacer.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/LayeredPlacerTests.cs"
 
   - id: SysML2Tools-Core-Layout-Engine-GravityCompressor
     title: Review that DemaConsulting.SysML2Tools Layout Engine GravityCompressor Implementation is Correct

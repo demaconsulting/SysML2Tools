@@ -749,7 +749,7 @@ InterconnectionView): use `PortAssigner.Assign()` + `ChannelRouter.Route()` as b
 ### Files Changed
 
 | File | Change |
-|------|--------|
+| ------ | -------- |
 | `Layout/Engine/LayeredPlacer.cs` | **NEW** — column assignment + corridor sizing |
 | `Layout/Internal/InterconnectionViewLayoutStrategy.cs` | **REWRITE** placement + routing sections |
 | `Layout/Engine/ConnectedPairSpacer.cs` | **DELETED** — superseded by slot routing |

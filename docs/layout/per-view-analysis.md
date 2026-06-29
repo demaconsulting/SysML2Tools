@@ -88,10 +88,10 @@ routing steps are coupled in ELK-style algorithms but were decoupled in the prio
 **Common issues resolved by Phase 15**:
 
 | Issue | Root Cause | Resolution |
-|-------|-----------|------------|
-| Shared vertical segments (C8) | A\* routes independently, no slot reservation | Slot assignment before coordinates committed |
-| Port clustering on shared face (C6) | PortAssigner used face midpoint | Even redistribution of port Y after slot assignment |
-| Excessive whitespace | Force-directed over-separation + imperfect compression | Column layout + measured corridor sizing |
+| ------- | ----------- | ------------ |
+| Shared vertical segments (C8) | A\* routes independently, no slot reservation | Slot assignment before routing |
+| Port clustering on shared face (C6) | PortAssigner used face midpoint | Port Y redistribution after slot assignment |
+| Excessive whitespace | Force-directed over-separation + imperfect compression | Column layout + corridor sizing |
 | Invisible connectors on touching edges | Zero-gap after GridQuantizer | Corridor always ≥ `minCorridorWidth = 60px` |
 
 ---

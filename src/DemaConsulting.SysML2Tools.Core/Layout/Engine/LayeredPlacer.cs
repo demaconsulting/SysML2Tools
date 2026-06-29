@@ -254,7 +254,7 @@ internal static class LayeredPlacer
     /// </summary>
     private static void BarycentricOrder(List<List<int>> layerGroups, List<int>[] adjacency)
     {
-        // Initialise rank table: position of each node within its layer group
+        // Initialize rank table: position of each node within its layer group
         var rankInLayer = new int[adjacency.Length];
         for (var l = 0; l < layerGroups.Count; l++)
         {

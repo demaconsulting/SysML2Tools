@@ -26,8 +26,8 @@ configuration are required beyond a standard .NET SDK installation.
 
 | Test | Assertion |
 | --- | --- |
-| `LayeredPlacer_Place_LinearChain_ThreeLayers` | Highest-degree node (B) is the seed; A and C land in a different layer from B; exactly two distinct layer values |
-| `LayeredPlacer_Place_StarTopology_CenterInLayer0_SpokesInLayer1` | Centre (degree 4) in layer 0; all four spokes in layer 1 |
+| `LayeredPlacer_Place_LinearChain_ThreeLayers` | B is seed; A and C in different layer from B; two distinct layers |
+| `LayeredPlacer_Place_StarTopology_CenterInLayer0_SpokesInLayer1` | Center (deg 4) in layer 0; all spokes in layer 1 |
 | `LayeredPlacer_Place_NoEdges_AllInLayer0` | All three isolated nodes assigned layer 0; single X column |
-| `LayeredPlacer_Place_DenseCorridorEdges_CorridorWidthScales` | Wide (8-edge hub-and-spokes) corridor column span exceeds narrow (1-edge) column span by more than 50 px |
+| `LayeredPlacer_Place_DenseCorridorEdges_CorridorWidthScales` | Dense corridor wider than sparse corridor by >50 px |
 | `LayeredPlacer_Place_AllRects_NonOverlapping` | No two of the six placed rectangles overlap |

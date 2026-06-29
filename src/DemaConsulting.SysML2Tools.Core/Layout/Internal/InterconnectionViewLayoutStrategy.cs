@@ -291,7 +291,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             }
             else
             {
-                // Normalise so SrcNode is the lower-layer endpoint (uses right face)
+                // Normalize so SrcNode is the lower-layer endpoint (uses right face)
                 var (src, tgt) = nodeLayers[a] < nodeLayers[b] ? (a, b) : (b, a);
                 crossLayerPairs.Add((c, src, tgt));
             }
