@@ -476,11 +476,11 @@ reviews:
       - docs/design/sysml2-tools-core/layout.md
       - docs/design/sysml2-tools-core/layout/engine.md
     paths:
-      - "docs/reqstream/sysml2-tools-core/layout/engine/layered-placer.yaml"
-      - "docs/design/sysml2-tools-core/layout/engine/layered-placer.md"
-      - "docs/verification/sysml2-tools-core/layout/engine/layered-placer.md"
-      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/LayeredPlacer.cs"
-      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/LayeredPlacerTests.cs"
+      - "docs/reqstream/sysml2-tools-core/layout/engine/interconnection-layout-engine.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/interconnection-layout-engine.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/interconnection-layout-engine.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/InterconnectionLayoutEngine.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/InterconnectionLayoutEngineTests.cs"
 
   - id: SysML2Tools-Core-Layout-Engine-GravityCompressor
     title: Review that DemaConsulting.SysML2Tools Layout Engine GravityCompressor Implementation is Correct
