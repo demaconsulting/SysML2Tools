@@ -3,6 +3,7 @@
 // </copyright>
 
 using DemaConsulting.SysML2Tools.Layout.Engine;
+using DemaConsulting.SysML2Tools.Layout.Engine.Layered;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -12,11 +13,14 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 
 /// <summary>
 /// Layout strategy for State Transition View diagrams. Renders state usages as rounded boxes placed
-/// by the force-directed engine, an initial pseudo-state marker entering the first declared state,
-/// and transitions as orthogonal arrows annotated with their guard conditions.
+/// top-to-bottom by the layered layout pipeline, an initial pseudo-state marker entering the first
+/// declared state, and transitions as orthogonal arrows annotated with their guard conditions.
 /// </summary>
 /// <remarks>
-/// Transitions are routed with <see cref="ChannelRouter"/> (orthogonal) rather than Bezier curves;
+/// States are placed by <see cref="LayeredLayoutPipeline"/> with <see cref="LayoutDirection.Down"/> so
+/// the state machine reads top-to-bottom: a transition leaves its source on the SOUTH face and enters
+/// its target on the NORTH face, and each transition follows the orthogonal polyline the pipeline
+/// routed for it. The cyclic transition graph is made acyclic by the pipeline's cycle-breaking stage;
 /// self-transitions are drawn as a small loop above the state. The initial state is taken to be the
 /// first state declared in the owning definition.
 /// </remarks>
@@ -28,14 +32,17 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     /// <summary>Approximate width-per-character factor relative to font size.</summary>
     private const double CharWidthFactor = 0.62;
 
-    /// <summary>Nominal spacing between adjacent state centres in the force layout.</summary>
-    private const double StateSpacing = 240.0;
-
-    /// <summary>Clearance kept between routed transitions and state boxes.</summary>
-    private const double TransitionClearance = 12.0;
-
     /// <summary>Diameter of the initial pseudo-state marker.</summary>
     private const double InitialMarkerSize = 18.0;
+
+    /// <summary>Vertical gap between the initial pseudo-state marker and the first state box.</summary>
+    private const double InitialMarkerGap = 10.0;
+
+    /// <summary>
+    /// Lateral offset applied to successive transitions that share a routed corridor (parallel guards
+    /// or a forward/back-edge pair), so their anchor points and labels do not coincide.
+    /// </summary>
+    private const double AnchorSpread = 12.0;
 
     /// <summary>A state with its computed box size.</summary>
     private sealed record StateItem(string Name, double Width, double Height);
@@ -64,29 +71,50 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         }
 
         var transitions = ResolveTransitions(root, index);
-        var flowEdges = transitions.Where(t => t.Source != t.Target).Select(t => new ForceEdge(t.Source, t.Target)).ToList();
 
-        // Directed-flow hierarchy: layer hints bias states into a near-hard top-to-bottom reading
-        // direction (kHier = 1.0) so transitions mostly flow downward.
-        var connectivity = ConnectivityAnalyzer.Analyze(
-            [.. states.Select(s => new ConnectivityNode(s.Name))],
-            [.. flowEdges.Select(e => new ConnectivityEdge(e.A, e.B))]);
+        // Place state boxes with the layered pipeline flowing top-to-bottom (DOWN). Non-self
+        // transitions become directed edges; the pipeline's cycle-breaking stage makes the (cyclic)
+        // state graph acyclic, so it tolerates back edges and loops.
+        var layerNodes = states.Select(s => new LayerNode(s.Width, s.Height)).ToList();
+        var flowTransitions = transitions.Where(t => t.Source != t.Target).ToList();
+        var layerEdges = flowTransitions.Select(t => new LayerEdge(t.Source, t.Target)).ToList();
 
-        // Place state boxes with the force-directed engine using transitions as springs.
+        var graph = new LayeredGraph(layerNodes, layerEdges, LayoutDirection.Down)
+        {
+            // Reserve a clean straight approach for the open-chevron target marker that every
+            // transition carries, so the pipeline pushes reversed (back) edges far enough out that the
+            // renderer's rounded corner never intrudes into the decoration. The approach equals the
+            // marker's along-line length plus one corner radius (consumed by the rounded corner) plus
+            // a safety margin.
+            BackEdgeEntryApproach = NotationMetrics.AlongLineLength(EndMarkerStyle.OpenChevron)
+                + theme.LineCornerRadius + theme.CleanLegMargin,
+        };
+        var pipeline = LayeredLayoutPipeline.Builder()
+            .Direction(LayoutDirection.Down)
+            .Hierarchy(HierarchyHandling.Flat)
+            .AddDefaultStages()
+            .Build();
+        pipeline.Run(graph);
+
+        // Compute the top-left of the content bounding box over the real state nodes and the screen
+        // offset that normalizes it into the canvas (leaving room at the top for the initial marker).
         var margin = theme.LabelPadding * 4.0;
-        var force = ForceDirectedEngine.Place(
-            [.. states.Select(s => new ForceNode(s.Width, s.Height))],
-            flowEdges,
-            spacing: StateSpacing,
-            padding: margin + InitialMarkerSize,
-            kHier: 1.0,
-            layerHints: connectivity.LayerHints);
+        var minX = double.PositiveInfinity;
+        var minY = double.PositiveInfinity;
+        for (var i = 0; i < states.Count; i++)
+        {
+            minX = Math.Min(minX, graph.AugX[i]);
+            minY = Math.Min(minY, graph.AugY[i]);
+        }
+
+        var topReserve = margin + InitialMarkerSize + InitialMarkerGap;
+        var offsetX = margin - minX;
+        var offsetY = topReserve - minY;
 
         var stateRects = new Rect[states.Count];
         for (var i = 0; i < states.Count; i++)
         {
-            var r = force.Rects[i];
-            stateRects[i] = new Rect(r.X, r.Y, r.Width, r.Height);
+            stateRects[i] = new Rect(graph.AugX[i] + offsetX, graph.AugY[i] + offsetY, states[i].Width, states[i].Height);
         }
 
         var nodes = new List<LayoutNode>();
@@ -100,25 +128,95 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         // Initial pseudo-state entering the first declared state.
         AddInitialMarker(stateRects[0], nodes);
 
-        // Highway routing: bundle parallel transitions onto shared corridors with cost bands so the
-        // detailed router prefers them, reducing wire overlap. The force/layer placement is preserved
-        // (no compression pass) so the established state arrangement and back-edge clearance are kept.
-        var highwayBoxes = stateRects.Select((r, i) => new HighwayBox(r.X, r.Y, r.Width, r.Height, i.ToString())).ToList();
-        var highwayEdges = transitions.Where(t => t.Source != t.Target).Select(t => new HighwayEdge(t.Source, t.Target, "transition")).ToList();
-        var highway = HighwayAssigner.Assign(highwayBoxes, highwayEdges, theme.LabelPadding * 2.0, TransitionClearance, TransitionClearance * 2.0);
-        var costBands = highway.Corridors
-            .Where(c => c.IsHighway)
-            .Select(c => new CostBand(c.IsHorizontal, c.Position - (c.ReservedWidth / 2.0), c.Position + (c.ReservedWidth / 2.0), 0.6))
-            .ToList();
+        // Transition edges (with guard labels), mapped from the pipeline's routed polylines.
+        var crossings = AddTransitions(transitions, graph, stateRects, offsetX, offsetY, nodes);
 
-        // Transition edges with guard labels.
-        var crossings = AddTransitions(transitions, stateRects, nodes, connectivity.LayerHints, costBands);
+        // Size the canvas to the actual rendered content: state boxes plus routed transition
+        // polylines (back edges can bulge beyond the box columns), the initial marker, and the
+        // guard labels. Guard labels are drawn centred on their segment midpoints, so most sit on
+        // interior vertical segments already inside the content extent and add nothing; only the
+        // part of a label that genuinely overhangs the polyline extent enlarges the canvas. We size
+        // to each label's true rendered right edge (computed with the same placer the renderers use)
+        // rather than adding the longest guard-label width wholesale.
+        var (contentMaxX, contentMaxY) = ContentExtent(nodes);
+        var labelMaxX = LabelRightExtent(nodes, theme);
 
+        var width = Math.Max(contentMaxX, labelMaxX) + margin;
+        var height = contentMaxY + margin + theme.FontSizeTitle;
         var warnings = LayoutWarnings.ForCrossings(context.ViewName, crossings);
-        return new LayoutTree(force.Width, force.Height, nodes) { Warnings = warnings };
+        return new LayoutTree(width, height, nodes) { Warnings = warnings };
     }
 
-    /// <summary>Finds the definition with the most transitions to use as the diagram root.</summary>
+    /// <summary>Returns the maximum X and Y coordinate reached by any built layout node.</summary>
+    private static (double MaxX, double MaxY) ContentExtent(IReadOnlyList<LayoutNode> nodes)
+    {
+        var maxX = 0.0;
+        var maxY = 0.0;
+
+        foreach (var node in nodes)
+        {
+            switch (node)
+            {
+                case LayoutBox box:
+                    maxX = Math.Max(maxX, box.X + box.Width);
+                    maxY = Math.Max(maxY, box.Y + box.Height);
+                    break;
+                case LayoutLine line:
+                    foreach (var point in line.Waypoints)
+                    {
+                        maxX = Math.Max(maxX, point.X);
+                        maxY = Math.Max(maxY, point.Y);
+                    }
+
+                    break;
+                case LayoutBadge badge:
+                    maxX = Math.Max(maxX, badge.CentreX + (badge.Size / 2.0));
+                    maxY = Math.Max(maxY, badge.CentreY + (badge.Size / 2.0));
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        return (maxX, maxY);
+    }
+
+    /// <summary>Character-width factor used by <see cref="ConnectorLabelPlacer"/> to size labels.</summary>
+    private const double LabelCharWidthFactor = 0.6;
+
+    /// <summary>
+    /// Returns the maximum X reached by any rendered guard label. Labels are placed with the same
+    /// <see cref="ConnectorLabelPlacer"/> the SVG and PNG renderers use and drawn centred
+    /// (<c>text-anchor="middle"</c>) on their chosen segment midpoint, so a label's true right edge
+    /// is its centre X plus half its rendered text width. Most guard labels sit on interior vertical
+    /// segments and do not overhang the content, so this typically adds little or nothing.
+    /// </summary>
+    private static double LabelRightExtent(IReadOnlyList<LayoutNode> nodes, Theme theme)
+    {
+        var lines = nodes
+            .OfType<LayoutLine>()
+            .Where(line => line.MidpointLabel is not null)
+            .ToList();
+        if (lines.Count == 0)
+        {
+            return 0.0;
+        }
+
+        var positions = ConnectorLabelPlacer.Place(lines, theme.FontSizeBody);
+        var maxX = 0.0;
+        foreach (var line in lines)
+        {
+            if (!positions.TryGetValue(line, out var pos))
+            {
+                continue;
+            }
+
+            var halfTextWidth = line.MidpointLabel!.Length * theme.FontSizeBody * LabelCharWidthFactor / 2.0;
+            maxX = Math.Max(maxX, pos.X + halfTextWidth);
+        }
+
+        return maxX;
+    }
     private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace)
     {
         SysmlDefinitionNode? best = null;
@@ -244,111 +342,54 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     {
         // Place the marker above the first state, centred horizontally.
         var markerX = first.X + (first.Width / 2.0);
-        var markerY = first.Y - InitialMarkerSize - 10.0;
+        var markerY = first.Y - InitialMarkerSize - InitialMarkerGap;
 
         nodes.Add(new LayoutBadge(markerX, markerY, InitialMarkerSize, BadgeShape.FilledCircle, null));
 
         // Straight arrow from the marker down to the top of the first state.
         nodes.Add(new LayoutLine(
             Waypoints: [new Point2D(markerX, markerY + (InitialMarkerSize / 2.0)), new Point2D(markerX, first.Y)],
-            SourceArrowhead: ArrowheadStyle.None,
-            TargetArrowhead: ArrowheadStyle.Filled,
+            SourceEnd: EndMarkerStyle.None,
+            TargetEnd: EndMarkerStyle.FilledArrow,
             LineStyle: LineStyle.Solid,
             MidpointLabel: null));
     }
 
     /// <summary>
-    /// Adds transition edges (with guard labels) between state boxes, returning the number of edges
-    /// that could not be routed without crossing a state box.
+    /// Adds transition edges (with guard labels) between state boxes, mapping each transition to the
+    /// orthogonal polyline the layered pipeline routed for it, and returns the number of transitions
+    /// whose polyline crosses a non-endpoint state box.
     /// </summary>
     /// <remarks>
-    /// Each transition end attaches to the side of its box that faces the other state. When several
-    /// transitions share the same box side, their anchor points are distributed evenly along that
-    /// side (ordered to face their counterparts) instead of all stacking on the side midpoint, so an
-    /// incoming arrowhead never coincides with another transition's endpoint.
+    /// The pipeline's cycle-breaking stage drops self-loops, de-duplicates identical directed pairs,
+    /// and reverses back edges, so <see cref="LayeredGraph.Waypoints"/> is not 1:1 with the input
+    /// transitions. A lookup keyed by the routed <c>(source, target)</c> pair recovers each
+    /// transition's polyline; a transition whose routed edge was reversed reuses that polyline in
+    /// reverse so the open arrowhead lands on the true target. Successive transitions sharing one
+    /// routed corridor (parallel guards, or a forward/back-edge pair) are spread laterally so their
+    /// anchor points and labels do not coincide.
     /// </remarks>
     private static int AddTransitions(
         IReadOnlyList<TransitionItem> transitions,
+        LayeredGraph graph,
         Rect[] stateRects,
-        List<LayoutNode> nodes,
-        IReadOnlyList<int> layerHints,
-        IReadOnlyList<CostBand> costBands)
+        double offsetX,
+        double offsetY,
+        List<LayoutNode> nodes)
     {
-        var count = transitions.Count;
-        var srcSide = new PortSide[count];
-        var tgtSide = new PortSide[count];
-        var srcPoint = new Point2D[count];
-        var tgtPoint = new Point2D[count];
-
-        // Pass 1: determine the side each transition end attaches to.
-        for (var i = 0; i < count; i++)
+        // Build the routed (source, target) -> polyline lookup over the acyclic edge set.
+        var routed = new Dictionary<(int Source, int Target), IReadOnlyList<Point2D>>();
+        for (var k = 0; k < graph.Acyclic.Count; k++)
         {
-            var transition = transitions[i];
-            if (transition.Source == transition.Target)
-            {
-                continue;
-            }
-
-            srcSide[i] = SideToward(stateRects[transition.Source], Centre(stateRects[transition.Target]));
-            tgtSide[i] = SideToward(stateRects[transition.Target], Centre(stateRects[transition.Source]));
+            var edge = graph.Acyclic[k];
+            routed[(edge.Source, edge.Target)] = graph.Waypoints[k];
         }
 
-        // Pass 2: group endpoints by (state, side) and distribute them evenly along each side.
-        var groups = new Dictionary<(int State, PortSide Side), List<(int Trans, bool IsSource, double Order)>>();
-        for (var i = 0; i < count; i++)
-        {
-            var transition = transitions[i];
-            if (transition.Source == transition.Target)
-            {
-                continue;
-            }
-
-            AddEndpoint(groups, transition.Source, srcSide[i], i, isSource: true, OrderKey(srcSide[i], Centre(stateRects[transition.Target])));
-            AddEndpoint(groups, transition.Target, tgtSide[i], i, isSource: false, OrderKey(tgtSide[i], Centre(stateRects[transition.Source])));
-        }
-
-        foreach (var group in groups)
-        {
-            var ordered = group.Value.OrderBy(e => e.Order).ToList();
-
-            // Collapse runs of consecutive same-direction endpoints into shared anchor slots: this
-            // keeps inputs and outputs on separate points (so direction is never ambiguous) while
-            // reducing the number of distinct points on a busy edge. The crossing-minimizing order
-            // (by counterpart position) is preserved, so only adjacent same-direction edges merge.
-            var slots = new List<(bool IsSource, List<int> Trans)>();
-            foreach (var endpoint in ordered)
-            {
-                if (slots.Count == 0 || slots[^1].IsSource != endpoint.IsSource)
-                {
-                    slots.Add((endpoint.IsSource, []));
-                }
-
-                slots[^1].Trans.Add(endpoint.Trans);
-            }
-
-            for (var s = 0; s < slots.Count; s++)
-            {
-                var frac = (s + 1.0) / (slots.Count + 1.0);
-                var point = PointOnSide(stateRects[group.Key.State], group.Key.Side, frac);
-                foreach (var trans in slots[s].Trans)
-                {
-                    if (slots[s].IsSource)
-                    {
-                        srcPoint[trans] = point;
-                    }
-                    else
-                    {
-                        tgtPoint[trans] = point;
-                    }
-                }
-            }
-        }
-
-        // Pass 3: route each transition and build its line.
+        var corridorUse = new Dictionary<(int, int), int>();
         var crossings = 0;
-        for (var i = 0; i < count; i++)
+
+        foreach (var transition in transitions)
         {
-            var transition = transitions[i];
             var label = transition.Guard is { Length: > 0 } g ? $"[{g}]" : null;
 
             if (transition.Source == transition.Target)
@@ -357,30 +398,32 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            var obstacles = new List<Rect>();
-            for (var j = 0; j < stateRects.Length; j++)
-            {
-                if (j != transition.Source && j != transition.Target)
-                {
-                    obstacles.Add(stateRects[j]);
-                }
-            }
+            var routedPoints = ResolveTransitionPolyline(transition, routed)
+                ?? [Centre(stateRects[transition.Source]), Centre(stateRects[transition.Target])];
 
-            // Back edges (target sits in an earlier layer) detour around the flow with a wider
-            // clearance, since the orthogonal router has no arc support.
-            var isBackEdge = transition.Source < layerHints.Count && transition.Target < layerHints.Count &&
-                layerHints[transition.Source] > layerHints[transition.Target];
-            var clearance = isBackEdge ? TransitionClearance * 2.5 : TransitionClearance;
-            var route = ChannelRouter.RouteWithStatus(srcPoint[i], tgtPoint[i], obstacles, clearance, srcSide[i], tgtSide[i], costBands);
-            if (route.Crossed)
+            // Spread successive transitions that share the same (undirected) corridor laterally so
+            // their anchor points and guard labels do not overlap. The cross-axis for a DOWN layout
+            // is the screen X axis, so the lateral offset keeps the orthogonal segments axis-aligned.
+            var corridor = transition.Source < transition.Target
+                ? (transition.Source, transition.Target)
+                : (transition.Target, transition.Source);
+            var occurrence = corridorUse.GetValueOrDefault(corridor, 0);
+            corridorUse[corridor] = occurrence + 1;
+            var spread = occurrence * AnchorSpread;
+
+            var waypoints = routedPoints
+                .Select(p => new Point2D(p.X + offsetX + spread, p.Y + offsetY))
+                .ToList();
+
+            if (CrossesNonEndpointBox(waypoints, stateRects, transition.Source, transition.Target))
             {
                 crossings++;
             }
 
             nodes.Add(new LayoutLine(
-                Waypoints: route.Waypoints,
-                SourceArrowhead: ArrowheadStyle.None,
-                TargetArrowhead: ArrowheadStyle.Open,
+                Waypoints: waypoints,
+                SourceEnd: EndMarkerStyle.None,
+                TargetEnd: EndMarkerStyle.OpenChevron,
                 LineStyle: LineStyle.Solid,
                 MidpointLabel: label));
         }
@@ -388,23 +431,102 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         return crossings;
     }
 
-    /// <summary>Registers a transition endpoint against the (state, side) group it attaches to.</summary>
-    private static void AddEndpoint(
-        Dictionary<(int State, PortSide Side), List<(int Trans, bool IsSource, double Order)>> groups,
-        int state,
-        PortSide side,
-        int trans,
-        bool isSource,
-        double order)
+    /// <summary>
+    /// Returns the routed polyline for a non-self transition, reversing it when only the opposite
+    /// direction was routed (a reversed back edge), or null when neither direction was routed.
+    /// </summary>
+    private static IReadOnlyList<Point2D>? ResolveTransitionPolyline(
+        TransitionItem transition,
+        IReadOnlyDictionary<(int Source, int Target), IReadOnlyList<Point2D>> routed)
     {
-        var key = (state, side);
-        if (!groups.TryGetValue(key, out var list))
+        if (routed.TryGetValue((transition.Source, transition.Target), out var forward))
         {
-            list = [];
-            groups[key] = list;
+            return forward;
         }
 
-        list.Add((trans, isSource, order));
+        if (routed.TryGetValue((transition.Target, transition.Source), out var backward))
+        {
+            // The pipeline reversed this back edge; reverse the polyline so it runs source -> target
+            // with the open arrowhead at the true target.
+            return [.. backward.Reverse()];
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Returns whether any segment of the polyline passes through the interior of a state box other
+    /// than the transition's own source or target.
+    /// </summary>
+    private static bool CrossesNonEndpointBox(
+        IReadOnlyList<Point2D> waypoints,
+        Rect[] stateRects,
+        int source,
+        int target)
+    {
+        for (var j = 0; j < stateRects.Length; j++)
+        {
+            if (j == source || j == target)
+            {
+                continue;
+            }
+
+            for (var s = 0; s + 1 < waypoints.Count; s++)
+            {
+                if (SegmentIntersectsRect(waypoints[s], waypoints[s + 1], stateRects[j]))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns whether the segment from <paramref name="a"/> to <paramref name="b"/> intersects the
+    /// interior of <paramref name="rect"/>, using parametric slab clipping.
+    /// </summary>
+    private static bool SegmentIntersectsRect(Point2D a, Point2D b, Rect rect)
+    {
+        var dx = b.X - a.X;
+        var dy = b.Y - a.Y;
+        var lower = 0.0;
+        var upper = 1.0;
+
+        Span<double> p = [-dx, dx, -dy, dy];
+        Span<double> q =
+        [
+            a.X - rect.X,
+            rect.X + rect.Width - a.X,
+            a.Y - rect.Y,
+            rect.Y + rect.Height - a.Y,
+        ];
+
+        for (var i = 0; i < 4; i++)
+        {
+            if (Math.Abs(p[i]) < 1e-9)
+            {
+                if (q[i] < 0.0)
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            var r = q[i] / p[i];
+            if (p[i] < 0.0)
+            {
+                lower = Math.Max(lower, r);
+            }
+            else
+            {
+                upper = Math.Min(upper, r);
+            }
+        }
+
+        return lower < upper;
     }
 
     /// <summary>Builds a small self-transition loop above the state box.</summary>
@@ -425,48 +547,11 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
         return new LayoutLine(
             Waypoints: waypoints,
-            SourceArrowhead: ArrowheadStyle.None,
-            TargetArrowhead: ArrowheadStyle.Open,
+            SourceEnd: EndMarkerStyle.None,
+            TargetEnd: EndMarkerStyle.OpenChevron,
             LineStyle: LineStyle.Solid,
             MidpointLabel: label);
     }
-
-    /// <summary>
-    /// Returns the side of the box whose outward normal best points at the target.
-    /// </summary>
-    private static PortSide SideToward(Rect box, Point2D target)
-    {
-        var cx = box.X + (box.Width / 2.0);
-        var cy = box.Y + (box.Height / 2.0);
-        var dx = target.X - cx;
-        var dy = target.Y - cy;
-
-        if (Math.Abs(dx) >= Math.Abs(dy))
-        {
-            return dx >= 0 ? PortSide.Right : PortSide.Left;
-        }
-
-        return dy >= 0 ? PortSide.Bottom : PortSide.Top;
-    }
-
-    /// <summary>
-    /// Returns the point at fractional position <paramref name="frac"/> (0..1) along the given side
-    /// of the box.
-    /// </summary>
-    private static Point2D PointOnSide(Rect box, PortSide side, double frac) => side switch
-    {
-        PortSide.Top => new Point2D(box.X + (frac * box.Width), box.Y),
-        PortSide.Bottom => new Point2D(box.X + (frac * box.Width), box.Y + box.Height),
-        PortSide.Left => new Point2D(box.X, box.Y + (frac * box.Height)),
-        _ => new Point2D(box.X + box.Width, box.Y + (frac * box.Height)),
-    };
-
-    /// <summary>
-    /// Returns the ordering key used to lay endpoints out along a side so their connectors fan out
-    /// toward their counterparts without crossing: the counterpart coordinate along the side's axis.
-    /// </summary>
-    private static double OrderKey(PortSide side, Point2D counterpart) =>
-        side is PortSide.Top or PortSide.Bottom ? counterpart.X : counterpart.Y;
 
     /// <summary>Returns the centre point of a rectangle.</summary>
     private static Point2D Centre(Rect rect) =>

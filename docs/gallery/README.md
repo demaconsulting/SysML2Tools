@@ -47,8 +47,8 @@ SVG: [`svg/WorkstationInterconnectionView.svg`](svg/WorkstationInterconnectionVi
 
 ## 3. State Transition View — Elevator Controller
 
-Shows states placed by the force-directed engine, an initial pseudo-state, and
-guarded transitions with `[guard]` labels.
+Shows states placed top-to-bottom by the layered layout pipeline, an initial pseudo-state, and
+guarded transitions routed as orthogonal `[guard]`-labelled arrows.
 
 Model: [`models/03-elevator-state.sysml`](models/03-elevator-state.sysml) ·
 SVG: [`svg/ElevatorStateTransitionView.svg`](svg/ElevatorStateTransitionView.svg)

@@ -99,8 +99,8 @@ End shapes sit at the **owner/target** end as indicated; lines are solid unless 
 |---|---|---|---|---|
 | Specialization / subclassification | solid | hollow **triangle** | supertype | ✅ Done |
 | Redefinition (usage→usage) | solid | hollow triangle **+ ⊥ crossbar** near tip | redefined | ⬜ |
-| Composite feature membership (owned/nested) | solid | **filled diamond** | owner | ⬜ (`ArrowheadStyle.FilledDiamond` defined, unused) |
-| Reference feature membership (e.g. requirement `subject`) | solid | **hollow diamond** | owner | ⬜ (`ArrowheadStyle.Diamond` defined, unused) |
+| Composite feature membership (owned/nested) | solid | **filled diamond** | owner | ⬜ (`EndMarkerStyle.FilledDiamond` defined, unused) |
+| Reference feature membership (e.g. requirement `subject`) | solid | **hollow diamond** | owner | ⬜ (`EndMarkerStyle.HollowDiamond` defined, unused) |
 | Connection / connector (interconnection) | solid | none (ends may show multiplicity) | — | ✅ Done (plain line) |
 | Succession (action flow) | **dashed** | **open V** (stroke-only) | target | ⚠️ Solid + filled today |
 | State transition | solid | **open V** (verify vs training PDF) | target | ⚠️ Filled today |
@@ -146,7 +146,7 @@ documentation ship together in the same PR.
 
 ### 4.2 Multimodal LLM visual inspection
 
-Coordinate-arithmetic tests cannot see "the arrowhead is filled instead of open" or "the
+Coordinate-arithmetic tests cannot see "the end marker is filled instead of open" or "the
 connector grazes a box." Every rendering phase therefore includes a visual gate performed by the
 implementing agent:
 
@@ -213,7 +213,7 @@ Rules:
   a visual/geometry bug on the cheaper model.
 - The **change-review gate always runs on the strong model** — it is the safety net for cheaper-
   driver output, and keeps PR review comments minimal.
-- **Notation judgment calls where the OMG sources conflict** (e.g. open-V vs filled arrowheads)
+- **Notation judgment calls where the OMG sources conflict** (e.g. open-V vs filled end markers)
   are surfaced to the maintainer for a decision — not resolved autonomously by any model.
 
 ---
@@ -227,15 +227,15 @@ additionally satisfy the §4 Phase Gate (automated + multimodal + docs + process
 
 Bring routed connectors into line with §3.3 — the highest-value, broadest-impact change.
 
-- Wire the already-defined arrowhead markers to relationships: **filled/hollow diamonds** for
+- Wire the already-defined end markers to relationships: **filled/hollow diamonds** for
   composite/reference membership; **redefinition** crossbar variant.
-- Switch succession/transition/message arrowheads to the spec style (**open V**, stroke-only)
+- Switch succession/transition/message end markers to the spec style (**open V**, stroke-only)
   and make **successions dashed** — pending confirmation against the training PDF; keep a theme
   switch if the training material differs from `clause-8.2.3`.
-- Add `LineStyle.Dashed` usage where required; ensure arrowheads render correctly at clearance
+- Add `LineStyle.Dashed` usage where required; ensure end markers render correctly at clearance
   stubs.
 
-**Scope:** `LayoutLine` arrowhead/line-style assignments in the view strategies; renderer
+**Scope:** `LayoutLine` end-marker/line-style assignments in the view strategies; renderer
 marker defs (already present). No new engines.
 **Visual gate:** state/action/sequence/general galleries match §3.3 end shapes; membership
 diamonds appear where membership is shown.
@@ -532,6 +532,7 @@ arithmetic in their strategies (no engine).
 | `LayoutActivation` (sequence bars) | ✅ Defined — populated in Phase 16 |
 | `LayoutBand` (swim-lanes) | ✅ Defined — populated in Phase 16 |
 
-Arrowhead vocabulary (`ArrowheadStyle`): `None`, `Open`, `Filled`, `Diamond`, `FilledDiamond`,
-`Circle`, `Bar` — all marker defs exist in both renderers; `Diamond`/`FilledDiamond` and the
-open-V style are wired to relationships in Phases 13–14.
+End-marker vocabulary (`EndMarkerStyle`): `None`, `OpenChevron`, `HollowTriangle`,
+`HollowTriangleCrossbar`, `FilledArrow`, `HollowDiamond`, `FilledDiamond`, `Circle`, `Bar` — all
+marker defs exist in both renderers; `HollowDiamond`/`FilledDiamond` and the open-chevron style are
+wired to relationships in Phases 13–14.

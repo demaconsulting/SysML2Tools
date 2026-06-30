@@ -89,6 +89,23 @@ internal sealed class OrthogonalRouter : ILayoutStage
                 }
 
                 var segX = startPos + (seg.RoutingSlot * EdgeSpacing);
+
+                // Reversed (back) edges are stored flipped, so the consumer draws the end marker on
+                // the augmented-source face of the first sub-edge (whose source is the real node, not
+                // a long-edge dummy). For that sub-edge the wrap-around corridor is the final straight
+                // approach into the true target, and at the default slot it is only one
+                // ConnectorClearance wide. Guarantee that approach is at least
+                // graph.BackEdgeEntryApproach so the rounded corner never intrudes into the end
+                // decoration. Math.Max only ever pushes the jog outward, and at the default
+                // (BackEdgeEntryApproach == ConnectorClearance == startPos offset) it is a no-op, so
+                // forward edges (and every other sub-edge) are byte-identical. It runs in abstract
+                // RIGHT-equivalent coordinates so AxisTransform maps it to any requested direction.
+                var aug = augEdges[seg.AugEdgeIndex];
+                if (graph.AcyclicReversed[aug.OrigEdgeIndex] && !augNodes[aug.Source].IsDummy)
+                {
+                    segX = Math.Max(segX, columnX[l] + maxColWidth[l] + graph.BackEdgeEntryApproach);
+                }
+
                 augBendPoints[seg.AugEdgeIndex] =
                 [
                     new Point2D(segX, seg.SourceY),

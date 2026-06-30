@@ -47,8 +47,15 @@ consume only the geometric value types of the Layout subsystem (`Point2D`, `Rect
 
 The `LayeredLayoutMetrics` constants (spacing, clearances, padding, sweep count, tolerance) are
 shared by every stage and are intentionally identical to the constants embedded in the previous
-monolithic engine, so the pipeline reproduces the legacy output exactly. The `LayoutDirection` and
-`HierarchyHandling` enums select flow direction and nested-node handling; only the left-to-right
-direction and flat handling are exercised by the behavior-preserving extraction, and the reserved
-modes fail fast with a clear error. The detailed algorithm of each stage is described in its own
+monolithic engine, so the pipeline reproduces the legacy output exactly. The deleted
+`ReversedEdgeApproach` magic constant is replaced by the per-graph `LayeredGraph.BackEdgeEntryApproach`
+parameter, which the `OrthogonalRouter` reads to size a reversed edge's final straight approach; it
+defaults to `ConnectorClearance`, so the default pipeline stays byte-identical, while a
+decoration-aware caller can raise it to clear an end marker's along-line length. The `LayoutDirection`
+and `HierarchyHandling` enums select flow direction and nested-node handling. The left-to-right direction
+is the abstract identity (its output is byte-identical to the original engine); the down, left, and up
+directions are mapped by `AxisTransform`, which also normalizes the input node axes (swapping width and
+height for the down/up directions) at the start of `Run` so layer spacing is driven by the correct
+extent. Flat hierarchy handling is supported; the recursive mode is reserved and fails fast with a
+clear error. The detailed algorithm of each stage is described in its own
 unit chapter.

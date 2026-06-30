@@ -13,14 +13,17 @@ internal sealed class CycleBreaker : ILayoutStage
     public void Apply(LayeredGraph graph)
     {
         ArgumentNullException.ThrowIfNull(graph);
-        graph.Acyclic = BreakCycles(graph.N, graph.Edges);
+        var (acyclic, reversed) = BreakCycles(graph.N, graph.Edges);
+        graph.Acyclic = acyclic;
+        graph.AcyclicReversed = reversed;
     }
 
     /// <summary>
     /// Returns the edge set with cycle-causing back edges reversed, using DFS to classify any
-    /// edge to a node still on the recursion stack as a back edge.
+    /// edge to a node still on the recursion stack as a back edge. The second tuple element is a
+    /// parallel flag array marking which retained edges were produced by reversing a back edge.
     /// </summary>
-    private static List<LayerEdge> BreakCycles(int n, IReadOnlyList<LayerEdge> edges)
+    private static (List<LayerEdge> Acyclic, bool[] Reversed) BreakCycles(int n, IReadOnlyList<LayerEdge> edges)
     {
         var adjacency = new List<int>[n];
         for (var i = 0; i < n; i++)
@@ -72,6 +75,7 @@ internal sealed class CycleBreaker : ILayoutStage
         }
 
         var result = new List<LayerEdge>();
+        var reversed = new List<bool>();
         var seen = new HashSet<(int, int)>();
         foreach (var e in edges)
         {
@@ -80,16 +84,18 @@ internal sealed class CycleBreaker : ILayoutStage
                 continue;
             }
 
-            var (from, to) = backEdges.Contains((e.Source, e.Target))
+            var isBack = backEdges.Contains((e.Source, e.Target));
+            var (from, to) = isBack
                 ? (e.Target, e.Source)
                 : (e.Source, e.Target);
 
             if (from != to && seen.Add((from, to)))
             {
                 result.Add(new LayerEdge(from, to));
+                reversed.Add(isBack);
             }
         }
 
-        return result;
+        return (result, [.. reversed]);
     }
 }

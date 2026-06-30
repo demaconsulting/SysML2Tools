@@ -81,8 +81,8 @@ public sealed class SvgRenderer : IRenderer
             $"""<svg xmlns="http://www.w3.org/2000/svg" width="{F(width)}" height="{F(height)}" viewBox="0 0 {F(width)} {F(height)}">""");
         sb.AppendLine();
 
-        // Write defs section with all arrowhead markers
-        WriteArrowheadDefs(sb, theme);
+        // Write defs section with all line-end markers
+        WriteEndMarkerDefs(sb, theme);
 
         // Render all top-level nodes recursively (wires are drawn without their labels here)
         foreach (var node in layout.Nodes)
@@ -112,99 +112,157 @@ public sealed class SvgRenderer : IRenderer
     }
 
     /// <summary>
-    /// Writes the <c>&lt;defs&gt;</c> block containing all arrowhead marker definitions used
-    /// by <see cref="RenderLine"/>.
+    /// Writes the <c>&lt;defs&gt;</c> block containing all line-end (connector decoration) marker
+    /// definitions used by <see cref="RenderLine"/>.
     /// </summary>
     /// <remarks>
-    /// Markers defined: <c>arrowhead-open</c> (hollow triangle),
-    /// <c>arrowhead-open-crossbar</c> (hollow triangle with perpendicular crossbar),
-    /// <c>arrowhead-filled</c> (filled triangle), <c>arrowhead-diamond</c> (hollow diamond),
-    /// <c>arrowhead-filled-diamond</c> (filled diamond), <c>arrowhead-circle</c> (hollow
-    /// circle), and <c>arrowhead-bar</c> (perpendicular bar).
+    /// Markers defined: <c>line-end-open-chevron</c> (open two-stroke chevron drawn as a
+    /// <c>&lt;polyline&gt;</c> with no closing base edge), <c>line-end-hollow-triangle</c> (hollow
+    /// triangle), <c>line-end-hollow-triangle-crossbar</c> (hollow triangle with perpendicular
+    /// crossbar), <c>line-end-filled-arrow</c> (filled triangle), <c>line-end-hollow-diamond</c>
+    /// (hollow diamond), <c>line-end-filled-diamond</c> (filled diamond), <c>line-end-circle</c>
+    /// (hollow circle), and <c>line-end-bar</c> (perpendicular bar). Every coordinate is derived from
+    /// <see cref="NotationMetrics"/>, so a geometry literal never appears twice and the PNG renderer
+    /// draws the identical shapes from the same source constants.
     /// </remarks>
     /// <param name="sb">String builder receiving the SVG markup.</param>
     /// <param name="theme">Theme providing stroke color and width.</param>
-    private static void WriteArrowheadDefs(StringBuilder sb, Theme theme)
+    private static void WriteEndMarkerDefs(StringBuilder sb, Theme theme)
     {
+        var stroke = theme.StrokeColor;
+        var sw = F(theme.StrokeWidth);
+        var bg = theme.BackgroundColor;
+        var trianglePoints = MarkerPoints(
+            NotationMetrics.TriangleVertices(), NotationMetrics.EndMarkerRefX, NotationMetrics.EndMarkerHalfWidth);
+        var diamondPoints = MarkerPoints(
+            NotationMetrics.DiamondVertices(), NotationMetrics.DiamondRefX, NotationMetrics.DiamondHalfWidth);
+
         sb.AppendLine("  <defs>");
 
-        // Open arrowhead marker — hollow triangle pointing along the line direction
+        // Open-chevron marker — OPEN two-stroke chevron (polyline with no closing base edge), drawn
+        // from the same triangle vertices as the hollow triangle but left open along the line.
         sb.Append(CultureInfo.InvariantCulture,
-            $"""    <marker id="arrowhead-open" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">""");
+            $"""    <marker id="line-end-open-chevron" markerWidth="{M(NotationMetrics.EndMarkerLength)}" markerHeight="{M(NotationMetrics.EndMarkerWidth)}" refX="{M(NotationMetrics.EndMarkerRefX)}" refY="{M(NotationMetrics.EndMarkerHalfWidth)}" orient="auto">""");
         sb.AppendLine();
         sb.Append(CultureInfo.InvariantCulture,
-            $"""      <polygon points="0 0, 10 3.5, 0 7" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
-        sb.AppendLine();
-        sb.AppendLine(MarkerClose);
-
-        // Filled arrowhead marker — solid triangle pointing along the line direction
-        sb.Append(CultureInfo.InvariantCulture,
-            $"""    <marker id="arrowhead-filled" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">""");
-        sb.AppendLine();
-        sb.Append(CultureInfo.InvariantCulture,
-            $"""      <polygon points="0 0, 10 3.5, 0 7" fill="{theme.StrokeColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+            $"""      <polyline points="{trianglePoints}" fill="none" stroke="{stroke}" stroke-width="{sw}"/>""");
         sb.AppendLine();
         sb.AppendLine(MarkerClose);
 
-        // Open-with-crossbar arrowhead marker — hollow triangle + perpendicular crossbar at ~2/3 from tip
-        // refX="9" matches arrowhead-open convention (apex at x=10, tip lands at line endpoint).
-        // Crossbar at x=7 (≈ 2/3 × 10) places it on the shaft behind the apex, matching the PNG renderer.
+        // Hollow-triangle marker — closed hollow triangle pointing along the line direction; filled
+        // with the background color so the connector line does not show through the unfilled interior.
         sb.Append(CultureInfo.InvariantCulture,
-            $"""    <marker id="arrowhead-open-crossbar" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">""");
+            $"""    <marker id="line-end-hollow-triangle" markerWidth="{M(NotationMetrics.EndMarkerLength)}" markerHeight="{M(NotationMetrics.EndMarkerWidth)}" refX="{M(NotationMetrics.EndMarkerRefX)}" refY="{M(NotationMetrics.EndMarkerHalfWidth)}" orient="auto">""");
         sb.AppendLine();
         sb.Append(CultureInfo.InvariantCulture,
-            $"""      <polygon points="0 0, 10 3.5, 0 7" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
-        sb.AppendLine();
-        sb.Append(CultureInfo.InvariantCulture,
-            $"""      <line x1="7" y1="0" x2="7" y2="7" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+            $"""      <polygon points="{trianglePoints}" fill="{bg}" stroke="{stroke}" stroke-width="{sw}"/>""");
         sb.AppendLine();
         sb.AppendLine(MarkerClose);
 
-        // Diamond marker — open four-point diamond straddling the line end
+        // Filled-arrow marker — solid triangle pointing along the line direction
         sb.Append(CultureInfo.InvariantCulture,
-            $"""    <marker id="arrowhead-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">""");
+            $"""    <marker id="line-end-filled-arrow" markerWidth="{M(NotationMetrics.EndMarkerLength)}" markerHeight="{M(NotationMetrics.EndMarkerWidth)}" refX="{M(NotationMetrics.EndMarkerRefX)}" refY="{M(NotationMetrics.EndMarkerHalfWidth)}" orient="auto">""");
         sb.AppendLine();
         sb.Append(CultureInfo.InvariantCulture,
-            $"""      <polygon points="1 4, 7 0, 13 4, 7 8" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+            $"""      <polygon points="{trianglePoints}" fill="{stroke}" stroke="{stroke}" stroke-width="{sw}"/>""");
         sb.AppendLine();
         sb.AppendLine(MarkerClose);
 
-        // Filled diamond marker — solid four-point diamond straddling the line end
+        // Hollow-triangle-with-crossbar marker — hollow triangle + perpendicular crossbar on the shaft.
         sb.Append(CultureInfo.InvariantCulture,
-            $"""    <marker id="arrowhead-filled-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">""");
+            $"""    <marker id="line-end-hollow-triangle-crossbar" markerWidth="{M(NotationMetrics.EndMarkerLength)}" markerHeight="{M(NotationMetrics.EndMarkerWidth)}" refX="{M(NotationMetrics.EndMarkerRefX)}" refY="{M(NotationMetrics.EndMarkerHalfWidth)}" orient="auto">""");
         sb.AppendLine();
         sb.Append(CultureInfo.InvariantCulture,
-            $"""      <polygon points="1 4, 7 0, 13 4, 7 8" fill="{theme.StrokeColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+            $"""      <polygon points="{trianglePoints}" fill="{bg}" stroke="{stroke}" stroke-width="{sw}"/>""");
+        sb.AppendLine();
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""      <line x1="{M(NotationMetrics.CrossbarX)}" y1="0" x2="{M(NotationMetrics.CrossbarX)}" y2="{M(NotationMetrics.EndMarkerWidth)}" stroke="{stroke}" stroke-width="{sw}"/>""");
+        sb.AppendLine();
+        sb.AppendLine(MarkerClose);
+
+        // Hollow-diamond marker — open four-point diamond straddling the line end
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""    <marker id="line-end-hollow-diamond" markerWidth="{M(NotationMetrics.DiamondLength)}" markerHeight="{M(NotationMetrics.DiamondWidth)}" refX="{M(NotationMetrics.DiamondRefX)}" refY="{M(NotationMetrics.DiamondHalfWidth)}" orient="auto">""");
+        sb.AppendLine();
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""      <polygon points="{diamondPoints}" fill="{bg}" stroke="{stroke}" stroke-width="{sw}"/>""");
+        sb.AppendLine();
+        sb.AppendLine(MarkerClose);
+
+        // Filled-diamond marker — solid four-point diamond straddling the line end
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""    <marker id="line-end-filled-diamond" markerWidth="{M(NotationMetrics.DiamondLength)}" markerHeight="{M(NotationMetrics.DiamondWidth)}" refX="{M(NotationMetrics.DiamondRefX)}" refY="{M(NotationMetrics.DiamondHalfWidth)}" orient="auto">""");
+        sb.AppendLine();
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""      <polygon points="{diamondPoints}" fill="{stroke}" stroke="{stroke}" stroke-width="{sw}"/>""");
         sb.AppendLine();
         sb.AppendLine(MarkerClose);
 
         // Circle marker — open circle whose near edge sits at the line endpoint
         sb.Append(CultureInfo.InvariantCulture,
-            $"""    <marker id="arrowhead-circle" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">""");
+            $"""    <marker id="line-end-circle" markerWidth="{M(NotationMetrics.CircleMarkerBox)}" markerHeight="{M(NotationMetrics.CircleMarkerBox)}" refX="{M(NotationMetrics.CircleRefX)}" refY="{M(NotationMetrics.CircleCenter)}" orient="auto">""");
         sb.AppendLine();
         sb.Append(CultureInfo.InvariantCulture,
-            $"""      <circle cx="5" cy="5" r="4" fill="none" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+            $"""      <circle cx="{M(NotationMetrics.CircleCenter)}" cy="{M(NotationMetrics.CircleCenter)}" r="{M(NotationMetrics.CircleRadius)}" fill="{bg}" stroke="{stroke}" stroke-width="{sw}"/>""");
         sb.AppendLine();
         sb.AppendLine(MarkerClose);
 
         // Bar marker — perpendicular line centered on the line endpoint
         sb.Append(CultureInfo.InvariantCulture,
-            $"""    <marker id="arrowhead-bar" markerWidth="4" markerHeight="12" refX="2" refY="6" orient="auto">""");
+            $"""    <marker id="line-end-bar" markerWidth="{M(NotationMetrics.BarAlong)}" markerHeight="{M(NotationMetrics.BarAcross)}" refX="{M(NotationMetrics.BarHalfAlong)}" refY="{M(NotationMetrics.BarHalf)}" orient="auto">""");
         sb.AppendLine();
         sb.Append(CultureInfo.InvariantCulture,
-            $"""      <line x1="2" y1="0" x2="2" y2="12" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"/>""");
+            $"""      <line x1="{M(NotationMetrics.BarHalfAlong)}" y1="0" x2="{M(NotationMetrics.BarHalfAlong)}" y2="{M(NotationMetrics.BarAcross)}" stroke="{stroke}" stroke-width="{sw}"/>""");
         sb.AppendLine();
         sb.AppendLine(MarkerClose);
 
         // Auto-sizing white background for text drawn over lines (e.g. message and guard labels).
         // The filter region defaults to the text bounding box; the small negative inset adds padding.
-        sb.AppendLine("""    <filter id="label-bg" x="-0.05" y="-0.05" width="1.1" height="1.1">""");
+        sb.Append(CultureInfo.InvariantCulture,
+            $"""    <filter id="label-bg" x="{M(-NotationMetrics.LabelBgInset)}" y="{M(-NotationMetrics.LabelBgInset)}" width="{M(NotationMetrics.LabelBgExtent)}" height="{M(NotationMetrics.LabelBgExtent)}">""");
+        sb.AppendLine();
         sb.AppendLine("""      <feFlood flood-color="#FFFFFF"/>""");
         sb.AppendLine("""      <feComposite in="SourceGraphic" operator="over"/>""");
         sb.AppendLine("    </filter>");
 
         sb.AppendLine("  </defs>");
     }
+
+    /// <summary>
+    /// Builds an SVG <c>points</c> string from tip-relative marker vertices by mapping each vertex to
+    /// marker-box coordinates: <c>boxX = refAlong - Along</c> and <c>boxY = refAcross + Across</c>.
+    /// </summary>
+    /// <param name="vertices">Tip-relative marker vertices in draw order.</param>
+    /// <param name="refAlong">Along-line position of the marker box anchor (the SVG <c>refX</c>).</param>
+    /// <param name="refAcross">Across-line position of the marker box anchor (the SVG <c>refY</c>).</param>
+    /// <returns>An SVG <c>points</c> attribute value, for example <c>"0 0, 10 3.5, 0 7"</c>.</returns>
+    private static string MarkerPoints(IReadOnlyList<MarkerVertex> vertices, double refAlong, double refAcross)
+    {
+        var sb = new StringBuilder();
+        for (var i = 0; i < vertices.Count; i++)
+        {
+            if (i > 0)
+            {
+                sb.Append(", ");
+            }
+
+            sb.Append(CultureInfo.InvariantCulture,
+                $"{M(refAlong - vertices[i].Along)} {M(refAcross + vertices[i].Across)}");
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Formats a notation-metric coordinate for an SVG marker definition: rounded to six decimals
+    /// (to absorb floating-point noise in derived constants such as the crossbar position) and emitted
+    /// with the minimal invariant-culture representation, so a derived value reproduces the historical
+    /// literal byte-for-byte (for example <c>10</c>, <c>3.5</c>, <c>-0.05</c>).
+    /// </summary>
+    /// <param name="value">The notation-metric coordinate.</param>
+    /// <returns>The formatted number.</returns>
+    private static string M(double value) =>
+        Math.Round(value, 6).ToString(CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Dispatches a single <see cref="LayoutNode"/> to the appropriate typed render method.
@@ -323,7 +381,7 @@ public sealed class SvgRenderer : IRenderer
 
             case BoxShape.RoundedRectangle:
                 var cornerStr = theme.LineCornerRadius > 0
-                    ? $" rx=\"{F(theme.LineCornerRadius * 2.0 * scale)}\" ry=\"{F(theme.LineCornerRadius * 2.0 * scale)}\""
+                    ? $" rx=\"{F(NotationMetrics.RoundedRectRadius(theme) * scale)}\" ry=\"{F(NotationMetrics.RoundedRectRadius(theme) * scale)}\""
                     : string.Empty;
                 sb.Append(CultureInfo.InvariantCulture,
                     $"""  <rect x="{F(x)}" y="{F(y)}" width="{F(w)}" height="{F(h)}" fill="{fillColor}" stroke="{theme.StrokeColor}" stroke-width="{F(theme.StrokeWidth)}"{cornerStr}/>""");
@@ -345,7 +403,11 @@ public sealed class SvgRenderer : IRenderer
     private static void RenderFolderOutline(StringBuilder sb, LayoutBox box, Theme theme, string fillColor, double scale)
     {
         var tabHeight = BoxMetrics.FolderTabHeight(theme);
-        var tabWidth = Math.Min(box.Width * 0.45, Math.Max(60.0, (box.Label?.Length ?? 4) * theme.FontSizeBody * 0.55 + 2.0 * theme.LabelPadding));
+        var tabWidth = Math.Min(
+            box.Width * NotationMetrics.FolderTabMaxWidthFraction,
+            Math.Max(
+                NotationMetrics.FolderTabMinWidth,
+                (box.Label?.Length ?? 4) * theme.FontSizeBody * NotationMetrics.FolderLabelCharWidthFactor + 2.0 * theme.LabelPadding));
 
         var x = box.X * scale;
         var yTab = box.Y * scale;
@@ -365,8 +427,8 @@ public sealed class SvgRenderer : IRenderer
     /// </summary>
     private static void RenderNoteOutline(StringBuilder sb, LayoutBox box, Theme theme, string fillColor, double scale)
     {
-        var fold = Math.Min(box.Width, box.Height) * 0.25;
-        fold = Math.Min(fold, 16.0);
+        var fold = Math.Min(box.Width, box.Height) * NotationMetrics.NoteFoldFraction;
+        fold = Math.Min(fold, NotationMetrics.NoteFoldMaxSize);
 
         var x = box.X * scale;
         var y = box.Y * scale;
@@ -516,30 +578,35 @@ public sealed class SvgRenderer : IRenderer
             return;
         }
 
-        // Build SVG path data with optional arc-at-bend corner rounding
-        var pathData = BuildLinePath(line.Waypoints, theme.LineCornerRadius, scale);
+        // Build SVG path data with optional arc-at-bend corner rounding. The final corner before each
+        // end is clamped so the rounded arc completes at least the marker's along-line length before
+        // the endpoint, keeping the decoration on a clean straight approach.
+        var pathData = BuildLinePath(
+            line.Waypoints, theme.LineCornerRadius, scale, line.SourceEnd, line.TargetEnd);
 
-        // Resolve arrowhead marker attribute strings
-        var markerStart = line.SourceArrowhead switch
+        // Resolve line-end marker attribute strings
+        var markerStart = line.SourceEnd switch
         {
-            ArrowheadStyle.Open => " marker-start=\"url(#arrowhead-open)\"",
-            ArrowheadStyle.OpenWithCrossbar => " marker-start=\"url(#arrowhead-open-crossbar)\"",
-            ArrowheadStyle.Filled => " marker-start=\"url(#arrowhead-filled)\"",
-            ArrowheadStyle.Diamond => " marker-start=\"url(#arrowhead-diamond)\"",
-            ArrowheadStyle.FilledDiamond => " marker-start=\"url(#arrowhead-filled-diamond)\"",
-            ArrowheadStyle.Circle => " marker-start=\"url(#arrowhead-circle)\"",
-            ArrowheadStyle.Bar => " marker-start=\"url(#arrowhead-bar)\"",
+            EndMarkerStyle.OpenChevron => " marker-start=\"url(#line-end-open-chevron)\"",
+            EndMarkerStyle.HollowTriangle => " marker-start=\"url(#line-end-hollow-triangle)\"",
+            EndMarkerStyle.HollowTriangleCrossbar => " marker-start=\"url(#line-end-hollow-triangle-crossbar)\"",
+            EndMarkerStyle.FilledArrow => " marker-start=\"url(#line-end-filled-arrow)\"",
+            EndMarkerStyle.HollowDiamond => " marker-start=\"url(#line-end-hollow-diamond)\"",
+            EndMarkerStyle.FilledDiamond => " marker-start=\"url(#line-end-filled-diamond)\"",
+            EndMarkerStyle.Circle => " marker-start=\"url(#line-end-circle)\"",
+            EndMarkerStyle.Bar => " marker-start=\"url(#line-end-bar)\"",
             _ => string.Empty
         };
-        var markerEnd = line.TargetArrowhead switch
+        var markerEnd = line.TargetEnd switch
         {
-            ArrowheadStyle.Open => " marker-end=\"url(#arrowhead-open)\"",
-            ArrowheadStyle.OpenWithCrossbar => " marker-end=\"url(#arrowhead-open-crossbar)\"",
-            ArrowheadStyle.Filled => " marker-end=\"url(#arrowhead-filled)\"",
-            ArrowheadStyle.Diamond => " marker-end=\"url(#arrowhead-diamond)\"",
-            ArrowheadStyle.FilledDiamond => " marker-end=\"url(#arrowhead-filled-diamond)\"",
-            ArrowheadStyle.Circle => " marker-end=\"url(#arrowhead-circle)\"",
-            ArrowheadStyle.Bar => " marker-end=\"url(#arrowhead-bar)\"",
+            EndMarkerStyle.OpenChevron => " marker-end=\"url(#line-end-open-chevron)\"",
+            EndMarkerStyle.HollowTriangle => " marker-end=\"url(#line-end-hollow-triangle)\"",
+            EndMarkerStyle.HollowTriangleCrossbar => " marker-end=\"url(#line-end-hollow-triangle-crossbar)\"",
+            EndMarkerStyle.FilledArrow => " marker-end=\"url(#line-end-filled-arrow)\"",
+            EndMarkerStyle.HollowDiamond => " marker-end=\"url(#line-end-hollow-diamond)\"",
+            EndMarkerStyle.FilledDiamond => " marker-end=\"url(#line-end-filled-diamond)\"",
+            EndMarkerStyle.Circle => " marker-end=\"url(#line-end-circle)\"",
+            EndMarkerStyle.Bar => " marker-end=\"url(#line-end-bar)\"",
             _ => string.Empty
         };
 
@@ -633,11 +700,15 @@ public sealed class SvgRenderer : IRenderer
     /// <param name="waypoints">Ordered waypoints; must contain at least 2 entries.</param>
     /// <param name="cornerRadius">Corner rounding radius in logical pixels; 0 disables arcs.</param>
     /// <param name="scale">Uniform scale factor.</param>
+    /// <param name="sourceEnd">End-marker style at the first waypoint (source endpoint).</param>
+    /// <param name="targetEnd">End-marker style at the last waypoint (target endpoint).</param>
     /// <returns>SVG path data string starting with <c>M</c>.</returns>
     private static string BuildLinePath(
         IReadOnlyList<Point2D> waypoints,
         double cornerRadius,
-        double scale)
+        double scale,
+        EndMarkerStyle sourceEnd,
+        EndMarkerStyle targetEnd)
     {
         var sb = new StringBuilder();
         var first = waypoints[0];
@@ -696,6 +767,28 @@ public sealed class SvgRenderer : IRenderer
 
             // Clamp radius so the arc never overshoots either adjacent segment
             var r = Math.Min(cornerRadius, Math.Min(inLen / 2.0, outLen / 2.0));
+
+            // Decoration-aware final-corner clamp: keep the rounded corner from intruding into an
+            // end-marker decoration. The first interior corner must leave at least the source marker's
+            // along-line length of straight run after the source endpoint; the last interior corner
+            // must leave at least the target marker's along-line length of straight run before the
+            // target endpoint. For forward edges (whose approaches are already long) this is a no-op.
+            if (i == 1)
+            {
+                r = Math.Min(r, inLen - NotationMetrics.AlongLineLength(sourceEnd));
+            }
+
+            if (i == waypoints.Count - 2)
+            {
+                r = Math.Min(r, outLen - NotationMetrics.AlongLineLength(targetEnd));
+            }
+
+            if (r <= 0.0)
+            {
+                // The decoration consumes the whole approach: fall back to a plain line (no arc).
+                sb.Append(CultureInfo.InvariantCulture, $" L {F(cur.X * scale)} {F(cur.Y * scale)}");
+                continue;
+            }
 
             // Endpoint of the shortened incoming segment (just before the corner)
             var shortEndX = cur.X - inNx * r;
@@ -759,11 +852,10 @@ public sealed class SvgRenderer : IRenderer
     /// <param name="scale">Uniform scale factor.</param>
     private static void RenderPort(StringBuilder sb, LayoutPort port, Theme theme, double scale)
     {
-        // Port square: 8×8 logical pixels, filled with the stroke color
-        const double PortHalfSize = 4.0;
-        var rx = (port.CentreX - PortHalfSize) * scale;
-        var ry = (port.CentreY - PortHalfSize) * scale;
-        var rs = PortHalfSize * 2.0 * scale;
+        // Port square: filled with the stroke color, sized from NotationMetrics.
+        var rx = (port.CentreX - NotationMetrics.PortHalfSize) * scale;
+        var ry = (port.CentreY - NotationMetrics.PortHalfSize) * scale;
+        var rs = NotationMetrics.PortSize * scale;
 
         sb.Append(CultureInfo.InvariantCulture,
             $"""  <rect x="{F(rx)}" y="{F(ry)}" width="{F(rs)}" height="{F(rs)}" fill="{theme.StrokeColor}"/>""");
@@ -772,7 +864,7 @@ public sealed class SvgRenderer : IRenderer
         // Optional label offset away from the attached edge
         if (port.Label != null)
         {
-            var offset = PortHalfSize + theme.LabelPadding;
+            var offset = NotationMetrics.PortHalfSize + theme.LabelPadding;
             var (labelX, labelY, anchor) = port.Side switch
             {
                 PortSide.Top => (port.CentreX, port.CentreY - offset, TextAnchorMiddle),
@@ -817,7 +909,7 @@ public sealed class SvgRenderer : IRenderer
                     $"""  <circle cx="{F(cx)}" cy="{F(cy)}" r="{F(r)}" fill="{theme.StrokeColor}"/>""");
                 sb.AppendLine();
                 sb.Append(CultureInfo.InvariantCulture,
-                    $"""  <circle cx="{F(cx)}" cy="{F(cy)}" r="{F(r / 3.0)}" fill="white" stroke="{theme.StrokeColor}" stroke-width="{sw}"/>""");
+                    $"""  <circle cx="{F(cx)}" cy="{F(cy)}" r="{F(r * NotationMetrics.BadgeBullseyeInnerFraction)}" fill="white" stroke="{theme.StrokeColor}" stroke-width="{sw}"/>""");
                 sb.AppendLine();
                 break;
 
@@ -829,13 +921,13 @@ public sealed class SvgRenderer : IRenderer
 
             case BadgeShape.HorizontalBar:
                 sb.Append(CultureInfo.InvariantCulture,
-                    $"""  <line x1="{F(cx - r * 0.8)}" y1="{F(cy)}" x2="{F(cx + r * 0.8)}" y2="{F(cy)}" stroke="{theme.StrokeColor}" stroke-width="{sw}"/>""");
+                    $"""  <line x1="{F(cx - r * NotationMetrics.BadgeBarLengthFraction)}" y1="{F(cy)}" x2="{F(cx + r * NotationMetrics.BadgeBarLengthFraction)}" y2="{F(cy)}" stroke="{theme.StrokeColor}" stroke-width="{sw}"/>""");
                 sb.AppendLine();
                 break;
 
             case BadgeShape.VerticalBar:
                 sb.Append(CultureInfo.InvariantCulture,
-                    $"""  <line x1="{F(cx)}" y1="{F(cy - r * 0.8)}" x2="{F(cx)}" y2="{F(cy + r * 0.8)}" stroke="{theme.StrokeColor}" stroke-width="{sw}"/>""");
+                    $"""  <line x1="{F(cx)}" y1="{F(cy - r * NotationMetrics.BadgeBarLengthFraction)}" x2="{F(cx)}" y2="{F(cy + r * NotationMetrics.BadgeBarLengthFraction)}" stroke="{theme.StrokeColor}" stroke-width="{sw}"/>""");
                 sb.AppendLine();
                 break;
 

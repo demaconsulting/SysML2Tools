@@ -52,7 +52,12 @@ internal sealed class LayeredGraph
     public int N { get; }
 
     /// <summary>Gets the input nodes, in caller order.</summary>
-    public IReadOnlyList<LayerNode> Nodes { get; }
+    /// <remarks>
+    /// The setter is private; the only in-place mutation is <see cref="SwapNodeAxes"/>, the seam
+    /// used by <see cref="AxisTransform.NormalizeInputAxes"/> to feed the direction-agnostic stages
+    /// node sizes whose along-extent matches the requested flow direction.
+    /// </remarks>
+    public IReadOnlyList<LayerNode> Nodes { get; private set; }
 
     /// <summary>Gets the directed input edges (by node index).</summary>
     public IReadOnlyList<LayerEdge> Edges { get; }
@@ -60,8 +65,35 @@ internal sealed class LayeredGraph
     /// <summary>Gets the requested layout flow direction.</summary>
     public LayoutDirection Direction { get; }
 
+    /// <summary>
+    /// Gets or sets the minimum straight entry approach reserved for a reversed (back) edge's final
+    /// sub-edge — the wrap-around corridor that ends at the true target where the consumer draws the
+    /// end marker.
+    /// </summary>
+    /// <remarks>
+    /// The default is <see cref="LayeredLayoutMetrics.ConnectorClearance"/>, which exactly reproduces
+    /// the original engine: the router's first slot already starts one
+    /// <see cref="LayeredLayoutMetrics.ConnectorClearance"/> past the source column, so the
+    /// <c>Math.Max</c> clamp in <see cref="OrthogonalRouter"/> is a no-op at the default and forward
+    /// geometry stays byte-identical. A consumer that draws a longer end decoration (for example the
+    /// state-transition view's open chevron) raises this so the rounded corner never intrudes into the
+    /// decoration.
+    /// </remarks>
+    public double BackEdgeEntryApproach { get; set; } = LayeredLayoutMetrics.ConnectorClearance;
+
     /// <summary>Gets or sets the acyclic edge set after cycle breaking.</summary>
     public List<LayerEdge> Acyclic { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets, parallel to <see cref="Acyclic"/> (same index order), whether each retained
+    /// acyclic edge was produced by reversing a cycle-causing back edge.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="CycleBreaker"/> records this flag so later stages can recognize edges whose true
+    /// direction was flipped for layering. <see cref="OrthogonalRouter"/> reads it to guarantee a
+    /// minimum entry approach for the arrowhead that the consumer draws on the (un-reversed) target.
+    /// </remarks>
+    public bool[] AcyclicReversed { get; set; } = [];
 
     /// <summary>Gets or sets the assigned layer index for each real node, in node order.</summary>
     public int[] NodeLayers { get; set; } = [];
@@ -98,4 +130,30 @@ internal sealed class LayeredGraph
 
     /// <summary>Gets or sets the assembled orthogonal waypoints for each original (acyclic) edge.</summary>
     public IReadOnlyList<IReadOnlyList<Point2D>> Waypoints { get; set; } = [];
+
+    /// <summary>
+    /// Swaps each input node's <see cref="LayerNode.Width"/> and <see cref="LayerNode.Height"/>.
+    /// </summary>
+    /// <remarks>
+    /// The direction-agnostic stages always treat a node's width as its along-axis (layer
+    /// progression) extent and its height as its cross-axis (within-layer) extent. For a top-to-bottom
+    /// (<see cref="LayoutDirection.Down"/>) or bottom-to-top (<see cref="LayoutDirection.Up"/>) flow,
+    /// the along-axis must instead be the node height, so <see cref="AxisTransform.NormalizeInputAxes"/>
+    /// calls this seam before the stages run. It is never invoked for the
+    /// <see cref="LayoutDirection.Right"/>/<see cref="LayoutDirection.Left"/> paths, which keeps those
+    /// outputs byte-identical.
+    /// </remarks>
+    public void SwapNodeAxes()
+    {
+        var swapped = new LayerNode[Nodes.Count];
+        for (var i = 0; i < Nodes.Count; i++)
+        {
+            // S2234: width and height are deliberately swapped so the stages space layers by height.
+#pragma warning disable S2234
+            swapped[i] = new LayerNode(Nodes[i].Height, Nodes[i].Width);
+#pragma warning restore S2234
+        }
+
+        Nodes = swapped;
+    }
 }

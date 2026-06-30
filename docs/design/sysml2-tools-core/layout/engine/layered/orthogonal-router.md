@@ -16,10 +16,25 @@ ports already share a Y is straight and consumes no slot and no bend points; any
 two bend points that form a vertical run at the slot's X, offset from the source column by the slot
 index times the edge spacing.
 
+For a reversed (back) edge — one stored flipped by `CycleBreaker`, so the consumer draws the open
+chevron end marker on the augmented-source face of the first sub-edge whose source is a real node
+(not a long-edge dummy) — the wrap-around corridor is the connector's final straight approach into
+its true target. At the default slot that approach is only one `ConnectorClearance` wide, shorter
+than the end marker. The stage therefore clamps that sub-edge's bend X outward to guarantee a
+minimum approach of `graph.BackEdgeEntryApproach`. That parameter defaults to
+`LayeredLayoutMetrics.ConnectorClearance`, so the clamp is a byte-for-byte no-op unless a caller
+raises it; a decoration-aware caller (the state-transition view) sets it to the end-marker
+along-line length plus corner radius plus clean-leg margin. The clamp uses
+`Math.Max`, so it only ever pushes the jog outward: forward edges, long-edge middle sub-edges, and
+every acyclic graph are byte-identical to the unclamped output. Because the stage runs in abstract
+RIGHT-equivalent coordinates that `AxisTransform` maps to the requested direction, the guarantee is
+orientation-agnostic (it holds for RIGHT and DOWN flows alike).
+
 ###### Inputs and Outputs
 
 - Reads: `LayeredGraph.AugNodes`, `LayeredGraph.AugEdges`, `LayeredGraph.ColumnX`,
-  `LayeredGraph.MaxColWidth`, `LayeredGraph.AugPortYSrc`, `LayeredGraph.AugPortYTgt`.
+  `LayeredGraph.MaxColWidth`, `LayeredGraph.AugPortYSrc`, `LayeredGraph.AugPortYTgt`,
+  `LayeredGraph.AcyclicReversed` (to recognize reversed edges' end-marker-bearing sub-edge).
 - Writes: `LayeredGraph.AugBendPoints` (zero or two bend points per sub-edge).
 
 ###### Error Handling
@@ -28,7 +43,9 @@ A null graph throws `ArgumentNullException`.
 
 ###### Dependencies
 
-- `LayeredGraph` (Layered) — the shared state read from and written to.
+- `LayeredGraph` (Layered) — the shared state read from and written to, including the
+  `BackEdgeEntryApproach` parameter that sets the minimum entry stub for reversed edges.
 - `PortDistributor` (Layered) — must run first to populate the port coordinates.
-- `LayeredLayoutMetrics` (Layered) — supplies the edge spacing, clearance, and straight tolerance.
+- `LayeredLayoutMetrics` (Layered) — supplies the edge spacing, clearance, straight tolerance, and
+  the `ConnectorClearance` default for `BackEdgeEntryApproach`.
 - `Point2D` (Layout) — the bend-point type.

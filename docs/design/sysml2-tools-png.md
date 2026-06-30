@@ -131,16 +131,23 @@ text rows. Tracks a running Y offset starting below the label area.
 Builds a single `SKPath` from all waypoints. Applies `SKPathEffect.CreateCorner` when
 `LineCornerRadius > 0`. When dashing is also active, composes effects with
 `SKPathEffect.CreateCompose(dash, corner)` so the dash pattern follows the rounded path.
-After drawing the path, calls `DrawArrowhead` for non-None source and target arrowhead
+When either end carries a marker, the corner radius is clamped (via `NeedsEndCornerClamp`
+and `BuildClampedLinePath`) so the rounded corner completes at least the marker's
+along-line length before the endpoint, keeping the curve out of the end-marker zone.
+After drawing the path, calls `DrawEndMarker` for non-None `SourceEnd` and `TargetEnd`
 styles, then `RenderLineMidpointLabel` when `MidpointLabel` is non-null.
 
-**`DrawArrowhead(SKCanvas, tipX, tipY, dx, dy, ArrowheadStyle, scale, color, strokeWidth)`**
+**`DrawEndMarker(SKCanvas, tipX, tipY, dx, dy, EndMarkerStyle, EndMarkerPaint)`**
 
-Draws the arrowhead at the given tip using a normalized direction vector. Supports all
-eight `ArrowheadStyle` values: `None` (no-op), `Open` (hollow triangle), `Filled` (solid
-triangle), `Diamond` (hollow four-point polygon), `FilledDiamond` (solid four-point
-polygon), `Circle` (open circle), `Bar` (perpendicular stroke), `OpenWithCrossbar`
-(hollow triangle with perpendicular crossbar).
+Draws the line-end marker at the given tip using a normalized direction vector. Supports all
+nine `EndMarkerStyle` values: `None` (no-op), `OpenChevron` (open chevron — two strokes that
+meet at the apex with no closing base edge), `HollowTriangle` (hollow triangle, closed),
+`HollowTriangleCrossbar` (hollow triangle with perpendicular crossbar), `FilledArrow` (solid
+triangle), `HollowDiamond` (hollow four-point polygon, closed), `FilledDiamond` (solid
+four-point polygon, closed), `Circle` (open circle), and `Bar` (perpendicular stroke). Every
+vertex comes from the shared `NotationMetrics` geometry (for example `TriangleVertices()`,
+`DiamondVertices()`, `EndMarkerRefX`, `CrossbarX`, `CircleRadius`, `BarAlong`/`BarAcross`), so
+the PNG markers are geometrically identical to the SVG markers built from the same source.
 
 **`RenderLabel(SKCanvas canvas, LayoutLabel label, RenderOptions options)`**
 

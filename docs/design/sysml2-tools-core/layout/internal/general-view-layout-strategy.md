@@ -17,7 +17,7 @@ parameters. Layout constants (`MinBoxWidth`, `CharWidthFactor`, `EdgeClearance`)
 `private const` fields. Private records carry intermediate data: `DefBox` (a user definition with its
 computed size, keyword, supertype names, memberships, and compartments), `PlacedBox` (a definition
 with absolute coordinates, used as a cross-package edge anchor), `IntraEdge` (a package-local edge in
-local node indices plus its target arrowhead), `CrossEdge` (an edge between definitions in different
+local node indices plus its target end marker), `CrossEdge` (an edge between definitions in different
 packages), `GroupLayout` (the package-local placement of one group's definitions and routed edges),
 and `BlockPlan` (the plan for one top-level block — a package folder or the frameless top-level
 block).
@@ -52,7 +52,7 @@ Top-level definitions (no package prefix) form a single frameless block laid out
 Resolves every specialization (subtype → supertype) and structural membership (member-type → owner)
 relationship into either an `IntraEdge` (both endpoints in the same package group, laid out together
 by the layered pipeline) or a `CrossEdge` (endpoints in different groups, routed around the folders).
-Specialization edges carry an open arrowhead at the supertype; `part`/`port` memberships carry a
+Specialization edges carry an open end marker at the supertype; `part`/`port` memberships carry a
 filled diamond and `ref` memberships a hollow diamond at the owner; other memberships are not drawn.
 
 ###### `PlaceGroups(groups, intraByGroup, theme, depthLimit, hGap, vGap)`
@@ -81,7 +81,7 @@ definition's absolute placement for cross-package routing.
 ###### `RouteCrossEdges(crossEdges, placed)`
 
 Routes the rare cross-package edges around the placed folders with `ChannelRouter`, cost-neutrally,
-placing the recorded arrowhead at the target end. Edges touching a truncated (unrendered) definition
+placing the recorded end marker at the target end. Edges touching a truncated (unrendered) definition
 are skipped.
 
 ##### Error Handling

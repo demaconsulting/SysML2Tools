@@ -23,8 +23,8 @@ stream for expected SVG elements. No filesystem access is required; all I/O uses
 - `Render` with a tree containing a `LayoutBox` produces a stream containing `<rect`
 - `Render` with a tree containing a `LayoutLabel` produces a stream containing `<text`
 - `Render` with a tree containing a `LayoutLine` produces a stream containing `<path`
-- `Render` with a tree containing a `LayoutLine` using the open-with-crossbar arrowhead
-  style produces a stream containing `arrowhead-open-crossbar`
+- `Render` with a tree containing a `LayoutLine` using the hollow-triangle-with-crossbar
+  end-marker style produces a stream containing `line-end-hollow-triangle-crossbar`
 
 ## Test Scenarios
 
@@ -51,7 +51,7 @@ a `<path` element. Confirms that lines are translated to SVG path elements.
 
 ### SvgRenderer_Render_SingleLine_WithOpenCrossbarArrowhead_ProducesOpenCrossbarMarker
 
-Verifies that a `LayoutTree` containing a `LayoutLine` with `TargetArrowhead` set to
-`ArrowheadStyle.OpenWithCrossbar` produces SVG output containing the string
-`arrowhead-open-crossbar`. Confirms that the open-with-crossbar marker is defined in the
-defs block and referenced by the line path element.
+Verifies that a `LayoutTree` containing a `LayoutLine` with `TargetEnd` set to
+`EndMarkerStyle.HollowTriangleCrossbar` produces SVG output containing the string
+`line-end-hollow-triangle-crossbar`. Confirms that the hollow-triangle-with-crossbar
+line-end marker is defined in the defs block and referenced by the line path element.

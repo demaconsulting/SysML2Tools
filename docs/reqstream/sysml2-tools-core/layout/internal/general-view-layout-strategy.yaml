@@ -46,11 +46,11 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Specialization
         title: >-
           GeneralViewLayoutStrategy shall connect a specialized definition to each of its
-          supertypes present in the workspace with a line ending in an open arrowhead at the
+          supertypes present in the workspace with a line ending in an open end marker at the
           supertype.
         justification: |
           Specialization (generalization) relationships are core model structure. Drawing them
-          as open-arrowhead lines toward the supertype matches diagram notation and makes the
+          as open-end-marker lines toward the supertype matches diagram notation and makes the
           inheritance hierarchy visible.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_Subclassification_ProducesEdge
@@ -78,7 +78,7 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CompositeMembership
         title: >-
           GeneralViewLayoutStrategy shall connect a definition to the type of each owned feature
-          with keyword <c>part</c> or <c>port</c> with a filled-diamond arrowhead at the owning
+          with keyword <c>part</c> or <c>port</c> with a filled-diamond end marker at the owning
           definition end.
         justification: |
           Structural containment relationships — part and port features — are shown as
@@ -91,7 +91,7 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ReferenceMembership
         title: >-
           GeneralViewLayoutStrategy shall connect a definition to the type of each owned <c>ref</c>
-          feature with a hollow-diamond arrowhead at the owning definition end.
+          feature with a hollow-diamond end marker at the owning definition end.
         justification: |
           Reference membership (e.g. a requirement's subject feature) is a distinct SysML v2
           relationship shown with a hollow diamond. Rendering it as a separate edge distinguishes

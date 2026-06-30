@@ -67,16 +67,16 @@ sections:
         justification: |
           Connection lines between diagram elements are represented as LayoutLine
           nodes. SVG path elements are the standard output for polylines and
-          support arrowhead markers through the SVG marker mechanism.
+          support line-end markers through the SVG marker mechanism.
         tests:
           - SvgRenderer_Render_SingleLine_ProducesPathElement
 
       - id: SysML2Tools-Svg-Render-ArrowheadOpenCrossbar
         title: >-
-          SvgRenderer shall include an arrowhead-open-crossbar marker in the defs
+          SvgRenderer shall include a line-end-hollow-triangle-crossbar marker in the defs
           block of every rendered SVG document.
         justification: |
-          The arrowhead-open-crossbar marker must be defined so that any line using
-          the open-with-crossbar arrowhead style renders correctly in a SVG viewer.
+          The line-end-hollow-triangle-crossbar marker must be defined so that any line using
+          the hollow-triangle-with-crossbar end-marker style renders correctly in a SVG viewer.
         tests:
           - SvgRenderer_Render_SingleLine_WithOpenCrossbarArrowhead_ProducesOpenCrossbarMarker

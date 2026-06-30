@@ -255,8 +255,8 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
 
             nodes.Add(new LayoutLine(
                 Waypoints: route.Waypoints,
-                SourceArrowhead: ArrowheadStyle.None,
-                TargetArrowhead: ArrowheadStyle.Open,
+                SourceEnd: EndMarkerStyle.None,
+                TargetEnd: EndMarkerStyle.OpenChevron,
                 LineStyle: LineStyle.Dashed,
                 MidpointLabel: null));
         }
@@ -318,8 +318,8 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             Waypoints: Math.Abs(source.X - target.X) < 1e-9
                 ? [source, target]
                 : [source, new Point2D(source.X, (source.Y + target.Y) / 2.0), new Point2D(target.X, (source.Y + target.Y) / 2.0), target],
-            SourceArrowhead: ArrowheadStyle.None,
-            TargetArrowhead: ArrowheadStyle.Filled,
+            SourceEnd: EndMarkerStyle.None,
+            TargetEnd: EndMarkerStyle.FilledArrow,
             LineStyle: LineStyle.Solid,
             MidpointLabel: null);
 

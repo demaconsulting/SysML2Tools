@@ -20,12 +20,43 @@ sections:
           - AxisTransform_Apply_RightDirection_LeavesCoordinatesUnchanged
           - Pipeline_MatchesLegacyOracle_OnRandomGraphs
 
-      - id: SysML2Tools-Core-Layout-Engine-Layered-AxisTransform-NonRightRejected
+      - id: SysML2Tools-Core-Layout-Engine-Layered-AxisTransform-DirectionMapping
         title: >-
-          AxisTransform shall reject a non-left-to-right layout direction by throwing a
-          NotSupportedException.
+          AxisTransform shall map the abstract along/cross coordinates onto screen coordinates for the
+          down, left, and up directions, placing each later-layer target on the correct side of its
+          source (below for down, left for left, above for up).
         justification: |
-          The other directions are reserved scaffolding; failing fast prevents emitting an
-          unverified transform for a direction that is not yet implemented.
+          The State Transition View and future directed views rely on the layered pipeline flowing in
+          a direction other than left-to-right; the stage must position nodes consistently for each.
         tests:
-          - AxisTransform_Apply_NonRightDirection_ThrowsNotSupportedException
+          - AxisTransform_Apply_Down_PlacesTargetSouthWithCorrectFaces
+          - AxisTransform_Apply_Left_PlacesTargetWestWithCorrectFaces
+          - AxisTransform_Apply_Up_PlacesTargetNorthWithCorrectFaces
+          - AxisTransform_Apply_Right_PlacesTargetEastWithCorrectFaces
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-AxisTransform-PortFaces
+        title: >-
+          AxisTransform shall emit each transition's source endpoint on the source node's exit face and
+          its target endpoint on the target node's entry face for the requested direction (down: source
+          SOUTH, target NORTH; and the analogous faces for right, left, and up).
+        justification: |
+          Correct-face exit (diagram-quality C8) requires the routed endpoints to land on the faces
+          implied by the flow direction so arrows enter and leave states cleanly.
+        tests:
+          - AxisTransform_Apply_Down_PlacesTargetSouthWithCorrectFaces
+          - AxisTransform_Apply_Right_PlacesTargetEastWithCorrectFaces
+          - AxisTransform_Apply_Left_PlacesTargetWestWithCorrectFaces
+          - AxisTransform_Apply_Up_PlacesTargetNorthWithCorrectFaces
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-AxisTransform-OrthogonalWaypoints
+        title: >-
+          AxisTransform shall preserve the orthogonality of every routed waypoint polyline (each
+          consecutive segment remains axis-aligned) after mapping, for all four directions.
+        justification: |
+          The mapping must not introduce diagonal segments; orthogonal routing is required for the
+          block-diagram visual style across every direction.
+        tests:
+          - AxisTransform_Apply_Right_ProducesOrthogonalWaypoints
+          - AxisTransform_Apply_Down_ProducesOrthogonalWaypoints
+          - AxisTransform_Apply_Left_ProducesOrthogonalWaypoints
+          - AxisTransform_Apply_Up_ProducesOrthogonalWaypoints

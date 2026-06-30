@@ -24,9 +24,9 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-HorizontalMessages
         title: >-
           SequenceViewLayoutStrategy shall draw a message between two lifelines as a horizontal line
-          from the sender to the receiver with a directional arrowhead at the receiver.
+          from the sender to the receiver with a directional end marker at the receiver.
         justification: |
-          A horizontal connector with an arrowhead pointing at the receiver shows the direction of
+          A horizontal connector with an end marker pointing at the receiver shows the direction of
           a message at a glance, which is the established notation for sequence messages.
         tests:
           - SequenceView_BuildLayout_Message_IsHorizontalBetweenLifelines
@@ -43,10 +43,10 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessageArrowhead
         title: >-
-          SequenceViewLayoutStrategy shall draw each message arrow with an open arrowhead at the
+          SequenceViewLayoutStrategy shall draw each message arrow with an open end marker at the
           receiver end.
         justification: |
-          SysML v2 sequence message notation uses an open arrowhead at the receiver. Applying this
+          SysML v2 sequence message notation uses an open end marker at the receiver. Applying this
           property makes rendered message arrows conform to the standard notation.
         tests:
           - SequenceView_BuildLayout_MessageArrow_HasOpenArrowhead

@@ -24,7 +24,7 @@ Computes the route and reports whether it had to cross an obstacle. The algorith
    short stub so the connector leaves and enters boxes at right angles. Each stub length is
    capped to half the gap to the opposing anchor along the step axis, so two stubs facing
    each other across a narrow gap meet at the midline instead of overshooting (which would
-   produce a visible reversal at the arrowhead).
+   produce a visible reversal at the end marker).
 2. **Grid construction.** Candidate grid lines are built from the two endpoint coordinates
    plus each obstacle's near and far edges offset outward by the current clearance.
 3. **Clearance-retry ladder.** An A\*-style search runs over the grid at successively smaller

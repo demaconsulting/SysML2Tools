@@ -90,7 +90,7 @@ public sealed class SequenceViewLayoutStrategyTests
         var line = Assert.Single(layout.Nodes.OfType<LayoutLine>());
         Assert.Equal(line.Waypoints[0].Y, line.Waypoints[^1].Y, 6);
         Assert.NotEqual(line.Waypoints[0].X, line.Waypoints[^1].X);
-        Assert.Equal(ArrowheadStyle.Open, line.TargetArrowhead);
+        Assert.Equal(EndMarkerStyle.OpenChevron, line.TargetEnd);
     }
 
     /// <summary>A workspace with no messages yields a minimal canvas.</summary>
@@ -137,7 +137,7 @@ public sealed class SequenceViewLayoutStrategyTests
 
         // Assert: the message arrow has an open arrowhead at the receiver (target) end
         var line = Assert.Single(layout.Nodes.OfType<LayoutLine>());
-        Assert.Equal(ArrowheadStyle.Open, line.TargetArrowhead);
-        Assert.Equal(ArrowheadStyle.None, line.SourceArrowhead);
+        Assert.Equal(EndMarkerStyle.OpenChevron, line.TargetEnd);
+        Assert.Equal(EndMarkerStyle.None, line.SourceEnd);
     }
 }

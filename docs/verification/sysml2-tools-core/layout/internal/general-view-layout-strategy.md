@@ -20,11 +20,11 @@ configuration are required beyond a standard .NET SDK installation.
 - Each user definition appears as a box carrying its definition keyword.
 - A package's definitions appear inside a folder-shaped box labelled with the package name.
 - A definition's owned usages appear as compartment rows formatted `name : Type`.
-- A specialization yields a line with an open arrowhead at the supertype end.
-- A `part`-feature yields a line with a filled-diamond arrowhead at the owner end.
-- A `port`-feature yields a line with a filled-diamond arrowhead at the owner end.
-- A `ref`-feature yields a line with a hollow-diamond arrowhead at the owner end.
-- An `attribute`-feature does NOT yield any diamond arrowhead edge.
+- A specialization yields a line with an open end marker at the supertype end.
+- A `part`-feature yields a line with a filled-diamond end marker at the owner end.
+- A `port`-feature yields a line with a filled-diamond end marker at the owner end.
+- A `ref`-feature yields a line with a hollow-diamond end marker at the owner end.
+- An `attribute`-feature does NOT yield any diamond end marker edge.
 - A dense model with many part edges produces a layout in which no two definition boxes overlap,
   confirming the layered pipeline keeps boxes separated.
 - A connected model (many cross-referencing part edges) produces a layout in which all definition
@@ -47,7 +47,7 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_PackagedDefinitions_ProducesFolderBox`:
   Folder box with package keyword
 - `GeneralViewLayoutStrategy_BuildLayout_Subclassification_ProducesEdge`:
-  Line with open arrowhead at supertype
+  Line with open end marker at supertype
 - `GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded`:
   Seed-listed definitions excluded; empty canvas
 - `GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments`:

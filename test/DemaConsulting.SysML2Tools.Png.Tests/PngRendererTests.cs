@@ -181,8 +181,8 @@ public sealed class PngRendererTests
         // Arrange: horizontal line from (10,50) to (190,50)
         var line = new LayoutLine(
             [new Point2D(10, 50), new Point2D(190, 50)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.None,
+            EndMarkerStyle.None,
+            EndMarkerStyle.None,
             LineStyle.Solid,
             null);
         var layout = new LayoutTree(200, 100, [line]);
@@ -326,8 +326,8 @@ public sealed class PngRendererTests
         var renderer = new PngRenderer();
         var line = new LayoutLine(
             [new Point2D(10, 50), new Point2D(190, 50)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.OpenWithCrossbar,
+            EndMarkerStyle.None,
+            EndMarkerStyle.HollowTriangleCrossbar,
             LineStyle.Solid,
             null);
         var layout = new LayoutTree(200, 100, [line]);

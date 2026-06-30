@@ -23,8 +23,8 @@ all I/O uses `MemoryStream`. Tests run against all three target frameworks.
   are `0x89 0x50 0x4E 0x47` (PNG magic number)
 - `Render` with a tree containing a `LayoutBox` produces a non-empty PNG output
   without throwing
-- `Render` with a tree containing a `LayoutLine` using the open-with-crossbar arrowhead
-  style produces a non-empty PNG output without throwing
+- `Render` with a tree containing a `LayoutLine` using the hollow-triangle-with-crossbar
+  end-marker style produces a non-empty PNG output without throwing
 
 ## Test Scenarios
 
@@ -42,7 +42,7 @@ error and produce a rasterized output.
 
 ### PngRenderer_Render_DrawArrowhead_OpenWithCrossbar_ProducesNonEmptyOutput
 
-Verifies that a `LayoutTree` containing a `LayoutLine` with `TargetArrowhead` set to
-`ArrowheadStyle.OpenWithCrossbar` produces a non-empty PNG output stream beginning with
-the PNG signature bytes. Confirms that the open-with-crossbar arrowhead style renders
+Verifies that a `LayoutTree` containing a `LayoutLine` with `TargetEnd` set to
+`EndMarkerStyle.HollowTriangleCrossbar` produces a non-empty PNG output stream beginning with
+the PNG signature bytes. Confirms that the hollow-triangle-with-crossbar end-marker style renders
 without throwing and produces valid PNG output.

@@ -95,8 +95,8 @@ public sealed class SvgRendererTests
         var renderer = new SvgRenderer();
         var line = new LayoutLine(
             [new Point2D(10, 10), new Point2D(90, 90)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.Open,
+            EndMarkerStyle.None,
+            EndMarkerStyle.HollowTriangle,
             LineStyle.Solid,
             null);
         var layout = new LayoutTree(200, 100, [line]);
@@ -124,8 +124,8 @@ public sealed class SvgRendererTests
         var renderer = new SvgRenderer();
         var line = new LayoutLine(
             [new Point2D(10, 10), new Point2D(10, 50), new Point2D(90, 50)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.None,
+            EndMarkerStyle.None,
+            EndMarkerStyle.None,
             LineStyle.Solid,
             null);
         var layout = new LayoutTree(200, 100, [line]);
@@ -152,8 +152,8 @@ public sealed class SvgRendererTests
         var renderer = new SvgRenderer();
         var line = new LayoutLine(
             [new Point2D(10, 10), new Point2D(90, 10)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.None,
+            EndMarkerStyle.None,
+            EndMarkerStyle.None,
             LineStyle.Dashed,
             null);
         var layout = new LayoutTree(200, 100, [line]);
@@ -180,8 +180,8 @@ public sealed class SvgRendererTests
         var renderer = new SvgRenderer();
         var line = new LayoutLine(
             [new Point2D(10, 10), new Point2D(90, 10)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.Open,
+            EndMarkerStyle.None,
+            EndMarkerStyle.HollowTriangle,
             LineStyle.Solid,
             null);
         var layout = new LayoutTree(200, 100, [line]);
@@ -199,7 +199,7 @@ public sealed class SvgRendererTests
 
     /// <summary>
     ///     Render a LayoutLine with a Diamond source arrowhead produces SVG output containing
-    ///     the arrowhead-diamond marker id, confirming diamond markers are defined and referenced.
+    ///     the line-end-hollow-diamond marker id, confirming diamond markers are defined and referenced.
     /// </summary>
     [Fact]
     public void SvgRenderer_Render_SingleLine_WithDiamondArrowhead_ProducesDiamondMarker()
@@ -208,8 +208,8 @@ public sealed class SvgRendererTests
         var renderer = new SvgRenderer();
         var line = new LayoutLine(
             [new Point2D(10, 10), new Point2D(90, 10)],
-            ArrowheadStyle.Diamond,
-            ArrowheadStyle.None,
+            EndMarkerStyle.HollowDiamond,
+            EndMarkerStyle.None,
             LineStyle.Solid,
             null);
         var layout = new LayoutTree(200, 100, [line]);
@@ -222,7 +222,7 @@ public sealed class SvgRendererTests
         // Assert
         output.Position = 0;
         var svgText = new StreamReader(output).ReadToEnd();
-        Assert.Contains("arrowhead-diamond", svgText, StringComparison.Ordinal);
+        Assert.Contains("line-end-hollow-diamond", svgText, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -473,8 +473,8 @@ public sealed class SvgRendererTests
         var renderer = new SvgRenderer();
         var line = new LayoutLine(
             [new Point2D(10, 50), new Point2D(190, 50)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.None,
+            EndMarkerStyle.None,
+            EndMarkerStyle.None,
             LineStyle.Solid,
             "uses");
         var layout = new LayoutTree(200, 100, [line]);
@@ -493,7 +493,7 @@ public sealed class SvgRendererTests
 
     /// <summary>
     ///     Render a LayoutLine with an OpenWithCrossbar target arrowhead produces SVG output
-    ///     containing the arrowhead-open-crossbar marker id, confirming the open-crossbar marker
+    ///     containing the line-end-hollow-triangle-crossbar marker id, confirming the open-crossbar marker
     ///     is defined in the defs block and referenced by the path element.
     /// </summary>
     [Fact]
@@ -503,8 +503,8 @@ public sealed class SvgRendererTests
         var renderer = new SvgRenderer();
         var line = new LayoutLine(
             [new Point2D(10, 10), new Point2D(90, 10)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.OpenWithCrossbar,
+            EndMarkerStyle.None,
+            EndMarkerStyle.HollowTriangleCrossbar,
             LineStyle.Solid,
             null);
         var layout = new LayoutTree(200, 100, [line]);
@@ -517,6 +517,6 @@ public sealed class SvgRendererTests
         // Assert
         output.Position = 0;
         var svgText = new StreamReader(output).ReadToEnd();
-        Assert.Contains("arrowhead-open-crossbar", svgText, StringComparison.Ordinal);
+        Assert.Contains("line-end-hollow-triangle-crossbar", svgText, StringComparison.Ordinal);
     }
 }

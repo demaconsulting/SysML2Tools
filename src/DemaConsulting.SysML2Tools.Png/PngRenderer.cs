@@ -345,7 +345,7 @@ public sealed class PngRenderer : IRenderer
                 break;
 
             case BoxShape.RoundedRectangle when theme.LineCornerRadius > 0:
-                var cornerR = (float)(theme.LineCornerRadius * 2.0 * scale);
+                var cornerR = (float)(NotationMetrics.RoundedRectRadius(theme) * scale);
                 canvas.DrawRoundRect(rect, cornerR, cornerR, fillPaint);
                 canvas.DrawRoundRect(rect, cornerR, cornerR, strokePaint);
                 break;
@@ -363,7 +363,11 @@ public sealed class PngRenderer : IRenderer
     private static SKPath BuildFolderPath(LayoutBox box, Theme theme, float scale)
     {
         var tabHeight = BoxMetrics.FolderTabHeight(theme);
-        var tabWidth = Math.Min(box.Width * 0.45, Math.Max(60.0, (box.Label?.Length ?? 4) * theme.FontSizeBody * 0.55 + 2.0 * theme.LabelPadding));
+        var tabWidth = Math.Min(
+            box.Width * NotationMetrics.FolderTabMaxWidthFraction,
+            Math.Max(
+                NotationMetrics.FolderTabMinWidth,
+                (box.Label?.Length ?? 4) * theme.FontSizeBody * NotationMetrics.FolderLabelCharWidthFactor + 2.0 * theme.LabelPadding));
 
         var x = (float)(box.X * scale);
         var yTab = (float)(box.Y * scale);
@@ -394,7 +398,7 @@ public sealed class PngRenderer : IRenderer
         SKPaint fillPaint,
         SKPaint strokePaint)
     {
-        var fold = Math.Min(Math.Min(box.Width, box.Height) * 0.25, 16.0);
+        var fold = Math.Min(Math.Min(box.Width, box.Height) * NotationMetrics.NoteFoldFraction, NotationMetrics.NoteFoldMaxSize);
 
         var x = (float)(box.X * scale);
         var y = (float)(box.Y * scale);
@@ -548,13 +552,16 @@ public sealed class PngRenderer : IRenderer
         var scale = (float)options.Scale;
         var strokeColor = SKColor.Parse(theme.StrokeColor);
 
-        // Build a single path through all waypoints for unified corner-effect rendering
-        using var path = new SKPath();
-        path.MoveTo((float)(line.Waypoints[0].X * scale), (float)(line.Waypoints[0].Y * scale));
-        for (var i = 1; i < line.Waypoints.Count; i++)
-        {
-            path.LineTo((float)(line.Waypoints[i].X * scale), (float)(line.Waypoints[i].Y * scale));
-        }
+        // Build the connector path. Lines that carry an end marker whose decoration would otherwise be
+        // intruded by a rounded corner are built with explicit, per-end clamped corners; all other
+        // lines keep the uniform CornerPathEffect so their geometry is byte-identical to before.
+        var clampCorners = (line.SourceEnd != EndMarkerStyle.None || line.TargetEnd != EndMarkerStyle.None)
+            && theme.LineCornerRadius > 0
+            && NeedsEndCornerClamp(line.Waypoints, theme.LineCornerRadius, line.SourceEnd, line.TargetEnd);
+
+        using var path = clampCorners
+            ? BuildClampedLinePath(line.Waypoints, theme.LineCornerRadius, scale, line.SourceEnd, line.TargetEnd)
+            : BuildSimpleLinePath(line.Waypoints, scale);
 
         using var paint = new SKPaint();
         paint.Color = strokeColor;
@@ -566,7 +573,18 @@ public sealed class PngRenderer : IRenderer
         var cornerRadius = (float)(theme.LineCornerRadius * scale);
         var hasDash = line.LineStyle != LineStyle.Solid;
 
-        if (hasDash && cornerRadius > 0)
+        if (clampCorners)
+        {
+            // Corners are already baked into the path; apply only the dash effect when needed.
+            if (hasDash)
+            {
+                float[] intervals = line.LineStyle == LineStyle.Dashed
+                    ? [6f * scale, 3f * scale]
+                    : [2f * scale, 2f * scale];
+                paint.PathEffect = SKPathEffect.CreateDash(intervals, 0);
+            }
+        }
+        else if (hasDash && cornerRadius > 0)
         {
             // Compose: apply corner rounding (inner effect) then dashing (outer effect)
             float[] intervals = line.LineStyle == LineStyle.Dashed
@@ -590,37 +608,200 @@ public sealed class PngRenderer : IRenderer
 
         canvas.DrawPath(path, paint);
 
-        // Draw source arrowhead at the first waypoint, direction pointing away from the line
-        if (line.SourceArrowhead != ArrowheadStyle.None)
+        // Draw source end marker at the first waypoint, direction pointing away from the line
+        if (line.SourceEnd != EndMarkerStyle.None)
         {
             var tip = line.Waypoints[0];
             var next = line.Waypoints[1];
             var (dx, dy) = ComputeDirection(next.X, next.Y, tip.X, tip.Y);
-            DrawArrowhead(
+            DrawEndMarker(
                 canvas,
                 (float)(tip.X * scale), (float)(tip.Y * scale),
                 (float)dx, (float)dy,
-                line.SourceArrowhead,
-                new ArrowheadPaint(strokeColor, (float)theme.StrokeWidth * scale, scale));
+                line.SourceEnd,
+                new EndMarkerPaint(strokeColor, SKColor.Parse(theme.BackgroundColor), (float)theme.StrokeWidth * scale, scale));
         }
 
-        // Draw target arrowhead at the last waypoint, direction pointing away from the line
-        if (line.TargetArrowhead != ArrowheadStyle.None)
+        // Draw target end marker at the last waypoint, direction pointing away from the line
+        if (line.TargetEnd != EndMarkerStyle.None)
         {
             var n = line.Waypoints.Count;
             var tip = line.Waypoints[n - 1];
             var prev = line.Waypoints[n - 2];
             var (dx, dy) = ComputeDirection(prev.X, prev.Y, tip.X, tip.Y);
-            DrawArrowhead(
+            DrawEndMarker(
                 canvas,
                 (float)(tip.X * scale), (float)(tip.Y * scale),
                 (float)dx, (float)dy,
-                line.TargetArrowhead,
-                new ArrowheadPaint(strokeColor, (float)theme.StrokeWidth * scale, scale));
+                line.TargetEnd,
+                new EndMarkerPaint(strokeColor, SKColor.Parse(theme.BackgroundColor), (float)theme.StrokeWidth * scale, scale));
         }
 
         // Note: the midpoint label is intentionally NOT drawn here. It is drawn in a final pass
         // (see RenderLineLabel) so that no later wire can draw over an earlier wire's label.
+    }
+
+    /// <summary>
+    /// Builds a plain scaled polyline path through all waypoints, used together with the uniform
+    /// <c>CornerPathEffect</c> for lines that do not need decoration-aware corner clamping.
+    /// </summary>
+    /// <param name="waypoints">Ordered waypoints.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    /// <returns>The polyline path.</returns>
+    private static SKPath BuildSimpleLinePath(IReadOnlyList<Point2D> waypoints, float scale)
+    {
+        var path = new SKPath();
+        path.MoveTo((float)(waypoints[0].X * scale), (float)(waypoints[0].Y * scale));
+        for (var i = 1; i < waypoints.Count; i++)
+        {
+            path.LineTo((float)(waypoints[i].X * scale), (float)(waypoints[i].Y * scale));
+        }
+
+        return path;
+    }
+
+    /// <summary>
+    /// Returns whether a uniform rounded corner of <paramref name="cornerRadius"/> would intrude into
+    /// an end-marker decoration, i.e. the straight approach at a decorated end is shorter than the
+    /// marker's along-line length plus the corner radius. Computed in unscaled notation units.
+    /// </summary>
+    /// <param name="waypoints">Ordered waypoints (unscaled).</param>
+    /// <param name="cornerRadius">Unscaled line corner radius.</param>
+    /// <param name="sourceEnd">Source end-marker style.</param>
+    /// <param name="targetEnd">Target end-marker style.</param>
+    /// <returns><c>true</c> if explicit clamped corners are required; otherwise <c>false</c>.</returns>
+    private static bool NeedsEndCornerClamp(
+        IReadOnlyList<Point2D> waypoints,
+        double cornerRadius,
+        EndMarkerStyle sourceEnd,
+        EndMarkerStyle targetEnd)
+    {
+        // Without an interior corner there is nothing to round, so nothing can intrude.
+        if (waypoints.Count < 3)
+        {
+            return false;
+        }
+
+        if (sourceEnd != EndMarkerStyle.None)
+        {
+            var inLen = Distance(waypoints[0], waypoints[1]);
+            if (inLen - NotationMetrics.AlongLineLength(sourceEnd) < cornerRadius)
+            {
+                return true;
+            }
+        }
+
+        if (targetEnd != EndMarkerStyle.None)
+        {
+            var n = waypoints.Count;
+            var outLen = Distance(waypoints[n - 2], waypoints[n - 1]);
+            if (outLen - NotationMetrics.AlongLineLength(targetEnd) < cornerRadius)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Builds a scaled connector path with arc-rounded interior corners, mirroring the SVG renderer's
+    /// <c>BuildLinePath</c>: the first interior corner additionally clamps its radius to
+    /// <c>inLen − AlongLineLength(sourceEnd)</c> and the last to
+    /// <c>outLen − AlongLineLength(targetEnd)</c>, so the rounded corner never intrudes into an end
+    /// decoration. Corners are baked into the geometry, so no <c>CornerPathEffect</c> is applied.
+    /// </summary>
+    /// <param name="waypoints">Ordered waypoints (unscaled); at least two entries.</param>
+    /// <param name="cornerRadius">Unscaled line corner radius.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    /// <param name="sourceEnd">Source end-marker style.</param>
+    /// <param name="targetEnd">Target end-marker style.</param>
+    /// <returns>The corner-baked connector path.</returns>
+    private static SKPath BuildClampedLinePath(
+        IReadOnlyList<Point2D> waypoints,
+        double cornerRadius,
+        float scale,
+        EndMarkerStyle sourceEnd,
+        EndMarkerStyle targetEnd)
+    {
+        var path = new SKPath();
+        var first = waypoints[0];
+        path.MoveTo((float)(first.X * scale), (float)(first.Y * scale));
+
+        for (var i = 1; i < waypoints.Count; i++)
+        {
+            var cur = waypoints[i];
+            var isInterior = i < waypoints.Count - 1;
+            if (!isInterior)
+            {
+                path.LineTo((float)(cur.X * scale), (float)(cur.Y * scale));
+                continue;
+            }
+
+            var prev = waypoints[i - 1];
+            var next = waypoints[i + 1];
+
+            var inDx = cur.X - prev.X;
+            var inDy = cur.Y - prev.Y;
+            var inLen = Math.Sqrt(inDx * inDx + inDy * inDy);
+            var outDx = next.X - cur.X;
+            var outDy = next.Y - cur.Y;
+            var outLen = Math.Sqrt(outDx * outDx + outDy * outDy);
+
+            if (inLen < 0.001 || outLen < 0.001)
+            {
+                path.LineTo((float)(cur.X * scale), (float)(cur.Y * scale));
+                continue;
+            }
+
+            var inNx = inDx / inLen;
+            var inNy = inDy / inLen;
+            var outNx = outDx / outLen;
+            var outNy = outDy / outLen;
+
+            var r = Math.Min(cornerRadius, Math.Min(inLen / 2.0, outLen / 2.0));
+            if (i == 1)
+            {
+                r = Math.Min(r, inLen - NotationMetrics.AlongLineLength(sourceEnd));
+            }
+
+            if (i == waypoints.Count - 2)
+            {
+                r = Math.Min(r, outLen - NotationMetrics.AlongLineLength(targetEnd));
+            }
+
+            if (r <= 0.0)
+            {
+                path.LineTo((float)(cur.X * scale), (float)(cur.Y * scale));
+                continue;
+            }
+
+            var shortEndX = cur.X - inNx * r;
+            var shortEndY = cur.Y - inNy * r;
+            var shortStartX = cur.X + outNx * r;
+            var shortStartY = cur.Y + outNy * r;
+
+            var cross = inNx * outNy - inNy * outNx;
+            var dir = cross > 0 ? SKPathDirection.Clockwise : SKPathDirection.CounterClockwise;
+
+            path.LineTo((float)(shortEndX * scale), (float)(shortEndY * scale));
+            path.ArcTo(
+                (float)(r * scale), (float)(r * scale), 0, SKPathArcSize.Small, dir,
+                (float)(shortStartX * scale), (float)(shortStartY * scale));
+        }
+
+        return path;
+    }
+
+    /// <summary>Returns the Euclidean distance between two points.</summary>
+    /// <param name="a">First point.</param>
+    /// <param name="b">Second point.</param>
+    /// <returns>The distance.</returns>
+    private static double Distance(Point2D a, Point2D b)
+    {
+        var dx = a.X - b.X;
+        var dy = a.Y - b.Y;
+        return Math.Sqrt(dx * dx + dy * dy);
     }
 
     /// <summary>
@@ -681,48 +862,79 @@ public sealed class PngRenderer : IRenderer
     }
 
     /// <summary>
-    /// Groups the visual paint parameters for arrowhead rendering, reducing the parameter
-    /// count on <see cref="DrawArrowhead"/> to within the allowed limit.
+    /// Groups the visual paint parameters for line-end marker rendering, reducing the parameter
+    /// count on <see cref="DrawEndMarker"/> to within the allowed limit.
     /// </summary>
-    /// <param name="Color">Stroke and fill color for the arrowhead.</param>
-    /// <param name="StrokeWidth">Stroke width applied to open (non-filled) arrowhead styles.</param>
-    /// <param name="Scale">Uniform scale factor used to size the arrowhead relative to the diagram.</param>
-    private readonly record struct ArrowheadPaint(SKColor Color, float StrokeWidth, float Scale);
+    /// <param name="Color">Stroke and fill color for the end marker.</param>
+    /// <param name="BackgroundColor">Background fill for hollow enclosing markers, so the connector line does not show through.</param>
+    /// <param name="StrokeWidth">Stroke width applied to open (non-filled) end-marker styles.</param>
+    /// <param name="Scale">Uniform scale factor used to size the end marker relative to the diagram.</param>
+    private readonly record struct EndMarkerPaint(SKColor Color, SKColor BackgroundColor, float StrokeWidth, float Scale);
 
     /// <summary>
-    /// Draws an arrowhead of the specified style at a line endpoint.
+    /// Maps a tip-relative <see cref="MarkerVertex"/> to a scaled canvas point, shared by all marker
+    /// shapes so the PNG draws the identical geometry as the SVG marker definitions.
     /// </summary>
     /// <remarks>
-    /// The direction vector (<paramref name="dx"/>, <paramref name="dy"/>) must be a unit
-    /// vector pointing from the line body toward the tip. A perpendicular vector is derived
-    /// automatically to construct the wing points of triangle and diamond shapes.
+    /// The endpoint (tip) is the line end; <c>(dx, dy)</c> points outward along the line and
+    /// <c>(px, py)</c> is its left perpendicular. A vertex at distance <c>Along</c> back from the tip
+    /// and <c>Across</c> to the side maps to <c>tip − dir·Along·scale + perp·Across·scale</c>, so a
+    /// negative <c>Along</c> (the triangle apex) overshoots the tip outward.
+    /// </remarks>
+    /// <param name="tipX">Scaled X coordinate of the line endpoint.</param>
+    /// <param name="tipY">Scaled Y coordinate of the line endpoint.</param>
+    /// <param name="dx">X component of the outward unit direction.</param>
+    /// <param name="dy">Y component of the outward unit direction.</param>
+    /// <param name="px">X component of the perpendicular unit direction.</param>
+    /// <param name="py">Y component of the perpendicular unit direction.</param>
+    /// <param name="vertex">The tip-relative marker vertex in notation units.</param>
+    /// <param name="scale">Uniform scale factor.</param>
+    /// <returns>The mapped canvas point.</returns>
+    private static SKPoint MarkerPoint(
+        float tipX, float tipY, float dx, float dy, float px, float py, MarkerVertex vertex, float scale)
+    {
+        var along = (float)vertex.Along;
+        var across = (float)vertex.Across;
+        return new SKPoint(
+            tipX - dx * along * scale + px * across * scale,
+            tipY - dy * along * scale + py * across * scale);
+    }
+
+    /// <summary>
+    /// Draws a line-end marker of the specified style at a line endpoint, with every coordinate
+    /// derived from <see cref="NotationMetrics"/> so the PNG marker matches the SVG marker exactly.
+    /// </summary>
+    /// <remarks>
+    /// The direction vector (<paramref name="dx"/>, <paramref name="dy"/>) must be a unit vector
+    /// pointing from the line body outward through the tip. The triangle, filled arrow, and both
+    /// diamonds reuse <see cref="NotationMetrics.TriangleVertices"/> /
+    /// <see cref="NotationMetrics.DiamondVertices"/>; <see cref="EndMarkerStyle.OpenChevron"/> draws
+    /// those triangle vertices as an OPEN two-stroke polyline (no closing base edge), whereas
+    /// <see cref="EndMarkerStyle.HollowTriangle"/> closes the path.
     /// </remarks>
     /// <param name="canvas">Canvas to draw on.</param>
-    /// <param name="tipX">Scaled X coordinate of the arrowhead tip.</param>
-    /// <param name="tipY">Scaled Y coordinate of the arrowhead tip.</param>
-    /// <param name="dx">X component of the normalized direction vector pointing toward the tip.</param>
-    /// <param name="dy">Y component of the normalized direction vector pointing toward the tip.</param>
-    /// <param name="style">Arrowhead style to draw; <see cref="ArrowheadStyle.None"/> is a no-op.</param>
-    /// <param name="paint">Color, stroke width, and scale parameters for the arrowhead.</param>
-    private static void DrawArrowhead(
+    /// <param name="tipX">Scaled X coordinate of the line endpoint.</param>
+    /// <param name="tipY">Scaled Y coordinate of the line endpoint.</param>
+    /// <param name="dx">X component of the normalized outward direction vector.</param>
+    /// <param name="dy">Y component of the normalized outward direction vector.</param>
+    /// <param name="style">End-marker style to draw; <see cref="EndMarkerStyle.None"/> is a no-op.</param>
+    /// <param name="paint">Color, stroke width, and scale parameters for the end marker.</param>
+    private static void DrawEndMarker(
         SKCanvas canvas,
         float tipX, float tipY,
         float dx, float dy,
-        ArrowheadStyle style,
-        ArrowheadPaint paint)
+        EndMarkerStyle style,
+        EndMarkerPaint paint)
     {
-        if (style == ArrowheadStyle.None)
+        if (style == EndMarkerStyle.None)
         {
             return;
         }
 
-        // Perpendicular direction (90° CCW rotation of the forward vector)
+        // Perpendicular direction (90° CCW rotation of the outward vector)
         var px = -dy;
         var py = dx;
-
-        // Arrowhead sizing: length along the line, half-width across
-        var arrowLen = 10f * paint.Scale;
-        var halfW = 4f * paint.Scale;
+        var scale = paint.Scale;
 
         using var paintObj = new SKPaint();
         paintObj.Color = paint.Color;
@@ -731,94 +943,99 @@ public sealed class PngRenderer : IRenderer
 
         switch (style)
         {
-            case ArrowheadStyle.Open:
+            case EndMarkerStyle.OpenChevron:
                 {
-                    // Open (hollow) triangle: two stroke lines from wing points to the tip
+                    // OPEN chevron: two strokes meeting at the apex, no closing base edge.
                     paintObj.Style = SKPaintStyle.Stroke;
-                    using var p = new SKPath();
-                    p.MoveTo(tipX - dx * arrowLen + px * halfW, tipY - dy * arrowLen + py * halfW);
-                    p.LineTo(tipX, tipY);
-                    p.LineTo(tipX - dx * arrowLen - px * halfW, tipY - dy * arrowLen - py * halfW);
+                    using var p = TrianglePath(tipX, tipY, dx, dy, px, py, scale, close: false);
                     canvas.DrawPath(p, paintObj);
                     break;
                 }
 
-            case ArrowheadStyle.OpenWithCrossbar:
+            case EndMarkerStyle.HollowTriangle:
                 {
-                    // Open V strokes + perpendicular crossbar at 2/3 arrowLen from tip
-                    paintObj.Style = SKPaintStyle.Stroke;
-                    var crossPos = arrowLen * (2f / 3f);
-                    using var p = new SKPath();
-                    p.MoveTo(tipX - dx * arrowLen + px * halfW, tipY - dy * arrowLen + py * halfW);
-                    p.LineTo(tipX, tipY);
-                    p.LineTo(tipX - dx * arrowLen - px * halfW, tipY - dy * arrowLen - py * halfW);
-                    canvas.DrawPath(p, paintObj);
-                    canvas.DrawLine(
-                        tipX - dx * crossPos + px * halfW, tipY - dy * crossPos + py * halfW,
-                        tipX - dx * crossPos - px * halfW, tipY - dy * crossPos - py * halfW,
-                        paintObj);
-                    break;
-                }
-
-            case ArrowheadStyle.Filled:
-                {
-                    // Filled solid triangle pointing toward the tip
+                    // Closed hollow triangle, background-filled so the line does not show through.
+                    using var p = TrianglePath(tipX, tipY, dx, dy, px, py, scale, close: true);
                     paintObj.Style = SKPaintStyle.Fill;
-                    using var p = new SKPath();
-                    p.MoveTo(tipX, tipY);
-                    p.LineTo(tipX - dx * arrowLen + px * halfW, tipY - dy * arrowLen + py * halfW);
-                    p.LineTo(tipX - dx * arrowLen - px * halfW, tipY - dy * arrowLen - py * halfW);
-                    p.Close();
+                    paintObj.Color = paint.BackgroundColor;
                     canvas.DrawPath(p, paintObj);
-                    break;
-                }
-
-            case ArrowheadStyle.Diamond:
-                {
-                    // Open diamond: four-point polygon straddling the line end
                     paintObj.Style = SKPaintStyle.Stroke;
-                    using var p = new SKPath();
-                    p.MoveTo(tipX, tipY);
-                    p.LineTo(tipX - dx * (arrowLen / 2f) + px * halfW, tipY - dy * (arrowLen / 2f) + py * halfW);
-                    p.LineTo(tipX - dx * arrowLen, tipY - dy * arrowLen);
-                    p.LineTo(tipX - dx * (arrowLen / 2f) - px * halfW, tipY - dy * (arrowLen / 2f) - py * halfW);
-                    p.Close();
+                    paintObj.Color = paint.Color;
                     canvas.DrawPath(p, paintObj);
                     break;
                 }
 
-            case ArrowheadStyle.FilledDiamond:
+            case EndMarkerStyle.HollowTriangleCrossbar:
                 {
-                    // Filled diamond
+                    // Closed hollow triangle (background-filled) + perpendicular crossbar on the shaft.
+                    using var p = TrianglePath(tipX, tipY, dx, dy, px, py, scale, close: true);
                     paintObj.Style = SKPaintStyle.Fill;
-                    using var p = new SKPath();
-                    p.MoveTo(tipX, tipY);
-                    p.LineTo(tipX - dx * (arrowLen / 2f) + px * halfW, tipY - dy * (arrowLen / 2f) + py * halfW);
-                    p.LineTo(tipX - dx * arrowLen, tipY - dy * arrowLen);
-                    p.LineTo(tipX - dx * (arrowLen / 2f) - px * halfW, tipY - dy * (arrowLen / 2f) - py * halfW);
-                    p.Close();
+                    paintObj.Color = paint.BackgroundColor;
+                    canvas.DrawPath(p, paintObj);
+                    paintObj.Style = SKPaintStyle.Stroke;
+                    paintObj.Color = paint.Color;
+                    canvas.DrawPath(p, paintObj);
+
+                    var crossAlong = NotationMetrics.EndMarkerRefX - NotationMetrics.CrossbarX;
+                    var a = MarkerPoint(tipX, tipY, dx, dy, px, py, new MarkerVertex(crossAlong, -NotationMetrics.EndMarkerHalfWidth), scale);
+                    var b = MarkerPoint(tipX, tipY, dx, dy, px, py, new MarkerVertex(crossAlong, NotationMetrics.EndMarkerHalfWidth), scale);
+                    canvas.DrawLine(a.X, a.Y, b.X, b.Y, paintObj);
+                    break;
+                }
+
+            case EndMarkerStyle.FilledArrow:
+                {
+                    // Filled solid triangle.
+                    paintObj.Style = SKPaintStyle.Fill;
+                    using var p = TrianglePath(tipX, tipY, dx, dy, px, py, scale, close: true);
                     canvas.DrawPath(p, paintObj);
                     break;
                 }
 
-            case ArrowheadStyle.Circle:
+            case EndMarkerStyle.HollowDiamond:
                 {
-                    // Open circle whose near edge touches the tip; center is pulled back by one radius
+                    // Hollow four-point diamond, background-filled so the line does not show through.
+                    using var p = DiamondPath(tipX, tipY, dx, dy, px, py, scale);
+                    paintObj.Style = SKPaintStyle.Fill;
+                    paintObj.Color = paint.BackgroundColor;
+                    canvas.DrawPath(p, paintObj);
                     paintObj.Style = SKPaintStyle.Stroke;
-                    var r = 4f * paint.Scale;
-                    canvas.DrawCircle(tipX - dx * r, tipY - dy * r, r, paintObj);
+                    paintObj.Color = paint.Color;
+                    canvas.DrawPath(p, paintObj);
                     break;
                 }
 
-            case ArrowheadStyle.Bar:
+            case EndMarkerStyle.FilledDiamond:
                 {
-                    // Perpendicular bar centered on the tip
+                    // Filled four-point diamond.
+                    paintObj.Style = SKPaintStyle.Fill;
+                    using var p = DiamondPath(tipX, tipY, dx, dy, px, py, scale);
+                    canvas.DrawPath(p, paintObj);
+                    break;
+                }
+
+            case EndMarkerStyle.Circle:
+                {
+                    // Hollow circle (background-filled) whose near edge touches the tip; center pulled back by one radius.
+                    var center = MarkerPoint(
+                        tipX, tipY, dx, dy, px, py, new MarkerVertex(NotationMetrics.CircleRadius, 0.0), scale);
+                    var r = (float)NotationMetrics.CircleRadius * scale;
+                    paintObj.Style = SKPaintStyle.Fill;
+                    paintObj.Color = paint.BackgroundColor;
+                    canvas.DrawCircle(center.X, center.Y, r, paintObj);
                     paintObj.Style = SKPaintStyle.Stroke;
-                    var barHalf = 6f * paint.Scale;
-                    canvas.DrawLine(
-                        tipX + px * barHalf, tipY + py * barHalf,
-                        tipX - px * barHalf, tipY - py * barHalf,
-                        paintObj);
+                    paintObj.Color = paint.Color;
+                    canvas.DrawCircle(center.X, center.Y, r, paintObj);
+                    break;
+                }
+
+            case EndMarkerStyle.Bar:
+                {
+                    // Perpendicular bar centered on the tip.
+                    paintObj.Style = SKPaintStyle.Stroke;
+                    var a = MarkerPoint(tipX, tipY, dx, dy, px, py, new MarkerVertex(0.0, NotationMetrics.BarHalf), scale);
+                    var b = MarkerPoint(tipX, tipY, dx, dy, px, py, new MarkerVertex(0.0, -NotationMetrics.BarHalf), scale);
+                    canvas.DrawLine(a.X, a.Y, b.X, b.Y, paintObj);
                     break;
                 }
 
@@ -826,6 +1043,51 @@ public sealed class PngRenderer : IRenderer
                 // Unknown styles are treated as None
                 break;
         }
+    }
+
+    /// <summary>
+    /// Builds the triangle marker path from <see cref="NotationMetrics.TriangleVertices"/>, optionally
+    /// closing the base edge (closed for the hollow/filled triangle, open for the chevron).
+    /// </summary>
+    private static SKPath TrianglePath(
+        float tipX, float tipY, float dx, float dy, float px, float py, float scale, bool close)
+    {
+        var vertices = NotationMetrics.TriangleVertices();
+        var p = new SKPath();
+        var v0 = MarkerPoint(tipX, tipY, dx, dy, px, py, vertices[0], scale);
+        p.MoveTo(v0.X, v0.Y);
+        for (var i = 1; i < vertices.Count; i++)
+        {
+            var v = MarkerPoint(tipX, tipY, dx, dy, px, py, vertices[i], scale);
+            p.LineTo(v.X, v.Y);
+        }
+
+        if (close)
+        {
+            p.Close();
+        }
+
+        return p;
+    }
+
+    /// <summary>
+    /// Builds the closed diamond marker path from <see cref="NotationMetrics.DiamondVertices"/>.
+    /// </summary>
+    private static SKPath DiamondPath(
+        float tipX, float tipY, float dx, float dy, float px, float py, float scale)
+    {
+        var vertices = NotationMetrics.DiamondVertices();
+        var p = new SKPath();
+        var v0 = MarkerPoint(tipX, tipY, dx, dy, px, py, vertices[0], scale);
+        p.MoveTo(v0.X, v0.Y);
+        for (var i = 1; i < vertices.Count; i++)
+        {
+            var v = MarkerPoint(tipX, tipY, dx, dy, px, py, vertices[i], scale);
+            p.LineTo(v.X, v.Y);
+        }
+
+        p.Close();
+        return p;
     }
 
     /// <summary>
@@ -936,13 +1198,12 @@ public sealed class PngRenderer : IRenderer
         var scale = (float)options.Scale;
         var strokeColor = SKColor.Parse(theme.StrokeColor);
 
-        // Port square: 8×8 logical pixels, centered at (CentreX, CentreY)
-        const double PortHalfSize = 4.0;
+        // Port square: filled, centered at (CentreX, CentreY), sized from NotationMetrics.
         var portRect = new SKRect(
-            (float)((port.CentreX - PortHalfSize) * scale),
-            (float)((port.CentreY - PortHalfSize) * scale),
-            (float)((port.CentreX + PortHalfSize) * scale),
-            (float)((port.CentreY + PortHalfSize) * scale));
+            (float)((port.CentreX - NotationMetrics.PortHalfSize) * scale),
+            (float)((port.CentreY - NotationMetrics.PortHalfSize) * scale),
+            (float)((port.CentreX + NotationMetrics.PortHalfSize) * scale),
+            (float)((port.CentreY + NotationMetrics.PortHalfSize) * scale));
 
         // Ports are conventionally drawn as filled squares using the stroke color
         using (var fillPaint = new SKPaint())
@@ -956,7 +1217,7 @@ public sealed class PngRenderer : IRenderer
         if (port.Label != null)
         {
             // Offset the label far enough from the port square so it does not overlap
-            var offset = PortHalfSize + theme.LabelPadding;
+            var offset = NotationMetrics.PortHalfSize + theme.LabelPadding;
             var (labelX, labelY, align) = port.Side switch
             {
                 PortSide.Top => (port.CentreX, port.CentreY - offset, SKTextAlign.Center),
@@ -1014,8 +1275,8 @@ public sealed class PngRenderer : IRenderer
                     innerWhite.Color = SKColors.White;
                     innerWhite.Style = SKPaintStyle.Fill;
                     innerWhite.IsAntialias = true;
-                    canvas.DrawCircle(cx, cy, r / 3f, innerWhite);
-                    canvas.DrawCircle(cx, cy, r / 3f, strokePaint);
+                    canvas.DrawCircle(cx, cy, r * (float)NotationMetrics.BadgeBullseyeInnerFraction, innerWhite);
+                    canvas.DrawCircle(cx, cy, r * (float)NotationMetrics.BadgeBullseyeInnerFraction, strokePaint);
                     break;
                 }
 
@@ -1033,11 +1294,11 @@ public sealed class PngRenderer : IRenderer
                 }
 
             case BadgeShape.HorizontalBar:
-                canvas.DrawLine(cx - r * 0.8f, cy, cx + r * 0.8f, cy, strokePaint);
+                canvas.DrawLine(cx - r * (float)NotationMetrics.BadgeBarLengthFraction, cy, cx + r * (float)NotationMetrics.BadgeBarLengthFraction, cy, strokePaint);
                 break;
 
             case BadgeShape.VerticalBar:
-                canvas.DrawLine(cx, cy - r * 0.8f, cx, cy + r * 0.8f, strokePaint);
+                canvas.DrawLine(cx, cy - r * (float)NotationMetrics.BadgeBarLengthFraction, cx, cy + r * (float)NotationMetrics.BadgeBarLengthFraction, strokePaint);
                 break;
 
             default:

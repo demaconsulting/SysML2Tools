@@ -17,8 +17,8 @@ public sealed class ConnectorLabelPlacerTests
     {
         var line = new LayoutLine(
             [new Point2D(0, 0), new Point2D(100, 0)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.Filled,
+            EndMarkerStyle.None,
+            EndMarkerStyle.FilledArrow,
             LineStyle.Solid,
             MidpointLabel: null);
 
@@ -34,8 +34,8 @@ public sealed class ConnectorLabelPlacerTests
         // A short vertical stub then a long horizontal run: the label should land on the long run.
         var line = new LayoutLine(
             [new Point2D(0, 0), new Point2D(0, 10), new Point2D(200, 10)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.Filled,
+            EndMarkerStyle.None,
+            EndMarkerStyle.FilledArrow,
             LineStyle.Solid,
             MidpointLabel: "[guard]");
 
@@ -53,14 +53,14 @@ public sealed class ConnectorLabelPlacerTests
         // Two lines whose longest-segment midpoints are the same point.
         var a = new LayoutLine(
             [new Point2D(0, 0), new Point2D(200, 0)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.Filled,
+            EndMarkerStyle.None,
+            EndMarkerStyle.FilledArrow,
             LineStyle.Solid,
             MidpointLabel: "[atFloor]");
         var b = new LayoutLine(
             [new Point2D(0, 0), new Point2D(200, 0)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.Filled,
+            EndMarkerStyle.None,
+            EndMarkerStyle.FilledArrow,
             LineStyle.Solid,
             MidpointLabel: "[timeout]");
 

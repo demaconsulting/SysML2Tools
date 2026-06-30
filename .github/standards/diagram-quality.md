@@ -45,6 +45,12 @@ For each **connection** in the diagram:
 - Does not pass through the interior of any box it is not connected to
 - Exits and enters perpendicular to the face it connects on (clean
   right-angle stub, not a diagonal or sliding-along-edge entry)
+- Its final straight approach into the target box is at least as long as the
+  arrowhead, so the arrowhead reads as a clean perpendicular entry
+- Every connector end decoration sits on a clean straight approach at least as
+  long as the decoration's along-line length, so the rounded corner does not
+  intrude into the decoration; open line-end markers (open chevrons) are drawn
+  open (two strokes), not as closed triangles
 - If two connections share the same destination box and face, they merge into
   a single shared trunk well before reaching the box — parallel same-destination
   runs covering more than ~30% of total connector length are a defect
@@ -144,6 +150,16 @@ Do NOT say "looks good" or "appears correct" in aggregate.
      from the source box, or whose last segment arrives at the target box from
      above or below, is a defect — regardless of angle.
 
+[C9] Every connector's final straight approach into its target node is at
+     least as long as the arrowhead, so the arrowhead reads as a clean
+     perpendicular entry (no stub shorter than the arrowhead).
+
+[C10] Every connector end decoration sits on a clean straight approach at
+      least as long as the decoration's own along-line length, so the rounded
+      corner completes before the decoration zone and never intrudes into it.
+      Open line-end markers (open chevrons) are drawn OPEN — two strokes
+      meeting at the apex with no closing base edge — not as closed triangles.
+
 --- SUMMARY ---
 
 After evaluating all criteria, output:
@@ -170,6 +186,6 @@ After evaluating all criteria, output:
 [ ] Recorded per-criterion PASS/FAIL verdicts (not just "looks OK")
 [ ] All I1–I3 inventory checks passed
 [ ] All B1–B5 block checks passed
-[ ] All C1–C7 connector checks passed
+[ ] All C1–C10 connector checks passed
 [ ] Any FAIL was fixed and re-checked before committing
 ```

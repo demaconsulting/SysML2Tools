@@ -45,13 +45,13 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <param name="SourceLocal">Index of the source definition within its package group.</param>
     /// <param name="TargetLocal">Index of the target definition within its package group.</param>
     /// <param name="Arrowhead">Arrowhead drawn at the target (supertype or owner) end.</param>
-    private sealed record IntraEdge(int SourceLocal, int TargetLocal, ArrowheadStyle Arrowhead);
+    private sealed record IntraEdge(int SourceLocal, int TargetLocal, EndMarkerStyle Arrowhead);
 
     /// <summary>A cross-package edge between two definitions in different package groups.</summary>
     /// <param name="SourceQualified">Qualified name of the source definition.</param>
     /// <param name="TargetQualified">Qualified name of the target (supertype or owner) definition.</param>
     /// <param name="Arrowhead">Arrowhead drawn at the target end.</param>
-    private sealed record CrossEdge(string SourceQualified, string TargetQualified, ArrowheadStyle Arrowhead);
+    private sealed record CrossEdge(string SourceQualified, string TargetQualified, EndMarkerStyle Arrowhead);
 
     /// <summary>
     /// The package-local placement of one group: each definition's top-left relative to the group's
@@ -65,7 +65,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         IReadOnlyList<(double X, double Y)> LocalPos,
         double ContentWidth,
         double ContentHeight,
-        IReadOnlyList<(IReadOnlyList<Point2D> Points, ArrowheadStyle Arrowhead)> Edges);
+        IReadOnlyList<(IReadOnlyList<Point2D> Points, EndMarkerStyle Arrowhead)> Edges);
 
     /// <summary>A user-defined definition together with its computed box size and supertypes.</summary>
     private sealed record DefBox(
@@ -416,7 +416,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         }
 
         // Translate each edge polyline into the same content-local frame, paired with its arrowhead.
-        var edges = new List<(IReadOnlyList<Point2D> Points, ArrowheadStyle Arrowhead)>(intraEdges.Count);
+        var edges = new List<(IReadOnlyList<Point2D> Points, EndMarkerStyle Arrowhead)>(intraEdges.Count);
         for (var k = 0; k < intraEdges.Count; k++)
         {
             var points = graph.Waypoints[k].Select(p => new Point2D(p.X - minX, p.Y - minY)).ToList();
@@ -500,8 +500,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             var absPoints = points.Select(p => new Point2D(contentOriginX + p.X, contentOriginY + p.Y)).ToList();
             intraEdges.Add(new LayoutLine(
                 Waypoints: absPoints,
-                SourceArrowhead: ArrowheadStyle.None,
-                TargetArrowhead: arrowhead,
+                SourceEnd: EndMarkerStyle.None,
+                TargetEnd: arrowhead,
                 LineStyle: LineStyle.Solid,
                 MidpointLabel: null));
         }
@@ -576,11 +576,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     {
                         if (target.Group == g)
                         {
-                            intra[g].Add(new IntraEdge(l, target.Local, ArrowheadStyle.Open));
+                            intra[g].Add(new IntraEdge(l, target.Local, EndMarkerStyle.HollowTriangle));
                         }
                         else
                         {
-                            cross.Add(new CrossEdge(def.QualifiedName, groups[target.Group].Items[target.Local].QualifiedName, ArrowheadStyle.Open));
+                            cross.Add(new CrossEdge(def.QualifiedName, groups[target.Group].Items[target.Local].QualifiedName, EndMarkerStyle.HollowTriangle));
                         }
                     }
                 }
@@ -591,12 +591,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 {
                     var arrowhead = membership.Keyword switch
                     {
-                        "part" or "port" => ArrowheadStyle.FilledDiamond,
-                        "ref" => ArrowheadStyle.Diamond,
-                        _ => ArrowheadStyle.None,
+                        "part" or "port" => EndMarkerStyle.FilledDiamond,
+                        "ref" => EndMarkerStyle.HollowDiamond,
+                        _ => EndMarkerStyle.None,
                     };
 
-                    if (arrowhead == ArrowheadStyle.None)
+                    if (arrowhead == EndMarkerStyle.None)
                     {
                         continue;
                     }
@@ -680,7 +680,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// Routes a single cross-package edge from the source box to the target box, placing the supplied
     /// arrowhead at the target (supertype or owner) end.
     /// </summary>
-    private static LayoutLine RouteCrossEdge(PlacedBox from, PlacedBox to, IReadOnlyList<PlacedBox> placed, ArrowheadStyle targetArrowhead)
+    private static LayoutLine RouteCrossEdge(PlacedBox from, PlacedBox to, IReadOnlyList<PlacedBox> placed, EndMarkerStyle targetArrowhead)
     {
         var fromCenter = new Point2D(from.X + (from.Width / 2.0), from.Y + (from.Height / 2.0));
         var toCenter = new Point2D(to.X + (to.Width / 2.0), to.Y + (to.Height / 2.0));
@@ -698,8 +698,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         return new LayoutLine(
             Waypoints: route.Waypoints,
-            SourceArrowhead: ArrowheadStyle.None,
-            TargetArrowhead: targetArrowhead,
+            SourceEnd: EndMarkerStyle.None,
+            TargetEnd: targetArrowhead,
             LineStyle: LineStyle.Solid,
             MidpointLabel: null);
     }

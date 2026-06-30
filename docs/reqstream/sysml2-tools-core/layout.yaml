@@ -86,7 +86,7 @@ sections:
       - id: SysML2Tools-Core-Layout-LayoutLine
         title: >-
           The Layout subsystem shall provide a LayoutLine node containing a pre-routed
-          ordered list of absolute waypoints, source and target arrowhead styles, a line
+          ordered list of absolute waypoints, source and target end-marker styles, a line
           stroke style, and an optional midpoint label.
         justification: |
           Pre-routed waypoints mean the renderer only draws straight segments between

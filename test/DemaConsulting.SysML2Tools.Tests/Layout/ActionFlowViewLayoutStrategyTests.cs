@@ -141,6 +141,6 @@ public sealed class ActionFlowViewLayoutStrategyTests
             .Where(l => l.MidpointLabel is null && l.LineStyle == LineStyle.Dashed)
             .ToList();
         Assert.NotEmpty(successionLines);
-        Assert.All(successionLines, l => Assert.Equal(ArrowheadStyle.Open, l.TargetArrowhead));
+        Assert.All(successionLines, l => Assert.Equal(EndMarkerStyle.OpenChevron, l.TargetEnd));
     }
 }

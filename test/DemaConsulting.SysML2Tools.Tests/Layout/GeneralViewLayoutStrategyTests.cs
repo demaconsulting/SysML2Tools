@@ -197,7 +197,7 @@ public sealed class GeneralViewLayoutStrategyTests
         // Assert: at least one orthogonal line with an open arrowhead at the supertype end
         var line = layout.Nodes.OfType<LayoutLine>().FirstOrDefault();
         Assert.NotNull(line);
-        Assert.Equal(ArrowheadStyle.Open, line!.TargetArrowhead);
+        Assert.Equal(EndMarkerStyle.HollowTriangle, line!.TargetEnd);
         Assert.True(line.Waypoints.Count >= 2);
     }
 
@@ -320,7 +320,7 @@ public sealed class GeneralViewLayoutStrategyTests
 
         // Assert: a line with a filled-diamond arrowhead at the owner (Vehicle) end exists
         var membershipEdge = layout.Nodes.OfType<LayoutLine>()
-            .FirstOrDefault(l => l.TargetArrowhead == ArrowheadStyle.FilledDiamond);
+            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
         Assert.NotNull(membershipEdge);
     }
 
@@ -356,9 +356,9 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a hollow-diamond arrowhead edge (ArrowheadStyle.Diamond) is emitted for a ref feature
+        // Assert: a hollow-diamond arrowhead edge (EndMarkerStyle.HollowDiamond) is emitted for a ref feature
         var membershipEdge = layout.Nodes.OfType<LayoutLine>()
-            .FirstOrDefault(l => l.TargetArrowhead == ArrowheadStyle.Diamond);
+            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowDiamond);
         Assert.NotNull(membershipEdge);
     }
 
@@ -396,8 +396,8 @@ public sealed class GeneralViewLayoutStrategyTests
 
         // Assert: no diamond arrowhead edge is produced for an attribute feature
         var membershipEdge = layout.Nodes.OfType<LayoutLine>()
-            .FirstOrDefault(l => l.TargetArrowhead == ArrowheadStyle.Diamond ||
-                                 l.TargetArrowhead == ArrowheadStyle.FilledDiamond);
+            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowDiamond ||
+                                 l.TargetEnd == EndMarkerStyle.FilledDiamond);
         Assert.Null(membershipEdge);
     }
 
@@ -435,7 +435,7 @@ public sealed class GeneralViewLayoutStrategyTests
 
         // Assert: a line with a filled-diamond arrowhead at the owner (Vehicle) end exists
         var membershipEdge = layout.Nodes.OfType<LayoutLine>()
-            .FirstOrDefault(l => l.TargetArrowhead == ArrowheadStyle.FilledDiamond);
+            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
         Assert.NotNull(membershipEdge);
     }
 

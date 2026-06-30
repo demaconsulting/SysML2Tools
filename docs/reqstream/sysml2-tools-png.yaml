@@ -53,10 +53,10 @@ sections:
 
       - id: SysML2Tools-Png-Render-ArrowheadOpenCrossbar
         title: >-
-          PngRenderer shall rasterize a line with the open-with-crossbar arrowhead
-          style without error.
+          PngRenderer shall rasterize a line with the hollow-triangle-with-crossbar
+          end-marker style without error.
         justification: |
-          The open-with-crossbar arrowhead style must render correctly so that
+          The hollow-triangle-with-crossbar end-marker style must render correctly so that
           diagrams containing redefinition connectors produce valid PNG output.
         tests:
           - PngRenderer_Render_DrawArrowhead_OpenWithCrossbar_ProducesNonEmptyOutput

@@ -20,7 +20,7 @@ configuration are required beyond a standard .NET SDK installation.
 - All `ActionFlowViewLayoutStrategyTests` pass with zero failures across all three target frameworks.
 - An action definition yields one box per action, a start marker, a done marker, and flow lines.
 - A succession's target action is positioned below its source action.
-- Each succession flow edge is a dashed line with an open arrowhead at the target action.
+- Each succession flow edge is a dashed line with an open end marker at the target action.
 - An empty workspace yields a canvas with no nodes.
 
 ##### Test Scenarios
@@ -30,4 +30,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `ActionFlowView_BuildLayout_ActionsAndSuccessions_ProducesBoxesMarkersAndFlows` | Action boxes, markers, and flows |
 | `ActionFlowView_BuildLayout_Successions_FlowTopToBottom` | The source action sits above its successor |
 | `ActionFlowView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas` | Canvas with no nodes |
-| `ActionFlowView_BuildLayout_SuccessionEdge_IsDashedWithOpenArrowhead` | Dashed line with open arrowhead |
+| `ActionFlowView_BuildLayout_SuccessionEdge_IsDashedWithOpenArrowhead` | Dashed line with open end marker |

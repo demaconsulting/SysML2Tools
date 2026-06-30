@@ -118,8 +118,8 @@ internal sealed class BrowserViewLayoutStrategy : ILayoutStrategy
         {
             nodes.Add(new LayoutLine(
                 Waypoints: [new Point2D(parentX, pcy), new Point2D(parentX, centreY), new Point2D(x, centreY)],
-                SourceArrowhead: ArrowheadStyle.None,
-                TargetArrowhead: ArrowheadStyle.None,
+                SourceEnd: EndMarkerStyle.None,
+                TargetEnd: EndMarkerStyle.None,
                 LineStyle: LineStyle.Solid,
                 MidpointLabel: null));
         }

@@ -176,6 +176,59 @@ public sealed class StateTransitionViewLayoutStrategyTests
         var transitionLine = layout.Nodes.OfType<LayoutLine>()
             .FirstOrDefault(l => l.MidpointLabel == "[g]");
         Assert.NotNull(transitionLine);
-        Assert.Equal(ArrowheadStyle.Open, transitionLine!.TargetArrowhead);
+        Assert.Equal(EndMarkerStyle.OpenChevron, transitionLine!.TargetEnd);
+    }
+
+    /// <summary>
+    ///     A forward chain of transitions flows top-to-bottom: each transition's target box is placed
+    ///     below its source box, and every transition polyline is orthogonal (axis-aligned segments).
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally()
+    {
+        // Arrange: a three-state forward chain a -> b -> c.
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var machine = new SysmlDefinitionNode
+        {
+            Name = "M",
+            QualifiedName = "P::M",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a", QualifiedName = "P::M::a", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "b", QualifiedName = "P::M::b", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "c", QualifiedName = "P::M::c", FeatureKeyword = "state" },
+                new SysmlTransitionNode { Source = "a", Target = "b", Guard = "ab" },
+                new SysmlTransitionNode { Source = "b", Target = "c", Guard = "bc" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::M"] = machine }
+        };
+        var context = new ViewContext("StateTransition", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: boxes flow top-to-bottom (a above b above c).
+        var boxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        var a = boxes.Single(b => b.Label == "a");
+        var b = boxes.Single(b => b.Label == "b");
+        var c = boxes.Single(b => b.Label == "c");
+        Assert.True(a.Y < b.Y, "state 'a' should be placed above state 'b'.");
+        Assert.True(b.Y < c.Y, "state 'b' should be placed above state 'c'.");
+
+        // Assert: every transition polyline is orthogonal.
+        foreach (var line in layout.Nodes.OfType<LayoutLine>().Where(l => l.MidpointLabel is "[ab]" or "[bc]"))
+        {
+            for (var i = 0; i + 1 < line.Waypoints.Count; i++)
+            {
+                var dx = Math.Abs(line.Waypoints[i + 1].X - line.Waypoints[i].X);
+                var dy = Math.Abs(line.Waypoints[i + 1].Y - line.Waypoints[i].Y);
+                Assert.True(dx < 1e-6 || dy < 1e-6, "transition segments must be axis-aligned.");
+            }
+        }
     }
 }

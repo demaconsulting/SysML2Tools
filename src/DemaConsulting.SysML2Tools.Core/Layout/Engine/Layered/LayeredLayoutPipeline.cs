@@ -43,6 +43,10 @@ internal sealed class LayeredLayoutPipeline
     {
         ArgumentNullException.ThrowIfNull(graph);
 
+        // Normalize the input node axes for the requested direction before any stage runs, so the
+        // direction-agnostic stages space layers by the correct extent (a no-op for RIGHT/LEFT).
+        AxisTransform.NormalizeInputAxes(graph);
+
         foreach (var stage in _stages)
         {
             stage.Apply(graph);

@@ -142,8 +142,8 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
             nodes.Add(new LayoutLine(
                 Waypoints: shifted,
-                SourceArrowhead: ArrowheadStyle.None,
-                TargetArrowhead: ArrowheadStyle.None,
+                SourceEnd: EndMarkerStyle.None,
+                TargetEnd: EndMarkerStyle.None,
                 LineStyle: LineStyle.Solid,
                 MidpointLabel: null));
         }

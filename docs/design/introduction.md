@@ -60,6 +60,8 @@ system, subsystem, and unit levels:
     - **Engine** (Subsystem) — reusable, model-independent geometric layout engines
       - **ChannelRouter** (Unit) — orthogonal connector routing with obstacle avoidance and clearance
       - **ForceDirectedEngine** (Unit) — force-directed node placement from connection springs
+        (production-unused after the State Transition View moved to the layered pipeline; retained as a
+        future-removal candidate)
       - **PortAssigner** (Unit) — assigns ports to box sides and distributes them along each edge
       - **LayeredLayoutEngine** (Unit) — layered (Sugiyama-style) top-to-bottom placement
       - **ContainmentPacker** (Unit) — packs sized boxes within a bounded container region
@@ -86,6 +88,7 @@ system, subsystem, and unit levels:
         layered pipeline with orthogonal specialization and membership edges
       - **InterconnectionViewLayoutStrategy** (Unit) — internal structure: nested parts, ports, connectors
       - **StateTransitionViewLayoutStrategy** (Unit) — state machine: states and guarded transitions
+        placed top-to-bottom by the layered pipeline (DOWN direction) with orthogonal transitions
       - **ActionFlowViewLayoutStrategy** (Unit) — layered action flow with start/done markers
       - **SequenceViewLayoutStrategy** (Unit) — lifelines and ordered messages
       - **GridViewLayoutStrategy** (Unit) — specialization/relationship matrix

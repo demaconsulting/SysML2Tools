@@ -6,9 +6,10 @@
 `StateTransitionViewLayoutStrategyTests` that construct a synthetic `SysmlWorkspace` containing a
 state definition with states and transitions, invoke `BuildLayout`, and assert on the returned
 `LayoutTree`. Assertions count the state boxes, confirm the initial-state badge, check guard
-labels on the transition lines, and compare transition endpoint waypoints to confirm distinct
-anchors. No mocking is required; the strategy depends only on the in-memory model, the geometric
-engines, and the theme.
+labels on the transition lines, compare transition endpoint waypoints to confirm distinct anchors,
+and verify the top-to-bottom flow (a forward chain's target boxes sit below their sources) with
+orthogonal transition polylines. No mocking is required; the strategy depends only on the in-memory
+model, the layered layout pipeline, and the theme.
 
 ##### Test Environment
 
@@ -22,7 +23,8 @@ configuration are required beyond a standard .NET SDK installation.
   transition lines.
 - A state named only by a transition is still rendered as a box.
 - An outgoing and an incoming transition on the same edge use distinct anchor points.
-- Each transition edge carries an open arrowhead at the target state.
+- Each transition edge carries an open chevron end marker at the target state.
+- A forward chain of transitions flows top-to-bottom with orthogonal transition polylines.
 - An empty workspace yields a canvas with no nodes.
 
 ##### Test Scenarios
@@ -33,4 +35,5 @@ configuration are required beyond a standard .NET SDK installation.
 | `StateTransitionView_BuildLayout_UndeclaredStateInTransition_IsCreated` | Transition-only target rendered as a box |
 | `StateTransitionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas` | Canvas with no nodes |
 | `StateTransitionView_BuildLayout_InAndOutOnSameEdge_UseDistinctAnchors` | In/out transitions use distinct anchors |
-| `StateTransitionView_BuildLayout_TransitionEdge_HasOpenArrowhead` | Open arrowhead at target state |
+| `StateTransitionView_BuildLayout_TransitionEdge_HasOpenArrowhead` | Open chevron end marker at target state |
+| `StateTransitionView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally` | Top-to-bottom orthogonal flow |
