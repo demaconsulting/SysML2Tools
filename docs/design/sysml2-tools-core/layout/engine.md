@@ -15,13 +15,18 @@ The subsystem contains the following units:
 | `ChannelRouter` | Routes an orthogonal connector between two anchors, avoiding obstacles |
 | `ForceDirectedEngine` | Places connected nodes using attraction/repulsion relaxation |
 | `LayeredLayoutEngine` | Places a directed graph in top-to-bottom layers |
-| `LayeredPlacer` | BFS-layered placement with slot-based corridor sizing for the interconnection view |
+| `InterconnectionLayoutEngine` | Façade that assembles and runs the layered pipeline for the interconnection view |
 | `PortAssigner` | Assigns ports to box sides and distributes them along each edge |
 | `ContainmentPacker` | Packs sized boxes within a bounded container region |
 | `ConnectivityAnalyzer` | Computes sparse adjacency, layer hints, and community assignments |
 | `GravityCompressor` | Separates overlapping boxes to a minimum clearance |
 | `GridQuantizer` | Snaps boxes to a grid and unifies aligned column widths/row heights |
 | `HighwayAssigner` | Detects routing corridors, bundles wires, and reserves highway trunks |
+
+The subsystem also contains the nested **Layered** subsystem, which provides a reusable,
+ELK-style layered layout pipeline composed of single-responsibility stages. The
+`InterconnectionLayoutEngine` façade is a thin assembler over that pipeline. See the
+*Layout Engine Layered Subsystem* chapter for its units and stage decomposition.
 
 #### Interfaces
 

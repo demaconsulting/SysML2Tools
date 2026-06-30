@@ -468,8 +468,8 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/ConnectivityAnalyzer.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/ConnectivityAnalyzerTests.cs"
 
-  - id: SysML2Tools-Core-Layout-Engine-LayeredPlacer
-    title: Review that DemaConsulting.SysML2Tools Layout Engine LayeredPlacer Implementation is Correct
+  - id: SysML2Tools-Core-Layout-Engine-InterconnectionLayoutEngine
+    title: Review that DemaConsulting.SysML2Tools Layout Engine InterconnectionLayoutEngine Implementation is Correct
     context:
       - docs/design/sysml2-tools-core.md
       - docs/reqstream/sysml2-tools-core.yaml
@@ -480,6 +480,7 @@ reviews:
       - "docs/design/sysml2-tools-core/layout/engine/interconnection-layout-engine.md"
       - "docs/verification/sysml2-tools-core/layout/engine/interconnection-layout-engine.md"
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/InterconnectionLayoutEngine.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Rect.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/InterconnectionLayoutEngineTests.cs"
 
   - id: SysML2Tools-Core-Layout-Engine-GravityCompressor
@@ -523,6 +524,190 @@ reviews:
       - "docs/verification/sysml2-tools-core/layout/engine/highway-assigner.md"
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/HighwayAssigner.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/HighwayAssignerTests.cs"
+
+  # === Layout Engine Layered subsystem and units (ELK-style layered pipeline) ===
+  - id: SysML2Tools-Core-Layout-Engine-Layered
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered Satisfies Subsystem Requirements
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered.md"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/LayeredPipelineEquivalenceTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/LegacyInterconnectionLayoutEngineOracle.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-LayeredGraph
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered LayeredGraph Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/layered-graph.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/layered-graph.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/layered-graph.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/LayeredGraph.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/LayeredGraphTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-LayeredLayoutPipeline
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered LayeredLayoutPipeline Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/layered-layout-pipeline.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/layered-layout-pipeline.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/layered-layout-pipeline.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/LayeredLayoutPipeline.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/ILayoutStage.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/LayoutDirection.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/HierarchyHandling.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/LayeredLayoutMetrics.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/LayeredLayoutPipelineTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-CycleBreaker
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered CycleBreaker Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/cycle-breaker.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/cycle-breaker.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/cycle-breaker.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/CycleBreaker.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/CycleBreakerTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-LayerAssigner
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered LayerAssigner Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/layer-assigner.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/layer-assigner.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/layer-assigner.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/LayerAssigner.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/LayerAssignerTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-LongEdgeSplitter
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered LongEdgeSplitter Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/long-edge-splitter.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/long-edge-splitter.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/long-edge-splitter.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/LongEdgeSplitter.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/LongEdgeSplitterTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-CrossingMinimizer
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered CrossingMinimizer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/crossing-minimizer.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/crossing-minimizer.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/crossing-minimizer.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/CrossingMinimizer.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/CrossingMinimizerTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-BrandesKopfPlacer
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered BrandesKopfPlacer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/brandes-kopf-placer.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/brandes-kopf-placer.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/brandes-kopf-placer.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/BrandesKopfPlacer.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/BrandesKopfPlacerTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-PortDistributor
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered PortDistributor Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/port-distributor.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/port-distributor.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/port-distributor.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/PortDistributor.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/PortDistributorTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-OrthogonalRouter
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered OrthogonalRouter Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/orthogonal-router.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/orthogonal-router.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/orthogonal-router.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/OrthogonalRouter.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/OrthogonalRouterTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-LongEdgeJoiner
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered LongEdgeJoiner Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/long-edge-joiner.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/long-edge-joiner.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/long-edge-joiner.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/LongEdgeJoiner.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/LongEdgeJoinerTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-AxisTransform
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered AxisTransform Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/axis-transform.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/axis-transform.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/axis-transform.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/AxisTransform.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/AxisTransformTests.cs"
 
   # === Layout Internal subsystem and view-strategy units ===
   - id: SysML2Tools-Core-Layout-Internal

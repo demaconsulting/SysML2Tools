@@ -64,10 +64,22 @@ system, subsystem, and unit levels:
       - **LayeredLayoutEngine** (Unit) — layered (Sugiyama-style) top-to-bottom placement
       - **ContainmentPacker** (Unit) — packs sized boxes within a bounded container region
       - **ConnectivityAnalyzer** (Unit) — sparse adjacency, layer hints, and community detection
-      - **LayeredPlacer** (Unit) — layered placement for interconnection views: BFS layering,
-        barycentric node ordering, and slot-based corridor sizing
+      - **InterconnectionLayoutEngine** (Unit) — façade that assembles and runs the layered
+        pipeline for the interconnection view, preserving its public placement API
       - **GravityCompressor** (Unit) — separates overlapping boxes to a minimum clearance
       - **GridQuantizer** (Unit) — snaps boxes to a grid and unifies aligned column widths/row heights
+      - **Layered** (Subsystem) — reusable, ELK-style layered layout pipeline of single-responsibility stages
+        - **LayeredGraph** (Unit) — mutable shared state threaded through the pipeline stages
+        - **LayeredLayoutPipeline** (Unit) — builds and runs an ordered sequence of layout stages
+        - **CycleBreaker** (Unit) — reverses back edges to produce an acyclic edge set
+        - **LayerAssigner** (Unit) — assigns nodes to layers by longest-path ranking
+        - **LongEdgeSplitter** (Unit) — inserts dummy nodes so every edge spans one layer
+        - **CrossingMinimizer** (Unit) — orders nodes within layers to reduce edge crossings
+        - **BrandesKopfPlacer** (Unit) — assigns node coordinates with the Brandes-Köpf algorithm
+        - **PortDistributor** (Unit) — distributes edge ports along node faces
+        - **OrthogonalRouter** (Unit) — routes edges as orthogonal segments between layers
+        - **LongEdgeJoiner** (Unit) — rejoins split sub-edges into original edge polylines
+        - **AxisTransform** (Unit) — maps pipeline coordinates to the requested layout direction
     - **Internal** (Subsystem) — per-view layout strategies
       - **GeneralViewLayoutStrategy** (Unit) — general view: grouped definitions with specialization edges
       - **InterconnectionViewLayoutStrategy** (Unit) — internal structure: nested parts, ports, connectors

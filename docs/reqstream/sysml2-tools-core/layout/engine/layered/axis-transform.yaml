@@ -1,0 +1,31 @@
+---
+# AxisTransform Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the AxisTransform unit
+# - AxisTransform maps abstract along/cross coordinates onto screen coordinates per direction
+# - Requirements describe the observable coordinate effect, not the transform internals
+
+sections:
+  - title: AxisTransform Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-AxisTransform-RightIdentity
+        title: >-
+          AxisTransform shall leave the placed coordinates unchanged when the layout direction is
+          left-to-right, the abstract identity direction.
+        justification: |
+          The earlier stages already emit left-to-right screen coordinates, so the identity case
+          must pass them through untouched to preserve the verified output.
+        tests:
+          - AxisTransform_Apply_RightDirection_LeavesCoordinatesUnchanged
+          - Pipeline_MatchesLegacyOracle_OnRandomGraphs
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-AxisTransform-NonRightRejected
+        title: >-
+          AxisTransform shall reject a non-left-to-right layout direction by throwing a
+          NotSupportedException.
+        justification: |
+          The other directions are reserved scaffolding; failing fast prevents emitting an
+          unverified transform for a direction that is not yet implemented.
+        tests:
+          - AxisTransform_Apply_NonRightDirection_ThrowsNotSupportedException

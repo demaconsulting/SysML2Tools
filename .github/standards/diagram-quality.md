@@ -60,7 +60,7 @@ For each **connection** in the diagram:
 Use this text verbatim as the instruction to the multimodal model, providing
 the `.sysml` source path and the `.png` image path as inputs:
 
-```
+```text
 You are a SysML diagram quality inspector. You are given:
   - A SysML model source file (path: {SYSML_PATH})
   - A rendered PNG image of the diagram (path: {PNG_PATH})
@@ -124,10 +124,11 @@ Do NOT say "looks good" or "appears correct" in aggregate.
 [C4] Every connector exits and enters perpendicular to the face it connects
      on (clean right-angle stub — not diagonal and not sliding along an edge).
 
-[C5] Where two or more connectors share the same destination box and face,
-     they merge into a single shared trunk well before reaching the box.
-     Parallel same-destination runs covering more than ~30% of total
-     connector length are a defect.
+[C5] Each connector is routed independently — no shared trunks are required
+     or expected. Where two or more connectors run parallel in the same
+     routing corridor, each segment must be visually separated from its
+     neighbours by a clear gap (at least one stroke width). Connectors
+     that are so close they appear to merge into a single line are a defect.
 
 [C6] On any given box face, each connector arrives at a visibly distinct port
      point. Connectors must be individually traceable — a cluster of connectors
@@ -136,6 +137,12 @@ Do NOT say "looks good" or "appears correct" in aggregate.
 [C7] Every connector takes a reasonably direct route. A gratuitous detour
      significantly longer than a direct orthogonal path between the two boxes
      is a defect.
+
+[C8] In a left-to-right layout, every connector must exit the source box
+     through its RIGHT (east) face and enter the target box through its LEFT
+     (west) face. A connector whose first segment travels upward or downward
+     from the source box, or whose last segment arrives at the target box from
+     above or below, is a defect — regardless of angle.
 
 --- SUMMARY ---
 
@@ -149,16 +156,16 @@ After evaluating all criteria, output:
 
 ## Defect Severity
 
-| Severity | Description | Action |
-|----------|-------------|--------|
-| **Blocking** | Any criterion FAIL | Do not commit; fix layout engine and re-render |
-| **Warning** | Minor label crowding not causing confusion | Document in commit message; fix in next pass |
+| Severity     | Description                                | Action                                         |
+| ------------ | ------------------------------------------ | ---------------------------------------------- |
+| **Blocking** | Any criterion FAIL                         | Do not commit; fix layout engine and re-render |
+| **Warning**  | Minor label crowding not causing confusion | Document in commit message; fix in next pass   |
 
 ---
 
 ## Agent Checklist (Before Committing Rendered Images)
 
-```
+```text
 [ ] Ran visual QA on all affected PNGs using this prompt (sysml + png paths)
 [ ] Recorded per-criterion PASS/FAIL verdicts (not just "looks OK")
 [ ] All I1–I3 inventory checks passed

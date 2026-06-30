@@ -1,0 +1,31 @@
+---
+# BrandesKopfPlacer Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the BrandesKopfPlacer unit
+# - BrandesKopfPlacer assigns absolute X and Y coordinates to every augmented node
+# - Requirements describe the observable coordinate arrays, not the Brandes-Köpf internals
+
+sections:
+  - title: BrandesKopfPlacer Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-BrandesKopfPlacer-CoordinateAssignment
+        title: >-
+          BrandesKopfPlacer shall assign an X and a Y coordinate to every augmented node and a left
+          edge and maximum width to every layer column.
+        justification: |
+          Every later stage and the final result read per-node coordinates and per-column extents,
+          so the placer must produce a complete coordinate set for the augmented graph.
+        tests:
+          - BrandesKopfPlacer_Apply_ChainGraph_AssignsCoordinateArrays
+          - Pipeline_MatchesLegacyOracle_OnDroneLikeGraph
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-BrandesKopfPlacer-LeftToRightColumns
+        title: >-
+          BrandesKopfPlacer shall place layer columns left to right so that each column's left edge
+          is strictly greater than the previous column's left edge.
+        justification: |
+          Strictly increasing column positions realize the layer order as horizontal progression,
+          which is required for connectors to flow consistently in one direction.
+        tests:
+          - BrandesKopfPlacer_Apply_ColumnsAreLeftToRightInLayerOrder

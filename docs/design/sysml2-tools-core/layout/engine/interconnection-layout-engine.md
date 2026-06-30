@@ -4,12 +4,19 @@
 
 `InterconnectionLayoutEngine` places the nested part boxes of an Interconnection View and routes
 all connector lines using a full Sugiyama-style pipeline, matching the ELK reference sandbox
-output. It replaces the earlier BFS-layered `LayeredPlacer`, eliminating same-layer connections
-and connector clipping caused by incomplete layering and absent dummy-node support.
+output. It is now a thin **façade** that assembles and runs the reusable `LayeredLayoutPipeline`
+(see the *Layout Engine Layered Subsystem*) with its default stage sequence, the **Right** layout
+direction, and **flat** hierarchy handling. The public `Place` API and the `LayerResult` output are
+unchanged — the façade produces byte-for-byte identical geometry to the previous monolithic
+implementation, which is proven by a bit-exact equivalence test against a legacy oracle. The
+pipeline replaced the earlier BFS-layered `LayeredPlacer`, eliminating same-layer connections and
+connector clipping caused by incomplete layering and absent dummy-node support.
 
 ##### Data Model
 
-`InterconnectionLayoutEngine` is a static class with no instance state. Input is a
+`InterconnectionLayoutEngine` is a static class with no instance state. `Place` builds a
+`LayeredGraph` from the inputs and runs it through a `LayeredLayoutPipeline` configured with the
+default stages; the phases below describe the behavior realized by those stages. Input is a
 `IReadOnlyList<LayerNode>` (width and height per node) and a `IReadOnlyList<LayerEdge>` (directed
 edges following SysML endpoint-A → endpoint-B order). The result is a `LayerResult` record
 carrying one `Rect` per real node in input-index order, the bounding-box totals, a `NodeLayers`
@@ -64,6 +71,8 @@ indices and self-loops are silently ignored.
 
 ##### Dependencies
 
+- `LayeredLayoutPipeline` (Layout Engine Layered) — the reusable staged pipeline the façade
+  assembles and runs to compute the placement and routing.
 - `Rect` (Layout Engine) — the geometric rectangle value type shared by all layout engines.
 - `Point2D` (Layout) — the immutable 2-D point type used for connector waypoints.
 

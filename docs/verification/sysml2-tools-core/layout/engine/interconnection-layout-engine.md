@@ -32,4 +32,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `Place_SingleEdge_ProducesFourWaypointZPath` | Single span-1 edge yields exactly 4 waypoints |
 | `Place_LongEdge_RectCountEqualsInputNodeCount` | Two-node, span-2 graph: Rects.Count == 2 |
 | `Place_LongEdge_WaypointsExceedFour` | Span-2 edge yields more than 4 waypoints |
-| `Place_WorkstationTopology_CorrectLayersAndNoOverlap` | 7-node Workstation graph: psu=L0, board=L1, memory in highest layer; no rect overlap |
+| `Place_WorkstationTopology_CorrectLayersAndNoOverlap` | psu=L0, board=L1, leaves in higher layers; no overlap |

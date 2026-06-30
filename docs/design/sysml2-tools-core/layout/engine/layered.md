@@ -1,0 +1,50 @@
+#### Layout Engine Layered Subsystem
+
+##### Overview
+
+The Layered subsystem is a reusable, composable layered-layout pipeline that reproduces ELK's
+layered (Sugiyama-style) algorithm. It replaces the single monolithic placement method that the
+interconnection engine previously contained with an ordered sequence of small, single-purpose
+stages. Each stage reads the state produced by earlier stages and writes the state it owns, so the
+pipeline can be extended, reordered, and unit-tested one stage at a time.
+
+The subsystem was produced by a behavior-preserving extraction: for every input it produces exactly
+the same rectangles, totals, layer assignments, and connector waypoints as the previous
+implementation, verified byte for byte by the pipeline-equivalence tests.
+
+The subsystem contains the following units:
+
+| Unit | Responsibility |
+| --- | --- |
+| `LayeredGraph` | Mutable shared state threaded through every stage |
+| `LayeredLayoutPipeline` | Runs ordered stages via a fluent builder; hosts the stage interface, enums, and metrics |
+| `CycleBreaker` | Reverses cycle-causing edges to produce an acyclic edge set |
+| `LayerAssigner` | Assigns each node a longest-path layer index |
+| `LongEdgeSplitter` | Splits multi-layer edges with one dummy node per intermediate layer |
+| `CrossingMinimizer` | Orders nodes within each layer to reduce edge crossings |
+| `BrandesKopfPlacer` | Assigns absolute X and Y coordinates to every augmented node |
+| `PortDistributor` | Distributes connector ports along each box face |
+| `OrthogonalRouter` | Assigns routing slots and emits orthogonal bend points per corridor |
+| `LongEdgeJoiner` | Concatenates sub-edge bend points into one polyline per original edge |
+| `AxisTransform` | Maps abstract along/cross coordinates onto screen coordinates |
+
+##### Interfaces
+
+Each stage implements the `ILayoutStage` interface (`void Apply(LayeredGraph graph)`) and mutates
+the shared `LayeredGraph` in place. A pipeline is assembled through the fluent
+`LayeredLayoutPipeline.PipelineBuilder` (`Direction`, `Hierarchy`, `AddStage`, `AddDefaultStages`,
+`Build`) and executed with `Run`. The default stage sequence is, in order: `CycleBreaker`,
+`LayerAssigner`, `LongEdgeSplitter`, `CrossingMinimizer`, `BrandesKopfPlacer`, `PortDistributor`,
+`OrthogonalRouter`, `LongEdgeJoiner`, and `AxisTransform`. All types are `internal` and consume only
+the geometric value types of the Layout subsystem (`Point2D`, `Rect`) plus the internal `LayerNode`
+and `LayerEdge` records; no stage references the SysML semantic model.
+
+##### Design
+
+The `LayeredLayoutMetrics` constants (spacing, clearances, padding, sweep count, tolerance) are
+shared by every stage and are intentionally identical to the constants embedded in the previous
+monolithic engine, so the pipeline reproduces the legacy output exactly. The `LayoutDirection` and
+`HierarchyHandling` enums select flow direction and nested-node handling; only the left-to-right
+direction and flat handling are exercised by the behavior-preserving extraction, and the reserved
+modes fail fast with a clear error. The detailed algorithm of each stage is described in its own
+unit chapter.

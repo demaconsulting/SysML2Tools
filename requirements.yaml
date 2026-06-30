@@ -26,6 +26,18 @@ includes:
   - docs/reqstream/sysml2-tools-core/layout/engine/gravity-compressor.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine/grid-quantizer.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine/highway-assigner.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/layered-graph.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/layered-layout-pipeline.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/cycle-breaker.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/layer-assigner.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/long-edge-splitter.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/crossing-minimizer.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/brandes-kopf-placer.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/port-distributor.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/orthogonal-router.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/long-edge-joiner.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/axis-transform.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/general-view-layout-strategy.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/interconnection-view-layout-strategy.yaml

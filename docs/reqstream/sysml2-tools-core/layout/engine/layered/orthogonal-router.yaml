@@ -1,0 +1,33 @@
+---
+# OrthogonalRouter Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the OrthogonalRouter unit
+# - OrthogonalRouter assigns routing slots and emits orthogonal bend points per corridor
+# - Requirements describe the observable bend points, not the slot-dependency internals
+
+sections:
+  - title: OrthogonalRouter Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-OrthogonalRouter-OrthogonalBendPoints
+        title: >-
+          OrthogonalRouter shall route each sub-edge with axis-aligned geometry: a sub-edge whose
+          source and target ports share a Y receives no bend points, and any other sub-edge receives
+          a vertical bend segment whose two points share an X.
+        justification: |
+          Axis-aligned routing produces the clean orthogonal connectors the interconnection view
+          requires; emitting no bend points for an already-straight run keeps the path minimal.
+        tests:
+          - OrthogonalRouter_Apply_StraightEdge_ProducesNoBendPoints
+          - OrthogonalRouter_Apply_EveryBendListIsEmptyOrVerticalSegment
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-OrthogonalRouter-SlotRouting
+        title: >-
+          OrthogonalRouter shall assign a routing slot to each bending sub-edge in a corridor so
+          that the bend segment is offset from the source column by the slot position.
+        justification: |
+          Distinct routing slots keep the vertical runs of different connectors from overlapping
+          within a corridor, which is required for the connectors to remain distinguishable.
+        tests:
+          - OrthogonalRouter_Apply_EveryBendListIsEmptyOrVerticalSegment
+          - Pipeline_MatchesLegacyOracle_OnRandomGraphs

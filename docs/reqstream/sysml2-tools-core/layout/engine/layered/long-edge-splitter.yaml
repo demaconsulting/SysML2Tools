@@ -1,0 +1,31 @@
+---
+# LongEdgeSplitter Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the LongEdgeSplitter unit
+# - LongEdgeSplitter splits multi-layer edges with one dummy node per intermediate layer
+# - Requirements describe the observable augmented graph, not the chaining internals
+
+sections:
+  - title: LongEdgeSplitter Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-LongEdgeSplitter-DummyInsertion
+        title: >-
+          LongEdgeSplitter shall split every edge spanning more than one layer into a chain of
+          unit-span sub-edges by inserting one zero-size dummy node at each intermediate layer.
+        justification: |
+          Dummy nodes force long edges through the correct inter-layer corridors, preventing
+          connector lines from clipping the boxes of intermediate nodes.
+        tests:
+          - LongEdgeSplitter_Apply_LongEdge_InsertsDummyNodesPerIntermediateLayer
+          - Pipeline_MatchesLegacyOracle_OnNamedTopologies
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-LongEdgeSplitter-UnitSpanPreserved
+        title: >-
+          LongEdgeSplitter shall leave unit-span edges unsplit so that a graph with no long edge
+          gains no dummy nodes.
+        justification: |
+          Splitting only long edges keeps the augmented graph minimal, so single-layer connections
+          are routed directly without unnecessary dummy nodes.
+        tests:
+          - LongEdgeSplitter_Apply_SpanOneEdge_AddsNoDummyNodes

@@ -1,0 +1,43 @@
+---
+# LayeredLayoutPipeline Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the LayeredLayoutPipeline unit
+# - LayeredLayoutPipeline assembles and runs the ordered ELK-style layered stage sequence
+# - This chapter also covers ILayoutStage, LayoutDirection, HierarchyHandling, LayeredLayoutMetrics
+# - Requirements describe observable assembly and execution behavior, not stage internals
+
+sections:
+  - title: LayeredLayoutPipeline Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-LayeredLayoutPipeline-DefaultStageSequence
+        title: >-
+          LayeredLayoutPipeline shall assemble the default ELK-layered stage sequence through its
+          fluent builder and run every stage, in order, against the supplied graph.
+        justification: |
+          A single fluent assembly point with a fixed default order makes the pipeline easy to
+          construct correctly and guarantees stages observe their prerequisites' output.
+        tests:
+          - LayeredLayoutPipeline_RunDefaultStages_ChainGraph_PopulatesWaypointsWithoutThrowing
+          - Pipeline_MatchesLegacyOracle_OnNamedTopologies
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-LayeredLayoutPipeline-RecursiveRejected
+        title: >-
+          LayeredLayoutPipeline shall reject a request to build a pipeline with recursive hierarchy
+          handling by throwing a NotSupportedException.
+        justification: |
+          Recursive hierarchy handling is reserved scaffolding; failing fast at build time prevents
+          producing an unverified layout from an unimplemented mode.
+        tests:
+          - LayeredLayoutPipeline_Build_RecursiveHierarchy_ThrowsNotSupportedException
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-LayeredLayoutPipeline-ArgumentValidation
+        title: >-
+          LayeredLayoutPipeline shall reject a null stage when one is added and a null graph when
+          the pipeline is run by throwing an ArgumentNullException.
+        justification: |
+          Rejecting null inputs at the boundary keeps a configuration error from surfacing as an
+          obscure failure inside an individual stage.
+        tests:
+          - LayeredLayoutPipeline_AddStage_NullStage_ThrowsArgumentNullException
+          - LayeredLayoutPipeline_Run_NullGraph_ThrowsArgumentNullException

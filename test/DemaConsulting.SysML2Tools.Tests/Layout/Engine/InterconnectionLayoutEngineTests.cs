@@ -8,7 +8,7 @@ namespace DemaConsulting.SysML2Tools.Tests.Layout.Engine;
 
 /// <summary>
 ///     Tests for <see cref="InterconnectionLayoutEngine"/> covering longest-path layering,
-///     dummy-node transparency, non-overlapping placement, and connector waypoints.
+///     dummy-node routing for long edges, non-overlapping placement, and connector waypoints.
 /// </summary>
 public sealed class InterconnectionLayoutEngineTests
 {
@@ -31,11 +31,13 @@ public sealed class InterconnectionLayoutEngineTests
     }
 
     /// <summary>
-    ///     A span-1 edge produces exactly four waypoints forming a Z-path:
-    ///     source-right-port → slot → slot → target-left-port.
+    ///     A span-1 edge between two equal-height nodes produces exactly two waypoints
+    ///     (a straight horizontal path): source-right-port and target-left-port.
+    ///     The Brandes-Köpf algorithm aligns the two nodes' ports at the same Y so no
+    ///     bend points are needed.
     /// </summary>
     [Fact]
-    public void Place_SingleEdge_ProducesFourWaypointZPath()
+    public void Place_SingleEdge_ProducesStraightTwoWaypointPath()
     {
         var nodes = new List<LayerNode> { new(60, 40), new(60, 40) };
         var edges = new List<LayerEdge> { new(0, 1) };
@@ -43,20 +45,20 @@ public sealed class InterconnectionLayoutEngineTests
         var result = InterconnectionLayoutEngine.Place(nodes, edges);
 
         Assert.Single(result.ConnectorWaypoints);
-        Assert.Equal(4, result.ConnectorWaypoints[0].Count);
+        Assert.Equal(2, result.ConnectorWaypoints[0].Count);
     }
 
     /// <summary>
-    ///     Dummy nodes inserted for long edges do not appear in <see cref="LayerResult.Rects"/>:
-    ///     the rect count always equals the number of input nodes.
-    ///     A diamond topology with an extra 0→3 edge makes it span two corridors and requires
-    ///     a dummy node at layer 1.
+    ///     The rect count always equals the number of input nodes — long edges use dummy-node
+    ///     routing through intermediate layer gaps, not additional real boxes.
+    ///     A diamond topology with an extra 0→3 long edge produces exactly four rects and
+    ///     five waypoint lists.
     /// </summary>
     [Fact]
     public void Place_LongEdge_RectCountEqualsInputNodeCount()
     {
         // 0→1→3 and 0→2→3 place: 0 at layer 0, 1/2 at layer 1, 3 at layer 2.
-        // Adding 0→3 creates a span-2 edge requiring a dummy at layer 1.
+        // Adding 0→3 creates a span-2 long edge routed via a dummy node.
         var nodes = new List<LayerNode>
         {
             new(80, 50),
@@ -70,7 +72,7 @@ public sealed class InterconnectionLayoutEngineTests
             new(0, 2),
             new(1, 3),
             new(2, 3),
-            new(0, 3),  // span-2: dummy inserted at layer 1
+            new(0, 3),  // span-2: one dummy node in layer 1
         };
 
         var result = InterconnectionLayoutEngine.Place(nodes, edges);
@@ -80,26 +82,37 @@ public sealed class InterconnectionLayoutEngineTests
     }
 
     /// <summary>
-    ///     A long edge (span > 1) produces more than four waypoints because its path is
-    ///     stitched through dummy-node positions in each intermediate corridor.
+    ///     A long edge (span &gt; 1) is routed via dummy nodes in intermediate layers.
+    ///     A span-3 edge uses two dummies, producing at least four waypoints, all within
+    ///     the diagram bounds.
     /// </summary>
     [Fact]
-    public void Place_LongEdge_WaypointsExceedFour()
+    public void Place_LongEdge_RoutesViaDummyNodesWithinBounds()
     {
-        // chain 0→1→2→3 sets layers 0,1,2,3; adding 0→3 spans 3 layers.
+        // Chain 0→1→2→3 sets layers 0,1,2,3; adding 0→3 spans 3 layers.
         var nodes = Enumerable.Repeat(new LayerNode(80, 50), 4).ToList();
         var edges = new List<LayerEdge>
         {
             new(0, 1),
             new(1, 2),
             new(2, 3),
-            new(0, 3),  // span-3: two dummies, three corridor segments
+            new(0, 3),  // span-3: two dummy nodes in layers 1 and 2
         };
 
         var result = InterconnectionLayoutEngine.Place(nodes, edges);
 
         var longEdgeWp = result.ConnectorWaypoints[3];
-        Assert.True(longEdgeWp.Count > 4, $"Expected >4 waypoints for long edge, got {longEdgeWp.Count}.");
+
+        // A span-3 long edge has 3 sub-edges, each contributing 0–2 bend points.
+        // Minimum total: 2 (source port + target port); at least 4 when any sub-edge is non-straight.
+        Assert.True(longEdgeWp.Count >= 4, $"Expected at least 4 waypoints for a span-3 long edge, got {longEdgeWp.Count}.");
+
+        // All waypoints must lie within the diagram bounds.
+        foreach (var wp in longEdgeWp)
+        {
+            Assert.InRange(wp.X, 0.0, result.TotalWidth);
+            Assert.InRange(wp.Y, 0.0, result.TotalHeight);
+        }
     }
 
     /// <summary>

@@ -5,15 +5,6 @@
 namespace DemaConsulting.SysML2Tools.Layout.Engine;
 
 /// <summary>
-/// An axis-aligned rectangle obstacle used by <see cref="ChannelRouter"/>.
-/// </summary>
-/// <param name="X">Absolute X coordinate of the left edge in logical pixels.</param>
-/// <param name="Y">Absolute Y coordinate of the top edge in logical pixels.</param>
-/// <param name="Width">Width in logical pixels.</param>
-/// <param name="Height">Height in logical pixels.</param>
-internal readonly record struct Rect(double X, double Y, double Width, double Height);
-
-/// <summary>
 /// The outcome of a routing request: the computed waypoints and whether the route had to cross an
 /// obstacle (i.e. no obstacle-free orthogonal path could be found).
 /// </summary>

@@ -1,0 +1,32 @@
+---
+# CrossingMinimizer Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the CrossingMinimizer unit
+# - CrossingMinimizer orders the augmented nodes within each layer to reduce edge crossings
+# - Requirements describe the observable layer grouping, not the barycenter sweep internals
+
+sections:
+  - title: CrossingMinimizer Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-CrossingMinimizer-LayerGrouping
+        title: >-
+          CrossingMinimizer shall group the augmented nodes into one ordered list per layer so that
+          every augmented node appears in exactly one layer group.
+        justification: |
+          Per-layer ordered groups are the structure that coordinate assignment and routing consume;
+          every node must be placed in exactly one layer to be positioned at all.
+        tests:
+          - CrossingMinimizer_Apply_TwoLayerGraph_GroupsNodesByLayer
+          - CrossingMinimizer_Apply_AllAugmentedNodesAppearInGroups
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-CrossingMinimizer-CrossingReduction
+        title: >-
+          CrossingMinimizer shall order nodes within each layer by the average position of their
+          neighbors so that edge crossings between adjacent layers are reduced.
+        justification: |
+          Barycenter ordering is the observable behavior that keeps connectors from crossing
+          unnecessarily, which is required for readable diagrams.
+        tests:
+          - CrossingMinimizer_Apply_AllAugmentedNodesAppearInGroups
+          - Pipeline_MatchesLegacyOracle_OnRandomGraphs

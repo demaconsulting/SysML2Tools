@@ -1,0 +1,31 @@
+---
+# PortDistributor Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the PortDistributor unit
+# - PortDistributor distributes connector ports along each box face
+# - Requirements describe the observable port Y coordinates, not the distribution internals
+
+sections:
+  - title: PortDistributor Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-PortDistributor-PortPerSubEdge
+        title: >-
+          PortDistributor shall record a source-side and a target-side port Y coordinate for every
+          augmented sub-edge.
+        justification: |
+          Routing and waypoint assembly read one source port and one target port per sub-edge, so a
+          coordinate must be produced for each.
+        tests:
+          - PortDistributor_Apply_AssignsPortYForEverySubEdge
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-PortDistributor-PortsWithinFace
+        title: >-
+          PortDistributor shall place each connector port within the face of the node it belongs to,
+          inset from the node's top and bottom edges.
+        justification: |
+          Ports that fall outside a node's face would detach a connector from its box; clamping each
+          port within the inset face keeps every connection visually attached.
+        tests:
+          - PortDistributor_Apply_SingleEdge_PortsLieWithinNodeFaces
+          - Pipeline_MatchesLegacyOracle_OnWorkstationLikeGraph
