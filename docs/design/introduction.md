@@ -80,8 +80,10 @@ system, subsystem, and unit levels:
         - **OrthogonalRouter** (Unit) — routes edges as orthogonal segments between layers
         - **LongEdgeJoiner** (Unit) — rejoins split sub-edges into original edge polylines
         - **AxisTransform** (Unit) — maps pipeline coordinates to the requested layout direction
+        - **ComponentPacker** (Unit) — lays out each connected component independently and packs them without overlap
     - **Internal** (Subsystem) — per-view layout strategies
-      - **GeneralViewLayoutStrategy** (Unit) — general view: grouped definitions with specialization edges
+      - **GeneralViewLayoutStrategy** (Unit) — general view: package-grouped definitions placed by the
+        layered pipeline with orthogonal specialization and membership edges
       - **InterconnectionViewLayoutStrategy** (Unit) — internal structure: nested parts, ports, connectors
       - **StateTransitionViewLayoutStrategy** (Unit) — state machine: states and guarded transitions
       - **ActionFlowViewLayoutStrategy** (Unit) — layered action flow with start/done markers

@@ -30,6 +30,7 @@ words:
   - docversion
   - errorlevel
   - fileassert
+  - frameless
   - Fruchterman
   - Hanan
   - KEBNF

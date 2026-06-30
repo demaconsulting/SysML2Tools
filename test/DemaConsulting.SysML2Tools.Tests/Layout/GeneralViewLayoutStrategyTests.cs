@@ -440,15 +440,14 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A dense model with many cross-package typed features produces a layout with no crossing
-    ///     warnings, confirming that the adaptive gap mechanism widens spacing until routing is clean
-    ///     (or that the model does not require widening — both are acceptable outcomes).
+    ///     A dense model where one definition owns four others as parts is placed by the layered
+    ///     pipeline so that no two definition boxes overlap.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelProducesCleanLayout()
+    public void GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelProducesNonOverlappingBoxes()
     {
         // Arrange: five definitions where Root owns all four others as parts, producing
-        // many membership edges that need clear inter-box routing channels.
+        // many membership edges that the layered pipeline must route between separated boxes.
         var strategy = new GeneralViewLayoutStrategy();
         var denseWorkspace = new SysmlWorkspace
         {
@@ -479,73 +478,58 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(new ViewContext("dense", denseWorkspace), options);
 
-        // Assert: the canvas is valid and no crossing warnings were emitted.
-        // If the adaptive loop widened gaps to resolve crossings the warnings list is empty;
-        // if no crossings occurred at default spacing it is also empty — both are correct outcomes.
+        // Assert: the canvas is valid, carries no warnings, and the definition boxes do not overlap.
         Assert.True(layout.Width > 0 && layout.Height > 0);
         Assert.Empty(layout.Warnings);
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
     }
 
     /// <summary>
-    ///     A model with two rows of boxes connected by many part edges produces a canvas height
-    ///     greater than the baseline minimum spacing, confirming that heat expansion widens
-    ///     congested inter-row bands.
+    ///     A connected model whose definitions cross-reference one another within a single package is
+    ///     laid out so that every definition box stays clear of the others.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_HeatLayout_HotBandProducesWiderCanvas()
+    public void GeneralViewLayoutStrategy_BuildLayout_HeatLayout_ConnectedModelKeepsBoxesSeparated()
     {
-        // Arrange: two packages (Row A and Row B) with four cross-row part edges, creating
-        // a dense inter-row band that should trigger heat-based gap expansion.
+        // Arrange: a chain of part references A1 <- A2 <- A3 within one package (a connected component).
         var strategy = new GeneralViewLayoutStrategy();
-        var sparseWorkspace = new SysmlWorkspace
+        var workspace = new SysmlWorkspace
         {
             Declarations = new Dictionary<string, SysmlNode>
             {
                 ["Row1::A1"] = new SysmlDefinitionNode { Name = "A1", QualifiedName = "Row1::A1", DefinitionKeyword = "part def" },
-                ["Row2::B1"] = new SysmlDefinitionNode { Name = "B1", QualifiedName = "Row2::B1", DefinitionKeyword = "part def" }
-            }
-        };
-        var denseWorkspace = new SysmlWorkspace
-        {
-            Declarations = new Dictionary<string, SysmlNode>
-            {
-                ["Row1::A1"] = new SysmlDefinitionNode { Name = "A1", QualifiedName = "Row1::A1", DefinitionKeyword = "part def" },
-                ["Row1::A2"] = new SysmlDefinitionNode { Name = "A2", QualifiedName = "Row1::A2", DefinitionKeyword = "part def" },
-                ["Row1::A3"] = new SysmlDefinitionNode { Name = "A3", QualifiedName = "Row1::A3", DefinitionKeyword = "part def" },
-                ["Row2::B1"] = new SysmlDefinitionNode
+                ["Row1::A2"] = new SysmlDefinitionNode
                 {
-                    Name = "B1",
-                    QualifiedName = "Row2::B1",
+                    Name = "A2",
+                    QualifiedName = "Row1::A2",
                     DefinitionKeyword = "part def",
-                    Children =
-                    [
-                        new SysmlFeatureNode { Name = "a1", QualifiedName = "Row2::B1::a1", FeatureKeyword = "part", FeatureTyping = "A1" },
-                        new SysmlFeatureNode { Name = "a2", QualifiedName = "Row2::B1::a2", FeatureKeyword = "part", FeatureTyping = "A2" },
-                        new SysmlFeatureNode { Name = "a3", QualifiedName = "Row2::B1::a3", FeatureKeyword = "part", FeatureTyping = "A3" }
-                    ]
+                    Children = [new SysmlFeatureNode { Name = "a1", QualifiedName = "Row1::A2::a1", FeatureKeyword = "part", FeatureTyping = "A1" }]
+                },
+                ["Row1::A3"] = new SysmlDefinitionNode
+                {
+                    Name = "A3",
+                    QualifiedName = "Row1::A3",
+                    DefinitionKeyword = "part def",
+                    Children = [new SysmlFeatureNode { Name = "a2", QualifiedName = "Row1::A3::a2", FeatureKeyword = "part", FeatureTyping = "A2" }]
                 }
             }
         };
         var options = new RenderOptions(Themes.Light);
 
-        // Act: lay out both models and compare canvas heights.
-        var sparseLayout = strategy.BuildLayout(new ViewContext("sparse", sparseWorkspace), options);
-        var denseLayout = strategy.BuildLayout(new ViewContext("dense", denseWorkspace), options);
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("connected", workspace), options);
 
-        // Assert: the dense model produces a canvas at least as tall as the sparse one,
-        // confirming that heat expansion does not shrink the canvas.
-        Assert.True(denseLayout.Height >= sparseLayout.Height,
-            $"Dense canvas height {denseLayout.Height} should be >= sparse {sparseLayout.Height}");
-        Assert.True(denseLayout.Width > 0 && denseLayout.Height > 0);
+        // Assert: a valid canvas with no overlapping definition boxes.
+        Assert.True(layout.Width > 0 && layout.Height > 0);
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
     }
 
     /// <summary>
-    ///     A minimal model (two boxes and one edge between them) produces a canvas close to
-    ///     the default spacing minimum with no warnings, confirming the heat algorithm does
-    ///     not over-pad sparse layouts.
+    ///     A minimal model (two boxes and one specialization edge) produces a compact canvas with no
+    ///     warnings, confirming the layered engine does not over-pad sparse layouts.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelUsesMinimumSpacing()
+    public void GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelProducesCompactCanvas()
     {
         // Arrange: two definitions in the same package with a single specialization edge.
         var strategy = new GeneralViewLayoutStrategy();
@@ -569,10 +553,28 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = strategy.BuildLayout(new ViewContext("sparse", workspace), options);
 
         // Assert: canvas is valid, no warnings emitted, and height is within a reasonable
-        // upper bound (500px) confirming the heat algorithm does not artificially over-pad.
+        // upper bound (500px) confirming the layered engine does not artificially over-pad.
         Assert.True(layout.Width > 0 && layout.Height > 0);
         Assert.Empty(layout.Warnings);
         Assert.True(layout.Height < 500.0,
             $"Sparse canvas height {layout.Height} should be below 500px (no over-padding)");
+    }
+
+    /// <summary>
+    ///     Asserts that no two rendered definition (rectangle-shaped) boxes overlap in the layout.
+    /// </summary>
+    /// <param name="nodes">The layout's top-level nodes.</param>
+    private static void AssertDefinitionBoxesDoNotOverlap(IReadOnlyList<LayoutNode> nodes)
+    {
+        var boxes = CollectBoxes(nodes).Where(b => b.Shape == BoxShape.Rectangle).ToList();
+        for (var a = 0; a < boxes.Count; a++)
+        {
+            for (var b = a + 1; b < boxes.Count; b++)
+            {
+                var overlapX = boxes[a].X < boxes[b].X + boxes[b].Width && boxes[b].X < boxes[a].X + boxes[a].Width;
+                var overlapY = boxes[a].Y < boxes[b].Y + boxes[b].Height && boxes[b].Y < boxes[a].Y + boxes[a].Height;
+                Assert.False(overlapX && overlapY, $"definition boxes {boxes[a].Label} and {boxes[b].Label} overlap");
+            }
+        }
     }
 }

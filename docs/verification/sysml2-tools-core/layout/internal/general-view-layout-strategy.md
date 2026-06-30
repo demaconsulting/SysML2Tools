@@ -25,12 +25,12 @@ configuration are required beyond a standard .NET SDK installation.
 - A `port`-feature yields a line with a filled-diamond arrowhead at the owner end.
 - A `ref`-feature yields a line with a hollow-diamond arrowhead at the owner end.
 - An `attribute`-feature does NOT yield any diamond arrowhead edge.
-- A dense model with many part edges produces a canvas with area at least as large as a sparse model,
-  confirming adaptive gap widening.
-- A dense inter-row model (many cross-row part edges) produces a canvas height at least as large as a
-  sparse two-box model, confirming heat-based gap expansion does not shrink the canvas.
-- A sparse model (two boxes and one edge) produces a canvas height below 500px with no warnings,
-  confirming the heat algorithm does not over-pad sparse layouts.
+- A dense model with many part edges produces a layout in which no two definition boxes overlap,
+  confirming the layered pipeline keeps boxes separated.
+- A connected model (many cross-referencing part edges) produces a layout in which all definition
+  boxes remain mutually non-overlapping.
+- A sparse model (two boxes and one edge) produces a compact canvas with no warnings, confirming the
+  layered engine does not over-pad sparse layouts.
 - Standard-library-only input (by prefix or by seed set) yields a minimal empty canvas.
 - An empty workspace yields a 200×100 canvas with no nodes.
 
@@ -57,12 +57,12 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_PortFeature_ProducesFilledDiamondEdge`:
   Filled-diamond at owner for `port` feature
 - `GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesHollowDiamondEdge`:
-  No diamond edge for `ref` feature
+  Hollow-diamond at owner for `ref` feature
 - `GeneralViewLayoutStrategy_BuildLayout_AttributeFeature_DoesNotProduceDiamondEdge`:
   No diamond edge for `attribute` feature
-- `GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelProducesCleanLayout`:
-  Dense model produces clean layout with no crossing warnings
-- `GeneralViewLayoutStrategy_BuildLayout_HeatLayout_HotBandProducesWiderCanvas`:
-  Dense cross-row canvas height ≥ sparse canvas height (heat expansion does not shrink)
-- `GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelUsesMinimumSpacing`:
-  Sparse canvas height < 500px with no warnings (no over-padding)
+- `GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelProducesNonOverlappingBoxes`:
+  Dense model produces a layout with no overlapping definition boxes
+- `GeneralViewLayoutStrategy_BuildLayout_HeatLayout_ConnectedModelKeepsBoxesSeparated`:
+  Connected cross-referencing model keeps every definition box non-overlapping
+- `GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelProducesCompactCanvas`:
+  Sparse canvas stays compact with no warnings (no over-padding)

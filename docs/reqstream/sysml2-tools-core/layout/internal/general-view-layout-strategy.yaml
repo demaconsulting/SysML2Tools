@@ -110,18 +110,16 @@ sections:
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_AttributeFeature_DoesNotProduceDiamondEdge
 
-      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AdaptiveGap
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-LayeredPlacement
         title: >-
-          GeneralViewLayoutStrategy shall iteratively widen the vertical gap between placed boxes
-          using per-band heat measurement, up to a maximum of eight times the initial gap.
+          GeneralViewLayoutStrategy shall place definitions with the layered pipeline so that no two
+          definition boxes overlap and every package folder stays clear of the others.
         justification: |
-          Dense models can produce congested inter-row bands with many routed edge segments crossing
-          the same vertical gap. Measuring the heat (vertical edge-segment count) per band and
-          expanding the vertical gap proportionally to the excess heat reduces routing congestion
-          without requiring manual layout hints from the user. The simplified max-gap fallback
-          applies the largest required expansion uniformly across all bands because PlacedBox
-          records are immutable.
+          Delegating placement to the reusable layered pipeline (with a ComponentPacker stage) gives
+          the General view ELK-style box placement and orthogonal edge routing. The observable
+          guarantee that matters to readers is that boxes and folders never overlap, regardless of
+          model size or density, so the diagram stays legible without manual layout hints.
         tests:
-          - GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelProducesCleanLayout
-          - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_HotBandProducesWiderCanvas
-          - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelUsesMinimumSpacing
+          - GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelProducesNonOverlappingBoxes
+          - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_ConnectedModelKeepsBoxesSeparated
+          - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelProducesCompactCanvas

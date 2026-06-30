@@ -22,7 +22,8 @@ sysml2tools render <model>.sysml --format svg --output docs/gallery/svg
 
 Shows every definition kind (part, port, interface, attribute, enumeration,
 requirement) grouped in a package folder, with typed compartments (attributes,
-ports, parts) and specialization edges.
+ports, parts) and specialization edges. Definitions are placed by a layered
+(ELK-style) engine with orthogonal edge routing.
 
 Model: [`models/01-drone-general.sysml`](models/01-drone-general.sysml) ·
 SVG: [`svg/DroneGeneralView.svg`](svg/DroneGeneralView.svg)

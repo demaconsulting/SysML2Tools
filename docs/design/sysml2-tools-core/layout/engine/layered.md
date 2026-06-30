@@ -27,6 +27,7 @@ The subsystem contains the following units:
 | `OrthogonalRouter` | Assigns routing slots and emits orthogonal bend points per corridor |
 | `LongEdgeJoiner` | Concatenates sub-edge bend points into one polyline per original edge |
 | `AxisTransform` | Maps abstract along/cross coordinates onto screen coordinates |
+| `ComponentPacker` | Lays out each connected component independently and packs them without overlap |
 
 ##### Interfaces
 
@@ -35,9 +36,12 @@ the shared `LayeredGraph` in place. A pipeline is assembled through the fluent
 `LayeredLayoutPipeline.PipelineBuilder` (`Direction`, `Hierarchy`, `AddStage`, `AddDefaultStages`,
 `Build`) and executed with `Run`. The default stage sequence is, in order: `CycleBreaker`,
 `LayerAssigner`, `LongEdgeSplitter`, `CrossingMinimizer`, `BrandesKopfPlacer`, `PortDistributor`,
-`OrthogonalRouter`, `LongEdgeJoiner`, and `AxisTransform`. All types are `internal` and consume only
-the geometric value types of the Layout subsystem (`Point2D`, `Rect`) plus the internal `LayerNode`
-and `LayerEdge` records; no stage references the SysML semantic model.
+`OrthogonalRouter`, `LongEdgeJoiner`, and `AxisTransform`. `ComponentPacker` is an optional composite
+stage that wraps an inner stage sequence: it is added explicitly by callers that lay out potentially
+disconnected graphs (such as the General view), where it splits the graph into connected components,
+runs the inner stages on each, and packs the results without overlap. All types are `internal` and
+consume only the geometric value types of the Layout subsystem (`Point2D`, `Rect`) plus the internal
+`LayerNode` and `LayerEdge` records; no stage references the SysML semantic model.
 
 ##### Design
 

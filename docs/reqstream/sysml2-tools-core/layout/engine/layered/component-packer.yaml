@@ -1,0 +1,72 @@
+---
+# ComponentPacker Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the ComponentPacker unit
+# - ComponentPacker lays out a disconnected graph as a compact arrangement of its connected components
+# - Requirements describe the observable component packing, not the union-find internals
+
+sections:
+  - title: ComponentPacker Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-ComponentPacker-ComponentDetection
+        title: >-
+          ComponentPacker shall partition the graph's real nodes into connected components over the
+          undirected edge set so that nodes joined by a path share a component and disconnected nodes
+          occupy separate components.
+        justification: |
+          Laying out each connected component independently is what keeps unrelated subgraphs from
+          being stacked into one tall column, so the components must first be detected correctly.
+        tests:
+          - ComponentPacker_Apply_ConnectedCore_StaysOneComponent
+          - ComponentPacker_Apply_DisconnectedSingletons_PackSeparately
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-ComponentPacker-SingleComponentPassThrough
+        title: >-
+          ComponentPacker shall, when the graph forms a single connected component, produce output
+          identical to running its wrapped inner stages directly on the graph.
+        justification: |
+          The fast path preserves the behavior of every caller whose graph is connected, so the
+          wrapper must be transparent in that case.
+        tests:
+          - ComponentPacker_Apply_SingleComponent_EqualsDefaultPipeline
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-ComponentPacker-NonOverlappingPacking
+        title: >-
+          ComponentPacker shall place the laid-out components so that their content bounding boxes do
+          not overlap.
+        justification: |
+          Overlapping components would render unreadable diagrams, so the packing must keep every
+          component's bounding box clear of the others.
+        tests:
+          - ComponentPacker_Apply_DisconnectedSingletons_PackSeparately
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-ComponentPacker-Determinism
+        title: >-
+          ComponentPacker shall order components by their lowest original node index so that repeated
+          layouts of the same graph are identical.
+        justification: |
+          Reproducible renders require a deterministic component order independent of dictionary or
+          hash iteration order.
+        tests:
+          - ComponentPacker_Apply_ComponentOrder_IsDeterministic
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-ComponentPacker-WaypointTranslation
+        title: >-
+          ComponentPacker shall translate each component's routed edge waypoints by the same offset
+          applied to that component's nodes so that edges stay attached to their boxes.
+        justification: |
+          An edge whose waypoints were not translated with its component would detach from its
+          endpoints, so the offset must be applied consistently to nodes and waypoints.
+        tests:
+          - ComponentPacker_Apply_Waypoints_TranslatedWithComponent
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-ComponentPacker-EmptyGraph
+        title: >-
+          ComponentPacker shall treat an empty graph as a no-op and shall reject a null graph.
+        justification: |
+          The downstream stages cannot operate on an empty augmented graph, and a null graph is a
+          programming error that must surface immediately.
+        tests:
+          - ComponentPacker_Apply_EmptyGraph_IsNoOp
+          - ComponentPacker_Apply_NullGraph_Throws

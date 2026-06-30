@@ -38,6 +38,7 @@ includes:
   - docs/reqstream/sysml2-tools-core/layout/engine/layered/orthogonal-router.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine/layered/long-edge-joiner.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine/layered/axis-transform.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/component-packer.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/general-view-layout-strategy.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/interconnection-view-layout-strategy.yaml

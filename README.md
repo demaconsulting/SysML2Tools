@@ -27,8 +27,9 @@ documentation, CI/CD pipelines, and AI-assisted modeling workflows.
 - **`lint` Command**: Load a workspace and report all diagnostics; exit non-zero if errors
   are present — suitable for CI/CD and AI-assisted model-fix loops
 - **`render` Command**: Load a workspace, resolve a view, and render to SVG or PNG
-- **GeneralView Layout**: Nested rectangular block diagrams with depth-coded fill colors,
-  compartments, and configurable depth limiting
+- **GeneralView Layout**: Package-grouped definition block diagrams placed by a layered (ELK-style)
+  engine with orthogonal specialization and membership edges, depth-coded fill colors, compartments,
+  and configurable depth limiting
 - **SVG Output**: Zero external dependencies
 - **PNG Output**: Pixel-identical across Windows, Linux, and macOS via SkiaSharp and an
   embedded Noto Sans font
