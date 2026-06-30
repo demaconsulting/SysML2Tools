@@ -59,7 +59,7 @@ SVG: [`svg/ElevatorStateTransitionView.svg`](svg/ElevatorStateTransitionView.svg
 
 ## 4. Action Flow View — CI/CD Pipeline
 
-Shows actions arranged top-to-bottom in layers by the Sugiyama-style layered engine,
+Shows actions arranged top-to-bottom by the layered layout pipeline,
 with a start node, a done node, and a quality-gate branch and join.
 
 Model: [`models/04-pipeline-action-flow.sysml`](models/04-pipeline-action-flow.sysml) ·

@@ -513,10 +513,10 @@ model references) and return computed geometry; each is independently unit-teste
 | Engine | Capability | Used by |
 |---|---|---|
 | `ContainmentPacker` | Bottom-up sizing + bin-packing of children in a container | General, Interconnection |
-| `ChannelRouter` | Orthogonal edge routing around obstacles, clearance-retry, perpendicular stubs | General, Interconnection, State, Action |
+| `ChannelRouter` | Orthogonal edge routing around obstacles, clearance-retry, perpendicular stubs | General, Interconnection, State |
 | `ForceDirectedEngine` | Fruchterman-Reingold spring placement | Interconnection, State |
 | `PortAssigner` | Port-side assignment + slot distribution along an edge | Interconnection |
-| `LayeredLayoutEngine` | Simplified Sugiyama (layering + barycenter ordering + x-alignment) | Action Flow |
+| `LayeredLayoutEngine` | Simplified Sugiyama (layering + barycenter ordering + x-alignment) | — (production-unused after Action Flow moved to the layered pipeline; follow-up removal candidate) |
 
 Helper units: `ConnectorLabelPlacer` (collision-aware label placement), `LayoutWarnings`
 (layout diagnostics), `BoxMetrics` (sizing). Sequence/Grid/Browser/Geometry layouts are pure

@@ -64,6 +64,8 @@ system, subsystem, and unit levels:
         future-removal candidate)
       - **PortAssigner** (Unit) — assigns ports to box sides and distributes them along each edge
       - **LayeredLayoutEngine** (Unit) — layered (Sugiyama-style) top-to-bottom placement
+        (production-unused after the Action Flow View moved to the layered pipeline; retained as a
+        future-removal candidate)
       - **ContainmentPacker** (Unit) — packs sized boxes within a bounded container region
       - **ConnectivityAnalyzer** (Unit) — sparse adjacency, layer hints, and community detection
       - **InterconnectionLayoutEngine** (Unit) — façade that assembles and runs the layered
@@ -89,7 +91,8 @@ system, subsystem, and unit levels:
       - **InterconnectionViewLayoutStrategy** (Unit) — internal structure: nested parts, ports, connectors
       - **StateTransitionViewLayoutStrategy** (Unit) — state machine: states and guarded transitions
         placed top-to-bottom by the layered pipeline (DOWN direction) with orthogonal transitions
-      - **ActionFlowViewLayoutStrategy** (Unit) — layered action flow with start/done markers
+      - **ActionFlowViewLayoutStrategy** (Unit) — action flow with start/done markers, placed
+        top-to-bottom by the layered pipeline (DOWN direction) with orthogonal successions
       - **SequenceViewLayoutStrategy** (Unit) — lifelines and ordered messages
       - **GridViewLayoutStrategy** (Unit) — specialization/relationship matrix
       - **BrowserViewLayoutStrategy** (Unit) — indented membership tree
