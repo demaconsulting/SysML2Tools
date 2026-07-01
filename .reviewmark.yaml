@@ -239,25 +239,29 @@ reviews:
     paths:
       - "docs/reqstream/sysml2-tools-core/**/*.yaml"
 
-  - id: SysML2Tools-Core-Parser-Design
+  - id: SysML2Tools-Language-Parser-Design
     title: Review that DemaConsulting.SysML2Tools.Language Parser Design is Consistent and Complete
     context:
       - docs/reqstream/sysml2-tools-language.yaml
     paths:
       - "docs/design/introduction.md"
       - "docs/design/sysml2-tools-language.md"
+      - "docs/design/sysml2-tools-language/parser.md"
+      - "docs/design/sysml2-tools-language/parser/**/*.md"
       - "docs/design/ots/antlr4.md"
 
-  - id: SysML2Tools-Core-Parser-Verification
+  - id: SysML2Tools-Language-Parser-Verification
     title: Review that DemaConsulting.SysML2Tools.Language Parser Verification is Consistent and Complete
     context:
       - docs/reqstream/sysml2-tools-language.yaml
     paths:
       - "docs/verification/introduction.md"
       - "docs/verification/sysml2-tools-language.md"
+      - "docs/verification/sysml2-tools-language/parser.md"
+      - "docs/verification/sysml2-tools-language/parser/**/*.md"
       - "docs/verification/ots/antlr4.md"
 
-  - id: SysML2Tools-Core-Parser-Implementation
+  - id: SysML2Tools-Language-Parser-Implementation
     title: Review of DemaConsulting.SysML2Tools.Language Parser Implementation
     context:
       - docs/reqstream/sysml2-tools-language.yaml
@@ -268,7 +272,7 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/OmgModelsTests.cs"
 
-  - id: SysML2Tools-Core-Parser-Changes
+  - id: SysML2Tools-Language-Parser-Changes
     title: Review of Language Parser Changes for Phase 5 (StdlibGen + AstSerializer)
     context:
       - docs/reqstream/sysml2-tools-language.yaml
@@ -279,31 +283,36 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/AstDeserializer.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
 
-  - id: SysML2Tools-Core-Semantic-Design
+  - id: SysML2Tools-Language-Semantic-Design
     title: Review that DemaConsulting.SysML2Tools.Language Semantic Design is Consistent and Complete
     context:
       - docs/reqstream/sysml2-tools-language.yaml
     paths:
       - "docs/design/introduction.md"
       - "docs/design/sysml2-tools-language.md"
+      - "docs/design/sysml2-tools-language/semantic.md"
+      - "docs/design/sysml2-tools-language/semantic/**/*.md"
 
-  - id: SysML2Tools-Core-Semantic-Verification
+  - id: SysML2Tools-Language-Semantic-Verification
     title: Review that DemaConsulting.SysML2Tools.Language Semantic Verification is Consistent and Complete
     context:
       - docs/reqstream/sysml2-tools-language.yaml
     paths:
       - "docs/verification/introduction.md"
       - "docs/verification/sysml2-tools-language.md"
+      - "docs/verification/sysml2-tools-language/semantic.md"
+      - "docs/verification/sysml2-tools-language/semantic/**/*.md"
 
-  - id: SysML2Tools-Core-Semantic-AllRequirements
+  - id: SysML2Tools-Language-AllRequirements
     title: Review that All DemaConsulting.SysML2Tools.Language Requirements are Complete
     context:
       - docs/design/sysml2-tools-language.md
       - docs/reqstream/sysml2-tools-language.yaml
     paths:
       - "docs/reqstream/sysml2-tools-language.yaml"
+      - "docs/reqstream/sysml2-tools-language/**/*.yaml"
 
-  - id: SysML2Tools-Core-Semantic-Implementation
+  - id: SysML2Tools-Language-Semantic-Implementation
     title: Review of DemaConsulting.SysML2Tools.Language Semantic Implementation
     context:
       - docs/reqstream/sysml2-tools-language.yaml
@@ -320,7 +329,7 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
 
-  - id: SysML2Tools-Core-Semantic-WorkspaceLoader
+  - id: SysML2Tools-Language-Semantic-WorkspaceLoader
     title: Review of DemaConsulting.SysML2Tools.Language WorkspaceLoader Unit Implementation
     context:
       - docs/design/sysml2-tools-language.md
@@ -332,6 +341,64 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
       - "test/SysMLModels/software-structure.sysml"
+
+  - id: SysML2Tools-Language-Parser-WorkspaceParser
+    title: Review that DemaConsulting.SysML2Tools.Language Parser WorkspaceParser Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-language.md
+      - docs/reqstream/sysml2-tools-language.yaml
+      - docs/design/sysml2-tools-language/parser.md
+      - docs/reqstream/sysml2-tools-language/parser.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-language/parser/workspace-parser.yaml"
+      - "docs/design/sysml2-tools-language/parser/workspace-parser.md"
+      - "docs/verification/sysml2-tools-language/parser/workspace-parser.md"
+      - "src/DemaConsulting.SysML2Tools.Language/Parser/WorkspaceParser.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
+
+  - id: SysML2Tools-Language-Parser-Internal-SysmlDiagnosticListener
+    title: Review that DemaConsulting.SysML2Tools.Language Parser SysmlDiagnosticListener Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-language.md
+      - docs/reqstream/sysml2-tools-language.yaml
+      - docs/design/sysml2-tools-language/parser.md
+      - docs/reqstream/sysml2-tools-language/parser.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-language/parser/internal/sysml-diagnostic-listener.yaml"
+      - "docs/design/sysml2-tools-language/parser/internal/sysml-diagnostic-listener.md"
+      - "docs/verification/sysml2-tools-language/parser/internal/sysml-diagnostic-listener.md"
+      - "src/DemaConsulting.SysML2Tools.Language/Parser/Internal/SysmlDiagnosticListener.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
+
+  - id: SysML2Tools-Language-Semantic-AstSerializer
+    title: Review that DemaConsulting.SysML2Tools.Language Semantic AstSerializer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-language.md
+      - docs/reqstream/sysml2-tools-language.yaml
+      - docs/design/sysml2-tools-language/semantic.md
+      - docs/reqstream/sysml2-tools-language/semantic.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-language/semantic/ast-serializer.yaml"
+      - "docs/design/sysml2-tools-language/semantic/ast-serializer.md"
+      - "docs/verification/sysml2-tools-language/semantic/ast-serializer.md"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/AstSerializer.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SerializedStdlib.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/AstSerializerContext.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstSerializerTests.cs"
+
+  - id: SysML2Tools-Language-Semantic-AstDeserializer
+    title: Review that DemaConsulting.SysML2Tools.Language Semantic AstDeserializer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-language.md
+      - docs/reqstream/sysml2-tools-language.yaml
+      - docs/design/sysml2-tools-language/semantic.md
+      - docs/reqstream/sysml2-tools-language/semantic.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-language/semantic/ast-deserializer.yaml"
+      - "docs/design/sysml2-tools-language/semantic/ast-deserializer.md"
+      - "docs/verification/sysml2-tools-language/semantic/ast-deserializer.md"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/AstDeserializer.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstSerializerTests.cs"
 
   - id: SysML2Tools-Core-Layout-Design
     title: Review that DemaConsulting.SysML2Tools Layout Design is Consistent and Complete

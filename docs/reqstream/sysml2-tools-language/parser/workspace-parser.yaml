@@ -1,0 +1,53 @@
+---
+# WorkspaceParser Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the WorkspaceParser unit
+# - WorkspaceParser is the public API of the Parser subsystem
+# - Requirements decompose the Parser subsystem responsibilities into observable
+#   behavior of the WorkspaceParser unit
+
+sections:
+  - title: WorkspaceParser Unit Requirements
+    requirements:
+      - id: SysML2Tools-Language-Parser-WorkspaceParser-ParseSourceString
+        title: >-
+          WorkspaceParser.ParseSource shall parse an in-memory source string and return the list
+          of diagnostics produced while parsing that source.
+        justification: |
+          Parsing source text directly from memory without requiring a file on disk supports
+          testing and future editor-integration scenarios where source is supplied by the caller.
+        tests:
+          - ParseSource_MinimalPackage_NoErrors
+          - ParseSource_PartDef_NoErrors
+
+      - id: SysML2Tools-Language-Parser-WorkspaceParser-EmptySource
+        title: >-
+          WorkspaceParser.ParseSource shall return an empty diagnostic list when the supplied
+          source contains no syntax errors.
+        justification: |
+          Callers rely on an empty diagnostic list as the signal that a source parsed cleanly,
+          so a valid empty or well-formed source must yield no diagnostics.
+        tests:
+          - ParseSource_EmptyFile_NoErrors
+          - ParseSource_MinimalPackage_NoErrors
+
+      - id: SysML2Tools-Language-Parser-WorkspaceParser-SyntaxErrorReporting
+        title: >-
+          WorkspaceParser.ParseSource shall report each syntax error in the supplied source as an
+          Error-severity diagnostic.
+        justification: |
+          Surfacing syntax errors as Error-severity diagnostics lets callers fail a build or
+          present precise problems to users without inspecting the parser internals.
+        tests:
+          - ParseSource_InvalidSyntax_ReportsError
+
+      - id: SysML2Tools-Language-Parser-WorkspaceParser-PathAttribution
+        title: >-
+          WorkspaceParser.ParseSource shall record the caller-supplied file path verbatim in every
+          diagnostic it produces.
+        justification: |
+          Accurate path attribution is required for callers to map diagnostics back to the correct
+          source file when many files are parsed.
+        tests:
+          - ParseSource_ErrorPath_MatchesSuppliedPath

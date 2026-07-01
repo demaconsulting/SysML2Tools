@@ -1,0 +1,32 @@
+---
+# SysmlDiagnosticListener Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the SysmlDiagnosticListener unit
+# - SysmlDiagnosticListener is the internal ANTLR4 error listener of the Parser subsystem
+# - Requirements describe observable diagnostic-collection behavior
+
+sections:
+  - title: SysmlDiagnosticListener Unit Requirements
+    requirements:
+      - id: SysML2Tools-Language-Parser-Internal-SysmlDiagnosticListener-CaptureSyntaxErrors
+        title: >-
+          The Parser subsystem shall capture both lexer and parser syntax errors as
+          Error-severity diagnostics carrying the file path, line number, and column offset of the
+          offending token.
+        justification: |
+          Collecting lexer and parser errors uniformly with precise location information gives
+          callers a single, consistent list of problems regardless of which ANTLR4 stage detected
+          the error.
+        tests:
+          - ParseSource_InvalidSyntax_ReportsError
+
+      - id: SysML2Tools-Language-Parser-Internal-SysmlDiagnosticListener-PathPropagation
+        title: >-
+          The Parser subsystem shall attribute every captured syntax error to the source file path
+          supplied by the caller.
+        justification: |
+          Each collected diagnostic must identify the file it came from so callers can present or
+          aggregate errors across a multi-file workspace.
+        tests:
+          - ParseSource_ErrorPath_MatchesSuppliedPath

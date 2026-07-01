@@ -3,16 +3,20 @@
 includes:
   - docs/reqstream/sysml2-tools-language.yaml
   - docs/reqstream/sysml2-tools-language/parser.yaml
+  - docs/reqstream/sysml2-tools-language/parser/workspace-parser.yaml
+  - docs/reqstream/sysml2-tools-language/parser/internal/sysml-diagnostic-listener.yaml
   - docs/reqstream/sysml2-tools-language/semantic.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/workspace-loader.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/ast-serializer.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/ast-deserializer.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/internal.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/internal/sysml-node.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/internal/ast-builder.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/internal/symbol-table.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/internal/reference-resolver.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/internal/supertype-walker.yaml
   - docs/reqstream/sysml2-tools-stdlib.yaml
   - docs/reqstream/sysml2-tools-core.yaml
-  - docs/reqstream/sysml2-tools-core/semantic/workspace-loader.yaml
-  - docs/reqstream/sysml2-tools-core/semantic/internal.yaml
-  - docs/reqstream/sysml2-tools-core/semantic/internal/sysml-node.yaml
-  - docs/reqstream/sysml2-tools-core/semantic/internal/ast-builder.yaml
-  - docs/reqstream/sysml2-tools-core/semantic/internal/symbol-table.yaml
-  - docs/reqstream/sysml2-tools-core/semantic/internal/reference-resolver.yaml
-  - docs/reqstream/sysml2-tools-core/semantic/internal/supertype-walker.yaml
   - docs/reqstream/sysml2-tools-core/layout.yaml
   - docs/reqstream/sysml2-tools-core/layout/connector-label-placer.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine.yaml

@@ -7,7 +7,7 @@
 sections:
   - title: SymbolTable Requirements
     requirements:
-      - id: SysML2Tools-Core-Semantic-Internal-SymbolTable-Register
+      - id: SysML2Tools-Language-Semantic-Internal-SymbolTable-Register
         title: >-
           SymbolTable.RegisterAll shall recursively register all AST nodes with a non-null,
           non-empty QualifiedName into the symbol dictionary, keyed by qualified name.
@@ -18,7 +18,7 @@ sections:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
           - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames
 
-      - id: SysML2Tools-Core-Semantic-Internal-SymbolTable-Lookup
+      - id: SysML2Tools-Language-Semantic-Internal-SymbolTable-Lookup
         title: >-
           SymbolTable.Lookup shall return the registered node for a given qualified name,
           or null if the name is not registered.

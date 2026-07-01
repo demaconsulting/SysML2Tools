@@ -7,7 +7,7 @@
 sections:
   - title: SysmlNode Requirements
     requirements:
-      - id: SysML2Tools-Core-Semantic-Internal-SysmlNode-Hierarchy
+      - id: SysML2Tools-Language-Semantic-Internal-SysmlNode-Hierarchy
         title: >-
           SysmlNode shall define an abstract base class with Name, QualifiedName, Children,
           SupertypeNames, and ImportedNames properties shared by all AST node types.
@@ -17,7 +17,7 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
 
-      - id: SysML2Tools-Core-Semantic-Internal-SysmlNode-Types
+      - id: SysML2Tools-Language-Semantic-Internal-SysmlNode-Types
         title: >-
           The SysmlNode hierarchy shall include SysmlPackageNode, SysmlDefinitionNode,
           SysmlFeatureNode, SysmlImportNode, SysmlViewNode, and SysmlViewpointNode.

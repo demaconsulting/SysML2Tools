@@ -8,7 +8,7 @@
 sections:
   - title: WorkspaceLoader Unit Requirements
     requirements:
-      - id: SysML2Tools-Core-Semantic-WorkspaceLoader-Load
+      - id: SysML2Tools-Language-Semantic-WorkspaceLoader-Load
         title: >-
           WorkspaceLoader.LoadAsync shall parse each user file asynchronously on the thread pool.
         justification: |
@@ -18,7 +18,7 @@ sections:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
           - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames
 
-      - id: SysML2Tools-Core-Semantic-WorkspaceLoader-FileError
+      - id: SysML2Tools-Language-Semantic-WorkspaceLoader-FileError
         title: >-
           WorkspaceLoader.LoadAsync shall produce an Error diagnostic when a user file
           cannot be read from disk.

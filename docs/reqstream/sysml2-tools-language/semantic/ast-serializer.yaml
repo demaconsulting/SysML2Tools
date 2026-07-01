@@ -1,0 +1,46 @@
+---
+# AstSerializer Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the AstSerializer unit
+# - AstSerializer serializes a symbol table and diagnostics to a portable binary form
+# - Requirements describe observable serialization behavior
+
+sections:
+  - title: AstSerializer Unit Requirements
+    requirements:
+      - id: SysML2Tools-Language-Semantic-AstSerializer-Serialize
+        title: >-
+          AstSerializer.Serialize shall convert a symbol table and its diagnostics into a
+          self-contained byte sequence that AstDeserializer can restore to an equivalent symbol
+          table and diagnostics.
+        justification: |
+          A round-trip binary form lets the pre-compiled standard library be produced once at
+          build time and reloaded at run time without re-parsing the source files.
+        tests:
+          - Serialize_EmptyTable_RoundTrips
+          - Serialize_PackageNode_RoundTrips
+          - Serialize_DefinitionNode_RoundTrips
+
+      - id: SysML2Tools-Language-Semantic-AstSerializer-PreservesNodeTypes
+        title: >-
+          AstSerializer.Serialize shall preserve the concrete type of every AST node so that each
+          node is restored as the same node type it was serialized from.
+        justification: |
+          Downstream analysis dispatches on concrete node type, so serialization must not collapse
+          or lose the distinction between package, definition, feature, import, view, and viewpoint
+          nodes.
+        tests:
+          - Serialize_AllNodeTypes_RoundTrip
+
+      - id: SysML2Tools-Language-Semantic-AstSerializer-PreservesNodeData
+        title: >-
+          AstSerializer.Serialize shall preserve each node's supertype names and imported names and
+          all diagnostics through the serialization.
+        justification: |
+          Supertype and import relationships, together with any diagnostics, are required by
+          reference resolution consumers of the deserialized symbol table and must survive the
+          round trip intact.
+        tests:
+          - Serialize_SupertypeAndImportedNames_Preserved
+          - Serialize_Diagnostics_RoundTrip

@@ -7,7 +7,7 @@
 sections:
   - title: ReferenceResolver Requirements
     requirements:
-      - id: SysML2Tools-Core-Semantic-Internal-ReferenceResolver-Resolve
+      - id: SysML2Tools-Language-Semantic-Internal-ReferenceResolver-Resolve
         title: >-
           ReferenceResolver.ResolveAll shall check each supertype name referenced by
           AST nodes against the symbol table and produce a Warning for any unresolved name.
@@ -17,7 +17,7 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
 
-      - id: SysML2Tools-Core-Semantic-Internal-ReferenceResolver-CircularImport
+      - id: SysML2Tools-Language-Semantic-Internal-ReferenceResolver-CircularImport
         title: >-
           ReferenceResolver.ResolveAll shall detect circular import chains in the import
           graph and produce a Warning diagnostic for each detected cycle.
