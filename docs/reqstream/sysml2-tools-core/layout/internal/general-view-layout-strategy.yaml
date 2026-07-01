@@ -101,14 +101,34 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NonStructuralMembership
         title: >-
-          GeneralViewLayoutStrategy shall not draw membership edges for features with non-structural
-          keywords such as <c>attribute</c>, <c>value</c>, or <c>item</c>.
+          GeneralViewLayoutStrategy shall not draw membership (diamond) edges for features with
+          non-structural keywords such as <c>attribute</c>, <c>value</c>, or <c>item</c>.
         justification: |
           Non-structural features describe usage, not containment or reference. Omitting their
-          edges prevents the General View from becoming cluttered with relationships that are
-          already readable as compartment text.
+          membership diamond edges prevents the General View from confusing attribute typing with
+          composition; where an attribute's type is a definition in the view it is instead shown as
+          a dependency edge (see the AttributeTyping requirement).
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_AttributeFeature_DoesNotProduceDiamondEdge
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AttributeTyping
+        title: >-
+          GeneralViewLayoutStrategy shall connect a definition to the type of each owned
+          <c>attribute</c> (or <c>enum</c>-typed attribute) feature whose type resolves to a
+          definition in the view with a dashed dependency line ending in an open chevron at the
+          attribute-type definition.
+        justification: |
+          An attribute or enumeration definition referenced only by attribute features would
+          otherwise float as a disconnected box. Drawing an owner-to-type dependency joins it into
+          the cluster near the definitions that use it. Attribute typing is a usage-type dependency,
+          not composition, so it uses the OMG dependency notation (a dashed line with an open
+          arrowhead) rather than a membership diamond, keeping it visually distinct from structural
+          memberships (filled diamond) and specializations (hollow triangle). Unresolved types and
+          self-references are skipped, exactly as for the other edge kinds.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_AttributeTyping_ProducesDashedOpenChevronEdge
+          - GeneralViewLayoutStrategy_BuildLayout_EnumTypedAttribute_ProducesDashedOpenChevronEdge
+          - GeneralViewLayoutStrategy_BuildLayout_AttributeTyping_UnresolvedType_ProducesNoEdge
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-LayeredPlacement
         title: >-

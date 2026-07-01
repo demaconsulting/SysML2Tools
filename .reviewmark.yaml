@@ -736,6 +736,11 @@ reviews:
       - "docs/design/sysml2-tools-core/layout/internal.md"
       - "docs/verification/sysml2-tools-core/layout/internal.md"
 
+  # GeneralViewLayoutStrategy — General View layout. This review-set covers the three edge
+  # notations the strategy draws between definition boxes: specialization (solid line, hollow
+  # triangle at the supertype), structural/reference membership (solid line, filled/hollow diamond
+  # at the owner), and attribute typing (dashed dependency line, open chevron at the attribute-type
+  # definition). Attribute typing is a usage-type dependency, not composition.
   - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy
     title: Review that DemaConsulting.SysML2Tools Layout Internal GeneralViewLayoutStrategy Implementation is Correct
     context:

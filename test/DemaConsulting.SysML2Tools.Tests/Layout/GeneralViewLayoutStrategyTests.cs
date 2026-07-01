@@ -402,6 +402,127 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A definition that owns an <c>attribute</c>-typed feature whose type is another definition
+    ///     in the view draws a dashed dependency line with an open chevron at the attribute-type box,
+    ///     connecting the otherwise-disconnected attribute def into the cluster.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_AttributeTyping_ProducesDashedOpenChevronEdge()
+    {
+        // Arrange: Vehicle owns an attribute typed as the user attribute def Mass
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Mass"] = new SysmlDefinitionNode { Name = "Mass", QualifiedName = "P::Mass", DefinitionKeyword = "attribute def" },
+                ["P::Vehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "Vehicle",
+                    QualifiedName = "P::Vehicle",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "mass", QualifiedName = "P::Vehicle::mass", FeatureKeyword = "attribute", FeatureTyping = "Mass" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a dashed dependency line with an open chevron at the attribute-type (Mass) end exists
+        var typingEdge = layout.Nodes.OfType<LayoutLine>()
+            .FirstOrDefault(l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.OpenChevron);
+        Assert.NotNull(typingEdge);
+        Assert.True(typingEdge!.Waypoints.Count >= 2);
+
+        // Assert: attribute typing is a dependency, not composition — no membership diamond is drawn.
+        var diamondEdge = layout.Nodes.OfType<LayoutLine>()
+            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.FilledDiamond ||
+                                 l.TargetEnd == EndMarkerStyle.HollowDiamond);
+        Assert.Null(diamondEdge);
+    }
+
+    /// <summary>
+    ///     An <c>attribute</c>-typed feature whose type is an <c>enum def</c> in the view also draws a
+    ///     dashed open-chevron typing dependency to the enumeration definition.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_EnumTypedAttribute_ProducesDashedOpenChevronEdge()
+    {
+        // Arrange: Controller owns an attribute typed as the user enum def FlightMode
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::FlightMode"] = new SysmlDefinitionNode { Name = "FlightMode", QualifiedName = "P::FlightMode", DefinitionKeyword = "enum def" },
+                ["P::Controller"] = new SysmlDefinitionNode
+                {
+                    Name = "Controller",
+                    QualifiedName = "P::Controller",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "mode", QualifiedName = "P::Controller::mode", FeatureKeyword = "attribute", FeatureTyping = "FlightMode" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a dashed dependency line with an open chevron at the enum-type (FlightMode) end exists
+        var typingEdge = layout.Nodes.OfType<LayoutLine>()
+            .FirstOrDefault(l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.OpenChevron);
+        Assert.NotNull(typingEdge);
+    }
+
+    /// <summary>
+    ///     An <c>attribute</c> feature whose type does not resolve to a definition in the view draws
+    ///     no typing edge, mirroring the specialization/membership resolution rules.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_AttributeTyping_UnresolvedType_ProducesNoEdge()
+    {
+        // Arrange: Vehicle owns an attribute typed as a name with no matching definition in the view
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Vehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "Vehicle",
+                    QualifiedName = "P::Vehicle",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "mass", QualifiedName = "P::Vehicle::mass", FeatureKeyword = "attribute", FeatureTyping = "Real" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: no typing dependency edge is produced when the attribute type is unresolved
+        var typingEdge = layout.Nodes.OfType<LayoutLine>()
+            .FirstOrDefault(l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.OpenChevron);
+        Assert.Null(typingEdge);
+    }
+
+    /// <summary>
     ///     A part def that owns a <c>port</c>-typed feature emits a filled-diamond line from the
     ///     port's type box to the owning definition box.
     /// </summary>

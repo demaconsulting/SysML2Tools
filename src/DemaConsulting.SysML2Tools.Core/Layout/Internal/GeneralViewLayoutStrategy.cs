@@ -14,8 +14,8 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// <summary>
 /// Layout strategy for GeneralView diagrams. Renders every user-defined <c>def</c> element
 /// (part, port, interface, requirement, action, …) as a keyword-labelled box, groups boxes by
-/// their owning package inside folder-shaped containers, and routes specialization and membership
-/// edges orthogonally between the boxes.
+/// their owning package inside folder-shaped containers, and routes specialization, membership, and
+/// attribute-typing edges orthogonally between the boxes.
 /// </summary>
 /// <remarks>
 /// Box placement and intra-package edge routing use the reusable layered pipeline
@@ -41,17 +41,43 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <summary>A feature membership: the keyword and the raw typing reference of one owned feature.</summary>
     private sealed record FeatureMembership(string Keyword, string TypeName);
 
+    /// <summary>
+    /// The classification of an edge, which selects its line style so the renderer can distinguish
+    /// the three relationships the General view draws between definition boxes.
+    /// </summary>
+    private enum EdgeKind
+    {
+        /// <summary>Subtype → supertype specialization: solid line, hollow triangle at the supertype.</summary>
+        Specialization,
+
+        /// <summary>Member-type → owner structural/reference membership: solid line, diamond at the owner.</summary>
+        Membership,
+
+        /// <summary>
+        /// Owner → attribute-type dependency (attribute typing): dashed line, open chevron at the type.
+        /// Attribute typing is a usage-type dependency, not composition, so it uses the OMG dependency
+        /// notation (dashed + open arrowhead) rather than a membership diamond.
+        /// </summary>
+        Typing,
+    }
+
     /// <summary>An intra-package edge expressed in package-local node indices, plus its target decoration.</summary>
     /// <param name="SourceLocal">Index of the source definition within its package group.</param>
     /// <param name="TargetLocal">Index of the target definition within its package group.</param>
-    /// <param name="Arrowhead">Arrowhead drawn at the target (supertype or owner) end.</param>
-    private sealed record IntraEdge(int SourceLocal, int TargetLocal, EndMarkerStyle Arrowhead);
+    /// <param name="Arrowhead">Arrowhead drawn at the target (supertype, owner, or attribute-type) end.</param>
+    /// <param name="Kind">The edge classification, which selects the rendered line style.</param>
+    private sealed record IntraEdge(int SourceLocal, int TargetLocal, EndMarkerStyle Arrowhead, EdgeKind Kind);
 
     /// <summary>A cross-package edge between two definitions in different package groups.</summary>
     /// <param name="SourceQualified">Qualified name of the source definition.</param>
-    /// <param name="TargetQualified">Qualified name of the target (supertype or owner) definition.</param>
+    /// <param name="TargetQualified">Qualified name of the target (supertype, owner, or attribute-type) definition.</param>
     /// <param name="Arrowhead">Arrowhead drawn at the target end.</param>
-    private sealed record CrossEdge(string SourceQualified, string TargetQualified, EndMarkerStyle Arrowhead);
+    /// <param name="Kind">The edge classification, which selects the rendered line style.</param>
+    private sealed record CrossEdge(string SourceQualified, string TargetQualified, EndMarkerStyle Arrowhead, EdgeKind Kind);
+
+    /// <summary>Maps an edge kind to its rendered line style: typing edges are dashed, all others solid.</summary>
+    private static LineStyle LineStyleForKind(EdgeKind kind) =>
+        kind == EdgeKind.Typing ? LineStyle.Dashed : LineStyle.Solid;
 
     /// <summary>
     /// The package-local placement of one group: each definition's top-left relative to the group's
@@ -60,12 +86,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <param name="LocalPos">Content-local top-left of each definition box, by group index.</param>
     /// <param name="ContentWidth">Width of the group's content bounding box.</param>
     /// <param name="ContentHeight">Height of the group's content bounding box.</param>
-    /// <param name="Edges">Routed intra-group edges (content-local polyline + target arrowhead).</param>
+    /// <param name="Edges">Routed intra-group edges (content-local polyline + target arrowhead + line style).</param>
     private sealed record GroupLayout(
         IReadOnlyList<(double X, double Y)> LocalPos,
         double ContentWidth,
         double ContentHeight,
-        IReadOnlyList<(IReadOnlyList<Point2D> Points, EndMarkerStyle Arrowhead)> Edges);
+        IReadOnlyList<(IReadOnlyList<Point2D> Points, EndMarkerStyle Arrowhead, LineStyle LineStyle)> Edges);
 
     /// <summary>A user-defined definition together with its computed box size and supertypes.</summary>
     private sealed record DefBox(
@@ -99,8 +125,9 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Group definitions by their owning package (prefix before the last "::").
         var groups = GroupByPackage(defs);
 
-        // Resolve the specialization/membership edge set into intra-package edges (handled by the
-        // layered pipeline inside each folder) and cross-package edges (routed around the folders).
+        // Resolve the specialization/membership/attribute-typing edge set into intra-package edges
+        // (handled by the layered pipeline inside each folder) and cross-package edges (routed around
+        // the folders).
         var (intraByGroup, crossEdges) = BuildEdges(groups);
 
         // Place package folders (and the top-level frameless block) across the canvas. Each folder's
@@ -415,12 +442,13 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             localPos[i] = (graph.AugX[i] - minX, graph.AugY[i] - minY);
         }
 
-        // Translate each edge polyline into the same content-local frame, paired with its arrowhead.
-        var edges = new List<(IReadOnlyList<Point2D> Points, EndMarkerStyle Arrowhead)>(intraEdges.Count);
+        // Translate each edge polyline into the same content-local frame, paired with its arrowhead
+        // and line style (dashed for attribute-typing dependencies, solid otherwise).
+        var edges = new List<(IReadOnlyList<Point2D> Points, EndMarkerStyle Arrowhead, LineStyle LineStyle)>(intraEdges.Count);
         for (var k = 0; k < intraEdges.Count; k++)
         {
             var points = graph.Waypoints[k].Select(p => new Point2D(p.X - minX, p.Y - minY)).ToList();
-            edges.Add((points, intraEdges[k].Arrowhead));
+            edges.Add((points, intraEdges[k].Arrowhead, LineStyleForKind(intraEdges[k].Kind)));
         }
 
         return new GroupLayout(localPos, maxX - minX, maxY - minY, edges);
@@ -495,14 +523,14 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         }
 
         // Offset the pipeline-routed intra-group edges into absolute canvas coordinates.
-        foreach (var (points, arrowhead) in layout.Edges)
+        foreach (var (points, arrowhead, lineStyle) in layout.Edges)
         {
             var absPoints = points.Select(p => new Point2D(contentOriginX + p.X, contentOriginY + p.Y)).ToList();
             intraEdges.Add(new LayoutLine(
                 Waypoints: absPoints,
                 SourceEnd: EndMarkerStyle.None,
                 TargetEnd: arrowhead,
-                LineStyle: LineStyle.Solid,
+                LineStyle: lineStyle,
                 MidpointLabel: null));
         }
     }
@@ -536,9 +564,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             Keyword: def.Keyword);
 
     /// <summary>
-    /// Resolves the specialization and membership edge set into intra-package edges (both endpoints in
-    /// the same package group, laid out together by the layered pipeline) and cross-package edges (both
-    /// endpoints resolved but in different package groups, routed around the placed folders).
+    /// Resolves the specialization, membership, and attribute-typing edge set into intra-package edges
+    /// (both endpoints in the same package group, laid out together by the layered pipeline) and
+    /// cross-package edges (both endpoints resolved but in different package groups, routed around the
+    /// placed folders).
     /// </summary>
     /// <param name="groups">The definitions grouped by owning package.</param>
     /// <returns>One intra-edge list per group (parallel to <paramref name="groups"/>) and the cross-edge list.</returns>
@@ -576,11 +605,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     {
                         if (target.Group == g)
                         {
-                            intra[g].Add(new IntraEdge(l, target.Local, EndMarkerStyle.HollowTriangle));
+                            intra[g].Add(new IntraEdge(l, target.Local, EndMarkerStyle.HollowTriangle, EdgeKind.Specialization));
                         }
                         else
                         {
-                            cross.Add(new CrossEdge(def.QualifiedName, groups[target.Group].Items[target.Local].QualifiedName, EndMarkerStyle.HollowTriangle));
+                            cross.Add(new CrossEdge(def.QualifiedName, groups[target.Group].Items[target.Local].QualifiedName, EndMarkerStyle.HollowTriangle, EdgeKind.Specialization));
                         }
                     }
                 }
@@ -607,11 +636,38 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                         if (memberType.Group == g)
                         {
                             // Source = member-type local, target = owner local (the diamond sits on the owner).
-                            intra[g].Add(new IntraEdge(memberType.Local, l, arrowhead));
+                            intra[g].Add(new IntraEdge(memberType.Local, l, arrowhead, EdgeKind.Membership));
                         }
                         else
                         {
-                            cross.Add(new CrossEdge(groups[memberType.Group].Items[memberType.Local].QualifiedName, def.QualifiedName, arrowhead));
+                            cross.Add(new CrossEdge(groups[memberType.Group].Items[memberType.Local].QualifiedName, def.QualifiedName, arrowhead, EdgeKind.Membership));
+                        }
+                    }
+                }
+
+                // Attribute typing: owner → attribute-type dependency, open chevron at the type (target) end.
+                // An attribute (or enum-typed attribute) feature typed by a def in the view draws a dashed
+                // dependency line so the attribute def joins the cluster near its referencing def(s). This is
+                // a usage-type dependency, not composition, so it uses the dependency notation rather than a
+                // membership diamond. Unresolved types and self-references are skipped, exactly as above.
+                foreach (var membership in def.Memberships)
+                {
+                    if (membership.Keyword is not ("attribute" or "enum"))
+                    {
+                        continue;
+                    }
+
+                    if (TryResolveLoc(membership.TypeName, locByQualified, locBySimple, out var attrType) &&
+                        !(attrType.Group == g && attrType.Local == l))
+                    {
+                        if (attrType.Group == g)
+                        {
+                            // Source = owner local, target = attribute-type local (the chevron points at the type).
+                            intra[g].Add(new IntraEdge(l, attrType.Local, EndMarkerStyle.OpenChevron, EdgeKind.Typing));
+                        }
+                        else
+                        {
+                            cross.Add(new CrossEdge(def.QualifiedName, groups[attrType.Group].Items[attrType.Local].QualifiedName, EndMarkerStyle.OpenChevron, EdgeKind.Typing));
                         }
                     }
                 }
@@ -670,7 +726,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            lines.Add(RouteCrossEdge(fromBox, toBox, placed, edge.Arrowhead));
+            lines.Add(RouteCrossEdge(fromBox, toBox, placed, edge.Arrowhead, LineStyleForKind(edge.Kind)));
         }
 
         return lines;
@@ -678,9 +734,9 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Routes a single cross-package edge from the source box to the target box, placing the supplied
-    /// arrowhead at the target (supertype or owner) end.
+    /// arrowhead at the target (supertype, owner, or attribute-type) end with the supplied line style.
     /// </summary>
-    private static LayoutLine RouteCrossEdge(PlacedBox from, PlacedBox to, IReadOnlyList<PlacedBox> placed, EndMarkerStyle targetArrowhead)
+    private static LayoutLine RouteCrossEdge(PlacedBox from, PlacedBox to, IReadOnlyList<PlacedBox> placed, EndMarkerStyle targetArrowhead, LineStyle lineStyle)
     {
         var fromCenter = new Point2D(from.X + (from.Width / 2.0), from.Y + (from.Height / 2.0));
         var toCenter = new Point2D(to.X + (to.Width / 2.0), to.Y + (to.Height / 2.0));
@@ -700,7 +756,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             Waypoints: route.Waypoints,
             SourceEnd: EndMarkerStyle.None,
             TargetEnd: targetArrowhead,
-            LineStyle: LineStyle.Solid,
+            LineStyle: lineStyle,
             MidpointLabel: null);
     }
 
