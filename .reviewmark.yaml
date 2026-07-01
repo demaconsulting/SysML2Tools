@@ -175,6 +175,7 @@ reviews:
     paths:
       - "docs/design/introduction.md"
       - "docs/design/sysml2-tools-stdlib.md"
+      - "docs/design/sysml2-tools-stdlib/**/*.md"
       - "docs/design/ots.md"
 
   - id: SysML2Tools-Stdlib-Verification
@@ -184,7 +185,16 @@ reviews:
     paths:
       - "docs/verification/introduction.md"
       - "docs/verification/sysml2-tools-stdlib.md"
+      - "docs/verification/sysml2-tools-stdlib/**/*.md"
       - "docs/verification/ots.md"
+
+  - id: SysML2Tools-Stdlib-AllRequirements
+    title: Review that All DemaConsulting.SysML2Tools.Stdlib Requirements are Complete
+    context:
+      - docs/design/sysml2-tools-stdlib.md
+      - docs/reqstream/sysml2-tools-stdlib.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-stdlib/**/*.yaml"
 
   - id: SysML2Tools-Stdlib-Implementation
     title: Review of DemaConsulting.SysML2Tools.Stdlib and StdlibGen Implementation
@@ -194,6 +204,18 @@ reviews:
     paths:
       - "src/DemaConsulting.SysML2Tools.Stdlib/StdlibProvider.cs"
       - "src/Tools/StdlibGen/Program.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/StdlibProviderTests.cs"
+
+  - id: SysML2Tools-Stdlib-StdlibProvider
+    title: Review that DemaConsulting.SysML2Tools.Stdlib StdlibProvider Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-stdlib.md
+      - docs/reqstream/sysml2-tools-stdlib.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-stdlib/stdlib-provider.yaml"
+      - "docs/design/sysml2-tools-stdlib/stdlib-provider.md"
+      - "docs/verification/sysml2-tools-stdlib/stdlib-provider.md"
+      - "src/DemaConsulting.SysML2Tools.Stdlib/StdlibProvider.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/StdlibProviderTests.cs"
 
   # SysML2Tools Core Library

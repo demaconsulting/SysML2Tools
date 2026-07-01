@@ -16,6 +16,7 @@ includes:
   - docs/reqstream/sysml2-tools-language/semantic/internal/reference-resolver.yaml
   - docs/reqstream/sysml2-tools-language/semantic/internal/supertype-walker.yaml
   - docs/reqstream/sysml2-tools-stdlib.yaml
+  - docs/reqstream/sysml2-tools-stdlib/stdlib-provider.yaml
   - docs/reqstream/sysml2-tools-core.yaml
   - docs/reqstream/sysml2-tools-core/layout.yaml
   - docs/reqstream/sysml2-tools-core/layout/box-metrics.yaml

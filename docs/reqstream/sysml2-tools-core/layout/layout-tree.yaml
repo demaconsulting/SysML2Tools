@@ -8,7 +8,7 @@
 #   LayoutLifeline) that together form the intermediate representation consumed by every renderer
 # - The per-record contracts are described in the Layout Subsystem chapter; these unit requirements
 #   summarize the grouped data-model invariants
-# - Unit requirements trace up (by ID nesting) to the Layout subsystem requirements
+# - Unit requirements decompose the Layout subsystem requirements into this unit's responsibility
 
 sections:
   - title: LayoutTree Unit Requirements

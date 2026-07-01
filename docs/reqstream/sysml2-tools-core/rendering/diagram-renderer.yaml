@@ -5,7 +5,7 @@
 # - Define requirements for the DiagramRenderer unit
 # - DiagramRenderer is the high-level rendering orchestrator for the Rendering subsystem
 # - Requirements describe the observable orchestration behavior of the full pipeline
-# - Unit requirements trace up (by ID nesting) to the Rendering subsystem DiagramRenderer requirement
+# - Unit requirements decompose the Rendering subsystem DiagramRenderer responsibility into this unit
 
 sections:
   - title: DiagramRenderer Unit Requirements

@@ -6,7 +6,7 @@
 # - NotationMetrics is the single home for intrinsic, theme-independent notation geometry
 #   shared by the SVG and PNG renderers
 # - Requirements describe the pinned notation values and the shapes derived from them
-# - Unit requirements trace up (by ID nesting) to the Rendering subsystem requirements
+# - Unit requirements decompose the Rendering subsystem requirements into this unit's responsibility
 
 sections:
   - title: NotationMetrics Unit Requirements

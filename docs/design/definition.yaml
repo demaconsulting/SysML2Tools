@@ -13,6 +13,7 @@ resource-path:
   - docs/design/sysml2-tools-core/layout/internal
   - docs/design/sysml2-tools-core/rendering
   - docs/design/sysml2-tools-core/rendering/internal
+  - docs/design/sysml2-tools-stdlib
   - docs/design/sysml2-tools-svg
   - docs/design/sysml2-tools-png
   - docs/design/sysml2-tools-tool
@@ -41,6 +42,7 @@ input-files:
   - docs/design/sysml2-tools-language/semantic/internal/reference-resolver.md
   - docs/design/sysml2-tools-language/semantic/internal/supertype-walker.md
   - docs/design/sysml2-tools-stdlib.md
+  - docs/design/sysml2-tools-stdlib/stdlib-provider.md
   - docs/design/sysml2-tools-core.md
   - docs/design/sysml2-tools-core/layout.md
   - docs/design/sysml2-tools-core/layout/box-metrics.md

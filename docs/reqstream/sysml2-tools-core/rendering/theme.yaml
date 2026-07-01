@@ -5,7 +5,7 @@
 # - Define requirements for the Theme unit
 # - Theme is the immutable visual-configuration record plus the built-in Themes provider
 # - Requirements describe the unit-level connector-geometry contract and the derived helper
-# - Unit requirements trace up (by ID nesting) to the Rendering subsystem Theme requirements
+# - Unit requirements decompose the Rendering subsystem Theme responsibility into this unit
 
 sections:
   - title: Theme Unit Requirements

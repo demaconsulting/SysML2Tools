@@ -7,7 +7,7 @@
 #   IRenderer, ILayoutStrategy, RenderOptions, RenderOutput, and the internal StdlibFilter helper
 # - The per-type contracts are described in the Rendering Subsystem chapter; these unit requirements
 #   summarize the grouped contract behaviors that the unit tests pin
-# - Unit requirements trace up (by ID nesting) to the Rendering subsystem requirements
+# - Unit requirements decompose the Rendering subsystem requirements into this unit's responsibility
 
 sections:
   - title: RenderingContracts Unit Requirements

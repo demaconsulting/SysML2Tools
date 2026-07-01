@@ -1,0 +1,53 @@
+---
+# StdlibProvider Unit Requirements
+#
+# PURPOSE:
+# - Define unit-level requirements for the StdlibProvider class, the single unit of the
+#   DemaConsulting.SysML2Tools.Stdlib system
+# - These requirements decompose the Stdlib system requirement into the specific,
+#   observable behaviour of the StdlibProvider unit
+# - Each requirement is verified by StdlibProvider unit tests
+
+sections:
+  - title: StdlibProvider Unit Requirements
+    requirements:
+      - id: SysML2Tools-Stdlib-StdlibProvider-GetSymbolTable
+        title: >-
+          StdlibProvider.GetSymbolTable shall return a non-empty SymbolTable containing the
+          pre-compiled SysML v2 standard library declarations.
+        justification: |
+          Callers seed a workspace from this symbol table; it must contain the standard library
+          base types user models reference.
+        tests:
+          - GetSymbolTable_ReturnsNonEmpty
+          - GetSymbolTable_ContainsKnownStdlibTypes
+
+      - id: SysML2Tools-Stdlib-StdlibProvider-Caching
+        title: >-
+          StdlibProvider.GetSymbolTable shall return the same SymbolTable instance on every call
+          within the same application domain.
+        justification: |
+          Caching the deserialized standard library lets multiple callers share one instance rather
+          than deserializing the embedded binary on each call.
+        tests:
+          - GetSymbolTable_IsCached
+
+      - id: SysML2Tools-Stdlib-StdlibProvider-Performance
+        title: >-
+          After the first call, StdlibProvider.GetSymbolTable shall return the cached result in
+          under 50 milliseconds.
+        justification: |
+          A fast cached path is the primary performance guarantee of the pre-compilation approach;
+          without it the benefit over a runtime parse is lost.
+        tests:
+          - GetSymbolTable_FastOnSubsequentCalls
+
+      - id: SysML2Tools-Stdlib-StdlibProvider-Diagnostics
+        title: >-
+          StdlibProvider.GetSymbolTable shall return a non-null diagnostics list alongside the
+          SymbolTable, reporting any issues from the pre-compilation step.
+        justification: |
+          Exposing pre-compilation diagnostics lets callers detect and report standard library
+          parse warnings rather than hiding them from end users.
+        tests:
+          - GetSymbolTable_DiagnosticsNotNull
