@@ -1,62 +1,72 @@
 # Resolved Design Decisions
 
-The following questions were raised during algorithmic review; each is resolved here and
-the resolution is reflected in the algorithm steps above.
+The following records the significant design choices behind the current layered layout
+architecture, and why each was resolved as it was. These are contributor working notes; the
+resolutions are reflected in the algorithm chapters above.
 
-1. **Coarse-to-fine coupling** — *Resolved: integer coarse grid.* The coarse cell is sized
-   as an integer multiple of G (`cell = round(4 × avg_block / G) × G`) so coarse positions
-   map to fine positions by exact rescale. Fine placement uses constraint-graph compaction
-   (Step 5), not interpolation, eliminating the risk of a cluster that fits in coarse cells
-   becoming infeasible on the fine grid.
+1. **Layered pipeline over force-directed placement** — *Resolved: layered.* The layout engine is
+   a layered (Sugiyama-style) pipeline rather than a force-directed simulation. Force-directed
+   placement commits node coordinates before routing, which leaves connector routing to reconcile
+   overlaps after the fact and cannot guarantee that two connectors avoid the same segment. A
+   layered pipeline assigns discrete layers and orderings first, so routing operates on a structured
+   graph where slot assignment makes segment conflicts impossible by construction. This replaced the
+   earlier force-directed architecture entirely.
 
-2. **Highway threshold** — *Resolved: geometric necessity rule.* The absolute
-   `highway_threshold = 3` is replaced by `highway ⇔ peak_lanes·G + 2·wire_margin >
-   min_gap` (Step 4), where `peak_lanes` is the peak concurrent occupancy. This is
-   scale-free, derived from `EdgeClearance`/`G`/`min_gap`, and stays discriminating at both
-   density extremes. Reserved width is capped at `W_cap`, and hub bundles split across
-   opposite faces.
+2. **Independent implementation, cited by source** — *Resolved: implement the algorithms directly.*
+   The pipeline implements established graph-drawing algorithms — layered assignment, barycenter
+   crossing reduction, Brandes-Köpf coordinate assignment, and slot-based orthogonal routing — as
+   this project's own code, cited to their original publications. The overall structure is similar to
+   the Eclipse Layout Kernel's layered algorithm, but the implementation is independent and carries no
+   external layout dependency.
 
-3. **Compression step size** — *Resolved: no stepping.* Because corridors are hard
-   constraints, the minimal feasible gap is closed-form (Step 8); the fixed-step (and the
-   binary-search alternative) are unnecessary. A bounded (≤2) outer re-evaluation of
-   corridor assignments replaces per-step iteration.
+3. **Single canonical orientation plus a final transform** — *Resolved: compute in RIGHT, map at the
+   end.* Every stage computes in one canonical left-to-right orientation, and a single Axis Transform
+   stage maps the result onto the requested direction (`RIGHT`, `DOWN`, `LEFT`, `UP`). This keeps all
+   eight upstream stages direction-agnostic and shares one implementation across all four directions,
+   rather than special-casing direction throughout the pipeline.
 
-4. **Back-edge arc radius** — *Resolved: nesting-depth radius.* Concurrently-open
-   back-edges are treated as nested intervals; a back-edge at nesting depth `k` arcs at
-   `R_k = EdgeClearance × (1 + k)`, so deeper loops arc further out and never overlap.
+4. **Cycle breaking by greedy reversal** — *Resolved: greedy depth-first heuristic.* Rather than
+   solving the minimum feedback arc set exactly, a depth-first traversal reverses edges that point to
+   a node still on the recursion stack. This is fast, deterministic, and reverses a small edge set;
+   the original orientation is restored when connectors are emitted so arrowheads still point the
+   right way.
 
-5. **Cluster threshold** — *Resolved: community detection.* An all-pairs-above-threshold
-   clique rule cannot cluster a hub-and-spoke (zero leaf-leaf affinity), so it is replaced
-   by label-propagation/Louvain community detection on an affinity graph whose edges are
-   admitted at a relative threshold (top tertile of positive weights).
+5. **Longest-path layering** — *Resolved: longest-path.* Layers are assigned by longest path from the
+   sources in a single topological pass. It is linear, deterministic, and yields the minimum number of
+   layers consistent with edge direction, which is sufficient for these diagrams.
 
-6. **Interconnection View scope** — *Resolved: partial adoption.* Keep `ForceDirectedEngine`
-   placement (do not impose layering on a port graph), but adopt the shared pipeline from
-   Step 4 onward with port-aware anchoring, plus an explicit self/nested-connection rule.
+6. **Fixed barycenter sweep budget** — *Resolved: a fixed number of sweeps.* Crossing reduction runs a
+   fixed count of alternating barycenter sweeps rather than iterating to convergence, because
+   barycenter ordering can oscillate between two equal-crossing orderings. A fixed budget guarantees
+   termination and deterministic output while capturing most of the achievable crossing reduction.
 
-7. **Highway stability after compression** — *Resolved: committed per round, ≤2
-   re-evaluations.* Hard corridor membership means edge counts cannot drift within a round.
-   Between rounds, at most one re-evaluation is allowed; the best feasible result is kept;
-   a warning is emitted otherwise.
+7. **Brandes-Köpf coordinate assignment** — *Resolved: balanced four-alignment placement.* Within-layer
+   positions use the Brandes-Köpf balanced algorithm, which aligns nodes into blocks through their
+   median neighbors and averages four candidate alignments. It favors straight edges and compact,
+   aligned columns without letting any single alignment dominate.
 
-8. **Label highways** — *Resolved: yes.* Label bounding boxes are added to channel
-   `required_width`/`required_height` during compression (Step 8), so label space is
-   reserved by construction; Step 11 only *positions* labels within that reserved space.
+8. **Slot-based routing decoupled from placement** — *Resolved: assign slots before committing bends.*
+   Each inter-layer channel assigns connectors to distinct routing slots by topological numbering over
+   segment-crossing dependencies, so connectors that would otherwise share a vertical line are
+   separated by construction. Decoupling slot assignment from placement is what makes shared-segment
+   conflicts structurally impossible — the defect the previous architecture could not eliminate.
 
-9. **Approach-zone enforcement — spacer vs. block inflation** — *Superseded by Phase 15.*
-   `ConnectedPairSpacer` was used in Phase 14c as a targeted fix, but the root defect was
-   architectural: force-directed placement + A\* routing cannot guarantee segment separation.
-   Block inflation is now moot for the InterconnectionView since `LayeredPlacer` and
-   slot-based routing make conflicts structurally impossible. Block inflation may still be
-   relevant for `GeneralViewLayoutStrategy` if decoration-aware sizing is needed in future.
+9. **Component packing as a wrapper stage** — *Resolved: pack disconnected components.* Disconnected
+   graphs are split into connected components, laid out independently, and packed onto shelves, instead
+   of being forced through shared layers (which stacks unrelated subgraphs into one tall column). A
+   connected graph is a transparent pass-through, so the wrapper never changes single-component output.
 
-10. **InterconnectionView placement — force-directed vs. layered** — *Resolved: layered
-    (Phase 15).* Force-directed placement was retained through Phase 14c on the reasoning
-    that "a port graph should not be forced into layers." This proved incorrect: the visual
-    quality of a force-directed diagram with a hub-and-spoke topology is equivalent to a
-    left-right layered diagram, and layered placement is the *only* approach that enables
-    conflict-free routing. Degree-biased BFS column assignment (highest-degree node in
-    column 0, BFS outward) naturally produces hub-left, spokes-right layouts that match
-    user expectations for interconnection diagrams.
+10. **Recursion driven at the strategy level** — *Resolved: strategy-level, pipeline mode reserved.*
+    Nested containers are laid out bottom-up by the Interconnection View strategy, which detects
+    containers from the semantic model, lays out each interior with the flat pipeline, and treats the
+    container as an atomic node in its parent. The pipeline exposes a `Recursive` hierarchy-handling
+    value as reserved scaffolding,     but it is intentionally left inactive because container detection is a
+    model concern the model-independent engine cannot perform.
+
+11. **Single-sourced notation geometry** — *Resolved: centralize in shared metric types.* Intrinsic
+    notation geometry (end-marker shapes and sizes, port squares, and related constants) is single-
+    sourced in the rendering subsystem's notation-metrics type, and layout spacing constants are
+    single-sourced in the layered-layout metrics type, so a geometry literal never appears in more than
+    one place.
 
 ---

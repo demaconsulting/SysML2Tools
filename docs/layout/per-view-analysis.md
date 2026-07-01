@@ -1,231 +1,103 @@
 # Per-View Analysis
 
+Each SysML view maps to the layout algorithms differently. The node-link views (General,
+Interconnection, State Transition, Action Flow) use the layered pipeline with a view-appropriate
+flow direction and wrappers. The remaining views (Sequence, Grid, Browser) are not node-link
+graph-drawing problems and use bespoke structured layouts.
+
+| View | Layout approach |
+| --- | --- |
+| General | Layered pipeline, `RIGHT`, flat + component packing |
+| Interconnection | Layered pipeline, `RIGHT`, flat + recursive nesting |
+| State Transition | Layered pipeline, `DOWN`, flat |
+| Action Flow | Layered pipeline, `DOWN`, flat |
+| Sequence | Bespoke timeline (arithmetic) |
+| Grid | Bespoke relationship matrix (arithmetic) |
+| Browser | Bespoke indented tree (arithmetic) |
+
 ## General View
 
-**What this view shows**: all user-defined SysML definitions (part def, port def,
-attribute def, action def, interface def, etc.) as labelled boxes with stereotype keyword;
-specialization edges as hollow triangles; membership edges as filled/hollow diamonds;
-optional packaging in folder nodes.
+**What this view shows**: all user-defined SysML definitions (part def, port def, attribute def,
+action def, interface def, and so on) as labelled boxes with a stereotype keyword; specialization
+and membership edges between them; optional grouping of definitions into package folders.
 
-**Mode**: Free 2D.
-
-**How the algorithm applies**:
-Connectivity analysis builds affinity from specialization and membership edges, and uses
-**community detection** so a specialization fan (a hub-and-spoke shape) is recognised as
-one cluster — note that the older "all pairs above threshold" clique rule could not do
-this, because subtype-to-subtype affinity is zero. Free 2D force-directed produces
-clusters matching the model's package structure. Highway assignment bundles specialization
-fans — e.g. 6 subtypes converging on one supertype share a corridor. Because all six
-arrowheads coexist at the supertype face, `peak_lanes = 6` there and compression sizes that
-corridor to `max(min_gap, 6·G + 2·wire_margin)`. `PortAssigner` collapses the six incoming
-wires (same face, same directionality, same highway) into one merged trunk: a single shared
-arrowhead contacts the supertype's target face (the SysML shared-target "tree" notation) and
-a comb fans that trunk, without crossings, into six corridor lanes running on to the six
-subtypes. If the face is shorter than `6·G` (`face_capacity < 6`) the bundle follows the
-capacity-threshold tiers — splitting across the adjacent face, or stacking with a
-`LayoutWarning` — so the fan never overflows a single face. Grid quantisation aligns all
-blocks to an implicit shared grid via constraint-graph compaction.
-
-**Common issues in prior implementation**:
-
-| Issue | Root Cause |
-| --- | --- |
-| Massive inter-row whitespace | Broken compounding heat loop (applied to already-shifted positions) |
-| Horizontal crowding ignored | Only vertical gaps were expanded; wrong axis |
-| No crossing minimisation | Blocks ordered by discovery, not connectivity |
-| Rows forced regardless of structure | Shelf packing cannot produce 2D clusters |
-| Independent fan-out edges | No shared trunk / highway concept |
-| Magic constants | `HeatThreshold` / `PerEdgeExpansion` had no principled derivation |
-
-**How the proposal mitigates**:
-Compression starts oversized and shrinks to minimum — over-expansion is impossible by
-construction. Both axes compressed simultaneously. Monte Carlo + barycenter minimises
-crossings. Free 2D placement allows genuine 2D clustering. Highway assignment naturally
-produces shared trunks. All bounds are derived from measured wire clearances; no magic
-constants.
-
----
+**How the algorithm applies**: definitions and their relationship edges are laid out by the layered
+pipeline running left-to-right (`RIGHT`), wrapped by `ComponentPacker` so that unrelated definitions
+(distinct connected components) are laid out independently and packed compactly rather than stacked
+into one tall column. When definitions are grouped by package, each package group is laid out on its
+own and the resulting folder boxes are arranged with `ContainmentPacker` so they never overlap. The
+occasional edge whose endpoints fall in different package folders is routed around the placed folders
+with `ChannelRouter`, which finds an orthogonal, obstacle-avoiding path.
 
 ## Interconnection View
 
-**What this view shows**: `part usage` instances as boxes inside a containing part; `port`
-usages on box boundaries; `connection` usages as lines between ports; optionally nested
-parts.
+**What this view shows**: the internal structure of a part definition — its nested part usages as
+boxes, `port` usages on the box boundaries, and `connection` usages routed as orthogonal connectors
+between the ports, all enclosed by a container box for the host definition.
 
-**Mode**: Layered (Phase 15+). Column assignment by degree-biased BFS; slot-based Z-routing.
-
-**How the algorithm applies** (Phase 15):
-
-`LayeredPlacer` assigns each part to a column based on connectivity. The most-connected
-node goes in the leftmost column; its neighbours fan rightward by BFS. Corridors between
-columns are sized to hold all crossing edges with no overlap:
-
-```text
-corridorWidth = max(minWidth, crossingEdges × edgeSpacing + 2 × clearance)
-```
-
-Each edge in a corridor is then assigned a unique horizontal slot (slotX) before any
-coordinates are committed. The route is a simple 4-point Z-shape:
-
-```text
-sourcePort → (slotX, sourcePort.Y) → (slotX, targetPort.Y) → targetPort
-```
-
-Because every slot is unique, segment conflicts (two connectors sharing the same vertical
-segment) are structurally impossible.
-
-Port Y positions along each box face are redistributed evenly after slot assignment, so
-multiple connectors leaving or entering the same face are spread cleanly rather than stacked
-at the centre.
-
-**Why force-directed was replaced**: force-directed placement commits coordinates before
-routing. A\* routing then assigns each connector independently, with no mechanism to
-prevent two routes from occupying the same segment. All Phase 14c patch attempts
-(GravityCompressor, GridQuantizer, ConnectedPairSpacer, HighwayAssigner, RouteNudger)
-failed or introduced new defects because the conflict is architectural: the placement and
-routing steps are coupled in ELK-style algorithms but were decoupled in the prior approach.
-
-**Common issues resolved by Phase 15**:
-
-| Issue | Root Cause | Resolution |
-| ------- | ----------- | ------------ |
-| Shared vertical segments (C8) | A\* routes independently, no slot reservation | Slot assignment before routing |
-| Port clustering on shared face (C6) | PortAssigner used face midpoint | Port Y redistribution after slot assignment |
-| Excessive whitespace | Force-directed over-separation + imperfect compression | Column layout + corridor sizing |
-| Invisible connectors on touching edges | Zero-gap after GridQuantizer | Corridor always ≥ `minCorridorWidth = 60px` |
-
----
+**How the algorithm applies**: placement and routing are delegated to `InterconnectionLayoutEngine`,
+the façade over the layered pipeline (running left-to-right and flat). Each box's height is scaled up
+if needed to guarantee a minimum vertical slot per port, so connectors on a shared face stay
+distinct. When a nested part is itself typed by a definition that has its own internal parts, the
+strategy lays that inner structure out **recursively, bottom-up**: the inner definition is laid out
+first with the same flat engine, the container part is then treated as a fixed-size atomic node by
+its parent, and the inner content is nested as the container box's children. A single-level model —
+one with no part typed by a definition that has internal parts — never triggers the recursion and is
+laid out exactly as the non-recursive case. This recursion is driven at the strategy level because
+detecting containers is a semantic-model concern the model-independent engine cannot see; the
+pipeline's reserved `Recursive` hierarchy mode is not currently wired.
 
 ## State Transition View
 
-**What this view shows**: state boxes (with entry/do/exit compartments); directed
-transition edges with guard labels; an initial pseudo-state (filled circle); optionally a
-final state.
+**What this view shows**: state boxes (with entry/do/exit compartments); directed transition edges
+with guard labels; an initial pseudo-state; optionally a final state.
 
-**Mode**: Directed Flow (`κ_h = 1.0`).
-
-**How the algorithm applies**:
-`LayeredLayoutEngine` assigns states to layers by longest path from the initial state.
-The **initial pseudo-state is pinned to the top layer and the final state to the bottom
-layer** — longest-path layering alone does not guarantee the final state is last once
-back-edges are reversed. Edges spanning more than one layer receive **virtual nodes** so
-ordering and routing stay clean. Monte Carlo seeds try different within-layer orderings to
-minimise transition crossings. Edge types are handled distinctly:
-
-- **Back-edge** (transition from layer L to layer L′ < L, a loop-back): routed as an arc
-  around the outside of the flow column. Nested loops are treated as nested intervals — a
-  back-edge at nesting depth `k` arcs at radius `R_k = EdgeClearance × (1 + k)`, so deeper
-  loops arc further out and never overlap.
-- **Same-layer transition** (sibling states): routed as a short horizontal connector
-  within the layer, not treated as a back-edge.
-- **Self-transition** (self-loop): drawn as a small one-sided arc on the state box;
-  excluded from highway assignment and back-edge treatment.
-
-Highway assignment bundles common transition targets (e.g. many states transitioning to a
-shared error state).
-
-![Back-edge arc routing: loop-back transitions arc outside the main flow column](images/back-edge-arc.svg)
-
-**Common issues in prior implementation**:
-
-| Issue | Root Cause |
-| --- | --- |
-| States scatter with unclear flow direction | Force-directed without directional bias |
-| No layer assignment | No concept of execution order |
-| Loop-back transitions cut across forward flow | No back-edge treatment |
-| No crossing minimisation | Single seed only |
-
-**How the algorithm applies**:
-`LayeredLayoutEngine` assigns states in execution order. The initial state is pinned to
-the top, final to the bottom. Back-edge arc routing (nesting-depth radius), same-layer and
-self-loop handling, plus virtual nodes for multi-layer edges, separate loop-backs from
-forward flow. Monte Carlo reduces crossings among states in the same layer.
-
----
+**How the algorithm applies**: states and transitions are laid out by the layered pipeline running
+top-to-bottom (`DOWN`), so execution order reads downward. Cycle breaking reverses loop-back
+transitions to keep the graph acyclic, layer assignment orders states by their longest path from the
+sources, crossing minimization reduces transition crossings, and orthogonal routing draws each
+transition as a slotted orthogonal polyline. Because the `DOWN` direction is produced by the Axis
+Transform over the same canonical layout, the state layout uses identical placement and routing logic
+to the structural views.
 
 ## Action Flow View
 
-**What this view shows**: action boxes in execution order; succession edges (dashed,
-open-V); fork/join thick bars; decision/merge diamonds; start (filled circle) and done
-markers.
+**What this view shows**: action boxes in execution order; succession edges; fork/join bars;
+decision/merge diamonds; start and done markers.
 
-**Mode**: Directed Flow (`κ_h = 1.0`). This is the strongest case for directed flow —
-execution order is the primary visual message.
-
-**How the algorithm applies**:
-`LayeredLayoutEngine` assigns actions to layers by topological sort. **Virtual/dummy nodes
-are inserted on every edge that spans more than one layer** — essential here because
-fork/join branches of unequal length produce long edges that would otherwise cut across
-intermediate layers and confuse barycenter ordering. Fork and join nodes produce
-multi-output/multi-input layers; the crossing minimiser handles the fanning over the
-virtual-node chain. Decision/merge nodes are placed at layer boundaries. Highway
-assignment bundles parallel paths between the same fork/join pair. Back-edge arcs (with
-nesting-depth radius) handle loop-back actions.
-
-**Common issues in prior implementation**:
-
-| Issue | Root Cause |
-| --- | --- |
-| Parallel branches between fork/join may cross | No highway bundling, no crossing minimisation |
-| Fixed inter-layer gaps | Not derived from actual wire density |
-
-**How the proposal mitigates**:
-Highway assignment identifies parallel branches and reserves their combined width.
-Monte Carlo minimises crossings between branches. Gravity compression sizes each
-inter-layer gap to its actual wire density.
-
----
+**How the algorithm applies**: actions and successions are laid out by the layered pipeline running
+top-to-bottom (`DOWN`). Layer assignment places each action beyond its predecessors, so the flow
+reads in execution order; long-edge splitting inserts dummy nodes on successions that span multiple
+layers (common when fork/join branches have unequal length) so they route cleanly through the
+intermediate layers instead of cutting across them; crossing minimization keeps parallel branches
+from tangling; and orthogonal routing separates concurrent successions into distinct slots.
 
 ## Sequence View
 
-**What this view shows**: lifelines as vertical dashed lines with labelled head boxes
-arranged horizontally; messages as horizontal arrows between lifelines; optional activation
-bars; combined fragments (alt/opt/loop).
+**What this view shows**: lifelines as vertical stems with labelled head boxes arranged horizontally;
+messages as horizontal arrows between lifelines, ordered top-to-bottom.
 
-**Mode**: Hard-coded. Bypasses Steps 1–10.
-
-**How the algorithm applies**:
-Lifelines are placed in declaration order at equal horizontal spacing (minimum = label
-width + margin). Messages are placed at sequential vertical positions. Grid snap (Step 10)
-aligns lifeline X positions and message Y coordinates to G using an **order-preserving
-snap** that keeps a minimum 1-unit (`G`) separation between consecutive messages, so two
-closely-spaced messages can never collapse onto the same Y or reorder. Label collision
-check (Step 11) ensures message labels do not overlap adjacent lifelines.
-
-**Common issues in prior implementation**:
-
-| Issue | Root Cause |
-| --- | --- |
-| Fixed lifeline spacing regardless of label width | No adaptive spacing |
-| Message label overlap | No collision check |
-
-**How the proposal mitigates**:
-Minimum lifeline spacing derived from label width. Label collision check added in Step 11.
-
----
+**How the algorithm applies**: this is a hard-notation layout and does not use the graph-drawing
+pipeline. Layout is pure arithmetic: each lifeline's horizontal position is its column index times a
+pitch (with the pitch at least as wide as the widest head label), and each message's vertical
+position is its ordinal times a row pitch. The result is a regular timeline grid.
 
 ## Grid View
 
-**What this view shows**: a relationship matrix — rows and columns are definition names;
-cells contain a marker when a relationship exists between the row and column elements.
+**What this view shows**: a relationship matrix whose rows and columns are definition names; a cell
+is marked where the row definition specializes the column definition.
 
-**Mode**: arithmetic (no placement algorithm). Grid snap (Step 10) aligns column widths to
-G for visual regularity.
-
-**Common issues in prior implementation**: none significant. This view is already
-principled.
-
----
+**How the algorithm applies**: this is an arithmetic layout with no placement algorithm. Column
+widths are sized to fit the widest cell and the header row and column are styled distinctly, using
+the shared grid helper. There is no node-link routing to perform.
 
 ## Browser View
 
-**What this view shows**: a tree of model elements reflecting package/namespace membership;
-indented lines with connector stubs showing parent-child relationships.
+**What this view shows**: the membership hierarchy of the workspace's user-defined elements as an
+indented tree of rows, with connector stubs from each parent to its children.
 
-**Mode**: tree-walk arithmetic (no placement algorithm). Grid snap aligns node Y positions
-to G.
-
-**Common issues in prior implementation**: none significant. This view is already
-principled.
+**How the algorithm applies**: this is an arithmetic layout with no placement algorithm. The tree is
+derived from the qualified-name hierarchy — element `A::B::C` is a child of `A::B` — and each row is
+a small box indented by its depth. Row positions follow directly from tree order and depth.
 
 ---
