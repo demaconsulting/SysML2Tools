@@ -519,4 +519,41 @@ public sealed class SvgRendererTests
         var svgText = new StreamReader(output).ReadToEnd();
         Assert.Contains("line-end-hollow-triangle-crossbar", svgText, StringComparison.Ordinal);
     }
+
+    /// <summary>
+    ///     Render a tree whose box label and standalone label both contain XML-special characters
+    ///     (<c>&lt; &gt; &amp; " '</c>) produces well-formed SVG in which the reserved markup
+    ///     characters are escaped, confirming that label text can never break the SVG document.
+    /// </summary>
+    [Fact]
+    public void SvgRenderer_Render_LabelWithXmlSpecialCharacters_ProducesWellFormedEscapedSvg()
+    {
+        // Arrange: a tree whose box label and standalone label both contain XML-special characters.
+        const string special = "A < B & C > D \" E ' F";
+        var renderer = new SvgRenderer();
+        var box = new LayoutBox(10, 10, 200, 60, special, 0, BoxShape.Rectangle, [], []);
+        var label = new LayoutLabel(20, 40, 200, special, TextAlign.Left, FontWeight.Regular, FontStyle.Normal, 12.0);
+        var layout = new LayoutTree(300, 200, [box, label]);
+        var options = new RenderOptions(Themes.Light);
+        using var output = new MemoryStream();
+
+        // Act: render the tree.
+        renderer.Render(layout, options, output);
+
+        // Assert: the output parses as well-formed XML and the reserved characters are escaped.
+        output.Position = 0;
+        var svgText = new StreamReader(output).ReadToEnd();
+        var document = System.Xml.Linq.XDocument.Parse(svgText); // throws if the SVG is not well-formed
+        Assert.Contains("&lt;", svgText, StringComparison.Ordinal);
+        Assert.Contains("&gt;", svgText, StringComparison.Ordinal);
+        Assert.Contains("&amp;", svgText, StringComparison.Ordinal);
+
+        // Assert: after parsing, a text element's content round-trips back to the original label,
+        // proving the special characters were escaped rather than emitted raw.
+        var textValues = document.Descendants()
+            .Where(e => e.Name.LocalName == "text")
+            .Select(e => e.Value)
+            .ToList();
+        Assert.Contains(textValues, v => v.Contains(special, StringComparison.Ordinal));
+    }
 }

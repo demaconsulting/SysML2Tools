@@ -76,8 +76,9 @@ public sealed class RenderIntegrationTests
         // Act: render the workspace
         var outputs = diagramRenderer.RenderWorkspace(result.Workspace, svgRenderer, options);
 
-        // Assert: one output for the declared view
-        Assert.NotEmpty(outputs);
+        // Assert: exactly one output for the single declared view, with non-empty SVG content
+        var output = Assert.Single(outputs);
+        Assert.True(((MemoryStream)output.Data).ToArray().Length > 0, "SVG output stream is empty");
     }
 
     /// <summary>
@@ -98,8 +99,9 @@ public sealed class RenderIntegrationTests
         // Act: render the workspace
         var outputs = diagramRenderer.RenderWorkspace(result.Workspace, pngRenderer, options);
 
-        // Assert: one output for the declared view
-        Assert.NotEmpty(outputs);
+        // Assert: exactly one output for the single declared view, with non-empty PNG content
+        var output = Assert.Single(outputs);
+        Assert.True(((MemoryStream)output.Data).ToArray().Length > 0, "PNG output stream is empty");
     }
 
     /// <summary>
@@ -111,7 +113,7 @@ public sealed class RenderIntegrationTests
     public async Task DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames()
     {
         // Arrange: write the inline model to a temp file and load the workspace
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
         try
         {
             await File.WriteAllTextAsync(tempFile, GeneralViewSysml, TestContext.Current.CancellationToken);
@@ -125,11 +127,12 @@ public sealed class RenderIntegrationTests
             // Act: render the workspace — expect one output for the single view definition
             var outputs = diagramRenderer.RenderWorkspace(result.Workspace, svgRenderer, options);
 
-            // Assert: at least one output was produced
-            Assert.NotEmpty(outputs);
+            // Assert: exactly one output for the single declared view
+            var output = Assert.Single(outputs);
 
-            // Assert: the SVG text includes the part definition element names
-            var svgText = System.Text.Encoding.UTF8.GetString(((MemoryStream)outputs[0].Data).ToArray());
+            // Assert: the SVG text is non-empty and includes the part definition element names
+            var svgText = System.Text.Encoding.UTF8.GetString(((MemoryStream)output.Data).ToArray());
+            Assert.NotEmpty(svgText);
             Assert.Contains("ComponentA", svgText);
             Assert.Contains("ComponentB", svgText);
         }
@@ -148,7 +151,7 @@ public sealed class RenderIntegrationTests
     public async Task DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput()
     {
         // Arrange: write the inline model to a temp file and load the workspace
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
         try
         {
             await File.WriteAllTextAsync(tempFile, GeneralViewSysml, TestContext.Current.CancellationToken);
@@ -162,11 +165,11 @@ public sealed class RenderIntegrationTests
             // Act: render the workspace using the PNG renderer
             var outputs = diagramRenderer.RenderWorkspace(result.Workspace, pngRenderer, options);
 
-            // Assert: at least one output was produced
-            Assert.NotEmpty(outputs);
+            // Assert: exactly one output for the single declared view
+            var output = Assert.Single(outputs);
 
             // Assert: the output stream starts with the PNG file signature (‰PNG)
-            var bytes = ((MemoryStream)outputs[0].Data).ToArray();
+            var bytes = ((MemoryStream)output.Data).ToArray();
             Assert.True(bytes.Length > 100, "PNG output is unexpectedly small — likely empty or degenerate");
             Assert.Equal(0x89, bytes[0]);
             Assert.Equal(0x50, bytes[1]); // 'P'
@@ -188,7 +191,7 @@ public sealed class RenderIntegrationTests
     public async Task DiagramRenderer_RenderWorkspace_GeneralViewModel_NoUnresolvedWarnings()
     {
         // Arrange: write the inline model to a temp file and load the workspace
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
         try
         {
             await File.WriteAllTextAsync(tempFile, GeneralViewSysml, TestContext.Current.CancellationToken);

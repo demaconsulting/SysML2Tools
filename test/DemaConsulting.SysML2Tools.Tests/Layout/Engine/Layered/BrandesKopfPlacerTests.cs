@@ -55,6 +55,29 @@ public sealed class BrandesKopfPlacerTests
         }
     }
 
+    /// <summary>
+    ///     A symmetric fork (0-&gt;1, 0-&gt;2) places the source vertically centered between its two
+    ///     targets, proving the four-pass balanced median placement rather than a naive single-pass
+    ///     (e.g. top-aligned) placement, which would leave the source level with the first target.
+    /// </summary>
+    [Fact]
+    public void BrandesKopfPlacer_Apply_SymmetricFork_CentersSourceBetweenTargets()
+    {
+        // Arrange / Act: one source fanning out to two equal-size targets in the next layer.
+        var graph = BuildPlacedGraph(
+            new List<LayerNode> { new(60, 40), new(60, 40), new(60, 40) },
+            new List<LayerEdge> { new(0, 1), new(0, 2) });
+
+        // The two targets occupy layer 1; the source occupies layer 0.
+        var sourceY = graph.AugY[0];
+        var targetMidpoint = (graph.AugY[1] + graph.AugY[2]) / 2.0;
+
+        // Assert: the balanced placement centers the source between its two targets, and the two
+        // targets are genuinely separated (so the centering is a non-trivial result).
+        Assert.NotEqual(graph.AugY[1], graph.AugY[2]);
+        Assert.Equal(targetMidpoint, sourceY, 3);
+    }
+
     /// <summary>Runs the stages up to and including placement and returns the graph.</summary>
     /// <param name="nodes">Input nodes.</param>
     /// <param name="edges">Input edges.</param>

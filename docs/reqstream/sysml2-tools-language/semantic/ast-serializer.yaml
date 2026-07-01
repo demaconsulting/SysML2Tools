@@ -28,8 +28,8 @@ sections:
           node is restored as the same node type it was serialized from.
         justification: |
           Downstream analysis dispatches on concrete node type, so serialization must not collapse
-          or lose the distinction between package, definition, feature, import, view, and viewpoint
-          nodes.
+          or lose the distinction between package, definition, feature, import, view, viewpoint,
+          connection, and transition nodes.
         tests:
           - Serialize_AllNodeTypes_RoundTrip
 

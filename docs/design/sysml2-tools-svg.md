@@ -59,13 +59,18 @@ Each node type uses a fixed font weight and style as SVG attributes:
 
 ### Text Length Shrink-to-Fit
 
-`LayoutBox` labels include `textLength` and `lengthAdjust="spacingAndGlyphs"` attributes
-set to `(box.Width - 2 * theme.LabelPadding) * scale`. This instructs SVG renderers to
-compress or stretch glyph spacing so the text fills (or shrinks into) the available title
-area without overflow.
+`LayoutBox` labels and `LayoutLabel` nodes are constrained to their available width only
+when the text would otherwise overflow it. The renderer estimates each label's natural
+width (character count × font size × an average glyph-width factor) and compares it to the
+available width — `box.Width - 2 * theme.LabelPadding` for box labels, or `MaxWidth` for a
+`LayoutLabel`. Only when the estimate exceeds the available width does the renderer emit
+`textLength="{availableWidth * scale}"` together with `lengthAdjust="spacingAndGlyphs"`,
+which instructs SVG viewers to compress the glyph spacing so the text shrinks into the
+available area without overflow.
 
-`LayoutLabel` nodes with `MaxWidth > 0` similarly include
-`textLength="{MaxWidth * scale}" lengthAdjust="spacingAndGlyphs"`.
+When the text already fits (or the available width is non-positive), no `textLength` or
+`lengthAdjust` attribute is emitted, so short labels render at their natural width and are
+never stretched to fill the box.
 
 ### Key Methods
 

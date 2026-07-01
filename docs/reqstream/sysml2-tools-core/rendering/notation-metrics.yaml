@@ -61,3 +61,20 @@ sections:
           while leaving the base radius a single theme-controlled value.
         tests:
           - RoundedRectRadius_IsThemeRadiusTimesFactor
+
+      - id: SysML2Tools-Core-Rendering-NotationMetrics-DecorationConstants
+        title: >-
+          NotationMetrics shall expose the port-square, folder-tab, note dog-ear fold, and badge
+          fraction constants (port full size twice its half-size, folder-tab max-width fraction 0.45,
+          folder-tab min width 60, folder label char-width factor 0.55, note-fold fraction 0.25 and
+          maximum 16, bullseye inner-radius fraction 1/3, and bar-badge half-length fraction 0.8) as
+          named values.
+        justification: |
+          Ports, folder tabs, note dog-ears, and badges are drawn identically by the SVG and PNG
+          renderers, so every proportion they share must be a single named constant rather than a
+          literal duplicated across the two rendering paths.
+        tests:
+          - Port_SizeIsTwiceHalfSize
+          - FolderTab_HasDocumentedConstants
+          - NoteFold_HasDocumentedConstants
+          - BadgeFractions_HaveDocumentedValues

@@ -22,12 +22,13 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Engine-Layered-CrossingMinimizer-CrossingReduction
         title: >-
-          CrossingMinimizer shall order the dummy nodes inserted for long edges together with the
-          real nodes, keeping every augmented node in exactly one layer group after ordering.
+          CrossingMinimizer shall order the nodes within each layer, via barycenter sweeps over the
+          augmented graph, so that the total number of edge crossings is reduced relative to the
+          natural (unordered) layer ordering.
         justification: |
-          Long edges are split into dummy nodes so each edge spans a single layer; those dummies
-          must be ordered alongside real nodes so that crossing reduction covers the whole augmented
-          graph. Confirming the ordered groups still partition every augmented node — real and dummy —
-          exactly once proves the dummies are carried through the ordering.
+          Reducing edge crossings is the whole purpose of the ordering stage: fewer crossings yield a
+          more readable diagram. A crossing-prone two-layer ordering whose barycenter sweep strictly
+          decreases the measured crossing count proves the stage actually reduces crossings rather
+          than merely regrouping the nodes.
         tests:
-          - CrossingMinimizer_Apply_AllAugmentedNodesAppearInGroups
+          - CrossingMinimizer_Apply_CrossingProneOrdering_ReducesCrossings

@@ -28,3 +28,16 @@ sections:
           which is required for connectors to flow consistently in one direction.
         tests:
           - BrandesKopfPlacer_Apply_ColumnsAreLeftToRightInLayerOrder
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-BrandesKopfPlacer-BalancedYPlacement
+        title: >-
+          BrandesKopfPlacer shall assign cross-axis (Y) coordinates using the four-pass Brandes-Köpf
+          balanced alignment so that a node fanning out to several successors is centered between
+          those successors rather than aligned to any one of them.
+        justification: |
+          The whole reason for running four independent alignment passes and averaging their medians
+          is to balance each node between its neighbors; a symmetric fork whose source lands exactly
+          at the midpoint of its two separated targets proves the balancing rather than a naive
+          single-pass placement.
+        tests:
+          - BrandesKopfPlacer_Apply_SymmetricFork_CentersSourceBetweenTargets

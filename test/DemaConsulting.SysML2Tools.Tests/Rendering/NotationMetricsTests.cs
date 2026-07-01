@@ -19,6 +19,7 @@ public sealed class NotationMetricsTests
     [Fact]
     public void TriangleFamily_HasCanonicalValues()
     {
+        // Assert: the triangle-family primitives match the historical SVG marker.
         Assert.Equal(10.0, NotationMetrics.EndMarkerLength);
         Assert.Equal(7.0, NotationMetrics.EndMarkerWidth);
         Assert.Equal(9.0, NotationMetrics.EndMarkerRefX);
@@ -32,6 +33,7 @@ public sealed class NotationMetricsTests
     [Fact]
     public void Diamond_HasCanonicalValues()
     {
+        // Assert: the diamond primitives match the historical SVG marker.
         Assert.Equal(14.0, NotationMetrics.DiamondLength);
         Assert.Equal(8.0, NotationMetrics.DiamondWidth);
         Assert.Equal(13.0, NotationMetrics.DiamondRefX);
@@ -44,6 +46,7 @@ public sealed class NotationMetricsTests
     [Fact]
     public void CircleAndBar_HaveCanonicalValues()
     {
+        // Assert: the circle and bar primitives match the historical SVG markers.
         Assert.Equal(4.0, NotationMetrics.CircleRadius);
         Assert.Equal(10.0, NotationMetrics.CircleMarkerBox);
         Assert.Equal(5.0, NotationMetrics.CircleCenter);
@@ -59,6 +62,7 @@ public sealed class NotationMetricsTests
     [Fact]
     public void Crossbar_IsDerivedFraction()
     {
+        // Assert: the crossbar sits at the documented fraction of the marker length.
         Assert.Equal(0.7, NotationMetrics.CrossbarFraction);
         Assert.Equal(7.0, Math.Round(NotationMetrics.CrossbarX, 6));
     }
@@ -70,9 +74,13 @@ public sealed class NotationMetricsTests
     [Fact]
     public void TriangleVertices_ReproduceSvgBoxPoints()
     {
+        // Arrange: the shared triangle vertices in tip-relative units.
         var vertices = NotationMetrics.TriangleVertices();
+
+        // Act: map them back to SVG marker-box coordinates.
         var box = MapToBox(vertices, NotationMetrics.EndMarkerRefX, NotationMetrics.EndMarkerHalfWidth);
 
+        // Assert: they reproduce the historical marker-box points.
         Assert.Equal("0 0, 10 3.5, 0 7", box);
     }
 
@@ -82,9 +90,13 @@ public sealed class NotationMetricsTests
     [Fact]
     public void DiamondVertices_ReproduceSvgBoxPoints()
     {
+        // Arrange: the shared diamond vertices in tip-relative units.
         var vertices = NotationMetrics.DiamondVertices();
+
+        // Act: map them back to SVG marker-box coordinates.
         var box = MapToBox(vertices, NotationMetrics.DiamondRefX, NotationMetrics.DiamondHalfWidth);
 
+        // Assert: they reproduce the historical marker-box points.
         Assert.Equal("1 4, 7 0, 13 4, 7 8", box);
     }
 
@@ -92,7 +104,10 @@ public sealed class NotationMetricsTests
     [Fact]
     public void DiamondVertices_FarPoint_LandsOnEndpoint()
     {
+        // Arrange: the shared diamond vertices.
         var vertices = NotationMetrics.DiamondVertices();
+
+        // Assert: one vertex sits exactly on the line endpoint (Along == Across == 0).
         Assert.Contains(vertices, v => Math.Abs(v.Along) < 1e-9 && Math.Abs(v.Across) < 1e-9);
     }
 
@@ -100,8 +115,11 @@ public sealed class NotationMetricsTests
     [Fact]
     public void TriangleVertices_Apex_OvershootsEndpoint()
     {
+        // Arrange: the shared triangle vertices; the apex is the middle vertex.
         var vertices = NotationMetrics.TriangleVertices();
         var apex = vertices[1];
+
+        // Assert: the apex overshoots the endpoint by the documented amount.
         Assert.Equal(-NotationMetrics.EndMarkerTipOvershoot, apex.Along);
         Assert.Equal(0.0, apex.Across);
     }
@@ -119,6 +137,7 @@ public sealed class NotationMetricsTests
     [InlineData(EndMarkerStyle.Bar, 4.0)]
     public void AlongLineLength_MatchesMarkerBox(EndMarkerStyle style, double expected)
     {
+        // Assert: each marker style reports its documented along-line length.
         Assert.Equal(expected, NotationMetrics.AlongLineLength(style));
     }
 
@@ -126,7 +145,10 @@ public sealed class NotationMetricsTests
     [Fact]
     public void RoundedRectRadius_IsThemeRadiusTimesFactor()
     {
+        // Arrange: a theme providing the base line-corner radius.
         var theme = Themes.Light;
+
+        // Assert: the rounded-rectangle radius is the theme radius scaled by the documented factor.
         Assert.Equal(2.0, NotationMetrics.RoundedRectCornerFactor);
         Assert.Equal(theme.LineCornerRadius * 2.0, NotationMetrics.RoundedRectRadius(theme));
     }
@@ -135,8 +157,47 @@ public sealed class NotationMetricsTests
     [Fact]
     public void LabelBackground_ExtentMatchesInset()
     {
+        // Assert: the label-background extent is symmetric about the documented inset.
         Assert.Equal(0.05, NotationMetrics.LabelBgInset);
         Assert.Equal(1.1, NotationMetrics.LabelBgExtent);
+    }
+
+    /// <summary>The port square is a full side length of twice the documented half-size (4 → 8).</summary>
+    [Fact]
+    public void Port_SizeIsTwiceHalfSize()
+    {
+        // Assert: the full port side length is twice the half-size.
+        Assert.Equal(4.0, NotationMetrics.PortHalfSize);
+        Assert.Equal(8.0, NotationMetrics.PortSize);
+        Assert.Equal(NotationMetrics.PortHalfSize * 2.0, NotationMetrics.PortSize);
+    }
+
+    /// <summary>The folder-tab constants pin the documented max-width fraction, min width, and label factor.</summary>
+    [Fact]
+    public void FolderTab_HasDocumentedConstants()
+    {
+        // Assert: the folder-tab sizing constants match their documented values.
+        Assert.Equal(0.45, NotationMetrics.FolderTabMaxWidthFraction);
+        Assert.Equal(60.0, NotationMetrics.FolderTabMinWidth);
+        Assert.Equal(0.55, NotationMetrics.FolderLabelCharWidthFactor);
+    }
+
+    /// <summary>The note dog-ear fold constants pin the documented fraction and maximum size.</summary>
+    [Fact]
+    public void NoteFold_HasDocumentedConstants()
+    {
+        // Assert: the note-fold constants match their documented values.
+        Assert.Equal(0.25, NotationMetrics.NoteFoldFraction);
+        Assert.Equal(16.0, NotationMetrics.NoteFoldMaxSize);
+    }
+
+    /// <summary>The badge fraction constants pin the bullseye inner radius (1/3) and bar half-length (0.8) fractions.</summary>
+    [Fact]
+    public void BadgeFractions_HaveDocumentedValues()
+    {
+        // Assert: the badge fractions match their documented values.
+        Assert.Equal(1.0 / 3.0, NotationMetrics.BadgeBullseyeInnerFraction);
+        Assert.Equal(0.8, NotationMetrics.BadgeBarLengthFraction);
     }
 
     /// <summary>Maps tip-relative vertices to an SVG-style marker-box points string.</summary>

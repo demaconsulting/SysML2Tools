@@ -347,4 +347,70 @@ public sealed class PngRendererTests
         Assert.Equal(0x4E, header[2]);
         Assert.Equal(0x47, header[3]);
     }
+
+    /// <summary>
+    ///     Render a tree whose labels contain XML-special characters (<c>&lt; &gt; &amp; " '</c>)
+    ///     completes without throwing and produces a valid PNG, confirming the raster path treats
+    ///     label text as literal glyphs rather than markup.
+    /// </summary>
+    [Fact]
+    public void PngRenderer_Render_LabelWithXmlSpecialCharacters_ProducesValidPng()
+    {
+        // Arrange: a tree whose box label and standalone label both contain XML-special characters.
+        const string special = "A < B & C > D \" E ' F";
+        var renderer = new PngRenderer();
+        var box = new LayoutBox(10, 10, 200, 60, special, 0, BoxShape.Rectangle, [], []);
+        var label = new LayoutLabel(20, 40, 200, special, TextAlign.Left, FontWeight.Regular, FontStyle.Normal, 12.0);
+        var layout = new LayoutTree(300, 200, [box, label]);
+        var options = new RenderOptions(Themes.Light);
+        using var output = new MemoryStream();
+
+        // Act: render the tree — must not throw on the special characters.
+        renderer.Render(layout, options, output);
+
+        // Assert: a valid, non-empty PNG was produced.
+        Assert.True(output.Length > 4);
+        output.Position = 0;
+        var header = new byte[4];
+        _ = output.Read(header, 0, 4);
+        Assert.Equal(0x89, header[0]);
+        Assert.Equal(0x50, header[1]);
+        Assert.Equal(0x4E, header[2]);
+        Assert.Equal(0x47, header[3]);
+    }
+
+    /// <summary>
+    ///     Render a moderately deeply-nested box tree (50 nesting levels) completes without a
+    ///     stack overflow and produces a valid PNG, confirming the recursive renderer is robust at
+    ///     realistic nesting depths.
+    /// </summary>
+    [Fact]
+    public void PngRenderer_Render_DeeplyNestedBoxes_DoesNotStackOverflow()
+    {
+        // Arrange: a chain of 50 nested boxes built from the innermost leaf outward.
+        const int depth = 50;
+        var renderer = new PngRenderer();
+        LayoutNode node = new LayoutBox(0, 0, 10, 10, "leaf", depth, BoxShape.Rectangle, [], []);
+        for (var d = depth - 1; d >= 0; d--)
+        {
+            node = new LayoutBox(0, 0, 10 + d, 10 + d, $"n{d}", d, BoxShape.Rectangle, [], [node]);
+        }
+
+        var layout = new LayoutTree(200, 200, [node]);
+        var options = new RenderOptions(Themes.Light);
+        using var output = new MemoryStream();
+
+        // Act: render — the recursive descent must complete without overflowing the stack.
+        renderer.Render(layout, options, output);
+
+        // Assert: a valid, non-empty PNG was produced.
+        Assert.True(output.Length > 4);
+        output.Position = 0;
+        var header = new byte[4];
+        _ = output.Read(header, 0, 4);
+        Assert.Equal(0x89, header[0]);
+        Assert.Equal(0x50, header[1]);
+        Assert.Equal(0x4E, header[2]);
+        Assert.Equal(0x47, header[3]);
+    }
 }
