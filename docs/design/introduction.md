@@ -57,6 +57,10 @@ system, subsystem, and unit levels:
 - **DemaConsulting.SysML2Tools** (System) — core library: layout, rendering interfaces, and DiagramRenderer
   - **Layout** (Subsystem) — LayoutTree intermediate representation (node types covering all SysML
     diagram elements), reusable layout engines, and per-view layout strategies
+    - **LayoutTree** (Unit) — grouped data-model unit: the ten immutable `LayoutTree` record source
+      files (`LayoutTree`, `LayoutNode`, `LayoutBox`, `LayoutPort`, `LayoutLine`, `LayoutLabel`,
+      `LayoutBadge`, `LayoutBand`, `LayoutGrid`, `LayoutLifeline`) that form the intermediate
+      representation consumed by every renderer
     - **Engine** (Subsystem) — reusable, model-independent geometric layout engines
       - **ChannelRouter** (Unit) — orthogonal connector routing with obstacle avoidance and clearance
       - **ContainmentPacker** (Unit) — packs sized boxes within a bounded container region
@@ -88,9 +92,18 @@ system, subsystem, and unit levels:
       - **BrowserViewLayoutStrategy** (Unit) — indented membership tree
       - **LayoutWarnings** (Unit) — builder for layout diagnostic warning messages
     - **ConnectorLabelPlacer** (Unit) — collision-aware placement of connector midpoint labels
+    - **BoxMetrics** (Unit) — shared box title-area and folder-tab height formulas used by both the
+      layout strategies and the renderers
   - **Rendering** (Subsystem) — rendering pipeline: the `IRenderer`/`ILayoutStrategy` interfaces,
     `Theme`, `RenderOptions`, `RenderOutput`, the `DiagramRenderer` orchestrator, and the
     `StdlibFilter` helper that excludes standard-library elements from diagrams
+    - **NotationMetrics** (Unit) — single home for intrinsic, theme-independent notation geometry
+      (end-marker, port, folder-tab, badge, and label-background metrics) shared by both renderers
+    - **Theme** (Unit) — immutable visual-configuration record and the built-in `Themes` provider
+    - **DiagramRenderer** (Unit) — high-level rendering orchestrator: for each view, builds a
+      `LayoutTree` via an `ILayoutStrategy` and renders it via an `IRenderer`
+    - **RenderingContracts** (Unit) — grouped contracts unit: the `IRenderer` and `ILayoutStrategy`
+      interfaces, the `RenderOptions` and `RenderOutput` records, and the `StdlibFilter` helper
     - **Internal** (Subsystem) — internal rendering implementation
       - **DiagramTypeRouter** (Unit) — selects a layout strategy from a view's resolved kind
 - **DemaConsulting.SysML2Tools.Svg** (System) — SVG renderer: renders `LayoutTree` to

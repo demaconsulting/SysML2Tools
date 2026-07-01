@@ -18,6 +18,8 @@ includes:
   - docs/reqstream/sysml2-tools-stdlib.yaml
   - docs/reqstream/sysml2-tools-core.yaml
   - docs/reqstream/sysml2-tools-core/layout.yaml
+  - docs/reqstream/sysml2-tools-core/layout/box-metrics.yaml
+  - docs/reqstream/sysml2-tools-core/layout/layout-tree.yaml
   - docs/reqstream/sysml2-tools-core/layout/connector-label-placer.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine/channel-router.yaml
@@ -46,6 +48,10 @@ includes:
   - docs/reqstream/sysml2-tools-core/layout/internal/browser-view-layout-strategy.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/layout-warnings.yaml
   - docs/reqstream/sysml2-tools-core/rendering.yaml
+  - docs/reqstream/sysml2-tools-core/rendering/notation-metrics.yaml
+  - docs/reqstream/sysml2-tools-core/rendering/theme.yaml
+  - docs/reqstream/sysml2-tools-core/rendering/diagram-renderer.yaml
+  - docs/reqstream/sysml2-tools-core/rendering/rendering-contracts.yaml
   - docs/reqstream/sysml2-tools-core/rendering/internal.yaml
   - docs/reqstream/sysml2-tools-core/rendering/internal/diagram-type-router.yaml
   - docs/reqstream/sysml2-tools-svg.yaml

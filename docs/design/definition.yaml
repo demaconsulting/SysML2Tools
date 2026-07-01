@@ -42,6 +42,8 @@ input-files:
   - docs/design/sysml2-tools-stdlib.md
   - docs/design/sysml2-tools-core.md
   - docs/design/sysml2-tools-core/layout.md
+  - docs/design/sysml2-tools-core/layout/box-metrics.md
+  - docs/design/sysml2-tools-core/layout/layout-tree.md
   - docs/design/sysml2-tools-core/layout/connector-label-placer.md
   - docs/design/sysml2-tools-core/layout/engine.md
   - docs/design/sysml2-tools-core/layout/engine/channel-router.md
@@ -70,6 +72,10 @@ input-files:
   - docs/design/sysml2-tools-core/layout/internal/browser-view-layout-strategy.md
   - docs/design/sysml2-tools-core/layout/internal/layout-warnings.md
   - docs/design/sysml2-tools-core/rendering.md
+  - docs/design/sysml2-tools-core/rendering/notation-metrics.md
+  - docs/design/sysml2-tools-core/rendering/theme.md
+  - docs/design/sysml2-tools-core/rendering/diagram-renderer.md
+  - docs/design/sysml2-tools-core/rendering/rendering-contracts.md
   - docs/design/sysml2-tools-core/rendering/internal.md
   - docs/design/sysml2-tools-core/rendering/internal/diagram-type-router.md
   - docs/design/sysml2-tools-svg.md

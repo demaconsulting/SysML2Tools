@@ -1,0 +1,59 @@
+---
+# LayoutTree Unit Requirements (grouped data-model unit)
+#
+# PURPOSE:
+# - Define requirements for the LayoutTree data-model unit
+# - This unit groups the ten immutable LayoutTree record source files (LayoutTree, LayoutBox,
+#   LayoutNode, LayoutPort, LayoutLine, LayoutLabel, LayoutBadge, LayoutBand, LayoutGrid,
+#   LayoutLifeline) that together form the intermediate representation consumed by every renderer
+# - The per-record contracts are described in the Layout Subsystem chapter; these unit requirements
+#   summarize the grouped data-model invariants
+# - Unit requirements trace up (by ID nesting) to the Layout subsystem requirements
+
+sections:
+  - title: LayoutTree Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-LayoutTree-RecordFamily
+        title: >-
+          The LayoutTree data-model unit shall provide the immutable record family — LayoutTree and
+          its LayoutNode-derived node types (LayoutBox, LayoutPort, LayoutLine, LayoutLabel,
+          LayoutBadge, LayoutBand, LayoutLifeline, LayoutActivation, LayoutGrid) with their nested
+          value types — each storing its constructor arguments unchanged.
+        justification: |
+          A single immutable record family is the shared vocabulary between every layout strategy and
+          every renderer. Storing constructor arguments unchanged keeps the tree a faithful,
+          re-renderable description of one diagram view.
+        tests:
+          - LayoutTree_Construction_StoresWidthHeightNodes
+          - LayoutBox_Construction_StoresAllFields
+          - LayoutPort_Construction_StoresAllFields
+          - LayoutLine_Construction_StoresAllFields
+          - LayoutLabel_Construction_StoresAllFields
+          - LayoutBadge_Construction_StoresAllFields
+          - LayoutBand_Construction_StoresAllFields
+          - LayoutLifeline_Construction_StoresAllFields
+          - LayoutActivation_Construction_StoresAllFields
+          - LayoutGrid_Construction_StoresAllFields
+
+      - id: SysML2Tools-Core-Layout-LayoutTree-AbsoluteCoordinates
+        title: >-
+          All coordinate fields of the LayoutTree record family shall store absolute canvas
+          coordinates without applying any transform, so each node can be drawn independently.
+        justification: |
+          Absolute coordinates free renderers from maintaining a transform stack; every node draws
+          the same way regardless of its ancestors.
+        tests:
+          - LayoutBox_Coordinates_AreAbsolute
+          - LayoutPort_Coordinates_AreAbsolute
+          - LayoutLine_Waypoints_AreAbsolute
+
+      - id: SysML2Tools-Core-Layout-LayoutTree-DepthAndHierarchy
+        title: >-
+          LayoutBox shall carry an integer Depth field (with no color field) and shall express
+          spatial nesting through its Children list of heterogeneous LayoutNode instances.
+        justification: |
+          Storing depth as an integer keeps the tree theme-independent — the renderer maps depth to a
+          fill color — while a Children list expresses containment without a parent back-reference.
+        tests:
+          - LayoutBox_Depth_IsInteger
+          - LayoutBox_Children_ContainsNestedNodes

@@ -1,0 +1,63 @@
+---
+# NotationMetrics Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the NotationMetrics unit
+# - NotationMetrics is the single home for intrinsic, theme-independent notation geometry
+#   shared by the SVG and PNG renderers
+# - Requirements describe the pinned notation values and the shapes derived from them
+# - Unit requirements trace up (by ID nesting) to the Rendering subsystem requirements
+
+sections:
+  - title: NotationMetrics Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Rendering-NotationMetrics-CanonicalConstants
+        title: >-
+          NotationMetrics shall expose the canonical end-marker, port, and label-background
+          notation constants (triangle 10x7 refX 9, diamond 14x8 refX 13, circle radius 4,
+          bar 4x12, crossbar fraction 0.7, and the symmetric label-background inset) as named
+          values.
+        justification: |
+          Centralizing every intrinsic notation literal as a single named constant guarantees that
+          the SVG marker and the PNG path describe the identical shape and that no geometry literal
+          is duplicated across the rendering path.
+        tests:
+          - TriangleFamily_HasCanonicalValues
+          - Diamond_HasCanonicalValues
+          - CircleAndBar_HaveCanonicalValues
+          - Crossbar_IsDerivedFraction
+          - LabelBackground_ExtentMatchesInset
+
+      - id: SysML2Tools-Core-Rendering-NotationMetrics-MarkerVertices
+        title: >-
+          NotationMetrics shall provide the triangle and diamond marker vertices in tip-relative
+          notation units so that the triangle apex overshoots the line endpoint and the diamond far
+          point lands exactly on the endpoint.
+        justification: |
+          Sharing one vertex source for both renderers keeps the marker outlines pixel-identical and
+          anchors each marker to the line endpoint the same way regardless of output format.
+        tests:
+          - TriangleVertices_ReproduceSvgBoxPoints
+          - DiamondVertices_ReproduceSvgBoxPoints
+          - DiamondVertices_FarPoint_LandsOnEndpoint
+          - TriangleVertices_Apex_OvershootsEndpoint
+
+      - id: SysML2Tools-Core-Rendering-NotationMetrics-AlongLineLength
+        title: >-
+          NotationMetrics shall report the along-line length consumed by each end-marker style,
+          returning zero for the None style.
+        justification: |
+          The layout strategies reserve a clean approach for the marker and the renderers clamp the
+          final corner radius, so both need one authoritative length per marker style.
+        tests:
+          - AlongLineLength_MatchesMarkerBox
+
+      - id: SysML2Tools-Core-Rendering-NotationMetrics-RoundedRectRadius
+        title: >-
+          NotationMetrics shall compute a box's rounded-rectangle corner radius as the theme
+          line-corner radius scaled by the documented rounded-rectangle factor.
+        justification: |
+          Deriving the corner radius from the theme keeps rounded boxes consistent across renderers
+          while leaving the base radius a single theme-controlled value.
+        tests:
+          - RoundedRectRadius_IsThemeRadiusTimesFactor

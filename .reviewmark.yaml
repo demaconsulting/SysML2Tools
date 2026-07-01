@@ -209,7 +209,6 @@ reviews:
       - "docs/design/sysml2-tools-core.md"
       - "docs/verification/introduction.md"
       - "docs/verification/sysml2-tools-core.md"
-      - "src/DemaConsulting.SysML2Tools.Core/**/*.cs"
 
   - id: SysML2Tools-Core-Design
     title: Review that DemaConsulting.SysML2Tools Design is Consistent and Complete
@@ -838,6 +837,97 @@ reviews:
       - "docs/verification/sysml2-tools-core/layout/connector-label-placer.md"
       - "src/DemaConsulting.SysML2Tools.Core/Layout/ConnectorLabelPlacer.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/ConnectorLabelPlacerTests.cs"
+
+  - id: SysML2Tools-Core-Layout-BoxMetrics
+    title: Review that DemaConsulting.SysML2Tools Layout BoxMetrics Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/box-metrics.yaml"
+      - "docs/design/sysml2-tools-core/layout/box-metrics.md"
+      - "docs/verification/sysml2-tools-core/layout/box-metrics.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/BoxMetrics.cs"
+
+  - id: SysML2Tools-Core-Layout-LayoutTree
+    title: Review that DemaConsulting.SysML2Tools Layout LayoutTree Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/layout-tree.yaml"
+      - "docs/design/sysml2-tools-core/layout/layout-tree.md"
+      - "docs/verification/sysml2-tools-core/layout/layout-tree.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutTree.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutNode.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutBox.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutPort.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutLine.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutLabel.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutBadge.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutBand.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutGrid.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutLifeline.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/LayoutTests.cs"
+
+  # === Rendering direct units (promoted from grouped subsystem content) ===
+  - id: SysML2Tools-Core-Rendering-NotationMetrics
+    title: Review that DemaConsulting.SysML2Tools Rendering NotationMetrics Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/rendering.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/rendering/notation-metrics.yaml"
+      - "docs/design/sysml2-tools-core/rendering/notation-metrics.md"
+      - "docs/verification/sysml2-tools-core/rendering/notation-metrics.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/NotationMetrics.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Rendering/NotationMetricsTests.cs"
+
+  - id: SysML2Tools-Core-Rendering-Theme
+    title: Review that DemaConsulting.SysML2Tools Rendering Theme Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/rendering.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/rendering/theme.yaml"
+      - "docs/design/sysml2-tools-core/rendering/theme.md"
+      - "docs/verification/sysml2-tools-core/rendering/theme.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/Theme.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Rendering/ThemeTests.cs"
+
+  - id: SysML2Tools-Core-Rendering-DiagramRenderer
+    title: Review that DemaConsulting.SysML2Tools Rendering DiagramRenderer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/rendering.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/rendering/diagram-renderer.yaml"
+      - "docs/design/sysml2-tools-core/rendering/diagram-renderer.md"
+      - "docs/verification/sysml2-tools-core/rendering/diagram-renderer.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/DiagramRenderer.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Rendering/RenderIntegrationTests.cs"
+
+  - id: SysML2Tools-Core-Rendering-RenderingContracts
+    title: Review that DemaConsulting.SysML2Tools Rendering RenderingContracts Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/rendering.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/rendering/rendering-contracts.yaml"
+      - "docs/design/sysml2-tools-core/rendering/rendering-contracts.md"
+      - "docs/verification/sysml2-tools-core/rendering/rendering-contracts.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/IRenderer.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/ILayoutStrategy.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/RenderOptions.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/RenderOutput.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/Internal/StdlibFilter.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Rendering/RenderingTests.cs"
 
   # === Rendering Internal subsystem and units ===
   - id: SysML2Tools-Core-Rendering-Internal

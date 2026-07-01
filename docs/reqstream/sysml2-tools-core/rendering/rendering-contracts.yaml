@@ -1,0 +1,74 @@
+---
+# RenderingContracts Unit Requirements (grouped contracts unit)
+#
+# PURPOSE:
+# - Define requirements for the RenderingContracts data-model/interface unit
+# - This unit groups the small cohesive contract source files that define the rendering pipeline:
+#   IRenderer, ILayoutStrategy, RenderOptions, RenderOutput, and the internal StdlibFilter helper
+# - The per-type contracts are described in the Rendering Subsystem chapter; these unit requirements
+#   summarize the grouped contract behaviors that the unit tests pin
+# - Unit requirements trace up (by ID nesting) to the Rendering subsystem requirements
+
+sections:
+  - title: RenderingContracts Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Rendering-RenderingContracts-IRenderer
+        title: >-
+          The IRenderer contract shall expose a MediaType, a DefaultExtension, and a Render method
+          that writes a LayoutTree to an output stream, and its implementations shall write valid
+          format-specific bytes for an empty tree.
+        justification: |
+          A common IRenderer contract lets the orchestrator and the CLI treat every renderer
+          uniformly. Proving the shipped SVG and PNG implementations honor the media type, extension,
+          and byte format confirms the contract is usable.
+        tests:
+          - SvgRenderer_MediaType_IsImageSvgXml
+          - SvgRenderer_DefaultExtension_IsDotSvg
+          - SvgRenderer_Render_EmptyTree_WritesValidSvg
+          - PngRenderer_MediaType_IsImagePng
+          - PngRenderer_DefaultExtension_IsDotPng
+          - PngRenderer_Render_EmptyTree_WritesPngBytes
+
+      - id: SysML2Tools-Core-Rendering-RenderingContracts-ILayoutStrategy
+        title: >-
+          The ILayoutStrategy contract shall accept a ViewContext (carrying the view name and the
+          workspace) and RenderOptions and produce a LayoutTree, and ViewContext shall store its
+          fields unchanged.
+        justification: |
+          Separating layout computation from rendering behind ILayoutStrategy lets any strategy feed
+          any renderer. The ViewContext record is the immutable input carrier for that contract.
+        tests:
+          - ViewContext_Construction_StoresAllFields
+
+      - id: SysML2Tools-Core-Rendering-RenderingContracts-RenderOptions
+        title: >-
+          The RenderOptions record shall carry a Theme and default a Scale of 1.0, a Dpi of 96, and a
+          DepthLimit of 0 (unlimited).
+        justification: |
+          Bundling all render parameters in one record with conventional defaults keeps calls simple
+          and makes the unlimited-depth sentinel explicit.
+        tests:
+          - RenderOptions_DefaultScale_IsOne
+          - RenderOptions_DefaultDpi_Is96
+          - RenderOptions_DefaultDepthLimit_IsZero
+
+      - id: SysML2Tools-Core-Rendering-RenderingContracts-RenderOutput
+        title: >-
+          The RenderOutput record shall carry a SuggestedFileName, a MediaType, and a Data stream,
+          storing each field unchanged.
+        justification: |
+          RenderOutput decouples the renderer from filesystem decisions; the caller receives a
+          suggested name and media type alongside the data stream and writes it wherever it chooses.
+        tests:
+          - RenderOutput_Construction_StoresAllFields
+
+      - id: SysML2Tools-Core-Rendering-RenderingContracts-StdlibFilter
+        title: >-
+          The StdlibFilter helper shall identify standard-library elements by qualified name so that
+          the orchestrator excludes stdlib view declarations from user-facing diagram output.
+        justification: |
+          Rendering the embedded standard library would flood diagrams with library noise. Filtering
+          stdlib qualified names keeps output limited to user-authored views, as proven by the
+          integration render of a user model that renders only its own views.
+        tests:
+          - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsSvgOutput
