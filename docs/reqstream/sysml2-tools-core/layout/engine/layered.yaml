@@ -47,11 +47,15 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Engine-Layered-RightDirection
         title: >-
-          The Layered subsystem shall lay out graphs left-to-right by default and shall reject any
-          other flow direction with a clear error until it is implemented.
+          The Layered subsystem shall support laying out graphs in the right, down, left, and up
+          flow directions, computing in the left-to-right abstract axes and mapping the result onto
+          screen coordinates for the requested direction via the AxisTransform stage.
         justification: |
-          The behavior-preserving extraction only exercises the left-to-right direction; rejecting
-          the reserved directions avoids emitting an unverified transform.
+          The stages compute in the left-to-right abstract axes and AxisTransform maps the result
+          onto the requested direction; directed views such as the State Transition and Action Flow
+          views rely on the down direction, so all four directions must be supported.
         tests:
           - AxisTransform_Apply_RightDirection_LeavesCoordinatesUnchanged
-          - AxisTransform_Apply_NonRightDirection_ThrowsNotSupportedException
+          - AxisTransform_Apply_Down_PlacesTargetSouthWithCorrectFaces
+          - AxisTransform_Apply_Left_PlacesTargetWestWithCorrectFaces
+          - AxisTransform_Apply_Up_PlacesTargetNorthWithCorrectFaces

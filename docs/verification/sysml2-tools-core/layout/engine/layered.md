@@ -20,7 +20,8 @@ configuration are required beyond a standard .NET SDK installation.
 - All Layered stage test classes pass with zero failures across all three target frameworks.
 - The assembled default pipeline runs to completion for chain, diamond, long-edge, and cyclic graphs.
 - For every test input the pipeline output matches the legacy engine byte for byte.
-- Recursive hierarchy handling and non-right directions are rejected with a clear error.
+- Recursive hierarchy handling is rejected with a clear error until it is implemented; the right,
+  down, left, and up directions are all supported and mapped by `AxisTransform`.
 
 ##### Test Scenarios
 
@@ -30,4 +31,4 @@ configuration are required beyond a standard .NET SDK installation.
 | Recursive hierarchy requested | `LayeredLayoutPipeline` | `Build` throws `NotSupportedException` |
 | Equivalence over random graphs | subsystem | Every result field matches the legacy oracle exactly |
 | Right-direction transform | `AxisTransform` | Coordinates are left unchanged |
-| Non-right direction transform | `AxisTransform` | Throws `NotSupportedException` |
+| Down/left/up direction transform | `AxisTransform` | Target placed on the correct side; waypoints stay orthogonal |

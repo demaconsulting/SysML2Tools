@@ -20,10 +20,11 @@ sections:
       - id: SysML2Tools-Language-Semantic-Internal-SysmlNode-Types
         title: >-
           The SysmlNode hierarchy shall include SysmlPackageNode, SysmlDefinitionNode,
-          SysmlFeatureNode, SysmlImportNode, SysmlViewNode, and SysmlViewpointNode.
+          SysmlFeatureNode, SysmlImportNode, SysmlViewNode, SysmlViewpointNode,
+          SysmlConnectionNode, and SysmlTransitionNode.
         justification: |
-          Separate node types for packages, definitions, features, imports, views, and
-          viewpoints allow future analysis passes to dispatch on element type without
-          string comparisons.
+          Separate node types for packages, definitions, features, imports, views,
+          viewpoints, connections, and transitions allow future analysis passes to dispatch
+          on element type without string comparisons.
         tests:
           - WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition

@@ -7,8 +7,8 @@ pipeline for SysML2 Tools. It bridges the Layout subsystem (which produces a `La
 and the concrete renderer packages (`DemaConsulting.SysML2Tools.Svg` and
 `DemaConsulting.SysML2Tools.Png`) by declaring the contracts that both sides must satisfy.
 
-The subsystem contains five types: `IRenderer` (low-level render interface), `ILayoutStrategy`
-(layout computation interface), `Theme` and `FontDescriptor` (visual configuration), `RenderOptions`
+The subsystem contains these types: `IRenderer` (low-level render interface), `ILayoutStrategy`
+(layout computation interface), `Theme` (visual configuration), `RenderOptions`
 (per-render parameters), `RenderOutput` (render result), and `DiagramRenderer` (orchestrator).
 
 ### Interfaces
@@ -25,7 +25,6 @@ flowchart TD
     IRenderer --> RenderOptions
     IRenderer --> RenderOutput
     RenderOptions --> Theme
-    Theme --> FontDescriptor
     ViewContext --> SysmlWorkspace
 ```
 
@@ -43,8 +42,8 @@ flowchart TD
 - *Type*: Interface.
 - *Role*: Provider.
 - *Contract*: `LayoutTree BuildLayout(ViewContext context, RenderOptions options)`.
-  Implementations are responsible for all node placement and line routing including A*
-  path-finding and even waypoint spacing.
+  Implementations are responsible for all node placement and orthogonal connector routing,
+  producing a fully resolved `LayoutTree`.
 
 **ViewContext**: Inputs to a layout computation.
 
@@ -58,17 +57,10 @@ flowchart TD
 - *Role*: Configuration.
 - *Contract*: `IReadOnlyList<string> DepthFillColors`, `string StrokeColor`,
   `double StrokeWidth`, `double LineCornerRadius`, `double FontSizeTitle`,
-  `double FontSizeBody`, `double LabelPadding`, `FontDescriptor Font`.
-  `DepthFillColors` is indexed as `DepthFillColors[depth % count]` to derive the fill
-  color for a `LayoutBox` at a given nesting depth.
-
-**FontDescriptor**: Font family and optional embedded resource.
-
-- *Type*: Sealed record.
-- *Role*: Configuration.
-- *Contract*: `string FamilyName`, `string? EmbeddedResourcePath`. When
-  `EmbeddedResourcePath` is `null`, the renderer uses the system font matching
-  `FamilyName`.
+  `double FontSizeBody`, `double LabelPadding`, `double ConnectorStub`, `double BendRadius`,
+  `double CleanLegMargin`. Font choice is not part of the theme; each renderer hardcodes its own
+  typeface internally. `DepthFillColors` is indexed as `DepthFillColors[depth % count]` to derive
+  the fill color for a `LayoutBox` at a given nesting depth.
 
 **Themes**: Static provider of built-in theme instances.
 
@@ -89,7 +81,9 @@ flowchart TD
 
 - *Type*: Sealed record.
 - *Role*: Data transfer object.
-- *Contract*: `string SuggestedFileName`, `string MediaType`, `Stream Data`. The
+- *Contract*: `string SuggestedFileName`, `string MediaType`, `Stream Data`, and an
+  `IReadOnlyList<string> Warnings` init-only property carrying non-fatal layout-quality
+  warnings produced while laying out the view (empty when the layout is clean). The
   `SuggestedFileName` includes the file extension but no path component.
 
 **DiagramRenderer**: High-level rendering orchestrator.
@@ -106,9 +100,12 @@ flowchart TD
 - *Type*: Internal static class.
 - *Role*: Router.
 - *Contract*: `static ILayoutStrategy GetStrategy(object viewNode, SysmlWorkspace workspace, out string? unsupportedMessage)`.
-  Routes all view types to `GeneralViewLayoutStrategy` in Phase 4. Sets `unsupportedMessage`
-  to a non-null diagnostic when no strategy is available for the view type; the caller skips
-  rendering that view.
+  Inspects the view node's name and declared supertype names (case-insensitively) for a recognized
+  view-kind marker, in priority order — Interconnection, StateTransition/State, ActionFlow/Action,
+  Grid/Matrix/Tabular, Browser/Tree, then Sequence — and returns the matching concrete
+  `ILayoutStrategy`, falling back to `GeneralViewLayoutStrategy` for unrecognized views or non-view
+  nodes. The `unsupportedMessage` out-parameter is reserved for future unsupported view kinds and is
+  currently always null because every view resolves to a strategy.
 
 **StdlibFilter**: Standard-library element filter.
 
@@ -156,7 +153,7 @@ flowchart TD
 | --- | --- |
 | SysML2Tools-Core-Rendering-IRenderer | `IRenderer` interface |
 | SysML2Tools-Core-Rendering-IRendererStateless | `SvgRenderer` and `PngRenderer` are pure stateless implementations |
-| SysML2Tools-Core-Rendering-Theme | `Theme` and `FontDescriptor` records |
+| SysML2Tools-Core-Rendering-Theme | `Theme` record |
 | SysML2Tools-Core-Rendering-ThemeDepthWrap | `Theme.DepthFillColors` with modulo indexing documented in `Theme` |
 | SysML2Tools-Core-Rendering-RenderOptions | `RenderOptions` record with default values |
 | SysML2Tools-Core-Rendering-ILayoutStrategy | `ILayoutStrategy` interface and `ViewContext` record |

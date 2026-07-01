@@ -22,7 +22,11 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 /// <param name="FontSizeBody">Font size for body / row text.</param>
 /// <param name="LabelPadding">Internal padding between text and its bounding box.</param>
 /// <param name="ConnectorStub">Perpendicular step-off distance from a box face before a connector bends.</param>
-/// <param name="BendRadius">Corner arc radius used for connector elbows in SVG output.</param>
+/// <param name="BendRadius">
+/// Corner bend radius reserved for a connector's approach zone by <see cref="ConnectorApproachZone"/>
+/// (layout approach reservation). It is not read by any renderer; renderers round connector elbows
+/// using <see cref="LineCornerRadius"/> instead.
+/// </param>
 /// <param name="CleanLegMargin">
 /// Safety margin (in logical pixels) added to a decorated connector end's required clean straight
 /// approach, beyond the end-marker length plus one corner radius, so the rounded corner never intrudes

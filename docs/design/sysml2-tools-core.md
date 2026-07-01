@@ -88,8 +88,9 @@ N/A — not a safety-classified software item.
    `RenderOptions`. For each view declared in the workspace it constructs a `ViewContext`
    containing the view name and workspace reference.
 2. `ILayoutStrategy.BuildLayout` is called with the `ViewContext` and `RenderOptions`. The
-   strategy places all nodes with absolute coordinates, routes all lines using A* path-finding
-   with even waypoint spacing, and returns a fully resolved `LayoutTree`.
+   Layout subsystem produces a fully resolved `LayoutTree` via its layered layout pipeline,
+   placing every node at absolute coordinates and routing every connector as an orthogonal
+   polyline. The Rendering subsystem then renders that tree.
 3. `IRenderer.Render` is called with the `LayoutTree`, `RenderOptions`, and a fresh output
    `Stream`. The renderer reads each `LayoutNode` in the tree, translates it to output-format
    primitives, and writes bytes to the stream.

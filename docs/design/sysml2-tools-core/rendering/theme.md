@@ -22,8 +22,9 @@ to derive a box fill from its nesting depth. `Themes` is a static class exposing
 ##### `ConnectorApproachZone(connectorClearance)`
 
 Returns the clear distance a connector needs off a box face before it can bend, computed as
-`ConnectorStub + BendRadius + connectorClearance`. The layout strategies use it to reserve the
-approach and the renderers use the same value when drawing the elbow.
+`ConnectorStub + BendRadius + connectorClearance`. The layout strategies call it to reserve that
+approach zone; `BendRadius` contributes only to this reservation and is not read by any renderer
+(renderers round connector elbows using `LineCornerRadius`).
 
 ##### `BackgroundColor`
 
@@ -33,8 +34,8 @@ enclosing end markers.
 #### Built-in Theme Values
 
 - `Light` and `Dark` share connector geometry: `ConnectorStub` 8.0, `BendRadius` 4.0.
-- `Print` is tighter and squared off: `ConnectorStub` 6.0, `BendRadius` 0.0 (sharp elbows) for crisp
-  black-and-white output.
+- `Print` is tighter: `ConnectorStub` 6.0, `BendRadius` 0.0, reserving no extra bend allowance in the
+  connector approach zone for crisp black-and-white output.
 
 #### Error Handling
 

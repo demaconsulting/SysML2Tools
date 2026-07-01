@@ -17,7 +17,7 @@ the rendering pipeline's public and internal surface:
 - `IRenderer.cs` — the low-level, stateless render interface.
 - `ILayoutStrategy.cs` — the layout-computation interface, plus the `ViewContext` input record.
 - `RenderOptions.cs` — per-render parameters (`Theme`, `Scale`, `Dpi`, `DepthLimit`).
-- `RenderOutput.cs` — a single rendered output (`SuggestedFileName`, `MediaType`, `Data`).
+- `RenderOutput.cs` — a single rendered output (`SuggestedFileName`, `MediaType`, `Data`, `Warnings`).
 - `Internal/StdlibFilter.cs` — identifies standard-library elements to exclude from diagrams.
 
 The full per-type contract is documented in the **Rendering Subsystem** chapter's *Interfaces*
@@ -37,7 +37,8 @@ prefixes and the `IsStdlibElement` predicates.
 - **ILayoutStrategy** exposes `BuildLayout(ViewContext, RenderOptions)` returning a fully resolved
   `LayoutTree`.
 - **RenderOptions** defaults `Scale` to 1.0, `Dpi` to 96, and `DepthLimit` to 0 (unlimited).
-- **RenderOutput** carries a suggested file name, media type, and data stream.
+- **RenderOutput** carries a suggested file name, media type, data stream, and a `Warnings` list of
+  non-fatal layout-quality warnings (empty when the layout is clean).
 - **StdlibFilter.IsStdlibElement** returns `true` for qualified names in a known stdlib package (by
   seed-set membership or root-package prefix).
 

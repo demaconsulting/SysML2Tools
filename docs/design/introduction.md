@@ -42,7 +42,7 @@ system, subsystem, and unit levels:
     - **AstSerializer** (Unit) — serializes SymbolTable + diagnostics to UTF-8 JSON bytes
     - **AstDeserializer** (Unit) — deserializes bytes back to SymbolTable + diagnostics
     - **Internal** (Subsystem) — internal semantic implementation
-      - **SysmlNode** (Unit) — public AST node hierarchy: six types with JSON polymorphism
+      - **SysmlNode** (Unit) — public AST node hierarchy: eight types with JSON polymorphism
       - **AstBuilder** (Unit) — builds AST from ANTLR4 CST with qualified names and supertype lists
       - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes
       - **ReferenceResolver** (Unit) — resolves supertype references; detects circular imports
@@ -161,7 +161,7 @@ reviewers an explicit navigation aid from design to code:
   - **DemaConsulting.SysML2Tools.Core/** — core library
     - **Layout/** — LayoutTree intermediate representation
       - **Internal/** — internal layout implementation (GeneralViewLayoutStrategy)
-    - **Rendering/** — rendering interfaces and theme (Phase 3+)
+    - **Rendering/** — rendering interfaces and theme
   - **DemaConsulting.SysML2Tools.Svg/** — SVG renderer
   - **DemaConsulting.SysML2Tools.Png/** — PNG renderer
   - **DemaConsulting.SysML2Tools.Tool/** — dotnet tool CLI wrapper

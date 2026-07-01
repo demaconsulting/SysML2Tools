@@ -3,7 +3,7 @@
 ##### Overview
 
 `SysmlNode` is the abstract base class for all SysML/KerML AST nodes. Concrete subtypes represent
-packages, definitions, features, imports, views, and viewpoints.
+packages, definitions, features, imports, views, viewpoints, connections, and transitions.
 
 ##### Class Hierarchy
 
@@ -16,6 +16,8 @@ packages, definitions, features, imports, views, and viewpoints.
 | `SysmlImportNode` | Import declaration; adds ImportedNamespace, IsWildcard |
 | `SysmlViewNode` | View definition |
 | `SysmlViewpointNode` | Viewpoint definition |
+| `SysmlConnectionNode` | Connection/binding usage between two endpoints; adds ConnectionKeyword, EndpointA, EndpointB |
+| `SysmlTransitionNode` | State transition; adds Source, Target, Guard |
 
 ##### Properties
 
@@ -38,6 +40,18 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
 `SysmlDefinitionNode` adds:
 
 - `DefinitionKeyword` — the grammar keyword string (e.g., `"part def"`, `"attribute def"`).
+
+`SysmlConnectionNode` adds:
+
+- `ConnectionKeyword` — the connection keyword (e.g., `"connection"`, `"binding"`).
+- `EndpointA` — the first endpoint reference (e.g., `"engine.fuelPort"`), or null when unresolved.
+- `EndpointB` — the second endpoint reference (e.g., `"transmission.input"`), or null when unresolved.
+
+`SysmlTransitionNode` adds:
+
+- `Source` — the source state reference, or null when implied by the containing state.
+- `Target` — the target state reference.
+- `Guard` — the guard expression text (the condition after `if`), or null when unguarded.
 
 ##### Error Handling
 
