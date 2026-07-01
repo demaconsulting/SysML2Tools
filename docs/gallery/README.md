@@ -105,6 +105,21 @@ SVG: [`svg/AvionicsBrowserView.svg`](svg/AvionicsBrowserView.svg)
 
 ---
 
+## 8. Nested Interconnection View — Computer System
+
+Shows a two-level nested Interconnection View. The `Computer` part contains a `board`
+typed by `Motherboard`, which has its own internal `cpu`, `chipset`, and `ram` parts and
+connections. The motherboard's interior is laid out recursively (bottom-up) and nested
+inside the `board` container box, while the outer power and storage connections route
+between the top-level parts.
+
+Model: [`models/08-nested-interconnection.sysml`](models/08-nested-interconnection.sysml) ·
+SVG: [`svg/ComputerSystemInterconnectionView.svg`](svg/ComputerSystemInterconnectionView.svg)
+
+![Computer System Nested Interconnection View](png/ComputerSystemInterconnectionView.png)
+
+---
+
 ## View coverage
 
 | # | View type | Example system | Status |
@@ -116,4 +131,5 @@ SVG: [`svg/AvionicsBrowserView.svg`](svg/AvionicsBrowserView.svg)
 | 5 | Sequence View | OAuth 2.0 Login | ✅ |
 | 6 | Grid View | Vehicle Taxonomy | ✅ |
 | 7 | Browser View | Avionics System | ✅ |
-| 8 | Geometry View | — | Deferred (requires spatial coordinate data) |
+| 8 | Nested Interconnection View | Computer System | ✅ |
+| 9 | Geometry View | — | Deferred (requires spatial coordinate data) |

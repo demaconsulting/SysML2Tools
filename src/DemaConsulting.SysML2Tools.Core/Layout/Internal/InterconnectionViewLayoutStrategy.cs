@@ -3,6 +3,7 @@
 // </copyright>
 
 using DemaConsulting.SysML2Tools.Layout.Engine;
+using DemaConsulting.SysML2Tools.Layout.Engine.Layered;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -26,6 +27,18 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// All placement and routing is delegated to <see cref="InterconnectionLayoutEngine"/>, which
 /// implements the full ELK-compatible Sugiyama pipeline.
 /// </para>
+/// <para>
+/// When a nested part is itself typed by a <c>part def</c> that has its own internal parts, the
+/// strategy lays out that inner structure recursively (bottom-up, ELK <c>SEPARATE_CHILDREN</c>):
+/// the inner definition is laid out first with the same flat engine, the container part is then
+/// treated as an atomic fixed-size node by the parent, and the inner content is nested as the
+/// container box's <see cref="LayoutBox.Children"/>. A single-level model (no part typed by a
+/// definition with internal parts) is a strict no-op: the recursion never fires and the output is
+/// identical to the non-recursive layout. The reserved
+/// <see cref="DemaConsulting.SysML2Tools.Layout.Engine.Layered.HierarchyHandling.Recursive"/> pipeline mode
+/// is intentionally left not wired; recursion is driven here, at the strategy level, because
+/// container detection is a semantic-model concern the model-independent engine cannot see.
+/// </para>
 /// </remarks>
 internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 {
@@ -41,11 +54,28 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <summary>Clearance used when computing the minimum box height from port count.</summary>
     private const double ConnectorClearance = 10.0;
 
-    /// <summary>A nested part usage with its computed intrinsic box size.</summary>
-    private sealed record PartItem(string Name, string Keyword, string? Typing, double Width, double Height);
+    /// <summary>
+    /// A nested part usage with its computed intrinsic box size. When the part is a container (its
+    /// type is a <c>part def</c> with its own internal parts), <see cref="InnerContent"/> holds the
+    /// pre-laid-out interior content positioned relative to the part box's own top-left
+    /// <c>(0, 0)</c>; for a leaf part it is <see langword="null"/>.
+    /// </summary>
+    private sealed record PartItem(
+        string Name,
+        string Keyword,
+        string? Typing,
+        double Width,
+        double Height,
+        IReadOnlyList<LayoutNode>? InnerContent);
 
     /// <summary>A resolved binary connection between two nested-part indices.</summary>
     private sealed record ConnPair(int A, int B);
+
+    /// <summary>The laid-out interior of one definition: its full container size and content.</summary>
+    /// <param name="Width">Full container width including title area and insets.</param>
+    /// <param name="Height">Full container height including title area and insets.</param>
+    /// <param name="Content">Part boxes, ports, and connector lines positioned with origin <c>(0, 0)</c>.</param>
+    private sealed record InteriorLayout(double Width, double Height, IReadOnlyList<LayoutNode> Content);
 
     /// <inheritdoc/>
     public LayoutTree BuildLayout(ViewContext context, RenderOptions options)
@@ -62,14 +92,68 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             return new LayoutTree(200.0, 100.0, []);
         }
 
-        var parts = CollectParts(root, theme);
-        if (parts.Count == 0)
+        // No nested part usages means there is nothing to draw.
+        var hasParts = root.Children.OfType<SysmlFeatureNode>().Any(f => f.FeatureKeyword == "part");
+        if (!hasParts)
         {
             return new LayoutTree(200.0, 100.0, []);
         }
 
+        // Index of candidate container definitions (non-stdlib part defs with at least one part child).
+        var defsByName = BuildDefinitionIndex(context.Workspace);
+
+        // Lay out the root's interior, recursing into any container parts.
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        if (root.QualifiedName is { Length: > 0 })
+        {
+            visited.Add(root.QualifiedName);
+        }
+
+        var interior = LayOutInterior(root, theme, depth: 0, defsByName, visited);
+
+        var nodes = new List<LayoutNode>(interior.Content.Count + 1)
+        {
+            // Container box for the root part definition.
+            new LayoutBox(
+                X: 0,
+                Y: 0,
+                Width: interior.Width,
+                Height: interior.Height,
+                Label: root.Name ?? "Interconnection",
+                Depth: 0,
+                Shape: BoxShape.Rectangle,
+                Compartments: [],
+                Children: [],
+                Keyword: string.IsNullOrEmpty(root.DefinitionKeyword) ? "part def" : root.DefinitionKeyword),
+        };
+
+        nodes.AddRange(interior.Content);
+
+        return new LayoutTree(interior.Width, interior.Height, nodes);
+    }
+
+    /// <summary>
+    /// Lays out the interior of one definition: collects its parts (recursing into container
+    /// parts), places them with <see cref="InterconnectionLayoutEngine"/>, and emits one rounded
+    /// box per part plus a port pair and connector line per connection — all positioned relative to
+    /// the container's own top-left origin <c>(0, 0)</c>.
+    /// </summary>
+    /// <param name="def">The definition whose interior to lay out.</param>
+    /// <param name="theme">The active rendering theme.</param>
+    /// <param name="depth">Nesting depth of this definition's container box (0 for the root).</param>
+    /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
+    /// <param name="visited">Qualified names already on the recursion path, guarding against cycles.</param>
+    /// <returns>The laid-out interior size and content.</returns>
+    private static InteriorLayout LayOutInterior(
+        SysmlDefinitionNode def,
+        Theme theme,
+        int depth,
+        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        ISet<string> visited)
+    {
+        var parts = CollectParts(def, theme, depth, defsByName, visited);
         var partIndex = BuildPartIndex(parts);
-        var pairs = ResolveConnections(root, partIndex);
+        var pairs = ResolveConnections(def, partIndex);
 
         // Scale each box height to guarantee at least MinPortSlot px per port on its face.
         var degree = new int[parts.Count];
@@ -100,26 +184,27 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var containerWidth = placed.TotalWidth + (offsetX * 2.0);
         var containerHeight = placed.TotalHeight + offsetY + (theme.LabelPadding * 2.0);
 
-        var nodes = new List<LayoutNode>();
+        // InterconnectionLayoutEngine derives TotalWidth/Height from box extents only, but a
+        // connector can route beyond the boxes (e.g. wrapping below them). Extend the container so
+        // every waypoint is enclosed with the same trailing inset the boxes already receive, so no
+        // connector scrapes the container edge.
+        var trailingInset = LayeredLayoutMetrics.Padding + (theme.LabelPadding * 2.0);
+        foreach (var wp in placed.ConnectorWaypoints)
+        {
+            foreach (var p in wp)
+            {
+                containerWidth = Math.Max(containerWidth, p.X + offsetX + trailingInset);
+                containerHeight = Math.Max(containerHeight, p.Y + offsetY + trailingInset);
+            }
+        }
 
-        // Container box for the root part definition.
-        nodes.Add(new LayoutBox(
-            X: 0,
-            Y: 0,
-            Width: containerWidth,
-            Height: containerHeight,
-            Label: root.Name ?? "Interconnection",
-            Depth: 0,
-            Shape: BoxShape.Rectangle,
-            Compartments: [],
-            Children: [],
-            Keyword: string.IsNullOrEmpty(root.DefinitionKeyword) ? "part def" : root.DefinitionKeyword));
+        var content = new List<LayoutNode>();
 
-        // One rounded box per nested part usage.
+        // One rounded box per nested part usage; container parts carry their nested children.
         for (var i = 0; i < parts.Count; i++)
         {
             var r = placed.Rects[i];
-            nodes.Add(MakePartBox(parts[i], new Rect(r.X + offsetX, r.Y + offsetY, r.Width, r.Height)));
+            content.Add(MakePartBox(parts[i], new Rect(r.X + offsetX, r.Y + offsetY, r.Width, r.Height), depth + 1));
         }
 
         // One port pair and one connector line per connection.
@@ -135,12 +220,12 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             var shifted = wp.Select(p => new Point2D(p.X + offsetX, p.Y + offsetY)).ToList();
 
             // Source port: first waypoint on the source box's right face.
-            nodes.Add(new LayoutPort(shifted[0].X, shifted[0].Y, PortSide.Right, null));
+            content.Add(new LayoutPort(shifted[0].X, shifted[0].Y, PortSide.Right, null));
 
             // Target port: last waypoint on the target box's left face.
-            nodes.Add(new LayoutPort(shifted[^1].X, shifted[^1].Y, PortSide.Left, null));
+            content.Add(new LayoutPort(shifted[^1].X, shifted[^1].Y, PortSide.Left, null));
 
-            nodes.Add(new LayoutLine(
+            content.Add(new LayoutLine(
                 Waypoints: shifted,
                 SourceEnd: EndMarkerStyle.None,
                 TargetEnd: EndMarkerStyle.None,
@@ -148,7 +233,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                 MidpointLabel: null));
         }
 
-        return new LayoutTree(containerWidth, containerHeight, nodes);
+        return new InteriorLayout(containerWidth, containerHeight, content);
     }
 
     /// <summary>
@@ -187,8 +272,18 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         return best;
     }
 
-    /// <summary>Collects the nested part usages of the root definition, sized for rendering.</summary>
-    private static IReadOnlyList<PartItem> CollectParts(SysmlDefinitionNode root, Theme theme)
+    /// <summary>
+    /// Collects the nested part usages of a definition, sized for rendering. A part whose type
+    /// resolves to a container definition (a non-stdlib <c>part def</c> with its own internal parts,
+    /// not already on the recursion path) is laid out recursively and sized to fit its interior;
+    /// every other part is sized intrinsically as a leaf.
+    /// </summary>
+    private static IReadOnlyList<PartItem> CollectParts(
+        SysmlDefinitionNode root,
+        Theme theme,
+        int depth,
+        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        ISet<string> visited)
     {
         var result = new List<PartItem>();
         foreach (var feature in root.Children.OfType<SysmlFeatureNode>())
@@ -199,11 +294,96 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             }
 
             var name = feature.Name ?? feature.FeatureTyping ?? "part";
-            var (width, height) = ComputePartSize(name, feature.FeatureTyping, theme);
-            result.Add(new PartItem(name, "part", feature.FeatureTyping, width, height));
+
+            if (TryResolveContainer(feature.FeatureTyping, defsByName, visited, out var childDef))
+            {
+                // Container part: lay out its interior bottom-up and treat it as an atomic node.
+                var childVisited = new HashSet<string>(visited, StringComparer.Ordinal) { childDef.QualifiedName! };
+                var inner = LayOutInterior(childDef, theme, depth + 1, defsByName, childVisited);
+                result.Add(new PartItem(name, "part", feature.FeatureTyping, inner.Width, inner.Height, inner.Content));
+            }
+            else
+            {
+                // Leaf part: intrinsic size, no nested content.
+                var (width, height) = ComputePartSize(name, feature.FeatureTyping, theme);
+                result.Add(new PartItem(name, "part", feature.FeatureTyping, width, height, null));
+            }
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Builds an index of candidate container definitions — non-standard-library <c>part def</c>s
+    /// that have at least one nested <c>part</c> usage — keyed by both qualified and simple name
+    /// (qualified preferred), mirroring the resolve-by-qualified-then-simple pattern used by the
+    /// General view strategy.
+    /// </summary>
+    private static IReadOnlyDictionary<string, SysmlDefinitionNode> BuildDefinitionIndex(SysmlWorkspace workspace)
+    {
+        var index = new Dictionary<string, SysmlDefinitionNode>(StringComparer.Ordinal);
+        foreach (var (qualifiedName, node) in workspace.Declarations)
+        {
+            if (node is not SysmlDefinitionNode def || def.DefinitionKeyword != "part def")
+            {
+                continue;
+            }
+
+            if (StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
+            {
+                continue;
+            }
+
+            var hasPartChild = def.Children.OfType<SysmlFeatureNode>().Any(f => f.FeatureKeyword == "part");
+            if (!hasPartChild)
+            {
+                continue;
+            }
+
+            index.TryAdd(qualifiedName, def);
+            if (def.Name is { Length: > 0 })
+            {
+                index.TryAdd(def.Name, def);
+            }
+        }
+
+        return index;
+    }
+
+    /// <summary>
+    /// Resolves a part's type reference to a container definition by qualified then simple name,
+    /// excluding any definition already on the recursion path (cycle guard). A part whose type is
+    /// on the path — or does not resolve to a container — is treated as a leaf.
+    /// </summary>
+    private static bool TryResolveContainer(
+        string? typing,
+        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        ISet<string> visited,
+        out SysmlDefinitionNode childDef)
+    {
+        childDef = null!;
+        if (string.IsNullOrEmpty(typing))
+        {
+            return false;
+        }
+
+        if (!defsByName.TryGetValue(typing, out var def))
+        {
+            var sep = typing.LastIndexOf("::", StringComparison.Ordinal);
+            var simple = sep >= 0 ? typing[(sep + 2)..] : typing;
+            if (!defsByName.TryGetValue(simple, out def))
+            {
+                return false;
+            }
+        }
+
+        if (def.QualifiedName is null || visited.Contains(def.QualifiedName))
+        {
+            return false;
+        }
+
+        childDef = def;
+        return true;
     }
 
     /// <summary>Builds a name → index lookup for the nested parts.</summary>
@@ -263,20 +443,59 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         return (width, height);
     }
 
-    /// <summary>Creates a rounded-rectangle part usage box at the given position.</summary>
-    private static LayoutBox MakePartBox(PartItem part, Rect rect)
+    /// <summary>
+    /// Creates a rounded-rectangle part usage box at the given position. A leaf part has no
+    /// children; a container part nests its pre-laid-out interior content, translated from the
+    /// child's local origin <c>(0, 0)</c> to the box's absolute top-left so the inner part boxes
+    /// land below the container's title and inside its border.
+    /// </summary>
+    private static LayoutBox MakePartBox(PartItem part, Rect rect, int depth)
     {
         var label = part.Typing is { Length: > 0 } ? $"{part.Name} : {part.Typing}" : part.Name;
+        var children = part.InnerContent is null
+            ? (IReadOnlyList<LayoutNode>)[]
+            : TranslateNodes(part.InnerContent, rect.X, rect.Y);
+
         return new LayoutBox(
             X: rect.X,
             Y: rect.Y,
             Width: rect.Width,
             Height: rect.Height,
             Label: label,
-            Depth: 1,
+            Depth: depth,
             Shape: BoxShape.RoundedRectangle,
             Compartments: [],
-            Children: [],
+            Children: children,
             Keyword: part.Keyword);
+    }
+
+    /// <summary>
+    /// Recursively translates a list of layout nodes by <paramref name="dx"/>/<paramref name="dy"/>,
+    /// shifting box positions (and their nested children), port centres, and connector waypoints.
+    /// Used to re-anchor a container's interior content from its local origin to absolute coordinates.
+    /// </summary>
+    private static IReadOnlyList<LayoutNode> TranslateNodes(IReadOnlyList<LayoutNode> nodes, double dx, double dy)
+    {
+        var result = new List<LayoutNode>(nodes.Count);
+        foreach (var node in nodes)
+        {
+            result.Add(node switch
+            {
+                LayoutBox box => box with
+                {
+                    X = box.X + dx,
+                    Y = box.Y + dy,
+                    Children = TranslateNodes(box.Children, dx, dy),
+                },
+                LayoutPort port => port with { CentreX = port.CentreX + dx, CentreY = port.CentreY + dy },
+                LayoutLine line => line with
+                {
+                    Waypoints = line.Waypoints.Select(p => new Point2D(p.X + dx, p.Y + dy)).ToList(),
+                },
+                _ => node,
+            });
+        }
+
+        return result;
     }
 }

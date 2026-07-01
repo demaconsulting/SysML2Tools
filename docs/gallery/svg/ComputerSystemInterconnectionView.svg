@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1106.68" height="296.00" viewBox="0 0 1106.68 296.00">
+  <defs>
+    <marker id="line-end-open-chevron" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polyline points="0 0, 10 3.5, 0 7" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-hollow-triangle" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-filled-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-hollow-triangle-crossbar" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+      <line x1="7" y1="0" x2="7" y2="7" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-hollow-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-filled-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-circle" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <circle cx="5" cy="5" r="4" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-bar" markerWidth="4" markerHeight="12" refX="2" refY="6" orient="auto">
+      <line x1="2" y1="0" x2="2" y2="12" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <filter id="label-bg" x="-0.05" y="-0.05" width="1.1" height="1.1">
+      <feFlood flood-color="#FFFFFF"/>
+      <feComposite in="SourceGraphic" operator="over"/>
+    </filter>
+  </defs>
+  <rect x="0.00" y="0.00" width="1106.68" height="296.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="553.34" y="12.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="553.34" y="31.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Computer</text>
+  <rect x="261.56" y="76.00" width="583.56" height="158.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="553.34" y="88.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="553.34" y="107.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">board : Motherboard</text>
+  <rect x="293.56" y="152.00" width="110.00" height="50.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="348.56" y="164.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="348.56" y="183.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">cpu : Cpu</text>
+  <rect x="473.56" y="152.00" width="159.56" height="50.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="553.34" y="164.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="553.34" y="183.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">chipset : Chipset</text>
+  <rect x="703.12" y="152.00" width="110.00" height="50.00" fill="#D6E8FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="758.12" y="164.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="758.12" y="183.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">ram : Ram</text>
+  <rect x="399.56" y="173.00" width="8.00" height="8.00" fill="#1A1A2E"/>
+  <rect x="469.56" y="173.00" width="8.00" height="8.00" fill="#1A1A2E"/>
+  <path d="M 403.56 177.00 L 473.56 177.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="629.12" y="173.00" width="8.00" height="8.00" fill="#1A1A2E"/>
+  <rect x="699.12" y="173.00" width="8.00" height="8.00" fill="#1A1A2E"/>
+  <path d="M 633.12 177.00 L 703.12 177.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="32.00" y="184.50" width="159.56" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="111.78" y="196.50" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="111.78" y="215.50" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">psu : PowerSupply</text>
+  <rect x="915.12" y="184.50" width="159.56" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="994.90" y="196.50" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="994.90" y="215.50" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">storage : Storage</text>
+  <rect x="187.56" y="190.50" width="8.00" height="8.00" fill="#1A1A2E"/>
+  <rect x="257.56" y="151.00" width="8.00" height="8.00" fill="#1A1A2E"/>
+  <path d="M 191.56 194.50 L 197.56 194.50 A 4.00 4.00 0 0 0 201.56 190.50 L 201.56 159.00 A 4.00 4.00 0 0 1 205.56 155.00 L 261.56 155.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="187.56" y="220.50" width="8.00" height="8.00" fill="#1A1A2E"/>
+  <rect x="911.12" y="220.50" width="8.00" height="8.00" fill="#1A1A2E"/>
+  <path d="M 191.56 224.50 L 197.56 224.50 A 4.00 4.00 0 0 1 201.56 228.50 L 201.56 260.00 A 4.00 4.00 0 0 0 205.56 264.00 L 851.12 264.00 A 4.00 4.00 0 0 0 855.12 260.00 L 855.12 228.50 A 4.00 4.00 0 0 1 859.12 224.50 L 915.12 224.50" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="841.12" y="151.00" width="8.00" height="8.00" fill="#1A1A2E"/>
+  <rect x="911.12" y="190.50" width="8.00" height="8.00" fill="#1A1A2E"/>
+  <path d="M 845.12 155.00 L 851.12 155.00 A 4.00 4.00 0 0 1 855.12 159.00 L 855.12 190.50 A 4.00 4.00 0 0 0 859.12 194.50 L 915.12 194.50" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+</svg>
