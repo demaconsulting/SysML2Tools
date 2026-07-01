@@ -2,81 +2,30 @@
 # SysML2Tools SVG Renderer System-Level Requirements
 #
 # PURPOSE:
-# - Define system-level requirements for the DemaConsulting.SysML2Tools.Svg package
-# - SVG renderer: SvgRenderer implements IRenderer with zero external dependencies
+# - Define system-level requirements for the DemaConsulting.SysML2Tools.Svg system
+# - System requirements are generic: they describe WHAT the SVG system delivers
+# - Each system requirement decomposes downward (children) into the SvgRenderer unit
+#   requirements that provide the detailed rendering behaviour
+# - System requirements are verified by system-level rendering integration tests
 
 sections:
   - title: SysML2ToolsSvg Requirements
     requirements:
-      - id: SysML2Tools-Svg-MediaType
+      - id: SysML2Tools-Svg-WriteSvgDocument
         title: >-
-          SvgRenderer shall return "image/svg+xml" for the MediaType property.
+          The SVG system shall render a laid-out diagram to a valid SVG document that
+          represents the diagram's elements.
         justification: |
-          The media type is the standard MIME type for SVG content and is used
-          by the CLI and by callers to determine the output format without
-          inspecting the stream content.
+          Producing SVG output lets rendered diagrams be embedded in architecture
+          documentation, viewed in any web browser, and version-controlled as text.
+        children:
+          - SysML2Tools-Svg-SvgRenderer-ImplementsIRenderer
+          - SysML2Tools-Svg-SvgRenderer-RenderDocument
+          - SysML2Tools-Svg-SvgRenderer-RenderBox
+          - SysML2Tools-Svg-SvgRenderer-RenderLabel
+          - SysML2Tools-Svg-SvgRenderer-RenderLine
+          - SysML2Tools-Svg-SvgRenderer-RenderNodeKinds
+          - SysML2Tools-Svg-SvgRenderer-EndMarkers
         tests:
-          - SvgRenderer_MediaType_IsImageSvgXml
-
-      - id: SysML2Tools-Svg-DefaultExtension
-        title: >-
-          SvgRenderer shall return ".svg" for the DefaultExtension property.
-        justification: |
-          The default extension is used by DiagramRenderer to construct the
-          suggested file name for each rendered view output.
-        tests:
-          - SvgRenderer_DefaultExtension_IsDotSvg
-
-      - id: SysML2Tools-Svg-Render-Document
-        title: >-
-          SvgRenderer.Render shall write a valid SVG 1.1 document to the output
-          stream, containing the SVG root element, for any LayoutTree input.
-        justification: |
-          The SVG root element is required by the SVG 1.1 specification and by
-          all SVG viewers. Its presence confirms that a valid, well-formed SVG
-          document was produced.
-        tests:
-          - SvgRenderer_Render_EmptyTree_ProducesSvgDocument
-          - SvgRenderer_Render_EmptyTree_WritesValidSvg
-
-      - id: SysML2Tools-Svg-Render-Box
-        title: >-
-          SvgRenderer.Render shall produce a rect element for each LayoutBox node
-          in the LayoutTree.
-        justification: |
-          Each LayoutBox in the layout tree represents a visual rectangular
-          container. The SVG rect element is the standard output for rectangles,
-          enabling SVG viewers to render diagram boxes correctly.
-        tests:
-          - SvgRenderer_Render_SingleBox_ProducesRectElement
-
-      - id: SysML2Tools-Svg-Render-Label
-        title: >-
-          SvgRenderer.Render shall produce a text element for each LayoutLabel node
-          in the LayoutTree.
-        justification: |
-          Standalone text labels in a layout tree must be rendered as SVG text
-          elements to appear correctly in SVG viewers and document export pipelines.
-        tests:
-          - SvgRenderer_Render_SingleLabel_ProducesTextElement
-
-      - id: SysML2Tools-Svg-Render-Line
-        title: >-
-          SvgRenderer.Render shall produce a path element for each LayoutLine node
-          in the LayoutTree.
-        justification: |
-          Connection lines between diagram elements are represented as LayoutLine
-          nodes. SVG path elements are the standard output for polylines and
-          support line-end markers through the SVG marker mechanism.
-        tests:
-          - SvgRenderer_Render_SingleLine_ProducesPathElement
-
-      - id: SysML2Tools-Svg-Render-ArrowheadOpenCrossbar
-        title: >-
-          SvgRenderer shall include a line-end-hollow-triangle-crossbar marker in the defs
-          block of every rendered SVG document.
-        justification: |
-          The line-end-hollow-triangle-crossbar marker must be defined so that any line using
-          the hollow-triangle-with-crossbar end-marker style renders correctly in a SVG viewer.
-        tests:
-          - SvgRenderer_Render_SingleLine_WithOpenCrossbarArrowhead_ProducesOpenCrossbarMarker
+          - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsSvgOutput
+          - DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames

@@ -55,7 +55,9 @@ includes:
   - docs/reqstream/sysml2-tools-core/rendering/internal.yaml
   - docs/reqstream/sysml2-tools-core/rendering/internal/diagram-type-router.yaml
   - docs/reqstream/sysml2-tools-svg.yaml
+  - docs/reqstream/sysml2-tools-svg/svg-renderer.yaml
   - docs/reqstream/sysml2-tools-png.yaml
+  - docs/reqstream/sysml2-tools-png/png-renderer.yaml
   - docs/reqstream/sysml2-tools-tool.yaml
   - docs/reqstream/sysml2-tools-tool/program.yaml
   - docs/reqstream/sysml2-tools-tool/cli.yaml

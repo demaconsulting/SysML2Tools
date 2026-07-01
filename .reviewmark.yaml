@@ -993,12 +993,15 @@ reviews:
     paths:
       - "docs/reqstream/sysml2-tools-svg/**/*.yaml"
 
-  - id: SysML2Tools-Svg-Implementation
-    title: Review of DemaConsulting.SysML2Tools.Svg Implementation
+  - id: SysML2Tools-Svg-SvgRenderer
+    title: Review that DemaConsulting.SysML2Tools.Svg SvgRenderer Implementation is Correct
     context:
-      - docs/reqstream/sysml2-tools-svg.yaml
       - docs/design/sysml2-tools-svg.md
+      - docs/reqstream/sysml2-tools-svg.yaml
     paths:
+      - "docs/reqstream/sysml2-tools-svg/svg-renderer.yaml"
+      - "docs/design/sysml2-tools-svg/svg-renderer.md"
+      - "docs/verification/sysml2-tools-svg/svg-renderer.md"
       - "src/DemaConsulting.SysML2Tools.Svg/SvgRenderer.cs"
       - "test/DemaConsulting.SysML2Tools.Svg.Tests/SvgRendererTests.cs"
       - "test/DemaConsulting.SysML2Tools.Svg.Tests/SvgEndMarkerTests.cs"
@@ -1044,12 +1047,15 @@ reviews:
     paths:
       - "docs/reqstream/sysml2-tools-png/**/*.yaml"
 
-  - id: SysML2Tools-Png-Implementation
-    title: Review of DemaConsulting.SysML2Tools.Png Implementation
+  - id: SysML2Tools-Png-PngRenderer
+    title: Review that DemaConsulting.SysML2Tools.Png PngRenderer Implementation is Correct
     context:
-      - docs/reqstream/sysml2-tools-png.yaml
       - docs/design/sysml2-tools-png.md
+      - docs/reqstream/sysml2-tools-png.yaml
     paths:
+      - "docs/reqstream/sysml2-tools-png/png-renderer.yaml"
+      - "docs/design/sysml2-tools-png/png-renderer.md"
+      - "docs/verification/sysml2-tools-png/png-renderer.md"
       - "src/DemaConsulting.SysML2Tools.Png/PngRenderer.cs"
       - "test/DemaConsulting.SysML2Tools.Png.Tests/PngRendererTests.cs"
       - "test/DemaConsulting.SysML2Tools.Png.Tests/PngEndMarkerTests.cs"
@@ -1073,7 +1079,7 @@ reviews:
       - "docs/reqstream/sysml2-tools-tool/program.yaml"
       - "docs/design/sysml2-tools-tool/program.md"
       - "docs/verification/sysml2-tools-tool/program.md"
-      - "src/**/Program.cs"
+      - "src/DemaConsulting.SysML2Tools.Tool/Program.cs"
       - "test/**/ProgramTests.cs"
 
   # SysML2Tools Tool - Cli

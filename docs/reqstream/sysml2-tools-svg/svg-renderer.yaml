@@ -1,0 +1,105 @@
+---
+# SvgRenderer Unit Requirements
+#
+# PURPOSE:
+# - Define unit-level requirements for the SvgRenderer class, the single unit of the
+#   DemaConsulting.SysML2Tools.Svg system
+# - These requirements decompose the SVG system requirement into the specific,
+#   observable rendering behaviour of the SvgRenderer unit
+# - Each requirement is verified by SvgRenderer unit tests
+
+sections:
+  - title: SvgRenderer Unit Requirements
+    requirements:
+      - id: SysML2Tools-Svg-SvgRenderer-ImplementsIRenderer
+        title: >-
+          SvgRenderer shall implement the IRenderer interface, reporting the
+          "image/svg+xml" media type and the ".svg" default file extension.
+        justification: |
+          Implementing the shared renderer interface lets the diagram renderer select
+          SVG output uniformly, and the media type and extension let callers name and
+          serve the output correctly.
+        tests:
+          - SvgRenderer_MediaType_IsImageSvgXml
+          - SvgRenderer_DefaultExtension_IsDotSvg
+
+      - id: SysML2Tools-Svg-SvgRenderer-RenderDocument
+        title: >-
+          SvgRenderer shall write a well-formed SVG 1.1 document containing the root
+          svg element for any layout tree, including an empty one.
+        justification: |
+          A well-formed root document is required by every SVG viewer and is the
+          container for all rendered diagram content.
+        tests:
+          - SvgRenderer_Render_EmptyTree_ProducesSvgDocument
+
+      - id: SysML2Tools-Svg-SvgRenderer-RenderBox
+        title: >-
+          SvgRenderer shall render each box node as a rect element, honouring rounded
+          corners and drawing its text compartments.
+        justification: |
+          Boxes are the primary diagram element; rounded corners and compartments convey
+          the SysML notation for definitions and usages.
+        tests:
+          - SvgRenderer_Render_SingleBox_ProducesRectElement
+          - SvgRenderer_Render_BoxRoundedRectangle_ProducesRxAttribute
+          - SvgRenderer_Render_BoxWithCompartment_ProducesLineAndText
+
+      - id: SysML2Tools-Svg-SvgRenderer-RenderLabel
+        title: >-
+          SvgRenderer shall render each label node as a text element, applying bold and
+          italic styling and escaping XML-special characters.
+        justification: |
+          Labels carry element names and typing; correct styling conveys emphasis, and
+          escaping keeps the document well-formed for any model text.
+        tests:
+          - SvgRenderer_Render_SingleLabel_ProducesTextElement
+          - SvgRenderer_Render_LabelWithBold_ProducesBoldAttribute
+          - SvgRenderer_Render_LabelWithItalic_ProducesItalicAttribute
+          - SvgRenderer_Render_LabelWithXmlSpecialCharacters_ProducesWellFormedEscapedSvg
+
+      - id: SysML2Tools-Svg-SvgRenderer-RenderLine
+        title: >-
+          SvgRenderer shall render each connector line as a path element, honouring
+          rounded corners, dashed styling, and midpoint labels.
+        justification: |
+          Connectors express relationships; corner, dash, and label handling convey the
+          connector's routing and semantics.
+        tests:
+          - SvgRenderer_Render_SingleLine_ProducesPathElement
+          - SvgRenderer_Render_SingleLine_WithCornerRadius_ProducesArcInPath
+          - SvgRenderer_Render_SingleLine_Dashed_ProducesDashArray
+          - SvgRenderer_Render_LineWithMidpointLabel_ProducesTextElement
+
+      - id: SysML2Tools-Svg-SvgRenderer-RenderNodeKinds
+        title: >-
+          SvgRenderer shall render port, badge, band, lifeline, activation, and grid
+          nodes with their notation-appropriate SVG elements.
+        justification: |
+          The layout tree carries the full range of SysML node kinds; each must be drawn
+          so every view type renders completely.
+        tests:
+          - SvgRenderer_Render_SinglePort_ProducesRect
+          - SvgRenderer_Render_SingleBadge_FilledCircle_ProducesCircle
+          - SvgRenderer_Render_SingleBand_ProducesRect
+          - SvgRenderer_Render_SingleLifeline_ProducesRectAndLine
+          - SvgRenderer_Render_SingleActivation_ProducesRect
+          - SvgRenderer_Render_SingleGrid_ProducesRects
+
+      - id: SysML2Tools-Svg-SvgRenderer-EndMarkers
+        title: >-
+          SvgRenderer shall emit connector end markers - open chevron, hollow triangle,
+          diamond, and crossbar variants - whose geometry derives from the shared
+          notation metrics.
+        justification: |
+          End markers express relationship direction and kind; deriving their geometry
+          from the shared notation metrics keeps the SVG and PNG markers identical.
+        tests:
+          - SvgRenderer_Render_SingleLine_WithOpenArrowhead_ProducesMarkerEnd
+          - SvgRenderer_Render_SingleLine_WithDiamondArrowhead_ProducesDiamondMarker
+          - SvgRenderer_Render_SingleLine_WithOpenCrossbarArrowhead_ProducesOpenCrossbarMarker
+          - OpenChevron_IsDefinedAsPolyline
+          - HollowTriangle_IsDefinedAsClosedPolygon
+          - TriangleMarker_DimensionsDeriveFromNotationMetrics
+          - DiamondMarker_DimensionsDeriveFromNotationMetrics
+          - OpenChevronLine_ReferencesOpenChevronMarker

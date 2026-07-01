@@ -13,6 +13,8 @@ resource-path:
   - docs/design/sysml2-tools-core/layout/internal
   - docs/design/sysml2-tools-core/rendering
   - docs/design/sysml2-tools-core/rendering/internal
+  - docs/design/sysml2-tools-svg
+  - docs/design/sysml2-tools-png
   - docs/design/sysml2-tools-tool
   - docs/design/sysml2-tools-tool/cli
   - docs/design/sysml2-tools-tool/lint
@@ -78,7 +80,9 @@ input-files:
   - docs/design/sysml2-tools-core/rendering/internal.md
   - docs/design/sysml2-tools-core/rendering/internal/diagram-type-router.md
   - docs/design/sysml2-tools-svg.md
+  - docs/design/sysml2-tools-svg/svg-renderer.md
   - docs/design/sysml2-tools-png.md
+  - docs/design/sysml2-tools-png/png-renderer.md
   - docs/design/sysml2-tools-tool.md
   - docs/design/sysml2-tools-tool/program.md
   - docs/design/sysml2-tools-tool/cli.md

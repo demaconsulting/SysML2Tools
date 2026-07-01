@@ -2,61 +2,30 @@
 # SysML2Tools PNG Renderer System-Level Requirements
 #
 # PURPOSE:
-# - Define system-level requirements for the DemaConsulting.SysML2Tools.Png package
-# - PNG renderer: PngRenderer implements IRenderer using SkiaSharp (MIT)
+# - Define system-level requirements for the DemaConsulting.SysML2Tools.Png system
+# - System requirements are generic: they describe WHAT the PNG system delivers
+# - Each system requirement decomposes downward (children) into the PngRenderer unit
+#   requirements that provide the detailed rendering behaviour
+# - System requirements are verified by system-level rendering integration tests
 
 sections:
   - title: SysML2ToolsPng Requirements
     requirements:
-      - id: SysML2Tools-Png-MediaType
+      - id: SysML2Tools-Png-WritePngImage
         title: >-
-          PngRenderer shall return "image/png" for the MediaType property.
+          The PNG system shall render a laid-out diagram to a valid PNG image that
+          represents the diagram's elements.
         justification: |
-          The media type is the standard MIME type for PNG content and is used
-          by the CLI and by callers to identify the output format without
-          inspecting the stream content.
+          Producing PNG output lets rendered diagrams be embedded in documents and web
+          pages that require a raster image rather than vector graphics.
+        children:
+          - SysML2Tools-Png-PngRenderer-ImplementsIRenderer
+          - SysML2Tools-Png-PngRenderer-RenderImage
+          - SysML2Tools-Png-PngRenderer-RenderBox
+          - SysML2Tools-Png-PngRenderer-RenderLabel
+          - SysML2Tools-Png-PngRenderer-RenderLine
+          - SysML2Tools-Png-PngRenderer-RenderNodeKinds
+          - SysML2Tools-Png-PngRenderer-EndMarkers
         tests:
-          - PngRenderer_MediaType_IsImagePng
-
-      - id: SysML2Tools-Png-DefaultExtension
-        title: >-
-          PngRenderer shall return ".png" for the DefaultExtension property.
-        justification: |
-          The default extension is used by DiagramRenderer to construct the
-          suggested file name for each rendered view output.
-        tests:
-          - PngRenderer_DefaultExtension_IsDotPng
-
-      - id: SysML2Tools-Png-Render-Signature
-        title: >-
-          PngRenderer.Render shall write a valid PNG stream to the output,
-          beginning with the four-byte PNG magic number (0x89 0x50 0x4E 0x47),
-          for any LayoutTree input.
-        justification: |
-          The PNG signature bytes are the primary conformance check for PNG
-          output. Their presence confirms that SkiaSharp produced a valid PNG
-          image file that can be opened by any standard PNG viewer.
-        tests:
-          - PngRenderer_Render_EmptyTree_WritesPngBytes
-          - PngRenderer_Render_EmptyTree_WritesPngSignature
-
-      - id: SysML2Tools-Png-Render-Box
-        title: >-
-          PngRenderer.Render shall render each LayoutBox node as a filled and
-          stroked rectangle in the PNG output without throwing.
-        justification: |
-          Box rendering must complete without error for any depth level and
-          any valid label text. The test confirms that SkiaSharp drawing
-          operations complete successfully and produce a non-empty PNG output.
-        tests:
-          - PngRenderer_Render_SingleBox_ProducesNonEmptyOutput
-
-      - id: SysML2Tools-Png-Render-ArrowheadOpenCrossbar
-        title: >-
-          PngRenderer shall rasterize a line with the hollow-triangle-with-crossbar
-          end-marker style without error.
-        justification: |
-          The hollow-triangle-with-crossbar end-marker style must render correctly so that
-          diagrams containing redefinition connectors produce valid PNG output.
-        tests:
-          - PngRenderer_Render_DrawArrowhead_OpenWithCrossbar_ProducesNonEmptyOutput
+          - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_PngRenderer_ReturnsPngOutput
+          - DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput
