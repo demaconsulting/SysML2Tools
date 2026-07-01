@@ -338,7 +338,6 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/WorkspaceLoader.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
-      - "test/SysMLModels/software-structure.sysml"
 
   - id: SysML2Tools-Language-Parser-WorkspaceParser
     title: Review that DemaConsulting.SysML2Tools.Language Parser WorkspaceParser Implementation is Correct
