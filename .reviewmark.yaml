@@ -847,6 +847,7 @@ reviews:
       - "docs/design/sysml2-tools-core/layout/box-metrics.md"
       - "docs/verification/sysml2-tools-core/layout/box-metrics.md"
       - "src/DemaConsulting.SysML2Tools.Core/Layout/BoxMetrics.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/BoxMetricsTests.cs"
 
   - id: SysML2Tools-Core-Layout-LayoutTree
     title: Review that DemaConsulting.SysML2Tools Layout LayoutTree Implementation is Correct

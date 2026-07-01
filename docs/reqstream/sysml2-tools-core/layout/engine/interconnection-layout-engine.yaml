@@ -41,18 +41,19 @@ sections:
           boxes in the output.
         tests:
           - Place_LongEdge_RectCountEqualsInputNodeCount
-          - Place_LongEdge_WaypointsExceedFour
+          - Place_LongEdge_RoutesViaDummyNodesWithinBounds
 
       - id: SysML2Tools-Core-Layout-Engine-InterconnectionLayoutEngine-Waypoints
         title: >-
-          InterconnectionLayoutEngine shall return one waypoint list per input edge; span-1
-          edges produce exactly four waypoints and long edges produce more than four.
+          InterconnectionLayoutEngine shall return one waypoint list per input edge; a span-1 edge
+          produces a straight two-waypoint path and a long edge routes via dummy nodes within the
+          layout bounds.
         justification: |
           Pre-computed waypoints allow InterconnectionViewLayoutStrategy to emit connector
           lines without any additional routing logic.
         tests:
-          - Place_SingleEdge_ProducesFourWaypointZPath
-          - Place_LongEdge_WaypointsExceedFour
+          - Place_SingleEdge_ProducesStraightTwoWaypointPath
+          - Place_LongEdge_RoutesViaDummyNodesWithinBounds
 
       - id: SysML2Tools-Core-Layout-Engine-InterconnectionLayoutEngine-Deterministic
         title: >-

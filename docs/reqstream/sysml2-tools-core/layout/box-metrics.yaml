@@ -5,9 +5,7 @@
 # - Define requirements for the BoxMetrics unit
 # - BoxMetrics provides the shared box title-area and folder-tab height formulas so that the
 #   space reserved by the layout strategies equals the space drawn by the renderers
-# - BoxMetrics has no dedicated unit test; its formulas are exercised indirectly by the
-#   interconnection view layout strategy tests
-# - Unit requirements trace up (by ID nesting) to the Layout subsystem requirements
+# - Each requirement is verified directly by BoxMetricsTests
 
 sections:
   - title: BoxMetrics Unit Requirements
@@ -22,8 +20,9 @@ sections:
           formula keeps reserved space and drawn space consistent, so nested children never collide
           with the box title.
         tests:
-          - InterconnectionView_BuildLayout_ContainerSize_BoundsChildrenAndTitle
-          - InterconnectionView_BuildLayout_NestedContainer_PlacesChildrenInsideContainerBox
+          - BoxMetrics_TitleAreaHeight_NoLabelNoKeyword_IsZero
+          - BoxMetrics_TitleAreaHeight_LabelOnly_ReservesTitleLine
+          - BoxMetrics_TitleAreaHeight_LabelAndKeyword_ReservesBothLines
 
       - id: SysML2Tools-Core-Layout-BoxMetrics-FolderTabHeight
         title: >-
@@ -32,3 +31,5 @@ sections:
         justification: |-
           The folder tab is drawn by the renderers and its height must match the space the layout
           strategies reserve above the box body, so both derive it from one theme-based formula.
+        tests:
+          - BoxMetrics_FolderTabHeight_DerivesFromThemeBodyFontAndPadding
