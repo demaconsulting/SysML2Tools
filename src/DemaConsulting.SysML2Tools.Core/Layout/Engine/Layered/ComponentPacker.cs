@@ -77,7 +77,8 @@ internal sealed class ComponentPacker : ILayoutStage
     /// <remarks>
     /// Reads <see cref="LayeredGraph.Edges"/> for component detection and writes the real-node outputs
     /// <see cref="LayeredGraph.AugX"/>, <see cref="LayeredGraph.AugY"/>, <see cref="LayeredGraph.NodeLayers"/>,
-    /// and <see cref="LayeredGraph.Waypoints"/> (one polyline per original edge). An empty graph
+    /// and — index-aligned with <see cref="LayeredGraph.Acyclic"/> (and <see cref="LayeredGraph.AcyclicReversed"/>)
+    /// — <see cref="LayeredGraph.Waypoints"/> (one polyline per acyclic edge). An empty graph
     /// (<see cref="LayeredGraph.N"/> == 0) is a no-op.
     /// </remarks>
     public void Apply(LayeredGraph graph)
@@ -246,7 +247,15 @@ internal sealed class ComponentPacker : ILayoutStage
         var augX = new double[graph.N];
         var augY = new double[graph.N];
         var nodeLayers = new int[graph.N];
-        var waypoints = new IReadOnlyList<Point2D>[graph.Edges.Count];
+
+        // Each component emits one polyline per ACYCLIC edge (cycle breaking drops self-loops,
+        // de-duplicates identical directed pairs, and reverses back edges), so the merged graph exposes
+        // the acyclic edge set with its aligned waypoints — the same contract the single-component fast
+        // path produces via RunInner — rather than one entry per input edge. Consumers key a
+        // (source, target) lookup on Acyclic to recover each input edge's route.
+        var mergedAcyclic = new List<LayerEdge>();
+        var mergedReversed = new List<bool>();
+        var mergedWaypoints = new List<IReadOnlyList<Point2D>>();
 
         foreach (var layout in layouts)
         {
@@ -262,24 +271,27 @@ internal sealed class ComponentPacker : ILayoutStage
                 nodeLayers[orig] = layout.LocalLayers[local];
             }
 
-            for (var localEdge = 0; localEdge < layout.EdgeOrigIndex.Count; localEdge++)
+            for (var k = 0; k < layout.AcyclicEdges.Count; k++)
             {
-                var origEdge = layout.EdgeOrigIndex[localEdge];
-                var localWaypoints = layout.EdgeWaypoints[localEdge];
+                var localWaypoints = layout.EdgeWaypoints[k];
                 var translated = new Point2D[localWaypoints.Count];
                 for (var p = 0; p < localWaypoints.Count; p++)
                 {
                     translated[p] = new Point2D(localWaypoints[p].X + dx, localWaypoints[p].Y + dy);
                 }
 
-                waypoints[origEdge] = translated;
+                mergedAcyclic.Add(layout.AcyclicEdges[k]);
+                mergedReversed.Add(layout.AcyclicReversed[k]);
+                mergedWaypoints.Add(translated);
             }
         }
 
         graph.AugX = augX;
         graph.AugY = augY;
         graph.NodeLayers = nodeLayers;
-        graph.Waypoints = waypoints;
+        graph.Acyclic = mergedAcyclic;
+        graph.AcyclicReversed = [.. mergedReversed];
+        graph.Waypoints = mergedWaypoints;
     }
 
     /// <summary>
@@ -306,9 +318,8 @@ internal sealed class ComponentPacker : ILayoutStage
         }
 
         // Collect this component's edges (in original edge order for determinism), remapping endpoints
-        // to local indices and recording the original edge index so waypoints can be merged back.
+        // to local indices.
         var localEdges = new List<LayerEdge>();
-        var edgeOrigIndex = new List<int>();
         for (var e = 0; e < graph.Edges.Count; e++)
         {
             var edge = graph.Edges[e];
@@ -316,13 +327,22 @@ internal sealed class ComponentPacker : ILayoutStage
                 origToLocal.TryGetValue(edge.Target, out var localTarget))
             {
                 localEdges.Add(new LayerEdge(localSource, localTarget));
-                edgeOrigIndex.Add(e);
             }
         }
 
         // Lay out the component sub-graph with the wrapped inner stages.
         var child = new LayeredGraph(localNodes, localEdges, graph.Direction);
         RunInner(child);
+
+        // Map the child's acyclic edges (local indices) back to original node indices so the merged
+        // parent graph exposes one (source, target) polyline per acyclic edge, aligned with
+        // child.Waypoints and child.AcyclicReversed.
+        var acyclicEdges = new LayerEdge[child.Acyclic.Count];
+        for (var k = 0; k < child.Acyclic.Count; k++)
+        {
+            var edge = child.Acyclic[k];
+            acyclicEdges[k] = new LayerEdge(members[edge.Source], members[edge.Target]);
+        }
 
         // Compute the content bounding box over the real nodes only (dummies are excluded).
         var minX = double.PositiveInfinity;
@@ -355,7 +375,8 @@ internal sealed class ComponentPacker : ILayoutStage
             MinY = minY,
             Width = maxX - minX,
             Height = maxY - minY,
-            EdgeOrigIndex = edgeOrigIndex,
+            AcyclicEdges = acyclicEdges,
+            AcyclicReversed = child.AcyclicReversed,
             EdgeWaypoints = child.Waypoints,
         };
     }
@@ -426,10 +447,16 @@ internal sealed class ComponentPacker : ILayoutStage
         /// <summary>Height of the component's content bounding box.</summary>
         public required double Height { get; init; }
 
-        /// <summary>Original edge index for each local edge, used to merge waypoints back.</summary>
-        public required IReadOnlyList<int> EdgeOrigIndex { get; init; }
+        /// <summary>Acyclic edges (original node indices), index-aligned with <see cref="EdgeWaypoints"/>.</summary>
+        public required IReadOnlyList<LayerEdge> AcyclicEdges { get; init; }
 
-        /// <summary>Routed waypoints for each local edge, in <see cref="EdgeOrigIndex"/> order.</summary>
+        /// <summary>
+        /// Whether each acyclic edge was produced by reversing a back edge, index-aligned with
+        /// <see cref="EdgeWaypoints"/>.
+        /// </summary>
+        public required IReadOnlyList<bool> AcyclicReversed { get; init; }
+
+        /// <summary>Routed waypoints for each acyclic edge, in <see cref="AcyclicEdges"/> order.</summary>
         public required IReadOnlyList<IReadOnlyList<Point2D>> EdgeWaypoints { get; init; }
 
         /// <summary>Packed shelf X offset assigned to this component.</summary>

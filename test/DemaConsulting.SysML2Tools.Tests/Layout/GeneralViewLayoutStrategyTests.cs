@@ -448,6 +448,51 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A definition with TWO <c>attribute</c>-typed features of the SAME in-view type produces two
+    ///     identical owner→type intra-group edges. The layered pipeline de-duplicates the identical
+    ///     directed pair so its routed waypoints are not 1:1 with the intra-edges; the strategy must
+    ///     resolve each intra-edge by its endpoints (not by input position) and lay out without throwing,
+    ///     emitting one dashed open-chevron typing dependency per attribute.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_TwoAttributesSameType_ProducesTwoTypingEdgesWithoutException()
+    {
+        // Arrange: Vehicle owns two attributes (mass, weight) both typed as the user attribute def Mass.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Mass"] = new SysmlDefinitionNode { Name = "Mass", QualifiedName = "P::Mass", DefinitionKeyword = "attribute def" },
+                ["P::Vehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "Vehicle",
+                    QualifiedName = "P::Vehicle",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "mass", QualifiedName = "P::Vehicle::mass", FeatureKeyword = "attribute", FeatureTyping = "Mass" },
+                        new SysmlFeatureNode { Name = "weight", QualifiedName = "P::Vehicle::weight", FeatureKeyword = "attribute", FeatureTyping = "Mass" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act: laying out must not throw even though the two intra-edges share one routed polyline.
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: exactly two dashed open-chevron typing dependencies are drawn (one per attribute), and
+        // each has a real polyline.
+        var typingEdges = layout.Nodes.OfType<LayoutLine>()
+            .Where(l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.OpenChevron)
+            .ToList();
+        Assert.Equal(2, typingEdges.Count);
+        Assert.All(typingEdges, e => Assert.True(e.Waypoints.Count >= 2));
+    }
+
+    /// <summary>
     ///     An <c>attribute</c>-typed feature whose type is an <c>enum def</c> in the view also draws a
     ///     dashed open-chevron typing dependency to the enumeration definition.
     /// </summary>

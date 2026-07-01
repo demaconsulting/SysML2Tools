@@ -35,7 +35,20 @@ internal sealed record LayerResult(
     double TotalWidth,
     double TotalHeight,
     IReadOnlyList<int> NodeLayers,
-    IReadOnlyList<IReadOnlyList<Point2D>> ConnectorWaypoints);
+    IReadOnlyList<IReadOnlyList<Point2D>> ConnectorWaypoints)
+{
+    /// <summary>
+    /// Gets the acyclic edge set (by node index), index-aligned with <see cref="ConnectorWaypoints"/>.
+    /// </summary>
+    /// <remarks>
+    /// The layered pipeline's cycle-breaking stage drops self-loops, de-duplicates identical directed
+    /// pairs, and reverses back edges, so <see cref="ConnectorWaypoints"/> holds one polyline per
+    /// <em>acyclic</em> edge rather than one per input edge. Consumers key a
+    /// <c>(source, target) → polyline</c> lookup on this list (reversing the polyline for a reversed
+    /// back edge) to recover the route for each of their own input edges.
+    /// </remarks>
+    public IReadOnlyList<LayerEdge> AcyclicEdges { get; init; } = [];
+}
 
 /// <summary>
 /// Thin façade over the reusable layered layout pipeline (see
@@ -99,6 +112,9 @@ internal static class InterconnectionLayoutEngine
             totalHeight = Math.Max(totalHeight, augY[i] + nodes[i].Height + Padding);
         }
 
-        return new LayerResult(rects, totalWidth, totalHeight, graph.NodeLayers, graph.Waypoints);
+        return new LayerResult(rects, totalWidth, totalHeight, graph.NodeLayers, graph.Waypoints)
+        {
+            AcyclicEdges = graph.Acyclic,
+        };
     }
 }

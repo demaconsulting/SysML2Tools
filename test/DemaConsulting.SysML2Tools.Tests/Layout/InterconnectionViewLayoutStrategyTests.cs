@@ -55,6 +55,51 @@ public sealed class InterconnectionViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Two connection usages between the SAME two parts (both <c>EndpointA=a, EndpointB=b</c>) form
+    ///     an identical directed pair. The interconnection engine de-duplicates the pair so its routed
+    ///     connector waypoints are not 1:1 with the connections; the strategy must resolve each
+    ///     connection by its endpoints (not by input position) and lay out without throwing, emitting a
+    ///     connector polyline for each of the two connections.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_TwoConnectionsSamePair_ProducesTwoConnectorsWithoutException()
+    {
+        // Arrange: a Board part def with parts a, b and two connections both between a and b.
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var board = new SysmlDefinitionNode
+        {
+            Name = "Board",
+            QualifiedName = "M::Board",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a", QualifiedName = "M::Board::a", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlFeatureNode { Name = "b", QualifiedName = "M::Board::b", FeatureKeyword = "part", FeatureTyping = "B" },
+                new SysmlConnectionNode { Name = "power", QualifiedName = "M::Board::power", ConnectionKeyword = "connection", EndpointA = "a", EndpointB = "b" },
+                new SysmlConnectionNode { Name = "signal", QualifiedName = "M::Board::signal", ConnectionKeyword = "connection", EndpointA = "a", EndpointB = "b" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["M::Board"] = board }
+        };
+        var context = new ViewContext("BoardInterconnectionView", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act: laying out must not throw even though the two connections share one routed polyline.
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: two connector polylines (one per connection), each with at least two waypoints.
+        var lines = layout.Nodes.OfType<LayoutLine>().ToList();
+        Assert.Equal(2, lines.Count);
+        Assert.All(lines, l => Assert.True(l.Waypoints.Count >= 2));
+
+        // Assert: two part boxes and one port pair per connection (four ports total).
+        Assert.Equal(2, layout.Nodes.OfType<LayoutBox>().Count(b => b.Shape == BoxShape.RoundedRectangle));
+        Assert.Equal(4, layout.Nodes.OfType<LayoutPort>().Count());
+    }
+
+    /// <summary>
     ///     The two part boxes produced for connected parts do not overlap.
     /// </summary>
     [Fact]

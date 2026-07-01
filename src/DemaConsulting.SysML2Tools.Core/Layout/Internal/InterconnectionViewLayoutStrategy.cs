@@ -207,11 +207,24 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             content.Add(MakePartBox(parts[i], new Rect(r.X + offsetX, r.Y + offsetY, r.Width, r.Height), depth + 1));
         }
 
-        // One port pair and one connector line per connection.
-        for (var i = 0; i < pairs.Count; i++)
+        // InterconnectionLayoutEngine populates ConnectorWaypoints per ACYCLIC edge: its cycle-breaking
+        // stage de-duplicates identical directed pairs and reverses back edges, so the polylines are not
+        // 1:1 with pairs (self-connections were already dropped in ResolveConnections). Build a
+        // (source, target) -> polyline lookup over the acyclic edge set and resolve each connection by
+        // its endpoints, reversing the polyline for a reversed back edge so the source/target ports
+        // stay on the correct box faces.
+        var routed = new Dictionary<(int Source, int Target), IReadOnlyList<Point2D>>();
+        for (var k = 0; k < placed.AcyclicEdges.Count; k++)
         {
-            var wp = placed.ConnectorWaypoints[i];
-            if (wp.Count < 2)
+            var edge = placed.AcyclicEdges[k];
+            routed[(edge.Source, edge.Target)] = placed.ConnectorWaypoints[k];
+        }
+
+        // One port pair and one connector line per connection.
+        foreach (var pair in pairs)
+        {
+            var wp = ResolveConnectorPolyline(pair.A, pair.B, routed);
+            if (wp is null || wp.Count < 2)
             {
                 continue;
             }
@@ -234,6 +247,34 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         }
 
         return new InteriorLayout(containerWidth, containerHeight, content);
+    }
+
+    /// <summary>
+    /// Returns the routed connector polyline for a connection, reversing it when only the opposite
+    /// direction was routed (a reversed back edge), or <see langword="null"/> when neither direction
+    /// was routed.
+    /// </summary>
+    /// <param name="a">Source part index of the connection.</param>
+    /// <param name="b">Target part index of the connection.</param>
+    /// <param name="routed">The <c>(source, target)</c> to polyline lookup over the acyclic edge set.</param>
+    /// <returns>The polyline running from part <paramref name="a"/> to <paramref name="b"/>, or null.</returns>
+    private static IReadOnlyList<Point2D>? ResolveConnectorPolyline(
+        int a,
+        int b,
+        IReadOnlyDictionary<(int Source, int Target), IReadOnlyList<Point2D>> routed)
+    {
+        if (routed.TryGetValue((a, b), out var forward))
+        {
+            return forward;
+        }
+
+        if (routed.TryGetValue((b, a), out var backward))
+        {
+            // The pipeline reversed this back edge; reverse the polyline so it runs a -> b.
+            return [.. backward.Reverse()];
+        }
+
+        return null;
     }
 
     /// <summary>

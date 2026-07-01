@@ -442,17 +442,72 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             localPos[i] = (graph.AugX[i] - minX, graph.AugY[i] - minY);
         }
 
-        // Translate each edge polyline into the same content-local frame, paired with its arrowhead
-        // and line style (dashed for attribute-typing dependencies, solid otherwise).
-        var edges = new List<(IReadOnlyList<Point2D> Points, EndMarkerStyle Arrowhead, LineStyle LineStyle)>(intraEdges.Count);
-        for (var k = 0; k < intraEdges.Count; k++)
+        // The layered pipeline populates graph.Waypoints per ACYCLIC edge, not per intra-edge: its
+        // cycle-breaking stage drops self-loops, de-duplicates identical directed pairs, and reverses
+        // back edges. Build a (source, target) -> polyline lookup over the acyclic edge set and resolve
+        // each intra-edge by its endpoints, reversing the polyline for a reversed back edge so the
+        // arrowhead lands on the true target. Each polyline is translated into the content-local frame.
+        var routed = new Dictionary<(int Source, int Target), IReadOnlyList<Point2D>>();
+        for (var k = 0; k < graph.Acyclic.Count; k++)
         {
-            var points = graph.Waypoints[k].Select(p => new Point2D(p.X - minX, p.Y - minY)).ToList();
-            edges.Add((points, intraEdges[k].Arrowhead, LineStyleForKind(intraEdges[k].Kind)));
+            var edge = graph.Acyclic[k];
+            routed[(edge.Source, edge.Target)] = graph.Waypoints[k];
+        }
+
+        var edges = new List<(IReadOnlyList<Point2D> Points, EndMarkerStyle Arrowhead, LineStyle LineStyle)>(intraEdges.Count);
+        foreach (var intra in intraEdges)
+        {
+            // Self-edges are dropped by the pipeline and have no routed polyline; skip them.
+            if (intra.SourceLocal == intra.TargetLocal)
+            {
+                continue;
+            }
+
+            var routedPoints = ResolveIntraPolyline(intra.SourceLocal, intra.TargetLocal, routed)
+                ?? [NodeCentre(graph, items, intra.SourceLocal), NodeCentre(graph, items, intra.TargetLocal)];
+
+            var points = routedPoints.Select(p => new Point2D(p.X - minX, p.Y - minY)).ToList();
+            edges.Add((points, intra.Arrowhead, LineStyleForKind(intra.Kind)));
         }
 
         return new GroupLayout(localPos, maxX - minX, maxY - minY, edges);
     }
+
+    /// <summary>
+    /// Returns the routed polyline for an intra-group edge, reversing it when only the opposite
+    /// direction was routed (a reversed back edge), or <see langword="null"/> when neither direction
+    /// was routed.
+    /// </summary>
+    /// <param name="source">Group-local index of the edge's source definition.</param>
+    /// <param name="target">Group-local index of the edge's target definition.</param>
+    /// <param name="routed">The <c>(source, target)</c> to polyline lookup over the acyclic edge set.</param>
+    /// <returns>The polyline running source to target, or null when neither direction was routed.</returns>
+    private static IReadOnlyList<Point2D>? ResolveIntraPolyline(
+        int source,
+        int target,
+        IReadOnlyDictionary<(int Source, int Target), IReadOnlyList<Point2D>> routed)
+    {
+        if (routed.TryGetValue((source, target), out var forward))
+        {
+            return forward;
+        }
+
+        if (routed.TryGetValue((target, source), out var backward))
+        {
+            // The pipeline reversed this back edge; reverse the polyline so it runs source -> target.
+            return [.. backward.Reverse()];
+        }
+
+        return null;
+    }
+
+    /// <summary>Returns the centre point of a group definition's placed box, in graph coordinates.</summary>
+    /// <param name="graph">The laid-out group graph.</param>
+    /// <param name="items">The group's definitions, in group order.</param>
+    /// <param name="index">Group-local index of the definition.</param>
+    /// <returns>The box centre used as a straight-line fallback when no route was found.</returns>
+    private static Point2D NodeCentre(LayeredGraph graph, IReadOnlyList<DefBox> items, int index) =>
+        new(graph.AugX[index] + (items[index].Width / 2.0), graph.AugY[index] + (items[index].Height / 2.0));
 
     /// <summary>
     /// Emits the layout nodes for one placed block: a package folder with its child definition boxes,

@@ -188,6 +188,103 @@ public sealed class ComponentPackerTests
         AssertWaypointOnBox(graph, edge: 1, point: -1, node: 3, eps);
     }
 
+    /// <summary>
+    ///     A single connected component containing a parallel edge and a self-loop lays out without
+    ///     throwing. The pipeline drops the self-loop and de-duplicates the parallel pair, so the
+    ///     produced Waypoints are per-acyclic-edge and index-aligned with <see cref="LayeredGraph.Acyclic"/>
+    ///     — the same contract as the default pipeline — and every input edge resolves by its endpoints.
+    /// </summary>
+    [Fact]
+    public void ComponentPacker_Apply_SingleComponent_ParallelAndSelfEdges_ProducesAlignedWaypoints()
+    {
+        // Arrange: one connected component {0,1,2} with a parallel 0->1 pair, a 1->1 self-loop, and 1->2.
+        var nodes = new List<LayerNode> { new(NodeWidth, NodeHeight), new(NodeWidth, NodeHeight), new(NodeWidth, NodeHeight) };
+        var edges = new List<LayerEdge> { new(0, 1), new(0, 1), new(1, 1), new(1, 2) };
+        var graph = new LayeredGraph(nodes, edges, LayoutDirection.Right);
+
+        // Act: must not throw despite the parallel pair and self-loop.
+        ComponentPacker.WithDefaultStages().Apply(graph);
+
+        // Assert: Waypoints are index-aligned with the acyclic edge set (the routing contract).
+        Assert.Equal(graph.Acyclic.Count, graph.Waypoints.Count);
+
+        // Assert: the self-loop is dropped and the parallel pair collapses to a single acyclic edge.
+        Assert.DoesNotContain(graph.Acyclic, e => e.Source == e.Target);
+        Assert.Equal(2, graph.Acyclic.Count);
+        Assert.Contains(graph.Acyclic, e => e.Source == 0 && e.Target == 1);
+        Assert.Contains(graph.Acyclic, e => e.Source == 1 && e.Target == 2);
+
+        // Assert: every non-self input edge (including the duplicate) resolves to a routed polyline whose
+        // endpoints lie on the correct boxes.
+        var routed = BuildRouted(graph);
+        const double eps = 3.0;
+        AssertEndpointsOnBoxes(graph, routed[(0, 1)], 0, 1, eps);
+        AssertEndpointsOnBoxes(graph, routed[(1, 2)], 1, 2, eps);
+    }
+
+    /// <summary>
+    ///     Two connected components, each containing a parallel edge and a self-loop, lay out without
+    ///     throwing (the multi-component merge path). The merged graph exposes one Waypoint per acyclic
+    ///     edge, index-aligned with <see cref="LayeredGraph.Acyclic"/>, and each edge's polyline is
+    ///     translated onto its own component's (offset) boxes.
+    /// </summary>
+    [Fact]
+    public void ComponentPacker_Apply_MultiComponent_ParallelAndSelfEdges_MergesAlignedWaypoints()
+    {
+        // Arrange: components {0,1} and {2,3}, each with a parallel pair and a self-loop.
+        var nodes = new List<LayerNode> { new(NodeWidth, NodeHeight), new(NodeWidth, NodeHeight), new(NodeWidth, NodeHeight), new(NodeWidth, NodeHeight) };
+        var edges = new List<LayerEdge> { new(0, 1), new(0, 1), new(0, 0), new(2, 3), new(2, 3), new(3, 3) };
+        var graph = new LayeredGraph(nodes, edges, LayoutDirection.Right);
+
+        // Act: must not throw despite parallel pairs and self-loops spanning two components.
+        ComponentPacker.WithDefaultStages().Apply(graph);
+
+        // Assert: Waypoints are index-aligned with the acyclic edge set (same contract as single-component).
+        Assert.Equal(graph.Acyclic.Count, graph.Waypoints.Count);
+
+        // Assert: self-loops dropped, parallel pairs collapsed — one acyclic edge per component.
+        Assert.DoesNotContain(graph.Acyclic, e => e.Source == e.Target);
+        Assert.Equal(2, graph.Acyclic.Count);
+        Assert.Contains(graph.Acyclic, e => e.Source == 0 && e.Target == 1);
+        Assert.Contains(graph.Acyclic, e => e.Source == 2 && e.Target == 3);
+
+        // Assert: each edge's polyline endpoints lie on its own component's (offset) boxes.
+        var routed = BuildRouted(graph);
+        const double eps = 3.0;
+        AssertEndpointsOnBoxes(graph, routed[(0, 1)], 0, 1, eps);
+        AssertEndpointsOnBoxes(graph, routed[(2, 3)], 2, 3, eps);
+    }
+
+    /// <summary>Builds a <c>(source, target)</c> to polyline lookup over a graph's acyclic edge set.</summary>
+    /// <param name="graph">The laid-out graph.</param>
+    /// <returns>A dictionary keyed by each acyclic edge's endpoints.</returns>
+    private static Dictionary<(int Source, int Target), IReadOnlyList<Point2D>> BuildRouted(LayeredGraph graph)
+    {
+        var routed = new Dictionary<(int Source, int Target), IReadOnlyList<Point2D>>();
+        for (var k = 0; k < graph.Acyclic.Count; k++)
+        {
+            routed[(graph.Acyclic[k].Source, graph.Acyclic[k].Target)] = graph.Waypoints[k];
+        }
+
+        return routed;
+    }
+
+    /// <summary>Asserts that a polyline's first/last waypoints lie on its source/target boxes.</summary>
+    /// <param name="graph">The laid-out graph.</param>
+    /// <param name="waypoints">The routed polyline.</param>
+    /// <param name="source">Source node index.</param>
+    /// <param name="target">Target node index.</param>
+    /// <param name="eps">Tolerance in logical pixels.</param>
+    private static void AssertEndpointsOnBoxes(LayeredGraph graph, IReadOnlyList<Point2D> waypoints, int source, int target, double eps)
+    {
+        var first = waypoints[0];
+        var last = waypoints[^1];
+        Assert.InRange(first.X, graph.AugX[source] - eps, graph.AugX[source] + graph.Nodes[source].Width + eps);
+        Assert.InRange(first.Y, graph.AugY[source] - eps, graph.AugY[source] + graph.Nodes[source].Height + eps);
+        Assert.InRange(last.X, graph.AugX[target] - eps, graph.AugX[target] + graph.Nodes[target].Width + eps);
+        Assert.InRange(last.Y, graph.AugY[target] - eps, graph.AugY[target] + graph.Nodes[target].Height + eps);
+    }
+
     /// <summary>Runs the default ELK-layered stage sequence directly on a fresh graph.</summary>
     /// <param name="nodes">Input nodes.</param>
     /// <param name="edges">Input edges.</param>
