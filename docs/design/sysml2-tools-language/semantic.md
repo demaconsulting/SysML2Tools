@@ -52,8 +52,8 @@ optionally seeded with a pre-populated symbol table.
 
 - *Type*: Sealed class.
 - *Role*: Data container.
-- *Contract*: Exposes `IReadOnlyList<string> Files` and `IReadOnlyDictionary<string, object> Declarations`
-  mapping qualified names to declaration nodes.
+- *Contract*: Exposes `IReadOnlyList<string> Files`, `IReadOnlySet<string> StdlibNames`, and
+  `IReadOnlyDictionary<string, SysmlNode> Declarations` mapping qualified names to declaration nodes.
 
 ### Design
 

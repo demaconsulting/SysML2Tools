@@ -40,4 +40,5 @@ sections:
           Cyclic specialization (A specializes B, B specializes A) is invalid in SysML v2
           and must be detected to prevent infinite loops in downstream analysis.
         tests:
+          - WorkspaceLoader_LoadAsync_CyclicSpecialization_ProducesWarning
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered

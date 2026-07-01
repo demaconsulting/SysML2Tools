@@ -23,6 +23,9 @@ sections:
           - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
           - StateTransitionView_BuildLayout_StatesAndTransitions_ProducesBoxesBadgeAndLines
           - ActionFlowView_BuildLayout_ActionsAndSuccessions_ProducesBoxesMarkersAndFlows
+          - SequenceView_BuildLayout_Messages_ProducesLifelinesAndOrderedLines
+          - GridView_BuildLayout_Specialization_ProducesMarkedMatrix
+          - BrowserView_BuildLayout_NestedElements_AreIndentedByDepth
 
       - id: SysML2Tools-Core-Layout-Internal-EmptyCanvas
         title: >-
@@ -37,6 +40,8 @@ sections:
           - InterconnectionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
           - StateTransitionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
           - ActionFlowView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
+          - SequenceView_BuildLayout_NoMessages_ReturnsMinimalCanvas
+          - BrowserAndGrid_BuildLayout_EmptyWorkspace_ReturnMinimalCanvas
 
       - id: SysML2Tools-Core-Layout-Internal-StdlibExclusion
         title: >-
@@ -58,3 +63,18 @@ sections:
           of the produced geometry that every view layout must guarantee.
         tests:
           - InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap
+
+      - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings
+        title: >-
+          When a view layout cannot avoid a layout-quality problem such as a connector
+          crossing a box, the view layout strategies shall surface a non-fatal warning
+          identifying the affected view, and shall emit no warning for a clean layout.
+        justification: |
+          Layout-quality problems degrade diagram readability but should not fail the render.
+          Surfacing a warning lets the user judge and address the problem, while withholding a
+          warning for a clean layout keeps attention on real issues. The warning text is the
+          observable evidence of this behavior.
+        tests:
+          - ForCrossings_Zero_ReturnsEmpty
+          - ForCrossings_One_ReturnsSingularWarning
+          - ForCrossings_Many_ReturnsPluralWarning

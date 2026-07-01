@@ -25,6 +25,11 @@ The following topics are out of scope:
 
 - Design documents are not produced for the test projects or build pipeline CI configuration.
 - The internal design of OTS software items is excluded; only integration and usage design is documented.
+- **`src/Tools/StdlibGen`** is build-time tooling (a console pre-compiler that parses the stdlib
+  source files and writes `stdlib.bin`). Like the build pipeline, it is not part of the delivered
+  software and is therefore excluded from the software-items requirements, design, and verification
+  tree. It is listed under _Software Structure_ for navigation only; the absence of requirements,
+  design, and verification artifacts for it is intentional, not a decomposition gap.
 
 ## Software Structure
 
@@ -53,6 +58,7 @@ system, subsystem, and unit levels:
   library binary embedded as a managed resource
   - **StdlibProvider** (Unit) — lazy-cached GetSymbolTable() deserialized from embedded stdlib.bin
 - **StdlibGen** (Build-time tool) — console tool that parses stdlib source files and writes stdlib.bin
+  (build-time tooling; excluded from the software-items requirements/design/verification tree — see _Scope_)
   - **Program** (Unit) — entry point: parses stdlib, runs resolution, serializes to stdlib.bin
 - **DemaConsulting.SysML2Tools** (System) — core library: layout, rendering interfaces, and DiagramRenderer
   - **Layout** (Subsystem) — LayoutTree intermediate representation (node types covering all SysML

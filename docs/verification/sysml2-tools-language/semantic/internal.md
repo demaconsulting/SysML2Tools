@@ -40,3 +40,4 @@ Traceability to `WorkspaceLoaderTests` test methods:
 | `ReferenceResolver` — unresolved ref | `WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning` |
 | `ReferenceResolver` — circular import | `WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop` |
 | `SupertypeWalker` — chain walking | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
+| `SupertypeWalker` — cyclic detection | `WorkspaceLoader_LoadAsync_CyclicSpecialization_ProducesWarning` |

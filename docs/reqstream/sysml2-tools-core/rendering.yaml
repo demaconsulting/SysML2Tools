@@ -12,9 +12,10 @@ sections:
     requirements:
       - id: SysML2Tools-Core-Rendering-IRenderer
         title: >-
-          The Rendering subsystem shall define an IRenderer interface with a MediaType
-          property, a DefaultExtension property, and a Render method that writes a
-          LayoutTree to an output Stream using the supplied RenderOptions.
+          The Rendering subsystem shall provide format renderers that each report the
+          media type and the default file extension of the output they produce, and that
+          write a laid-out diagram to a caller-supplied output stream according to the
+          supplied render options.
         justification: |
           A common IRenderer contract allows the orchestrator (DiagramRenderer) and the
           CLI tool to treat SVG and PNG renderers uniformly. Callers can select a renderer
@@ -28,8 +29,9 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-IRendererStateless
         title: >-
-          IRenderer implementations shall be pure and stateless, and shall not perform
-          any filesystem access.
+          A format renderer shall be pure and stateless and shall not access the
+          filesystem, writing its output solely to the caller-supplied stream so it is
+          safe to reuse and to invoke concurrently.
         justification: |
           Stateless renderers are safe to call concurrently from multiple threads and
           can be reused across multiple Render invocations without side effects. Prohibiting
@@ -41,9 +43,10 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-Theme
         title: >-
-          The Rendering subsystem shall define a Theme record containing DepthFillColors,
-          StrokeColor, StrokeWidth, LineCornerRadius, FontSizeTitle, FontSizeBody,
-          LabelPadding, ConnectorStub, and BendRadius fields.
+          The Rendering subsystem shall provide a theme that determines a diagram's
+          complete appearance — including per-depth fill colors, stroke color and width,
+          line corner radius, title and body font sizes, label padding, and connector stub
+          and bend geometry — so that appearance is governed entirely by the selected theme.
         justification: |
           Centralizing all visual parameters in a Theme record allows the entire appearance
           of a rendered diagram to be changed by substituting a single object, without
@@ -57,8 +60,9 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-ThemeApproachZone
         title: >-
-          The Theme shall expose a ConnectorApproachZone helper returning the sum of ConnectorStub,
-          BendRadius, and the supplied connector clearance.
+          A theme shall define a connector approach zone — the clear distance a connector
+          needs off a box face before bending — equal to the sum of its connector stub
+          length, bend radius, and the supplied connector clearance.
         justification: |
           The approach zone is the clear distance a connector needs off a box face before bending;
           deriving it from the theme keeps connector geometry consistent across layout and routing.
@@ -67,9 +71,9 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-ThemeDepthWrap
         title: >-
-          The renderer shall derive the fill color for a LayoutBox by indexing into
-          Theme.DepthFillColors using the modulo of LayoutBox.Depth and the color list
-          count, so that deeply nested boxes always receive a valid color.
+          The renderer shall assign every box a valid fill color from the theme regardless
+          of its nesting depth, cycling through the theme's depth fill colors so that boxes
+          nested more deeply than the palette still receive a color.
         justification: |
           Modulo wrapping ensures that diagrams with nesting deeper than the theme's
           color palette never produce an index-out-of-range error. It also creates a
@@ -79,9 +83,9 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-RenderOptions
         title: >-
-          The Rendering subsystem shall define a RenderOptions record with a Theme,
-          a Scale factor (default 1.0), a Dpi value (default 96), and a DepthLimit
-          (default 0, meaning unlimited).
+          The Rendering subsystem shall let callers supply render options — a theme, a
+          scale factor defaulting to 1.0, an output resolution defaulting to 96 DPI, and a
+          depth limit defaulting to 0 (meaning unlimited) — that govern how a diagram is produced.
         justification: |
           RenderOptions bundles all rendering parameters into one object passed to both
           ILayoutStrategy.BuildLayout and IRenderer.Render. A DepthLimit of 0 meaning
@@ -93,9 +97,9 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-ILayoutStrategy
         title: >-
-          The Rendering subsystem shall define an ILayoutStrategy interface with a
-          BuildLayout method that accepts a ViewContext and RenderOptions and returns
-          a LayoutTree with all positions and line waypoints fully resolved.
+          The Rendering subsystem shall compute, for a given view and set of render
+          options, a fully resolved diagram layout in which every element position and
+          every connector waypoint is determined before rendering.
         justification: |
           Separating layout computation from rendering allows different layout algorithms
           (e.g., hierarchical, force-directed) to produce the same LayoutTree representation
@@ -105,9 +109,8 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-DiagramRenderer
         title: >-
-          The Rendering subsystem shall provide a DiagramRenderer class that, for each
-          view in a SysmlWorkspace, calls ILayoutStrategy.BuildLayout to produce a
-          LayoutTree and then calls IRenderer.Render to produce a RenderOutput.
+          For each view in a workspace, the Rendering subsystem shall lay the view out and
+          render it, producing one rendered output per view.
         justification: |
           DiagramRenderer is the single orchestration point that wires together the
           layout and rendering pipeline. Centralizing this loop ensures consistent
@@ -117,8 +120,10 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-RenderOutput
         title: >-
-          The Rendering subsystem shall define a RenderOutput record containing a
-          SuggestedFileName, MediaType, and Data stream for each rendered view.
+          For each rendered view, the Rendering subsystem shall produce an output carrying
+          a suggested file name, the output's media type, and the rendered data stream, so
+          that callers can persist or transmit the result without the renderer deciding
+          where it goes.
         justification: |
           RenderOutput decouples the renderer from filesystem decisions. Callers receive
           a suggested file name and media type alongside the data stream and can write
@@ -128,9 +133,9 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-BuiltinThemes
         title: >-
-          The Rendering subsystem shall provide at least three built-in Theme instances:
-          Themes.Light (screen display), Themes.Dark (dark-mode display), and
-          Themes.Print (black-and-white output).
+          The Rendering subsystem shall provide at least three built-in themes: a light
+          theme for screen display, a dark theme for dark-mode display, and a print theme
+          for black-and-white output.
         justification: |
           Built-in themes allow callers to produce professional output without specifying
           every visual parameter. They also serve as reference values for testing and as

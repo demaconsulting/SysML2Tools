@@ -1,13 +1,50 @@
 ---
-# SysML2Tools Core Library System-Level Requirements (Phase 5)
+# SysML2Tools Core Library System-Level Requirements
 #
 # PURPOSE:
 # - Define system-level requirements for the DemaConsulting.SysML2Tools core library
 # - Core library provides: Layout, Rendering interfaces, DiagramRenderer
-# - Parsing and semantic model are now in DemaConsulting.SysML2Tools.Language
-# - Standard library is now in DemaConsulting.SysML2Tools.Stdlib
-# - Requirements will be populated in Phase 6+
+# - Parsing and semantic model are in DemaConsulting.SysML2Tools.Language
+# - Standard library is in DemaConsulting.SysML2Tools.Stdlib
+# - Requirements describe observable system behavior (WHAT the library produces),
+#   not the internal orchestration API. System-level evidence comes from the
+#   end-to-end rendering integration tests.
 
 sections:
   - title: SysML2ToolsLibrary Requirements
-    requirements: []
+    requirements:
+      - id: SysML2Tools-Core-RenderViewsInWorkspace
+        title: >-
+          The core library shall produce a rendered diagram output for each user-defined
+          view in a loaded workspace.
+        justification: |
+          The core library's purpose is to turn a loaded SysML workspace into rendered
+          diagrams. Producing one output per user-defined view is the fundamental service
+          the library offers to its callers (the CLI tool and library consumers).
+        tests:
+          - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsSvgOutput
+          - DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames
+
+      - id: SysML2Tools-Core-RenderToSelectedFormat
+        title: >-
+          The core library shall render the views of a workspace to a caller-selected
+          output format, supporting both vector (SVG) and raster (PNG) output.
+        justification: |
+          Callers choose the delivery format for their documentation pipeline. Supporting
+          both a vector format (SVG) and a raster format (PNG) from the same workspace lets
+          consumers select the representation appropriate to their target without changing
+          how the workspace is prepared.
+        tests:
+          - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsSvgOutput
+          - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_PngRenderer_ReturnsPngOutput
+          - DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput
+
+      - id: SysML2Tools-Core-RenderDepictsViewElements
+        title: >-
+          A rendered diagram shall depict the model elements that belong to its view.
+        justification: |
+          A diagram that omits the elements of its view has no value. Confirming that the
+          rendered output contains the view's model elements proves the full workspace-to-diagram
+          pipeline produces meaningful, non-empty results.
+        tests:
+          - DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames

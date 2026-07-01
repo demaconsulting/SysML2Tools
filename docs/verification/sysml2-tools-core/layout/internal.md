@@ -20,6 +20,8 @@ configuration are required beyond a standard .NET SDK installation.
 - A workspace with no relevant elements yields a minimal empty canvas with no nodes.
 - Standard-library elements are absent from the produced diagrams.
 - Boxes within a diagram do not overlap one another.
+- A layout-quality problem such as a connector crossing a box surfaces a non-fatal warning
+  naming the affected view, while a clean layout produces no warning.
 
 #### Test Scenarios
 
@@ -31,4 +33,8 @@ configuration are required beyond a standard .NET SDK installation.
 | Non-overlapping part boxes | `InterconnectionViewLayoutStrategy` | No two part boxes overlap |
 | States, marker, and transitions | `StateTransitionViewLayoutStrategy` | State boxes, initial badge, guard lines |
 | Actions, markers, and flows | `ActionFlowViewLayoutStrategy` | Action boxes, start/done markers, and flow lines |
+| Lifelines and ordered messages | `SequenceViewLayoutStrategy` | One lifeline per participant, ordered message lines |
+| Specialization matrix | `GridViewLayoutStrategy` | Header row/column of names, marks at related cells |
+| Indented membership tree | `BrowserViewLayoutStrategy` | Nested elements indented beyond their parents |
+| Layout-quality warning | `LayoutWarnings` | Crossing connectors surface a view-named warning; none when clean |
 | Empty workspace | All strategies | A minimal empty canvas with no nodes |

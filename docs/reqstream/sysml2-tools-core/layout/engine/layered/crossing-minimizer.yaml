@@ -22,11 +22,12 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Engine-Layered-CrossingMinimizer-CrossingReduction
         title: >-
-          CrossingMinimizer shall order nodes within each layer by the average position of their
-          neighbors so that edge crossings between adjacent layers are reduced.
+          CrossingMinimizer shall order the dummy nodes inserted for long edges together with the
+          real nodes, keeping every augmented node in exactly one layer group after ordering.
         justification: |
-          Barycenter ordering is the observable behavior that keeps connectors from crossing
-          unnecessarily, which is required for readable diagrams.
+          Long edges are split into dummy nodes so each edge spans a single layer; those dummies
+          must be ordered alongside real nodes so that crossing reduction covers the whole augmented
+          graph. Confirming the ordered groups still partition every augmented node — real and dummy —
+          exactly once proves the dummies are carried through the ordering.
         tests:
           - CrossingMinimizer_Apply_AllAugmentedNodesAppearInGroups
-          - Pipeline_MatchesLegacyOracle_OnRandomGraphs

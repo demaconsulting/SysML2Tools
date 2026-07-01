@@ -12,9 +12,9 @@ sections:
     requirements:
       - id: SysML2Tools-Core-Rendering-DiagramRenderer-RendersEachView
         title: >-
-          For each user-defined view in a workspace, DiagramRenderer.RenderWorkspace shall build a
-          LayoutTree via the selected ILayoutStrategy and render it via the supplied IRenderer,
-          returning one RenderOutput whose content reflects the rendered elements.
+          For each user-defined view in a workspace, the diagram renderer shall lay the
+          view out and render it, returning one output whose content reflects the view's
+          rendered elements.
         justification: |
           DiagramRenderer is the single orchestration point that wires layout and rendering together.
           Producing one output per view, with the view's elements present in the output, proves the
@@ -25,7 +25,7 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-DiagramRenderer-RendererAgnostic
         title: >-
-          DiagramRenderer.RenderWorkspace shall drive any IRenderer implementation, producing valid
+          The diagram renderer shall drive any supplied format renderer, producing valid
           format-specific output for both the SVG and PNG renderers from the same workspace.
         justification: |
           Because the orchestrator depends only on the IRenderer contract, the same pipeline serves
@@ -36,7 +36,7 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-DiagramRenderer-NoViews
         title: >-
-          DiagramRenderer.RenderWorkspace shall return an empty result when the workspace contains
+          The diagram renderer shall return an empty result when the workspace contains
           no user-defined view declarations, fabricating no output.
         justification: |
           A workspace without views has nothing to render. Returning an empty list rather than a

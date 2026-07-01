@@ -94,10 +94,6 @@ sysml2tools --version
 # Display help
 sysml2tools --help
 
-# Verb-specific help
-sysml2tools --help lint
-sysml2tools --help render
-
 # Run self-validation
 sysml2tools --validate
 
@@ -112,7 +108,7 @@ sysml2tools --silent --log output.log
 ## Command-Line Reference
 
 ```text
-sysml2tools [-v|--version] [-?|-h|--help [<verb>]] [--silent]
+sysml2tools [-v|--version] [-?|-h|--help] [--silent]
             [--validate] [--result|--results <file>] [--depth <#>] [--log <file>]
             [<verb> [verb-options] [<globs>]]
 ```
@@ -122,7 +118,7 @@ sysml2tools [-v|--version] [-?|-h|--help [<verb>]] [--silent]
 | Option | Description |
 | --- | --- |
 | `-v`, `--version` | Display version information |
-| `-?`, `-h`, `--help [<verb>]` | Display help; optionally for a specific verb |
+| `-?`, `-h`, `--help` | Display help |
 | `--silent` | Suppress console output |
 | `--validate` | Run self-validation tests |
 | `--results <file>`, `--result <file>` | Write validation results to `.trx` (TRX) or `.xml` (JUnit) |

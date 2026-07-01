@@ -89,8 +89,10 @@ pairs.
 ###### Placement and routing
 
 All placement and routing are delegated to `InterconnectionLayoutEngine.Place`, a thin façade
-that assembles and runs the reusable `LayeredLayoutPipeline` (configured `RIGHT` with recursive
-nested-container hierarchy). The strategy passes the collected part boxes and resolved
+that assembles and runs the reusable `LayeredLayoutPipeline` (configured `RIGHT` with flat
+hierarchy — `HierarchyHandling.Flat`). Nested-container recursion is driven at the strategy level
+(see _Recursive nested layout_ above), not by the engine; each level calls the same flat engine.
+The strategy passes the collected part boxes and resolved
 connection pairs as plain geometric input; the engine returns placed rectangles and connector
 waypoints. Within the pipeline, layers are assigned by `LayerAssigner`, node coordinates by
 `BrandesKopfPlacer`, ports are distributed along box faces by `PortDistributor`, and connectors
@@ -105,8 +107,8 @@ container so every connector waypoint is enclosed, without ever moving a box.
 
 Null `context` or `options` arguments throw `ArgumentNullException`. The absence of an eligible
 part definition or of nested parts is not an error: the method returns the minimal empty canvas.
-Connectors that cannot be routed cleanly are still drawn and counted as crossings, which are
-surfaced through `LayoutWarnings`.
+Connectors that cannot be routed cleanly are still drawn; this strategy does not itself construct
+`LayoutWarnings` diagnostics, so the returned `LayoutTree` carries no layout-quality warnings.
 
 ##### Dependencies
 
@@ -115,7 +117,6 @@ surfaced through `LayoutWarnings`.
   (Layout Engine subsystem) — the façade that runs the layered pipeline for placement, ports, and routing.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode`, `SysmlConnectionNode` (Semantic subsystem) — model input.
-- `LayoutWarnings` (Layout Internal subsystem) — crossing-warning construction.
 - The `LayoutTree`, `LayoutBox`, `LayoutPort`, and `LayoutLine` data types (Layout subsystem).
 
 ##### Callers

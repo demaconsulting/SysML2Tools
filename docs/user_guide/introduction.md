@@ -129,19 +129,12 @@ The following global options are accepted before the verb:
 | Option | Description |
 | --- | --- |
 | `-v`, `--version` | Display version information |
-| `-?`, `-h`, `--help [<verb>]` | Display help; optionally for a specific verb |
+| `-?`, `-h`, `--help` | Display help |
 | `--silent` | Suppress console output |
 | `--validate` | Run self-validation tests |
 | `--results <file>`, `--result <file>` | Write validation results to `.trx` or `.xml` |
 | `--depth <#>` | Set heading depth for validation output (default: 1) |
 | `--log <file>` | Write all output to a log file |
-
-Verb-specific help is available via either form:
-
-```bash
-sysml2tools --help lint
-sysml2tools lint --help
-```
 
 # Self-Validation
 

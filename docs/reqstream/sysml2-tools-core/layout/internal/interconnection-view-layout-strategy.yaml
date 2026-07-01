@@ -12,12 +12,31 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Internals
         title: >-
           InterconnectionViewLayoutStrategy shall render the selected part definition as a
-          container box enclosing one box per nested part usage, a port on each part box for every
-          incident connection, and one connector line per connection.
+          container box enclosing one box per nested part usage.
         justification: |
           An Interconnection View exists to show the internal structure of a part definition — its
-          nested parts and how they are connected. The container box, part boxes, ports, and
-          connector lines are the observable content the view must provide.
+          nested parts inside a container. The container box and one box per nested part are the
+          observable content the view must provide.
+        tests:
+          - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Ports
+        title: >-
+          InterconnectionViewLayoutStrategy shall place a port on a part box for every connection
+          incident to that part.
+        justification: |
+          Connections attach to parts at ports. Providing one port per incident connection is the
+          observable anchor the connector lines are drawn between.
+        tests:
+          - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Connectors
+        title: >-
+          InterconnectionViewLayoutStrategy shall draw one connector line for each connection between
+          nested parts.
+        justification: |
+          The connections between nested parts are the relationships an Interconnection View
+          communicates; drawing one connector line per connection is the observable evidence of them.
         tests:
           - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
 

@@ -22,7 +22,8 @@ external services, network access, or additional configuration are required beyo
 - Nested packages register both parent and child qualified names.
 - Part definitions register their qualified names.
 - Calling `LoadAsync` with no files returns a non-null workspace containing stdlib declarations.
-- Loading all 94 stdlib files results in `HasErrors = false` and a non-empty `Declarations`.
+- Seeding from the pre-compiled stdlib symbol table with no user files results in
+  `HasErrors = false` and a non-empty `Declarations`.
 - A resolved specialization (`specializes` with a known type) produces no unresolved Warning.
 - An unresolved supertype reference produces exactly one `Warning`-severity diagnostic.
 - A circular import produces a `Warning`-severity diagnostic and completes in finite time.
