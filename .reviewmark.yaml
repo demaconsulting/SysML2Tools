@@ -110,7 +110,6 @@ reviews:
       - "docs/design/sysml2-tools-language.md"
       - "docs/verification/introduction.md"
       - "docs/verification/sysml2-tools-language.md"
-      - "src/DemaConsulting.SysML2Tools.Language/**/*.cs"
 
   - id: SysML2Tools-Language-Design
     title: Review that DemaConsulting.SysML2Tools.Language Design is Consistent and Complete
@@ -168,8 +167,6 @@ reviews:
       - "docs/design/sysml2-tools-stdlib.md"
       - "docs/verification/introduction.md"
       - "docs/verification/sysml2-tools-stdlib.md"
-      - "src/DemaConsulting.SysML2Tools.Stdlib/**/*.cs"
-      - "src/Tools/StdlibGen/**/*.cs"
 
   - id: SysML2Tools-Stdlib-Design
     title: Review that DemaConsulting.SysML2Tools.Stdlib Design is Consistent and Complete

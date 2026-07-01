@@ -16,7 +16,6 @@ resource-path:
   - docs/design/sysml2-tools-tool
   - docs/design/sysml2-tools-tool/cli
   - docs/design/sysml2-tools-tool/lint
-  - docs/design/sysml2-tools-tool/render
   - docs/design/sysml2-tools-tool/self-test
   - docs/design/sysml2-tools-tool/utilities
   - docs/design/ots

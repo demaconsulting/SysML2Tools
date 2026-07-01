@@ -16,7 +16,6 @@ resource-path:
   - docs/verification/sysml2-tools-tool
   - docs/verification/sysml2-tools-tool/cli
   - docs/verification/sysml2-tools-tool/lint
-  - docs/verification/sysml2-tools-tool/render
   - docs/verification/sysml2-tools-tool/self-test
   - docs/verification/sysml2-tools-tool/utilities
   - docs/verification/ots
