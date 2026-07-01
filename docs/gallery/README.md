@@ -35,7 +35,8 @@ SVG: [`svg/DroneGeneralView.svg`](svg/DroneGeneralView.svg)
 ## 2. Interconnection View — Desktop Workstation
 
 Shows the internal structure of a part: nested part usages placed by the
-force-directed engine, ports on box boundaries, and connectors routed between them.
+interconnection layout engine (a façade over the layered pipeline), ports on box
+boundaries, and connectors routed between them.
 The motherboard sits at the hub of the component connections.
 
 Model: [`models/02-computer-interconnection.sysml`](models/02-computer-interconnection.sysml) ·

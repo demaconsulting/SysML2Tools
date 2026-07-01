@@ -59,19 +59,9 @@ system, subsystem, and unit levels:
     diagram elements), reusable layout engines, and per-view layout strategies
     - **Engine** (Subsystem) — reusable, model-independent geometric layout engines
       - **ChannelRouter** (Unit) — orthogonal connector routing with obstacle avoidance and clearance
-      - **ForceDirectedEngine** (Unit) — force-directed node placement from connection springs
-        (production-unused after the State Transition View moved to the layered pipeline; retained as a
-        future-removal candidate)
-      - **PortAssigner** (Unit) — assigns ports to box sides and distributes them along each edge
-      - **LayeredLayoutEngine** (Unit) — layered (Sugiyama-style) top-to-bottom placement
-        (production-unused after the Action Flow View moved to the layered pipeline; retained as a
-        future-removal candidate)
       - **ContainmentPacker** (Unit) — packs sized boxes within a bounded container region
-      - **ConnectivityAnalyzer** (Unit) — sparse adjacency, layer hints, and community detection
       - **InterconnectionLayoutEngine** (Unit) — façade that assembles and runs the layered
         pipeline for the interconnection view, preserving its public placement API
-      - **GravityCompressor** (Unit) — separates overlapping boxes to a minimum clearance
-      - **GridQuantizer** (Unit) — snaps boxes to a grid and unifies aligned column widths/row heights
       - **Layered** (Subsystem) — reusable, ELK-style layered layout pipeline of single-responsibility stages
         - **LayeredGraph** (Unit) — mutable shared state threaded through the pipeline stages
         - **LayeredLayoutPipeline** (Unit) — builds and runs an ordered sequence of layout stages
@@ -275,11 +265,11 @@ human-readable message. The `lint` command makes this output useful for AI-assis
 model authoring loops.
 
 **Layout engines are independent and reusable.** Non-trivial layout algorithms
-(`ContainmentPacker`, `ChannelRouter`, `ForceDirectedEngine`, `PortAssigner`,
-`LayeredLayoutEngine`) live in `Layout/Engine/` with no dependency on the SysML
-semantic model. Each engine accepts plain geometric input and returns computed
-geometry, making them independently testable and reusable across multiple view
-strategies. See `ROADMAP.md` for the phased introduction of each engine.
+(`ContainmentPacker`, `ChannelRouter`, `InterconnectionLayoutEngine`, and the
+reusable `LayeredLayoutPipeline` and its stages) live in `Layout/Engine/` with no
+dependency on the SysML semantic model. Each engine accepts plain geometric input
+and returns computed geometry, making them independently testable and reusable across
+multiple view strategies. See `ROADMAP.md` for the phased introduction of each engine.
 
 **Theme record is a compile-time constant in v1.** Loadable theme files are deferred
 to v2. The Theme record data structure is defined in v1 so that v2 loadable themes

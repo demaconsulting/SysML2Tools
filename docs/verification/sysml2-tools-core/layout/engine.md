@@ -28,9 +28,8 @@ files, or configuration are required beyond a standard .NET SDK installation.
 | Orthogonal path with no obstacles | `ChannelRouter` | Every segment is axis-aligned |
 | Path around an obstacle | `ChannelRouter` | No segment crosses the obstacle interior |
 | Clean route respects clearance | `ChannelRouter` | Segments stay the requested clearance from obstacles |
-| Connected graph placement | `ForceDirectedEngine` | No overlaps; all rectangles within bounds |
-| Deterministic placement | `ForceDirectedEngine` | Identical input yields identical output |
-| Layered chain | `LayeredLayoutEngine` | Layers increase along the flow direction |
-| Same-layer nodes | `LayeredLayoutEngine` | Nodes in one layer do not overlap |
-| Port distribution | `PortAssigner` | Ports on one side are spread without coincidence |
+| Bounded packing | `ContainmentPacker` | All packed rectangles lie within the reported bounds |
+| Layered chain | `LayerAssigner` (Layered) | Layers increase monotonically along the flow direction |
+| Independent components | `ComponentPacker` (Layered) | Separately packed components do not overlap |
+| Deterministic packing | `ComponentPacker` (Layered) | Identical input yields identical geometry |
 | Container packing | `ContainmentPacker` | Packed boxes fit within the container |

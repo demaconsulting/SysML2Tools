@@ -19,8 +19,8 @@ sections:
           synthetic geometric input.
         tests:
           - Route_NoObstacles_ProducesOrthogonalPath
-          - Place_ConnectedGraph_AllRectsWithinBounds
-          - Place_Chain_AssignsIncreasingLayers
+          - Pack_MixedSizes_AllRectsWithinBounds
+          - LayerAssigner_Apply_LinearChain_AssignsMonotonicLayers
 
       - id: SysML2Tools-Core-Layout-Engine-NonOverlapping
         title: >-
@@ -30,8 +30,8 @@ sections:
           Overlapping boxes produce unreadable diagrams. Non-overlap is an observable
           property of the produced geometry that any placement engine must guarantee.
         tests:
-          - Place_SameLayerNodes_DoNotOverlap
-          - Place_ConnectedGraph_ProducesNoOverlaps
+          - Pack_MixedSizes_ProducesNoOverlaps
+          - ComponentPacker_Apply_DisconnectedSingletons_PackSeparately
 
       - id: SysML2Tools-Core-Layout-Engine-Deterministic
         title: >-
@@ -41,5 +41,5 @@ sections:
           Deterministic output is required for reproducible diagrams, stable golden-image
           tests, and meaningful diffs between renders of the same model.
         tests:
-          - Place_SameInput_IsDeterministic
+          - ComponentPacker_Apply_ComponentOrder_IsDeterministic
           - Route_AlignedEndpoints_ProducesStraightLine

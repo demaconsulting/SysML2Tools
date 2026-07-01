@@ -186,8 +186,8 @@ Beyond the `LayoutTree` data model described above, the Layout subsystem contain
 sub-subsystems and one helper unit, each documented in its own chapter:
 
 - **Engine** — the reusable, model-independent geometric layout engines (`ChannelRouter`,
-  `ForceDirectedEngine`, `PortAssigner`, `LayeredLayoutEngine`, `ContainmentPacker`). See
-  the *Layout Engine Subsystem* chapter.
+  `ContainmentPacker`, `InterconnectionLayoutEngine`, and the reusable `LayeredLayoutPipeline`
+  provided by the nested `Layered` sub-subsystem). See the *Layout Engine Subsystem* chapter.
 - **Internal** — the per-view layout strategies that map the semantic model to a
   `LayoutTree` (general, interconnection, state transition, action flow, sequence, grid, and
   browser views), plus `LayoutWarnings`. See the *Layout Internal Subsystem* chapter.

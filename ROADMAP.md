@@ -37,9 +37,9 @@ Each phase below is independently reviewable and ships behind the same quality g
 | Parser + OMG stdlib (ANTLR4) | ✅ Complete |
 | Semantic model (symbol table, reference resolution, supertype walking) | ✅ Complete |
 | `LayoutTree` intermediate representation (9 node types) | ✅ Complete |
-| Layout engines: `ContainmentPacker`, `ChannelRouter`, `ForceDirectedEngine`, `PortAssigner`, `LayeredLayoutEngine` | ✅ Complete |
+| Layout engines: `ContainmentPacker`, `ChannelRouter`, `InterconnectionLayoutEngine`, and the reusable `LayeredLayoutPipeline` | ✅ Complete |
 | General View (definitions, compartments, specialization edges, folder packages) | ✅ Complete |
-| Interconnection View (force-directed parts, ports, connectors) | ✅ Complete |
+| Interconnection View (pipeline-placed parts via `InterconnectionLayoutEngine`, ports, connectors) | ✅ Complete |
 | State Transition View (states, guarded transitions, initial marker) | ✅ Complete |
 | Action Flow View (layered actions, start/done markers, branches) | ✅ Complete |
 | Sequence View (lifelines + messages) | ✅ Complete |
@@ -242,6 +242,12 @@ diamonds appear where membership is shown.
 
 ### Phase 14a — Layout Engine v2: Core Pipeline
 
+> **Superseded.** The `ConnectivityAnalyzer`, `GravityCompressor`, `GridQuantizer`,
+> `ForceDirectedEngine`, and `LayeredLayoutEngine` engines named below were removed as
+> dead code; layered views now obtain their geometry from the reusable
+> `LayeredLayoutPipeline` and its single-responsibility stages. This section is retained
+> for historical context only.
+
 Replace the ad-hoc placement and heat-expansion logic with a principled, axis-symmetric
 layout algorithm — Steps 1–3 and 5–11 of the algorithm specified in `docs/layout/`
 (HighwayAssigner and corridor-constrained routing are deferred to Phase 14b, keeping
@@ -281,6 +287,11 @@ flow; no regression on any existing gallery model.
 
 ### Phase 14b — Layout Engine v2: Highway Routing — ✅ Complete
 
+> **Superseded.** The `HighwayAssigner`, `GravityCompressor`, `GridQuantizer`, and
+> `PortAssigner` engines named below were removed as dead code; layered views now obtain
+> their geometry from the reusable `LayeredLayoutPipeline` and its stages. This section is
+> retained for historical context only.
+
 Layer the highway assignment algorithm (Step 4) on top of the Phase 14a pipeline,
 upgrading GravityCompressor to honour corridor constraints and ChannelRouter to apply
 the highway cost-discount map.
@@ -311,6 +322,10 @@ fan) shows visibly bundled wires; merged trunk notation appears on congested fac
 regression on any Phase 14a visual gate.
 
 ### Phase 14c — Layout Quality: Approach Zones & Connector Clarity
+
+> **Superseded.** The `GravityCompressor` and `GridQuantizer` engines referenced below were
+> removed as dead code; layered views now obtain their geometry from the reusable
+> `LayeredLayoutPipeline` and its stages. This section is retained for historical context only.
 
 Eliminate the remaining visual defects in block-and-connector diagrams by
 making the placement-to-routing handoff connector-aware. The three identified
@@ -507,16 +522,18 @@ These remain explicitly out of the 0.1.0 scope unless pulled forward:
 
 ## 7. Layout Engine Architecture (reference)
 
-Five reusable, stateless engines in `Layout/Engine/` accept plain geometric input (no SysML
-model references) and return computed geometry; each is independently unit-tested.
+Reusable, stateless engines in `Layout/Engine/` accept plain geometric input (no SysML
+model references) and return computed geometry; each is independently unit-tested. Layered
+views (General, State Transition, Action Flow) drive their geometry through the reusable
+`LayeredLayoutPipeline` and its single-responsibility stages; `InterconnectionLayoutEngine`
+is a thin façade over that same pipeline.
 
 | Engine | Capability | Used by |
 |---|---|---|
 | `ContainmentPacker` | Bottom-up sizing + bin-packing of children in a container | General, Interconnection |
 | `ChannelRouter` | Orthogonal edge routing around obstacles, clearance-retry, perpendicular stubs | General, Interconnection, State |
-| `ForceDirectedEngine` | Fruchterman-Reingold spring placement | Interconnection, State |
-| `PortAssigner` | Port-side assignment + slot distribution along an edge | Interconnection |
-| `LayeredLayoutEngine` | Simplified Sugiyama (layering + barycenter ordering + x-alignment) | — (production-unused after Action Flow moved to the layered pipeline; follow-up removal candidate) |
+| `InterconnectionLayoutEngine` | Façade assembling the layered pipeline (`RIGHT`, recursive nesting) for the interconnection view | Interconnection |
+| `LayeredLayoutPipeline` | Reusable ELK-style Sugiyama pipeline of single-responsibility stages | General, State, Action Flow, Interconnection |
 
 Helper units: `ConnectorLabelPlacer` (collision-aware label placement), `LayoutWarnings`
 (layout diagnostics), `BoxMetrics` (sizing). Sequence/Grid/Browser/Geometry layouts are pure

@@ -43,9 +43,6 @@ input-files:
   - docs/verification/sysml2-tools-core/layout/connector-label-placer.md
   - docs/verification/sysml2-tools-core/layout/engine.md
   - docs/verification/sysml2-tools-core/layout/engine/channel-router.md
-  - docs/verification/sysml2-tools-core/layout/engine/force-directed-engine.md
-  - docs/verification/sysml2-tools-core/layout/engine/port-assigner.md
-  - docs/verification/sysml2-tools-core/layout/engine/layered-layout-engine.md
   - docs/verification/sysml2-tools-core/layout/engine/containment-packer.md
   - docs/verification/sysml2-tools-core/layout/internal.md
   - docs/verification/sysml2-tools-core/layout/internal/general-view-layout-strategy.md
