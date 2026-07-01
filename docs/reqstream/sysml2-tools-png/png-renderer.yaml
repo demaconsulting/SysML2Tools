@@ -1,0 +1,95 @@
+---
+# PngRenderer Unit Requirements
+#
+# PURPOSE:
+# - Define unit-level requirements for the PngRenderer class, the single unit of the
+#   DemaConsulting.SysML2Tools.Png system
+# - These requirements decompose the PNG system requirement into the specific,
+#   observable rendering behaviour of the PngRenderer unit
+# - Each requirement is verified by PngRenderer unit tests
+
+sections:
+  - title: PngRenderer Unit Requirements
+    requirements:
+      - id: SysML2Tools-Png-PngRenderer-ImplementsIRenderer
+        title: >-
+          PngRenderer shall implement the IRenderer interface, reporting the "image/png"
+          media type and the ".png" default file extension.
+        justification: |
+          Implementing the shared renderer interface lets the diagram renderer select PNG
+          output uniformly, and the media type and extension let callers name and serve
+          the output correctly.
+        tests:
+          - PngRenderer_MediaType_IsImagePng
+          - PngRenderer_DefaultExtension_IsDotPng
+
+      - id: SysML2Tools-Png-PngRenderer-RenderImage
+        title: >-
+          PngRenderer shall write a valid PNG image, beginning with the PNG signature and
+          on a white background, for any layout tree, including an empty one.
+        justification: |
+          The PNG signature confirms a decodable image, and a consistent white background
+          gives every diagram a predictable appearance.
+        tests:
+          - PngRenderer_Render_EmptyTree_WritesPngBytes
+          - PngRenderer_Render_EmptyTree_WritesPngSignature
+          - PngRenderer_Render_BackgroundIsWhite
+
+      - id: SysML2Tools-Png-PngRenderer-RenderBox
+        title: >-
+          PngRenderer shall rasterize each box node as a filled, stroked rectangle whose
+          fill follows the theme depth colours, including deeply nested boxes.
+        justification: |
+          Boxes are the primary diagram element; depth-based fill conveys nesting, and
+          deep nesting must not exhaust resources.
+        tests:
+          - PngRenderer_Render_SingleBox_ProducesNonEmptyOutput
+          - PngRenderer_Render_SingleBox_FillColorMatchesTheme
+          - PngRenderer_Render_SingleBox_DepthOneUsesSecondColor
+          - PngRenderer_Render_DeeplyNestedBoxes_DoesNotStackOverflow
+
+      - id: SysML2Tools-Png-PngRenderer-RenderLabel
+        title: >-
+          PngRenderer shall rasterize label text, producing valid output even when the
+          text contains XML-special characters.
+        justification: |
+          Labels carry element names and typing; the renderer must handle any model text
+          without failing.
+        tests:
+          - PngRenderer_Render_LabelWithXmlSpecialCharacters_ProducesValidPng
+
+      - id: SysML2Tools-Png-PngRenderer-RenderLine
+        title: >-
+          PngRenderer shall rasterize each connector line in the theme stroke colour.
+        justification: |
+          Connectors express relationships; drawing them in the stroke colour makes the
+          routing visible in the raster image.
+        tests:
+          - PngRenderer_Render_SingleLine_PixelOnLineIsStrokeColor
+
+      - id: SysML2Tools-Png-PngRenderer-RenderNodeKinds
+        title: >-
+          PngRenderer shall rasterize port, badge, band, lifeline, activation, and grid
+          nodes with their notation-appropriate colours.
+        justification: |
+          The layout tree carries the full range of SysML node kinds; each must be drawn
+          so every view type renders completely.
+        tests:
+          - PngRenderer_Render_SinglePort_CenterPixelIsStrokeColor
+          - PngRenderer_Render_SingleBadge_FilledCircle_CenterPixelIsStrokeColor
+          - PngRenderer_Render_SingleLifeline_StemPixelIsStrokeColor
+          - PngRenderer_Render_SingleActivation_CenterPixelIsWhite
+          - PngRenderer_Render_SingleGrid_HeaderFillMatchesTheme
+
+      - id: SysML2Tools-Png-PngRenderer-EndMarkers
+        title: >-
+          PngRenderer shall rasterize connector end markers whose geometry derives from
+          the shared notation metrics.
+        justification: |
+          End markers express relationship direction and kind; deriving their geometry
+          from the shared notation metrics keeps the PNG and SVG markers identical.
+        tests:
+          - PngRenderer_Render_DrawArrowhead_OpenWithCrossbar_ProducesNonEmptyOutput
+          - FilledArrow_AlongLength_MatchesNotationMetrics
+          - FilledArrow_BaseWidth_MatchesNotationMetrics
+          - OpenChevron_HasFewerInkPixelsThanClosedTriangle

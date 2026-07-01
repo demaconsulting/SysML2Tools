@@ -1,0 +1,31 @@
+---
+# CycleBreaker Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the CycleBreaker unit
+# - CycleBreaker reverses cycle-causing edges so later stages see an acyclic graph
+# - Requirements describe the observable acyclic edge set, not the DFS internals
+
+sections:
+  - title: CycleBreaker Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-CycleBreaker-Acyclic
+        title: >-
+          CycleBreaker shall produce an edge set with no directed cycles by reversing the
+          cycle-causing back edges of the input graph.
+        justification: |
+          Longest-path layering requires a directed acyclic graph; reversing back edges removes
+          cycles while keeping every connection represented.
+        tests:
+          - CycleBreaker_Apply_GraphWithCycle_ProducesAcyclicEdgeSet
+          - Pipeline_MatchesLegacyOracle_OnNamedTopologies
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-CycleBreaker-SelfLoopAndDuplicateRemoval
+        title: >-
+          CycleBreaker shall drop self-loops and collapse duplicate edges so the acyclic edge set
+          contains no self-loop and no repeated source-target pair.
+        justification: |
+          Self-loops and duplicate edges cannot be layered and would distort corridor sizing, so
+          they are removed before any geometry is computed.
+        tests:
+          - CycleBreaker_Apply_SelfLoopsAndDuplicates_AreRemoved

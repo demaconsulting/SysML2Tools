@@ -73,7 +73,8 @@ public sealed class AstSerializerTests
     }
 
     /// <summary>
-    ///     All six node types survive a round-trip.
+    ///     All eight concrete node types survive a round-trip, including the connection and
+    ///     transition nodes and their type-specific properties.
     /// </summary>
     [Fact]
     public void Serialize_AllNodeTypes_RoundTrip()
@@ -85,17 +86,43 @@ public sealed class AstSerializerTests
         table.RegisterAll(new SysmlImportNode { Name = "imp", QualifiedName = "imp", ImportedNamespace = "Other", IsWildcard = true });
         table.RegisterAll(new SysmlViewNode { Name = "view", QualifiedName = "view" });
         table.RegisterAll(new SysmlViewpointNode { Name = "vp", QualifiedName = "vp" });
+        table.RegisterAll(new SysmlConnectionNode
+        {
+            Name = "conn",
+            QualifiedName = "conn",
+            ConnectionKeyword = "connection",
+            EndpointA = "engine.fuelPort",
+            EndpointB = "transmission.input",
+        });
+        table.RegisterAll(new SysmlTransitionNode
+        {
+            Name = "trans",
+            QualifiedName = "trans",
+            Source = "Idle",
+            Target = "Running",
+            Guard = "start",
+        });
 
         var bytes = AstSerializer.Serialize(table, []);
         var (result, _) = AstDeserializer.Deserialize(bytes);
 
-        Assert.Equal(6, result.Symbols.Count);
+        Assert.Equal(8, result.Symbols.Count);
         Assert.IsType<SysmlPackageNode>(result.Symbols["pkg"]);
         Assert.IsType<SysmlDefinitionNode>(result.Symbols["def"]);
         Assert.IsType<SysmlFeatureNode>(result.Symbols["feat"]);
         Assert.IsType<SysmlImportNode>(result.Symbols["imp"]);
         Assert.IsType<SysmlViewNode>(result.Symbols["view"]);
         Assert.IsType<SysmlViewpointNode>(result.Symbols["vp"]);
+
+        var conn = Assert.IsType<SysmlConnectionNode>(result.Symbols["conn"]);
+        Assert.Equal("connection", conn.ConnectionKeyword);
+        Assert.Equal("engine.fuelPort", conn.EndpointA);
+        Assert.Equal("transmission.input", conn.EndpointB);
+
+        var trans = Assert.IsType<SysmlTransitionNode>(result.Symbols["trans"]);
+        Assert.Equal("Idle", trans.Source);
+        Assert.Equal("Running", trans.Target);
+        Assert.Equal("start", trans.Guard);
     }
 
     /// <summary>

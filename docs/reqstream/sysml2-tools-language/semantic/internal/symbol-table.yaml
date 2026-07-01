@@ -1,0 +1,29 @@
+---
+# SymbolTable Requirements
+#
+# PURPOSE:
+# - Define requirements for the SymbolTable internal unit
+
+sections:
+  - title: SymbolTable Requirements
+    requirements:
+      - id: SysML2Tools-Language-Semantic-Internal-SymbolTable-Register
+        title: >-
+          SymbolTable.RegisterAll shall recursively register all AST nodes with a non-null,
+          non-empty QualifiedName into the symbol dictionary, keyed by qualified name.
+        justification: |
+          All named elements in the model must be reachable by their qualified name for
+          reference resolution. Anonymous elements (null or empty QualifiedName) are skipped.
+        tests:
+          - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
+          - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames
+
+      - id: SysML2Tools-Language-Semantic-Internal-SymbolTable-Lookup
+        title: >-
+          SymbolTable.Lookup shall return the registered node for a given qualified name,
+          or null if the name is not registered.
+        justification: |
+          Reference resolution and supertype walking require efficient by-name lookup.
+          Returning null for unknown names allows the resolver to produce diagnostics.
+        tests:
+          - WorkspaceLoader_LoadAsync_SpecializesChain_Registered

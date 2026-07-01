@@ -1,0 +1,20 @@
+---
+resource-path:
+  - docs/layout
+  - docs/template
+input-files:
+  - docs/layout/title.txt
+  - docs/layout/introduction.md
+  - docs/layout/design-goals.md
+  - docs/layout/constraints.md
+  - docs/layout/algorithm-overview.md
+  - docs/layout/detailed-algorithm.md
+  - docs/layout/layout-engines.md
+  - docs/layout/per-view-analysis.md
+  - docs/layout/scalability.md
+  # design-decisions.md is intentionally excluded from the compiled document.
+  # It contains contributor working notes on resolved design choices and is
+  # readable on GitHub but is not part of the published algorithm reference.
+template: template.html
+table-of-contents: true
+number-sections: true

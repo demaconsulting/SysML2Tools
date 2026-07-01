@@ -32,9 +32,10 @@ Builds the diagram:
    `pitch` is computed by `ComputePitch` from the widest label (clamped to a minimum). Message Y is
    `firstMessageY + messageOrdinal * rowPitch`. Header height and margins derive from the theme.
 5. **Node emission.** Each lifeline becomes a `LayoutLifeline`; each message becomes a horizontal
-   `LayoutLine` with no source arrowhead and a filled target arrowhead, carrying the message label
+   `LayoutLine` with no source end marker and an open target end marker, carrying the message label
    as its midpoint label. A message whose sender and receiver are the same lifeline is emitted by
-   `BuildSelfMessage` as a small rectangular self-loop.
+   `BuildSelfMessage` as a small rectangular self-loop. The open target end marker matches SysML v2
+   sequence message notation.
 
 When no root is found, or there are no lifelines or messages, a minimal empty `LayoutTree` with no
 nodes is returned.
@@ -46,7 +47,7 @@ not throw: the strategy returns an empty diagram rather than failing.
 
 ##### Dependencies
 
-- `LayoutTree`, `LayoutLifeline`, `LayoutLine`, `Point2D`, `ArrowheadStyle`, `LineStyle`
+- `LayoutTree`, `LayoutLifeline`, `LayoutLine`, `Point2D`, `EndMarkerStyle`, `LineStyle`
   (Layout subsystem).
 - `ViewContext`, `RenderOptions`, `Theme` (Rendering subsystem).
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlConnectionNode`, and `StdlibFilter`

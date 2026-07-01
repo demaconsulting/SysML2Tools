@@ -27,8 +27,9 @@ documentation, CI/CD pipelines, and AI-assisted modeling workflows.
 - **`lint` Command**: Load a workspace and report all diagnostics; exit non-zero if errors
   are present — suitable for CI/CD and AI-assisted model-fix loops
 - **`render` Command**: Load a workspace, resolve a view, and render to SVG or PNG
-- **GeneralView Layout**: Nested rectangular block diagrams with depth-coded fill colors,
-  compartments, and configurable depth limiting
+- **GeneralView Layout**: Package-grouped definition block diagrams placed by a layered (ELK-style)
+  engine with orthogonal specialization and membership edges, depth-coded fill colors, compartments,
+  and configurable depth limiting
 - **SVG Output**: Zero external dependencies
 - **PNG Output**: Pixel-identical across Windows, Linux, and macOS via SkiaSharp and an
   embedded Noto Sans font
@@ -93,10 +94,6 @@ sysml2tools --version
 # Display help
 sysml2tools --help
 
-# Verb-specific help
-sysml2tools --help lint
-sysml2tools --help render
-
 # Run self-validation
 sysml2tools --validate
 
@@ -111,7 +108,7 @@ sysml2tools --silent --log output.log
 ## Command-Line Reference
 
 ```text
-sysml2tools [-v|--version] [-?|-h|--help [<verb>]] [--silent]
+sysml2tools [-v|--version] [-?|-h|--help] [--silent]
             [--validate] [--result|--results <file>] [--depth <#>] [--log <file>]
             [<verb> [verb-options] [<globs>]]
 ```
@@ -121,7 +118,7 @@ sysml2tools [-v|--version] [-?|-h|--help [<verb>]] [--silent]
 | Option | Description |
 | --- | --- |
 | `-v`, `--version` | Display version information |
-| `-?`, `-h`, `--help [<verb>]` | Display help; optionally for a specific verb |
+| `-?`, `-h`, `--help` | Display help |
 | `--silent` | Suppress console output |
 | `--validate` | Run self-validation tests |
 | `--results <file>`, `--result <file>` | Write validation results to `.trx` (TRX) or `.xml` (JUnit) |

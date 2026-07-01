@@ -42,7 +42,7 @@ throw: the strategy returns an empty diagram rather than failing.
 
 ##### Dependencies
 
-- `LayoutTree`, `LayoutBox`, `LayoutLine`, `Point2D`, `BoxShape`, `ArrowheadStyle`, `LineStyle`
+- `LayoutTree`, `LayoutBox`, `LayoutLine`, `Point2D`, `BoxShape`, `EndMarkerStyle`, `LineStyle`
   (Layout subsystem).
 - `ViewContext`, `RenderOptions`, `Theme` (Rendering subsystem).
 - `SysmlWorkspace`, `SysmlNode`, `SysmlPackageNode`, `SysmlDefinitionNode`, `SysmlFeatureNode`,

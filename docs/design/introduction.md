@@ -25,6 +25,11 @@ The following topics are out of scope:
 
 - Design documents are not produced for the test projects or build pipeline CI configuration.
 - The internal design of OTS software items is excluded; only integration and usage design is documented.
+- **`src/Tools/StdlibGen`** is build-time tooling (a console pre-compiler that parses the stdlib
+  source files and writes `stdlib.bin`). Like the build pipeline, it is not part of the delivered
+  software and is therefore excluded from the software-items requirements, design, and verification
+  tree. It is listed under _Software Structure_ for navigation only; the absence of requirements,
+  design, and verification artifacts for it is intentional, not a decomposition gap.
 
 ## Software Structure
 
@@ -42,7 +47,7 @@ system, subsystem, and unit levels:
     - **AstSerializer** (Unit) — serializes SymbolTable + diagnostics to UTF-8 JSON bytes
     - **AstDeserializer** (Unit) — deserializes bytes back to SymbolTable + diagnostics
     - **Internal** (Subsystem) — internal semantic implementation
-      - **SysmlNode** (Unit) — public AST node hierarchy: six types with JSON polymorphism
+      - **SysmlNode** (Unit) — public AST node hierarchy: eight types with JSON polymorphism
       - **AstBuilder** (Unit) — builds AST from ANTLR4 CST with qualified names and supertype lists
       - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes
       - **ReferenceResolver** (Unit) — resolves supertype references; detects circular imports
@@ -53,29 +58,58 @@ system, subsystem, and unit levels:
   library binary embedded as a managed resource
   - **StdlibProvider** (Unit) — lazy-cached GetSymbolTable() deserialized from embedded stdlib.bin
 - **StdlibGen** (Build-time tool) — console tool that parses stdlib source files and writes stdlib.bin
+  (build-time tooling; excluded from the software-items requirements/design/verification tree — see _Scope_)
   - **Program** (Unit) — entry point: parses stdlib, runs resolution, serializes to stdlib.bin
 - **DemaConsulting.SysML2Tools** (System) — core library: layout, rendering interfaces, and DiagramRenderer
   - **Layout** (Subsystem) — LayoutTree intermediate representation (node types covering all SysML
     diagram elements), reusable layout engines, and per-view layout strategies
+    - **LayoutTree** (Unit) — grouped data-model unit: the ten immutable `LayoutTree` record source
+      files (`LayoutTree`, `LayoutNode`, `LayoutBox`, `LayoutPort`, `LayoutLine`, `LayoutLabel`,
+      `LayoutBadge`, `LayoutBand`, `LayoutGrid`, `LayoutLifeline`) that form the intermediate
+      representation consumed by every renderer
     - **Engine** (Subsystem) — reusable, model-independent geometric layout engines
       - **ChannelRouter** (Unit) — orthogonal connector routing with obstacle avoidance and clearance
-      - **ForceDirectedEngine** (Unit) — force-directed node placement from connection springs
-      - **PortAssigner** (Unit) — assigns ports to box sides and distributes them along each edge
-      - **LayeredLayoutEngine** (Unit) — layered (Sugiyama-style) top-to-bottom placement
       - **ContainmentPacker** (Unit) — packs sized boxes within a bounded container region
+      - **InterconnectionLayoutEngine** (Unit) — façade that assembles and runs the layered
+        pipeline for the interconnection view, preserving its public placement API
+      - **Layered** (Subsystem) — reusable, ELK-style layered layout pipeline of single-responsibility stages
+        - **LayeredGraph** (Unit) — mutable shared state threaded through the pipeline stages
+        - **LayeredLayoutPipeline** (Unit) — builds and runs an ordered sequence of layout stages
+        - **CycleBreaker** (Unit) — reverses back edges to produce an acyclic edge set
+        - **LayerAssigner** (Unit) — assigns nodes to layers by longest-path ranking
+        - **LongEdgeSplitter** (Unit) — inserts dummy nodes so every edge spans one layer
+        - **CrossingMinimizer** (Unit) — orders nodes within layers to reduce edge crossings
+        - **BrandesKopfPlacer** (Unit) — assigns node coordinates with the Brandes-Köpf algorithm
+        - **PortDistributor** (Unit) — distributes edge ports along node faces
+        - **OrthogonalRouter** (Unit) — routes edges as orthogonal segments between layers
+        - **LongEdgeJoiner** (Unit) — rejoins split sub-edges into original edge polylines
+        - **AxisTransform** (Unit) — maps pipeline coordinates to the requested layout direction
+        - **ComponentPacker** (Unit) — lays out each connected component independently and packs them without overlap
     - **Internal** (Subsystem) — per-view layout strategies
-      - **GeneralViewLayoutStrategy** (Unit) — general view: grouped definitions with specialization edges
+      - **GeneralViewLayoutStrategy** (Unit) — general view: package-grouped definitions placed by the
+        layered pipeline with orthogonal specialization and membership edges
       - **InterconnectionViewLayoutStrategy** (Unit) — internal structure: nested parts, ports, connectors
       - **StateTransitionViewLayoutStrategy** (Unit) — state machine: states and guarded transitions
-      - **ActionFlowViewLayoutStrategy** (Unit) — layered action flow with start/done markers
+        placed top-to-bottom by the layered pipeline (DOWN direction) with orthogonal transitions
+      - **ActionFlowViewLayoutStrategy** (Unit) — action flow with start/done markers, placed
+        top-to-bottom by the layered pipeline (DOWN direction) with orthogonal successions
       - **SequenceViewLayoutStrategy** (Unit) — lifelines and ordered messages
       - **GridViewLayoutStrategy** (Unit) — specialization/relationship matrix
       - **BrowserViewLayoutStrategy** (Unit) — indented membership tree
       - **LayoutWarnings** (Unit) — builder for layout diagnostic warning messages
     - **ConnectorLabelPlacer** (Unit) — collision-aware placement of connector midpoint labels
+    - **BoxMetrics** (Unit) — shared box title-area and folder-tab height formulas used by both the
+      layout strategies and the renderers
   - **Rendering** (Subsystem) — rendering pipeline: the `IRenderer`/`ILayoutStrategy` interfaces,
     `Theme`, `RenderOptions`, `RenderOutput`, the `DiagramRenderer` orchestrator, and the
     `StdlibFilter` helper that excludes standard-library elements from diagrams
+    - **NotationMetrics** (Unit) — single home for intrinsic, theme-independent notation geometry
+      (end-marker, port, folder-tab, badge, and label-background metrics) shared by both renderers
+    - **Theme** (Unit) — immutable visual-configuration record and the built-in `Themes` provider
+    - **DiagramRenderer** (Unit) — high-level rendering orchestrator: for each view, builds a
+      `LayoutTree` via an `ILayoutStrategy` and renders it via an `IRenderer`
+    - **RenderingContracts** (Unit) — grouped contracts unit: the `IRenderer` and `ILayoutStrategy`
+      interfaces, the `RenderOptions` and `RenderOutput` records, and the `StdlibFilter` helper
     - **Internal** (Subsystem) — internal rendering implementation
       - **DiagramTypeRouter** (Unit) — selects a layout strategy from a view's resolved kind
 - **DemaConsulting.SysML2Tools.Svg** (System) — SVG renderer: renders `LayoutTree` to
@@ -133,7 +167,7 @@ reviewers an explicit navigation aid from design to code:
   - **DemaConsulting.SysML2Tools.Core/** — core library
     - **Layout/** — LayoutTree intermediate representation
       - **Internal/** — internal layout implementation (GeneralViewLayoutStrategy)
-    - **Rendering/** — rendering interfaces and theme (Phase 3+)
+    - **Rendering/** — rendering interfaces and theme
   - **DemaConsulting.SysML2Tools.Svg/** — SVG renderer
   - **DemaConsulting.SysML2Tools.Png/** — PNG renderer
   - **DemaConsulting.SysML2Tools.Tool/** — dotnet tool CLI wrapper
@@ -250,11 +284,11 @@ human-readable message. The `lint` command makes this output useful for AI-assis
 model authoring loops.
 
 **Layout engines are independent and reusable.** Non-trivial layout algorithms
-(`ContainmentPacker`, `ChannelRouter`, `ForceDirectedEngine`, `PortAssigner`,
-`LayeredLayoutEngine`) live in `Layout/Engine/` with no dependency on the SysML
-semantic model. Each engine accepts plain geometric input and returns computed
-geometry, making them independently testable and reusable across multiple view
-strategies. See `ROADMAP.md` for the phased introduction of each engine.
+(`ContainmentPacker`, `ChannelRouter`, `InterconnectionLayoutEngine`, and the
+reusable `LayeredLayoutPipeline` and its stages) live in `Layout/Engine/` with no
+dependency on the SysML semantic model. Each engine accepts plain geometric input
+and returns computed geometry, making them independently testable and reusable across
+multiple view strategies. See `ROADMAP.md` for the phased introduction of each engine.
 
 **Theme record is a compile-time constant in v1.** Loadable theme files are deferred
 to v2. The Theme record data structure is defined in v1 so that v2 loadable themes

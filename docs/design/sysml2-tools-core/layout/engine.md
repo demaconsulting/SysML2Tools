@@ -13,10 +13,13 @@ The subsystem contains the following units:
 | Unit | Responsibility |
 | --- | --- |
 | `ChannelRouter` | Routes an orthogonal connector between two anchors, avoiding obstacles |
-| `ForceDirectedEngine` | Places connected nodes using attraction/repulsion relaxation |
-| `LayeredLayoutEngine` | Places a directed graph in top-to-bottom layers |
-| `PortAssigner` | Assigns ports to box sides and distributes them along each edge |
+| `InterconnectionLayoutEngine` | Façade that assembles and runs the layered pipeline for the interconnection view |
 | `ContainmentPacker` | Packs sized boxes within a bounded container region |
+
+The subsystem also contains the nested **Layered** subsystem, which provides a reusable,
+ELK-style layered layout pipeline composed of single-responsibility stages. The
+`InterconnectionLayoutEngine` façade is a thin assembler over that pipeline. See the
+*Layout Engine Layered Subsystem* chapter for its units and stage decomposition.
 
 #### Interfaces
 
@@ -31,6 +34,9 @@ internal `Rect`); they do not consume `SysmlNode` or any semantic type.
 The view strategies (see *Layout Internal Subsystem*) own the mapping from the semantic
 model to geometric input and back. They call the engines to obtain geometry and then build
 the `LayoutTree`. This separation keeps the engines small, single-purpose, and independently
-verifiable, and lets a strategy combine several engines (for example, force-directed
-placement followed by orthogonal routing). The detailed algorithm of each engine is
+verifiable. Layered views drive their geometry through the reusable `LayeredLayoutPipeline`
+and its single-responsibility stages (packing connected components via `ComponentPacker` and
+routing edges via the pipeline's `OrthogonalRouter`), while a strategy may combine additional
+engines as needed (for example, `ContainmentPacker` for package-folder grouping and
+`ChannelRouter` for cross-package connector fallback). The detailed algorithm of each engine is
 described in its own unit chapter.

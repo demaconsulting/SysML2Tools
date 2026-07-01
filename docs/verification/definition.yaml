@@ -1,14 +1,21 @@
 ---
 resource-path:
   - docs/verification
+  - docs/verification/sysml2-tools-language
+  - docs/verification/sysml2-tools-language/parser
+  - docs/verification/sysml2-tools-language/parser/internal
+  - docs/verification/sysml2-tools-language/semantic
+  - docs/verification/sysml2-tools-language/semantic/internal
   - docs/verification/sysml2-tools-core
-  - docs/verification/sysml2-tools-core/semantic
-  - docs/verification/sysml2-tools-core/semantic/internal
   - docs/verification/sysml2-tools-core/layout
   - docs/verification/sysml2-tools-core/layout/engine
+  - docs/verification/sysml2-tools-core/layout/engine/layered
   - docs/verification/sysml2-tools-core/layout/internal
   - docs/verification/sysml2-tools-core/rendering
   - docs/verification/sysml2-tools-core/rendering/internal
+  - docs/verification/sysml2-tools-stdlib
+  - docs/verification/sysml2-tools-svg
+  - docs/verification/sysml2-tools-png
   - docs/verification/sysml2-tools-tool
   - docs/verification/sysml2-tools-tool/cli
   - docs/verification/sysml2-tools-tool/lint
@@ -20,33 +27,44 @@ resource-path:
 input-files:
   - docs/verification/title.txt
   - docs/verification/introduction.md
-  - docs/verification/sysml2-tools-tool.md
-  - docs/verification/sysml2-tools-tool/program.md
-  - docs/verification/sysml2-tools-tool/cli.md
-  - docs/verification/sysml2-tools-tool/cli/context.md
-  - docs/verification/sysml2-tools-tool/lint.md
-  - docs/verification/sysml2-tools-tool/self-test.md
-  - docs/verification/sysml2-tools-tool/self-test/validation.md
-  - docs/verification/sysml2-tools-tool/utilities.md
-  - docs/verification/sysml2-tools-tool/utilities/path-helpers.md
+  - docs/verification/sysml2-tools-language.md
+  - docs/verification/sysml2-tools-language/parser.md
+  - docs/verification/sysml2-tools-language/parser/workspace-parser.md
+  - docs/verification/sysml2-tools-language/parser/internal/sysml-diagnostic-listener.md
+  - docs/verification/sysml2-tools-language/semantic.md
+  - docs/verification/sysml2-tools-language/semantic/workspace-loader.md
+  - docs/verification/sysml2-tools-language/semantic/ast-serializer.md
+  - docs/verification/sysml2-tools-language/semantic/ast-deserializer.md
+  - docs/verification/sysml2-tools-language/semantic/internal.md
+  - docs/verification/sysml2-tools-language/semantic/internal/sysml-node.md
+  - docs/verification/sysml2-tools-language/semantic/internal/ast-builder.md
+  - docs/verification/sysml2-tools-language/semantic/internal/symbol-table.md
+  - docs/verification/sysml2-tools-language/semantic/internal/reference-resolver.md
+  - docs/verification/sysml2-tools-language/semantic/internal/supertype-walker.md
+  - docs/verification/sysml2-tools-stdlib.md
+  - docs/verification/sysml2-tools-stdlib/stdlib-provider.md
   - docs/verification/sysml2-tools-core.md
-  - docs/verification/sysml2-tools-core/parser.md
-  - docs/verification/sysml2-tools-core/semantic.md
-  - docs/verification/sysml2-tools-core/semantic/workspace-loader.md
-  - docs/verification/sysml2-tools-core/semantic/internal.md
-  - docs/verification/sysml2-tools-core/semantic/internal/sysml-node.md
-  - docs/verification/sysml2-tools-core/semantic/internal/ast-builder.md
-  - docs/verification/sysml2-tools-core/semantic/internal/symbol-table.md
-  - docs/verification/sysml2-tools-core/semantic/internal/reference-resolver.md
-  - docs/verification/sysml2-tools-core/semantic/internal/supertype-walker.md
   - docs/verification/sysml2-tools-core/layout.md
+  - docs/verification/sysml2-tools-core/layout/box-metrics.md
+  - docs/verification/sysml2-tools-core/layout/layout-tree.md
   - docs/verification/sysml2-tools-core/layout/connector-label-placer.md
   - docs/verification/sysml2-tools-core/layout/engine.md
   - docs/verification/sysml2-tools-core/layout/engine/channel-router.md
-  - docs/verification/sysml2-tools-core/layout/engine/force-directed-engine.md
-  - docs/verification/sysml2-tools-core/layout/engine/port-assigner.md
-  - docs/verification/sysml2-tools-core/layout/engine/layered-layout-engine.md
   - docs/verification/sysml2-tools-core/layout/engine/containment-packer.md
+  - docs/verification/sysml2-tools-core/layout/engine/interconnection-layout-engine.md
+  - docs/verification/sysml2-tools-core/layout/engine/layered.md
+  - docs/verification/sysml2-tools-core/layout/engine/layered/layered-graph.md
+  - docs/verification/sysml2-tools-core/layout/engine/layered/layered-layout-pipeline.md
+  - docs/verification/sysml2-tools-core/layout/engine/layered/cycle-breaker.md
+  - docs/verification/sysml2-tools-core/layout/engine/layered/layer-assigner.md
+  - docs/verification/sysml2-tools-core/layout/engine/layered/long-edge-splitter.md
+  - docs/verification/sysml2-tools-core/layout/engine/layered/crossing-minimizer.md
+  - docs/verification/sysml2-tools-core/layout/engine/layered/brandes-kopf-placer.md
+  - docs/verification/sysml2-tools-core/layout/engine/layered/port-distributor.md
+  - docs/verification/sysml2-tools-core/layout/engine/layered/orthogonal-router.md
+  - docs/verification/sysml2-tools-core/layout/engine/layered/long-edge-joiner.md
+  - docs/verification/sysml2-tools-core/layout/engine/layered/axis-transform.md
+  - docs/verification/sysml2-tools-core/layout/engine/layered/component-packer.md
   - docs/verification/sysml2-tools-core/layout/internal.md
   - docs/verification/sysml2-tools-core/layout/internal/general-view-layout-strategy.md
   - docs/verification/sysml2-tools-core/layout/internal/interconnection-view-layout-strategy.md
@@ -57,10 +75,26 @@ input-files:
   - docs/verification/sysml2-tools-core/layout/internal/browser-view-layout-strategy.md
   - docs/verification/sysml2-tools-core/layout/internal/layout-warnings.md
   - docs/verification/sysml2-tools-core/rendering.md
+  - docs/verification/sysml2-tools-core/rendering/notation-metrics.md
+  - docs/verification/sysml2-tools-core/rendering/theme.md
+  - docs/verification/sysml2-tools-core/rendering/diagram-renderer.md
+  - docs/verification/sysml2-tools-core/rendering/rendering-contracts.md
   - docs/verification/sysml2-tools-core/rendering/internal.md
   - docs/verification/sysml2-tools-core/rendering/internal/diagram-type-router.md
   - docs/verification/sysml2-tools-svg.md
+  - docs/verification/sysml2-tools-svg/svg-renderer.md
   - docs/verification/sysml2-tools-png.md
+  - docs/verification/sysml2-tools-png/png-renderer.md
+  - docs/verification/sysml2-tools-tool.md
+  - docs/verification/sysml2-tools-tool/program.md
+  - docs/verification/sysml2-tools-tool/cli.md
+  - docs/verification/sysml2-tools-tool/cli/context.md
+  - docs/verification/sysml2-tools-tool/lint.md
+  - docs/verification/sysml2-tools-tool/render.md
+  - docs/verification/sysml2-tools-tool/self-test.md
+  - docs/verification/sysml2-tools-tool/self-test/validation.md
+  - docs/verification/sysml2-tools-tool/utilities.md
+  - docs/verification/sysml2-tools-tool/utilities/path-helpers.md
   - docs/verification/ots.md
   - docs/verification/ots/antlr4.md
   - docs/verification/ots/buildmark.md

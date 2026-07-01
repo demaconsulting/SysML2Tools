@@ -12,12 +12,31 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Internals
         title: >-
           InterconnectionViewLayoutStrategy shall render the selected part definition as a
-          container box enclosing one box per nested part usage, a port on each part box for every
-          incident connection, and one connector line per connection.
+          container box enclosing one box per nested part usage.
         justification: |
           An Interconnection View exists to show the internal structure of a part definition — its
-          nested parts and how they are connected. The container box, part boxes, ports, and
-          connector lines are the observable content the view must provide.
+          nested parts inside a container. The container box and one box per nested part are the
+          observable content the view must provide.
+        tests:
+          - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Ports
+        title: >-
+          InterconnectionViewLayoutStrategy shall place a port on a part box for every connection
+          incident to that part.
+        justification: |
+          Connections attach to parts at ports. Providing one port per incident connection is the
+          observable anchor the connector lines are drawn between.
+        tests:
+          - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Connectors
+        title: >-
+          InterconnectionViewLayoutStrategy shall draw one connector line for each connection between
+          nested parts.
+        justification: |
+          The connections between nested parts are the relationships an Interconnection View
+          communicates; drawing one connector line per connection is the observable evidence of them.
         tests:
           - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
 
@@ -40,3 +59,62 @@ sections:
           lets the renderer produce a valid blank diagram rather than failing.
         tests:
           - InterconnectionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NestedContainer
+        title: >-
+          When a nested part is typed by a non-standard-library part definition that has its own
+          nested part usages, InterconnectionViewLayoutStrategy shall lay out that inner structure
+          recursively and nest it as the children of the part's container box.
+        justification: |
+          A part whose type has internal structure is a container; showing that structure nested
+          inside the container box is the whole purpose of a hierarchical Interconnection View.
+          Reusing the same flat placement at every level (recursive bottom-up, ELK
+          SEPARATE_CHILDREN) yields genuine two-level nested block diagrams.
+        tests:
+          - InterconnectionView_BuildLayout_NestedContainer_PlacesChildrenInsideContainerBox
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ContainerSizing
+        title: >-
+          InterconnectionViewLayoutStrategy shall size each container box so that it bounds its
+          nested children together with its title area and edge insets.
+        justification: |
+          A container box must fully enclose the interior it was laid out from; if it were smaller
+          than its children plus its title and insets, the nested content would overflow the border
+          and produce an unreadable diagram.
+        tests:
+          - InterconnectionView_BuildLayout_ContainerSize_BoundsChildrenAndTitle
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ChildPositioning
+        title: >-
+          InterconnectionViewLayoutStrategy shall position a container's nested children at absolute
+          coordinates offset from the container box's top-left origin.
+        justification: |
+          The renderer draws nested children using absolute coordinates, so the interior content —
+          laid out relative to its own origin — must be translated to the container's absolute
+          position for the nested boxes, ports, and connectors to appear inside the container.
+        tests:
+          - InterconnectionView_BuildLayout_NestedChildren_RenderedAtAbsoluteCoordinates
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-SingleLevelNoOp
+        title: >-
+          When no nested part is typed by a definition with its own nested parts,
+          InterconnectionViewLayoutStrategy shall produce only leaf part boxes with no nested
+          children, leaving single-level output unchanged.
+        justification: |
+          The recursive capability must be a strict no-op for flat models so that existing
+          single-level Interconnection Views are unaffected; a leaf-only model must yield exactly
+          the non-recursive layout.
+        tests:
+          - InterconnectionView_BuildLayout_NoNesting_ProducesFlatLeafBoxes
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-CycleGuard
+        title: >-
+          When a nested part is typed by a definition that is already on the recursion path,
+          InterconnectionViewLayoutStrategy shall treat that part as a leaf rather than recursing
+          into it.
+        justification: |
+          A self-referential or mutually-referential part definition would otherwise recurse
+          without bound; treating an already-visited type as a leaf guarantees termination while
+          still drawing the part.
+        tests:
+          - InterconnectionView_BuildLayout_SelfReferentialType_TreatedAsLeaf

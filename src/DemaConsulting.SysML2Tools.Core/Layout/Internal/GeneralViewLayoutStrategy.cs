@@ -3,6 +3,7 @@
 // </copyright>
 
 using DemaConsulting.SysML2Tools.Layout.Engine;
+using DemaConsulting.SysML2Tools.Layout.Engine.Layered;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -13,14 +14,18 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// <summary>
 /// Layout strategy for GeneralView diagrams. Renders every user-defined <c>def</c> element
 /// (part, port, interface, requirement, action, …) as a keyword-labelled box, groups boxes by
-/// their owning package inside folder-shaped containers, and routes specialization edges
-/// orthogonally around the boxes.
+/// their owning package inside folder-shaped containers, and routes specialization, membership, and
+/// attribute-typing edges orthogonally between the boxes.
 /// </summary>
 /// <remarks>
-/// Box placement uses <see cref="ContainmentPacker"/> at two levels — definition boxes within a
-/// package folder, and the folders themselves across the canvas. Specialization (generalization)
-/// edges are routed with <see cref="ChannelRouter"/> so they avoid unrelated boxes. Standard-library
-/// declarations are excluded via <see cref="StdlibFilter"/>.
+/// Box placement and intra-package edge routing use the reusable layered pipeline
+/// (<see cref="LayeredLayoutPipeline"/>) running left-to-right with a <see cref="ComponentPacker"/>
+/// stage: each package's definitions and the edges between them are laid out together inside the
+/// package folder, with disconnected definitions (such as standalone interface or attribute defs)
+/// packed beside the connected core. The folders themselves are packed across the canvas with
+/// <see cref="ContainmentPacker"/> so they never overlap. The rare cross-package edge (an endpoint
+/// in a different package folder) falls back to <see cref="ChannelRouter"/>, which routes orthogonally
+/// around the placed folders. Standard-library declarations are excluded via <see cref="StdlibFilter"/>.
 /// </remarks>
 internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 {
@@ -30,8 +35,63 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <summary>Approximate width-per-character factor relative to font size.</summary>
     private const double CharWidthFactor = 0.62;
 
-    /// <summary>Clearance kept between routed edges and boxes.</summary>
+    /// <summary>Clearance kept between cross-package routed edges and boxes.</summary>
     private const double EdgeClearance = 12.0;
+
+    /// <summary>A feature membership: the keyword and the raw typing reference of one owned feature.</summary>
+    private sealed record FeatureMembership(string Keyword, string TypeName);
+
+    /// <summary>
+    /// The classification of an edge, which selects its line style so the renderer can distinguish
+    /// the three relationships the General view draws between definition boxes.
+    /// </summary>
+    private enum EdgeKind
+    {
+        /// <summary>Subtype → supertype specialization: solid line, hollow triangle at the supertype.</summary>
+        Specialization,
+
+        /// <summary>Member-type → owner structural/reference membership: solid line, diamond at the owner.</summary>
+        Membership,
+
+        /// <summary>
+        /// Owner → attribute-type dependency (attribute typing): dashed line, open chevron at the type.
+        /// Attribute typing is a usage-type dependency, not composition, so it uses the OMG dependency
+        /// notation (dashed + open arrowhead) rather than a membership diamond.
+        /// </summary>
+        Typing,
+    }
+
+    /// <summary>An intra-package edge expressed in package-local node indices, plus its target decoration.</summary>
+    /// <param name="SourceLocal">Index of the source definition within its package group.</param>
+    /// <param name="TargetLocal">Index of the target definition within its package group.</param>
+    /// <param name="Arrowhead">Arrowhead drawn at the target (supertype, owner, or attribute-type) end.</param>
+    /// <param name="Kind">The edge classification, which selects the rendered line style.</param>
+    private sealed record IntraEdge(int SourceLocal, int TargetLocal, EndMarkerStyle Arrowhead, EdgeKind Kind);
+
+    /// <summary>A cross-package edge between two definitions in different package groups.</summary>
+    /// <param name="SourceQualified">Qualified name of the source definition.</param>
+    /// <param name="TargetQualified">Qualified name of the target (supertype, owner, or attribute-type) definition.</param>
+    /// <param name="Arrowhead">Arrowhead drawn at the target end.</param>
+    /// <param name="Kind">The edge classification, which selects the rendered line style.</param>
+    private sealed record CrossEdge(string SourceQualified, string TargetQualified, EndMarkerStyle Arrowhead, EdgeKind Kind);
+
+    /// <summary>Maps an edge kind to its rendered line style: typing edges are dashed, all others solid.</summary>
+    private static LineStyle LineStyleForKind(EdgeKind kind) =>
+        kind == EdgeKind.Typing ? LineStyle.Dashed : LineStyle.Solid;
+
+    /// <summary>
+    /// The package-local placement of one group: each definition's top-left relative to the group's
+    /// content origin, the content size, and the routed intra-group edge polylines (also content-local).
+    /// </summary>
+    /// <param name="LocalPos">Content-local top-left of each definition box, by group index.</param>
+    /// <param name="ContentWidth">Width of the group's content bounding box.</param>
+    /// <param name="ContentHeight">Height of the group's content bounding box.</param>
+    /// <param name="Edges">Routed intra-group edges (content-local polyline + target arrowhead + line style).</param>
+    private sealed record GroupLayout(
+        IReadOnlyList<(double X, double Y)> LocalPos,
+        double ContentWidth,
+        double ContentHeight,
+        IReadOnlyList<(IReadOnlyList<Point2D> Points, EndMarkerStyle Arrowhead, LineStyle LineStyle)> Edges);
 
     /// <summary>A user-defined definition together with its computed box size and supertypes.</summary>
     private sealed record DefBox(
@@ -39,6 +99,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         string SimpleName,
         string Keyword,
         IReadOnlyList<string> SupertypeNames,
+        IReadOnlyList<FeatureMembership> Memberships,
         IReadOnlyList<LayoutCompartment> Compartments,
         double Width,
         double Height);
@@ -64,15 +125,23 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Group definitions by their owning package (prefix before the last "::").
         var groups = GroupByPackage(defs);
 
-        // Place groups (folders) and standalone definitions across the canvas.
-        var (nodes, placed, canvasWidth, canvasHeight) = PlaceGroups(groups, theme, options.DepthLimit);
+        // Resolve the specialization/membership/attribute-typing edge set into intra-package edges
+        // (handled by the layered pipeline inside each folder) and cross-package edges (routed around
+        // the folders).
+        var (intraByGroup, crossEdges) = BuildEdges(groups);
 
-        // Route specialization edges between placed boxes.
-        var (edges, crossings) = BuildSpecializationEdges(defs, placed);
-        nodes.AddRange(edges);
+        // Place package folders (and the top-level frameless block) across the canvas. Each folder's
+        // definitions and intra-package edges are laid out together by the layered pipeline.
+        var hGap = 4.0 * theme.LabelPadding;
+        var vGap = 5.0 * theme.LabelPadding;
+        var (nodes, placed, intraLines, canvasWidth, canvasHeight) =
+            PlaceGroups(groups, intraByGroup, theme, options.DepthLimit, hGap, vGap);
 
-        var warnings = LayoutWarnings.ForCrossings(context.ViewName, crossings);
-        return new LayoutTree(canvasWidth, canvasHeight, nodes) { Warnings = warnings };
+        // Emit the intra-package edges (already routed by the pipeline) and the cross-package edges.
+        nodes.AddRange(intraLines);
+        nodes.AddRange(RouteCrossEdges(crossEdges, placed));
+
+        return new LayoutTree(canvasWidth, canvasHeight, nodes);
     }
 
     /// <summary>
@@ -101,8 +170,9 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             // Build compartments from the definition's owned usages (attributes, ports, parts, …).
             var compartments = BuildCompartments(def);
 
+            var memberships = CollectMemberships(def);
             var (width, height) = ComputeBoxSize(simpleName, keyword, compartments, theme);
-            result.Add(new DefBox(qualifiedName, simpleName, keyword, def.SupertypeNames, compartments, width, height));
+            result.Add(new DefBox(qualifiedName, simpleName, keyword, def.SupertypeNames, memberships, compartments, width, height));
         }
 
         return result;
@@ -155,6 +225,30 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         "ref" => "references",
         _ => keyword + "s",
     };
+
+    /// <summary>
+    /// Collects the feature memberships of a definition: the keyword and type reference of each
+    /// owned feature that carries a type annotation.
+    /// </summary>
+    private static IReadOnlyList<FeatureMembership> CollectMemberships(SysmlDefinitionNode def)
+    {
+        var result = new List<FeatureMembership>();
+        foreach (var child in def.Children)
+        {
+            if (child is not SysmlFeatureNode feature)
+            {
+                continue;
+            }
+
+            if (feature.FeatureTyping is { Length: > 0 } typing)
+            {
+                var keyword = string.IsNullOrEmpty(feature.FeatureKeyword) ? "feature" : feature.FeatureKeyword;
+                result.Add(new FeatureMembership(keyword, typing));
+            }
+        }
+
+        return result;
+    }
 
     /// <summary>Computes the intrinsic box size needed for the title and any compartments.</summary>
     private static (double Width, double Height) ComputeBoxSize(
@@ -238,20 +332,20 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Places each package group as a folder box (with its definitions packed inside) and each
-    /// top-level definition as a standalone box, packing all blocks across the canvas.
+    /// Lays out each package group (with the layered pipeline) inside a folder box, emits the
+    /// top-level definitions as a single frameless block, and packs all blocks across the canvas so
+    /// folders never overlap. Returns the emitted nodes, the absolute box placements (for
+    /// cross-package routing), the routed intra-package edge lines, and the canvas size.
     /// </summary>
-    private static (List<LayoutNode> Nodes, List<PlacedBox> Placed, double Width, double Height) PlaceGroups(
+    private static (List<LayoutNode> Nodes, List<PlacedBox> Placed, List<LayoutLine> IntraEdges, double Width, double Height) PlaceGroups(
         IReadOnlyList<(string Package, List<DefBox> Items)> groups,
+        IReadOnlyList<IReadOnlyList<IntraEdge>> intraByGroup,
         Theme theme,
-        int depthLimit)
+        int depthLimit,
+        double hGap,
+        double vGap)
     {
         var margin = 2.0 * theme.LabelPadding;
-        var hGap = 4.0 * theme.LabelPadding;
-
-        // Vertical gap between packed rows. Kept generous so specialization edges between
-        // vertically-adjacent boxes have room for their arrowheads and a visible line segment.
-        var vGap = 5.0 * theme.LabelPadding;
 
         // Reserve the full title area (package keyword + name) above a folder's contents so the
         // label never overlaps the first child box. The renderer draws the smaller tab notch within.
@@ -260,42 +354,32 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Folder contents sit at depth 1; truncate them when the depth limit forbids that level.
         var truncateFolderContents = depthLimit > 0 && depthLimit <= 1;
 
-        // Pre-compute the outer size of each top-level block (folder or standalone box).
+        // Pre-compute the outer size of each top-level block (package folder or the frameless block of
+        // top-level definitions). Folders reserve a title area; the frameless block does not.
         var blocks = new List<BlockPlan>();
-        foreach (var (package, items) in groups)
+        for (var g = 0; g < groups.Count; g++)
         {
-            if (string.IsNullOrEmpty(package))
-            {
-                // Top-level definitions are individual blocks (no folder).
-                foreach (var def in items)
-                {
-                    blocks.Add(new BlockPlan(null, [def], def.Width, def.Height));
-                }
-            }
-            else if (truncateFolderContents)
+            var (package, items) = groups[g];
+            var isFolder = !string.IsNullOrEmpty(package);
+
+            if (isFolder && truncateFolderContents)
             {
                 // Replace the folder's definition boxes with a single ellipsis indicator.
                 var ellipsisWidth = Math.Max(MinBoxWidth, (2.0 * margin) + (items.Count.ToString(System.Globalization.CultureInfo.InvariantCulture).Length * 8.0) + 60.0);
                 var ellipsisHeight = (2.0 * margin) + theme.FontSizeTitle;
                 blocks.Add(new BlockPlan(package, items, ellipsisWidth, folderTitleHeight + ellipsisHeight) { Truncated = true });
+                continue;
             }
-            else
-            {
-                // Pack the package's definitions to size the folder content region.
-                var inner = ContainmentPacker.Pack(
-                    [.. items.Select(d => new PackItem(d.Width, d.Height))],
-                    maxContentWidth: ComputePackWidth(items),
-                    horizontalGap: hGap,
-                    verticalGap: vGap,
-                    padding: margin);
 
-                var folderWidth = inner.Width;
-                var folderHeight = folderTitleHeight + inner.Height;
-                blocks.Add(new BlockPlan(package, items, folderWidth, folderHeight) { Inner = inner });
-            }
+            // Lay out the group's definitions and intra-group edges with the layered pipeline.
+            var layout = LayoutGroup(items, intraByGroup[g]);
+            var titleArea = isFolder ? folderTitleHeight : 0.0;
+            var blockWidth = layout.ContentWidth + (2.0 * margin);
+            var blockHeight = titleArea + layout.ContentHeight + (2.0 * margin);
+            blocks.Add(new BlockPlan(package, items, blockWidth, blockHeight) { Layout = layout });
         }
 
-        // Pack the blocks across the canvas.
+        // Pack the blocks across the canvas (atomic blocks → folders never overlap).
         var outer = ContainmentPacker.Pack(
             [.. blocks.Select(b => new PackItem(b.Width, b.Height))],
             maxContentWidth: ComputeCanvasWidth(blocks),
@@ -305,64 +389,210 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         var nodes = new List<LayoutNode>();
         var placed = new List<PlacedBox>();
+        var intraEdges = new List<LayoutLine>();
 
         for (var i = 0; i < blocks.Count; i++)
         {
-            PlaceBlock(blocks[i], outer.Rects[i], folderTitleHeight, theme, nodes, placed);
+            PlaceBlock(blocks[i], outer.Rects[i], folderTitleHeight, margin, theme, nodes, placed, intraEdges);
         }
 
-        return (nodes, placed, outer.Width, outer.Height);
+        return (nodes, placed, intraEdges, outer.Width, outer.Height);
     }
 
-    /// <summary>Emits the layout nodes for one placed block and records its definition boxes.</summary>
+    /// <summary>
+    /// Lays out one package group with the layered pipeline plus a <see cref="ComponentPacker"/> stage,
+    /// then reads back each definition's package-local top-left and each intra-group edge's polyline,
+    /// normalized against the group's content bounding box.
+    /// </summary>
+    /// <param name="items">The group's definitions, in group order.</param>
+    /// <param name="intraEdges">The intra-group edges in package-local node indices.</param>
+    /// <returns>The package-local placement of the group's definitions and routed edges.</returns>
+    private static GroupLayout LayoutGroup(IReadOnlyList<DefBox> items, IReadOnlyList<IntraEdge> intraEdges)
+    {
+        var layerNodes = items.Select(d => new LayerNode(d.Width, d.Height)).ToList();
+        var layerEdges = intraEdges.Select(e => new LayerEdge(e.SourceLocal, e.TargetLocal)).ToList();
+
+        // Run the layered pipeline left-to-right; ComponentPacker packs disconnected definitions
+        // (e.g. standalone interface/attribute defs) beside the connected core within the folder.
+        var graph = new LayeredGraph(layerNodes, layerEdges, LayoutDirection.Right);
+        var pipeline = LayeredLayoutPipeline.Builder()
+            .Direction(LayoutDirection.Right)
+            .Hierarchy(HierarchyHandling.Flat)
+            .AddStage(ComponentPacker.WithDefaultStages())
+            .Build();
+        pipeline.Run(graph);
+
+        // Compute the content bounding box over the real definition nodes (indices [0, items.Count)).
+        var minX = double.PositiveInfinity;
+        var minY = double.PositiveInfinity;
+        var maxX = double.NegativeInfinity;
+        var maxY = double.NegativeInfinity;
+        for (var i = 0; i < items.Count; i++)
+        {
+            minX = Math.Min(minX, graph.AugX[i]);
+            minY = Math.Min(minY, graph.AugY[i]);
+            maxX = Math.Max(maxX, graph.AugX[i] + items[i].Width);
+            maxY = Math.Max(maxY, graph.AugY[i] + items[i].Height);
+        }
+
+        // Normalize node positions so the content bounding box starts at the local origin (0, 0).
+        var localPos = new (double X, double Y)[items.Count];
+        for (var i = 0; i < items.Count; i++)
+        {
+            localPos[i] = (graph.AugX[i] - minX, graph.AugY[i] - minY);
+        }
+
+        // The layered pipeline populates graph.Waypoints per ACYCLIC edge, not per intra-edge: its
+        // cycle-breaking stage drops self-loops, de-duplicates identical directed pairs, and reverses
+        // back edges. Build a (source, target) -> polyline lookup over the acyclic edge set and resolve
+        // each intra-edge by its endpoints, reversing the polyline for a reversed back edge so the
+        // arrowhead lands on the true target. Each polyline is translated into the content-local frame.
+        var routed = new Dictionary<(int Source, int Target), IReadOnlyList<Point2D>>();
+        for (var k = 0; k < graph.Acyclic.Count; k++)
+        {
+            var edge = graph.Acyclic[k];
+            routed[(edge.Source, edge.Target)] = graph.Waypoints[k];
+        }
+
+        var edges = new List<(IReadOnlyList<Point2D> Points, EndMarkerStyle Arrowhead, LineStyle LineStyle)>(intraEdges.Count);
+        foreach (var intra in intraEdges)
+        {
+            // Self-edges are dropped by the pipeline and have no routed polyline; skip them.
+            if (intra.SourceLocal == intra.TargetLocal)
+            {
+                continue;
+            }
+
+            var routedPoints = ResolveIntraPolyline(intra.SourceLocal, intra.TargetLocal, routed)
+                ?? [NodeCentre(graph, items, intra.SourceLocal), NodeCentre(graph, items, intra.TargetLocal)];
+
+            var points = routedPoints.Select(p => new Point2D(p.X - minX, p.Y - minY)).ToList();
+            edges.Add((points, intra.Arrowhead, LineStyleForKind(intra.Kind)));
+        }
+
+        return new GroupLayout(localPos, maxX - minX, maxY - minY, edges);
+    }
+
+    /// <summary>
+    /// Returns the routed polyline for an intra-group edge, reversing it when only the opposite
+    /// direction was routed (a reversed back edge), or <see langword="null"/> when neither direction
+    /// was routed.
+    /// </summary>
+    /// <param name="source">Group-local index of the edge's source definition.</param>
+    /// <param name="target">Group-local index of the edge's target definition.</param>
+    /// <param name="routed">The <c>(source, target)</c> to polyline lookup over the acyclic edge set.</param>
+    /// <returns>The polyline running source to target, or null when neither direction was routed.</returns>
+    private static IReadOnlyList<Point2D>? ResolveIntraPolyline(
+        int source,
+        int target,
+        IReadOnlyDictionary<(int Source, int Target), IReadOnlyList<Point2D>> routed)
+    {
+        if (routed.TryGetValue((source, target), out var forward))
+        {
+            return forward;
+        }
+
+        if (routed.TryGetValue((target, source), out var backward))
+        {
+            // The pipeline reversed this back edge; reverse the polyline so it runs source -> target.
+            return [.. backward.Reverse()];
+        }
+
+        return null;
+    }
+
+    /// <summary>Returns the centre point of a group definition's placed box, in graph coordinates.</summary>
+    /// <param name="graph">The laid-out group graph.</param>
+    /// <param name="items">The group's definitions, in group order.</param>
+    /// <param name="index">Group-local index of the definition.</param>
+    /// <returns>The box centre used as a straight-line fallback when no route was found.</returns>
+    private static Point2D NodeCentre(LayeredGraph graph, IReadOnlyList<DefBox> items, int index) =>
+        new(graph.AugX[index] + (items[index].Width / 2.0), graph.AugY[index] + (items[index].Height / 2.0));
+
+    /// <summary>
+    /// Emits the layout nodes for one placed block: a package folder with its child definition boxes,
+    /// the frameless top-level definitions, or a truncated folder with an ellipsis indicator. Records
+    /// each rendered definition's absolute placement and the absolute intra-group edge lines.
+    /// </summary>
     private static void PlaceBlock(
         BlockPlan block,
         PackedRect rect,
         double folderTitleHeight,
+        double margin,
         Theme theme,
         List<LayoutNode> nodes,
-        List<PlacedBox> placed)
+        List<PlacedBox> placed,
+        List<LayoutLine> intraEdges)
     {
-        if (block.Package is null)
-        {
-            // Standalone top-level definition box.
-            var def = block.Items[0];
-            nodes.Add(MakeDefBox(def, rect.X, rect.Y, depth: 0));
-            placed.Add(new PlacedBox(def.QualifiedName, def.SimpleName, rect.X, rect.Y, def.Width, def.Height));
-            return;
-        }
-
-        var children = new List<LayoutNode>();
+        var isFolder = !string.IsNullOrEmpty(block.Package);
 
         if (block.Truncated)
         {
             // Show a visible truncation indicator instead of the hidden definition boxes.
-            children.Add(new LayoutLabel(
-                X: rect.X + theme.LabelPadding,
-                Y: rect.Y + folderTitleHeight + theme.LabelPadding + (theme.FontSizeTitle / 2.0),
-                MaxWidth: block.Width - (2.0 * theme.LabelPadding),
-                Text: $"+{block.Items.Count} more\u2026",
-                Align: TextAlign.Center,
-                Weight: FontWeight.Regular,
-                Style: FontStyle.Normal,
-                FontSize: theme.FontSizeTitle));
-        }
-        else
-        {
-            // Folder containing packed definition boxes.
-            var inner = block.Inner!;
-            for (var k = 0; k < block.Items.Count; k++)
+            var indicator = new List<LayoutNode>
             {
-                var def = block.Items[k];
-                var childRect = inner.Rects[k];
-                var absX = rect.X + childRect.X;
-                var absY = rect.Y + folderTitleHeight + childRect.Y;
-                children.Add(MakeDefBox(def, absX, absY, depth: 1));
-                placed.Add(new PlacedBox(def.QualifiedName, def.SimpleName, absX, absY, def.Width, def.Height));
-            }
+                new LayoutLabel(
+                    X: rect.X + theme.LabelPadding,
+                    Y: rect.Y + folderTitleHeight + theme.LabelPadding + (theme.FontSizeTitle / 2.0),
+                    MaxWidth: block.Width - (2.0 * theme.LabelPadding),
+                    Text: $"+{block.Items.Count} more\u2026",
+                    Align: TextAlign.Center,
+                    Weight: FontWeight.Regular,
+                    Style: FontStyle.Normal,
+                    FontSize: theme.FontSizeTitle),
+            };
+
+            nodes.Add(MakeFolderBox(block, rect, indicator));
+            return;
         }
 
-        nodes.Add(new LayoutBox(
+        var layout = block.Layout!;
+        var titleArea = isFolder ? folderTitleHeight : 0.0;
+        var contentOriginX = rect.X + margin;
+        var contentOriginY = rect.Y + titleArea + margin;
+
+        // Place the definition boxes. Folder children sit at depth 1 inside the folder; the frameless
+        // top-level block emits its definitions directly at depth 0.
+        var children = new List<LayoutNode>();
+        for (var k = 0; k < block.Items.Count; k++)
+        {
+            var def = block.Items[k];
+            var absX = contentOriginX + layout.LocalPos[k].X;
+            var absY = contentOriginY + layout.LocalPos[k].Y;
+            var box = MakeDefBox(def, absX, absY, depth: isFolder ? 1 : 0);
+            if (isFolder)
+            {
+                children.Add(box);
+            }
+            else
+            {
+                nodes.Add(box);
+            }
+
+            placed.Add(new PlacedBox(def.QualifiedName, def.SimpleName, absX, absY, def.Width, def.Height));
+        }
+
+        if (isFolder)
+        {
+            nodes.Add(MakeFolderBox(block, rect, children));
+        }
+
+        // Offset the pipeline-routed intra-group edges into absolute canvas coordinates.
+        foreach (var (points, arrowhead, lineStyle) in layout.Edges)
+        {
+            var absPoints = points.Select(p => new Point2D(contentOriginX + p.X, contentOriginY + p.Y)).ToList();
+            intraEdges.Add(new LayoutLine(
+                Waypoints: absPoints,
+                SourceEnd: EndMarkerStyle.None,
+                TargetEnd: arrowhead,
+                LineStyle: lineStyle,
+                MidpointLabel: null));
+        }
+    }
+
+    /// <summary>Creates the folder <see cref="LayoutBox"/> for a package block with the given children.</summary>
+    private static LayoutBox MakeFolderBox(BlockPlan block, PackedRect rect, List<LayoutNode> children) =>
+        new(
             X: rect.X,
             Y: rect.Y,
             Width: block.Width,
@@ -372,8 +602,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             Shape: BoxShape.Folder,
             Compartments: [],
             Children: children,
-            Keyword: "package"));
-    }
+            Keyword: "package");
 
     /// <summary>Creates a definition <see cref="LayoutBox"/> at the given absolute position.</summary>
     private static LayoutBox MakeDefBox(DefBox def, double x, double y, int depth) =>
@@ -390,83 +619,179 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             Keyword: def.Keyword);
 
     /// <summary>
-    /// Builds specialization (generalization) edges between placed definition boxes, returning the
-    /// edges and the number that could not be routed without crossing a box.
+    /// Resolves the specialization, membership, and attribute-typing edge set into intra-package edges
+    /// (both endpoints in the same package group, laid out together by the layered pipeline) and
+    /// cross-package edges (both endpoints resolved but in different package groups, routed around the
+    /// placed folders).
     /// </summary>
-    private static (List<LayoutNode> Edges, int Crossings) BuildSpecializationEdges(
-        IReadOnlyList<DefBox> defs,
-        IReadOnlyList<PlacedBox> placed)
+    /// <param name="groups">The definitions grouped by owning package.</param>
+    /// <returns>One intra-edge list per group (parallel to <paramref name="groups"/>) and the cross-edge list.</returns>
+    private static (IReadOnlyList<List<IntraEdge>> Intra, List<CrossEdge> Cross) BuildEdges(
+        IReadOnlyList<(string Package, List<DefBox> Items)> groups)
     {
-        var edges = new List<LayoutNode>();
-        var crossings = 0;
+        // Index every definition by qualified and simple name, mapping to its (group, local) position.
+        var locByQualified = new Dictionary<string, (int Group, int Local)>(StringComparer.Ordinal);
+        var locBySimple = new Dictionary<string, (int Group, int Local)>(StringComparer.Ordinal);
+        for (var g = 0; g < groups.Count; g++)
+        {
+            var items = groups[g].Items;
+            for (var l = 0; l < items.Count; l++)
+            {
+                locByQualified.TryAdd(items[l].QualifiedName, (g, l));
+                locBySimple.TryAdd(items[l].SimpleName, (g, l));
+            }
+        }
 
-        // Index placed boxes by both qualified and simple name for supertype resolution.
+        var intra = groups.Select(_ => new List<IntraEdge>()).ToList();
+        var cross = new List<CrossEdge>();
+
+        for (var g = 0; g < groups.Count; g++)
+        {
+            var items = groups[g].Items;
+            for (var l = 0; l < items.Count; l++)
+            {
+                var def = items[l];
+
+                // Specialization: subtype → supertype, open arrowhead at the supertype (target) end.
+                foreach (var supertype in def.SupertypeNames)
+                {
+                    if (TryResolveLoc(supertype, locByQualified, locBySimple, out var target) &&
+                        !(target.Group == g && target.Local == l))
+                    {
+                        if (target.Group == g)
+                        {
+                            intra[g].Add(new IntraEdge(l, target.Local, EndMarkerStyle.HollowTriangle, EdgeKind.Specialization));
+                        }
+                        else
+                        {
+                            cross.Add(new CrossEdge(def.QualifiedName, groups[target.Group].Items[target.Local].QualifiedName, EndMarkerStyle.HollowTriangle, EdgeKind.Specialization));
+                        }
+                    }
+                }
+
+                // Membership: member-type → owner, diamond at the owner (target) end. Structural keywords
+                // (part/port) use a filled diamond; reference (ref) uses a hollow diamond; others emit none.
+                foreach (var membership in def.Memberships)
+                {
+                    var arrowhead = membership.Keyword switch
+                    {
+                        "part" or "port" => EndMarkerStyle.FilledDiamond,
+                        "ref" => EndMarkerStyle.HollowDiamond,
+                        _ => EndMarkerStyle.None,
+                    };
+
+                    if (arrowhead == EndMarkerStyle.None)
+                    {
+                        continue;
+                    }
+
+                    if (TryResolveLoc(membership.TypeName, locByQualified, locBySimple, out var memberType) &&
+                        !(memberType.Group == g && memberType.Local == l))
+                    {
+                        if (memberType.Group == g)
+                        {
+                            // Source = member-type local, target = owner local (the diamond sits on the owner).
+                            intra[g].Add(new IntraEdge(memberType.Local, l, arrowhead, EdgeKind.Membership));
+                        }
+                        else
+                        {
+                            cross.Add(new CrossEdge(groups[memberType.Group].Items[memberType.Local].QualifiedName, def.QualifiedName, arrowhead, EdgeKind.Membership));
+                        }
+                    }
+                }
+
+                // Attribute typing: owner → attribute-type dependency, open chevron at the type (target) end.
+                // An attribute (or enum-typed attribute) feature typed by a def in the view draws a dashed
+                // dependency line so the attribute def joins the cluster near its referencing def(s). This is
+                // a usage-type dependency, not composition, so it uses the dependency notation rather than a
+                // membership diamond. Unresolved types and self-references are skipped, exactly as above.
+                foreach (var membership in def.Memberships)
+                {
+                    if (membership.Keyword is not ("attribute" or "enum"))
+                    {
+                        continue;
+                    }
+
+                    if (TryResolveLoc(membership.TypeName, locByQualified, locBySimple, out var attrType) &&
+                        !(attrType.Group == g && attrType.Local == l))
+                    {
+                        if (attrType.Group == g)
+                        {
+                            // Source = owner local, target = attribute-type local (the chevron points at the type).
+                            intra[g].Add(new IntraEdge(l, attrType.Local, EndMarkerStyle.OpenChevron, EdgeKind.Typing));
+                        }
+                        else
+                        {
+                            cross.Add(new CrossEdge(def.QualifiedName, groups[attrType.Group].Items[attrType.Local].QualifiedName, EndMarkerStyle.OpenChevron, EdgeKind.Typing));
+                        }
+                    }
+                }
+            }
+        }
+
+        return (intra, cross);
+    }
+
+    /// <summary>Resolves a supertype/type reference to a definition's (group, local) position by qualified then simple name.</summary>
+    private static bool TryResolveLoc(
+        string reference,
+        Dictionary<string, (int Group, int Local)> byQualified,
+        Dictionary<string, (int Group, int Local)> bySimple,
+        out (int Group, int Local) location)
+    {
+        if (byQualified.TryGetValue(reference, out location))
+        {
+            return true;
+        }
+
+        var sep = reference.LastIndexOf("::", StringComparison.Ordinal);
+        var simple = sep >= 0 ? reference[(sep + 2)..] : reference;
+        return bySimple.TryGetValue(simple, out location);
+    }
+
+    /// <summary>
+    /// Routes the cross-package edges around the placed folders with <see cref="ChannelRouter"/>.
+    /// Cross-package edges are rare in practice (most General-view models are single-package); each is
+    /// drawn cost-neutrally between the two folders, with the recorded arrowhead at the target end.
+    /// </summary>
+    /// <param name="crossEdges">The cross-package edges to route.</param>
+    /// <param name="placed">The absolute placements of every rendered definition box.</param>
+    /// <returns>One routed <see cref="LayoutLine"/> per cross-package edge whose endpoints are both placed.</returns>
+    private static List<LayoutLine> RouteCrossEdges(IReadOnlyList<CrossEdge> crossEdges, IReadOnlyList<PlacedBox> placed)
+    {
+        var lines = new List<LayoutLine>();
+        if (crossEdges.Count == 0)
+        {
+            return lines;
+        }
+
+        // Index placed boxes by qualified name so cross edges resolve to absolute box geometry. Edges
+        // touching a truncated (unrendered) definition are skipped because the box is absent.
         var byQualified = new Dictionary<string, PlacedBox>(StringComparer.Ordinal);
-        var bySimple = new Dictionary<string, PlacedBox>(StringComparer.Ordinal);
         foreach (var p in placed)
         {
             byQualified.TryAdd(p.QualifiedName, p);
-            bySimple.TryAdd(p.SimpleName, p);
         }
 
-        foreach (var def in defs)
+        foreach (var edge in crossEdges)
         {
-            if (!byQualified.TryGetValue(def.QualifiedName, out var fromBox))
+            if (!byQualified.TryGetValue(edge.SourceQualified, out var fromBox) ||
+                !byQualified.TryGetValue(edge.TargetQualified, out var toBox))
             {
                 continue;
             }
 
-            foreach (var supertype in def.SupertypeNames)
-            {
-                if (!TryResolve(supertype, byQualified, bySimple, out var target) ||
-                    target!.QualifiedName == def.QualifiedName)
-                {
-                    continue;
-                }
-
-                var (edge, crossed) = RouteEdge(fromBox, target, placed);
-                edges.Add(edge);
-                if (crossed)
-                {
-                    crossings++;
-                }
-            }
+            lines.Add(RouteCrossEdge(fromBox, toBox, placed, edge.Arrowhead, LineStyleForKind(edge.Kind)));
         }
 
-        return (edges, crossings);
-    }
-
-    /// <summary>Resolves a supertype reference to a placed box by qualified then simple name.</summary>
-    private static bool TryResolve(
-        string reference,
-        Dictionary<string, PlacedBox> byQualified,
-        Dictionary<string, PlacedBox> bySimple,
-        out PlacedBox? target)
-    {
-        if (byQualified.TryGetValue(reference, out var q))
-        {
-            target = q;
-            return true;
-        }
-
-        // Fall back to the last segment of the reference matched against simple names.
-        var sep = reference.LastIndexOf("::", StringComparison.Ordinal);
-        var simple = sep >= 0 ? reference[(sep + 2)..] : reference;
-        if (bySimple.TryGetValue(simple, out var s))
-        {
-            target = s;
-            return true;
-        }
-
-        target = null;
-        return false;
+        return lines;
     }
 
     /// <summary>
-    /// Routes a single specialization edge from a subtype box to its supertype box, returning the
-    /// edge and whether it had to cross another box.
+    /// Routes a single cross-package edge from the source box to the target box, placing the supplied
+    /// arrowhead at the target (supertype, owner, or attribute-type) end with the supplied line style.
     /// </summary>
-    private static (LayoutLine Edge, bool Crossed) RouteEdge(PlacedBox from, PlacedBox to, IReadOnlyList<PlacedBox> placed)
+    private static LayoutLine RouteCrossEdge(PlacedBox from, PlacedBox to, IReadOnlyList<PlacedBox> placed, EndMarkerStyle targetArrowhead, LineStyle lineStyle)
     {
         var fromCenter = new Point2D(from.X + (from.Width / 2.0), from.Y + (from.Height / 2.0));
         var toCenter = new Point2D(to.X + (to.Width / 2.0), to.Y + (to.Height / 2.0));
@@ -482,14 +807,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         var route = ChannelRouter.RouteWithStatus(source, target, obstacles, EdgeClearance, sourceSide, targetSide);
 
-        // Generalization: open arrowhead points at the supertype (target) end.
-        var edge = new LayoutLine(
+        return new LayoutLine(
             Waypoints: route.Waypoints,
-            SourceArrowhead: ArrowheadStyle.None,
-            TargetArrowhead: ArrowheadStyle.Open,
-            LineStyle: LineStyle.Solid,
+            SourceEnd: EndMarkerStyle.None,
+            TargetEnd: targetArrowhead,
+            LineStyle: lineStyle,
             MidpointLabel: null);
-        return (edge, route.Crossed);
     }
 
     /// <summary>
@@ -517,16 +840,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             : (new Point2D(cx, box.Y), PortSide.Top);
     }
 
-    /// <summary>Computes the packing width used to lay out the definitions within a package folder.</summary>
-    private static double ComputePackWidth(IReadOnlyList<DefBox> items)
-    {
-        // Target a roughly 4:3 region by packing to the square root of the total item area.
-        var totalArea = items.Sum(d => (d.Width + 20.0) * (d.Height + 20.0));
-        var maxItemWidth = items.Max(d => d.Width);
-        var target = Math.Sqrt(totalArea) * 1.15;
-        return Math.Max(maxItemWidth, target);
-    }
-
     /// <summary>Computes the packing width used to lay out top-level blocks across the canvas.</summary>
     private static double ComputeCanvasWidth(IReadOnlyList<BlockPlan> blocks)
     {
@@ -544,11 +857,15 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         return sep >= 0 ? package[(sep + 2)..] : package;
     }
 
-    /// <summary>Internal plan for one top-level block (a folder or a standalone definition box).</summary>
-    private sealed record BlockPlan(string? Package, List<DefBox> Items, double Width, double Height)
+    /// <summary>Internal plan for one top-level block (a package folder or the frameless top-level block).</summary>
+    /// <param name="Package">Owning package name; empty for the frameless top-level block.</param>
+    /// <param name="Items">The definitions placed within this block, in group order.</param>
+    /// <param name="Width">Outer width of the block in logical pixels.</param>
+    /// <param name="Height">Outer height of the block in logical pixels.</param>
+    private sealed record BlockPlan(string Package, IReadOnlyList<DefBox> Items, double Width, double Height)
     {
-        /// <summary>Packed inner layout of the folder's definition boxes, when this block is a folder.</summary>
-        public PackResult? Inner { get; init; }
+        /// <summary>Package-local placement of the block's definitions and routed edges; null when truncated.</summary>
+        public GroupLayout? Layout { get; init; }
 
         /// <summary>When true, the folder's contents are replaced by an ellipsis truncation indicator.</summary>
         public bool Truncated { get; init; }

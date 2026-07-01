@@ -22,7 +22,8 @@ sysml2tools render <model>.sysml --format svg --output docs/gallery/svg
 
 Shows every definition kind (part, port, interface, attribute, enumeration,
 requirement) grouped in a package folder, with typed compartments (attributes,
-ports, parts) and specialization edges.
+ports, parts) and specialization edges. Definitions are placed by a layered
+(ELK-style) engine with orthogonal edge routing.
 
 Model: [`models/01-drone-general.sysml`](models/01-drone-general.sysml) ·
 SVG: [`svg/DroneGeneralView.svg`](svg/DroneGeneralView.svg)
@@ -34,7 +35,8 @@ SVG: [`svg/DroneGeneralView.svg`](svg/DroneGeneralView.svg)
 ## 2. Interconnection View — Desktop Workstation
 
 Shows the internal structure of a part: nested part usages placed by the
-force-directed engine, ports on box boundaries, and connectors routed between them.
+interconnection layout engine (a façade over the layered pipeline), ports on box
+boundaries, and connectors routed between them.
 The motherboard sits at the hub of the component connections.
 
 Model: [`models/02-computer-interconnection.sysml`](models/02-computer-interconnection.sysml) ·
@@ -46,8 +48,8 @@ SVG: [`svg/WorkstationInterconnectionView.svg`](svg/WorkstationInterconnectionVi
 
 ## 3. State Transition View — Elevator Controller
 
-Shows states placed by the force-directed engine, an initial pseudo-state, and
-guarded transitions with `[guard]` labels.
+Shows states placed top-to-bottom by the layered layout pipeline, an initial pseudo-state, and
+guarded transitions routed as orthogonal `[guard]`-labelled arrows.
 
 Model: [`models/03-elevator-state.sysml`](models/03-elevator-state.sysml) ·
 SVG: [`svg/ElevatorStateTransitionView.svg`](svg/ElevatorStateTransitionView.svg)
@@ -58,7 +60,7 @@ SVG: [`svg/ElevatorStateTransitionView.svg`](svg/ElevatorStateTransitionView.svg
 
 ## 4. Action Flow View — CI/CD Pipeline
 
-Shows actions arranged top-to-bottom in layers by the Sugiyama-style layered engine,
+Shows actions arranged top-to-bottom by the layered layout pipeline,
 with a start node, a done node, and a quality-gate branch and join.
 
 Model: [`models/04-pipeline-action-flow.sysml`](models/04-pipeline-action-flow.sysml) ·
@@ -104,6 +106,21 @@ SVG: [`svg/AvionicsBrowserView.svg`](svg/AvionicsBrowserView.svg)
 
 ---
 
+## 8. Nested Interconnection View — Computer System
+
+Shows a two-level nested Interconnection View. The `Computer` part contains a `board`
+typed by `Motherboard`, which has its own internal `cpu`, `chipset`, and `ram` parts and
+connections. The motherboard's interior is laid out recursively (bottom-up) and nested
+inside the `board` container box, while the outer power and storage connections route
+between the top-level parts.
+
+Model: [`models/08-nested-interconnection.sysml`](models/08-nested-interconnection.sysml) ·
+SVG: [`svg/ComputerSystemInterconnectionView.svg`](svg/ComputerSystemInterconnectionView.svg)
+
+![Computer System Nested Interconnection View](png/ComputerSystemInterconnectionView.png)
+
+---
+
 ## View coverage
 
 | # | View type | Example system | Status |
@@ -115,4 +132,5 @@ SVG: [`svg/AvionicsBrowserView.svg`](svg/AvionicsBrowserView.svg)
 | 5 | Sequence View | OAuth 2.0 Login | ✅ |
 | 6 | Grid View | Vehicle Taxonomy | ✅ |
 | 7 | Browser View | Avionics System | ✅ |
-| 8 | Geometry View | — | Deferred (requires spatial coordinate data) |
+| 8 | Nested Interconnection View | Computer System | ✅ |
+| 9 | Geometry View | — | Deferred (requires spatial coordinate data) |

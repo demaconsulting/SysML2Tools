@@ -59,13 +59,18 @@ Each node type uses a fixed font weight and style as SVG attributes:
 
 ### Text Length Shrink-to-Fit
 
-`LayoutBox` labels include `textLength` and `lengthAdjust="spacingAndGlyphs"` attributes
-set to `(box.Width - 2 * theme.LabelPadding) * scale`. This instructs SVG renderers to
-compress or stretch glyph spacing so the text fills (or shrinks into) the available title
-area without overflow.
+`LayoutBox` labels and `LayoutLabel` nodes are constrained to their available width only
+when the text would otherwise overflow it. The renderer estimates each label's natural
+width (character count × font size × an average glyph-width factor) and compares it to the
+available width — `box.Width - 2 * theme.LabelPadding` for box labels, or `MaxWidth` for a
+`LayoutLabel`. Only when the estimate exceeds the available width does the renderer emit
+`textLength="{availableWidth * scale}"` together with `lengthAdjust="spacingAndGlyphs"`,
+which instructs SVG viewers to compress the glyph spacing so the text shrinks into the
+available area without overflow.
 
-`LayoutLabel` nodes with `MaxWidth > 0` similarly include
-`textLength="{MaxWidth * scale}" lengthAdjust="spacingAndGlyphs"`.
+When the text already fits (or the available width is non-positive), no `textLength` or
+`lengthAdjust` attribute is emitted, so short labels render at their natural width and are
+never stretched to fill the box.
 
 ### Key Methods
 
@@ -73,17 +78,28 @@ area without overflow.
 
 Entry point. Validates arguments, computes canvas size clamped to a minimum of 1×1,
 writes the SVG root element with `xmlns`, `width`, `height`, and `viewBox` attributes,
-then calls `WriteArrowheadDefs` followed by recursive `RenderNode` calls for every
+then calls `WriteEndMarkerDefs` followed by recursive `RenderNode` calls for every
 top-level node. Encodes the completed `StringBuilder` as UTF-8 and writes all bytes
 to `output` in a single `Write` call.
 
-**`WriteArrowheadDefs(StringBuilder sb, Theme theme)`**
+**`WriteEndMarkerDefs(StringBuilder sb, Theme theme)`**
 
-Writes the SVG `<defs>` block containing six named marker elements: `arrowhead-open`
-(hollow triangle), `arrowhead-filled` (solid triangle), `arrowhead-diamond` (hollow
-four-point polygon), `arrowhead-filled-diamond` (solid four-point polygon),
-`arrowhead-circle` (open circle), and `arrowhead-bar` (perpendicular line). All markers
-use `theme.StrokeColor` and `theme.StrokeWidth`.
+Writes the SVG `<defs>` block containing eight named line-end marker elements:
+`line-end-open-chevron` (open chevron drawn as a `<polyline>` with no closing base edge),
+`line-end-hollow-triangle` (hollow triangle), `line-end-filled-arrow` (solid triangle),
+`line-end-hollow-diamond` (hollow four-point polygon), `line-end-filled-diamond`
+(solid four-point polygon), `line-end-circle` (open circle), `line-end-bar`
+(perpendicular line), and `line-end-hollow-triangle-crossbar` (hollow triangle with
+perpendicular crossbar). All markers use `theme.StrokeColor` and `theme.StrokeWidth`.
+
+Every marker coordinate is derived from the single-source notation geometry in
+`NotationMetrics` (for example `EndMarkerLength`, `EndMarkerWidth`, `EndMarkerRefX`,
+`DiamondLength`, `CircleRadius`, `BarAlong`/`BarAcross`, and the
+`TriangleVertices()`/`DiamondVertices()` helpers). Because the SVG and PNG renderers
+read from the same `NotationMetrics` source, their end markers are geometrically
+identical. `line-end-open-chevron` is the only open marker — it omits the closing base
+edge so the chevron renders as two strokes meeting at the apex; the hollow triangle and
+both diamonds remain closed.
 
 **`RenderNode(StringBuilder sb, LayoutNode node, Theme theme, double scale)`**
 
@@ -111,17 +127,23 @@ zero or more left-aligned regular-weight body-font `<text>` rows.
 **`RenderLine(StringBuilder sb, LayoutLine line, Theme theme, double scale)`**
 
 Calls `BuildLinePath` to produce the path `d` attribute, then writes a `<path>` element
-with `fill="none"`. Adds `marker-start` or `marker-end` attributes for all six non-None
-`ArrowheadStyle` values. Adds `stroke-dasharray` for `Dashed` and `Dotted` line styles.
+with `fill="none"`. Adds `marker-start` or `marker-end` attributes for all eight non-None
+`EndMarkerStyle` values, referencing the `SourceEnd` and `TargetEnd` line-end markers.
+Adds `stroke-dasharray` for `Dashed` and `Dotted` line styles.
 Writes an optional midpoint `<text>` element when `MidpointLabel` is non-null.
 
-**`BuildLinePath(IReadOnlyList<Point2D> waypoints, double cornerRadius, double scale)`**
+**`BuildLinePath(IReadOnlyList<Point2D> waypoints, double cornerRadius, double scale,
+EndMarkerStyle sourceEnd, EndMarkerStyle targetEnd)`**
 
 Builds the SVG path `d` string. When `cornerRadius` is zero, emits plain `M`/`L`
 commands. When positive, each interior waypoint is replaced with a shortened `L` command
 to the arc start point, followed by an `A` (elliptical arc) command whose sweep direction
 (0 or 1) is determined from the cross product of the incoming and outgoing unit direction
 vectors. The radius is clamped to half the shorter adjacent segment to prevent overshoot.
+At the first and last bends the radius is additionally clamped so the rounded corner
+completes at least the marker's along-line length (`NotationMetrics.AlongLineLength`
+for `sourceEnd`/`targetEnd`) before the endpoint, so the curve never intrudes into the
+end-marker zone.
 
 **`RenderLabel(StringBuilder sb, LayoutLabel label, Theme theme, double scale)`**
 

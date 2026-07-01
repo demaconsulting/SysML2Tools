@@ -95,8 +95,8 @@ public sealed class SvgRendererTests
         var renderer = new SvgRenderer();
         var line = new LayoutLine(
             [new Point2D(10, 10), new Point2D(90, 90)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.Open,
+            EndMarkerStyle.None,
+            EndMarkerStyle.HollowTriangle,
             LineStyle.Solid,
             null);
         var layout = new LayoutTree(200, 100, [line]);
@@ -124,8 +124,8 @@ public sealed class SvgRendererTests
         var renderer = new SvgRenderer();
         var line = new LayoutLine(
             [new Point2D(10, 10), new Point2D(10, 50), new Point2D(90, 50)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.None,
+            EndMarkerStyle.None,
+            EndMarkerStyle.None,
             LineStyle.Solid,
             null);
         var layout = new LayoutTree(200, 100, [line]);
@@ -152,8 +152,8 @@ public sealed class SvgRendererTests
         var renderer = new SvgRenderer();
         var line = new LayoutLine(
             [new Point2D(10, 10), new Point2D(90, 10)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.None,
+            EndMarkerStyle.None,
+            EndMarkerStyle.None,
             LineStyle.Dashed,
             null);
         var layout = new LayoutTree(200, 100, [line]);
@@ -180,8 +180,8 @@ public sealed class SvgRendererTests
         var renderer = new SvgRenderer();
         var line = new LayoutLine(
             [new Point2D(10, 10), new Point2D(90, 10)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.Open,
+            EndMarkerStyle.None,
+            EndMarkerStyle.HollowTriangle,
             LineStyle.Solid,
             null);
         var layout = new LayoutTree(200, 100, [line]);
@@ -199,7 +199,7 @@ public sealed class SvgRendererTests
 
     /// <summary>
     ///     Render a LayoutLine with a Diamond source arrowhead produces SVG output containing
-    ///     the arrowhead-diamond marker id, confirming diamond markers are defined and referenced.
+    ///     the line-end-hollow-diamond marker id, confirming diamond markers are defined and referenced.
     /// </summary>
     [Fact]
     public void SvgRenderer_Render_SingleLine_WithDiamondArrowhead_ProducesDiamondMarker()
@@ -208,8 +208,8 @@ public sealed class SvgRendererTests
         var renderer = new SvgRenderer();
         var line = new LayoutLine(
             [new Point2D(10, 10), new Point2D(90, 10)],
-            ArrowheadStyle.Diamond,
-            ArrowheadStyle.None,
+            EndMarkerStyle.HollowDiamond,
+            EndMarkerStyle.None,
             LineStyle.Solid,
             null);
         var layout = new LayoutTree(200, 100, [line]);
@@ -222,7 +222,7 @@ public sealed class SvgRendererTests
         // Assert
         output.Position = 0;
         var svgText = new StreamReader(output).ReadToEnd();
-        Assert.Contains("arrowhead-diamond", svgText, StringComparison.Ordinal);
+        Assert.Contains("line-end-hollow-diamond", svgText, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -473,8 +473,8 @@ public sealed class SvgRendererTests
         var renderer = new SvgRenderer();
         var line = new LayoutLine(
             [new Point2D(10, 50), new Point2D(190, 50)],
-            ArrowheadStyle.None,
-            ArrowheadStyle.None,
+            EndMarkerStyle.None,
+            EndMarkerStyle.None,
             LineStyle.Solid,
             "uses");
         var layout = new LayoutTree(200, 100, [line]);
@@ -489,5 +489,71 @@ public sealed class SvgRendererTests
         var svgText = new StreamReader(output).ReadToEnd();
         Assert.Contains("<text", svgText, StringComparison.Ordinal);
         Assert.Contains("uses", svgText, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Render a LayoutLine with an OpenWithCrossbar target arrowhead produces SVG output
+    ///     containing the line-end-hollow-triangle-crossbar marker id, confirming the open-crossbar marker
+    ///     is defined in the defs block and referenced by the path element.
+    /// </summary>
+    [Fact]
+    public void SvgRenderer_Render_SingleLine_WithOpenCrossbarArrowhead_ProducesOpenCrossbarMarker()
+    {
+        // Arrange: a line with OpenWithCrossbar arrowhead at the target
+        var renderer = new SvgRenderer();
+        var line = new LayoutLine(
+            [new Point2D(10, 10), new Point2D(90, 10)],
+            EndMarkerStyle.None,
+            EndMarkerStyle.HollowTriangleCrossbar,
+            LineStyle.Solid,
+            null);
+        var layout = new LayoutTree(200, 100, [line]);
+        var options = new RenderOptions(Themes.Light);
+        using var output = new MemoryStream();
+
+        // Act
+        renderer.Render(layout, options, output);
+
+        // Assert
+        output.Position = 0;
+        var svgText = new StreamReader(output).ReadToEnd();
+        Assert.Contains("line-end-hollow-triangle-crossbar", svgText, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Render a tree whose box label and standalone label both contain XML-special characters
+    ///     (<c>&lt; &gt; &amp; " '</c>) produces well-formed SVG in which the reserved markup
+    ///     characters are escaped, confirming that label text can never break the SVG document.
+    /// </summary>
+    [Fact]
+    public void SvgRenderer_Render_LabelWithXmlSpecialCharacters_ProducesWellFormedEscapedSvg()
+    {
+        // Arrange: a tree whose box label and standalone label both contain XML-special characters.
+        const string special = "A < B & C > D \" E ' F";
+        var renderer = new SvgRenderer();
+        var box = new LayoutBox(10, 10, 200, 60, special, 0, BoxShape.Rectangle, [], []);
+        var label = new LayoutLabel(20, 40, 200, special, TextAlign.Left, FontWeight.Regular, FontStyle.Normal, 12.0);
+        var layout = new LayoutTree(300, 200, [box, label]);
+        var options = new RenderOptions(Themes.Light);
+        using var output = new MemoryStream();
+
+        // Act: render the tree.
+        renderer.Render(layout, options, output);
+
+        // Assert: the output parses as well-formed XML and the reserved characters are escaped.
+        output.Position = 0;
+        var svgText = new StreamReader(output).ReadToEnd();
+        var document = System.Xml.Linq.XDocument.Parse(svgText); // throws if the SVG is not well-formed
+        Assert.Contains("&lt;", svgText, StringComparison.Ordinal);
+        Assert.Contains("&gt;", svgText, StringComparison.Ordinal);
+        Assert.Contains("&amp;", svgText, StringComparison.Ordinal);
+
+        // Assert: after parsing, a text element's content round-trips back to the original label,
+        // proving the special characters were escaped rather than emitted raw.
+        var textValues = document.Descendants()
+            .Where(e => e.Name.LocalName == "text")
+            .Select(e => e.Value)
+            .ToList();
+        Assert.Contains(textValues, v => v.Contains(special, StringComparison.Ordinal));
     }
 }

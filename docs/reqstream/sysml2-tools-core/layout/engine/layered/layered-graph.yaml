@@ -1,0 +1,31 @@
+---
+# LayeredGraph Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the LayeredGraph unit
+# - LayeredGraph is the mutable shared state threaded through every layered pipeline stage
+# - Requirements describe observable construction and validation behavior, not field internals
+
+sections:
+  - title: LayeredGraph Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-LayeredGraph-ArgumentValidation
+        title: >-
+          LayeredGraph shall reject a null node list or a null edge list at construction by
+          throwing an ArgumentNullException.
+        justification: |
+          Failing fast on null inputs prevents a later stage from dereferencing a missing
+          collection and producing a confusing downstream error.
+        tests:
+          - LayeredGraph_Constructor_NullNodes_ThrowsArgumentNullException
+          - LayeredGraph_Constructor_NullEdges_ThrowsArgumentNullException
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-LayeredGraph-StateInitialization
+        title: >-
+          LayeredGraph shall expose the supplied nodes, edges, and direction unchanged and shall
+          report the input node count.
+        justification: |
+          Every stage reads the original nodes, edges, direction, and node count from the shared
+          state, so the constructor must preserve them exactly as supplied.
+        tests:
+          - LayeredGraph_Constructor_ValidInput_StoresNodesEdgesDirectionAndCount

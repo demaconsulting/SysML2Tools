@@ -183,6 +183,27 @@ public sealed class ChannelRouterTests
     }
 
     /// <summary>
+    ///     A highway cost band makes one detour cheaper, so the router prefers routing through the band
+    ///     rather than the equal-length alternative on the opposite side of the obstacle.
+    /// </summary>
+    [Fact]
+    public void RouteWithStatus_HighwayBand_PrefersBandedDetour()
+    {
+        // Arrange: an obstacle blocks the straight line; a cheaper band lies on the +y (downward) side
+        var source = new Point2D(0, 0);
+        var target = new Point2D(200, 0);
+        var obstacles = new[] { new Rect(80, -30, 40, 60) };
+        var bands = new[] { new CostBand(IsHorizontal: true, Start: 40, End: 80, Multiplier: 0.6) };
+
+        // Act: route with the discounted band biasing the detour
+        var result = ChannelRouter.RouteWithStatus(source, target, obstacles, clearance: 10, costBands: bands);
+
+        // Assert: the route dips downward into the cheaper band instead of detouring up
+        Assert.False(result.Crossed);
+        Assert.Contains(result.Waypoints, p => p.Y > 0);
+    }
+
+    /// <summary>
     ///     A clean route keeps the requested clearance from obstacles it passes, rather than grazing
     ///     their edges.
     /// </summary>

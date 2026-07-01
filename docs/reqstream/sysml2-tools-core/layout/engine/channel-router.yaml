@@ -65,3 +65,13 @@ sections:
         tests:
           - RouteWithStatus_NoBlockingObstacle_ReportsNotCrossed
           - RouteWithStatus_TargetEnclosedByObstacle_ReportsCrossed
+
+      - id: SysML2Tools-Core-Layout-Engine-ChannelRouter-CostBands
+        title: >-
+          When cost bands are supplied, ChannelRouter shall prefer routing through a cheaper band over
+          an equal-length alternative outside it.
+        justification: |
+          Highway bundling depends on a cost discount so parallel wires share a corridor; the router
+          must bias toward discounted bands while keeping null bands neutral.
+        tests:
+          - RouteWithStatus_HighwayBand_PrefersBandedDetour

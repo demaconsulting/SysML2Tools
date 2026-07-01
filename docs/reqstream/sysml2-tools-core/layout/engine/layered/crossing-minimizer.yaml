@@ -1,0 +1,34 @@
+---
+# CrossingMinimizer Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the CrossingMinimizer unit
+# - CrossingMinimizer orders the augmented nodes within each layer to reduce edge crossings
+# - Requirements describe the observable layer grouping, not the barycenter sweep internals
+
+sections:
+  - title: CrossingMinimizer Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-CrossingMinimizer-LayerGrouping
+        title: >-
+          CrossingMinimizer shall group the augmented nodes into one ordered list per layer so that
+          every augmented node appears in exactly one layer group.
+        justification: |
+          Per-layer ordered groups are the structure that coordinate assignment and routing consume;
+          every node must be placed in exactly one layer to be positioned at all.
+        tests:
+          - CrossingMinimizer_Apply_TwoLayerGraph_GroupsNodesByLayer
+          - CrossingMinimizer_Apply_AllAugmentedNodesAppearInGroups
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-CrossingMinimizer-CrossingReduction
+        title: >-
+          CrossingMinimizer shall order the nodes within each layer, via barycenter sweeps over the
+          augmented graph, so that the total number of edge crossings is reduced relative to the
+          natural (unordered) layer ordering.
+        justification: |
+          Reducing edge crossings is the whole purpose of the ordering stage: fewer crossings yield a
+          more readable diagram. A crossing-prone two-layer ordering whose barycenter sweep strictly
+          decreases the measured crossing count proves the stage actually reduces crossings rather
+          than merely regrouping the nodes.
+        tests:
+          - CrossingMinimizer_Apply_CrossingProneOrdering_ReducesCrossings

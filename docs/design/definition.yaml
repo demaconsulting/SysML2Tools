@@ -1,14 +1,21 @@
 ---
 resource-path:
   - docs/design
+  - docs/design/sysml2-tools-language
+  - docs/design/sysml2-tools-language/parser
+  - docs/design/sysml2-tools-language/parser/internal
+  - docs/design/sysml2-tools-language/semantic
+  - docs/design/sysml2-tools-language/semantic/internal
   - docs/design/sysml2-tools-core
-  - docs/design/sysml2-tools-core/semantic
-  - docs/design/sysml2-tools-core/semantic/internal
   - docs/design/sysml2-tools-core/layout
   - docs/design/sysml2-tools-core/layout/engine
+  - docs/design/sysml2-tools-core/layout/engine/layered
   - docs/design/sysml2-tools-core/layout/internal
   - docs/design/sysml2-tools-core/rendering
   - docs/design/sysml2-tools-core/rendering/internal
+  - docs/design/sysml2-tools-stdlib
+  - docs/design/sysml2-tools-svg
+  - docs/design/sysml2-tools-png
   - docs/design/sysml2-tools-tool
   - docs/design/sysml2-tools-tool/cli
   - docs/design/sysml2-tools-tool/lint
@@ -20,33 +27,44 @@ resource-path:
 input-files:
   - docs/design/title.txt
   - docs/design/introduction.md
-  - docs/design/sysml2-tools-tool.md
-  - docs/design/sysml2-tools-tool/program.md
-  - docs/design/sysml2-tools-tool/cli.md
-  - docs/design/sysml2-tools-tool/cli/context.md
-  - docs/design/sysml2-tools-tool/lint.md
-  - docs/design/sysml2-tools-tool/self-test.md
-  - docs/design/sysml2-tools-tool/self-test/validation.md
-  - docs/design/sysml2-tools-tool/utilities.md
-  - docs/design/sysml2-tools-tool/utilities/path-helpers.md
+  - docs/design/sysml2-tools-language.md
+  - docs/design/sysml2-tools-language/parser.md
+  - docs/design/sysml2-tools-language/parser/workspace-parser.md
+  - docs/design/sysml2-tools-language/parser/internal/sysml-diagnostic-listener.md
+  - docs/design/sysml2-tools-language/semantic.md
+  - docs/design/sysml2-tools-language/semantic/workspace-loader.md
+  - docs/design/sysml2-tools-language/semantic/ast-serializer.md
+  - docs/design/sysml2-tools-language/semantic/ast-deserializer.md
+  - docs/design/sysml2-tools-language/semantic/internal.md
+  - docs/design/sysml2-tools-language/semantic/internal/sysml-node.md
+  - docs/design/sysml2-tools-language/semantic/internal/ast-builder.md
+  - docs/design/sysml2-tools-language/semantic/internal/symbol-table.md
+  - docs/design/sysml2-tools-language/semantic/internal/reference-resolver.md
+  - docs/design/sysml2-tools-language/semantic/internal/supertype-walker.md
+  - docs/design/sysml2-tools-stdlib.md
+  - docs/design/sysml2-tools-stdlib/stdlib-provider.md
   - docs/design/sysml2-tools-core.md
-  - docs/design/sysml2-tools-core/parser.md
-  - docs/design/sysml2-tools-core/semantic.md
-  - docs/design/sysml2-tools-core/semantic/workspace-loader.md
-  - docs/design/sysml2-tools-core/semantic/internal.md
-  - docs/design/sysml2-tools-core/semantic/internal/sysml-node.md
-  - docs/design/sysml2-tools-core/semantic/internal/ast-builder.md
-  - docs/design/sysml2-tools-core/semantic/internal/symbol-table.md
-  - docs/design/sysml2-tools-core/semantic/internal/reference-resolver.md
-  - docs/design/sysml2-tools-core/semantic/internal/supertype-walker.md
   - docs/design/sysml2-tools-core/layout.md
+  - docs/design/sysml2-tools-core/layout/box-metrics.md
+  - docs/design/sysml2-tools-core/layout/layout-tree.md
   - docs/design/sysml2-tools-core/layout/connector-label-placer.md
   - docs/design/sysml2-tools-core/layout/engine.md
   - docs/design/sysml2-tools-core/layout/engine/channel-router.md
-  - docs/design/sysml2-tools-core/layout/engine/force-directed-engine.md
-  - docs/design/sysml2-tools-core/layout/engine/port-assigner.md
-  - docs/design/sysml2-tools-core/layout/engine/layered-layout-engine.md
   - docs/design/sysml2-tools-core/layout/engine/containment-packer.md
+  - docs/design/sysml2-tools-core/layout/engine/interconnection-layout-engine.md
+  - docs/design/sysml2-tools-core/layout/engine/layered.md
+  - docs/design/sysml2-tools-core/layout/engine/layered/layered-graph.md
+  - docs/design/sysml2-tools-core/layout/engine/layered/layered-layout-pipeline.md
+  - docs/design/sysml2-tools-core/layout/engine/layered/cycle-breaker.md
+  - docs/design/sysml2-tools-core/layout/engine/layered/layer-assigner.md
+  - docs/design/sysml2-tools-core/layout/engine/layered/long-edge-splitter.md
+  - docs/design/sysml2-tools-core/layout/engine/layered/crossing-minimizer.md
+  - docs/design/sysml2-tools-core/layout/engine/layered/brandes-kopf-placer.md
+  - docs/design/sysml2-tools-core/layout/engine/layered/port-distributor.md
+  - docs/design/sysml2-tools-core/layout/engine/layered/orthogonal-router.md
+  - docs/design/sysml2-tools-core/layout/engine/layered/long-edge-joiner.md
+  - docs/design/sysml2-tools-core/layout/engine/layered/axis-transform.md
+  - docs/design/sysml2-tools-core/layout/engine/layered/component-packer.md
   - docs/design/sysml2-tools-core/layout/internal.md
   - docs/design/sysml2-tools-core/layout/internal/general-view-layout-strategy.md
   - docs/design/sysml2-tools-core/layout/internal/interconnection-view-layout-strategy.md
@@ -57,10 +75,26 @@ input-files:
   - docs/design/sysml2-tools-core/layout/internal/browser-view-layout-strategy.md
   - docs/design/sysml2-tools-core/layout/internal/layout-warnings.md
   - docs/design/sysml2-tools-core/rendering.md
+  - docs/design/sysml2-tools-core/rendering/notation-metrics.md
+  - docs/design/sysml2-tools-core/rendering/theme.md
+  - docs/design/sysml2-tools-core/rendering/diagram-renderer.md
+  - docs/design/sysml2-tools-core/rendering/rendering-contracts.md
   - docs/design/sysml2-tools-core/rendering/internal.md
   - docs/design/sysml2-tools-core/rendering/internal/diagram-type-router.md
   - docs/design/sysml2-tools-svg.md
+  - docs/design/sysml2-tools-svg/svg-renderer.md
   - docs/design/sysml2-tools-png.md
+  - docs/design/sysml2-tools-png/png-renderer.md
+  - docs/design/sysml2-tools-tool.md
+  - docs/design/sysml2-tools-tool/program.md
+  - docs/design/sysml2-tools-tool/cli.md
+  - docs/design/sysml2-tools-tool/cli/context.md
+  - docs/design/sysml2-tools-tool/lint.md
+  - docs/design/sysml2-tools-tool/render.md
+  - docs/design/sysml2-tools-tool/self-test.md
+  - docs/design/sysml2-tools-tool/self-test/validation.md
+  - docs/design/sysml2-tools-tool/utilities.md
+  - docs/design/sysml2-tools-tool/utilities/path-helpers.md
   - docs/design/ots.md
   - docs/design/ots/antlr4.md
   - docs/design/ots/buildmark.md

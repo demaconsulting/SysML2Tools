@@ -1,0 +1,33 @@
+---
+# AstDeserializer Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the AstDeserializer unit
+# - AstDeserializer restores a symbol table and diagnostics from a serialized binary form
+# - Requirements describe observable deserialization behavior
+
+sections:
+  - title: AstDeserializer Unit Requirements
+    requirements:
+      - id: SysML2Tools-Language-Semantic-AstDeserializer-Deserialize
+        title: >-
+          AstDeserializer.Deserialize shall restore, from a byte sequence produced by
+          AstSerializer, a symbol table and diagnostics equivalent to those that were serialized.
+        justification: |
+          Reloading a pre-compiled binary at run time avoids re-parsing standard library source and
+          must faithfully reconstruct the symbols and diagnostics for downstream consumers.
+        tests:
+          - Serialize_EmptyTable_RoundTrips
+          - Serialize_PackageNode_RoundTrips
+          - Serialize_AllNodeTypes_RoundTrip
+
+      - id: SysML2Tools-Language-Semantic-AstDeserializer-RestoresNodeData
+        title: >-
+          AstDeserializer.Deserialize shall restore each node's concrete type, supertype names, and
+          imported names, and all diagnostics, matching the serialized input.
+        justification: |
+          Reference resolution and analysis performed against a reloaded symbol table require the
+          node types and relationships to be identical to the originally serialized model.
+        tests:
+          - Serialize_SupertypeAndImportedNames_Preserved
+          - Serialize_Diagnostics_RoundTrip

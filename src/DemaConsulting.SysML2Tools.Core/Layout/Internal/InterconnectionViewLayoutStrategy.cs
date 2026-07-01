@@ -3,6 +3,7 @@
 // </copyright>
 
 using DemaConsulting.SysML2Tools.Layout.Engine;
+using DemaConsulting.SysML2Tools.Layout.Engine.Layered;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -11,30 +12,70 @@ using DemaConsulting.SysML2Tools.Semantic.Internal;
 namespace DemaConsulting.SysML2Tools.Layout.Internal;
 
 /// <summary>
-/// Layout strategy for Interconnection View diagrams. Shows the internal structure of a single part
-/// definition: its nested part usages as boxes placed by the force-directed engine, ports on the box
-/// boundaries assigned by <see cref="PortAssigner"/>, and connection usages routed as orthogonal
-/// connector lines between the ports.
+/// Layout strategy for Interconnection View diagrams.
 /// </summary>
+/// <remarks>
+/// <para>
+/// Shows the internal structure of a single part definition: its nested part usages as
+/// boxes placed by <see cref="InterconnectionLayoutEngine"/>, ports on the box boundaries,
+/// and connection usages routed as orthogonal connector polylines between the ports, all
+/// enclosed by a container box for the host definition.
+/// </para>
+/// <para>
+/// Box heights are scaled to ensure each port has at least <see cref="MinPortSlot"/> px of
+/// vertical clearance, so connectors remain visually distinct regardless of connection count.
+/// All placement and routing is delegated to <see cref="InterconnectionLayoutEngine"/>, which
+/// implements the full ELK-compatible Sugiyama pipeline.
+/// </para>
+/// <para>
+/// When a nested part is itself typed by a <c>part def</c> that has its own internal parts, the
+/// strategy lays out that inner structure recursively (bottom-up, ELK <c>SEPARATE_CHILDREN</c>):
+/// the inner definition is laid out first with the same flat engine, the container part is then
+/// treated as an atomic fixed-size node by the parent, and the inner content is nested as the
+/// container box's <see cref="LayoutBox.Children"/>. A single-level model (no part typed by a
+/// definition with internal parts) is a strict no-op: the recursion never fires and the output is
+/// identical to the non-recursive layout. The reserved
+/// <see cref="DemaConsulting.SysML2Tools.Layout.Engine.Layered.HierarchyHandling.Recursive"/> pipeline mode
+/// is intentionally left not wired; recursion is driven here, at the strategy level, because
+/// container detection is a semantic-model concern the model-independent engine cannot see.
+/// </para>
+/// </remarks>
 internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 {
     /// <summary>Minimum width of a nested part box.</summary>
     private const double MinPartWidth = 110.0;
 
-    /// <summary>Approximate width-per-character factor relative to font size.</summary>
+    /// <summary>Approximate width-per-character factor relative to the title font size.</summary>
     private const double CharWidthFactor = 0.62;
 
-    /// <summary>Nominal spacing between adjacent part centres in the force layout.</summary>
-    private const double PartSpacing = 150.0;
+    /// <summary>Minimum vertical slot per port on a box face, for height-scaling.</summary>
+    private const double MinPortSlot = 11.0;
 
-    /// <summary>Clearance kept between routed connectors and part boxes.</summary>
+    /// <summary>Clearance used when computing the minimum box height from port count.</summary>
     private const double ConnectorClearance = 10.0;
 
-    /// <summary>A nested part usage with its computed box size.</summary>
-    private sealed record PartItem(string Name, string Keyword, string? Typing, double Width, double Height);
+    /// <summary>
+    /// A nested part usage with its computed intrinsic box size. When the part is a container (its
+    /// type is a <c>part def</c> with its own internal parts), <see cref="InnerContent"/> holds the
+    /// pre-laid-out interior content positioned relative to the part box's own top-left
+    /// <c>(0, 0)</c>; for a leaf part it is <see langword="null"/>.
+    /// </summary>
+    private sealed record PartItem(
+        string Name,
+        string Keyword,
+        string? Typing,
+        double Width,
+        double Height,
+        IReadOnlyList<LayoutNode>? InnerContent);
 
-    /// <summary>A resolved binary connection between two nested part indices.</summary>
+    /// <summary>A resolved binary connection between two nested-part indices.</summary>
     private sealed record ConnPair(int A, int B);
+
+    /// <summary>The laid-out interior of one definition: its full container size and content.</summary>
+    /// <param name="Width">Full container width including title area and insets.</param>
+    /// <param name="Height">Full container height including title area and insets.</param>
+    /// <param name="Content">Part boxes, ports, and connector lines positioned with origin <c>(0, 0)</c>.</param>
+    private sealed record InteriorLayout(double Width, double Height, IReadOnlyList<LayoutNode> Content);
 
     /// <inheritdoc/>
     public LayoutTree BuildLayout(ViewContext context, RenderOptions options)
@@ -44,74 +85,201 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
         var theme = options.Theme;
 
-        // Choose the part definition whose internals to show: the one with the most connections.
+        // Choose the part definition whose internals to show.
         var root = FindRoot(context.Workspace);
         if (root is null)
         {
             return new LayoutTree(200.0, 100.0, []);
         }
 
-        var parts = CollectParts(root, theme);
-        if (parts.Count == 0)
+        // No nested part usages means there is nothing to draw.
+        var hasParts = root.Children.OfType<SysmlFeatureNode>().Any(f => f.FeatureKeyword == "part");
+        if (!hasParts)
         {
             return new LayoutTree(200.0, 100.0, []);
         }
 
+        // Index of candidate container definitions (non-stdlib part defs with at least one part child).
+        var defsByName = BuildDefinitionIndex(context.Workspace);
+
+        // Lay out the root's interior, recursing into any container parts.
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        if (root.QualifiedName is { Length: > 0 })
+        {
+            visited.Add(root.QualifiedName);
+        }
+
+        var interior = LayOutInterior(root, theme, depth: 0, defsByName, visited);
+
+        var nodes = new List<LayoutNode>(interior.Content.Count + 1)
+        {
+            // Container box for the root part definition.
+            new LayoutBox(
+                X: 0,
+                Y: 0,
+                Width: interior.Width,
+                Height: interior.Height,
+                Label: root.Name ?? "Interconnection",
+                Depth: 0,
+                Shape: BoxShape.Rectangle,
+                Compartments: [],
+                Children: [],
+                Keyword: string.IsNullOrEmpty(root.DefinitionKeyword) ? "part def" : root.DefinitionKeyword),
+        };
+
+        nodes.AddRange(interior.Content);
+
+        return new LayoutTree(interior.Width, interior.Height, nodes);
+    }
+
+    /// <summary>
+    /// Lays out the interior of one definition: collects its parts (recursing into container
+    /// parts), places them with <see cref="InterconnectionLayoutEngine"/>, and emits one rounded
+    /// box per part plus a port pair and connector line per connection — all positioned relative to
+    /// the container's own top-left origin <c>(0, 0)</c>.
+    /// </summary>
+    /// <param name="def">The definition whose interior to lay out.</param>
+    /// <param name="theme">The active rendering theme.</param>
+    /// <param name="depth">Nesting depth of this definition's container box (0 for the root).</param>
+    /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
+    /// <param name="visited">Qualified names already on the recursion path, guarding against cycles.</param>
+    /// <returns>The laid-out interior size and content.</returns>
+    private static InteriorLayout LayOutInterior(
+        SysmlDefinitionNode def,
+        Theme theme,
+        int depth,
+        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        ISet<string> visited)
+    {
+        var parts = CollectParts(def, theme, depth, defsByName, visited);
         var partIndex = BuildPartIndex(parts);
-        var pairs = ResolveConnections(root, partIndex);
+        var pairs = ResolveConnections(def, partIndex);
 
-        // Place the part boxes with the force-directed engine using connections as springs.
-        var force = ForceDirectedEngine.Place(
-            [.. parts.Select(p => new ForceNode(p.Width, p.Height))],
-            [.. pairs.Select(c => new ForceEdge(c.A, c.B))],
-            spacing: PartSpacing,
-            padding: theme.LabelPadding * 4.0);
+        // Scale each box height to guarantee at least MinPortSlot px per port on its face.
+        var degree = new int[parts.Count];
+        foreach (var p in pairs)
+        {
+            degree[p.A]++;
+            degree[p.B]++;
+        }
 
-        // Offset the placed parts to sit below the container title area.
+        var layerNodes = parts
+            .Select((p, i) =>
+            {
+                var minH = (degree[i] * MinPortSlot) + (2.0 * ConnectorClearance);
+                return new LayerNode(p.Width, Math.Max(p.Height, minH));
+            })
+            .ToList();
+
+        var layerEdges = pairs.Select(p => new LayerEdge(p.A, p.B)).ToList();
+
+        // Delegate all placement and routing to the engine.
+        var placed = InterconnectionLayoutEngine.Place(layerNodes, layerEdges);
+
+        // Shift placed content down/right to sit inside the container box.
         var titleArea = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true);
         var offsetX = theme.LabelPadding * 2.0;
         var offsetY = titleArea + (theme.LabelPadding * 2.0);
 
-        var partRects = new Rect[parts.Count];
-        for (var i = 0; i < parts.Count; i++)
+        var containerWidth = placed.TotalWidth + (offsetX * 2.0);
+        var containerHeight = placed.TotalHeight + offsetY + (theme.LabelPadding * 2.0);
+
+        // InterconnectionLayoutEngine derives TotalWidth/Height from box extents only, but a
+        // connector can route beyond the boxes (e.g. wrapping below them). Extend the container so
+        // every waypoint is enclosed with the same trailing inset the boxes already receive, so no
+        // connector scrapes the container edge.
+        var trailingInset = LayeredLayoutMetrics.Padding + (theme.LabelPadding * 2.0);
+        foreach (var wp in placed.ConnectorWaypoints)
         {
-            var r = force.Rects[i];
-            partRects[i] = new Rect(r.X + offsetX, r.Y + offsetY, r.Width, r.Height);
+            foreach (var p in wp)
+            {
+                containerWidth = Math.Max(containerWidth, p.X + offsetX + trailingInset);
+                containerHeight = Math.Max(containerHeight, p.Y + offsetY + trailingInset);
+            }
         }
 
-        var nodes = new List<LayoutNode>();
+        var content = new List<LayoutNode>();
 
-        // Container box for the root part definition.
-        var containerWidth = force.Width + (offsetX * 2.0);
-        var containerHeight = offsetY + force.Height + (theme.LabelPadding * 2.0);
-        nodes.Add(new LayoutBox(
-            X: 0,
-            Y: 0,
-            Width: containerWidth,
-            Height: containerHeight,
-            Label: root.Name ?? "Interconnection",
-            Depth: 0,
-            Shape: BoxShape.Rectangle,
-            Compartments: [],
-            Children: [],
-            Keyword: string.IsNullOrEmpty(root.DefinitionKeyword) ? "part def" : root.DefinitionKeyword));
-
-        // Part usage boxes (rounded — they are usages).
+        // One rounded box per nested part usage; container parts carry their nested children.
         for (var i = 0; i < parts.Count; i++)
         {
-            nodes.Add(MakePartBox(parts[i], partRects[i]));
+            var r = placed.Rects[i];
+            content.Add(MakePartBox(parts[i], new Rect(r.X + offsetX, r.Y + offsetY, r.Width, r.Height), depth + 1));
         }
 
-        // Ports and connectors.
-        var crossings = AddPortsAndConnectors(parts, partRects, pairs, nodes);
+        // InterconnectionLayoutEngine populates ConnectorWaypoints per ACYCLIC edge: its cycle-breaking
+        // stage de-duplicates identical directed pairs and reverses back edges, so the polylines are not
+        // 1:1 with pairs (self-connections were already dropped in ResolveConnections). Build a
+        // (source, target) -> polyline lookup over the acyclic edge set and resolve each connection by
+        // its endpoints, reversing the polyline for a reversed back edge so the source/target ports
+        // stay on the correct box faces.
+        var routed = new Dictionary<(int Source, int Target), IReadOnlyList<Point2D>>();
+        for (var k = 0; k < placed.AcyclicEdges.Count; k++)
+        {
+            var edge = placed.AcyclicEdges[k];
+            routed[(edge.Source, edge.Target)] = placed.ConnectorWaypoints[k];
+        }
 
-        var warnings = LayoutWarnings.ForCrossings(context.ViewName, crossings);
-        return new LayoutTree(containerWidth, containerHeight, nodes) { Warnings = warnings };
+        // One port pair and one connector line per connection.
+        foreach (var pair in pairs)
+        {
+            var wp = ResolveConnectorPolyline(pair.A, pair.B, routed);
+            if (wp is null || wp.Count < 2)
+            {
+                continue;
+            }
+
+            // Shift all waypoints by the container offset.
+            var shifted = wp.Select(p => new Point2D(p.X + offsetX, p.Y + offsetY)).ToList();
+
+            // Source port: first waypoint on the source box's right face.
+            content.Add(new LayoutPort(shifted[0].X, shifted[0].Y, PortSide.Right, null));
+
+            // Target port: last waypoint on the target box's left face.
+            content.Add(new LayoutPort(shifted[^1].X, shifted[^1].Y, PortSide.Left, null));
+
+            content.Add(new LayoutLine(
+                Waypoints: shifted,
+                SourceEnd: EndMarkerStyle.None,
+                TargetEnd: EndMarkerStyle.None,
+                LineStyle: LineStyle.Solid,
+                MidpointLabel: null));
+        }
+
+        return new InteriorLayout(containerWidth, containerHeight, content);
     }
 
     /// <summary>
-    /// Finds the part definition whose interior to render: the non-stdlib <c>part def</c> with the
-    /// most connection usages, falling back to the one with the most part usages.
+    /// Returns the routed connector polyline for a connection, reversing it when only the opposite
+    /// direction was routed (a reversed back edge), or <see langword="null"/> when neither direction
+    /// was routed.
+    /// </summary>
+    /// <param name="a">Source part index of the connection.</param>
+    /// <param name="b">Target part index of the connection.</param>
+    /// <param name="routed">The <c>(source, target)</c> to polyline lookup over the acyclic edge set.</param>
+    /// <returns>The polyline running from part <paramref name="a"/> to <paramref name="b"/>, or null.</returns>
+    private static IReadOnlyList<Point2D>? ResolveConnectorPolyline(
+        int a,
+        int b,
+        IReadOnlyDictionary<(int Source, int Target), IReadOnlyList<Point2D>> routed)
+    {
+        if (routed.TryGetValue((a, b), out var forward))
+        {
+            return forward;
+        }
+
+        if (routed.TryGetValue((b, a), out var backward))
+        {
+            // The pipeline reversed this back edge; reverse the polyline so it runs a -> b.
+            return [.. backward.Reverse()];
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the part definition whose interior to render: the non-stdlib <c>part def</c>
+    /// with the most connections, falling back to the one with the most part usages.
     /// </summary>
     private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace)
     {
@@ -145,8 +313,18 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         return best;
     }
 
-    /// <summary>Collects the nested part usages of the root definition, sized for rendering.</summary>
-    private static IReadOnlyList<PartItem> CollectParts(SysmlDefinitionNode root, Theme theme)
+    /// <summary>
+    /// Collects the nested part usages of a definition, sized for rendering. A part whose type
+    /// resolves to a container definition (a non-stdlib <c>part def</c> with its own internal parts,
+    /// not already on the recursion path) is laid out recursively and sized to fit its interior;
+    /// every other part is sized intrinsically as a leaf.
+    /// </summary>
+    private static IReadOnlyList<PartItem> CollectParts(
+        SysmlDefinitionNode root,
+        Theme theme,
+        int depth,
+        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        ISet<string> visited)
     {
         var result = new List<PartItem>();
         foreach (var feature in root.Children.OfType<SysmlFeatureNode>())
@@ -157,11 +335,96 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             }
 
             var name = feature.Name ?? feature.FeatureTyping ?? "part";
-            var (width, height) = ComputePartSize(name, feature.FeatureTyping, theme);
-            result.Add(new PartItem(name, "part", feature.FeatureTyping, width, height));
+
+            if (TryResolveContainer(feature.FeatureTyping, defsByName, visited, out var childDef))
+            {
+                // Container part: lay out its interior bottom-up and treat it as an atomic node.
+                var childVisited = new HashSet<string>(visited, StringComparer.Ordinal) { childDef.QualifiedName! };
+                var inner = LayOutInterior(childDef, theme, depth + 1, defsByName, childVisited);
+                result.Add(new PartItem(name, "part", feature.FeatureTyping, inner.Width, inner.Height, inner.Content));
+            }
+            else
+            {
+                // Leaf part: intrinsic size, no nested content.
+                var (width, height) = ComputePartSize(name, feature.FeatureTyping, theme);
+                result.Add(new PartItem(name, "part", feature.FeatureTyping, width, height, null));
+            }
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Builds an index of candidate container definitions — non-standard-library <c>part def</c>s
+    /// that have at least one nested <c>part</c> usage — keyed by both qualified and simple name
+    /// (qualified preferred), mirroring the resolve-by-qualified-then-simple pattern used by the
+    /// General view strategy.
+    /// </summary>
+    private static IReadOnlyDictionary<string, SysmlDefinitionNode> BuildDefinitionIndex(SysmlWorkspace workspace)
+    {
+        var index = new Dictionary<string, SysmlDefinitionNode>(StringComparer.Ordinal);
+        foreach (var (qualifiedName, node) in workspace.Declarations)
+        {
+            if (node is not SysmlDefinitionNode def || def.DefinitionKeyword != "part def")
+            {
+                continue;
+            }
+
+            if (StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
+            {
+                continue;
+            }
+
+            var hasPartChild = def.Children.OfType<SysmlFeatureNode>().Any(f => f.FeatureKeyword == "part");
+            if (!hasPartChild)
+            {
+                continue;
+            }
+
+            index.TryAdd(qualifiedName, def);
+            if (def.Name is { Length: > 0 })
+            {
+                index.TryAdd(def.Name, def);
+            }
+        }
+
+        return index;
+    }
+
+    /// <summary>
+    /// Resolves a part's type reference to a container definition by qualified then simple name,
+    /// excluding any definition already on the recursion path (cycle guard). A part whose type is
+    /// on the path — or does not resolve to a container — is treated as a leaf.
+    /// </summary>
+    private static bool TryResolveContainer(
+        string? typing,
+        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        ISet<string> visited,
+        out SysmlDefinitionNode childDef)
+    {
+        childDef = null!;
+        if (string.IsNullOrEmpty(typing))
+        {
+            return false;
+        }
+
+        if (!defsByName.TryGetValue(typing, out var def))
+        {
+            var sep = typing.LastIndexOf("::", StringComparison.Ordinal);
+            var simple = sep >= 0 ? typing[(sep + 2)..] : typing;
+            if (!defsByName.TryGetValue(simple, out def))
+            {
+                return false;
+            }
+        }
+
+        if (def.QualifiedName is null || visited.Contains(def.QualifiedName))
+        {
+            return false;
+        }
+
+        childDef = def;
+        return true;
     }
 
     /// <summary>Builds a name → index lookup for the nested parts.</summary>
@@ -177,10 +440,12 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Resolves each binary connection's endpoints to nested-part indices by matching the first
-    /// segment of the dotted endpoint reference against the part names.
+    /// Resolves each binary connection's endpoints to nested-part indices by matching the
+    /// first segment of the dotted endpoint reference against the part names.
     /// </summary>
-    private static IReadOnlyList<ConnPair> ResolveConnections(SysmlDefinitionNode root, Dictionary<string, int> partIndex)
+    private static IReadOnlyList<ConnPair> ResolveConnections(
+        SysmlDefinitionNode root,
+        Dictionary<string, int> partIndex)
     {
         var pairs = new List<ConnPair>();
         foreach (var conn in root.Children.OfType<SysmlConnectionNode>())
@@ -209,7 +474,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         return partIndex.TryGetValue(head, out var i) ? i : -1;
     }
 
-    /// <summary>Computes the intrinsic size of a nested part box (keyword + name : type lines).</summary>
+    /// <summary>Computes the intrinsic size of a nested part box.</summary>
     private static (double Width, double Height) ComputePartSize(string name, string? typing, Theme theme)
     {
         var label = typing is { Length: > 0 } ? $"{name} : {typing}" : name;
@@ -219,185 +484,59 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         return (width, height);
     }
 
-    /// <summary>Creates a rounded-rectangle part usage box at the given position.</summary>
-    private static LayoutBox MakePartBox(PartItem part, Rect rect)
+    /// <summary>
+    /// Creates a rounded-rectangle part usage box at the given position. A leaf part has no
+    /// children; a container part nests its pre-laid-out interior content, translated from the
+    /// child's local origin <c>(0, 0)</c> to the box's absolute top-left so the inner part boxes
+    /// land below the container's title and inside its border.
+    /// </summary>
+    private static LayoutBox MakePartBox(PartItem part, Rect rect, int depth)
     {
         var label = part.Typing is { Length: > 0 } ? $"{part.Name} : {part.Typing}" : part.Name;
+        var children = part.InnerContent is null
+            ? (IReadOnlyList<LayoutNode>)[]
+            : TranslateNodes(part.InnerContent, rect.X, rect.Y);
+
         return new LayoutBox(
             X: rect.X,
             Y: rect.Y,
             Width: rect.Width,
             Height: rect.Height,
             Label: label,
-            Depth: 1,
+            Depth: depth,
             Shape: BoxShape.RoundedRectangle,
             Compartments: [],
-            Children: [],
+            Children: children,
             Keyword: part.Keyword);
     }
 
     /// <summary>
-    /// Assigns ports to each part box for its incident connections and routes a connector line for
-    /// each connection between the two ports, appending the port and line nodes to the output and
-    /// returning the number of connectors that had to cross a box.
+    /// Recursively translates a list of layout nodes by <paramref name="dx"/>/<paramref name="dy"/>,
+    /// shifting box positions (and their nested children), port centres, and connector waypoints.
+    /// Used to re-anchor a container's interior content from its local origin to absolute coordinates.
     /// </summary>
-    private static int AddPortsAndConnectors(
-        IReadOnlyList<PartItem> parts,
-        Rect[] partRects,
-        IReadOnlyList<ConnPair> pairs,
-        List<LayoutNode> nodes)
+    private static IReadOnlyList<LayoutNode> TranslateNodes(IReadOnlyList<LayoutNode> nodes, double dx, double dy)
     {
-        // For each part, collect a port request per incident connection (toward the other part).
-        var requestsPerPart = new List<PortRequest>[parts.Count];
-        var connSlotPerPart = new List<int>[parts.Count];
-        for (var i = 0; i < parts.Count; i++)
+        var result = new List<LayoutNode>(nodes.Count);
+        foreach (var node in nodes)
         {
-            requestsPerPart[i] = [];
-            connSlotPerPart[i] = [];
-        }
-
-        for (var c = 0; c < pairs.Count; c++)
-        {
-            var (a, b) = (pairs[c].A, pairs[c].B);
-            requestsPerPart[a].Add(new PortRequest(partRects[a], Centre(partRects[b])));
-            connSlotPerPart[a].Add(c);
-            requestsPerPart[b].Add(new PortRequest(partRects[b], Centre(partRects[a])));
-            connSlotPerPart[b].Add(c);
-        }
-
-        // Assign port placements per part and index them by connection; also count how many ports
-        // share each box side (used to decide where it is safe to align a connector).
-        var portByPartConn = new Dictionary<(int Part, int Conn), PortPlacement>();
-        var sideCount = new Dictionary<(int Part, PortSide Side), int>();
-        for (var i = 0; i < parts.Count; i++)
-        {
-            var placements = PortAssigner.Assign(requestsPerPart[i]);
-            for (var k = 0; k < placements.Count; k++)
+            result.Add(node switch
             {
-                portByPartConn[(i, connSlotPerPart[i][k])] = placements[k];
-                var sideKey = (i, placements[k].Side);
-                sideCount[sideKey] = sideCount.GetValueOrDefault(sideKey) + 1;
-            }
-        }
-
-        // Alignment pass: where a connection's two ports each sit alone on facing edges and the boxes
-        // overlap along the connector axis, snap both ports to a common coordinate so the connector
-        // is a single straight line instead of having a small jog. Boxes are not moved, so this can
-        // never introduce an overlap.
-        for (var c = 0; c < pairs.Count; c++)
-        {
-            AlignConnectorPorts(pairs[c], c, partRects, sideCount, portByPartConn);
-        }
-
-        // Emit the (possibly aligned) port nodes.
-        foreach (var placement in portByPartConn.Values)
-        {
-            nodes.Add(new LayoutPort(placement.CentreX, placement.CentreY, placement.Side, null));
-        }
-
-        // Route a connector line for each connection between its two ports.
-        var crossings = 0;
-        for (var c = 0; c < pairs.Count; c++)
-        {
-            var (a, b) = (pairs[c].A, pairs[c].B);
-            if (!portByPartConn.TryGetValue((a, c), out var portA) ||
-                !portByPartConn.TryGetValue((b, c), out var portB))
-            {
-                continue;
-            }
-
-            var obstacles = new List<Rect>();
-            for (var i = 0; i < parts.Count; i++)
-            {
-                if (i != a && i != b)
+                LayoutBox box => box with
                 {
-                    obstacles.Add(partRects[i]);
-                }
-            }
-
-            var route = ChannelRouter.RouteWithStatus(
-                new Point2D(portA.CentreX, portA.CentreY),
-                new Point2D(portB.CentreX, portB.CentreY),
-                obstacles,
-                ConnectorClearance,
-                sourceSide: portA.Side,
-                targetSide: portB.Side);
-            if (route.Crossed)
-            {
-                crossings++;
-            }
-
-            nodes.Add(new LayoutLine(
-                Waypoints: route.Waypoints,
-                SourceArrowhead: ArrowheadStyle.None,
-                TargetArrowhead: ArrowheadStyle.None,
-                LineStyle: LineStyle.Solid,
-                MidpointLabel: null));
+                    X = box.X + dx,
+                    Y = box.Y + dy,
+                    Children = TranslateNodes(box.Children, dx, dy),
+                },
+                LayoutPort port => port with { CentreX = port.CentreX + dx, CentreY = port.CentreY + dy },
+                LayoutLine line => line with
+                {
+                    Waypoints = line.Waypoints.Select(p => new Point2D(p.X + dx, p.Y + dy)).ToList(),
+                },
+                _ => node,
+            });
         }
 
-        return crossings;
+        return result;
     }
-
-    /// <summary>
-    /// Snaps both ports of a connection to a shared axis coordinate so the connector renders as a
-    /// straight line, but only when each port is alone on its (facing) edge and the two boxes overlap
-    /// along the connector axis. In every other case the placement is left untouched.
-    /// </summary>
-    private static void AlignConnectorPorts(
-        ConnPair pair,
-        int conn,
-        Rect[] partRects,
-        Dictionary<(int Part, PortSide Side), int> sideCount,
-        Dictionary<(int Part, int Conn), PortPlacement> portByPartConn)
-    {
-        if (!portByPartConn.TryGetValue((pair.A, conn), out var portA) ||
-            !portByPartConn.TryGetValue((pair.B, conn), out var portB))
-        {
-            return;
-        }
-
-        // Only safe when each port is the sole occupant of its edge.
-        if (sideCount.GetValueOrDefault((pair.A, portA.Side)) != 1 ||
-            sideCount.GetValueOrDefault((pair.B, portB.Side)) != 1)
-        {
-            return;
-        }
-
-        var boxA = partRects[pair.A];
-        var boxB = partRects[pair.B];
-
-        var verticalFacing =
-            (portA.Side == PortSide.Top && portB.Side == PortSide.Bottom) ||
-            (portA.Side == PortSide.Bottom && portB.Side == PortSide.Top);
-        var horizontalFacing =
-            (portA.Side == PortSide.Left && portB.Side == PortSide.Right) ||
-            (portA.Side == PortSide.Right && portB.Side == PortSide.Left);
-
-        if (verticalFacing)
-        {
-            var lo = Math.Max(boxA.X, boxB.X);
-            var hi = Math.Min(boxA.X + boxA.Width, boxB.X + boxB.Width);
-            if (lo <= hi)
-            {
-                var x = (lo + hi) / 2.0;
-                portByPartConn[(pair.A, conn)] = portA with { CentreX = x };
-                portByPartConn[(pair.B, conn)] = portB with { CentreX = x };
-            }
-        }
-        else if (horizontalFacing)
-        {
-            var lo = Math.Max(boxA.Y, boxB.Y);
-            var hi = Math.Min(boxA.Y + boxA.Height, boxB.Y + boxB.Height);
-            if (lo <= hi)
-            {
-                var y = (lo + hi) / 2.0;
-                portByPartConn[(pair.A, conn)] = portA with { CentreY = y };
-                portByPartConn[(pair.B, conn)] = portB with { CentreY = y };
-            }
-        }
-    }
-
-    /// <summary>Returns the centre point of a rectangle.</summary>
-    private static Point2D Centre(Rect rect) =>
-        new(rect.X + (rect.Width / 2.0), rect.Y + (rect.Height / 2.0));
 }

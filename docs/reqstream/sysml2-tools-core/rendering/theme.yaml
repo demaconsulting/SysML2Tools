@@ -1,0 +1,33 @@
+---
+# Theme Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the Theme unit
+# - Theme is the immutable visual-configuration record plus the built-in Themes provider
+# - Requirements describe the unit-level connector-geometry contract and the derived helper
+# - Unit requirements decompose the Rendering subsystem Theme responsibility into this unit
+
+sections:
+  - title: Theme Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Rendering-Theme-ConnectorApproachZone
+        title: >-
+          The Theme shall provide a ConnectorApproachZone helper returning the sum of its
+          ConnectorStub, its BendRadius, and the caller-supplied connector clearance.
+        justification: |
+          The approach zone is the clear distance a connector needs off a box face before it can
+          bend. Deriving it from the theme keeps connector geometry consistent between the layout
+          strategies that reserve the space and the renderers that draw the elbow.
+        tests:
+          - ConnectorApproachZone_SumsStubBendAndClearance
+
+      - id: SysML2Tools-Core-Rendering-Theme-ConnectorGeometry
+        title: >-
+          The built-in Light and Dark themes shall carry identical connector geometry (ConnectorStub
+          and BendRadius) and the Print theme shall carry a tighter, zero-bend connector geometry.
+        justification: |
+          Screen themes share the same connector look, while the print theme squares off its elbows
+          and reduces the stub so black-and-white output stays crisp. Pinning these values keeps the
+          three shipped themes coherent.
+        tests:
+          - Themes_HaveExpectedConnectorGeometry

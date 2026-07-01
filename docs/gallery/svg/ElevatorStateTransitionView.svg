@@ -1,21 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="767.57" height="612.47" viewBox="0 0 767.57 612.47">
+<svg xmlns="http://www.w3.org/2000/svg" width="351.20" height="620.00" viewBox="0 0 351.20 620.00">
   <defs>
-    <marker id="arrowhead-open" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    <marker id="line-end-open-chevron" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polyline points="0 0, 10 3.5, 0 7" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
     </marker>
-    <marker id="arrowhead-filled" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+    <marker id="line-end-hollow-triangle" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-filled-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
     </marker>
-    <marker id="arrowhead-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
-      <polygon points="1 4, 7 0, 13 4, 7 8" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    <marker id="line-end-hollow-triangle-crossbar" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+      <line x1="7" y1="0" x2="7" y2="7" stroke="#1A1A2E" stroke-width="1.50"/>
     </marker>
-    <marker id="arrowhead-filled-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+    <marker id="line-end-hollow-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-filled-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
       <polygon points="1 4, 7 0, 13 4, 7 8" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
     </marker>
-    <marker id="arrowhead-circle" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
-      <circle cx="5" cy="5" r="4" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    <marker id="line-end-circle" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <circle cx="5" cy="5" r="4" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
     </marker>
-    <marker id="arrowhead-bar" markerWidth="4" markerHeight="12" refX="2" refY="6" orient="auto">
+    <marker id="line-end-bar" markerWidth="4" markerHeight="12" refX="2" refY="6" orient="auto">
       <line x1="2" y1="0" x2="2" y2="12" stroke="#1A1A2E" stroke-width="1.50"/>
     </marker>
     <filter id="label-bg" x="-0.05" y="-0.05" width="1.1" height="1.1">
@@ -23,40 +30,40 @@
       <feComposite in="SourceGraphic" operator="over"/>
     </filter>
   </defs>
-  <rect x="625.57" y="368.49" width="100.00" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
-  <text x="675.57" y="380.49" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
-  <text x="675.57" y="399.49" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">idle</text>
-  <rect x="73.50" y="252.37" width="128.16" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
-  <text x="137.58" y="264.37" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
-  <text x="137.58" y="283.37" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">doorsOpening</text>
-  <rect x="118.87" y="42.00" width="102.12" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
-  <text x="169.93" y="54.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
-  <text x="169.93" y="73.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">doorsOpen</text>
-  <rect x="294.07" y="349.65" width="128.16" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
-  <text x="358.15" y="361.65" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
-  <text x="358.15" y="380.65" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">doorsClosing</text>
-  <rect x="435.76" y="194.33" width="100.00" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
-  <text x="485.76" y="206.33" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
-  <text x="485.76" y="225.33" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">movingUp</text>
-  <rect x="42.00" y="520.47" width="110.80" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
-  <text x="97.40" y="532.47" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
-  <text x="97.40" y="551.47" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">movingDown</text>
-  <circle cx="675.57" cy="340.49" r="9.00" fill="#1A1A2E"/>
-  <path d="M 675.57 349.49 L 675.57 368.49" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 625.57 401.82 L 446.23 401.82 A 4.00 4.00 0 0 1 442.23 397.82 L 442.23 378.65 A 4.00 4.00 0 0 0 438.23 374.65 L 422.23 374.65" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 379.51 349.65 L 379.51 268.33 A 4.00 4.00 0 0 1 383.51 264.33 L 481.76 264.33 A 4.00 4.00 0 0 0 485.76 260.33 L 485.76 244.33" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 435.76 219.33 L 225.66 219.33 A 4.00 4.00 0 0 0 221.66 223.33 L 221.66 273.37 A 4.00 4.00 0 0 1 217.66 277.37 L 201.66 277.37" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 97.40 520.47 L 97.40 326.37 A 4.00 4.00 0 0 1 101.40 322.37 L 133.58 322.37 A 4.00 4.00 0 0 0 137.58 318.37 L 137.58 302.37" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 137.58 252.37 L 137.58 116.00 A 4.00 4.00 0 0 1 141.58 112.00 L 148.91 112.00 A 4.00 4.00 0 0 0 152.91 108.00 L 152.91 92.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 186.95 92.00 L 186.95 108.00 A 4.00 4.00 0 0 0 190.95 112.00 L 332.79 112.00 A 4.00 4.00 0 0 1 336.79 116.00 L 336.79 349.65" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 294.07 374.65 L 176.80 374.65 A 4.00 4.00 0 0 0 172.80 378.65 L 172.80 541.47 A 4.00 4.00 0 0 1 168.80 545.47 L 152.80 545.47" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <path d="M 535.76 219.33 L 551.76 219.33 A 4.00 4.00 0 0 1 555.76 223.33 L 555.76 381.15 A 4.00 4.00 0 0 0 559.76 385.15 L 625.57 385.15" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#arrowhead-filled)"/>
-  <text x="533.90" y="401.82" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[callReceived]</text>
-  <text x="432.64" y="264.33" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[doorsClosed]</text>
-  <text x="328.71" y="219.33" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[atFloor]</text>
-  <text x="97.40" y="421.42" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[atFloor]</text>
-  <text x="137.58" y="182.18" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[doorsAreOpen]</text>
-  <text x="261.87" y="112.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[timeout]</text>
-  <text x="172.80" y="460.06" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[goingDown]</text>
-  <text x="555.76" y="302.24" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[idleTimeout]</text>
+  <rect x="164.80" y="52.00" width="100.00" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="214.80" y="64.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
+  <text x="214.80" y="83.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">idle</text>
+  <rect x="83.02" y="412.00" width="128.16" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="147.10" y="424.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
+  <text x="147.10" y="443.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">doorsOpening</text>
+  <rect x="163.08" y="532.00" width="102.12" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="214.14" y="544.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
+  <text x="214.14" y="563.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">doorsOpen</text>
+  <rect x="103.68" y="172.00" width="128.16" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="167.76" y="184.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
+  <text x="167.76" y="203.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">doorsClosing</text>
+  <rect x="164.80" y="292.00" width="100.00" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="214.80" y="304.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
+  <text x="214.80" y="323.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">movingUp</text>
+  <rect x="24.00" y="292.00" width="110.80" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="79.40" y="304.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«state»</text>
+  <text x="79.40" y="323.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">movingDown</text>
+  <circle cx="214.80" cy="24.00" r="9.00" fill="#1A1A2E"/>
+  <path d="M 214.80 33.00 L 214.80 52.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-arrow)"/>
+  <path d="M 174.80 102.00 L 174.80 108.48 A 3.52 3.52 0 0 1 171.28 112.00 L 171.28 112.00 A 3.52 3.52 0 0 0 167.76 115.52 L 167.76 172.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)"/>
+  <path d="M 167.76 222.00 L 167.76 228.48 A 3.52 3.52 0 0 0 171.28 232.00 L 171.28 232.00 A 3.52 3.52 0 0 1 174.80 235.52 L 174.80 292.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)"/>
+  <path d="M 214.80 342.00 L 214.80 348.00 A 4.00 4.00 0 0 1 210.80 352.00 L 205.18 352.00 A 4.00 4.00 0 0 0 201.18 356.00 L 201.18 412.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)"/>
+  <path d="M 79.40 342.00 L 79.40 348.00 A 4.00 4.00 0 0 0 83.40 352.00 L 89.02 352.00 A 4.00 4.00 0 0 1 93.02 356.00 L 93.02 412.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)"/>
+  <path d="M 147.10 462.00 L 147.10 468.00 A 4.00 4.00 0 0 0 151.10 472.00 L 169.08 472.00 A 4.00 4.00 0 0 1 173.08 476.00 L 173.08 532.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)"/>
+  <path d="M 255.20 532.00 L 255.20 476.00 A 4.00 4.00 0 0 1 259.20 472.00 L 290.80 472.00 A 4.00 4.00 0 0 0 294.80 468.00 L 294.80 241.00 A 4.00 4.00 0 0 0 290.80 237.00 L 225.84 237.00 A 4.00 4.00 0 0 1 221.84 233.00 L 221.84 222.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)"/>
+  <path d="M 113.68 222.00 L 113.68 228.00 A 4.00 4.00 0 0 1 109.68 232.00 L 83.40 232.00 A 4.00 4.00 0 0 0 79.40 236.00 L 79.40 292.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)"/>
+  <path d="M 254.80 292.00 L 254.80 251.52 A 3.52 3.52 0 0 1 258.32 248.00 L 258.32 248.00 A 3.52 3.52 0 0 0 261.84 244.48 L 261.84 120.52 A 3.52 3.52 0 0 0 258.32 117.00 L 258.32 117.00 A 3.52 3.52 0 0 1 254.80 113.48 L 254.80 102.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)"/>
+  <text x="167.76" y="142.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[callReceived]</text>
+  <text x="174.80" y="262.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[doorsClosed]</text>
+  <text x="201.18" y="382.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[atFloor]</text>
+  <text x="93.02" y="382.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[atFloor]</text>
+  <text x="173.08" y="502.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[doorsAreOpen]</text>
+  <text x="294.80" y="354.50" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[timeout]</text>
+  <text x="79.40" y="262.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[goingDown]</text>
+  <text x="261.84" y="182.50" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[idleTimeout]</text>
 </svg>

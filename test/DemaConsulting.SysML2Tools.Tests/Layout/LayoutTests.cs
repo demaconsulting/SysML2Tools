@@ -164,8 +164,8 @@ public sealed class LayoutTests
         // Act: construct a LayoutLine with all five parameters non-default
         var line = new LayoutLine(
             [p1, p2],
-            ArrowheadStyle.Open,
-            ArrowheadStyle.Filled,
+            EndMarkerStyle.HollowTriangle,
+            EndMarkerStyle.FilledArrow,
             LineStyle.Dashed,
             "myLabel");
 
@@ -173,8 +173,8 @@ public sealed class LayoutTests
         Assert.Equal(2, line.Waypoints.Count);
         Assert.Same(p1, line.Waypoints[0]);
         Assert.Same(p2, line.Waypoints[1]);
-        Assert.Equal(ArrowheadStyle.Open, line.SourceArrowhead);
-        Assert.Equal(ArrowheadStyle.Filled, line.TargetArrowhead);
+        Assert.Equal(EndMarkerStyle.HollowTriangle, line.SourceEnd);
+        Assert.Equal(EndMarkerStyle.FilledArrow, line.TargetEnd);
         Assert.Equal(LineStyle.Dashed, line.LineStyle);
         Assert.Equal("myLabel", line.MidpointLabel);
     }
@@ -191,7 +191,7 @@ public sealed class LayoutTests
         var p2 = new Point2D(200.0, 300.0);
 
         // Act: construct the line with these waypoints
-        var line = new LayoutLine([p1, p2], ArrowheadStyle.None, ArrowheadStyle.None, LineStyle.Solid, null);
+        var line = new LayoutLine([p1, p2], EndMarkerStyle.None, EndMarkerStyle.None, LineStyle.Solid, null);
 
         // Assert: both waypoints retain their supplied X and Y values
         Assert.Equal(10.0, line.Waypoints[0].X);

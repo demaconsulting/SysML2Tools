@@ -17,7 +17,7 @@ configuration are required beyond a standard .NET SDK installation.
 - All `SequenceViewLayoutStrategyTests` pass with zero failures across all target frameworks.
 - A definition with messages yields one lifeline per participant and one line per message, ordered
   top-to-bottom by declaration order.
-- A message between two lifelines is a horizontal line with a directional arrowhead at the receiver.
+- A message between two lifelines is a horizontal line with an open end marker at the receiver.
 - A workspace with no messages yields an empty diagram.
 
 ##### Test Scenarios
@@ -25,5 +25,6 @@ configuration are required beyond a standard .NET SDK installation.
 | Test | Assertion |
 | --- | --- |
 | `SequenceView_BuildLayout_Messages_ProducesLifelinesAndOrderedLines` | Lifeline per participant; ordered top-down |
-| `SequenceView_BuildLayout_Message_IsHorizontalBetweenLifelines` | Horizontal line, filled arrowhead at receiver |
+| `SequenceView_BuildLayout_Message_IsHorizontalBetweenLifelines` | Horizontal line, open end marker at receiver |
 | `SequenceView_BuildLayout_NoMessages_ReturnsMinimalCanvas` | Workspace with no messages yields no nodes |
+| `SequenceView_BuildLayout_MessageArrow_HasOpenArrowhead` | Open end marker at receiver end |

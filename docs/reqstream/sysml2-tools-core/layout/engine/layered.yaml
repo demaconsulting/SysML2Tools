@@ -1,0 +1,61 @@
+---
+# Layout Engine Layered Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the Layered subsystem of the Layout Engine subsystem
+# - The Layered subsystem is a reusable, composable ELK-style layered layout pipeline
+# - Requirements describe observable behavior of the assembled pipeline, not stage internals
+
+sections:
+  - title: Layout Engine Layered Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-StagedPipeline
+        title: >-
+          The Layered subsystem shall compute a layout by running an ordered sequence of
+          composable stages, each implementing a common stage interface, over a single shared
+          graph state object.
+        justification: |
+          Expressing the algorithm as ordered, independently testable stages lets the pipeline be
+          extended, reordered, and verified one stage at a time instead of as one monolithic method.
+        tests:
+          - LayeredLayoutPipeline_RunDefaultStages_ChainGraph_PopulatesWaypointsWithoutThrowing
+          - Pipeline_MatchesLegacyOracle_OnRandomGraphs
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-BehaviorPreserving
+        title: >-
+          The Layered subsystem shall produce the same rectangles, totals, layer assignments, and
+          connector waypoints as the legacy monolithic interconnection engine for every input.
+        justification: |
+          The subsystem was extracted from the monolithic engine as a behavior-preserving refactor;
+          identical geometry is required so existing views render unchanged.
+        tests:
+          - Pipeline_MatchesLegacyOracle_OnRandomGraphs
+          - Pipeline_MatchesLegacyOracle_OnEmptyGraph
+          - Pipeline_MatchesLegacyOracle_OnDroneLikeGraph
+          - Pipeline_MatchesLegacyOracle_OnWorkstationLikeGraph
+          - Pipeline_MatchesLegacyOracle_OnNamedTopologies
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-FlatHierarchyOnly
+        title: >-
+          The Layered subsystem shall support flat (single-graph) hierarchy handling and shall
+          reject recursive hierarchy handling with a clear error until it is implemented.
+        justification: |
+          Flat handling reproduces the current behavior exactly; failing fast on the unimplemented
+          recursive mode prevents silently producing an unsupported layout.
+        tests:
+          - LayeredLayoutPipeline_Build_RecursiveHierarchy_ThrowsNotSupportedException
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-RightDirection
+        title: >-
+          The Layered subsystem shall support laying out graphs in the right, down, left, and up
+          flow directions, computing in the left-to-right abstract axes and mapping the result onto
+          screen coordinates for the requested direction via the AxisTransform stage.
+        justification: |
+          The stages compute in the left-to-right abstract axes and AxisTransform maps the result
+          onto the requested direction; directed views such as the State Transition and Action Flow
+          views rely on the down direction, so all four directions must be supported.
+        tests:
+          - AxisTransform_Apply_RightDirection_LeavesCoordinatesUnchanged
+          - AxisTransform_Apply_Down_PlacesTargetSouthWithCorrectFaces
+          - AxisTransform_Apply_Left_PlacesTargetWestWithCorrectFaces
+          - AxisTransform_Apply_Up_PlacesTargetNorthWithCorrectFaces

@@ -1,0 +1,32 @@
+---
+# LongEdgeJoiner Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the LongEdgeJoiner unit
+# - LongEdgeJoiner concatenates sub-edge bend points into one polyline per original edge
+# - Requirements describe the observable per-edge waypoints, not the sorting internals
+
+sections:
+  - title: LongEdgeJoiner Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-LongEdgeJoiner-WaypointPerEdge
+        title: >-
+          LongEdgeJoiner shall produce one orthogonal waypoint polyline per original edge, beginning
+          at the source node's right face and ending at the target node's left face.
+        justification: |
+          The view strategy emits one connector per original edge, so each edge must yield exactly
+          one polyline anchored to the boxes it connects.
+        tests:
+          - LongEdgeJoiner_Apply_SingleEdge_ProducesWaypointsPerOriginalEdge
+          - LongEdgeJoiner_Apply_LongEdge_ConcatenatesSubEdgeBendPoints
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-LongEdgeJoiner-Concatenation
+        title: >-
+          LongEdgeJoiner shall assemble a long edge's polyline by concatenating, in source-to-target
+          layer order, the bend points of every sub-edge that the long edge was split into.
+        justification: |
+          A long edge is routed as a chain of sub-edges through dummy nodes; stitching their bend
+          points back together reconstructs the single connector the user sees.
+        tests:
+          - LongEdgeJoiner_Apply_LongEdge_ConcatenatesSubEdgeBendPoints
+          - Pipeline_MatchesLegacyOracle_OnNamedTopologies

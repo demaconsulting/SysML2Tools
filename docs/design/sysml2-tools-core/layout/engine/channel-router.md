@@ -10,13 +10,13 @@ interconnection connectors, specialization edges) flows.
 ##### Data Model
 
 `ChannelRouter` is a static class with no instance state. Inputs are the source and target
-`Point2D` anchors, a list of obstacle `Rect`, a clearance distance, and optional source and
-target `PortSide` values. The result is a `RouteResult` record carrying the ordered
-`Waypoints` and a `Crossed` flag.
+`Point2D` anchors, a list of obstacle `Rect`, a clearance distance, optional source and target
+`PortSide` values, and an optional list of `CostBand` records. The result is a `RouteResult`
+record carrying the ordered `Waypoints` and a `Crossed` flag.
 
 ##### Key Methods
 
-###### `RouteWithStatus(source, target, obstacles, clearance, sourceSide?, targetSide?)`
+###### `RouteWithStatus(source, target, obstacles, clearance, sourceSide?, targetSide?, costBands?)`
 
 Computes the route and reports whether it had to cross an obstacle. The algorithm is:
 
@@ -24,7 +24,7 @@ Computes the route and reports whether it had to cross an obstacle. The algorith
    short stub so the connector leaves and enters boxes at right angles. Each stub length is
    capped to half the gap to the opposing anchor along the step axis, so two stubs facing
    each other across a narrow gap meet at the midline instead of overshooting (which would
-   produce a visible reversal at the arrowhead).
+   produce a visible reversal at the end marker).
 2. **Grid construction.** Candidate grid lines are built from the two endpoint coordinates
    plus each obstacle's near and far edges offset outward by the current clearance.
 3. **Clearance-retry ladder.** An A\*-style search runs over the grid at successively smaller
@@ -42,7 +42,9 @@ Computes the route and reports whether it had to cross an obstacle. The algorith
    perpendicular stub is never collapsed, and duplicate points are dropped.
 
 The turn penalty in the search biases toward routes with fewer bends, so connectors prefer
-straight runs where the geometry allows.
+straight runs where the geometry allows. When cost bands are supplied, each segment's length is
+scaled by the cheapest band covering its midpoint, so a 0.6 highway band attracts wires into shared
+corridors; a null band list leaves cost neutral.
 
 ###### `Route(...)`
 

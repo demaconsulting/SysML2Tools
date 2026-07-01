@@ -1,0 +1,45 @@
+---
+# DiagramRenderer Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the DiagramRenderer unit
+# - DiagramRenderer is the high-level rendering orchestrator for the Rendering subsystem
+# - Requirements describe the observable orchestration behavior of the full pipeline
+# - Unit requirements decompose the Rendering subsystem DiagramRenderer responsibility into this unit
+
+sections:
+  - title: DiagramRenderer Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Rendering-DiagramRenderer-RendersEachView
+        title: >-
+          For each user-defined view in a workspace, the diagram renderer shall lay the
+          view out and render it, returning one output whose content reflects the view's
+          rendered elements.
+        justification: |
+          DiagramRenderer is the single orchestration point that wires layout and rendering together.
+          Producing one output per view, with the view's elements present in the output, proves the
+          whole pipeline runs end to end.
+        tests:
+          - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsSvgOutput
+          - DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames
+
+      - id: SysML2Tools-Core-Rendering-DiagramRenderer-RendererAgnostic
+        title: >-
+          The diagram renderer shall drive any supplied format renderer, producing valid
+          format-specific output for both the SVG and PNG renderers from the same workspace.
+        justification: |
+          Because the orchestrator depends only on the IRenderer contract, the same pipeline serves
+          every renderer. Exercising it with both shipped renderers proves the abstraction holds.
+        tests:
+          - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_PngRenderer_ReturnsPngOutput
+          - DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput
+
+      - id: SysML2Tools-Core-Rendering-DiagramRenderer-NoViews
+        title: >-
+          The diagram renderer shall return an empty result when the workspace contains
+          no user-defined view declarations, fabricating no output.
+        justification: |
+          A workspace without views has nothing to render. Returning an empty list rather than a
+          placeholder keeps the caller's output free of spurious files.
+        tests:
+          - DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList

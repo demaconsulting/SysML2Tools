@@ -15,7 +15,7 @@ the abstract base `LayoutNode`:
 | --- | --- | --- |
 | `LayoutBox` | Rectangular container with label, depth, compartments, children | Block, IBD, Package, SM, Activity |
 | `LayoutPort` | Connection point on a box edge; child of `LayoutBox` | IBD, Block |
-| `LayoutLine` | Pre-routed orthogonal polyline with arrowheads and mid-label | All relational diagrams |
+| `LayoutLine` | Pre-routed orthogonal polyline with end markers and mid-label | All relational diagrams |
 | `LayoutLabel` | Standalone text label at absolute position | All diagram types |
 | `LayoutBadge` | Small icon decorator (pseudostate, choice node, etc.) | SM, Activity |
 | `LayoutBand` | Swim-lane with orientation, label, and nested children | Activity, Sequence |
@@ -88,8 +88,8 @@ flowchart TD
 
 - *Type*: Sealed record.
 - *Role*: Data container.
-- *Contract*: `IReadOnlyList<Point2D> Waypoints`, `ArrowheadStyle SourceArrowhead`,
-  `ArrowheadStyle TargetArrowhead`, `LineStyle LineStyle`, `string? MidpointLabel`.
+- *Contract*: `IReadOnlyList<Point2D> Waypoints`, `EndMarkerStyle SourceEnd`,
+  `EndMarkerStyle TargetEnd`, `LineStyle LineStyle`, `string? MidpointLabel`.
   Waypoints are absolute positions. Corner rounding at elbows is applied by the renderer
   using `Theme.LineCornerRadius`.
 
@@ -186,8 +186,8 @@ Beyond the `LayoutTree` data model described above, the Layout subsystem contain
 sub-subsystems and one helper unit, each documented in its own chapter:
 
 - **Engine** — the reusable, model-independent geometric layout engines (`ChannelRouter`,
-  `ForceDirectedEngine`, `PortAssigner`, `LayeredLayoutEngine`, `ContainmentPacker`). See
-  the *Layout Engine Subsystem* chapter.
+  `ContainmentPacker`, `InterconnectionLayoutEngine`, and the reusable `LayeredLayoutPipeline`
+  provided by the nested `Layered` sub-subsystem). See the *Layout Engine Subsystem* chapter.
 - **Internal** — the per-view layout strategies that map the semantic model to a
   `LayoutTree` (general, interconnection, state transition, action flow, sequence, grid, and
   browser views), plus `LayoutWarnings`. See the *Layout Internal Subsystem* chapter.
@@ -208,7 +208,7 @@ engines themselves never reference the semantic model.
 | SysML2Tools-Core-Layout-DepthNotColor | `LayoutBox.Depth` int; no color field |
 | SysML2Tools-Core-Layout-TreeStructure | `LayoutBox.Children` and `LayoutBand.Children` |
 | SysML2Tools-Core-Layout-LayoutPort | `LayoutPort` record with `CentreX`, `CentreY`, `Side` |
-| SysML2Tools-Core-Layout-LayoutLine | `LayoutLine` record with `Waypoints`, arrowheads, `LineStyle` |
+| SysML2Tools-Core-Layout-LayoutLine | `LayoutLine` record with `Waypoints`, end markers, `LineStyle` |
 | SysML2Tools-Core-Layout-LayoutLabel | `LayoutLabel` record |
 | SysML2Tools-Core-Layout-LayoutBadge | `LayoutBadge` record |
 | SysML2Tools-Core-Layout-LayoutBand | `LayoutBand` record |

@@ -3,24 +3,42 @@
 includes:
   - docs/reqstream/sysml2-tools-language.yaml
   - docs/reqstream/sysml2-tools-language/parser.yaml
+  - docs/reqstream/sysml2-tools-language/parser/workspace-parser.yaml
+  - docs/reqstream/sysml2-tools-language/parser/internal/sysml-diagnostic-listener.yaml
   - docs/reqstream/sysml2-tools-language/semantic.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/workspace-loader.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/ast-serializer.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/ast-deserializer.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/internal.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/internal/sysml-node.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/internal/ast-builder.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/internal/symbol-table.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/internal/reference-resolver.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/internal/supertype-walker.yaml
   - docs/reqstream/sysml2-tools-stdlib.yaml
+  - docs/reqstream/sysml2-tools-stdlib/stdlib-provider.yaml
   - docs/reqstream/sysml2-tools-core.yaml
-  - docs/reqstream/sysml2-tools-core/semantic/workspace-loader.yaml
-  - docs/reqstream/sysml2-tools-core/semantic/internal.yaml
-  - docs/reqstream/sysml2-tools-core/semantic/internal/sysml-node.yaml
-  - docs/reqstream/sysml2-tools-core/semantic/internal/ast-builder.yaml
-  - docs/reqstream/sysml2-tools-core/semantic/internal/symbol-table.yaml
-  - docs/reqstream/sysml2-tools-core/semantic/internal/reference-resolver.yaml
-  - docs/reqstream/sysml2-tools-core/semantic/internal/supertype-walker.yaml
   - docs/reqstream/sysml2-tools-core/layout.yaml
+  - docs/reqstream/sysml2-tools-core/layout/box-metrics.yaml
+  - docs/reqstream/sysml2-tools-core/layout/layout-tree.yaml
   - docs/reqstream/sysml2-tools-core/layout/connector-label-placer.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine/channel-router.yaml
-  - docs/reqstream/sysml2-tools-core/layout/engine/force-directed-engine.yaml
-  - docs/reqstream/sysml2-tools-core/layout/engine/port-assigner.yaml
-  - docs/reqstream/sysml2-tools-core/layout/engine/layered-layout-engine.yaml
   - docs/reqstream/sysml2-tools-core/layout/engine/containment-packer.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/interconnection-layout-engine.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/layered-graph.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/layered-layout-pipeline.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/cycle-breaker.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/layer-assigner.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/long-edge-splitter.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/crossing-minimizer.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/brandes-kopf-placer.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/port-distributor.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/orthogonal-router.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/long-edge-joiner.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/axis-transform.yaml
+  - docs/reqstream/sysml2-tools-core/layout/engine/layered/component-packer.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/general-view-layout-strategy.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/interconnection-view-layout-strategy.yaml
@@ -31,10 +49,16 @@ includes:
   - docs/reqstream/sysml2-tools-core/layout/internal/browser-view-layout-strategy.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/layout-warnings.yaml
   - docs/reqstream/sysml2-tools-core/rendering.yaml
+  - docs/reqstream/sysml2-tools-core/rendering/notation-metrics.yaml
+  - docs/reqstream/sysml2-tools-core/rendering/theme.yaml
+  - docs/reqstream/sysml2-tools-core/rendering/diagram-renderer.yaml
+  - docs/reqstream/sysml2-tools-core/rendering/rendering-contracts.yaml
   - docs/reqstream/sysml2-tools-core/rendering/internal.yaml
   - docs/reqstream/sysml2-tools-core/rendering/internal/diagram-type-router.yaml
   - docs/reqstream/sysml2-tools-svg.yaml
+  - docs/reqstream/sysml2-tools-svg/svg-renderer.yaml
   - docs/reqstream/sysml2-tools-png.yaml
+  - docs/reqstream/sysml2-tools-png/png-renderer.yaml
   - docs/reqstream/sysml2-tools-tool.yaml
   - docs/reqstream/sysml2-tools-tool/program.yaml
   - docs/reqstream/sysml2-tools-tool/cli.yaml

@@ -1,0 +1,55 @@
+---
+# OrthogonalRouter Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the OrthogonalRouter unit
+# - OrthogonalRouter assigns routing slots and emits orthogonal bend points per corridor
+# - Requirements describe the observable bend points, not the slot-dependency internals
+
+sections:
+  - title: OrthogonalRouter Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-OrthogonalRouter-OrthogonalBendPoints
+        title: >-
+          OrthogonalRouter shall route each sub-edge with axis-aligned geometry: a sub-edge whose
+          source and target ports share a Y receives no bend points, and any other sub-edge receives
+          a vertical bend segment whose two points share an X.
+        justification: |
+          Axis-aligned routing produces the clean orthogonal connectors the interconnection view
+          requires; emitting no bend points for an already-straight run keeps the path minimal.
+        tests:
+          - OrthogonalRouter_Apply_StraightEdge_ProducesNoBendPoints
+          - OrthogonalRouter_Apply_EveryBendListIsEmptyOrVerticalSegment
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-OrthogonalRouter-SlotRouting
+        title: >-
+          OrthogonalRouter shall assign a routing slot to each bending sub-edge in a corridor so
+          that the bend segment is offset from the source column by the slot position.
+        justification: |
+          Distinct routing slots keep the vertical runs of different connectors from overlapping
+          within a corridor, which is required for the connectors to remain distinguishable.
+        tests:
+          - OrthogonalRouter_Apply_EveryBendListIsEmptyOrVerticalSegment
+          - Pipeline_MatchesLegacyOracle_OnRandomGraphs
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-OrthogonalRouter-ReversedEdgeApproach
+        title: >-
+          OrthogonalRouter shall ensure a reversed (back) edge's entry approach into the target face
+          is at least the graph's BackEdgeEntryApproach (default ConnectorClearance), while leaving
+          forward and acyclic edge geometry unchanged.
+        justification: |
+          A reversed edge is stored flipped, so the end marker (an open chevron) lands on its
+          augmented-source stub; at the default slot that stub is shorter than the marker, which
+          renders as a stubby entry. Guaranteeing a minimum approach makes the end marker read as a
+          clean perpendicular entry, and clamping outward only (never inward) keeps every forward and
+          acyclic connector byte-identical. The approach is supplied through the
+          LayeredGraph.BackEdgeEntryApproach parameter, which defaults to ConnectorClearance so the
+          unmodified engine is reproduced byte-for-byte; a decoration-aware caller (the
+          state-transition view) raises it to clear the end-marker along-line length.
+        tests:
+          - OrthogonalRouter_DefaultApproach_IsByteIdenticalToLegacy
+          - OrthogonalRouter_ReversedEdge_DefaultApproachClearsClearance
+          - OrthogonalRouter_CustomApproach_PushesEntryStubOutward
+          - OrthogonalRouter_DecorationAwareApproach_ClearsMarkerAlongLength
+          - OrthogonalRouter_ForwardEdges_GeometryUnchanged
+          - OrthogonalRouter_AcyclicGraph_NoApproachChange

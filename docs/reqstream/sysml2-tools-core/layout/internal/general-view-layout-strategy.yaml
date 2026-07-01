@@ -46,11 +46,11 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Specialization
         title: >-
           GeneralViewLayoutStrategy shall connect a specialized definition to each of its
-          supertypes present in the workspace with a line ending in an open arrowhead at the
+          supertypes present in the workspace with a line ending in an open end marker at the
           supertype.
         justification: |
           Specialization (generalization) relationships are core model structure. Drawing them
-          as open-arrowhead lines toward the supertype matches diagram notation and makes the
+          as open-end-marker lines toward the supertype matches diagram notation and makes the
           inheritance hierarchy visible.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_Subclassification_ProducesEdge
@@ -74,3 +74,72 @@ sections:
           canvas lets the renderer produce a valid blank diagram rather than failing.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CompositeMembership
+        title: >-
+          GeneralViewLayoutStrategy shall connect a definition to the type of each owned feature
+          with keyword <c>part</c> or <c>port</c> with a filled-diamond end marker at the owning
+          definition end.
+        justification: |
+          Structural containment relationships — part and port features — are shown as
+          filled-diamond edges in a General View. Non-structural features (attribute, value,
+          item, etc.) are already visible in compartments and do not need a separate arrow.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_CompositeMembership_ProducesFilledDiamondEdge
+          - GeneralViewLayoutStrategy_BuildLayout_PortFeature_ProducesFilledDiamondEdge
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ReferenceMembership
+        title: >-
+          GeneralViewLayoutStrategy shall connect a definition to the type of each owned <c>ref</c>
+          feature with a hollow-diamond end marker at the owning definition end.
+        justification: |
+          Reference membership (e.g. a requirement's subject feature) is a distinct SysML v2
+          relationship shown with a hollow diamond. Rendering it as a separate edge distinguishes
+          it visually from structural containment (filled diamond).
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesHollowDiamondEdge
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NonStructuralMembership
+        title: >-
+          GeneralViewLayoutStrategy shall not draw membership (diamond) edges for features with
+          non-structural keywords such as <c>attribute</c>, <c>value</c>, or <c>item</c>.
+        justification: |
+          Non-structural features describe usage, not containment or reference. Omitting their
+          membership diamond edges prevents the General View from confusing attribute typing with
+          composition; where an attribute's type is a definition in the view it is instead shown as
+          a dependency edge (see the AttributeTyping requirement).
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_AttributeFeature_DoesNotProduceDiamondEdge
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AttributeTyping
+        title: >-
+          GeneralViewLayoutStrategy shall connect a definition to the type of each owned
+          <c>attribute</c> (or <c>enum</c>-typed attribute) feature whose type resolves to a
+          definition in the view with a dashed dependency line ending in an open chevron at the
+          attribute-type definition.
+        justification: |
+          An attribute or enumeration definition referenced only by attribute features would
+          otherwise float as a disconnected box. Drawing an owner-to-type dependency joins it into
+          the cluster near the definitions that use it. Attribute typing is a usage-type dependency,
+          not composition, so it uses the OMG dependency notation (a dashed line with an open
+          arrowhead) rather than a membership diamond, keeping it visually distinct from structural
+          memberships (filled diamond) and specializations (hollow triangle). Unresolved types and
+          self-references are skipped, exactly as for the other edge kinds.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_AttributeTyping_ProducesDashedOpenChevronEdge
+          - GeneralViewLayoutStrategy_BuildLayout_EnumTypedAttribute_ProducesDashedOpenChevronEdge
+          - GeneralViewLayoutStrategy_BuildLayout_AttributeTyping_UnresolvedType_ProducesNoEdge
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-LayeredPlacement
+        title: >-
+          GeneralViewLayoutStrategy shall place definitions with the layered pipeline so that no two
+          definition boxes overlap and every package folder stays clear of the others.
+        justification: |
+          Delegating placement to the reusable layered pipeline (with a ComponentPacker stage) gives
+          the General view ELK-style box placement and orthogonal edge routing. The observable
+          guarantee that matters to readers is that boxes and folders never overlap, regardless of
+          model size or density, so the diagram stays legible without manual layout hints.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelProducesNonOverlappingBoxes
+          - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_ConnectedModelKeepsBoxesSeparated
+          - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelProducesCompactCanvas

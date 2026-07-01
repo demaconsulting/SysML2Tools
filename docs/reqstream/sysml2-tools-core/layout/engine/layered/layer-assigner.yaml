@@ -1,0 +1,32 @@
+---
+# LayerAssigner Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the LayerAssigner unit
+# - LayerAssigner assigns each node a longest-path layer index over the acyclic graph
+# - Requirements describe the observable layer indices, not the topological-sort internals
+
+sections:
+  - title: LayerAssigner Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-Layered-LayerAssigner-LongestPath
+        title: >-
+          LayerAssigner shall assign each node a layer equal to the length of its longest incoming
+          path, so sources occupy layer zero and every edge runs from a lower to a higher layer.
+        justification: |
+          Longest-path layering guarantees no same-layer connections, eliminating the connector
+          clipping that a shallower layering would cause.
+        tests:
+          - LayerAssigner_Apply_LinearChain_AssignsMonotonicLayers
+          - LayerAssigner_Apply_DiamondGraph_AssignsLongestPathLayers
+
+      - id: SysML2Tools-Core-Layout-Engine-Layered-LayerAssigner-Monotonic
+        title: >-
+          LayerAssigner shall assign strictly increasing layer indices along any directed chain of
+          the acyclic graph.
+        justification: |
+          Monotonic layer indices along a chain are the observable property that downstream
+          coordinate assignment relies on to place columns left to right.
+        tests:
+          - LayerAssigner_Apply_LinearChain_AssignsMonotonicLayers
+          - Pipeline_MatchesLegacyOracle_OnWorkstationLikeGraph

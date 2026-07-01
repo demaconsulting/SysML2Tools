@@ -16,6 +16,8 @@ needs-review:
   - "!**/obj/**"                  # Exclude build output
   - "!**/bin/**"                  # Exclude build output
   - "!src/**/Parser/Antlr/**"    # ANTLR4-generated C# — not hand-written
+  - "!test/**/Runner.cs"          # Integration-test process-runner helper (test harness, not a unit)
+  - "!test/**/AssemblyInfo.cs"    # xUnit collection/parallelization definitions (test harness, not a unit)
   - "!node_modules/**"            # Exclude npm dependencies
   - "!**/.venv/**"                # Exclude Python virtual environment
 
@@ -108,7 +110,6 @@ reviews:
       - "docs/design/sysml2-tools-language.md"
       - "docs/verification/introduction.md"
       - "docs/verification/sysml2-tools-language.md"
-      - "src/DemaConsulting.SysML2Tools.Language/**/*.cs"
 
   - id: SysML2Tools-Language-Design
     title: Review that DemaConsulting.SysML2Tools.Language Design is Consistent and Complete
@@ -166,8 +167,6 @@ reviews:
       - "docs/design/sysml2-tools-stdlib.md"
       - "docs/verification/introduction.md"
       - "docs/verification/sysml2-tools-stdlib.md"
-      - "src/DemaConsulting.SysML2Tools.Stdlib/**/*.cs"
-      - "src/Tools/StdlibGen/**/*.cs"
 
   - id: SysML2Tools-Stdlib-Design
     title: Review that DemaConsulting.SysML2Tools.Stdlib Design is Consistent and Complete
@@ -176,6 +175,7 @@ reviews:
     paths:
       - "docs/design/introduction.md"
       - "docs/design/sysml2-tools-stdlib.md"
+      - "docs/design/sysml2-tools-stdlib/**/*.md"
       - "docs/design/ots.md"
 
   - id: SysML2Tools-Stdlib-Verification
@@ -185,7 +185,16 @@ reviews:
     paths:
       - "docs/verification/introduction.md"
       - "docs/verification/sysml2-tools-stdlib.md"
+      - "docs/verification/sysml2-tools-stdlib/**/*.md"
       - "docs/verification/ots.md"
+
+  - id: SysML2Tools-Stdlib-AllRequirements
+    title: Review that All DemaConsulting.SysML2Tools.Stdlib Requirements are Complete
+    context:
+      - docs/design/sysml2-tools-stdlib.md
+      - docs/reqstream/sysml2-tools-stdlib.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-stdlib/**/*.yaml"
 
   - id: SysML2Tools-Stdlib-Implementation
     title: Review of DemaConsulting.SysML2Tools.Stdlib and StdlibGen Implementation
@@ -195,6 +204,18 @@ reviews:
     paths:
       - "src/DemaConsulting.SysML2Tools.Stdlib/StdlibProvider.cs"
       - "src/Tools/StdlibGen/Program.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/StdlibProviderTests.cs"
+
+  - id: SysML2Tools-Stdlib-StdlibProvider
+    title: Review that DemaConsulting.SysML2Tools.Stdlib StdlibProvider Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-stdlib.md
+      - docs/reqstream/sysml2-tools-stdlib.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-stdlib/stdlib-provider.yaml"
+      - "docs/design/sysml2-tools-stdlib/stdlib-provider.md"
+      - "docs/verification/sysml2-tools-stdlib/stdlib-provider.md"
+      - "src/DemaConsulting.SysML2Tools.Stdlib/StdlibProvider.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/StdlibProviderTests.cs"
 
   # SysML2Tools Core Library
@@ -209,7 +230,6 @@ reviews:
       - "docs/design/sysml2-tools-core.md"
       - "docs/verification/introduction.md"
       - "docs/verification/sysml2-tools-core.md"
-      - "src/DemaConsulting.SysML2Tools.Core/**/*.cs"
 
   - id: SysML2Tools-Core-Design
     title: Review that DemaConsulting.SysML2Tools Design is Consistent and Complete
@@ -239,25 +259,29 @@ reviews:
     paths:
       - "docs/reqstream/sysml2-tools-core/**/*.yaml"
 
-  - id: SysML2Tools-Core-Parser-Design
+  - id: SysML2Tools-Language-Parser-Design
     title: Review that DemaConsulting.SysML2Tools.Language Parser Design is Consistent and Complete
     context:
       - docs/reqstream/sysml2-tools-language.yaml
     paths:
       - "docs/design/introduction.md"
       - "docs/design/sysml2-tools-language.md"
+      - "docs/design/sysml2-tools-language/parser.md"
+      - "docs/design/sysml2-tools-language/parser/**/*.md"
       - "docs/design/ots/antlr4.md"
 
-  - id: SysML2Tools-Core-Parser-Verification
+  - id: SysML2Tools-Language-Parser-Verification
     title: Review that DemaConsulting.SysML2Tools.Language Parser Verification is Consistent and Complete
     context:
       - docs/reqstream/sysml2-tools-language.yaml
     paths:
       - "docs/verification/introduction.md"
       - "docs/verification/sysml2-tools-language.md"
+      - "docs/verification/sysml2-tools-language/parser.md"
+      - "docs/verification/sysml2-tools-language/parser/**/*.md"
       - "docs/verification/ots/antlr4.md"
 
-  - id: SysML2Tools-Core-Parser-Implementation
+  - id: SysML2Tools-Language-Parser-Implementation
     title: Review of DemaConsulting.SysML2Tools.Language Parser Implementation
     context:
       - docs/reqstream/sysml2-tools-language.yaml
@@ -268,7 +292,7 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/OmgModelsTests.cs"
 
-  - id: SysML2Tools-Core-Parser-Changes
+  - id: SysML2Tools-Language-Parser-Changes
     title: Review of Language Parser Changes for Phase 5 (StdlibGen + AstSerializer)
     context:
       - docs/reqstream/sysml2-tools-language.yaml
@@ -279,31 +303,36 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/AstDeserializer.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
 
-  - id: SysML2Tools-Core-Semantic-Design
+  - id: SysML2Tools-Language-Semantic-Design
     title: Review that DemaConsulting.SysML2Tools.Language Semantic Design is Consistent and Complete
     context:
       - docs/reqstream/sysml2-tools-language.yaml
     paths:
       - "docs/design/introduction.md"
       - "docs/design/sysml2-tools-language.md"
+      - "docs/design/sysml2-tools-language/semantic.md"
+      - "docs/design/sysml2-tools-language/semantic/**/*.md"
 
-  - id: SysML2Tools-Core-Semantic-Verification
+  - id: SysML2Tools-Language-Semantic-Verification
     title: Review that DemaConsulting.SysML2Tools.Language Semantic Verification is Consistent and Complete
     context:
       - docs/reqstream/sysml2-tools-language.yaml
     paths:
       - "docs/verification/introduction.md"
       - "docs/verification/sysml2-tools-language.md"
+      - "docs/verification/sysml2-tools-language/semantic.md"
+      - "docs/verification/sysml2-tools-language/semantic/**/*.md"
 
-  - id: SysML2Tools-Core-Semantic-AllRequirements
+  - id: SysML2Tools-Language-AllRequirements
     title: Review that All DemaConsulting.SysML2Tools.Language Requirements are Complete
     context:
       - docs/design/sysml2-tools-language.md
       - docs/reqstream/sysml2-tools-language.yaml
     paths:
       - "docs/reqstream/sysml2-tools-language.yaml"
+      - "docs/reqstream/sysml2-tools-language/**/*.yaml"
 
-  - id: SysML2Tools-Core-Semantic-Implementation
+  - id: SysML2Tools-Language-Semantic-Implementation
     title: Review of DemaConsulting.SysML2Tools.Language Semantic Implementation
     context:
       - docs/reqstream/sysml2-tools-language.yaml
@@ -320,7 +349,7 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
 
-  - id: SysML2Tools-Core-Semantic-WorkspaceLoader
+  - id: SysML2Tools-Language-Semantic-WorkspaceLoader
     title: Review of DemaConsulting.SysML2Tools.Language WorkspaceLoader Unit Implementation
     context:
       - docs/design/sysml2-tools-language.md
@@ -331,7 +360,64 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/WorkspaceLoader.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
-      - "test/SysMLModels/software-structure.sysml"
+
+  - id: SysML2Tools-Language-Parser-WorkspaceParser
+    title: Review that DemaConsulting.SysML2Tools.Language Parser WorkspaceParser Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-language.md
+      - docs/reqstream/sysml2-tools-language.yaml
+      - docs/design/sysml2-tools-language/parser.md
+      - docs/reqstream/sysml2-tools-language/parser.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-language/parser/workspace-parser.yaml"
+      - "docs/design/sysml2-tools-language/parser/workspace-parser.md"
+      - "docs/verification/sysml2-tools-language/parser/workspace-parser.md"
+      - "src/DemaConsulting.SysML2Tools.Language/Parser/WorkspaceParser.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
+
+  - id: SysML2Tools-Language-Parser-Internal-SysmlDiagnosticListener
+    title: Review that DemaConsulting.SysML2Tools.Language Parser SysmlDiagnosticListener Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-language.md
+      - docs/reqstream/sysml2-tools-language.yaml
+      - docs/design/sysml2-tools-language/parser.md
+      - docs/reqstream/sysml2-tools-language/parser.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-language/parser/internal/sysml-diagnostic-listener.yaml"
+      - "docs/design/sysml2-tools-language/parser/internal/sysml-diagnostic-listener.md"
+      - "docs/verification/sysml2-tools-language/parser/internal/sysml-diagnostic-listener.md"
+      - "src/DemaConsulting.SysML2Tools.Language/Parser/Internal/SysmlDiagnosticListener.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
+
+  - id: SysML2Tools-Language-Semantic-AstSerializer
+    title: Review that DemaConsulting.SysML2Tools.Language Semantic AstSerializer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-language.md
+      - docs/reqstream/sysml2-tools-language.yaml
+      - docs/design/sysml2-tools-language/semantic.md
+      - docs/reqstream/sysml2-tools-language/semantic.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-language/semantic/ast-serializer.yaml"
+      - "docs/design/sysml2-tools-language/semantic/ast-serializer.md"
+      - "docs/verification/sysml2-tools-language/semantic/ast-serializer.md"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/AstSerializer.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SerializedStdlib.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/AstSerializerContext.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstSerializerTests.cs"
+
+  - id: SysML2Tools-Language-Semantic-AstDeserializer
+    title: Review that DemaConsulting.SysML2Tools.Language Semantic AstDeserializer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-language.md
+      - docs/reqstream/sysml2-tools-language.yaml
+      - docs/design/sysml2-tools-language/semantic.md
+      - docs/reqstream/sysml2-tools-language/semantic.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-language/semantic/ast-deserializer.yaml"
+      - "docs/design/sysml2-tools-language/semantic/ast-deserializer.md"
+      - "docs/verification/sysml2-tools-language/semantic/ast-deserializer.md"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/AstDeserializer.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstSerializerTests.cs"
 
   - id: SysML2Tools-Core-Layout-Design
     title: Review that DemaConsulting.SysML2Tools Layout Design is Consistent and Complete
@@ -398,48 +484,6 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/ChannelRouter.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/ChannelRouterTests.cs"
 
-  - id: SysML2Tools-Core-Layout-Engine-ForceDirectedEngine
-    title: Review that DemaConsulting.SysML2Tools Layout Engine ForceDirectedEngine Implementation is Correct
-    context:
-      - docs/design/sysml2-tools-core.md
-      - docs/reqstream/sysml2-tools-core.yaml
-      - docs/design/sysml2-tools-core/layout.md
-      - docs/design/sysml2-tools-core/layout/engine.md
-    paths:
-      - "docs/reqstream/sysml2-tools-core/layout/engine/force-directed-engine.yaml"
-      - "docs/design/sysml2-tools-core/layout/engine/force-directed-engine.md"
-      - "docs/verification/sysml2-tools-core/layout/engine/force-directed-engine.md"
-      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/ForceDirectedEngine.cs"
-      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/ForceDirectedEngineTests.cs"
-
-  - id: SysML2Tools-Core-Layout-Engine-PortAssigner
-    title: Review that DemaConsulting.SysML2Tools Layout Engine PortAssigner Implementation is Correct
-    context:
-      - docs/design/sysml2-tools-core.md
-      - docs/reqstream/sysml2-tools-core.yaml
-      - docs/design/sysml2-tools-core/layout.md
-      - docs/design/sysml2-tools-core/layout/engine.md
-    paths:
-      - "docs/reqstream/sysml2-tools-core/layout/engine/port-assigner.yaml"
-      - "docs/design/sysml2-tools-core/layout/engine/port-assigner.md"
-      - "docs/verification/sysml2-tools-core/layout/engine/port-assigner.md"
-      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/PortAssigner.cs"
-      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/PortAssignerTests.cs"
-
-  - id: SysML2Tools-Core-Layout-Engine-LayeredLayoutEngine
-    title: Review that DemaConsulting.SysML2Tools Layout Engine LayeredLayoutEngine Implementation is Correct
-    context:
-      - docs/design/sysml2-tools-core.md
-      - docs/reqstream/sysml2-tools-core.yaml
-      - docs/design/sysml2-tools-core/layout.md
-      - docs/design/sysml2-tools-core/layout/engine.md
-    paths:
-      - "docs/reqstream/sysml2-tools-core/layout/engine/layered-layout-engine.yaml"
-      - "docs/design/sysml2-tools-core/layout/engine/layered-layout-engine.md"
-      - "docs/verification/sysml2-tools-core/layout/engine/layered-layout-engine.md"
-      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/LayeredLayoutEngine.cs"
-      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/LayeredLayoutEngineTests.cs"
-
   - id: SysML2Tools-Core-Layout-Engine-ContainmentPacker
     title: Review that DemaConsulting.SysML2Tools Layout Engine ContainmentPacker Implementation is Correct
     context:
@@ -454,6 +498,221 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/ContainmentPacker.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/ContainmentPackerTests.cs"
 
+  - id: SysML2Tools-Core-Layout-Engine-InterconnectionLayoutEngine
+    title: Review that DemaConsulting.SysML2Tools Layout Engine InterconnectionLayoutEngine Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/interconnection-layout-engine.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/interconnection-layout-engine.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/interconnection-layout-engine.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/InterconnectionLayoutEngine.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Rect.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/InterconnectionLayoutEngineTests.cs"
+
+  # === Layout Engine Layered subsystem and units (ELK-style layered pipeline) ===
+  - id: SysML2Tools-Core-Layout-Engine-Layered
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered Satisfies Subsystem Requirements
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered.md"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/LayeredPipelineEquivalenceTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/LegacyInterconnectionLayoutEngineOracle.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-LayeredGraph
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered LayeredGraph Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/layered-graph.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/layered-graph.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/layered-graph.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/LayeredGraph.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/LayeredGraphTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-LayeredLayoutPipeline
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered LayeredLayoutPipeline Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/layered-layout-pipeline.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/layered-layout-pipeline.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/layered-layout-pipeline.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/LayeredLayoutPipeline.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/ILayoutStage.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/LayoutDirection.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/HierarchyHandling.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/LayeredLayoutMetrics.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/LayeredLayoutPipelineTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-CycleBreaker
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered CycleBreaker Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/cycle-breaker.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/cycle-breaker.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/cycle-breaker.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/CycleBreaker.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/CycleBreakerTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-LayerAssigner
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered LayerAssigner Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/layer-assigner.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/layer-assigner.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/layer-assigner.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/LayerAssigner.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/LayerAssignerTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-LongEdgeSplitter
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered LongEdgeSplitter Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/long-edge-splitter.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/long-edge-splitter.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/long-edge-splitter.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/LongEdgeSplitter.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/LongEdgeSplitterTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-CrossingMinimizer
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered CrossingMinimizer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/crossing-minimizer.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/crossing-minimizer.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/crossing-minimizer.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/CrossingMinimizer.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/CrossingMinimizerTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-BrandesKopfPlacer
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered BrandesKopfPlacer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/brandes-kopf-placer.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/brandes-kopf-placer.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/brandes-kopf-placer.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/BrandesKopfPlacer.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/BrandesKopfPlacerTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-PortDistributor
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered PortDistributor Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/port-distributor.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/port-distributor.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/port-distributor.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/PortDistributor.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/PortDistributorTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-OrthogonalRouter
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered OrthogonalRouter Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/orthogonal-router.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/orthogonal-router.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/orthogonal-router.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/OrthogonalRouter.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/OrthogonalRouterTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/OrthogonalRouterBackEdgeTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-LongEdgeJoiner
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered LongEdgeJoiner Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/long-edge-joiner.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/long-edge-joiner.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/long-edge-joiner.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/LongEdgeJoiner.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/LongEdgeJoinerTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-AxisTransform
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered AxisTransform Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/axis-transform.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/axis-transform.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/axis-transform.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/AxisTransform.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/AxisTransformTests.cs"
+
+  - id: SysML2Tools-Core-Layout-Engine-Layered-ComponentPacker
+    title: Review that DemaConsulting.SysML2Tools Layout Engine Layered ComponentPacker Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+      - docs/design/sysml2-tools-core/layout/engine.md
+      - docs/design/sysml2-tools-core/layout/engine/layered.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/engine/layered/component-packer.yaml"
+      - "docs/design/sysml2-tools-core/layout/engine/layered/component-packer.md"
+      - "docs/verification/sysml2-tools-core/layout/engine/layered/component-packer.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/Engine/Layered/ComponentPacker.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/Engine/Layered/ComponentPackerTests.cs"
+
   # === Layout Internal subsystem and view-strategy units ===
   - id: SysML2Tools-Core-Layout-Internal
     title: Review that DemaConsulting.SysML2Tools Layout Internal Subsystem is Consistent and Complete
@@ -465,6 +724,11 @@ reviews:
       - "docs/design/sysml2-tools-core/layout/internal.md"
       - "docs/verification/sysml2-tools-core/layout/internal.md"
 
+  # GeneralViewLayoutStrategy — General View layout. This review-set covers the three edge
+  # notations the strategy draws between definition boxes: specialization (solid line, hollow
+  # triangle at the supertype), structural/reference membership (solid line, filled/hollow diamond
+  # at the owner), and attribute typing (dashed dependency line, open chevron at the attribute-type
+  # definition). Attribute typing is a usage-type dependency, not composition.
   - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy
     title: Review that DemaConsulting.SysML2Tools Layout Internal GeneralViewLayoutStrategy Implementation is Correct
     context:
@@ -594,6 +858,98 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Core/Layout/ConnectorLabelPlacer.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Layout/ConnectorLabelPlacerTests.cs"
 
+  - id: SysML2Tools-Core-Layout-BoxMetrics
+    title: Review that DemaConsulting.SysML2Tools Layout BoxMetrics Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/box-metrics.yaml"
+      - "docs/design/sysml2-tools-core/layout/box-metrics.md"
+      - "docs/verification/sysml2-tools-core/layout/box-metrics.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/BoxMetrics.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/BoxMetricsTests.cs"
+
+  - id: SysML2Tools-Core-Layout-LayoutTree
+    title: Review that DemaConsulting.SysML2Tools Layout LayoutTree Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/layout.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/layout/layout-tree.yaml"
+      - "docs/design/sysml2-tools-core/layout/layout-tree.md"
+      - "docs/verification/sysml2-tools-core/layout/layout-tree.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutTree.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutNode.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutBox.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutPort.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutLine.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutLabel.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutBadge.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutBand.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutGrid.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Layout/LayoutLifeline.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Layout/LayoutTests.cs"
+
+  # === Rendering direct units (promoted from grouped subsystem content) ===
+  - id: SysML2Tools-Core-Rendering-NotationMetrics
+    title: Review that DemaConsulting.SysML2Tools Rendering NotationMetrics Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/rendering.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/rendering/notation-metrics.yaml"
+      - "docs/design/sysml2-tools-core/rendering/notation-metrics.md"
+      - "docs/verification/sysml2-tools-core/rendering/notation-metrics.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/NotationMetrics.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Rendering/NotationMetricsTests.cs"
+
+  - id: SysML2Tools-Core-Rendering-Theme
+    title: Review that DemaConsulting.SysML2Tools Rendering Theme Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/rendering.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/rendering/theme.yaml"
+      - "docs/design/sysml2-tools-core/rendering/theme.md"
+      - "docs/verification/sysml2-tools-core/rendering/theme.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/Theme.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Rendering/ThemeTests.cs"
+
+  - id: SysML2Tools-Core-Rendering-DiagramRenderer
+    title: Review that DemaConsulting.SysML2Tools Rendering DiagramRenderer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/rendering.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/rendering/diagram-renderer.yaml"
+      - "docs/design/sysml2-tools-core/rendering/diagram-renderer.md"
+      - "docs/verification/sysml2-tools-core/rendering/diagram-renderer.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/DiagramRenderer.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Rendering/RenderIntegrationTests.cs"
+
+  - id: SysML2Tools-Core-Rendering-RenderingContracts
+    title: Review that DemaConsulting.SysML2Tools Rendering RenderingContracts Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/rendering.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/rendering/rendering-contracts.yaml"
+      - "docs/design/sysml2-tools-core/rendering/rendering-contracts.md"
+      - "docs/verification/sysml2-tools-core/rendering/rendering-contracts.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/IRenderer.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/ILayoutStrategy.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/RenderOptions.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/RenderOutput.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/Internal/StdlibFilter.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Rendering/RenderingTests.cs"
+
   # === Rendering Internal subsystem and units ===
   - id: SysML2Tools-Core-Rendering-Internal
     title: Review that DemaConsulting.SysML2Tools Rendering Internal Subsystem is Consistent and Complete
@@ -631,7 +987,6 @@ reviews:
       - "docs/design/sysml2-tools-svg.md"
       - "docs/verification/introduction.md"
       - "docs/verification/sysml2-tools-svg.md"
-      - "src/DemaConsulting.SysML2Tools.Svg/**/*.cs"
 
   - id: SysML2Tools-Svg-Design
     title: Review that DemaConsulting.SysML2Tools.Svg Design is Consistent and Complete
@@ -661,6 +1016,19 @@ reviews:
     paths:
       - "docs/reqstream/sysml2-tools-svg/**/*.yaml"
 
+  - id: SysML2Tools-Svg-SvgRenderer
+    title: Review that DemaConsulting.SysML2Tools.Svg SvgRenderer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-svg.md
+      - docs/reqstream/sysml2-tools-svg.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-svg/svg-renderer.yaml"
+      - "docs/design/sysml2-tools-svg/svg-renderer.md"
+      - "docs/verification/sysml2-tools-svg/svg-renderer.md"
+      - "src/DemaConsulting.SysML2Tools.Svg/SvgRenderer.cs"
+      - "test/DemaConsulting.SysML2Tools.Svg.Tests/SvgRendererTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Svg.Tests/SvgEndMarkerTests.cs"
+
   # SysML2Tools PNG Renderer
   - id: SysML2Tools-Png-Architecture
     title: Review that DemaConsulting.SysML2Tools.Png Architecture Satisfies Requirements
@@ -673,7 +1041,6 @@ reviews:
       - "docs/design/sysml2-tools-png.md"
       - "docs/verification/introduction.md"
       - "docs/verification/sysml2-tools-png.md"
-      - "src/DemaConsulting.SysML2Tools.Png/**/*.cs"
 
   - id: SysML2Tools-Png-Design
     title: Review that DemaConsulting.SysML2Tools.Png Design is Consistent and Complete
@@ -703,6 +1070,19 @@ reviews:
     paths:
       - "docs/reqstream/sysml2-tools-png/**/*.yaml"
 
+  - id: SysML2Tools-Png-PngRenderer
+    title: Review that DemaConsulting.SysML2Tools.Png PngRenderer Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-png.md
+      - docs/reqstream/sysml2-tools-png.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-png/png-renderer.yaml"
+      - "docs/design/sysml2-tools-png/png-renderer.md"
+      - "docs/verification/sysml2-tools-png/png-renderer.md"
+      - "src/DemaConsulting.SysML2Tools.Png/PngRenderer.cs"
+      - "test/DemaConsulting.SysML2Tools.Png.Tests/PngRendererTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Png.Tests/PngEndMarkerTests.cs"
+
   - id: OTS-Verification
     title: Review of OTS software verification evidence
     paths:
@@ -722,7 +1102,7 @@ reviews:
       - "docs/reqstream/sysml2-tools-tool/program.yaml"
       - "docs/design/sysml2-tools-tool/program.md"
       - "docs/verification/sysml2-tools-tool/program.md"
-      - "src/**/Program.cs"
+      - "src/DemaConsulting.SysML2Tools.Tool/Program.cs"
       - "test/**/ProgramTests.cs"
 
   # SysML2Tools Tool - Cli
@@ -813,6 +1193,7 @@ reviews:
       - "docs/design/sysml2-tools-tool/lint.md"
       - "docs/verification/sysml2-tools-tool/lint.md"
       - "src/**/Lint/LintCommand.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Lint/LintSubsystemTests.cs"
 
   - id: SysML2Tools-Tool-Render
     title: Review of SysML2 Tools Render subsystem implementation

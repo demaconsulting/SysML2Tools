@@ -1,0 +1,67 @@
+---
+# InterconnectionLayoutEngine Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the InterconnectionLayoutEngine unit
+# - InterconnectionLayoutEngine implements the full Sugiyama pipeline (cycle-breaking,
+#   longest-path layering, dummy nodes, Barycenter ordering, slot routing) for the
+#   Interconnection View
+# - Requirements describe observable geometric properties, not the algorithm
+
+sections:
+  - title: InterconnectionLayoutEngine Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Engine-InterconnectionLayoutEngine-Layering
+        title: >-
+          InterconnectionLayoutEngine shall assign layer indices using longest-path layering so
+          that every connected pair of nodes occupies different layers.
+        justification: |
+          Longest-path layering guarantees no same-layer connections, eliminating the connector
+          clipping that occurred with the previous BFS approach.
+        tests:
+          - Place_LinearChain_MonotonicLayerAssignment
+          - Place_WorkstationTopology_CorrectLayersAndNoOverlap
+
+      - id: SysML2Tools-Core-Layout-Engine-InterconnectionLayoutEngine-NonOverlapping
+        title: >-
+          InterconnectionLayoutEngine shall produce node rectangles that do not overlap.
+        justification: |
+          Overlapping boxes prevent readable diagrams; the layered column structure and
+          per-column vertical stacking guarantee non-overlap by construction.
+        tests:
+          - Place_WorkstationTopology_CorrectLayersAndNoOverlap
+
+      - id: SysML2Tools-Core-Layout-Engine-InterconnectionLayoutEngine-DummyNodes
+        title: >-
+          InterconnectionLayoutEngine shall insert dummy nodes for long edges (span > 1) and
+          exclude them from the returned Rects list so the rect count equals the input node count.
+        justification: |
+          Dummy nodes force routing through the correct inter-layer corridors, preventing
+          connector lines from clipping intermediate boxes. They must not appear as layout
+          boxes in the output.
+        tests:
+          - Place_LongEdge_RectCountEqualsInputNodeCount
+          - Place_LongEdge_RoutesViaDummyNodesWithinBounds
+
+      - id: SysML2Tools-Core-Layout-Engine-InterconnectionLayoutEngine-Waypoints
+        title: >-
+          InterconnectionLayoutEngine shall return one waypoint list per input edge; a span-1 edge
+          produces a straight two-waypoint path and a long edge routes via dummy nodes within the
+          layout bounds.
+        justification: |
+          Pre-computed waypoints allow InterconnectionViewLayoutStrategy to emit connector
+          lines without any additional routing logic.
+        tests:
+          - Place_SingleEdge_ProducesStraightTwoWaypointPath
+          - Place_LongEdge_RoutesViaDummyNodesWithinBounds
+
+      - id: SysML2Tools-Core-Layout-Engine-InterconnectionLayoutEngine-Deterministic
+        title: >-
+          Given identical input, InterconnectionLayoutEngine shall produce identical geometry
+          and waypoints on every invocation.
+        justification: |
+          Reproducible layout is required so regenerating a view from unchanged input does not
+          shift boxes or change connector routes.
+        tests:
+          - Place_LinearChain_MonotonicLayerAssignment
+          - Place_WorkstationTopology_CorrectLayersAndNoOverlap

@@ -1,0 +1,40 @@
+---
+# AstBuilder Requirements
+#
+# PURPOSE:
+# - Define requirements for the AstBuilder internal unit
+
+sections:
+  - title: AstBuilder Requirements
+    requirements:
+      - id: SysML2Tools-Language-Semantic-Internal-AstBuilder-Build
+        title: >-
+          AstBuilder shall visit the ANTLR4 CST produced by SysMLv2Parser and return a
+          SysmlPackageNode representing the root namespace.
+        justification: |
+          The CST produced by the ANTLR4 grammar contains all parse tree nodes. The AST
+          builder distills these into a compact, traversable tree of named elements.
+        tests:
+          - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
+
+      - id: SysML2Tools-Language-Semantic-Internal-AstBuilder-QualifiedNames
+        title: >-
+          AstBuilder shall compute fully-qualified names by joining ancestor names with
+          the "::" separator as it descends into nested namespaces.
+        justification: |
+          Fully-qualified names are required for symbol table lookup and reference resolution.
+          The builder must track the current namespace context during traversal.
+        tests:
+          - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames
+          - WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition
+
+      - id: SysML2Tools-Language-Semantic-Internal-AstBuilder-Supertypes
+        title: >-
+          AstBuilder shall extract supertype qualified names from subclassification and
+          specialization parts and attach them to the corresponding AST node.
+        justification: |
+          Supertype names are required for reference resolution and supertype walking.
+          They must be extracted during AST construction before symbol table operations.
+        tests:
+          - WorkspaceLoader_LoadAsync_SpecializesChain_Registered
+          - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning

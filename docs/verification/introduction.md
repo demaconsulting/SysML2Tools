@@ -28,13 +28,17 @@ The following topics are out of scope:
 
 ## Folder Layout
 
-The test folder structure mirrors the source subsystem breakdown:
+The test folder structure mirrors the source subsystem breakdown across the Language and core
+systems:
 
 - **test/** — test projects
-  - **DemaConsulting.SysML2Tools.Tests/** — core library unit tests
-    - **Parser/** — WorkspaceParser and related tests
-  - **DemaConsulting.SysML2Tools.Svg.Tests/** — TODO: SVG renderer tests (Phase 4+)
-  - **DemaConsulting.SysML2Tools.Png.Tests/** — TODO: PNG renderer tests (Phase 4+)
+  - **DemaConsulting.SysML2Tools.Tests/** — unit tests for the Language and core systems
+    - **Parser/** — Language system: parsing subsystem tests
+    - **Semantic/** — Language system: semantic model subsystem tests
+    - **Layout/** — core system: layout subsystem tests
+    - **Rendering/** — core system: rendering subsystem tests
+  - **DemaConsulting.SysML2Tools.Svg.Tests/** — SVG renderer tests
+  - **DemaConsulting.SysML2Tools.Png.Tests/** — PNG renderer tests
   - **DemaConsulting.SysML2Tools.Tool.Tests/** — dotnet tool unit and integration tests
 
 ## Companion Artifact Structure

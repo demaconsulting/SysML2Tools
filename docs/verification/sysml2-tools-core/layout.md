@@ -19,7 +19,7 @@ No external network access or services are required. All test inputs are constru
 - `LayoutBox` stores all nine constructor parameters including `Depth` as a plain integer.
 - `LayoutBox.Children` can contain nested `LayoutNode` instances of any concrete type.
 - `LayoutPort` stores absolute `CentreX`, `CentreY`, `Side`, and optional `Label`.
-- `LayoutLine` stores the `Waypoints` list, arrowhead styles, line style, and optional label.
+- `LayoutLine` stores the `Waypoints` list, end-marker styles, line style, and optional label.
 - `LayoutLabel` stores `X`, `Y`, `MaxWidth`, `Text`, and `Align`.
 - `LayoutBadge` stores `CentreX`, `CentreY`, `Size`, `Shape`, and optional `Label`.
 - `LayoutBand` stores position, size, `Orientation`, optional `Label`, and `Children`.
@@ -61,7 +61,7 @@ values. This confirms that ports carry sufficient information for absolute posit
 values. This confirms that port positions are absolute and not relative to the parent box.
 
 **LayoutLine_Construction_StoresAllFields**: A `LayoutLine` is constructed with a two-element
-`Waypoints` list, non-default `SourceArrowhead`, `TargetArrowhead`, `LineStyle`, and a
+`Waypoints` list, non-default `SourceEnd`, `TargetEnd`, `LineStyle`, and a
 non-null `MidpointLabel`; all five properties are asserted to equal the supplied values.
 
 **LayoutLine_Waypoints_AreAbsolute**: A `LayoutLine` is constructed with waypoints at
