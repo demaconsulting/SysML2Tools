@@ -19,12 +19,14 @@
 // SOFTWARE.
 
 using System.Runtime.InteropServices;
+
+using DemaConsulting.Rendering.Abstractions;
+using DemaConsulting.Rendering.Skia;
+using DemaConsulting.Rendering.Svg;
 using DemaConsulting.SysML2Tools.Cli;
 using DemaConsulting.SysML2Tools.Parser;
-using DemaConsulting.SysML2Tools.Png;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
-using DemaConsulting.SysML2Tools.Svg;
 using DemaConsulting.SysML2Tools.Utilities;
 using DemaConsulting.TestResults.IO;
 

@@ -2,7 +2,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
-using DemaConsulting.SysML2Tools.Layout;
+using DemaConsulting.Rendering;
+using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.SysML2Tools.Semantic;
 
 namespace DemaConsulting.SysML2Tools.Rendering;

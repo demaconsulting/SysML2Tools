@@ -2,8 +2,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
-using DemaConsulting.SysML2Tools.Layout.Engine;
-using DemaConsulting.SysML2Tools.Layout.Engine.Layered;
+using DemaConsulting.Rendering;
+using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -13,14 +13,14 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 
 /// <summary>
 /// Layout strategy for Action Flow View diagrams. Renders action usages as rounded boxes placed
-/// top-to-bottom by the layered layout pipeline, with a start node entering the initial actions, a
+/// top-to-bottom by the layered layout algorithm, with a start node entering the initial actions, a
 /// done node leaving the final actions, and successions drawn as dashed flow arrows.
 /// </summary>
 /// <remarks>
-/// Actions are placed by <see cref="LayeredLayoutPipeline"/> with <see cref="LayoutDirection.Down"/> so
-/// the flow reads top-to-bottom: a succession leaves its source on the SOUTH face and enters its target
-/// on the NORTH face, and each succession follows the orthogonal polyline the pipeline routed for it.
-/// The (possibly cyclic) succession graph is made acyclic by the pipeline's cycle-breaking stage; a
+/// Actions are placed by the bundled layered algorithm flowing top-to-bottom (down) so the flow reads
+/// top-to-bottom: a succession leaves its source on the SOUTH face and enters its target on the NORTH
+/// face, and each succession follows the orthogonal polyline the algorithm routed for it. The
+/// (possibly cyclic) succession graph is made acyclic by the algorithm's cycle-breaking stage; a
 /// filled-circle start marker enters the actions with no predecessor and a bullseye done marker leaves
 /// the actions with no successor, with a reserved marker band at the top and bottom of the canvas.
 /// </remarks>
@@ -36,11 +36,11 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
     private const double MarkerSize = 20.0;
 
     /// <summary>
-    /// Gap between a start/done marker and the adjacent action layer. Set to the layered pipeline's
-    /// between-layer spacing (<see cref="LayeredLayoutMetrics.CorridorMinWidth"/>) so the control
-    /// markers keep the same vertical rhythm as the action layers.
+    /// Gap between a start/done marker and the adjacent action layer. Mirrors the layered algorithm's
+    /// between-layer corridor width (70 px) so the control markers keep the same vertical rhythm as
+    /// the action layers.
     /// </summary>
-    private const double MarkerLayerGap = LayeredLayoutMetrics.CorridorMinWidth;
+    private const double MarkerLayerGap = 70.0;
 
     /// <summary>An action with its computed box size.</summary>
     private sealed record ActionItem(string Name, double Width, double Height);
@@ -67,29 +67,14 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
 
         var edges = ResolveSuccessions(root, index);
 
-        // Place action boxes with the layered pipeline flowing top-to-bottom (DOWN). Each action
-        // becomes a node and each succession a directed edge; the pipeline's cycle-breaking stage
+        // Place action boxes with the layered algorithm flowing top-to-bottom (down). Each action
+        // becomes a node and each succession a directed edge; the algorithm's cycle-breaking stage
         // makes the (possibly cyclic) flow graph acyclic, so it tolerates back edges. Self-loops are
         // already excluded by ResolveSuccessions (it keeps only from != to).
-        var layerNodes = actions.Select(a => new LayerNode(a.Width, a.Height)).ToList();
-        var layerEdges = edges.Select(e => new LayerEdge(e.From, e.To)).ToList();
-
-        var graph = new LayeredGraph(layerNodes, layerEdges, LayoutDirection.Down)
-        {
-            // Reserve a clean straight approach for the open-chevron target marker that every
-            // succession carries, so the pipeline pushes reversed (back) edges far enough out that the
-            // renderer's rounded corner never intrudes into the decoration. The approach equals the
-            // marker's along-line length plus one corner radius (consumed by the rounded corner) plus
-            // a safety margin — identical injection to the State Transition strategy.
-            BackEdgeEntryApproach = NotationMetrics.AlongLineLength(EndMarkerStyle.OpenChevron)
-                + theme.LineCornerRadius + theme.CleanLegMargin,
-        };
-        var pipeline = LayeredLayoutPipeline.Builder()
-            .Direction(LayoutDirection.Down)
-            .Hierarchy(HierarchyHandling.Flat)
-            .AddDefaultStages()
-            .Build();
-        pipeline.Run(graph);
+        var placed = LayeredPlacement.Place(
+            actions.Select(a => (a.Width, a.Height)).ToList(),
+            edges,
+            LayoutFlowDirection.Down);
 
         // Compute the top-left of the content bounding box over the real action nodes and the screen
         // offset that normalizes it into the canvas, reserving a marker band at the top (start) and
@@ -99,8 +84,8 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         var minY = double.PositiveInfinity;
         for (var i = 0; i < actions.Count; i++)
         {
-            minX = Math.Min(minX, graph.AugX[i]);
-            minY = Math.Min(minY, graph.AugY[i]);
+            minX = Math.Min(minX, placed.Rects[i].X);
+            minY = Math.Min(minY, placed.Rects[i].Y);
         }
 
         var offsetX = margin - minX;
@@ -109,7 +94,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         var rects = new Rect[actions.Count];
         for (var i = 0; i < actions.Count; i++)
         {
-            rects[i] = new Rect(graph.AugX[i] + offsetX, graph.AugY[i] + offsetY, actions[i].Width, actions[i].Height);
+            rects[i] = new Rect(placed.Rects[i].X + offsetX, placed.Rects[i].Y + offsetY, actions[i].Width, actions[i].Height);
         }
 
         var nodes = new List<LayoutNode>();
@@ -118,7 +103,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             nodes.Add(MakeActionBox(actions[i], rects[i]));
         }
 
-        var crossings = AddSuccessionEdges(edges, graph, rects, offsetX, offsetY, nodes);
+        var crossings = AddSuccessionEdges(edges, placed.EdgePolylines, rects, offsetX, offsetY, nodes);
         AddStartAndDone(actions, rects, edges, margin, nodes);
 
         // Size the canvas to the actual rendered content: action boxes plus routed succession
@@ -245,42 +230,34 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             Keyword: "action");
 
     /// <summary>
-    /// Adds the succession flow edges (top-to-bottom) between action boxes, mapping each succession to
-    /// the orthogonal polyline the layered pipeline routed for it, and returns the number of
+    /// Adds the succession flow edges (top-to-bottom) between action boxes, using the orthogonal
+    /// polyline the layered algorithm routed for each succession, and returns the number of
     /// successions whose polyline crosses a non-endpoint action box.
     /// </summary>
     /// <remarks>
-    /// The pipeline's cycle-breaking stage de-duplicates identical directed pairs and reverses back
-    /// edges, so <see cref="LayeredGraph.Waypoints"/> is not 1:1 with the input successions. A lookup
-    /// keyed by the routed <c>(source, target)</c> pair recovers each succession's polyline; a
-    /// succession whose routed edge was reversed reuses that polyline in reverse so the open chevron
-    /// end marker lands on the true target.
+    /// The layered algorithm returns exactly one routed polyline per input succession, in input order
+    /// and already oriented source-to-target, so succession <c>e</c> uses <c>edgePolylines[e]</c>
+    /// directly. The open chevron end marker therefore always lands on the true target.
     /// </remarks>
     private static int AddSuccessionEdges(
         IReadOnlyList<(int From, int To)> edges,
-        LayeredGraph graph,
+        IReadOnlyList<IReadOnlyList<Point2D>> edgePolylines,
         Rect[] rects,
         double offsetX,
         double offsetY,
         List<LayoutNode> nodes)
     {
-        // Build the routed (source, target) -> polyline lookup over the acyclic edge set.
-        var routed = new Dictionary<(int Source, int Target), IReadOnlyList<Point2D>>();
-        for (var k = 0; k < graph.Acyclic.Count; k++)
-        {
-            var edge = graph.Acyclic[k];
-            routed[(edge.Source, edge.Target)] = graph.Waypoints[k];
-        }
-
         var crossings = 0;
-        foreach (var (from, to) in edges)
+        for (var e = 0; e < edges.Count; e++)
         {
-            var routedPoints = ResolveSuccessionPolyline(from, to, routed)
-                ?? [Centre(rects[from]), Centre(rects[to])];
+            var (from, to) = edges[e];
+            var poly = edgePolylines[e];
 
-            var waypoints = routedPoints
-                .Select(p => new Point2D(p.X + offsetX, p.Y + offsetY))
-                .ToList();
+            // The algorithm routes every edge, so poly normally has >= 2 points; fall back to a
+            // straight segment between the (already-offset) box centres only if it does not.
+            var waypoints = poly.Count >= 2
+                ? poly.Select(p => new Point2D(p.X + offsetX, p.Y + offsetY)).ToList()
+                : [Centre(rects[from]), Centre(rects[to])];
 
             if (CrossesNonEndpointBox(waypoints, rects, from, to))
             {
@@ -296,30 +273,6 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         }
 
         return crossings;
-    }
-
-    /// <summary>
-    /// Returns the routed polyline for a succession, reversing it when only the opposite direction was
-    /// routed (a reversed back edge), or null when neither direction was routed.
-    /// </summary>
-    private static IReadOnlyList<Point2D>? ResolveSuccessionPolyline(
-        int from,
-        int to,
-        IReadOnlyDictionary<(int Source, int Target), IReadOnlyList<Point2D>> routed)
-    {
-        if (routed.TryGetValue((from, to), out var forward))
-        {
-            return forward;
-        }
-
-        if (routed.TryGetValue((to, from), out var backward))
-        {
-            // The pipeline reversed this back edge; reverse the polyline so it runs source -> target
-            // with the open chevron end marker at the true target.
-            return [.. backward.Reverse()];
-        }
-
-        return null;
     }
 
     /// <summary>

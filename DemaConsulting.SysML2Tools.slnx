@@ -3,16 +3,12 @@
     <Project Path="src/DemaConsulting.SysML2Tools.Language/DemaConsulting.SysML2Tools.Language.csproj" />
     <Project Path="src/DemaConsulting.SysML2Tools.Stdlib/DemaConsulting.SysML2Tools.Stdlib.csproj" />
     <Project Path="src/DemaConsulting.SysML2Tools.Core/DemaConsulting.SysML2Tools.Core.csproj" />
-    <Project Path="src/DemaConsulting.SysML2Tools.Svg/DemaConsulting.SysML2Tools.Svg.csproj" />
-    <Project Path="src/DemaConsulting.SysML2Tools.Png/DemaConsulting.SysML2Tools.Png.csproj" />
     <Project Path="src/DemaConsulting.SysML2Tools.Tool/DemaConsulting.SysML2Tools.Tool.csproj" />
   </Folder>
   <Folder Name="/tools/">
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/DemaConsulting.SysML2Tools.Tests/DemaConsulting.SysML2Tools.Tests.csproj" />
-    <Project Path="test/DemaConsulting.SysML2Tools.Svg.Tests/DemaConsulting.SysML2Tools.Svg.Tests.csproj" />
-    <Project Path="test/DemaConsulting.SysML2Tools.Png.Tests/DemaConsulting.SysML2Tools.Png.Tests.csproj" />
     <Project Path="test/DemaConsulting.SysML2Tools.Tool.Tests/DemaConsulting.SysML2Tools.Tool.Tests.csproj" />
   </Folder>
 </Solution>

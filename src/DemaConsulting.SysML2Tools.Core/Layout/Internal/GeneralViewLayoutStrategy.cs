@@ -2,8 +2,9 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
-using DemaConsulting.SysML2Tools.Layout.Engine;
-using DemaConsulting.SysML2Tools.Layout.Engine.Layered;
+using DemaConsulting.Rendering;
+using DemaConsulting.Rendering.Abstractions;
+using DemaConsulting.Rendering.Layout;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -18,14 +19,15 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// attribute-typing edges orthogonally between the boxes.
 /// </summary>
 /// <remarks>
-/// Box placement and intra-package edge routing use the reusable layered pipeline
-/// (<see cref="LayeredLayoutPipeline"/>) running left-to-right with a <see cref="ComponentPacker"/>
-/// stage: each package's definitions and the edges between them are laid out together inside the
-/// package folder, with disconnected definitions (such as standalone interface or attribute defs)
-/// packed beside the connected core. The folders themselves are packed across the canvas with
-/// <see cref="ContainmentPacker"/> so they never overlap. The rare cross-package edge (an endpoint
-/// in a different package folder) falls back to <see cref="ChannelRouter"/>, which routes orthogonally
-/// around the placed folders. Standard-library declarations are excluded via <see cref="StdlibFilter"/>.
+/// Box placement and intra-package edge routing use the bundled layered algorithm (via
+/// <see cref="LayeredPlacement"/>) running left-to-right: each package's definitions and the edges
+/// between them are laid out together inside the package folder, with disconnected definitions (such
+/// as standalone interface or attribute defs) packed beside the connected core by the algorithm's
+/// component packing. The folders themselves are packed across the canvas with
+/// <see cref="ContainmentLayout"/> so they never overlap. The rare cross-package edge (an endpoint in
+/// a different package folder) is routed orthogonally around the placed folders with
+/// <see cref="ConnectorRouter"/>. Standard-library declarations are excluded via
+/// <see cref="StdlibFilter"/>.
 /// </remarks>
 internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 {
@@ -379,13 +381,18 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             blocks.Add(new BlockPlan(package, items, blockWidth, blockHeight) { Layout = layout });
         }
 
-        // Pack the blocks across the canvas (atomic blocks → folders never overlap).
-        var outer = ContainmentPacker.Pack(
-            [.. blocks.Select(b => new PackItem(b.Width, b.Height))],
-            maxContentWidth: ComputeCanvasWidth(blocks),
-            horizontalGap: hGap,
-            verticalGap: vGap,
-            padding: margin);
+        // Pack the blocks across the canvas (atomic blocks → folders never overlap). The blocks are
+        // represented as sized placeholder boxes; ContainmentLayout returns them repositioned.
+        var packChildren = blocks
+            .Select(b => new LayoutBox(0, 0, b.Width, b.Height, null, 0, BoxShape.Rectangle, [], []))
+            .ToList();
+        var outer = ContainmentLayout.Pack(
+            packChildren,
+            new ContainmentOptions(
+                MaxContentWidth: ComputeCanvasWidth(blocks),
+                HorizontalGap: hGap,
+                VerticalGap: vGap,
+                Padding: margin));
 
         var nodes = new List<LayoutNode>();
         var placed = new List<PlacedBox>();
@@ -393,34 +400,32 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         for (var i = 0; i < blocks.Count; i++)
         {
-            PlaceBlock(blocks[i], outer.Rects[i], folderTitleHeight, margin, theme, nodes, placed, intraEdges);
+            var c = outer.Children[i];
+            PlaceBlock(blocks[i], new Rect(c.X, c.Y, c.Width, c.Height), folderTitleHeight, margin, theme, nodes, placed, intraEdges);
         }
 
         return (nodes, placed, intraEdges, outer.Width, outer.Height);
     }
 
     /// <summary>
-    /// Lays out one package group with the layered pipeline plus a <see cref="ComponentPacker"/> stage,
-    /// then reads back each definition's package-local top-left and each intra-group edge's polyline,
-    /// normalized against the group's content bounding box.
+    /// Lays out one package group with the layered algorithm (whose component packing places
+    /// disconnected definitions beside the connected core), then reads back each definition's
+    /// package-local top-left and each intra-group edge's polyline, normalized against the group's
+    /// content bounding box.
     /// </summary>
     /// <param name="items">The group's definitions, in group order.</param>
     /// <param name="intraEdges">The intra-group edges in package-local node indices.</param>
     /// <returns>The package-local placement of the group's definitions and routed edges.</returns>
     private static GroupLayout LayoutGroup(IReadOnlyList<DefBox> items, IReadOnlyList<IntraEdge> intraEdges)
     {
-        var layerNodes = items.Select(d => new LayerNode(d.Width, d.Height)).ToList();
-        var layerEdges = intraEdges.Select(e => new LayerEdge(e.SourceLocal, e.TargetLocal)).ToList();
-
-        // Run the layered pipeline left-to-right; ComponentPacker packs disconnected definitions
-        // (e.g. standalone interface/attribute defs) beside the connected core within the folder.
-        var graph = new LayeredGraph(layerNodes, layerEdges, LayoutDirection.Right);
-        var pipeline = LayeredLayoutPipeline.Builder()
-            .Direction(LayoutDirection.Right)
-            .Hierarchy(HierarchyHandling.Flat)
-            .AddStage(ComponentPacker.WithDefaultStages())
-            .Build();
-        pipeline.Run(graph);
+        // Run the layered algorithm left-to-right; its component packing places disconnected
+        // definitions (e.g. standalone interface/attribute defs) beside the connected core. Self-edges
+        // carry no routed polyline, so only non-self edges are placed and mapped back by index.
+        var flowIntra = intraEdges.Where(e => e.SourceLocal != e.TargetLocal).ToList();
+        var placed = LayeredPlacement.Place(
+            items.Select(d => (d.Width, d.Height)).ToList(),
+            flowIntra.Select(e => (e.SourceLocal, e.TargetLocal)).ToList(),
+            LayoutFlowDirection.Right);
 
         // Compute the content bounding box over the real definition nodes (indices [0, items.Count)).
         var minX = double.PositiveInfinity;
@@ -429,42 +434,30 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var maxY = double.NegativeInfinity;
         for (var i = 0; i < items.Count; i++)
         {
-            minX = Math.Min(minX, graph.AugX[i]);
-            minY = Math.Min(minY, graph.AugY[i]);
-            maxX = Math.Max(maxX, graph.AugX[i] + items[i].Width);
-            maxY = Math.Max(maxY, graph.AugY[i] + items[i].Height);
+            minX = Math.Min(minX, placed.Rects[i].X);
+            minY = Math.Min(minY, placed.Rects[i].Y);
+            maxX = Math.Max(maxX, placed.Rects[i].X + items[i].Width);
+            maxY = Math.Max(maxY, placed.Rects[i].Y + items[i].Height);
         }
 
         // Normalize node positions so the content bounding box starts at the local origin (0, 0).
         var localPos = new (double X, double Y)[items.Count];
         for (var i = 0; i < items.Count; i++)
         {
-            localPos[i] = (graph.AugX[i] - minX, graph.AugY[i] - minY);
+            localPos[i] = (placed.Rects[i].X - minX, placed.Rects[i].Y - minY);
         }
 
-        // The layered pipeline populates graph.Waypoints per ACYCLIC edge, not per intra-edge: its
-        // cycle-breaking stage drops self-loops, de-duplicates identical directed pairs, and reverses
-        // back edges. Build a (source, target) -> polyline lookup over the acyclic edge set and resolve
-        // each intra-edge by its endpoints, reversing the polyline for a reversed back edge so the
-        // arrowhead lands on the true target. Each polyline is translated into the content-local frame.
-        var routed = new Dictionary<(int Source, int Target), IReadOnlyList<Point2D>>();
-        for (var k = 0; k < graph.Acyclic.Count; k++)
+        // The algorithm returns exactly one routed polyline per non-self edge, in input order and
+        // oriented source -> target, so non-self edge k uses EdgePolylines[k] directly. Each polyline
+        // is translated into the content-local frame.
+        var edges = new List<(IReadOnlyList<Point2D> Points, EndMarkerStyle Arrowhead, LineStyle LineStyle)>(flowIntra.Count);
+        for (var k = 0; k < flowIntra.Count; k++)
         {
-            var edge = graph.Acyclic[k];
-            routed[(edge.Source, edge.Target)] = graph.Waypoints[k];
-        }
-
-        var edges = new List<(IReadOnlyList<Point2D> Points, EndMarkerStyle Arrowhead, LineStyle LineStyle)>(intraEdges.Count);
-        foreach (var intra in intraEdges)
-        {
-            // Self-edges are dropped by the pipeline and have no routed polyline; skip them.
-            if (intra.SourceLocal == intra.TargetLocal)
-            {
-                continue;
-            }
-
-            var routedPoints = ResolveIntraPolyline(intra.SourceLocal, intra.TargetLocal, routed)
-                ?? [NodeCentre(graph, items, intra.SourceLocal), NodeCentre(graph, items, intra.TargetLocal)];
+            var intra = flowIntra[k];
+            var poly = placed.EdgePolylines[k];
+            var routedPoints = poly.Count >= 2
+                ? poly
+                : [NodeCentre(placed.Rects, items, intra.SourceLocal), NodeCentre(placed.Rects, items, intra.TargetLocal)];
 
             var points = routedPoints.Select(p => new Point2D(p.X - minX, p.Y - minY)).ToList();
             edges.Add((points, intra.Arrowhead, LineStyleForKind(intra.Kind)));
@@ -473,41 +466,13 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         return new GroupLayout(localPos, maxX - minX, maxY - minY, edges);
     }
 
-    /// <summary>
-    /// Returns the routed polyline for an intra-group edge, reversing it when only the opposite
-    /// direction was routed (a reversed back edge), or <see langword="null"/> when neither direction
-    /// was routed.
-    /// </summary>
-    /// <param name="source">Group-local index of the edge's source definition.</param>
-    /// <param name="target">Group-local index of the edge's target definition.</param>
-    /// <param name="routed">The <c>(source, target)</c> to polyline lookup over the acyclic edge set.</param>
-    /// <returns>The polyline running source to target, or null when neither direction was routed.</returns>
-    private static IReadOnlyList<Point2D>? ResolveIntraPolyline(
-        int source,
-        int target,
-        IReadOnlyDictionary<(int Source, int Target), IReadOnlyList<Point2D>> routed)
-    {
-        if (routed.TryGetValue((source, target), out var forward))
-        {
-            return forward;
-        }
-
-        if (routed.TryGetValue((target, source), out var backward))
-        {
-            // The pipeline reversed this back edge; reverse the polyline so it runs source -> target.
-            return [.. backward.Reverse()];
-        }
-
-        return null;
-    }
-
-    /// <summary>Returns the centre point of a group definition's placed box, in graph coordinates.</summary>
-    /// <param name="graph">The laid-out group graph.</param>
+    /// <summary>Returns the centre point of a group definition's placed box, in algorithm coordinates.</summary>
+    /// <param name="rects">The placed box rectangles, in group order.</param>
     /// <param name="items">The group's definitions, in group order.</param>
     /// <param name="index">Group-local index of the definition.</param>
     /// <returns>The box centre used as a straight-line fallback when no route was found.</returns>
-    private static Point2D NodeCentre(LayeredGraph graph, IReadOnlyList<DefBox> items, int index) =>
-        new(graph.AugX[index] + (items[index].Width / 2.0), graph.AugY[index] + (items[index].Height / 2.0));
+    private static Point2D NodeCentre(IReadOnlyList<Rect> rects, IReadOnlyList<DefBox> items, int index) =>
+        new(rects[index].X + (items[index].Width / 2.0), rects[index].Y + (items[index].Height / 2.0));
 
     /// <summary>
     /// Emits the layout nodes for one placed block: a package folder with its child definition boxes,
@@ -516,7 +481,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// </summary>
     private static void PlaceBlock(
         BlockPlan block,
-        PackedRect rect,
+        Rect rect,
         double folderTitleHeight,
         double margin,
         Theme theme,
@@ -591,7 +556,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>Creates the folder <see cref="LayoutBox"/> for a package block with the given children.</summary>
-    private static LayoutBox MakeFolderBox(BlockPlan block, PackedRect rect, List<LayoutNode> children) =>
+    private static LayoutBox MakeFolderBox(BlockPlan block, Rect rect, List<LayoutNode> children) =>
         new(
             X: rect.X,
             Y: rect.Y,
@@ -750,7 +715,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Routes the cross-package edges around the placed folders with <see cref="ChannelRouter"/>.
+    /// Routes the cross-package edges around the placed folders with <see cref="ConnectorRouter"/>.
     /// Cross-package edges are rare in practice (most General-view models are single-package); each is
     /// drawn cost-neutrally between the two folders, with the recorded arrowhead at the target end.
     /// </summary>
@@ -793,52 +758,35 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// </summary>
     private static LayoutLine RouteCrossEdge(PlacedBox from, PlacedBox to, IReadOnlyList<PlacedBox> placed, EndMarkerStyle targetArrowhead, LineStyle lineStyle)
     {
-        var fromCenter = new Point2D(from.X + (from.Width / 2.0), from.Y + (from.Height / 2.0));
-        var toCenter = new Point2D(to.X + (to.Width / 2.0), to.Y + (to.Height / 2.0));
-
-        var (source, sourceSide) = AnchorToward(from, toCenter);
-        var (target, targetSide) = AnchorToward(to, fromCenter);
-
-        // Obstacles are all boxes except the two endpoints of this edge.
-        var obstacles = placed
-            .Where(b => b.QualifiedName != from.QualifiedName && b.QualifiedName != to.QualifiedName)
-            .Select(b => new Rect(b.X, b.Y, b.Width, b.Height))
-            .ToList();
-
-        var route = ChannelRouter.RouteWithStatus(source, target, obstacles, EdgeClearance, sourceSide, targetSide);
-
-        return new LayoutLine(
-            Waypoints: route.Waypoints,
-            SourceEnd: EndMarkerStyle.None,
-            TargetEnd: targetArrowhead,
-            LineStyle: lineStyle,
-            MidpointLabel: null);
-    }
-
-    /// <summary>
-    /// Returns the midpoint of the box side whose outward normal best points at the target, along
-    /// with that side.
-    /// </summary>
-    private static (Point2D Point, PortSide Side) AnchorToward(PlacedBox box, Point2D target)
-    {
-        var cx = box.X + (box.Width / 2.0);
-        var cy = box.Y + (box.Height / 2.0);
-        var dx = target.X - cx;
-        var dy = target.Y - cy;
-
-        if (Math.Abs(dx) >= Math.Abs(dy))
+        // Represent every placed definition as a box for the router. The from/to boxes are the
+        // connection endpoints; every other box is an obstacle the router steers around. The router
+        // picks the anchor faces the two endpoints present to each other.
+        var fromBox = ToRouteBox(from);
+        var toBox = ToRouteBox(to);
+        var boxes = new List<LayoutBox>(placed.Count);
+        foreach (var b in placed)
         {
-            // Left or right side.
-            return dx >= 0
-                ? (new Point2D(box.X + box.Width, cy), PortSide.Right)
-                : (new Point2D(box.X, cy), PortSide.Left);
+            if (b.QualifiedName == from.QualifiedName)
+            {
+                boxes.Add(fromBox);
+            }
+            else if (b.QualifiedName == to.QualifiedName)
+            {
+                boxes.Add(toBox);
+            }
+            else
+            {
+                boxes.Add(ToRouteBox(b));
+            }
         }
 
-        // Top or bottom side.
-        return dy >= 0
-            ? (new Point2D(cx, box.Y + box.Height), PortSide.Bottom)
-            : (new Point2D(cx, box.Y), PortSide.Top);
+        var connection = new Connection(fromBox, toBox, targetArrowhead, lineStyle, null);
+        return ConnectorRouter.Route(boxes, connection, new ConnectorRouteOptions(EdgeRouting.Orthogonal, EdgeClearance));
     }
+
+    /// <summary>Represents a placed definition as a plain rectangle box for connector routing.</summary>
+    private static LayoutBox ToRouteBox(PlacedBox box) =>
+        new(box.X, box.Y, box.Width, box.Height, null, 0, BoxShape.Rectangle, [], []);
 
     /// <summary>Computes the packing width used to lay out top-level blocks across the canvas.</summary>
     private static double ComputeCanvasWidth(IReadOnlyList<BlockPlan> blocks)

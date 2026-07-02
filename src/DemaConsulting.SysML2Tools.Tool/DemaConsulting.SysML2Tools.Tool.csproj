@@ -86,8 +86,12 @@
   <ItemGroup>
     <ProjectReference Include="..\DemaConsulting.SysML2Tools.Core\DemaConsulting.SysML2Tools.Core.csproj" />
     <ProjectReference Include="..\DemaConsulting.SysML2Tools.Stdlib\DemaConsulting.SysML2Tools.Stdlib.csproj" />
-    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Svg\DemaConsulting.SysML2Tools.Svg.csproj" />
-    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Png\DemaConsulting.SysML2Tools.Png.csproj" />
+  </ItemGroup>
+
+  <!-- Rendering output packages: the SVG renderer and the SkiaSharp raster renderers -->
+  <ItemGroup>
+    <PackageReference Include="DemaConsulting.Rendering.Svg" Version="0.1.0-beta.2" />
+    <PackageReference Include="DemaConsulting.Rendering.Skia" Version="0.1.0-beta.2" />
   </ItemGroup>
 
   <ItemGroup>
