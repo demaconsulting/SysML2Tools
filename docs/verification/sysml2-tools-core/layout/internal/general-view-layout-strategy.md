@@ -7,8 +7,8 @@ that construct a synthetic `SysmlWorkspace` of definitions, invoke `BuildLayout`
 the returned `LayoutTree`. A recursive helper collects boxes from the (possibly nested) node tree
 so assertions can confirm box keywords, folder shapes, compartments, and specialization, membership,
 and attribute-typing lines. No
-mocking is required; the strategy depends only on the in-memory model, the geometric engines, and
-the theme, all constructed directly by the tests.
+mocking is required; the strategy depends only on the in-memory model, `LayeredPlacement`, and
+render options, all constructed directly by the tests.
 
 ##### Test Environment
 
@@ -32,11 +32,11 @@ configuration are required beyond a standard .NET SDK installation.
   the enumeration definition.
 - An `attribute`-feature whose type does not resolve to a definition in the view yields no typing edge.
 - A dense model with many part edges produces a layout in which no two definition boxes overlap,
-  confirming the layered pipeline keeps boxes separated.
+  confirming `LayeredPlacement` keeps boxes separated.
 - A connected model (many cross-referencing part edges) produces a layout in which all definition
   boxes remain mutually non-overlapping.
 - A sparse model (two boxes and one edge) produces a compact canvas with no warnings, confirming the
-  layered engine does not over-pad sparse layouts.
+  delegated layout does not over-pad sparse diagrams.
 - Standard-library-only input (by prefix or by seed set) yields a minimal empty canvas.
 - An empty workspace yields a 200×100 canvas with no nodes.
 

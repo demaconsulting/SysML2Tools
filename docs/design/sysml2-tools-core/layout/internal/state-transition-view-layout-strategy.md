@@ -3,9 +3,9 @@
 ##### Purpose
 
 `StateTransitionViewLayoutStrategy` implements `ILayoutStrategy` to produce a State Transition
-View diagram. It renders state usages as rounded boxes placed top-to-bottom by the layered layout
-pipeline, an initial pseudo-state marker entering the first declared state, and transitions as
-orthogonal arrows annotated with their guard conditions.
+View diagram. It renders state usages as rounded boxes placed top-to-bottom through
+`LayeredPlacement`, an initial pseudo-state marker entering the first declared state, and transitions
+as orthogonal arrows annotated with their guard conditions.
 
 ##### Data Model
 
@@ -38,38 +38,31 @@ indices, carrying the optional guard.
 
 ###### Placement and routing
 
-State boxes are positioned by the `LayeredLayoutPipeline` built with `LayoutDirection.Down` and the
-default stage sequence: each state becomes a node and each non-self transition a directed edge, so the
-machine reads top-to-bottom (a transition leaves its source on the SOUTH face and enters its target on
-the NORTH face). The pipeline's cycle-breaking stage makes the (cyclic) transition graph acyclic, so
-the strategy does not need its own back-edge handling. The `LayeredGraph` is built with a
-decoration-aware `BackEdgeEntryApproach` equal to the open-chevron end marker's along-line length
-(`NotationMetrics.AlongLineLength(EndMarkerStyle.OpenChevron)`) plus `Theme.LineCornerRadius` plus
-`Theme.CleanLegMargin` (for the Light theme, 10 + 4 + 1 = 15), so a reversed transition's final
-straight approach is long enough that the renderer's rounded corner never intrudes into the end
-marker. After the run the placed coordinates are read
-back from `AugX`/`AugY`, normalized so the content starts at a margin offset (reserving room at the top
-for the initial marker), and the canvas is sized to the full content extent — including the routed
-transition polylines, which can bulge beyond the box columns, and the actual rendered extent of each
-guard label. Because guard labels are drawn centred on their segment midpoints (using the same
-`ConnectorLabelPlacer` the renderers use), only the part of a label that genuinely overhangs the
-content widens the canvas: labels sitting on interior vertical segments add little or nothing, so the
-canvas no longer reserves a full guard-label width of empty margin on the right.
+State boxes are positioned by calling `LayeredPlacement.Place` with a top-to-bottom flow
+direction: each state becomes a sized node and each non-self transition a directed edge, so the
+machine reads top-to-bottom. `LayeredPlacement` delegates to the off-the-shelf
+`DemaConsulting.Rendering.Layout` layered algorithm, which returns placed rectangles for the states
+and routed orthogonal polylines for the transitions. The strategy uses the open-chevron along-line
+length from `NotationMetrics` in `DemaConsulting.Rendering.Abstractions`, plus
+`Theme.LineCornerRadius` and `Theme.CleanLegMargin`, so any routed back edge has enough final straight
+approach that the renderer's rounded corner never intrudes into the end marker. The placed coordinates
+are normalized so the content starts at a margin offset
+(reserving room at the top for the initial marker), and the canvas is sized to the full content
+extent, including routed transition polylines that can bulge beyond the box columns and the actual
+rendered extent of each guard label. Because guard labels are drawn centred on their segment
+midpoints with `ConnectorLabelPlacer` from `DemaConsulting.Rendering.Abstractions`, only the part of a
+label that genuinely overhangs the content widens the canvas: labels sitting on interior vertical
+segments add little or nothing.
 
 `AddInitialMarker` places a filled-circle badge above the first state with a straight arrow into it.
-`AddTransitions` maps each transition to the orthogonal polyline the pipeline routed for it. Because
-the cycle-breaking stage drops self-loops, de-duplicates identical directed pairs, and reverses back
-edges, `LayeredGraph.Waypoints` is not 1:1 with the input transitions; a lookup keyed by the routed
-`(source, target)` pair recovers each polyline, and a transition whose routed edge was reversed reuses
-that polyline in reverse so its open chevron end marker lands on the true target. Successive
-transitions sharing
-one routed corridor (parallel guards, or a forward/back-edge pair) are spread laterally so their anchor
-points and guard labels do not coincide. Each transition is emitted with an open chevron end marker
-(`EndMarkerStyle.OpenChevron`, drawn open in both renderers) at the
-target state, matching SysML v2 state transition notation, and labelled with its bracketed guard. A
-self-transition is drawn as a small loop above its state, also terminated by an open chevron end
-marker. The method returns the number of transitions
-whose polyline crosses a non-endpoint state box.
+`AddTransitions` maps each transition to the corresponding orthogonal polyline returned by
+`LayeredPlacement`, preserving input-edge order and source-to-target orientation. Successive
+transitions sharing one routed corridor are spread laterally so their anchor points and guard labels
+do not coincide. Each transition is emitted with an open chevron end marker
+(`EndMarkerStyle.OpenChevron`, drawn open in both renderers) at the target state, matching SysML v2
+state transition notation, and labelled with its bracketed guard. A self-transition is drawn as a
+small loop above its state, also terminated by an open chevron end marker. The method returns the
+number of transitions whose polyline crosses a non-endpoint state box.
 
 ##### Error Handling
 
@@ -80,13 +73,16 @@ are surfaced through `LayoutWarnings`.
 
 ##### Dependencies
 
-- `ILayoutStrategy`, `ViewContext`, `RenderOptions`, `Theme` (Rendering subsystem) — the strategy contract and inputs.
-- `LayeredLayoutPipeline`, `LayeredGraph`, `LayerNode`, `LayerEdge`, `LayoutDirection`, `HierarchyHandling`,
-  `BoxMetrics` (Layout Engine subsystem) — top-to-bottom placement and orthogonal routing.
+- `ILayoutStrategy` and `ViewContext` (Rendering subsystem) — the strategy contract and view input.
+- `RenderOptions`, `Theme`, `BoxMetrics`, `NotationMetrics`, and `ConnectorLabelPlacer`
+  (`DemaConsulting.Rendering.Abstractions`) — render options, sizing, and label metrics.
+- `LayeredPlacement` (Layout Internal subsystem) — top-to-bottom placement and orthogonal routing
+  through `DemaConsulting.Rendering.Layout`.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode`, `SysmlTransitionNode` (Semantic subsystem) — model input.
 - `LayoutWarnings` (Layout Internal subsystem) — crossing-warning construction.
-- The `LayoutTree`, `LayoutBox`, `LayoutBadge`, and `LayoutLine` data types (Layout subsystem).
+- The `LayoutTree`, `LayoutBox`, `LayoutBadge`, and `LayoutLine` data types
+  (`DemaConsulting.Rendering`).
 
 ##### Callers
 

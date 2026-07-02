@@ -60,64 +60,34 @@ system, subsystem, and unit levels:
 - **StdlibGen** (Build-time tool) — console tool that parses stdlib source files and writes stdlib.bin
   (build-time tooling; excluded from the software-items requirements/design/verification tree — see _Scope_)
   - **Program** (Unit) — entry point: parses stdlib, runs resolution, serializes to stdlib.bin
-- **DemaConsulting.SysML2Tools** (System) — core library: layout, rendering interfaces, and DiagramRenderer
-  - **Layout** (Subsystem) — LayoutTree intermediate representation (node types covering all SysML
-    diagram elements), reusable layout engines, and per-view layout strategies
-    - **LayoutTree** (Unit) — grouped data-model unit: the ten immutable `LayoutTree` record source
-      files (`LayoutTree`, `LayoutNode`, `LayoutBox`, `LayoutPort`, `LayoutLine`, `LayoutLabel`,
-      `LayoutBadge`, `LayoutBand`, `LayoutGrid`, `LayoutLifeline`) that form the intermediate
-      representation consumed by every renderer
-    - **Engine** (Subsystem) — reusable, model-independent geometric layout engines
-      - **ChannelRouter** (Unit) — orthogonal connector routing with obstacle avoidance and clearance
-      - **ContainmentPacker** (Unit) — packs sized boxes within a bounded container region
-      - **InterconnectionLayoutEngine** (Unit) — façade that assembles and runs the layered
-        pipeline for the interconnection view, preserving its public placement API
-      - **Layered** (Subsystem) — reusable, ELK-style layered layout pipeline of single-responsibility stages
-        - **LayeredGraph** (Unit) — mutable shared state threaded through the pipeline stages
-        - **LayeredLayoutPipeline** (Unit) — builds and runs an ordered sequence of layout stages
-        - **CycleBreaker** (Unit) — reverses back edges to produce an acyclic edge set
-        - **LayerAssigner** (Unit) — assigns nodes to layers by longest-path ranking
-        - **LongEdgeSplitter** (Unit) — inserts dummy nodes so every edge spans one layer
-        - **CrossingMinimizer** (Unit) — orders nodes within layers to reduce edge crossings
-        - **BrandesKopfPlacer** (Unit) — assigns node coordinates with the Brandes-Köpf algorithm
-        - **PortDistributor** (Unit) — distributes edge ports along node faces
-        - **OrthogonalRouter** (Unit) — routes edges as orthogonal segments between layers
-        - **LongEdgeJoiner** (Unit) — rejoins split sub-edges into original edge polylines
-        - **AxisTransform** (Unit) — maps pipeline coordinates to the requested layout direction
-        - **ComponentPacker** (Unit) — lays out each connected component independently and packs them without overlap
+- **DemaConsulting.SysML2Tools** (System) — core library: layout strategies, rendering
+  orchestration, and the SysML-coupled rendering pipeline
+  - **Layout** (Subsystem) — maps the SysML semantic model onto the off-the-shelf `LayoutTree`
+    intermediate representation and delegates geometric placement and routing to the off-the-shelf
+    `DemaConsulting.Rendering.Layout` layered algorithm
     - **Internal** (Subsystem) — per-view layout strategies
-      - **GeneralViewLayoutStrategy** (Unit) — general view: package-grouped definitions placed by the
-        layered pipeline with orthogonal specialization and membership edges
+      - **GeneralViewLayoutStrategy** (Unit) — general view: package-grouped definitions placed by
+        the layered algorithm with orthogonal specialization and membership edges
       - **InterconnectionViewLayoutStrategy** (Unit) — internal structure: nested parts, ports, connectors
       - **StateTransitionViewLayoutStrategy** (Unit) — state machine: states and guarded transitions
-        placed top-to-bottom by the layered pipeline (DOWN direction) with orthogonal transitions
+        placed top-to-bottom by the layered algorithm (DOWN direction) with orthogonal transitions
       - **ActionFlowViewLayoutStrategy** (Unit) — action flow with start/done markers, placed
-        top-to-bottom by the layered pipeline (DOWN direction) with orthogonal successions
+        top-to-bottom by the layered algorithm (DOWN direction) with orthogonal successions
       - **SequenceViewLayoutStrategy** (Unit) — lifelines and ordered messages
       - **GridViewLayoutStrategy** (Unit) — specialization/relationship matrix
       - **BrowserViewLayoutStrategy** (Unit) — indented membership tree
       - **LayoutWarnings** (Unit) — builder for layout diagnostic warning messages
-    - **ConnectorLabelPlacer** (Unit) — collision-aware placement of connector midpoint labels
-    - **BoxMetrics** (Unit) — shared box title-area and folder-tab height formulas used by both the
-      layout strategies and the renderers
-  - **Rendering** (Subsystem) — rendering pipeline: the `IRenderer`/`ILayoutStrategy` interfaces,
-    `Theme`, `RenderOptions`, `RenderOutput`, the `DiagramRenderer` orchestrator, and the
-    `StdlibFilter` helper that excludes standard-library elements from diagrams
-    - **NotationMetrics** (Unit) — single home for intrinsic, theme-independent notation geometry
-      (end-marker, port, folder-tab, badge, and label-background metrics) shared by both renderers
-    - **Theme** (Unit) — immutable visual-configuration record and the built-in `Themes` provider
+      - **LayeredPlacement** (Unit) — thin helper that adapts the off-the-shelf
+        `DemaConsulting.Rendering.Layout` layered algorithm, returning placed rectangles and routed
+        polylines to the strategies
+  - **Rendering** (Subsystem) — rendering pipeline: consumes the off-the-shelf `IRenderer`, `Theme`,
+    `RenderOptions`, and `RenderOutput` contracts from `DemaConsulting.Rendering.Abstractions` and
+    retains the SysML-coupled `ILayoutStrategy`/`ViewContext` contract, the `DiagramRenderer`
+    orchestrator, and the `StdlibFilter` helper that excludes standard-library elements from diagrams
     - **DiagramRenderer** (Unit) — high-level rendering orchestrator: for each view, builds a
       `LayoutTree` via an `ILayoutStrategy` and renders it via an `IRenderer`
-    - **RenderingContracts** (Unit) — grouped contracts unit: the `IRenderer` and `ILayoutStrategy`
-      interfaces, the `RenderOptions` and `RenderOutput` records, and the `StdlibFilter` helper
     - **Internal** (Subsystem) — internal rendering implementation
       - **DiagramTypeRouter** (Unit) — selects a layout strategy from a view's resolved kind
-- **DemaConsulting.SysML2Tools.Svg** (System) — SVG renderer: renders `LayoutTree` to
-  SVG output with zero external dependencies
-  - **SvgRenderer** (Unit) — translates a `LayoutTree` to a self-contained SVG 1.1 document
-- **DemaConsulting.SysML2Tools.Png** (System) — PNG renderer: renders `LayoutTree` to
-  PNG output using SkiaSharp
-  - **PngRenderer** (Unit) — rasterizes a `LayoutTree` to a PNG image using SkiaSharp
 - **DemaConsulting.SysML2Tools.Tool** (System) — dotnet tool: thin CLI wrapper and
   orchestration
   - **Program** (Unit) — entry point and execution orchestrator
@@ -136,6 +106,8 @@ system, subsystem, and unit levels:
 
 - ANTLR4 (OTS) — ANTLR4 runtime (Antlr4.Runtime.Standard)
 - BuildMark (OTS) — build-notes documentation tool
+- DemaConsulting.Rendering (OTS) — SysML-agnostic layout intermediate representation, layered
+  layout algorithm, and SVG/PNG renderers
 - FileAssert (OTS) — document assertion tool
 - Pandoc (OTS) — Markdown-to-HTML conversion tool
 - ReqStream (OTS) — requirements traceability tool
@@ -165,11 +137,9 @@ reviewers an explicit navigation aid from design to code:
   - **DemaConsulting.SysML2Tools.Stdlib/** — stdlib library
     - **Stdlib/** — SysML v2 standard library source files (EPL-2.0; see Stdlib/README.md)
   - **DemaConsulting.SysML2Tools.Core/** — core library
-    - **Layout/** — LayoutTree intermediate representation
-      - **Internal/** — internal layout implementation (GeneralViewLayoutStrategy)
-    - **Rendering/** — rendering interfaces and theme
-  - **DemaConsulting.SysML2Tools.Svg/** — SVG renderer
-  - **DemaConsulting.SysML2Tools.Png/** — PNG renderer
+    - **Layout/** — layout strategies mapping the model to the off-the-shelf `LayoutTree`
+      - **Internal/** — per-view layout strategies and the `LayeredPlacement` helper
+    - **Rendering/** — SysML-coupled rendering pipeline (`ILayoutStrategy`, `DiagramRenderer`)
   - **DemaConsulting.SysML2Tools.Tool/** — dotnet tool CLI wrapper
     - **Cli/** — command-line interface subsystem
     - **Lint/** — lint command subsystem
@@ -180,8 +150,6 @@ reviewers an explicit navigation aid from design to code:
   - **sysml2-tools-language.md** — language library design
   - **sysml2-tools-stdlib.md** — stdlib library design
   - **sysml2-tools-core/** — core library unit/subsystem design
-  - **sysml2-tools-svg.md** — SVG renderer design
-  - **sysml2-tools-png.md** — PNG renderer design
   - **sysml2-tools-tool/** — DemaConsulting.SysML2Tools.Tool unit/subsystem design
     - **cli/** — Cli subsystem design
     - **lint/** — Lint subsystem design
@@ -216,8 +184,6 @@ The four top-level systems map to these kebab-case folder names:
 | `DemaConsulting.SysML2Tools.Language` | `sysml2-tools-language` |
 | `DemaConsulting.SysML2Tools.Stdlib` | `sysml2-tools-stdlib` |
 | `DemaConsulting.SysML2Tools` | `sysml2-tools-core` |
-| `DemaConsulting.SysML2Tools.Svg` | `sysml2-tools-svg` |
-| `DemaConsulting.SysML2Tools.Png` | `sysml2-tools-png` |
 | `DemaConsulting.SysML2Tools.Tool` | `sysml2-tools-tool` |
 
 OTS items have integration/usage design documentation parallel to system folders:
@@ -240,9 +206,9 @@ Review-sets: defined in `.reviewmark.yaml`
 | Test results output | `DemaConsulting.TestResults` | — |
 | Unit testing | xUnit v3 | Apache 2.0 |
 
-No ImageSharp dependency. SkiaSharp is chosen over ImageSharp to avoid the Six Labors
-Split License, which would impose licensing obligations on library consumers embedding
-`DemaConsulting.SysML2Tools.Png` in commercial products.
+No ImageSharp dependency. The off-the-shelf `DemaConsulting.Rendering.Skia` PNG renderer uses
+SkiaSharp, chosen over ImageSharp to avoid the Six Labors Split License, which would impose
+licensing obligations on library consumers embedding the renderer in commercial products.
 
 ## Architectural Decisions
 
@@ -283,12 +249,11 @@ to handle custom viewpoints that specialize stdlib viewpoints.
 human-readable message. The `lint` command makes this output useful for AI-assisted
 model authoring loops.
 
-**Layout engines are independent and reusable.** Non-trivial layout algorithms
-(`ContainmentPacker`, `ChannelRouter`, `InterconnectionLayoutEngine`, and the
-reusable `LayeredLayoutPipeline` and its stages) live in `Layout/Engine/` with no
-dependency on the SysML semantic model. Each engine accepts plain geometric input
-and returns computed geometry, making them independently testable and reusable across
-multiple view strategies. See `ROADMAP.md` for the phased introduction of each engine.
+**Geometric layout is off-the-shelf.** Non-trivial geometric layout algorithms (containment
+packing, orthogonal connector routing, and the layered layout algorithm) are provided by the
+off-the-shelf `DemaConsulting.Rendering.Layout` package with no dependency on the SysML semantic
+model. The `LayeredPlacement` helper adapts that algorithm for the view strategies, accepting
+plain geometric input and returning computed geometry.
 
 **Theme record is a compile-time constant in v1.** Loadable theme files are deferred
 to v2. The Theme record data structure is defined in v1 so that v2 loadable themes
@@ -310,8 +275,8 @@ tests the integrated tool, not just unit-level components.
 SARIF output can be added as a formatting option on the existing infrastructure
 without any breaking changes.
 
-**SkiaSharp native assets for library consumers.** Consumers referencing
-`DemaConsulting.SysML2Tools.Png` must ensure the appropriate
+**SkiaSharp native assets for library consumers.** Consumers referencing the off-the-shelf
+`DemaConsulting.Rendering.Skia` PNG renderer must ensure the appropriate
 `SkiaSharp.NativeAssets.*` package is included in their publish output. This must
 be documented clearly in the package README.
 

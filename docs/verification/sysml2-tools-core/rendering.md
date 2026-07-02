@@ -2,11 +2,15 @@
 
 ### Verification Approach
 
-The Rendering subsystem is verified by unit tests in `DemaConsulting.SysML2Tools.Tests`.
-Tests assert that stub implementations (`SvgRenderer`, `PngRenderer`, `DiagramRenderer`)
-throw `NotImplementedException` as documented, that the `Themes` static properties are
-non-null and correctly initialized, and that `RenderOptions` default parameter values
-match their documented defaults. No I/O or filesystem access is required.
+The Rendering subsystem is verified by unit tests in `DemaConsulting.SysML2Tools.Tests`. The
+SysML-agnostic rendering contracts and renderers (`IRenderer`, `Theme`, `RenderOptions`,
+`RenderOutput`, and the `SvgRenderer` and `PngRenderer` implementations) are provided
+off-the-shelf by the `DemaConsulting.Rendering` packages; the tests exercise them through
+SysML2Tools to confirm the integration. Tests assert that the renderers report their media type
+and default extension and write valid output for an empty `LayoutTree`, that the `Themes` static
+properties are non-null and correctly initialized, that `RenderOptions` default parameter values
+match their documented defaults, and that `DiagramRenderer` orchestrates the pipeline. No I/O or
+filesystem access is required.
 
 ### Test Environment
 

@@ -4,9 +4,9 @@
 
 `InterconnectionViewLayoutStrategy` implements `ILayoutStrategy` to produce an Interconnection
 View diagram. It shows the internal structure of a single part definition: its nested part usages
-as boxes placed by the layered engine, ports on the box boundaries for the incident connections,
-and the connection usages routed as orthogonal connector lines between the ports, all enclosed by
-a container box for the host definition.
+as boxes placed through `LayeredPlacement`, ports on the box boundaries for the incident connections,
+and the connection usages routed as orthogonal connector lines between the ports, all enclosed by a
+container box for the host definition.
 
 ##### Data Model
 
@@ -31,8 +31,8 @@ empty `LayoutTree` when no root or no parts are found.
 
 The strategy supports genuine two-level (and deeper) nested block diagrams using a **recursive
 bottom-up** scheme equivalent to ELK's `SEPARATE_CHILDREN` hierarchy mode: inner structure is laid
-out first with the flat engine, and each container is then treated as an atomic fixed-size node by
-its parent, which is laid out with the **same** flat engine.
+out first through flat layered placement, and each container is then treated as an atomic fixed-size
+node by its parent, which is laid out with the **same** flat placement.
 
 - **Container detection.** `BuildDefinitionIndex` builds a `Dictionary<string, SysmlDefinitionNode>`
   of candidate containers — non-standard-library `part def`s that have at least one nested `part`
@@ -61,13 +61,9 @@ its parent, which is laid out with the **same** flat engine.
   "name : Type" title, inside its border. Box `Depth` increases by one per level (the renderer
   indexes `DepthFillColors` by modulo, so any depth is safe).
 - **No-op invariant.** When no part is a container, every `PartItem.InnerContent` is `null`,
-  `MakePartBox` emits exactly the non-recursive leaf box with empty `Children`, and the engine
+  `MakePartBox` emits exactly the non-recursive leaf box with empty `Children`, and the placement
   call, offsets, ports, and lines are identical to the single-level layout — single-level output is
   byte-identical.
-- **Reserved pipeline mode.** The `HierarchyHandling.Recursive` pipeline mode remains reserved and
-  intentionally **not wired**: recursion is driven here, at the strategy level, because container
-  detection is a semantic-model concern the model-independent layered engine deliberately cannot
-  see.
 - **Cross-boundary limitation.** Connection endpoints resolve to **parent-level** part indices via
   the head segment of the dotted reference, so a reference such as `connect psu to board.cpu`
   terminates on the `board` container boundary rather than routing to the inner `cpu` box. This is
@@ -88,17 +84,13 @@ pairs.
 
 ###### Placement and routing
 
-All placement and routing are delegated to `InterconnectionLayoutEngine.Place`, a thin façade
-that assembles and runs the reusable `LayeredLayoutPipeline` (configured `RIGHT` with flat
-hierarchy — `HierarchyHandling.Flat`). Nested-container recursion is driven at the strategy level
-(see _Recursive nested layout_ above), not by the engine; each level calls the same flat engine.
-The strategy passes the collected part boxes and resolved
-connection pairs as plain geometric input; the engine returns placed rectangles and connector
-waypoints. Within the pipeline, layers are assigned by `LayerAssigner`, node coordinates by
-`BrandesKopfPlacer`, ports are distributed along box faces by `PortDistributor`, and connectors
-are drawn as orthogonal segments by `OrthogonalRouter`, with `ComponentPacker` packing
-disconnected components without overlap. The engine derives the total canvas extent from the
-placed box and waypoint geometry.
+Placement and routing are delegated to `LayeredPlacement.Place` with a left-to-right flow direction.
+Nested-container recursion is driven at the strategy level (see _Recursive nested layout_ above);
+each level calls the same flat placement helper. The strategy passes the collected part boxes and
+resolved connection pairs as plain geometric input. `LayeredPlacement` delegates to the off-the-shelf
+`DemaConsulting.Rendering.Layout` layered algorithm and returns placed rectangles and connector
+waypoints, with disconnected components packed without overlap. The total canvas extent is derived
+from the placed box and waypoint geometry.
 
 The strategy then shifts the placed content to sit inside the container box and extends the
 container so every connector waypoint is enclosed, without ever moving a box.
@@ -112,12 +104,15 @@ Connectors that cannot be routed cleanly are still drawn; this strategy does not
 
 ##### Dependencies
 
-- `ILayoutStrategy`, `ViewContext`, `RenderOptions`, `Theme` (Rendering subsystem) — the strategy contract and inputs.
-- `InterconnectionLayoutEngine`, `BoxMetrics`
-  (Layout Engine subsystem) — the façade that runs the layered pipeline for placement, ports, and routing.
+- `ILayoutStrategy` and `ViewContext` (Rendering subsystem) — the strategy contract and view input.
+- `RenderOptions`, `Theme`, and `BoxMetrics` (`DemaConsulting.Rendering.Abstractions`) — render
+  options and sizing metrics.
+- `LayeredPlacement` (Layout Internal subsystem) — placement and routing through
+  `DemaConsulting.Rendering.Layout`.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode`, `SysmlConnectionNode` (Semantic subsystem) — model input.
-- The `LayoutTree`, `LayoutBox`, `LayoutPort`, and `LayoutLine` data types (Layout subsystem).
+- The `LayoutTree`, `LayoutBox`, `LayoutPort`, and `LayoutLine` data types
+  (`DemaConsulting.Rendering`).
 
 ##### Callers
 

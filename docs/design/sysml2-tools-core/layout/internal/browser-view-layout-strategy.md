@@ -42,11 +42,13 @@ throw: the strategy returns an empty diagram rather than failing.
 
 ##### Dependencies
 
-- `LayoutTree`, `LayoutBox`, `LayoutLine`, `Point2D`, `BoxShape`, `EndMarkerStyle`, `LineStyle`
-  (Layout subsystem).
-- `ViewContext`, `RenderOptions`, `Theme` (Rendering subsystem).
-- `SysmlWorkspace`, `SysmlNode`, `SysmlPackageNode`, `SysmlDefinitionNode`, `SysmlFeatureNode`,
-  `SysmlViewNode`, and `StdlibFilter` (Semantic subsystem).
+- `LayoutTree`, `LayoutBox`, `LayoutLine`, `Point2D`, `BoxShape`, `EndMarkerStyle`, and
+  `LineStyle` (`DemaConsulting.Rendering`).
+- `ViewContext` (Rendering subsystem) and `RenderOptions`, `Theme`
+  (`DemaConsulting.Rendering.Abstractions`).
+- `SysmlWorkspace`, `SysmlNode`, `SysmlPackageNode`, `SysmlDefinitionNode`, `SysmlFeatureNode`, and
+  `SysmlViewNode` (Semantic subsystem).
+- `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 
 ##### Callers
 

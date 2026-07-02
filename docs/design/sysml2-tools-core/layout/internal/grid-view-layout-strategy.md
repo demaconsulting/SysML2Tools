@@ -42,9 +42,12 @@ throw: the strategy returns an empty diagram rather than failing.
 
 ##### Dependencies
 
-- `LayoutTree`, `LayoutGrid`, `LayoutGridRow`, `LayoutGridCell`, `TextAlign` (Layout subsystem).
-- `ViewContext`, `RenderOptions`, `Theme` (Rendering subsystem).
-- `SysmlWorkspace`, `SysmlDefinitionNode`, and `StdlibFilter` (Semantic subsystem).
+- `LayoutTree`, `LayoutGrid`, `LayoutGridRow`, `LayoutGridCell`, and `TextAlign`
+  (`DemaConsulting.Rendering`).
+- `ViewContext` (Rendering subsystem) and `RenderOptions`, `Theme`
+  (`DemaConsulting.Rendering.Abstractions`).
+- `SysmlWorkspace` and `SysmlDefinitionNode` (Semantic subsystem).
+- `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 
 ##### Callers
 

@@ -132,11 +132,12 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-LayeredPlacement
         title: >-
-          GeneralViewLayoutStrategy shall place definitions with the layered pipeline so that no two
+          GeneralViewLayoutStrategy shall place definitions through LayeredPlacement so that no two
           definition boxes overlap and every package folder stays clear of the others.
         justification: |
-          Delegating placement to the reusable layered pipeline (with a ComponentPacker stage) gives
-          the General view ELK-style box placement and orthogonal edge routing. The observable
+          Delegating placement through LayeredPlacement to the off-the-shelf
+          DemaConsulting.Rendering.Layout layered algorithm gives the General View ELK-style box
+          placement and orthogonal edge routing. The observable
           guarantee that matters to readers is that boxes and folders never overlap, regardless of
           model size or density, so the diagram stays legible without manual layout hints.
         tests:

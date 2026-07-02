@@ -1,0 +1,101 @@
+---
+# DemaConsulting.Rendering OTS Software Requirements
+#
+# Requirements for the DemaConsulting.Rendering package family (DemaConsulting.Rendering,
+# DemaConsulting.Rendering.Abstractions, DemaConsulting.Rendering.Layout,
+# DemaConsulting.Rendering.Svg, DemaConsulting.Rendering.Skia) that SysML2Tools consumes for
+# SysML-agnostic layout and rendering. Each requirement is verified indirectly through SysML2Tools
+# tests that drive the package family end-to-end.
+
+sections:
+  - title: OTS Software Requirements
+    sections:
+      - title: DemaConsulting.Rendering Requirements
+        requirements:
+          - id: SysML2Tools-OTS-DemaRendering-LayoutGraph
+            title: >-
+              DemaConsulting.Rendering shall lay a graph of sized nodes and directed edges out
+              into placed boxes and routed connectors.
+            justification: |
+              SysML2Tools no longer owns a geometric layout engine. The view layout strategies
+              build a LayoutGraph of sized nodes and directed edges and rely on the package's
+              LayeredLayoutAlgorithm to return a LayoutTree of placed LayoutBox nodes and routed
+              LayoutLine connectors. Strategy layouts that emit placed boxes together with routed
+              connector lines confirm the package performed the placement and routing.
+            tags: [ots]
+            tests:
+              - ActionFlowView_BuildLayout_ActionsAndSuccessions_ProducesBoxesMarkersAndFlows
+              - StateTransitionView_BuildLayout_StatesAndTransitions_ProducesBoxesBadgeAndLines
+              - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
+
+          - id: SysML2Tools-OTS-DemaRendering-Direction
+            title: >-
+              DemaConsulting.Rendering shall honor the requested layout direction, placing the
+              target of a directed edge downstream of its source, including a top-to-bottom
+              direction.
+            justification: |
+              The action-flow and state-transition strategies request a top-to-bottom (DOWN)
+              direction so their diagrams read downward. The package must place each successor
+              below its predecessor for that direction. A forward chain that flows top-to-bottom is
+              the observable evidence the direction was honored.
+            tags: [ots]
+            tests:
+              - ActionFlowView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally
+              - StateTransitionView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally
+              - ActionFlowView_BuildLayout_Successions_FlowTopToBottom
+
+          - id: SysML2Tools-OTS-DemaRendering-Containers
+            title: >-
+              DemaConsulting.Rendering shall pack container regions so that child boxes are placed
+              inside their container and containers do not overlap one another.
+            justification: |
+              The interconnection strategy renders nested parts as containers whose children must
+              fall inside the container bounds, with sibling containers kept apart. The package's
+              containment packing produces this geometry, evidenced by children rendered inside the
+              container box and non-overlapping part boxes.
+            tags: [ots]
+            tests:
+              - InterconnectionView_BuildLayout_NestedContainer_PlacesChildrenInsideContainerBox
+              - InterconnectionView_BuildLayout_ContainerSize_BoundsChildrenAndTitle
+              - InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap
+
+          - id: SysML2Tools-OTS-DemaRendering-Routing
+            title: >-
+              DemaConsulting.Rendering shall route connectors as orthogonal segments between the
+              boxes it places without running them through unrelated boxes.
+            justification: |
+              Readable diagrams require connectors that turn at right angles and skirt the boxes
+              between their endpoints. The package's orthogonal router produces such polylines,
+              evidenced by forward chains that route top-to-bottom orthogonally and by the routed
+              connectors produced for an interconnection diagram whose boxes do not overlap.
+            tags: [ots]
+            tests:
+              - ActionFlowView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally
+              - StateTransitionView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally
+              - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
+
+          - id: SysML2Tools-OTS-DemaRendering-RenderSvg
+            title: >-
+              DemaConsulting.Rendering shall render a laid-out layout tree to a valid SVG document.
+            justification: |
+              SysML2Tools produces SVG output through the package's SvgRenderer. The renderer must
+              turn a LayoutTree into a well-formed SVG document representing the diagram, evidenced
+              by SVG produced from an empty tree and from full workspace renders.
+            tags: [ots]
+            tests:
+              - SvgRenderer_Render_EmptyTree_WritesValidSvg
+              - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsSvgOutput
+              - DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames
+
+          - id: SysML2Tools-OTS-DemaRendering-RenderPng
+            title: >-
+              DemaConsulting.Rendering shall render a laid-out layout tree to a valid PNG image.
+            justification: |
+              SysML2Tools produces raster output through the package's Skia-based PngRenderer. The
+              renderer must turn a LayoutTree into a valid PNG image, evidenced by PNG bytes
+              produced from an empty tree and from full workspace renders.
+            tags: [ots]
+            tests:
+              - PngRenderer_Render_EmptyTree_WritesPngBytes
+              - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_PngRenderer_ReturnsPngOutput
+              - DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput

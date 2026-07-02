@@ -3,8 +3,11 @@
 #
 # PURPOSE:
 # - Define requirements for the SysML2Tools Rendering subsystem
-# - IRenderer, ILayoutStrategy, Theme, RenderOptions, and DiagramRenderer define the
-#   rendering pipeline interfaces
+# - The IRenderer, Theme, RenderOptions, and RenderOutput contracts are provided off-the-shelf by
+#   the DemaConsulting.Rendering.Abstractions package; SysML2Tools consumes them and verifies its
+#   integration with them through its own tests
+# - ILayoutStrategy and DiagramRenderer are the SysML-coupled rendering pipeline that remains in
+#   this subsystem
 # - Requirements describe observable rendering behavior, not internal rendering algorithms
 
 sections:
@@ -56,18 +59,6 @@ sections:
           - Themes_Light_IsInitialized
           - Themes_Dark_IsInitialized
           - Themes_Print_IsInitialized
-          - Themes_HaveExpectedConnectorGeometry
-
-      - id: SysML2Tools-Core-Rendering-ThemeApproachZone
-        title: >-
-          A theme shall define a connector approach zone — the clear distance a connector
-          needs off a box face before bending — equal to the sum of its connector stub
-          length, bend radius, and the supplied connector clearance.
-        justification: |
-          The approach zone is the clear distance a connector needs off a box face before bending;
-          deriving it from the theme keeps connector geometry consistent across layout and routing.
-        tests:
-          - ConnectorApproachZone_SumsStubBendAndClearance
 
       - id: SysML2Tools-Core-Rendering-ThemeDepthWrap
         title: >-

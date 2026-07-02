@@ -9,7 +9,7 @@ action definition with actions and successions, invoke `BuildLayout`, and assert
 (bullseye) markers and the flow lines, compare action box `Y` coordinates to confirm
 top-to-bottom ordering, verify that succession polylines are orthogonal and that action boxes do
 not overlap, and exercise branch-and-join and cyclic flows. No mocking is required; the strategy
-depends only on the in-memory model, the layered layout pipeline, and the theme.
+depends only on the in-memory model, `LayeredPlacement`, and render options.
 
 ##### Test Environment
 
