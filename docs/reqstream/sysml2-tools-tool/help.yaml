@@ -1,0 +1,120 @@
+---
+# Help Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the DemaConsulting.SysML2Tools.Tool Help subsystem
+# - HelpCommand implements the CLI `help` command as pure dispatch to the single source of
+#   truth for each command's help text (Program.PrintTopLevelHelp, LintCommand.PrintHelp,
+#   RenderCommand.PrintHelp, QueryCommand.PrintGeneralHelp/PrintVerbHelp)
+# - HelpArgumentParser parses the optional target command/verb tokens following `help`
+# - Requirements describe observable behavior of `sysml2tools help [command] [verb]` and its
+#   parity with the existing `<command> --help` code path
+
+sections:
+  - title: Help Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Tool-Help-BareHelp
+        title: >-
+          The help command, invoked with no further arguments, shall print the same
+          top-level help (command list and global options) as the bare `--help`/`-h`/`-?`
+          flag, without requiring `--help` to also be supplied.
+        justification: |
+          Typing `sysml2tools help` is the most natural first thing an unfamiliar user or
+          AI-assisted caller tries; it must work standalone rather than only as a synonym
+          that still needs `--help`.
+        tests:
+          - HelpSubsystem_BareHelp_MatchesTopLevelHelpFlag
+          - HelpSubsystem_BareHelp_DoesNotFallThroughToNoCommandSpecified
+          - Context_Create_HelpCommand_NoArgs_PopulatesEmptyHelpOptions
+
+      - id: SysML2Tools-Tool-Help-CommandHelp
+        title: >-
+          The help command, invoked as `help lint` or `help render`, shall print that
+          command's specific usage and options, identical to `lint --help`/`render --help`.
+        justification: |
+          A single source of truth for each command's help text (LintCommand.PrintHelp,
+          RenderCommand.PrintHelp) avoids the risk of the two entry points drifting apart,
+          and lets users discover command-specific detail through either path.
+        tests:
+          - HelpSubsystem_HelpLint_MatchesLintHelpFlag
+          - HelpSubsystem_HelpRender_MatchesRenderHelpFlag
+          - Context_Create_HelpCommand_WithLintTarget_SetsTargetCommand
+          - Context_Create_HelpCommand_WithRenderTarget_SetsTargetCommand
+          - LintSubsystem_Help_PrintsLintSpecificUsage
+          - RenderSubsystem_Help_PrintsRenderSpecificUsage
+
+      - id: SysML2Tools-Tool-Help-QueryOverview
+        title: >-
+          The help command, invoked as `help query` with no verb, shall print an overview of
+          all 11 query verbs with one-line summaries, identical to `query --help`.
+        justification: |
+          `query` has substantially more surface area (11 verbs) than `lint`/`render`;
+          a verb overview lets users discover the full verb vocabulary before drilling into
+          any one verb's specific flags.
+        tests:
+          - HelpSubsystem_HelpQuery_MatchesQueryHelpFlag
+
+      - id: SysML2Tools-Tool-Help-QueryVerbHelp
+        title: >-
+          The help command, invoked as `help query <verb>` for any of the 11 recognized
+          verbs, shall print that verb's exact syntax, flags, and usage, identical to
+          `query <verb> --help`.
+        justification: |
+          Each verb has a distinct flag set (e.g., `--direction` for hierarchy, `--kind`/
+          `--name` for list/find, `--depth` for impact); verb-specific help is required for
+          users to discover the correct flags for the verb they intend to run.
+        tests:
+          - HelpSubsystem_HelpQueryVerb_MatchesQueryVerbHelpFlag
+          - Context_Create_HelpCommand_WithQueryVerbTarget_SetsTargetCommandAndVerb
+
+      - id: SysML2Tools-Tool-Help-UnknownTarget
+        title: >-
+          The help command shall report a clear, non-crashing error naming the invalid token
+          when an unrecognized command (`help <unknown>`) or unrecognized query verb
+          (`help query <unknown>`) is supplied.
+        justification: |
+          Consistent with every other command's unrecognized-token handling, a clear
+          ArgumentException (rather than a stack trace or silent misinterpretation) helps
+          users self-correct; reusing QueryVerbParsing.Parse's existing error message avoids
+          maintaining a second verb vocabulary.
+        tests:
+          - HelpSubsystem_HelpUnknownCommand_ThrowsArgumentException
+          - HelpSubsystem_HelpQueryUnknownVerb_ThrowsArgumentException
+          - HelpSubsystem_HelpUnknownCommand_ViaMain_ReturnsNonZeroExitCodeWithoutCrashing
+          - Context_Create_HelpCommand_UnknownTarget_ThrowsArgumentException
+          - Context_Create_HelpCommand_QueryUnknownVerb_ThrowsArgumentException
+          - HelpArgumentParser_Parse_UnknownTargetCommand_ThrowsArgumentException
+          - HelpArgumentParser_Parse_QueryWithUnknownVerb_ThrowsArgumentException
+
+      - id: SysML2Tools-Tool-Help-SilentConsistency
+        title: >-
+          The help command's output shall be suppressed by the global `--silent` flag,
+          consistent with every other command's output (Context.WriteLine suppresses stdout
+          unconditionally when Silent is set, regardless of the reason for the write).
+        justification: |
+          `--silent` already suppresses explicitly requested output for other flags (e.g.,
+          `--silent --version` produces no console output at all); carving out a `help`-only
+          exception would make Silent's behavior inconsistent and harder to reason about
+          across commands. Automated callers that need help text programmatically should
+          omit `--silent` (or read the log file, when `--log` is also supplied).
+        tests:
+          - HelpSubsystem_SilentHelpQuery_SuppressesOutputConsistentlyWithOtherCommands
+          - HelpSubsystem_HelpLintSilent_SuppressesOutput
+
+      - id: SysML2Tools-Tool-Help-Grammar
+        title: >-
+          The help command shall accept at most two positional tokens (a target command, and,
+          only when the target is `query`, a verb), rejecting any additional or
+          `-`-prefixed token with a clear ArgumentException naming the `help` command.
+        justification: |
+          A strict, minimal grammar (mirroring lint/render/query's own rejection convention)
+          prevents `help` from silently accepting flags that belong to other commands.
+        tests:
+          - HelpArgumentParser_Parse_NoArguments_ReturnsBothFieldsNull
+          - HelpArgumentParser_Parse_Lint_SetsTargetCommandLint
+          - HelpArgumentParser_Parse_Render_SetsTargetCommandRender
+          - HelpArgumentParser_Parse_QueryNoVerb_SetsTargetCommandQueryOnly
+          - HelpArgumentParser_Parse_QueryWithVerb_SetsTargetVerb
+          - HelpArgumentParser_Parse_FlagAsTargetCommand_ThrowsArgumentException
+          - HelpArgumentParser_Parse_ExtraArgumentAfterCommand_ThrowsArgumentException
+          - HelpArgumentParser_Parse_ExtraArgumentAfterQueryVerb_ThrowsArgumentException

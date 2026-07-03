@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Banner_Version" xml:space="preserve">
+    <value>SysML2 Tools version {0}</value>
+  </data>
+  <data name="Banner_Copyright" xml:space="preserve">
+    <value>Copyright (c) DEMA Consulting</value>
+  </data>
+  <data name="TopLevel_Usage" xml:space="preserve">
+    <value>Usage: sysml2tools [options] &lt;command&gt; [files...]</value>
+  </data>
+  <data name="TopLevel_CommandsHeader" xml:space="preserve">
+    <value>Commands:</value>
+  </data>
+  <data name="TopLevel_CommandLint" xml:space="preserve">
+    <value>  lint &lt;files...&gt;            Parse files and report syntax errors</value>
+  </data>
+  <data name="TopLevel_CommandRender" xml:space="preserve">
+    <value>  render [options] &lt;files..&gt; Render view diagrams to SVG or PNG files</value>
+  </data>
+  <data name="TopLevel_CommandQuery1" xml:space="preserve">
+    <value>  query &lt;verb&gt; [options] &lt;files...&gt;</value>
+  </data>
+  <data name="TopLevel_CommandQuery2" xml:space="preserve">
+    <value>                             Run a model-analysis query (preview; run</value>
+  </data>
+  <data name="TopLevel_CommandQuery3" xml:space="preserve">
+    <value>                             'sysml2tools query --help' for the verb list)</value>
+  </data>
+  <data name="TopLevel_CommandHelp1" xml:space="preserve">
+    <value>  help [command] [verb]      Print help for the tool, a command, or (for 'query')</value>
+  </data>
+  <data name="TopLevel_CommandHelp2" xml:space="preserve">
+    <value>                             a specific verb</value>
+  </data>
+  <data name="TopLevel_OptionsHeader" xml:space="preserve">
+    <value>Options:</value>
+  </data>
+  <data name="TopLevel_OptionVersion" xml:space="preserve">
+    <value>  -v, --version              Display version information</value>
+  </data>
+  <data name="TopLevel_OptionHelp" xml:space="preserve">
+    <value>  -?, -h, --help             Display this help message</value>
+  </data>
+  <data name="TopLevel_OptionSilent" xml:space="preserve">
+    <value>  --silent                   Suppress console output</value>
+  </data>
+  <data name="TopLevel_OptionValidate" xml:space="preserve">
+    <value>  --validate                 Run self-validation</value>
+  </data>
+  <data name="TopLevel_OptionResults" xml:space="preserve">
+    <value>  --results &lt;file&gt;           Write validation results to file (.trx or .xml)</value>
+  </data>
+  <data name="TopLevel_OptionDepth1" xml:space="preserve">
+    <value>  --depth &lt;#&gt;                Set heading depth (1–6) and diagram render depth</value>
+  </data>
+  <data name="TopLevel_OptionDepth2" xml:space="preserve">
+    <value>                             (default: 1); for the query command's 'impact' verb,</value>
+  </data>
+  <data name="TopLevel_OptionDepth3" xml:space="preserve">
+    <value>                             --depth instead bounds the impact-walk depth</value>
+  </data>
+  <data name="TopLevel_OptionLog" xml:space="preserve">
+    <value>  --log &lt;file&gt;               Write output to log file</value>
+  </data>
+  <data name="TopLevel_OptionOutput" xml:space="preserve">
+    <value>  --output &lt;dir&gt;             Output directory for rendered files (render command)</value>
+  </data>
+  <data name="TopLevel_OptionFormat1" xml:space="preserve">
+    <value>  --format &lt;fmt&gt;             Renderer format: svg (default) or png (render command);</value>
+  </data>
+  <data name="TopLevel_OptionFormat2" xml:space="preserve">
+    <value>                             for the query command, --format instead selects</value>
+  </data>
+  <data name="TopLevel_OptionFormat3" xml:space="preserve">
+    <value>                             markdown (default) or json output</value>
+  </data>
+  <data name="TopLevel_OptionView" xml:space="preserve">
+    <value>  --view &lt;name&gt;              Select a specific view to render (render command)</value>
+  </data>
+  <data name="TopLevel_OptionAuto" xml:space="preserve">
+    <value>  --auto                     Auto-generate a view when none are defined (render command)</value>
+  </data>
+  <data name="TopLevel_OptionElement1" xml:space="preserve">
+    <value>  --element &lt;name&gt;, -e &lt;name&gt;</value>
+  </data>
+  <data name="TopLevel_OptionElement2" xml:space="preserve">
+    <value>                             Qualified name of the target element (query command)</value>
+  </data>
+  <data name="TopLevel_OptionDirection" xml:space="preserve">
+    <value>  --direction up|down|both   Traversal direction (query 'hierarchy' verb)</value>
+  </data>
+  <data name="TopLevel_OptionKind" xml:space="preserve">
+    <value>  --kind &lt;kind&gt;              Element-kind filter (query 'list'/'find' verbs)</value>
+  </data>
+  <data name="TopLevel_OptionName" xml:space="preserve">
+    <value>  --name &lt;substring&gt;         Name substring filter (query 'list'/'find' verbs)</value>
+  </data>
+  <data name="TopLevel_OptionIncludeStdlib" xml:space="preserve">
+    <value>  --include-stdlib           Include OMG standard library elements (query command)</value>
+  </data>
+  <data name="NoCommand_Message" xml:space="preserve">
+    <value>No command specified. Run 'sysml2tools --help' for usage.</value>
+  </data>
+</root>

@@ -5,10 +5,20 @@
 
 # Patterns identifying all files that require review.
 # Processed in order; prefix a pattern with '!' to exclude.
+#
+# Decision: .resx files are IN SCOPE for review (see "**/*.resx" below).
+# Reasoning: .resx files under src/**/*.resx carry the literal, user-facing CLI help/banner
+# text formerly embedded directly in .cs source (see the "Localization / Resource Strings"
+# design sections in docs/design/sysml2-tools-tool/{program,lint,render,query}.md). Since this
+# text was previously reviewed as part of the .cs files that hosted it, moving it into .resx
+# must not remove it from review scope — the content and correctness of user-facing text is
+# exactly the kind of change reviewmark exists to catch. Test-only/tooling resx files (if any
+# are ever added) can be excluded later via a targeted "!" pattern if that becomes necessary.
 needs-review:
   - "README.md"                   # Root README file
   - "requirements.yaml"           # Root requirements file
   - "**/*.cs"                     # All C# source and test files
+  - "**/*.resx"                   # Resource files backing localizable/hand-written string accessors
   - "docs/reqstream/**/*.yaml"    # Requirements files
   - "docs/design/**/*.md"         # Design documentation files
   - "docs/verification/**/*.md"   # Verification documentation files
@@ -149,6 +159,9 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SupertypeWalker.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SerializedStdlib.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/AstSerializerContext.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SysmlEdge.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SemanticIndex.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SysmlAnnotation.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/OmgModelsTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
@@ -664,7 +677,10 @@ reviews:
       - "docs/design/sysml2-tools-tool/program.md"
       - "docs/verification/sysml2-tools-tool/program.md"
       - "src/DemaConsulting.SysML2Tools.Tool/Program.cs"
+      - "src/DemaConsulting.SysML2Tools.Tool/ProgramStrings.cs"
+      - "src/DemaConsulting.SysML2Tools.Tool/ProgramStrings.resx"
       - "test/**/ProgramTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Resources/ResxResourceTests.cs"
 
   # SysML2Tools Tool - Cli
   - id: SysML2Tools-Tool-Cli
@@ -691,6 +707,10 @@ reviews:
       - "docs/verification/sysml2-tools-tool/cli/context.md"
       - "src/**/Cli/Context.cs"
       - "test/**/Cli/ContextTests.cs"
+      - "src/**/Cli/SysmlCommand.cs"
+      - "src/**/Cli/CliArgumentHelpers.cs"
+      - "src/**/Cli/GlobalArguments.cs"
+      - "src/**/Cli/GlobalArgumentParser.cs"
 
   # SysML2Tools Tool - SelfTest
   - id: SysML2Tools-Tool-SelfTest
@@ -754,7 +774,12 @@ reviews:
       - "docs/design/sysml2-tools-tool/lint.md"
       - "docs/verification/sysml2-tools-tool/lint.md"
       - "src/**/Lint/LintCommand.cs"
+      - "src/**/Lint/LintStrings.cs"
+      - "src/**/Lint/LintStrings.resx"
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Lint/LintSubsystemTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Resources/ResxResourceTests.cs"
+      - "src/**/Lint/LintOptions.cs"
+      - "src/**/Lint/LintArgumentParser.cs"
 
   - id: SysML2Tools-Tool-Render
     title: Review of SysML2 Tools Render subsystem implementation
@@ -766,7 +791,43 @@ reviews:
       - "docs/design/sysml2-tools-tool/render.md"
       - "docs/verification/sysml2-tools-tool/render.md"
       - "src/DemaConsulting.SysML2Tools.Tool/Render/RenderCommand.cs"
+      - "src/DemaConsulting.SysML2Tools.Tool/Render/RenderStrings.cs"
+      - "src/DemaConsulting.SysML2Tools.Tool/Render/RenderStrings.resx"
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Render/RenderSubsystemTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Resources/ResxResourceTests.cs"
+      - "src/DemaConsulting.SysML2Tools.Tool/Render/RenderCommandOptions.cs"
+      - "src/DemaConsulting.SysML2Tools.Tool/Render/RenderArgumentParser.cs"
+
+  - id: SysML2Tools-Tool-Query
+    title: Review of SysML2 Tools Query subsystem implementation
+    context:
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-tool/query.yaml"
+      - "docs/design/sysml2-tools-tool/query.md"
+      - "docs/verification/sysml2-tools-tool/query.md"
+      - "src/DemaConsulting.SysML2Tools.Tool/Query/*.cs"
+      - "src/DemaConsulting.SysML2Tools.Tool/Query/QueryStrings.resx"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QuerySubsystemTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Resources/ResxResourceTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryTestFixtures.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryVerbsTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryRenderingTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryOmgFixtureTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryErrorPathTests.cs"
+
+  - id: SysML2Tools-Tool-Help
+    title: Review of SysML2 Tools Help subsystem implementation
+    context:
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-tool/help.yaml"
+      - "docs/design/sysml2-tools-tool/help.md"
+      - "docs/verification/sysml2-tools-tool/help.md"
+      - "src/**/Help/*.cs"
+      - "test/**/Help/*.cs"
 
   # OTS Items
   - id: OTS-BuildMark

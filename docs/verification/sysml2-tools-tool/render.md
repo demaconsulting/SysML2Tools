@@ -27,6 +27,11 @@ on context output and exit code. File-writing scenarios use a temporary director
 - `--depth 1` produces SVG output containing the ellipsis character `"…"`
 - Multiple views without `--view` yields exit code 1 and an error message
 - `--view <name>` with a multi-view workspace renders exactly one file
+- Unsupported `--format` value throws `ArgumentException` when `RunAsync` executes (not at
+  `Context.Create` parse time)
+- `render --help` prints render-specific usage and options (not the generic top-level command
+  list), and is identical to `help render`'s output (see the Help subsystem verification
+  document).
 
 #### Test Scenarios
 
@@ -78,3 +83,25 @@ to the log.
 
 Verifies that `--view ViewAlpha` selects exactly one view from a two-view workspace and
 produces a single `.svg` output file.
+
+##### RenderSubsystem_UnsupportedFormat_ThrowsArgumentException
+
+Verifies that `--format xml` (an unsupported value) does not throw when `Context.Create` parses
+the arguments, but throws `ArgumentException` naming the bad value once `Program.RunAsync`
+actually runs the render command — mirroring the timing of the `query` command's `--format`
+validation.
+
+##### RenderSubsystem_Help_PrintsRenderSpecificUsage
+
+Verifies that `render --help` prints the render-specific usage line and its `--output`/
+`--auto` flags, and does not print the generic top-level `"Commands:"` section — a
+regression-proofing test added alongside the `help` command's command-aware `--help` dispatch
+(see `docs/design/sysml2-tools-tool/help.md`).
+
+##### ResxResource_EveryKey_ResolvesToNonEmptyText / ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity (ResxResourceTests.cs)
+
+For the `RenderStrings` resource base name/accessor pair (one of four covered by these theory
+tests), every key discovered in `Render/RenderStrings.resx`'s invariant-culture resource set
+resolves to non-null/non-empty text via `ResourceManager`, and every such key has a matching
+`public static string` property on `RenderStrings` (and vice versa). Satisfies
+`SysML2Tools-Tool-Render-LocalizableHelpText`.

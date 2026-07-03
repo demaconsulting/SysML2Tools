@@ -1,0 +1,283 @@
+---
+# Query Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the DemaConsulting.SysML2Tools.Tool Query subsystem
+# - QueryCommand implements the CLI query verb dispatcher (QueryVerb/QueryOptions support it)
+# - QueryEngine implements the 11 verbs' real analysis logic against the semantic model
+# - QueryResult/QueryResultRenderer/QueryResultSerializerContext implement the shared,
+#   verb-agnostic Markdown/JSON output layer
+# - Requirements describe observable behavior of the query command's parsing, validation,
+#   dispatch, and per-verb analysis/output
+
+sections:
+  - title: Query Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Tool-Query-VerbGrammar
+        title: >-
+          The query command shall accept a verb token immediately following `query` and
+          recognize the 11 verbs uses, used-by, impact, describe, hierarchy, requirements,
+          interface, connections, states, list, and find.
+        justification: |
+          A fixed, positional verb vocabulary keeps the query grammar simple and predictable
+          for both human and AI-assisted callers, matching the verb set already fixed by
+          ROADMAP.md's "Model query & analysis" design.
+        tests:
+          - Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb
+          - QuerySubsystem_AnyVerb_WithValidInput_DispatchesToRealLogic
+
+      - id: SysML2Tools-Tool-Query-UnknownVerb
+        title: >-
+          The query command shall report a clear error naming the invalid token when an
+          unrecognized verb is supplied.
+        justification: |
+          Clear feedback for an unrecognized verb helps users (and AI callers) quickly
+          correct mistakes instead of silently misinterpreting the token as a file pattern.
+        tests:
+          - Context_Create_QueryCommand_UnknownVerb_ThrowsArgumentException
+          - QuerySubsystem_UnknownVerb_ThrowsArgumentException
+
+      - id: SysML2Tools-Tool-Query-ElementRequired
+        title: >-
+          The query command shall require the --element (-e) option for every verb except
+          list and find, and report a clear error when it is missing.
+        justification: |
+          Every verb except the workspace-wide enumeration verbs operates on a single named
+          target element; requiring it explicitly prevents ambiguous or accidental
+          whole-workspace analysis.
+        tests:
+          - QuerySubsystem_ElementRequiredVerb_MissingElement_ThrowsArgumentException
+          - QuerySubsystem_ListVerb_NoElementNoFiles_ReportsNoInputFilesError
+          - QuerySubsystem_FindVerb_NoElementNoFiles_ReportsNoInputFilesError
+          - Context_Create_QueryCommand_WithElementFlag_SetsElement
+          - Context_Create_QueryCommand_WithShortElementFlag_SetsElement
+
+      - id: SysML2Tools-Tool-Query-Format
+        title: >-
+          The query command shall accept --format markdown or --format json, defaulting to
+          markdown, independently of the render command's --format (svg/png) values.
+        justification: |
+          Reusing the --format flag name for both commands (with command-specific accepted
+          values) avoids a duplicate flag while keeping each command's output format concern
+          self-contained.
+        tests:
+          - Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat
+          - Context_Create_QueryCommand_WithFormatJson_SetsQueryFormat
+          - QuerySubsystem_FormatMarkdown_DispatchesWithoutError
+          - QuerySubsystem_FormatJson_DispatchesWithoutError
+
+      - id: SysML2Tools-Tool-Query-OutputFormat
+        title: >-
+          Markdown and JSON output for the same query shall contain the same set of
+          qualified names in the same deterministic (alphabetical, ordinal-by-qualified-name)
+          order, regardless of which verb produced the result.
+        justification: |
+          A single shared renderer (QueryResultRenderer) sorts entries exactly once, so no
+          verb implementation can accidentally produce out-of-order or format-inconsistent
+          output; deterministic ordering is required for stable diffs and reproducible
+          AI-assisted analysis workflows.
+        tests:
+          - Query_MarkdownAndJsonFormats_AgreeOnEntryContentAndOrder
+          - RenderMarkdown_UnorderedEntries_SortsByQualifiedNameOrdinal
+          - RenderJson_UnorderedEntries_SortsByQualifiedNameOrdinal
+
+      - id: SysML2Tools-Tool-Query-StdlibFilter
+        title: >-
+          Every verb shall exclude stdlib-seeded elements from its results by default, and
+          include them when --include-stdlib is supplied.
+        justification: |
+          Most model-analysis questions concern user-authored elements; hiding the large
+          stdlib surface by default keeps output focused, while --include-stdlib supports the
+          rarer case of auditing library usage.
+        tests:
+          - Context_Create_QueryCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue
+          - List_IncludeStdlib_TogglesStandardLibraryVisibility
+
+      - id: SysML2Tools-Tool-Query-ElementNotFound
+        title: >-
+          The query command shall report a clear error naming the target element when it is
+          not found in the loaded workspace, for every verb that requires an element.
+        justification: |
+          A precise "element not found" message (rather than a null-reference failure or
+          silent empty result) helps users quickly detect typos in qualified names.
+        tests:
+          - Query_ElementNotFound_ReportsErrorAndNonZeroExitCode
+
+      - id: SysML2Tools-Tool-Query-Uses
+        title: >-
+          The uses verb shall report the target element's outgoing edges (supertypes,
+          typing, imports, and connection/transition/allocation endpoints it originates),
+          excluding stdlib targets unless --include-stdlib is supplied.
+        justification: |
+          "What does this element depend on?" is a foundational model-comprehension question;
+          exposing the semantic index's outgoing-edge view directly answers it without manual
+          model inspection.
+        tests:
+          - Uses_ReportsOutgoingSupertypeTypingImportEdges
+
+      - id: SysML2Tools-Tool-Query-UsedBy
+        title: >-
+          The used-by verb shall report the target element's incoming edges via the semantic
+          index's reverse index, excluding stdlib sources unless --include-stdlib is
+          supplied.
+        justification: |
+          "What depends on this element?" (the reverse of uses) is essential for assessing
+          the safety of changing or removing an element.
+        tests:
+          - UsedBy_ReportsIncomingReferences
+
+      - id: SysML2Tools-Tool-Query-Impact
+        title: >-
+          The impact verb shall compute the transitive closure of used-by edges from the
+          target element, optionally bounded by --depth, cycle-guarded against infinite
+          loops.
+        justification: |
+          A single-hop used-by view understates true blast radius for deeply-referenced
+          elements; a bounded transitive closure gives a practical, terminating answer to
+          "what breaks if I change this?".
+        tests:
+          - Impact_DepthOne_OnlyReachesDirectReferences
+          - Impact_Unbounded_ReachesTransitiveClosure
+
+      - id: SysML2Tools-Tool-Query-Describe
+        title: >-
+          The describe verb shall report the target element's own kind, qualified name,
+          resolved supertypes, typing, annotations (comments/documentation), and direct
+          children.
+        justification: |
+          A single-element "fact sheet" is the most common starting point for model
+          exploration, consolidating information otherwise scattered across the raw source.
+        tests:
+          - Describe_ReportsKindSupertypesAnnotationsAndChildren
+          - Describe_MultiLineComment_CollapsesToSingleSummaryLine
+          - Describe_CommentsFixture_ReportsAnnotations
+
+      - id: SysML2Tools-Tool-Query-Hierarchy
+        title: >-
+          The hierarchy verb shall report the target element's supertype/subtype tree,
+          respecting --direction (up/down/both), cycle-guarded against infinite loops.
+        justification: |
+          Generalization hierarchies are frequently deep and multi-branch; a dedicated
+          traversal answers "what is this related to via specialization?" without manual
+          recursive lookups.
+        tests:
+          - Hierarchy_DirectionUp_ReportsOnlySupertypes
+          - Hierarchy_DirectionDown_ReportsOnlySubtypes
+          - Hierarchy_DirectionBoth_ReportsSupertypesAndSubtypes
+          - Hierarchy_GeneralizationExampleFixture_ReportsSupertypes
+
+      - id: SysML2Tools-Tool-Query-Requirements
+        title: >-
+          The requirements verb shall report satisfy/verify/allocate edges where the target
+          element is either the source or the target, labeled with edge direction.
+        justification: |
+          Requirements traceability (what satisfies/verifies/allocates to what) is a core
+          systems-engineering question that the requirements verb answers directly from the
+          semantic model built in unit 3.
+        tests:
+          - Requirements_ReportsSatisfyVerifyAndAllocateEdges
+          - Requirements_RequirementSatisfactionFixture_ReportsAtLeastOneRelationship
+
+      - id: SysML2Tools-Tool-Query-Interface
+        title: >-
+          The interface verb shall report the target definition's ports and typed features.
+        justification: |
+          A definition's externally-visible interface (ports, typed features) is what other
+          elements connect to; surfacing it directly supports interface-compatibility
+          analysis.
+        tests:
+          - Interface_ReportsPortsAndTypedFeatures
+
+      - id: SysML2Tools-Tool-Query-Connections
+        title: >-
+          The connections verb shall report the target element's resolved connection
+          endpoints (including dotted feature-chain resolution), labeled with the
+          connector's keyword (connect/connection/message).
+        justification: |
+          Connection topology is not directly visible in the semantic index's global edge
+          list (Connect edges live only on each connector node's own resolved edges); the
+          connections verb performs the necessary node walk so callers do not need to know
+          this implementation detail.
+        tests:
+          - Connections_ReportsResolvedEndpointsIncludingFeatureChain
+          - Connections_ConnectionsExampleFixture_ReportsAtLeastOneEndpoint
+
+      - id: SysML2Tools-Tool-Query-States
+        title: >-
+          The states verb shall report the target element's nested states and their guarded
+          transitions.
+        justification: |
+          State machine structure (states and their transitions) is a distinct model
+          dimension from generalization/composition; the states verb answers "what states
+          and transitions exist here?" directly.
+        tests:
+          - States_ReportsStatesAndGuardedTransitions
+          - States_StateDecompositionFixture_ReportsStatesAndTransitions
+
+      - id: SysML2Tools-Tool-Query-List
+        title: >-
+          The list verb shall enumerate workspace declarations, optionally filtered by
+          --kind (substring match on element kind) and --name (substring match on qualified
+          name), without requiring --element.
+        justification: |
+          Workspace-wide enumeration is a prerequisite for discovering element names before
+          querying them individually, and for kind-based inventories (e.g., "list every
+          requirement").
+        tests:
+          - List_NoFilters_ReturnsAllNonStdlibElements
+          - List_KindFilter_OnlyMatchesGivenKind
+          - List_NameFilter_OnlyMatchesGivenSubstring
+
+      - id: SysML2Tools-Tool-Query-Find
+        title: >-
+          The find verb shall perform the same workspace-wide search as list, but shall
+          require at least one of --kind/--name, reporting a clear error otherwise.
+        justification: |
+          find is intended as a targeted fuzzy/substring search, not an unfiltered dump;
+          requiring a filter prevents accidental whole-workspace output when a targeted
+          search was intended.
+        tests:
+          - Find_WithNameFilter_Succeeds
+          - Find_WithoutFilter_ThrowsArgumentException
+
+      - id: SysML2Tools-Tool-Query-Help
+        title: >-
+          The query command shall render general help listing all 11 verbs when invoked as
+          `query --help` with no verb, and verb-specific help when invoked as
+          `query <verb> --help`, in both cases without requiring --element.
+        justification: |
+          Per-verb help lets users discover each verb's specific options without needing
+          --element to be present merely to view help output.
+        tests:
+          - QuerySubsystem_QueryHelp_NoVerb_PrintsGeneralHelpWithoutThrowing
+          - QuerySubsystem_QueryVerbHelp_WithVerb_PrintsVerbHelpWithoutThrowing
+          - Context_Create_QueryCommand_NoVerbWithHelp_LeavesQueryNull
+
+      - id: SysML2Tools-Tool-Query-LocalizableHelpText
+        title: >-
+          The query command's help text (QueryCommand.PrintGeneralHelp/PrintVerbHelp) shall
+          be sourced from culture-aware .resx resources via ResourceManager, falling back to
+          invariant English, so a future locale-specific .resx requires no code change.
+        justification: |
+          Mirrors the Program subsystem's resx-based localization approach so query's help
+          text (the largest and most detailed of the four subsystems) is not left as an
+          inconsistent set of hardcoded string literals.
+        tests:
+          - ResxResource_EveryKey_ResolvesToNonEmptyText
+          - ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity
+
+      - id: SysML2Tools-Tool-Query-HelpEnrichment
+        title: >-
+          Verb-specific help (`query <verb> --help`) shall include one real example
+          invocation drawn from the bundled VehicleExample fixture and a shared
+          Markdown/JSON output-shape schema hint, and general help (`query --help`) shall
+          include a "typical workflow" note recommending `list`/`find` before element-scoped
+          verbs.
+        justification: |
+          A fixed vocabulary of 11 verbs with deeply-nested qualified-name arguments is hard
+          to use from help text alone; a real, runnable example per verb and an explicit
+          discovery-first workflow tip make the CLI directly usable without external
+          documentation, especially for AI-assisted callers.
+        tests:
+          - QuerySubsystem_QueryVerbHelp_MentionsExampleInvocationAndSchemaHints
+          - QuerySubsystem_QueryHelp_NoVerb_MentionsTypicalWorkflow

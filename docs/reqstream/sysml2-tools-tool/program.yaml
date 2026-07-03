@@ -41,3 +41,17 @@ sections:
           programmatically via the process exit code.
         tests:
           - Program_Main_WithInvalidArgs_ReturnsNonZeroExitCode
+
+      - id: SysML2Tools-Tool-Program-LocalizableHelpText
+        title: >-
+          The banner, top-level help, and "no command specified" message shall be sourced
+          from culture-aware .resx resources via ResourceManager, falling back to invariant
+          English, so a future locale-specific .resx requires no code change.
+        justification: |
+          Centralizing all top-level user-facing text in a resx-backed resource class
+          (rather than string literals scattered across Program.cs) allows a future
+          non-English locale to be added by dropping in a new .resx file, with zero
+          changes to the code that prints it.
+        tests:
+          - ResxResource_EveryKey_ResolvesToNonEmptyText
+          - ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity

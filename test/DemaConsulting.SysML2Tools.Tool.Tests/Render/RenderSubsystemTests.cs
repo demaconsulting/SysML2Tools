@@ -401,6 +401,36 @@ public class RenderSubsystemTests
     }
 
     /// <summary>
+    ///     RenderCommand with an unsupported --format value throws ArgumentException naming the
+    ///     bad value; validation happens in RunAsync, not at Context.Create parse time, mirroring
+    ///     the query command's --format validation.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_UnsupportedFormat_ThrowsArgumentException()
+    {
+        // Arrange: write a minimal valid SysML file to a temp location
+        var tempFile = Path.Combine(Path.GetTempPath(), $"render_bad_format_{Guid.NewGuid():N}.sysml");
+        await File.WriteAllTextAsync(tempFile, "package LoadTest {}", TestContext.Current.CancellationToken);
+
+        try
+        {
+            // Act: create the context with an unsupported --format value
+            using var context = Context.Create(["render", "--format", "xml", tempFile]);
+
+            // Assert: Program.RunAsync throws, naming the bad value
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() => Program.RunAsync(context));
+            Assert.Contains("xml", exception.Message);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
     ///     RenderCommand with --view selects a specific view and renders it successfully.
     /// </summary>
     [Fact]
@@ -433,6 +463,38 @@ public class RenderSubsystemTests
         {
             Console.SetOut(originalOut);
             Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     'render --help' now prints render-specific usage (a regression-proofing test for the
+    ///     command-aware help dispatch added alongside the 'help' command).
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_Help_PrintsRenderSpecificUsage()
+    {
+        // Arrange
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act
+            using var context = Context.Create(["render", "--help"]);
+            await Program.RunAsync(context);
+
+            // Assert: render-specific usage/options, not the generic top-level command list
+            var output = outWriter.ToString();
+            Assert.Contains("Usage: sysml2tools render [options] <files...>", output);
+            Assert.Contains("--output", output);
+            Assert.Contains("--auto", output);
+            Assert.DoesNotContain("Commands:", output);
+            Assert.Equal(0, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
         }
     }
 }

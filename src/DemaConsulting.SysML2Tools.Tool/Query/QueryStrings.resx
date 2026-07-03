@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Query_GeneralUsage" xml:space="preserve">
+    <value>Usage: sysml2tools query &lt;verb&gt; [options] &lt;files...&gt;</value>
+  </data>
+  <data name="Query_VerbsHeader" xml:space="preserve">
+    <value>Verbs:</value>
+  </data>
+  <data name="Query_VerbUses" xml:space="preserve">
+    <value>  uses           List the elements a given element uses</value>
+  </data>
+  <data name="Query_VerbUsedBy" xml:space="preserve">
+    <value>  used-by        List the elements that use a given element</value>
+  </data>
+  <data name="Query_VerbImpact" xml:space="preserve">
+    <value>  impact         Report the transitive impact of a change to a given element</value>
+  </data>
+  <data name="Query_VerbDescribe" xml:space="preserve">
+    <value>  describe       Describe a single element in detail</value>
+  </data>
+  <data name="Query_VerbHierarchy" xml:space="preserve">
+    <value>  hierarchy      Report the specialization/generalization hierarchy of a given element</value>
+  </data>
+  <data name="Query_VerbRequirements" xml:space="preserve">
+    <value>  requirements   List requirements satisfied, verified, or traced to a given element</value>
+  </data>
+  <data name="Query_VerbInterface" xml:space="preserve">
+    <value>  interface      Describe the ports and interfaces of a given element</value>
+  </data>
+  <data name="Query_VerbConnections" xml:space="preserve">
+    <value>  connections    List the connections attached to a given element</value>
+  </data>
+  <data name="Query_VerbStates" xml:space="preserve">
+    <value>  states         List the states and transitions of a given state-machine element</value>
+  </data>
+  <data name="Query_VerbList" xml:space="preserve">
+    <value>  list           List elements in the workspace, optionally filtered</value>
+  </data>
+  <data name="Query_VerbFind" xml:space="preserve">
+    <value>  find           Search the workspace for elements matching a filter</value>
+  </data>
+  <data name="Query_OptionsHeader" xml:space="preserve">
+    <value>Options:</value>
+  </data>
+  <data name="Query_GeneralOptionElement1" xml:space="preserve">
+    <value>  --element &lt;name&gt;, -e &lt;name&gt;  Qualified name of the target element (required for</value>
+  </data>
+  <data name="Query_GeneralOptionElement2" xml:space="preserve">
+    <value>                                every verb except 'list' and 'find')</value>
+  </data>
+  <data name="Query_GeneralOptionFormat1" xml:space="preserve">
+    <value>  --format markdown|json       Output format (default: markdown); note this is a</value>
+  </data>
+  <data name="Query_GeneralOptionFormat2" xml:space="preserve">
+    <value>                                different set of values than the 'render' command's</value>
+  </data>
+  <data name="Query_GeneralOptionFormat3" xml:space="preserve">
+    <value>                                --format (svg/png)</value>
+  </data>
+  <data name="Query_GeneralOptionDepth1" xml:space="preserve">
+    <value>  --depth &lt;#&gt;                  Maximum impact-walk depth ('impact' verb only); note</value>
+  </data>
+  <data name="Query_GeneralOptionDepth2" xml:space="preserve">
+    <value>                                this is the same flag as the 'render' command's</value>
+  </data>
+  <data name="Query_GeneralOptionDepth3" xml:space="preserve">
+    <value>                                diagram nesting --depth</value>
+  </data>
+  <data name="Query_GeneralOptionDirection" xml:space="preserve">
+    <value>  --direction up|down|both     Traversal direction ('hierarchy' verb only)</value>
+  </data>
+  <data name="Query_GeneralOptionKind" xml:space="preserve">
+    <value>  --kind &lt;kind&gt;                Element-kind filter ('list'/'find' verbs only)</value>
+  </data>
+  <data name="Query_GeneralOptionName" xml:space="preserve">
+    <value>  --name &lt;substring&gt;           Name substring filter ('list'/'find' verbs only)</value>
+  </data>
+  <data name="Query_GeneralOptionIncludeStdlib" xml:space="preserve">
+    <value>  --include-stdlib             Include OMG standard library elements in results</value>
+  </data>
+  <data name="Query_WorkflowNote1" xml:space="preserve">
+    <value>Typical workflow: run 'list' or 'find' first to discover exact qualified names in your</value>
+  </data>
+  <data name="Query_WorkflowNote2" xml:space="preserve">
+    <value>workspace (e.g., 'query list --kind "part def"'), then pass those qualified names to</value>
+  </data>
+  <data name="Query_WorkflowNote3" xml:space="preserve">
+    <value>element-scoped verbs (uses, used-by, impact, describe, hierarchy, requirements,</value>
+  </data>
+  <data name="Query_WorkflowNote4" xml:space="preserve">
+    <value>interface, connections, states) via --element.</value>
+  </data>
+  <data name="Query_VerbUsageWithElement" xml:space="preserve">
+    <value>Usage: sysml2tools query {0} --element &lt;name&gt; [options] &lt;files...&gt;</value>
+  </data>
+  <data name="Query_VerbUsageNoElement" xml:space="preserve">
+    <value>Usage: sysml2tools query {0} [options] &lt;files...&gt;</value>
+  </data>
+  <data name="Query_OptionElementRequired" xml:space="preserve">
+    <value>  --element &lt;name&gt;, -e &lt;name&gt;  Qualified name of the target element (required)</value>
+  </data>
+  <data name="Query_OptionDepthImpact" xml:space="preserve">
+    <value>  --depth &lt;#&gt;                   Maximum impact-walk depth (default: unlimited)</value>
+  </data>
+  <data name="Query_OptionDirectionHierarchy" xml:space="preserve">
+    <value>  --direction up|down|both      Traversal direction (default: both)</value>
+  </data>
+  <data name="Query_OptionKindListFind" xml:space="preserve">
+    <value>  --kind &lt;kind&gt;                 Element-kind filter</value>
+  </data>
+  <data name="Query_OptionNameListFind" xml:space="preserve">
+    <value>  --name &lt;substring&gt;            Name substring filter</value>
+  </data>
+  <data name="Query_OptionFormatVerb" xml:space="preserve">
+    <value>  --format markdown|json        Output format (default: markdown)</value>
+  </data>
+  <data name="Query_OptionIncludeStdlibVerb" xml:space="preserve">
+    <value>  --include-stdlib              Include OMG standard library elements in results</value>
+  </data>
+  <data name="Query_ExampleHeader" xml:space="preserve">
+    <value>Example:</value>
+  </data>
+  <data name="Query_Example_Uses" xml:space="preserve">
+    <value>  sysml2tools query uses --element VehicleDefinitions::Vehicle test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
+  </data>
+  <data name="Query_Example_UsedBy" xml:space="preserve">
+    <value>  sysml2tools query used-by --element VehicleDefinitions::Wheel test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
+  </data>
+  <data name="Query_Example_Impact" xml:space="preserve">
+    <value>  sysml2tools query impact --element VehicleDefinitions::Axle --depth 2 test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
+  </data>
+  <data name="Query_Example_Describe" xml:space="preserve">
+    <value>  sysml2tools query describe --element VehicleUsages::vehicle_C1 test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
+  </data>
+  <data name="Query_Example_Hierarchy" xml:space="preserve">
+    <value>  sysml2tools query hierarchy --element VehicleUsages::vehicle_C3 --direction up test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
+  </data>
+  <data name="Query_Example_Requirements" xml:space="preserve">
+    <value>  sysml2tools query requirements --element VehicleUsages::vehicle_C1 test/SysMLModels/OMG/examples/VehicleExample/*.sysml (illustrative syntax only -- this fixture defines no requirements)</value>
+  </data>
+  <data name="Query_Example_Interface" xml:space="preserve">
+    <value>  sysml2tools query interface --element VehicleDefinitions::Axle test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
+  </data>
+  <data name="Query_Example_Connections" xml:space="preserve">
+    <value>  sysml2tools query connections --element VehicleUsages::vehicle_C2::frontAxleAssembly::leftFrontMount test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
+  </data>
+  <data name="Query_Example_States" xml:space="preserve">
+    <value>  sysml2tools query states --element VehicleUsages::vehicle_C1::OperatingStates test/SysMLModels/OMG/examples/VehicleExample/*.sysml (illustrative; fixture has no state machine)</value>
+  </data>
+  <data name="Query_Example_List" xml:space="preserve">
+    <value>  sysml2tools query list --kind "part def" test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
+  </data>
+  <data name="Query_Example_Find" xml:space="preserve">
+    <value>  sysml2tools query find --name Wheel test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
+  </data>
+  <data name="Query_SchemaHint_Markdown" xml:space="preserve">
+    <value>Markdown output: a '# query &lt;verb&gt;[: &lt;element&gt;]' heading, an optional bullet-list summary, then a '| Qualified Name | Kind | Detail |' table (empty results print '_No entries._').</value>
+  </data>
+  <data name="Query_SchemaHint_Json" xml:space="preserve">
+    <value>JSON output: { "Verb", "Element", "Summary": [...], "Entries": [{ "QualifiedName", "Kind", "Detail", "Notes": [] }] }, entries sorted by QualifiedName.</value>
+  </data>
+</root>

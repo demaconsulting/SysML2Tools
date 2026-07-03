@@ -27,6 +27,13 @@ documentation, CI/CD pipelines, and AI-assisted modeling workflows.
 - **`lint` Command**: Load a workspace and report all diagnostics; exit non-zero if errors
   are present — suitable for CI/CD and AI-assisted model-fix loops
 - **`render` Command**: Load a workspace, resolve a view, and render to SVG or PNG
+- **`query` Command**: 11 model-analysis verbs (`uses`, `used-by`, `impact`, `describe`,
+  `hierarchy`, `requirements`, `interface`, `connections`, `states`, `list`, `find`) for AI
+  and human callers, with Markdown or JSON output — designed so an AI agent can query
+  architecture and traceability facts directly instead of reading raw `.sysml` files
+- **`help` Command**: Print help for the tool itself, a specific command
+  (`lint`/`render`/`query`), or a specific `query` verb — identical output to the
+  corresponding `<command> --help`
 - **GeneralView Layout**: Package-grouped definition block diagrams placed by a layered (ELK-style)
   engine with orthogonal specialization and membership edges, depth-coded fill colors, compartments,
   and configurable depth limiting
@@ -85,6 +92,45 @@ sysml2tools render model.sysml --auto --output diagram.svg
 sysml2tools render model.sysml --output diagram.svg --depth 3
 ```
 
+### Querying
+
+```bash
+# What does this element depend on? (outgoing edges)
+sysml2tools query uses --element Pkg::MyPart model.sysml
+
+# What depends on this element? (incoming edges)
+sysml2tools query used-by --element Pkg::MyPart model.sysml
+
+# Fact sheet: kind, supertypes, typing, annotations, children
+sysml2tools query describe --element Pkg::MyPart model.sysml
+
+# List elements in the workspace, optionally filtered by kind and/or name
+sysml2tools query list --kind part --name Engine "src/**/*.sysml"
+
+# JSON output for scripting/automation
+sysml2tools query uses --element Pkg::MyPart model.sysml --format json
+```
+
+See [Querying](docs/user_guide/introduction.md#querying) in the user guide for the full
+verb reference and more examples.
+
+### Getting Help
+
+```bash
+# Top-level help (same as bare --help)
+sysml2tools help
+
+# Command-specific help (identical to `lint --help`/`render --help`)
+sysml2tools help lint
+sysml2tools help render
+
+# Query verb overview (identical to `query --help`)
+sysml2tools help query
+
+# Query verb-specific help (identical to `query <verb> --help`)
+sysml2tools help query hierarchy
+```
+
 ### Global Flags
 
 ```bash
@@ -111,7 +157,11 @@ sysml2tools --silent --log output.log
 sysml2tools [-v|--version] [-?|-h|--help] [--silent]
             [--validate] [--result|--results <file>] [--depth <#>] [--log <file>]
             [<verb> [verb-options] [<globs>]]
+sysml2tools help [lint|render|query [<query-verb>]]
 ```
+
+`<verb>` is `lint`, `render`, or `query <query-verb>` (11 query verbs — see
+[Querying](#querying)).
 
 ### Global Options
 
@@ -140,6 +190,27 @@ sysml2tools [-v|--version] [-?|-h|--help] [--silent]
 | `--view <name>` | Name of the view to render (required when workspace has multiple views) |
 | `--auto` | Auto-render the BDD of the top-level `part def` when no view is defined |
 | `--depth <#>` | Limit rendered nesting depth; truncated parts show `+N more…` |
+
+### `query` Options
+
+| Option | Description |
+| --- | --- |
+| `<verb>` | One of the 11 supported query verbs — see [Querying](#querying) |
+| `<globs>` | One or more glob patterns for `.sysml` input files |
+| `--element <name>`, `-e <name>` | Qualified name of the target element; required for every verb except `list`/`find` |
+| `--format markdown\|json` | Output format (default: `markdown`); distinct from `render`'s `--format` (`svg`/`png`) |
+| `--depth <#>` | Maximum impact-walk depth (`impact` verb only); shares the same flag as `render`'s nesting `--depth` |
+| `--direction up\|down\|both` | Traversal direction (`hierarchy` verb only) |
+| `--kind <kind>` | Element-kind filter (`list`/`find` verbs only) |
+| `--name <substring>` | Name substring filter (`list`/`find` verbs only) |
+| `--include-stdlib` | Include OMG standard library elements in results |
+
+### `help` Options
+
+| Option | Description |
+| --- | --- |
+| `[command]` | Optional: `lint`, `render`, or `query`; omit for top-level help |
+| `[verb]` | Optional; only meaningful when `command` is `query` — one of the 11 supported query verbs |
 
 ## View Selection
 

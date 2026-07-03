@@ -47,11 +47,18 @@ system, subsystem, and unit levels:
     - **AstSerializer** (Unit) — serializes SymbolTable + diagnostics to UTF-8 JSON bytes
     - **AstDeserializer** (Unit) — deserializes bytes back to SymbolTable + diagnostics
     - **Internal** (Subsystem) — internal semantic implementation
-      - **SysmlNode** (Unit) — public AST node hierarchy: eight types with JSON polymorphism
+      - **SysmlNode** (Unit) — public AST node hierarchy: nine types with JSON polymorphism
       - **AstBuilder** (Unit) — builds AST from ANTLR4 CST with qualified names and supertype lists
       - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes
-      - **ReferenceResolver** (Unit) — resolves supertype references; detects circular imports
+      - **ReferenceResolver** (Unit) — resolves supertype, typing, import, satisfy, verify,
+        allocate, and (in a second pass) dotted feature-chain connect/transition references;
+        detects circular imports; returns a `SemanticIndex` of resolved edges
       - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
+      - **SysmlEdge** (Unit) — public resolved-reference record (Supertype/Typing/Import/
+        Satisfy/Verify/Allocate/Connect/Transition)
+      - **SemanticIndex** (Unit) — public reverse-lookup index over resolved `SysmlEdge` instances
+      - **SysmlAnnotation** (Unit) — public captured-comment/documentation record
+        (Comment/Documentation)
       - **SerializedStdlib** (Unit) — DTO for stdlib binary serialization
       - **AstSerializerContext** (Unit) — source-generated JSON context for AOT-safe serialization
 - **DemaConsulting.SysML2Tools.Stdlib** (System) — stdlib library: pre-compiled SysML v2 standard
@@ -97,6 +104,11 @@ system, subsystem, and unit levels:
     - **LintCommand** (Unit) — resolves glob patterns, invokes WorkspaceLoader with stdlib seed, reports diagnostics
   - **Render** (Subsystem) — render command implementation
     - **RenderCommand** (Unit) — loads workspace with stdlib seed, selects renderer, writes diagram output files
+  - **Help** (Subsystem) — help command implementation; pure dispatch to the single source of
+    truth for each command's help text (`Program.PrintTopLevelHelp`, `LintCommand.PrintHelp`,
+    `RenderCommand.PrintHelp`, `QueryCommand.PrintGeneralHelp`/`PrintVerbHelp`)
+    - **HelpCommand** (Unit) — parses the optional target command/verb and dispatches to that
+      command's help-printing method
   - **SelfTest** (Subsystem) — self-validation test runner
     - **Validation** (Unit) — self-validation test runner
   - **Utilities** (Subsystem) — shared utilities
@@ -133,7 +145,8 @@ reviewers an explicit navigation aid from design to code:
       - **Internal/** — internal implementation (SysmlDiagnosticListener)
     - **Semantic/** — semantic model subsystem
       - **Internal/** — internal implementation (SysmlNode, AstBuilder, SymbolTable,
-        ReferenceResolver, SupertypeWalker, SerializedStdlib, AstSerializerContext)
+        ReferenceResolver, SupertypeWalker, SysmlEdge, SemanticIndex, SysmlAnnotation,
+        SerializedStdlib, AstSerializerContext)
   - **DemaConsulting.SysML2Tools.Stdlib/** — stdlib library
     - **Stdlib/** — SysML v2 standard library source files (EPL-2.0; see Stdlib/README.md)
   - **DemaConsulting.SysML2Tools.Core/** — core library
@@ -143,6 +156,7 @@ reviewers an explicit navigation aid from design to code:
   - **DemaConsulting.SysML2Tools.Tool/** — dotnet tool CLI wrapper
     - **Cli/** — command-line interface subsystem
     - **Lint/** — lint command subsystem
+    - **Help/** — help command subsystem
     - **SelfTest/** — self-validation subsystem
     - **Utilities/** — shared utilities subsystem
   - **Tools/StdlibGen/** — build-time stdlib pre-compiler tool
@@ -154,6 +168,7 @@ reviewers an explicit navigation aid from design to code:
     - **cli/** — Cli subsystem design
     - **lint/** — Lint subsystem design
     - **render/** — Render subsystem design (render.md)
+    - **help.md** — Help subsystem design
     - **self-test/** — SelfTest subsystem design
     - **utilities/** — Utilities subsystem design
 

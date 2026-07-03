@@ -8,13 +8,15 @@ a paid GUI tool or a non-.NET runtime dependency.
 
 A secondary audience is AI agents iterating on SysML v2 models: the `lint` command provides
 structured diagnostic output (file, line, column, severity) that enables a model-fix loop
-without requiring a rendered diagram.
+without requiring a rendered diagram, and the `query` command lets an AI agent answer
+architecture and traceability questions (dependencies, requirement trace links, structure,
+behavior) directly from the semantic model instead of reading raw `.sysml` files.
 
 ## Purpose
 
 This guide covers the installation, configuration, and use of SysML2Tools. It describes
-the `lint` and `render` commands, the global CLI flags, view selection behavior, output
-formats, and depth limiting.
+the `lint`, `render`, `query`, and `help` commands, the global CLI flags, view selection
+behavior, output formats, and depth limiting.
 
 ## Scope
 
@@ -23,6 +25,8 @@ This user guide covers:
 - Installation via `dotnet tool install`
 - Linting SysML v2 workspaces with the `lint` command
 - Rendering diagrams with the `render` command
+- Querying the semantic model with the `query` command
+- Getting command and verb-specific help with the `help` command
 - Global CLI options
 - View selection and depth limiting
 - Self-validation for tool qualification evidence
@@ -122,6 +126,78 @@ sysml2tools render model.sysml --output diagram.svg --depth 3
 PNG output uses an embedded Noto Sans font to guarantee pixel-identical output across
 Windows, Linux, and macOS.
 
+# Querying
+
+The `query` command loads a workspace, resolves the semantic model, and answers
+model-comprehension and analysis questions via 11 verbs. Every verb accepts
+`--format markdown` (default) or `--format json`, and `--include-stdlib` to include
+standard-library elements (excluded by default). Output is always sorted alphabetically by
+qualified name, regardless of format, for stable and reproducible results.
+
+`query <verb> --help` (and `help query <verb>`) shows a real example invocation for that
+verb and a schema hint describing the Markdown/JSON output shape; `query --help` (and
+`help query`, with no verb) shows a "typical workflow" note recommending `list`/`find` first
+to discover exact qualified names before using an element-scoped verb.
+
+```bash
+# What does this element depend on? (outgoing edges: supertypes, typing, imports)
+sysml2tools query uses --element Model::Vehicle "src/**/*.sysml"
+
+# What depends on this element? (incoming edges)
+sysml2tools query used-by --element Model::Engine "src/**/*.sysml"
+
+# Transitive blast radius of a change, optionally bounded
+sysml2tools query impact --element Model::Engine --depth 2 "src/**/*.sysml"
+
+# A single-element "fact sheet": kind, supertypes, typing, annotations, children
+sysml2tools query describe --element Model::Vehicle "src/**/*.sysml"
+
+# Supertype/subtype tree
+sysml2tools query hierarchy --element Model::Vehicle --direction both "src/**/*.sysml"
+
+# Requirement satisfy/verify/allocate relationships
+sysml2tools query requirements --element Model::Requirements::TopSpeed "src/**/*.sysml"
+
+# Ports and typed features exposed by a definition
+sysml2tools query interface --element Model::Vehicle "src/**/*.sysml"
+
+# Resolved connection endpoints (including dotted feature chains)
+sysml2tools query connections --element Model::Vehicle "src/**/*.sysml"
+
+# States and guarded transitions
+sysml2tools query states --element Model::VehicleStates "src/**/*.sysml"
+
+# Enumerate elements matching a kind and/or name substring
+sysml2tools query list --kind requirement "src/**/*.sysml"
+sysml2tools query find --name Engine "src/**/*.sysml" --format json
+```
+
+## Query Output Formats
+
+| Format | Flag | Notes |
+| --- | --- | --- |
+| Markdown | default, or `--format markdown` | Heading, summary bullets, table — readable by humans and LLMs |
+| JSON | `--format json` | Source-generated (AOT-safe) serialization of the same result shape |
+
+Markdown and JSON renderings of the same query always contain the same qualified names in
+the same order, so either format can be relied on for automated comparisons.
+
+## Verb Reference
+
+| Verb | Requires `--element` | Answers |
+| --- | --- | --- |
+| `uses` | yes | What does this element depend on? |
+| `used-by` | yes | What depends on this element? |
+| `impact` | yes | What is transitively affected by a change (`--depth` to bound)? |
+| `describe` | yes | What is this element (kind, supertypes, typing, annotations, children)? |
+| `hierarchy` | yes | What is the supertype/subtype tree (`--direction up`\|`down`\|`both`)? |
+| `requirements` | yes | What satisfy/verify/allocate relationships involve this element? |
+| `interface` | yes | What ports/typed features does this definition expose? |
+| `connections` | yes | What is this element connected to? |
+| `states` | yes | What states and transitions does this element contain? |
+| `list` | no | Enumerate elements, optionally filtered by `--kind`/`--name` |
+| `find` | no | Search elements — requires `--kind` and/or `--name` |
+
 # Global Options
 
 The following global options are accepted before the verb:
@@ -135,6 +211,34 @@ The following global options are accepted before the verb:
 | `--results <file>`, `--result <file>` | Write validation results to `.trx` or `.xml` |
 | `--depth <#>` | Set heading depth for validation output (default: 1) |
 | `--log <file>` | Write all output to a log file |
+
+## Getting Help
+
+In addition to the global `-?`/`-h`/`--help` flag (see the table above), `help` is also a
+first-class top-level command: `sysml2tools help [command] [verb]`. Both forms produce
+identical output for the same target — `help <command>` and `<command> --help` share a
+single source of truth for each command's help text, so neither can drift out of sync with
+the other.
+
+```bash
+# Top-level help (same as bare --help)
+sysml2tools help
+
+# Command-specific help (identical to `lint --help`/`render --help`)
+sysml2tools help lint
+sysml2tools help render
+
+# Query verb overview (identical to `query --help`)
+sysml2tools help query
+
+# Query verb-specific help (identical to `query <verb> --help`)
+sysml2tools help query hierarchy
+```
+
+An unrecognized command or verb (e.g., `sysml2tools help bogus`, `sysml2tools help query
+bogus-verb`) reports a clear error naming the invalid token rather than crashing. Note that
+`--silent` suppresses `help`'s console output exactly as it suppresses every other command's
+output — there is no special case that lets `help` bypass `--silent`.
 
 # Self-Validation
 

@@ -17,6 +17,7 @@ namespace DemaConsulting.SysML2Tools.Semantic.Internal;
 [JsonDerivedType(typeof(SysmlViewpointNode), "viewpoint")]
 [JsonDerivedType(typeof(SysmlConnectionNode), "connection")]
 [JsonDerivedType(typeof(SysmlTransitionNode), "transition")]
+[JsonDerivedType(typeof(SysmlSatisfyNode), "satisfy")]
 public abstract class SysmlNode
 {
     /// <summary>
@@ -43,6 +44,44 @@ public abstract class SysmlNode
     ///     Gets the imported namespace names.
     /// </summary>
     public IReadOnlyList<string> ImportedNames { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    ///     Gets the raw requirement reference names verified by this node's nested <c>verify</c>
+    ///     members (from <c>requirementVerificationMember</c>), one entry per <c>verify</c>
+    ///     found directly or transitively nested in this node's specialized body (e.g. a
+    ///     <c>requirement</c>/<c>case</c>/<c>verification</c>/<c>analysis</c> body, or an
+    ///     <c>objective</c> nested within one). Resolved uniformly by <see cref="ReferenceResolver"/>
+    ///     into <see cref="SysmlEdgeKind.Verify"/> edges sourced from this node.
+    /// </summary>
+    public IReadOnlyList<string> VerifiedRequirementNames { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    ///     Gets or sets the resolved outgoing edges (supertype, typing, import) originating from
+    ///     this node, populated by <see cref="ReferenceResolver"/> after symbol-table
+    ///     construction. Empty until resolution has run (e.g., for stdlib-only nodes, which are
+    ///     registered but never passed through <see cref="ReferenceResolver.ResolveAll"/>).
+    /// </summary>
+    /// <remarks>
+    ///     Settable (not <c>init</c>) because resolution runs after AST construction and after
+    ///     the full symbol table is populated, mirroring the post-construction mutation pattern
+    ///     already used by <see cref="Semantic.SysmlWorkspace.AddDeclaration"/>.
+    /// </remarks>
+    public IReadOnlyList<SysmlEdge> ResolvedEdges { get; set; } = Array.Empty<SysmlEdge>();
+
+    /// <summary>
+    ///     Gets the comment and documentation annotations captured for this element, in source
+    ///     order. Populated by <see cref="AstBuilder"/> from <c>comment</c>/<c>documentation</c>
+    ///     members nested directly in this element's body.
+    /// </summary>
+    /// <remarks>
+    ///     An annotation with an explicit <c>about X</c> target is still attached to its
+    ///     lexically enclosing node rather than to the referenced element <c>X</c>; resolving
+    ///     explicit <c>about</c> targets is deferred to a future unit. Comments/docs nested
+    ///     inside a relationship body (e.g. <c>alias Car for Automobile { /* ... */ }</c>) are
+    ///     also not yet captured, since no <see cref="AstBuilder"/> visitor currently collects
+    ///     relationship bodies.
+    /// </remarks>
+    public IReadOnlyList<SysmlAnnotation> Annotations { get; init; } = Array.Empty<SysmlAnnotation>();
 }
 
 /// <summary>
@@ -120,7 +159,10 @@ public sealed class SysmlViewpointNode : SysmlNode
 public sealed class SysmlConnectionNode : SysmlNode
 {
     /// <summary>
-    ///     Gets the connection keyword (e.g., "connection", "binding").
+    ///     Gets the connection keyword. One of <c>"connection"</c>, <c>"message"</c>, or
+    ///     <c>"allocation"</c> (the latter reusing this node's endpoint shape for
+    ///     <c>allocate A to B</c>, since <c>allocationUsageDeclaration</c>'s <c>connectorPart</c>
+    ///     is the exact same grammar rule used by <c>connectionUsage</c>).
     /// </summary>
     public string ConnectionKeyword { get; init; } = string.Empty;
 
@@ -154,4 +196,24 @@ public sealed class SysmlTransitionNode : SysmlNode
     ///     Gets the guard expression text (the condition after <c>if</c>), or null when unguarded.
     /// </summary>
     public string? Guard { get; init; }
+}
+
+/// <summary>
+///     AST node representing a <c>satisfy X by Y;</c> requirement-satisfaction usage.
+/// </summary>
+public sealed class SysmlSatisfyNode : SysmlNode
+{
+    /// <summary>
+    ///     Gets the raw reference text of the requirement being satisfied (from
+    ///     <c>ownedReferenceSubsetting</c> when the <c>satisfy &lt;ref&gt;</c> form is used, or
+    ///     from the declared/typed name of the <c>satisfy requirement &lt;usageDeclaration&gt;</c>
+    ///     form), or null if it could not be determined.
+    /// </summary>
+    public string? RequirementName { get; init; }
+
+    /// <summary>
+    ///     Gets the raw reference text of the satisfying subject (from the <c>by &lt;subject&gt;</c>
+    ///     clause), or null when no <c>by</c> clause is present.
+    /// </summary>
+    public string? SubjectName { get; init; }
 }

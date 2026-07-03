@@ -126,6 +126,54 @@ public sealed class AstSerializerTests
     }
 
     /// <summary>
+    ///     Annotations are preserved through a round-trip, including kind and text.
+    /// </summary>
+    [Fact]
+    public void Serialize_Annotations_Preserved()
+    {
+        var table = new SymbolTable();
+        var node = new SysmlPackageNode
+        {
+            Name = "Pkg",
+            QualifiedName = "Pkg",
+            Annotations =
+            [
+                new SysmlAnnotation(SysmlAnnotationKind.Comment, " a comment "),
+                new SysmlAnnotation(SysmlAnnotationKind.Documentation, " some\nmulti-line\ndoc "),
+            ],
+        };
+        table.RegisterAll(node);
+
+        var bytes = AstSerializer.Serialize(table, []);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        var rt = result.Symbols["Pkg"];
+        Assert.Equal(2, rt.Annotations.Count);
+        Assert.Equal(SysmlAnnotationKind.Comment, rt.Annotations[0].Kind);
+        Assert.Equal(" a comment ", rt.Annotations[0].Text);
+        Assert.Equal(SysmlAnnotationKind.Documentation, rt.Annotations[1].Kind);
+        Assert.Equal(" some\nmulti-line\ndoc ", rt.Annotations[1].Text);
+    }
+
+    /// <summary>
+    ///     A node with no annotations round-trips with an empty (never null) Annotations list.
+    /// </summary>
+    [Fact]
+    public void Serialize_NoAnnotations_RoundTripsEmptyNotNull()
+    {
+        var table = new SymbolTable();
+        var node = new SysmlPackageNode { Name = "Pkg", QualifiedName = "Pkg" };
+        table.RegisterAll(node);
+
+        var bytes = AstSerializer.Serialize(table, []);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        var rt = result.Symbols["Pkg"];
+        Assert.NotNull(rt.Annotations);
+        Assert.Empty(rt.Annotations);
+    }
+
+    /// <summary>
     ///     Diagnostics are preserved through a round-trip.
     /// </summary>
     [Fact]
@@ -171,5 +219,54 @@ public sealed class AstSerializerTests
         Assert.NotNull(rt);
         Assert.Equivalent(new[] { "Base1", "Base2" }, rt.SupertypeNames);
         Assert.Equivalent(new[] { "NS1", "NS2" }, rt.ImportedNames);
+    }
+
+    /// <summary>
+    ///     The new <see cref="SysmlSatisfyNode"/> node type, the <c>"allocation"</c>
+    ///     <see cref="SysmlConnectionNode.ConnectionKeyword"/> variant, and
+    ///     <see cref="SysmlNode.VerifiedRequirementNames"/> all round-trip through the polymorphic
+    ///     <c>$type</c> discriminator without loss.
+    /// </summary>
+    [Fact]
+    public void Serialize_SatisfyAndAllocationNodes_RoundTrip()
+    {
+        var table = new SymbolTable();
+        table.RegisterAll(new SysmlSatisfyNode
+        {
+            Name = "sat",
+            QualifiedName = "sat",
+            RequirementName = "Spec",
+            SubjectName = "vehicle_design",
+        });
+        table.RegisterAll(new SysmlConnectionNode
+        {
+            Name = "alloc",
+            QualifiedName = "alloc",
+            ConnectionKeyword = "allocation",
+            EndpointA = "torqueGenerator",
+            EndpointB = "powerTrain",
+        });
+        table.RegisterAll(new SysmlDefinitionNode
+        {
+            Name = "verifyingCase",
+            QualifiedName = "verifyingCase",
+            DefinitionKeyword = "verification def",
+            VerifiedRequirementNames = ["MassRequirement"],
+        });
+
+        var bytes = AstSerializer.Serialize(table, []);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        var sat = Assert.IsType<SysmlSatisfyNode>(result.Symbols["sat"]);
+        Assert.Equal("Spec", sat.RequirementName);
+        Assert.Equal("vehicle_design", sat.SubjectName);
+
+        var alloc = Assert.IsType<SysmlConnectionNode>(result.Symbols["alloc"]);
+        Assert.Equal("allocation", alloc.ConnectionKeyword);
+        Assert.Equal("torqueGenerator", alloc.EndpointA);
+        Assert.Equal("powerTrain", alloc.EndpointB);
+
+        var verifyingCase = Assert.IsType<SysmlDefinitionNode>(result.Symbols["verifyingCase"]);
+        Assert.Equivalent(new[] { "MassRequirement" }, verifyingCase.VerifiedRequirementNames);
     }
 }

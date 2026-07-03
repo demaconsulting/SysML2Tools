@@ -4,7 +4,8 @@
 # PURPOSE:
 # - Define system-level requirements for the DemaConsulting.SysML2Tools.Language library
 # - Language library provides: ANTLR parser, SysmlNode AST types, AstBuilder, WorkspaceParser,
-#   SymbolTable, ReferenceResolver, SupertypeWalker, WorkspaceLoader, AstSerializer/AstDeserializer
+#   SymbolTable, ReferenceResolver, SupertypeWalker, SysmlEdge, SemanticIndex, SysmlAnnotation,
+#   WorkspaceLoader, AstSerializer/AstDeserializer
 
 sections:
   - title: SysML2Tools Language Requirements
@@ -47,3 +48,98 @@ sections:
           - Serialize_AllNodeTypes_RoundTrip
           - Serialize_Diagnostics_RoundTrip
           - Serialize_SupertypeAndImportedNames_Preserved
+
+      - id: SysML2Tools-Language-ReverseIndex
+        title: >-
+          The Language library shall persist resolved supertype, feature-typing, and import
+          references as edges on each AST node and expose a reverse-lookup index over all
+          resolved edges via the loaded workspace.
+        justification: |
+          A persisted, queryable reverse index over resolved qualified-name references is the
+          foundational data structure required by the `query` command's uses/used-by/impact/
+          hierarchy verbs, avoiding a re-resolution pass for every query invocation.
+        tests:
+          - WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge
+          - WorkspaceLoader_LoadAsync_ResolvedFeatureTyping_RecordsTypingEdge
+          - WorkspaceLoader_LoadAsync_UnresolvedFeatureTyping_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_WildcardImport_RecordsImportEdge
+          - WorkspaceLoader_LoadAsync_NamedImport_RecordsImportEdge
+          - WorkspaceLoader_LoadAsync_SupertypeAcrossEnclosingNamespace_RecordsResolvedTargetName
+          - WorkspaceLoader_LoadAsync_UnresolvedImport_ProducesWarningNoCrash
+          - WorkspaceLoader_LoadAsync_MultiKindFixtureModel_IndexAnswersIncomingAndOutgoingQueries
+
+      - id: SysML2Tools-Language-AnnotationCapture
+        title: >-
+          The Language library shall capture comment (`comment`) and documentation (`doc`)
+          annotating-element free text onto the AST node it lexically annotates, preserving
+          the text verbatim and in source order.
+        justification: |
+          SysML v2 comment/documentation text is fully parsed by the ANTLR grammar today but
+          silently dropped by the AST builder. Capturing it onto each node is the foundational
+          data required by the forthcoming `query` command's `describe` verb, and is purely
+          additive to the in-memory semantic model.
+        tests:
+          - WorkspaceLoader_LoadAsync_CommentOnly_CapturesCommentAnnotation
+          - WorkspaceLoader_LoadAsync_DocumentationOnly_CapturesDocumentationAnnotation
+          - WorkspaceLoader_LoadAsync_CommentAndDocumentation_CapturesBothInSourceOrder
+          - WorkspaceLoader_LoadAsync_NoAnnotations_AnnotationsIsEmptyNotNull
+          - WorkspaceLoader_LoadAsync_MultiLineAnnotation_PreservesTextVerbatim
+          - WorkspaceLoader_LoadAsync_DocumentationExampleFixture_CapturesExpectedDocText
+          - Serialize_Annotations_Preserved
+          - Serialize_NoAnnotations_RoundTripsEmptyNotNull
+
+      - id: SysML2Tools-Language-RequirementTraceEdges
+        title: >-
+          The Language library shall resolve requirement satisfaction (`satisfy X by Y`),
+          requirement verification (`verify`), and allocation (`allocate A to B`) references
+          into Satisfy/Verify/Allocate-kind edges recorded on the semantic index, gracefully
+          degrading to a Warning diagnostic with no edge when any side is unresolvable.
+        justification: |
+          Satisfy/Verify/Allocate edges are the requirement-traceability data the forthcoming
+          `query` command's trace/impact verbs need to answer "what satisfies/verifies this
+          requirement" and "what is this part allocated to" without a separate resolution pass.
+        tests:
+          - WorkspaceLoader_LoadAsync_SatisfyByName_RecordsSatisfyEdge
+          - WorkspaceLoader_LoadAsync_SatisfyUnresolvedSubject_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_SatisfyUnresolvedRequirement_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_SatisfyFeatureChainSubject_GracefullyUnresolved
+          - WorkspaceLoader_LoadAsync_VerifyOwnedReferenceSubsetting_RecordsVerifyEdge
+          - WorkspaceLoader_LoadAsync_VerifyTypedRequirementPlaceholder_RecordsVerifyEdge
+          - WorkspaceLoader_LoadAsync_VerifyNestedInObjectiveMember_RecordsVerifyEdge
+          - WorkspaceLoader_LoadAsync_VerifyUnresolvedReference_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_AllocateBinaryEnds_RecordsAllocateEdge
+          - WorkspaceLoader_LoadAsync_AllocateUnresolvedEnd_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_TraceEdges_ReverseIndexAnswersIncomingOutgoing
+          - WorkspaceLoader_LoadAsync_RequirementSatisfactionFixture_RecordsSatisfyEdge
+          - WorkspaceLoader_LoadAsync_8RequirementsFixture_RecordsSatisfyEdge
+          - WorkspaceLoader_LoadAsync_12bAllocationFixture_RecordsAllocateEdge
+          - WorkspaceLoader_LoadAsync_9VerificationSimplifiedFixture_RecordsVerifyEdge
+          - Serialize_SatisfyAndAllocationNodes_RoundTrip
+
+      - id: SysML2Tools-Language-FeatureChainResolution
+        title: >-
+          The Language library shall resolve dotted feature chains (e.g. `engine.fuelPort`,
+          `rearAxle.leftHalfAxle.axleToWheelPort`) referenced by connection/message endpoints and
+          transition source/target into Connect/Transition-kind edges recorded on the semantic
+          index, walking direct-child membership first and typing/supertype-inherited membership
+          second, gracefully degrading to a Warning diagnostic with no edge when any side is
+          unresolvable.
+        justification: |
+          Connect/Transition edges are the connector/state-topology data the forthcoming `query`
+          command's uses/used-by/impact verbs need to answer "what is this port connected to" and
+          "what transitions lead to/from this state" without a separate resolution pass.
+        tests:
+          - WorkspaceLoader_LoadAsync_ConnectionSingleSegmentEndpoints_RecordsConnectEdge
+          - WorkspaceLoader_LoadAsync_ConnectionTwoSegmentChain_ResolvesViaDirectChild
+          - WorkspaceLoader_LoadAsync_ConnectionTwoSegmentChain_ResolvesViaTypingFallback
+          - WorkspaceLoader_LoadAsync_ConnectionThreeSegmentChain_MixesDirectChildAndTypingFallback
+          - WorkspaceLoader_LoadAsync_ConnectionChain_ResolvesInheritedFeatureViaSupertype
+          - WorkspaceLoader_LoadAsync_ConnectionUnresolvedEndpoint_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_MessageEndpoints_RecordsConnectEdge
+          - WorkspaceLoader_LoadAsync_TransitionSourceAndTarget_RecordsTransitionEdge
+          - WorkspaceLoader_LoadAsync_TransitionImpliedSource_ProducesNoEdge
+          - WorkspaceLoader_LoadAsync_ConnectionChain_SupertypeCycleTerminatesGracefully
+          - WorkspaceLoader_LoadAsync_ConnectionsExampleFixture_RecordsConnectEdge
+          - WorkspaceLoader_LoadAsync_2aPartsInterconnectionFixture_RecordsConnectEdge
+          - WorkspaceLoader_LoadAsync_2cPartsInterconnectionFixture_RecordsConnectEdge
+          - WorkspaceLoader_LoadAsync_StateDefinitionExampleFixture_RecordsTransitionEdge

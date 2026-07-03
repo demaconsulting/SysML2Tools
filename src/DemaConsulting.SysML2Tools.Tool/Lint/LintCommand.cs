@@ -36,7 +36,9 @@ internal static class LintCommand
     /// <param name="context">The CLI context, supplying file patterns and output methods.</param>
     public static async Task RunAsync(Context context)
     {
-        var files = ResolveFiles(context.Files);
+        var options = context.Lint
+                      ?? throw new ArgumentException("lint: no lint options were parsed.", nameof(context));
+        var files = ResolveFiles(options.Files);
 
         if (files.Count == 0)
         {
@@ -70,6 +72,24 @@ internal static class LintCommand
         {
             context.WriteLine("lint: no errors found.");
         }
+    }
+
+    /// <summary>
+    ///     Prints help for the <c>lint</c> command.
+    /// </summary>
+    /// <param name="context">The CLI context for output.</param>
+    /// <remarks>
+    ///     The single source of truth for both <c>lint --help</c> and <c>help lint</c> — see
+    ///     <see cref="Help.HelpCommand"/> and <c>Program.RunAsync</c>'s command-aware help
+    ///     dispatch.
+    /// </remarks>
+    public static void PrintHelp(Context context)
+    {
+        context.WriteLine(LintStrings.Lint_Usage);
+        context.WriteLine("");
+        context.WriteLine(LintStrings.Lint_Description1);
+        context.WriteLine(LintStrings.Lint_Description2);
+        context.WriteLine(LintStrings.Lint_Description3);
     }
 
     /// <summary>

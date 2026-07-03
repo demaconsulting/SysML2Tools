@@ -120,12 +120,12 @@ sections:
       - id: Template-Context-RenderArgs
         title: >-
           The Context class shall parse the render command's --format and --output arguments
-          into the RendererFormat and OutputDirectory properties.
+          into the Render.Format and Render.OutputDirectory properties.
         justification: |
           The render command relies on Context to supply the renderer format and output
           directory without needing to re-parse command-line arguments. The render command
           token must also set Command to SysmlCommand.Render and collect subsequent
-          positional arguments into Files.
+          positional arguments into Render.Files.
         tests:
           - Context_Create_RenderCommand_SetsCommandRender
           - Context_Create_RenderCommand_WithFormat_SetsSvgFormat
@@ -134,3 +134,80 @@ sections:
           - Context_Create_RenderCommand_WithFiles_SetsFiles
           - Context_Create_RenderCommand_FormatWithoutValue_ThrowsArgumentException
           - Context_Create_RenderCommand_OutputWithoutValue_ThrowsArgumentException
+          - Context_Create_RenderCommand_WithUnsupportedFormatValue_DoesNotThrowAtParseTime
+
+      - id: SysML2Tools-Tool-Context-QueryDispatch
+        title: >-
+          The Context class shall parse the query command and its verb token into a
+          QueryOptions value without altering parsing behavior for lint/render.
+        justification: |
+          Centralizing query's argument parsing in Context (mirroring how lint/render are
+          already parsed) keeps a single, consistent argument-parsing entry point for all
+          commands while confining query-specific option fields to a dedicated QueryOptions
+          record so the existing lint/render properties are unaffected.
+        tests:
+          - Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb
+          - Context_Create_QueryCommand_UnknownVerb_ThrowsArgumentException
+          - Context_Create_QueryCommand_NoVerbWithHelp_LeavesQueryNull
+          - Context_Create_QueryCommand_WithElementFlag_SetsElement
+          - Context_Create_QueryCommand_WithShortElementFlag_SetsElement
+          - Context_Create_QueryCommand_WithDirectionFlag_SetsDirection
+          - Context_Create_QueryCommand_WithKindFlag_SetsKind
+          - Context_Create_QueryCommand_WithNameFlag_SetsNameFilter
+          - Context_Create_QueryCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue
+          - Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat
+          - Context_Create_QueryCommand_WithFormatJson_SetsQueryFormat
+          - Context_Create_QueryCommand_WithDepthFlag_SetsQueryDepth
+          - Context_Create_QueryCommand_WithFiles_SetsQueryFilesNotTopLevelFiles
+
+      - id: SysML2Tools-Tool-Context-CommandScoping
+        title: >-
+          The Context class shall dispatch argument parsing to a dedicated per-command parser
+          (lint, render, or query) that rejects any flag outside that command's own grammar,
+          naming both the unrecognized flag and the active command in the resulting
+          ArgumentException.
+        justification: |
+          A single shared argument-parsing switch across lint/render/query previously allowed
+          out-of-scope flags (e.g., render's --kind, or query's --auto) to be silently accepted
+          or misinterpreted. Scoping each command's flags to a dedicated parser (LintArgumentParser,
+          RenderArgumentParser, QueryArgumentParser) makes invalid combinations fail fast with a
+          clear, actionable error instead of being silently ignored.
+        tests:
+          - Context_Create_LintCommand_OutOfScopeAutoFlag_ThrowsArgumentException
+          - Context_Create_LintCommand_OutOfScopeKindFlag_ThrowsArgumentException
+          - Context_Create_RenderCommand_OutOfScopeKindFlag_ThrowsArgumentException
+          - Context_Create_RenderCommand_OutOfScopeElementFlag_ThrowsArgumentException
+          - Context_Create_QueryCommand_OutOfScopeAutoFlag_ThrowsArgumentException
+
+      - id: SysML2Tools-Tool-Context-QueryVerbRequired
+        title: >-
+          The Context class shall require a verb as the first token following the query
+          command, failing with a clear ArgumentException when the verb is absent unless
+          --help was requested.
+        justification: |
+          Previously, a missing query verb silently left Query null with no error, deferring
+          the failure to whatever downstream code happened to dereference Query. Requiring the
+          verb as a structural, eagerly-validated part of the query grammar (rather than a
+          lazily-inferred default case) surfaces the mistake immediately and clearly, except
+          when --help is requested, which intentionally shows general help instead.
+        tests:
+          - Context_Create_QueryCommand_NoVerbNoHelp_ThrowsArgumentException
+          - Context_Create_QueryCommand_NoVerbWithHelp_LeavesQueryNull
+
+      - id: SysML2Tools-Tool-Context-HelpDispatch
+        title: >-
+          The Context class shall recognize `help` as a command token, dispatching to
+          HelpArgumentParser and populating the HelpCommand property (distinct from the
+          existing boolean Help flag property) with the parsed target command/verb.
+        justification: |
+          Making `help` a genuine top-level command (rather than only a global flag) lets
+          `sysml2tools help [command] [verb]` be parsed through the same per-command dispatch
+          pattern already used for lint/render/query, keeping Context's argument-parsing
+          architecture uniform across all four commands.
+        tests:
+          - Context_Create_HelpCommand_NoArgs_PopulatesEmptyHelpOptions
+          - Context_Create_HelpCommand_WithLintTarget_SetsTargetCommand
+          - Context_Create_HelpCommand_WithRenderTarget_SetsTargetCommand
+          - Context_Create_HelpCommand_WithQueryVerbTarget_SetsTargetCommandAndVerb
+          - Context_Create_HelpCommand_UnknownTarget_ThrowsArgumentException
+          - Context_Create_HelpCommand_QueryUnknownVerb_ThrowsArgumentException

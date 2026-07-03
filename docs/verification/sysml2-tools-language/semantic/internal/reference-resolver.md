@@ -3,10 +3,11 @@
 ##### Verification Approach
 
 `ReferenceResolver` is an internal class verified indirectly through `WorkspaceLoaderTests`.
-Tests construct files with deliberate unresolved supertype references and circular import
-declarations, then call `WorkspaceLoader.LoadAsync` and assert that the returned diagnostics
-contain the expected Warning entries. The absence of an infinite loop is verified implicitly by
-test completion within the xUnit v3 timeout.
+Tests construct files with deliberate unresolved supertype, feature-typing, and import
+references and circular import declarations, then call `WorkspaceLoader.LoadAsync` and assert
+that the returned diagnostics contain the expected Warning entries and that
+`SysmlWorkspace.Index` contains the expected resolved `SysmlEdge` entries. The absence of an
+infinite loop is verified implicitly by test completion within the xUnit v3 timeout.
 
 ##### Test Environment
 
@@ -20,7 +21,12 @@ external services or additional configuration are required beyond a standard .NE
   containing that name.
 - A circular import chain between two files produces a `Warning`-severity diagnostic and
   `LoadAsync` returns (does not hang).
-- A resolved supertype name (registered in `SymbolTable`) produces no Warning diagnostic.
+- A resolved supertype name (registered in `SymbolTable`) produces no Warning diagnostic and
+  is recorded as a `Supertype`-kind `SysmlEdge`.
+- A resolved feature typing reference is recorded as a `Typing`-kind `SysmlEdge`; an
+  unresolved one produces a Warning diagnostic and no edge.
+- A resolved import reference (wildcard or named) is recorded as an `Import`-kind `SysmlEdge`;
+  an unresolved import reference produces a Warning diagnostic without crashing.
 
 ##### Test Scenarios
 
@@ -29,3 +35,9 @@ external services or additional configuration are required beyond a standard .NE
 | Unresolved supertype reference | `WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning` |
 | Circular import — terminates | `WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop` |
 | Resolved reference — no Warning | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
+| Resolved supertype records edge | `WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge` |
+| Resolved feature typing records edge | `WorkspaceLoader_LoadAsync_ResolvedFeatureTyping_RecordsTypingEdge` |
+| Unresolved typing — Warning, no edge | `WorkspaceLoader_LoadAsync_UnresolvedFeatureTyping_ProducesWarningNoEdge` |
+| Wildcard import records edge | `WorkspaceLoader_LoadAsync_WildcardImport_RecordsImportEdge` |
+| Named import records edge | `WorkspaceLoader_LoadAsync_NamedImport_RecordsImportEdge` |
+| Unresolved import — Warning, no crash | `WorkspaceLoader_LoadAsync_UnresolvedImport_ProducesWarningNoCrash` |

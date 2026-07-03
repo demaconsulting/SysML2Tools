@@ -9,7 +9,8 @@ operates as a second layer above the Parser subsystem, consuming ANTLR4 CSTs pro
 ### Interfaces
 
 The Semantic subsystem contains one public unit (`WorkspaceLoader`) and an internal subsystem
-(`Internal`) containing `AstBuilder`, `SymbolTable`, `ReferenceResolver`, and `SupertypeWalker`.
+(`Internal`) containing `AstBuilder`, `SymbolTable`, `ReferenceResolver`, `SupertypeWalker`,
+`SysmlEdge`, `SemanticIndex`, and `SysmlAnnotation`.
 
 ```mermaid
 flowchart TD
@@ -20,6 +21,7 @@ flowchart TD
             SymbolTable
             ReferenceResolver
             SupertypeWalker
+            SemanticIndex
         end
     end
     WorkspaceLoader --> AstBuilder
@@ -27,6 +29,7 @@ flowchart TD
     WorkspaceLoader --> ReferenceResolver
     WorkspaceLoader --> SupertypeWalker
     AstBuilder --> SymbolTable
+    ReferenceResolver --> SemanticIndex
 ```
 
 **WorkspaceLoader.LoadAsync**: Loads every file in the provided collection asynchronously,
@@ -52,8 +55,10 @@ optionally seeded with a pre-populated symbol table.
 
 - *Type*: Sealed class.
 - *Role*: Data container.
-- *Contract*: Exposes `IReadOnlyList<string> Files`, `IReadOnlySet<string> StdlibNames`, and
-  `IReadOnlyDictionary<string, SysmlNode> Declarations` mapping qualified names to declaration nodes.
+- *Contract*: Exposes `IReadOnlyList<string> Files`, `IReadOnlySet<string> StdlibNames`,
+  `IReadOnlyDictionary<string, SysmlNode> Declarations` mapping qualified names to declaration
+  nodes, and `SemanticIndex Index` — a reverse-lookup index over resolved supertype, typing,
+  and import edges (see Semantic Internal Subsystem).
 
 ### Design
 
@@ -61,15 +66,17 @@ optionally seeded with a pre-populated symbol table.
    constructor `new SymbolTable(seedSymbolTable.Symbols)` when a seed is provided, or creates an
    empty `SymbolTable` when `seedSymbolTable` is `null`.
 2. All caller-supplied file paths are dispatched via `Task.WhenAll`, each parsing
-   its content via `WorkspaceParser.ParseSourceToCst`, building an AST, and registering into
-   the same `SymbolTable`.
-3. `ReferenceResolver.ResolveAll` traverses all AST nodes, checks each supertype name against
-   the symbol table, and emits Warning diagnostics for unresolved references. It also builds
-   an import graph and performs cycle detection.
+   its content via `WorkspaceParser.ParseSourceToCst`, building an AST — capturing any
+   `comment`/`doc` annotating-element text onto each owning node's `Annotations` as it goes —
+   and registering into the same `SymbolTable`.
+3. `ReferenceResolver.ResolveAll` traverses all AST nodes, checks each supertype, feature-typing,
+   and import reference against the symbol table, and emits Warning diagnostics for unresolved
+   references. It also builds an import graph and performs cycle detection, and returns a
+   `SemanticIndex` over all resolved edges.
 4. `SupertypeWalker.WalkAll` traverses specialization chains for all symbols and emits Warning
    diagnostics for cyclic specialization.
-5. A `SysmlWorkspace` is constructed from the loaded file list and symbol table, and returned
-   in a `SysmlLoadResult`.
+5. A `SysmlWorkspace` is constructed from the loaded file list, symbol table, and the
+   `SemanticIndex` returned by `ResolveAll`, and returned in a `SysmlLoadResult`.
 
 ### Design Constraints
 

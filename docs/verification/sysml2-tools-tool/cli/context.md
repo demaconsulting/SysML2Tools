@@ -115,7 +115,7 @@ This scenario is tested by `Context_Create_DepthFlag_ExceedsMaxValue_SetsMaxRend
 by `Context_Create_DepthFlag_SetsMaxRenderDepth`.
 
 **Context_Create_ViewFlag_SetsViewName**: `Context.Create` is called with
-`["--view", "MyView"]`; `ViewName` equals `"MyView"`. This scenario is tested by
+`["render", "--view", "MyView"]`; `Render.ViewName` equals `"MyView"`. This scenario is tested by
 `Context_Create_ViewFlag_SetsViewName`.
 
 **Context_WriteLine_NotSilent_WritesToConsole**: A non-silent `Context` calls `WriteLine` with
@@ -147,3 +147,130 @@ scenario is tested by `Context_WriteError_WritesToLogFile`.
 `Context.Create` is called with `["--log", "/invalid/\x00path.log"]`; an
 `InvalidOperationException` is thrown because the log file cannot be opened. This
 scenario is tested by `Context_Create_LogFlag_InvalidPath_ThrowsInvalidOperationException`.
+
+**Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb**: `Context.Create` is called with
+`["query", <token>, "--element", "Pkg::Foo"]` for each of the 11 recognized verb tokens;
+`Command` equals `SysmlCommand.Query` and `Query.Verb` matches the token. This scenario is
+tested by the `[Theory]` `Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb`.
+
+**Context_Create_QueryCommand_UnknownVerb_ThrowsArgumentException**: `Context.Create` is
+called with `["query", "bogus"]`; an `ArgumentException` containing `"bogus"` is thrown.
+This scenario is tested by `Context_Create_QueryCommand_UnknownVerb_ThrowsArgumentException`.
+
+**Context_Create_QueryCommand_NoVerbWithHelp_LeavesQueryNull**: `Context.Create` is called
+with `["query", "--help"]`; `Command` equals `SysmlCommand.Query`, `Help` is true, and
+`Query` is null. This scenario is tested by
+`Context_Create_QueryCommand_NoVerbWithHelp_LeavesQueryNull`.
+
+**Context_Create_QueryCommand_WithElementFlag_SetsElement**: `Context.Create` is called with
+`["query", "uses", "--element", "Pkg::Foo"]`; `Query.Element` equals `"Pkg::Foo"`. This
+scenario is tested by `Context_Create_QueryCommand_WithElementFlag_SetsElement`.
+
+**Context_Create_QueryCommand_WithShortElementFlag_SetsElement**: `Context.Create` is called
+with `["query", "uses", "-e", "Pkg::Foo"]`; `Query.Element` equals `"Pkg::Foo"`, identical to
+`--element`. This scenario is tested by
+`Context_Create_QueryCommand_WithShortElementFlag_SetsElement`.
+
+**Context_Create_QueryCommand_WithDirectionFlag_SetsDirection**: `Context.Create` is called
+with `["query", "hierarchy", "--element", "Pkg::Foo", "--direction", "up"]`; `Query.Direction`
+equals `"up"`. This scenario is tested by
+`Context_Create_QueryCommand_WithDirectionFlag_SetsDirection`.
+
+**Context_Create_QueryCommand_WithKindFlag_SetsKind**: `Context.Create` is called with
+`["query", "list", "--kind", "part"]`; `Query.Kind` equals `"part"`. This scenario is tested
+by `Context_Create_QueryCommand_WithKindFlag_SetsKind`.
+
+**Context_Create_QueryCommand_WithNameFlag_SetsNameFilter**: `Context.Create` is called with
+`["query", "find", "--name", "Engine"]`; `Query.NameFilter` equals `"Engine"`. This scenario
+is tested by `Context_Create_QueryCommand_WithNameFlag_SetsNameFilter`.
+
+**Context_Create_QueryCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue**: `Context.Create`
+is called with `["query", "list", "--include-stdlib"]`; `Query.IncludeStdlib` is true. This
+scenario is tested by
+`Context_Create_QueryCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue`.
+
+**Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat**: `Context.Create` is
+called with `["query", "list", "--format", "markdown"]`; `Query.Format` equals `"markdown"`
+and `Context.Render` is null, confirming query's `--format` is interpreted independently of
+render's `--format` (they are separate typed properties, not a shared field). This scenario is
+tested by `Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat`.
+
+**Context_Create_QueryCommand_WithFormatJson_SetsQueryFormat**: `Context.Create` is called
+with `["query", "list", "--format", "json"]`; `Query.Format` equals `"json"`. This scenario
+is tested by `Context_Create_QueryCommand_WithFormatJson_SetsQueryFormat`.
+
+**Context_Create_QueryCommand_WithDepthFlag_SetsQueryDepth**: `Context.Create` is called with
+`["query", "impact", "--element", "Pkg::Foo", "--depth", "3"]`; `Query.Depth` equals 3 and
+`MaxRenderDepth` equals 3 (same underlying parsed value). This scenario is tested by
+`Context_Create_QueryCommand_WithDepthFlag_SetsQueryDepth`.
+
+**Context_Create_QueryCommand_WithFiles_SetsQueryFilesNotTopLevelFiles**: `Context.Create` is
+called with `["query", "list", "*.sysml"]`; `Query.Files` contains `"*.sysml"` while
+`Context.Lint`/`Context.Render` remain null, confirming query's positional files are kept
+separate from `lint`/`render`'s. This scenario is tested by
+`Context_Create_QueryCommand_WithFiles_SetsQueryFilesNotTopLevelFiles`.
+
+**Context_Create_LintCommand_OutOfScopeAutoFlag_ThrowsArgumentException**: `Context.Create` is
+called with `["lint", "--auto", "file.sysml"]`; an `ArgumentException` is thrown naming both
+`--auto` and `lint`, confirming `lint` rejects flags belonging to other commands instead of
+silently ignoring them. This scenario is tested by
+`Context_Create_LintCommand_OutOfScopeAutoFlag_ThrowsArgumentException`.
+
+**Context_Create_LintCommand_OutOfScopeKindFlag_ThrowsArgumentException**: `Context.Create` is
+called with `["lint", "--kind", "part", "file.sysml"]`; an `ArgumentException` is thrown naming
+both `--kind` and `lint`. This scenario is tested by
+`Context_Create_LintCommand_OutOfScopeKindFlag_ThrowsArgumentException`.
+
+**Context_Create_RenderCommand_OutOfScopeKindFlag_ThrowsArgumentException**: `Context.Create`
+is called with `["render", "--kind", "foo", "file.sysml"]`; an `ArgumentException` is thrown
+naming both `--kind` and `render`. This scenario is tested by
+`Context_Create_RenderCommand_OutOfScopeKindFlag_ThrowsArgumentException`.
+
+**Context_Create_RenderCommand_OutOfScopeElementFlag_ThrowsArgumentException**:
+`Context.Create` is called with `["render", "--element", "Pkg::Foo", "file.sysml"]`; an
+`ArgumentException` is thrown naming both `--element` and `render`. This scenario is tested by
+`Context_Create_RenderCommand_OutOfScopeElementFlag_ThrowsArgumentException`.
+
+**Context_Create_QueryCommand_OutOfScopeAutoFlag_ThrowsArgumentException**: `Context.Create`
+is called with `["query", "describe", "--auto", "file.sysml"]`; an `ArgumentException` is
+thrown naming both `--auto` and `query`. This scenario is tested by
+`Context_Create_QueryCommand_OutOfScopeAutoFlag_ThrowsArgumentException`.
+
+**Context_Create_QueryCommand_NoVerbNoHelp_ThrowsArgumentException**: `Context.Create` is
+called with `["query"]` (no verb token, no `--help`); a clear `ArgumentException` mentioning
+"verb" is thrown, rather than silently leaving `Query` null. This scenario is tested by
+`Context_Create_QueryCommand_NoVerbNoHelp_ThrowsArgumentException`.
+
+**Context_Create_RenderCommand_WithUnsupportedFormatValue_DoesNotThrowAtParseTime**:
+`Context.Create` is called with `["render", "--format", "xml", "file.sysml"]`; no exception is
+thrown at parse time (`Render.Format` captures the raw `"xml"` value); value validation is
+deferred to `RenderCommand.RunAsync`, mirroring `query`'s `--format` validation timing. This
+scenario is tested by
+`Context_Create_RenderCommand_WithUnsupportedFormatValue_DoesNotThrowAtParseTime`.
+
+**Context_Create_HelpCommand_NoArgs_PopulatesEmptyHelpOptions**: `Context.Create` is called
+with `["help"]`; `Command` equals `SysmlCommand.Help`, `HelpCommand` is non-null with both
+`TargetCommand` and `TargetVerb` null, and `Lint`/`Render`/`Query` all remain null. This
+scenario is tested by `Context_Create_HelpCommand_NoArgs_PopulatesEmptyHelpOptions`.
+
+**Context_Create_HelpCommand_WithLintTarget_SetsTargetCommand** /
+**Context_Create_HelpCommand_WithRenderTarget_SetsTargetCommand**: `Context.Create` is called
+with `["help", "lint"]` / `["help", "render"]`; `HelpCommand.TargetCommand` equals `"lint"` /
+`"render"` respectively, with `TargetVerb` null. These scenarios are tested by
+`Context_Create_HelpCommand_WithLintTarget_SetsTargetCommand` and
+`Context_Create_HelpCommand_WithRenderTarget_SetsTargetCommand`.
+
+**Context_Create_HelpCommand_WithQueryVerbTarget_SetsTargetCommandAndVerb**: `Context.Create`
+is called with `["help", "query", "uses"]`; `HelpCommand.TargetCommand` equals `"query"` and
+`HelpCommand.TargetVerb` equals `"uses"`. This scenario is tested by
+`Context_Create_HelpCommand_WithQueryVerbTarget_SetsTargetCommandAndVerb`.
+
+**Context_Create_HelpCommand_UnknownTarget_ThrowsArgumentException**: `Context.Create` is
+called with `["help", "bogus-command"]`; an `ArgumentException` containing
+`"bogus-command"` is thrown. This scenario is tested by
+`Context_Create_HelpCommand_UnknownTarget_ThrowsArgumentException`.
+
+**Context_Create_HelpCommand_QueryUnknownVerb_ThrowsArgumentException**: `Context.Create` is
+called with `["help", "query", "bogus-verb"]`; an `ArgumentException` containing
+`"bogus-verb"` is thrown (reusing `QueryVerbParsing.Parse`'s error message). This scenario is
+tested by `Context_Create_HelpCommand_QueryUnknownVerb_ThrowsArgumentException`.

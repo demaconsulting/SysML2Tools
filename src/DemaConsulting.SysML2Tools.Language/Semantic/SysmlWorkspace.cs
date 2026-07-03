@@ -67,4 +67,13 @@ public sealed class SysmlWorkspace
 
         _declarations[qualifiedName] = node;
     }
+
+    /// <summary>
+    ///     Gets the reverse-lookup index over resolved supertype, typing, and import edges.
+    /// </summary>
+    /// <remarks>
+    ///     Populated by <see cref="WorkspaceLoader"/> from <see cref="ReferenceResolver.ResolveAll"/>'s
+    ///     return value. Defaults to an empty index when the workspace has no resolved edges.
+    /// </remarks>
+    public SemanticIndex Index { get; init; } = new(Array.Empty<SysmlEdge>());
 }

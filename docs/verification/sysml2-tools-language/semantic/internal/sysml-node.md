@@ -23,6 +23,11 @@ external services or additional configuration are required beyond a standard .NE
   clause; the name is checked by `ReferenceResolver`.
 - `SysmlImportNode.ImportedNamespace` is extracted and used by `ReferenceResolver` to build
   the import graph.
+- `SysmlNode.ResolvedEdges` is populated by `ReferenceResolver` with the resolved outgoing
+  edges for a node that has at least one resolved supertype, typing, or import reference.
+- `SysmlNode.Annotations` is populated by `AstBuilder` with captured `comment`/`doc` text for
+  a node whose body contains one or more annotating elements, and is empty (never null) for a
+  node with none.
 
 ##### Test Scenarios
 
@@ -31,3 +36,5 @@ external services or additional configuration are required beyond a standard .NE
 | `SysmlPackageNode` construction | `WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration` |
 | `SysmlDefinitionNode` construction | `WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition` |
 | `SupertypeNames` population | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
+| `ResolvedEdges` populated | `WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge` |
+| `Annotations` populated | `WorkspaceLoader_LoadAsync_CommentAndDocumentation_CapturesBothInSourceOrder` |

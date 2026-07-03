@@ -21,6 +21,8 @@ temporary directory and clean them up after each test.
   `path(line,col): severity: message` format and sets exit code 1.
 - Error-severity diagnostics are written via `context.WriteError`; informational diagnostics
   are written via `context.WriteLine`.
+- `lint --help` prints lint-specific usage (not the generic top-level command list), and is
+  identical to `help lint`'s output (see the Help subsystem verification document).
 
 ### Test Scenarios
 
@@ -28,3 +30,17 @@ N/A — integration tests for the Lint subsystem are deferred pending end-to-end
 infrastructure. System-level acceptance evidence for the `lint` subcommand will be captured in
 integration tests alongside other subcommands. Parser-level behavior is verified by the
 `WorkspaceParser` unit tests documented in the *Parser Verification Design*.
+
+#### LintSubsystem_Help_PrintsLintSpecificUsage (LintSubsystemTests.cs)
+
+Verifies that `lint --help` prints the lint-specific usage line and does not print the
+generic top-level `"Commands:"` section — a regression-proofing test added alongside the
+`help` command's command-aware `--help` dispatch (see `docs/design/sysml2-tools-tool/help.md`).
+
+#### ResxResource_EveryKey_ResolvesToNonEmptyText / ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity (ResxResourceTests.cs)
+
+For the `LintStrings` resource base name/accessor pair (one of four covered by these theory
+tests), every key discovered in `Lint/LintStrings.resx`'s invariant-culture resource set
+resolves to non-null/non-empty text via `ResourceManager`, and every such key has a matching
+`public static string` property on `LintStrings` (and vice versa). Satisfies
+`SysML2Tools-Tool-Lint-LocalizableHelpText`.

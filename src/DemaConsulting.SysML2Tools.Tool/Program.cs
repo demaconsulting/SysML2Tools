@@ -18,9 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Globalization;
 using System.Reflection;
 using DemaConsulting.SysML2Tools.Cli;
+using DemaConsulting.SysML2Tools.Help;
 using DemaConsulting.SysML2Tools.Lint;
+using DemaConsulting.SysML2Tools.Query;
 using DemaConsulting.SysML2Tools.Render;
 using DemaConsulting.SysML2Tools.SelfTest;
 
@@ -118,10 +121,48 @@ internal static class Program
         // Print application banner
         PrintBanner(context);
 
-        // Priority 2: Help
+        // Priority 2: Help. The 'help' command (Command == Help) always prints help and returns,
+        // regardless of the 'context.Help' flag — this lets bare 'sysml2tools help' work without
+        // also requiring '--help'. Otherwise, when the global '--help'/'-h'/'-?' flag was
+        // supplied, dispatch is command-aware so 'lint --help'/'render --help'/'query --help'
+        // (and 'query <verb> --help') show command/verb-specific detail instead of the generic
+        // top-level help; every branch here delegates to the same single-source-of-truth methods
+        // used by the 'help' command (see HelpCommand.Run), so neither path duplicates help text.
+        if (context.Command == SysmlCommand.Help)
+        {
+            HelpCommand.Run(context);
+            return;
+        }
+
         if (context.Help)
         {
-            PrintHelp(context);
+            switch (context.Command)
+            {
+                case SysmlCommand.Lint:
+                    LintCommand.PrintHelp(context);
+                    break;
+
+                case SysmlCommand.Render:
+                    RenderCommand.PrintHelp(context);
+                    break;
+
+                case SysmlCommand.Query:
+                    if (context.Query is { } queryOptions)
+                    {
+                        QueryCommand.PrintVerbHelp(context, queryOptions.Verb);
+                    }
+                    else
+                    {
+                        QueryCommand.PrintGeneralHelp(context);
+                    }
+
+                    break;
+
+                default:
+                    PrintTopLevelHelp(context);
+                    break;
+            }
+
             return;
         }
 
@@ -142,35 +183,55 @@ internal static class Program
     /// <param name="context">The context for output.</param>
     private static void PrintBanner(Context context)
     {
-        context.WriteLine($"SysML2 Tools version {Version}");
-        context.WriteLine("Copyright (c) DEMA Consulting");
+        context.WriteLine(string.Format(CultureInfo.InvariantCulture, ProgramStrings.Banner_Version, Version));
+        context.WriteLine(ProgramStrings.Banner_Copyright);
         context.WriteLine("");
     }
 
     /// <summary>
-    ///     Prints usage information.
+    ///     Prints top-level usage information: the command list and global options.
     /// </summary>
     /// <param name="context">The context for output.</param>
-    private static void PrintHelp(Context context)
+    /// <remarks>
+    ///     Widened to <see langword="internal"/> (from <see langword="private"/>) so that
+    ///     <see cref="Help.HelpCommand"/> can call it directly for bare <c>help</c>/<c>--help</c>
+    ///     invocations, making this method the single source of truth for top-level help text.
+    /// </remarks>
+    internal static void PrintTopLevelHelp(Context context)
     {
-        context.WriteLine("Usage: sysml2tools [options] <command> [files...]");
+        context.WriteLine(ProgramStrings.TopLevel_Usage);
         context.WriteLine("");
-        context.WriteLine("Commands:");
-        context.WriteLine("  lint <files...>            Parse files and report syntax errors");
-        context.WriteLine("  render [options] <files..> Render view diagrams to SVG or PNG files");
+        context.WriteLine(ProgramStrings.TopLevel_CommandsHeader);
+        context.WriteLine(ProgramStrings.TopLevel_CommandLint);
+        context.WriteLine(ProgramStrings.TopLevel_CommandRender);
+        context.WriteLine(ProgramStrings.TopLevel_CommandQuery1);
+        context.WriteLine(ProgramStrings.TopLevel_CommandQuery2);
+        context.WriteLine(ProgramStrings.TopLevel_CommandQuery3);
+        context.WriteLine(ProgramStrings.TopLevel_CommandHelp1);
+        context.WriteLine(ProgramStrings.TopLevel_CommandHelp2);
         context.WriteLine("");
-        context.WriteLine("Options:");
-        context.WriteLine("  -v, --version              Display version information");
-        context.WriteLine("  -?, -h, --help             Display this help message");
-        context.WriteLine("  --silent                   Suppress console output");
-        context.WriteLine("  --validate                 Run self-validation");
-        context.WriteLine("  --results <file>           Write validation results to file (.trx or .xml)");
-        context.WriteLine("  --depth <#>                Set heading depth (1–6) and diagram render depth (default: 1)");
-        context.WriteLine("  --log <file>               Write output to log file");
-        context.WriteLine("  --output <dir>             Output directory for rendered files (render command)");
-        context.WriteLine("  --format <fmt>             Renderer format: svg (default) or png (render command)");
-        context.WriteLine("  --view <name>              Select a specific view to render (render command)");
-        context.WriteLine("  --auto                     Auto-generate a view when none are defined (render command)");
+        context.WriteLine(ProgramStrings.TopLevel_OptionsHeader);
+        context.WriteLine(ProgramStrings.TopLevel_OptionVersion);
+        context.WriteLine(ProgramStrings.TopLevel_OptionHelp);
+        context.WriteLine(ProgramStrings.TopLevel_OptionSilent);
+        context.WriteLine(ProgramStrings.TopLevel_OptionValidate);
+        context.WriteLine(ProgramStrings.TopLevel_OptionResults);
+        context.WriteLine(ProgramStrings.TopLevel_OptionDepth1);
+        context.WriteLine(ProgramStrings.TopLevel_OptionDepth2);
+        context.WriteLine(ProgramStrings.TopLevel_OptionDepth3);
+        context.WriteLine(ProgramStrings.TopLevel_OptionLog);
+        context.WriteLine(ProgramStrings.TopLevel_OptionOutput);
+        context.WriteLine(ProgramStrings.TopLevel_OptionFormat1);
+        context.WriteLine(ProgramStrings.TopLevel_OptionFormat2);
+        context.WriteLine(ProgramStrings.TopLevel_OptionFormat3);
+        context.WriteLine(ProgramStrings.TopLevel_OptionView);
+        context.WriteLine(ProgramStrings.TopLevel_OptionAuto);
+        context.WriteLine(ProgramStrings.TopLevel_OptionElement1);
+        context.WriteLine(ProgramStrings.TopLevel_OptionElement2);
+        context.WriteLine(ProgramStrings.TopLevel_OptionDirection);
+        context.WriteLine(ProgramStrings.TopLevel_OptionKind);
+        context.WriteLine(ProgramStrings.TopLevel_OptionName);
+        context.WriteLine(ProgramStrings.TopLevel_OptionIncludeStdlib);
     }
 
     /// <summary>
@@ -189,8 +250,12 @@ internal static class Program
                 await RenderCommand.RunAsync(context).ConfigureAwait(false);
                 break;
 
+            case SysmlCommand.Query:
+                await QueryCommand.RunAsync(context).ConfigureAwait(false);
+                break;
+
             default:
-                context.WriteLine("No command specified. Run 'sysml2tools --help' for usage.");
+                context.WriteLine(ProgramStrings.NoCommand_Message);
                 break;
         }
     }

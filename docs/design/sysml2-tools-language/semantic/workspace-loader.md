@@ -20,9 +20,11 @@ call to `LoadAsync` creates an independent `SymbolTable`.
    empty `SymbolTable` when `seedSymbolTable` is `null`.
 2. Dispatches all user file paths to `ParseUserFileAsync` in parallel via `Task.WhenAll`.
 3. Collects all AST roots and registers them into a shared `SymbolTable`.
-4. Runs `ReferenceResolver.ResolveAll` on all file roots.
+4. Runs `ReferenceResolver.ResolveAll` on all user file roots, capturing the returned
+   `SemanticIndex`.
 5. Runs `SupertypeWalker.WalkAll` on the populated symbol table.
-6. Constructs a `SysmlWorkspace` from the file list and symbol table.
+6. Constructs a `SysmlWorkspace` from the file list, symbol table, and the `SemanticIndex`
+   from step 4 (assigned to `SysmlWorkspace.Index`).
 7. Returns a `SysmlLoadResult(workspace, allDiagnostics)`.
 
 ##### `ParseUserFileAsync(string filePath)`
@@ -43,7 +45,8 @@ are caught and converted to a single Error diagnostic.
 - **WorkspaceParser** (`ParseSourceToCst`) — parses source text into an ANTLR4 CST.
 - **AstBuilder** (`Build`) — transforms CST roots into typed AST nodes.
 - **SymbolTable** (`RegisterAll`, `Symbols`) — stores and exposes all named declarations.
-- **ReferenceResolver** (`ResolveAll`) — checks supertype references and import cycles.
+- **ReferenceResolver** (`ResolveAll`) — checks supertype, typing, and import references and
+  import cycles; returns a `SemanticIndex` over all resolved edges.
 - **SupertypeWalker** (`WalkAll`) — detects cyclic specialization chains.
 
 #### Callers

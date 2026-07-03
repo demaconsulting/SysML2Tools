@@ -171,4 +171,35 @@ public class LintSubsystemTests
             }
         }
     }
+
+    /// <summary>
+    ///     'lint --help' now prints lint-specific usage (a regression-proofing test for the
+    ///     command-aware help dispatch added alongside the 'help' command).
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_Help_PrintsLintSpecificUsage()
+    {
+        // Arrange
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act
+            using var context = Context.Create(["lint", "--help"]);
+            await Program.RunAsync(context);
+
+            // Assert: lint-specific usage line, not the generic top-level command list
+            var output = outWriter.ToString();
+            Assert.Contains("Usage: sysml2tools lint <files...>", output);
+            Assert.DoesNotContain("Commands:", output);
+            Assert.Equal(0, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
 }
+
