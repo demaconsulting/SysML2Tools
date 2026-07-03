@@ -7,10 +7,10 @@ namespace DemaConsulting.SysML2Tools.Parser;
 /// Low-level SysML/KerML syntax parsing (source text to concrete syntax tree).
 /// </summary>
 /// <remarks>
-/// This namespace performs syntax-only parsing: <c>WorkspaceParser.ParseSource</c> and
-/// <c>ParseSourceToCst</c> turn source text into diagnostics (and, for the latter, an
-/// ANTLR-generated concrete syntax tree). No symbol table, reference resolution, or
-/// specialization walking happens here.
+/// This namespace performs syntax-only parsing: the public <c>WorkspaceParser.ParseSource</c>
+/// method turns source text into diagnostics; an internal <c>ParseSourceToCst</c> helper
+/// additionally produces an ANTLR-generated concrete syntax tree for use elsewhere in this
+/// library. No symbol table, reference resolution, or specialization walking happens here.
 /// <para>
 /// Most consumers should not need this namespace directly — use
 /// <see cref="Semantic.WorkspaceLoader"/> instead, which wraps parsing together with symbol
