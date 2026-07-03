@@ -146,6 +146,38 @@ public class QueryVerbsTests
     }
 
     /// <summary>
+    ///     'describe' collapses a multi-line comment/documentation annotation into a single
+    ///     summary line, so the Markdown output keeps one fact per bullet rather than letting
+    ///     the annotation's embedded newlines and '*' continuation markers spill across
+    ///     multiple raw lines.
+    /// </summary>
+    [Fact]
+    public async Task Describe_MultiLineComment_CollapsesToSingleSummaryLine()
+    {
+        const string sysml = """
+            package Model {
+                part def Car {
+                    doc /*
+                     * A multi-line
+                     * doc comment.
+                     */
+                }
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "describe", "--element", "Model::Car");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Documentation: A multi-line doc comment.", output);
+
+        // The bullet list must remain one fact per line: no bullet's text should itself
+        // contain an embedded newline, and no orphan '*' continuation-marker lines exist.
+        var lines = output.Split('\n');
+        Assert.DoesNotContain(lines, line => line.Trim().StartsWith('*'));
+    }
+
+    /// <summary>
     ///     'hierarchy' with --direction up reports only supertypes.
     /// </summary>
     [Fact]

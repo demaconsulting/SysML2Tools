@@ -149,6 +149,7 @@ sections:
           exploration, consolidating information otherwise scattered across the raw source.
         tests:
           - QueryVerbsTests.Describe_ReportsKindSupertypesAnnotationsAndChildren
+          - QueryVerbsTests.Describe_MultiLineComment_CollapsesToSingleSummaryLine
           - QueryOmgFixtureTests.Describe_CommentsFixture_ReportsAnnotations
 
       - id: SysML2Tools-Tool-Query-Hierarchy

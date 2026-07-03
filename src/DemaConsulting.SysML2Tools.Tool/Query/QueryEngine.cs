@@ -223,7 +223,7 @@ internal static class QueryEngine
 
         foreach (var annotation in element.Annotations)
         {
-            summary.Add($"{annotation.Kind}: {annotation.Text}");
+            summary.Add($"{annotation.Kind}: {NormalizeAnnotationText(annotation.Text)}");
         }
 
         summary.Add($"Children: {element.Children.Count}");
@@ -240,6 +240,26 @@ internal static class QueryEngine
             Summary = summary,
             Entries = entries
         };
+    }
+
+    /// <summary>
+    ///     Normalizes a raw <see cref="SysmlAnnotation.Text"/> value for use as a single summary
+    ///     line. Annotation text is captured verbatim from the source comment/documentation body
+    ///     (including embedded newlines, tabs, and <c>*</c> continuation markers from multi-line
+    ///     <c>/* ... */</c> blocks), which is correct for round-tripping but unsuitable for direct
+    ///     use in a one-fact-per-line summary/bullet. This collapses the text to a single line by
+    ///     splitting on newlines, trimming surrounding whitespace and leading <c>*</c> continuation
+    ///     markers from each line, dropping empty lines, and re-joining with single spaces.
+    /// </summary>
+    /// <param name="text">The raw annotation text.</param>
+    /// <returns>The normalized, single-line text.</returns>
+    private static string NormalizeAnnotationText(string text)
+    {
+        var lines = text
+            .Split('\n')
+            .Select(line => line.Trim().TrimStart('*').Trim())
+            .Where(line => line.Length > 0);
+        return string.Join(" ", lines);
     }
 
     /// <summary>
