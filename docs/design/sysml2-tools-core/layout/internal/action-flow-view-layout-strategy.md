@@ -3,9 +3,9 @@
 ##### Purpose
 
 `ActionFlowViewLayoutStrategy` implements `ILayoutStrategy` to produce an Action Flow View
-diagram. It renders action usages as rounded boxes placed top-to-bottom by the layered layout
-pipeline, with a start marker entering the actions that have no predecessor, a done marker leaving
-the actions that have no successor, and successions drawn as dashed downward flow arrows.
+diagram. It renders action usages as rounded boxes placed top-to-bottom through `LayeredPlacement`,
+with a start marker entering the actions that have no predecessor, a done marker leaving the actions
+that have no successor, and successions drawn as dashed downward flow arrows.
 
 ##### Data Model
 
@@ -36,25 +36,21 @@ indices, keeping only distinct, resolvable pairs.
 
 ###### Placement and routing
 
-Action boxes are positioned by the `LayeredLayoutPipeline` built with `LayoutDirection.Down` and the
-default stage sequence: each action becomes a node and each succession a directed edge, so the flow
-reads top-to-bottom (a succession leaves its source on the SOUTH face and enters its target on the
-NORTH face). The pipeline's cycle-breaking stage makes the (possibly cyclic) succession graph acyclic,
-so the strategy does not need its own back-edge handling. The `LayeredGraph` is built with a
-decoration-aware `BackEdgeEntryApproach` equal to the open-chevron end marker's along-line length
-(`NotationMetrics.AlongLineLength(EndMarkerStyle.OpenChevron)`) plus `Theme.LineCornerRadius` plus
-`Theme.CleanLegMargin`, so a reversed succession's final straight approach is long enough that the
-renderer's rounded corner never intrudes into the end marker. After the run the placed coordinates are
-read back from `AugX`/`AugY` and normalized so the content starts at a margin offset, reserving a
-`MarkerBand` of empty space at the top (for the start marker) and at the bottom (for the done marker).
-The canvas is sized to the full content extent — including the routed succession polylines, which can
-bulge beyond the box columns — via `ContentExtent`.
+Action boxes are positioned by calling `LayeredPlacement.Place` with a top-to-bottom flow
+direction: each action becomes a sized node and each succession a directed edge, so the flow reads
+top-to-bottom. `LayeredPlacement` delegates to the off-the-shelf `DemaConsulting.Rendering.Layout`
+layered algorithm, which returns placed rectangles for the actions and routed orthogonal polylines
+for the successions, each already oriented source-to-target because the algorithm reverses back
+edges internally. (The previous internal engine reserved a custom straight approach for the
+open-chevron marker on reversed edges; that knob has no public equivalent, so a reversed
+succession's final approach may differ by about a pixel — a purely cosmetic change.) The placed
+coordinates are normalized so the content starts at a margin offset, reserving a `MarkerBand` of
+empty space at the top (for the start marker) and at the bottom (for the done marker). The canvas is
+sized to the full content extent, including routed succession polylines that can bulge beyond the box
+columns, via `ContentExtent`.
 
-`AddSuccessionEdges` maps each succession to the orthogonal polyline the pipeline routed for it.
-Because the cycle-breaking stage de-duplicates identical directed pairs and reverses back edges,
-`LayeredGraph.Waypoints` is not 1:1 with the input successions; a lookup keyed by the routed
-`(source, target)` pair recovers each polyline, and a succession whose routed edge was reversed reuses
-that polyline in reverse so its open chevron end marker lands on the true target (`ResolveSuccessionPolyline`).
+`AddSuccessionEdges` maps each succession to the corresponding orthogonal polyline returned by
+`LayeredPlacement`, preserving input-edge order and source-to-target orientation.
 Each succession is emitted as a dashed `LayoutLine` with an open chevron end marker
 (`EndMarkerStyle.OpenChevron`) at the target, matching SysML v2 succession notation. The method counts
 and returns the number of successions whose polyline crosses a non-endpoint action box (`CrossesNonEndpointBox`
@@ -71,14 +67,16 @@ surfaced through `LayoutWarnings`.
 
 ##### Dependencies
 
-- `ILayoutStrategy`, `ViewContext`, `RenderOptions`, `Theme` (Rendering subsystem) — the strategy contract and inputs.
-- `LayeredLayoutPipeline`, `LayeredGraph`, `LayerNode`, `LayerEdge`, `LayoutDirection`, `HierarchyHandling`,
-  `BoxMetrics` (Layout Engine subsystem) — top-to-bottom placement and orthogonal routing.
-- `NotationMetrics` (Rendering subsystem) — decoration-aware back-edge approach length.
+- `ILayoutStrategy` and `ViewContext` (Rendering subsystem) — the strategy contract and view input.
+- `RenderOptions`, `Theme`, `BoxMetrics`, and `NotationMetrics`
+  (`DemaConsulting.Rendering.Abstractions`) — render options, sizing, and decoration metrics.
+- `LayeredPlacement` (Layout Internal subsystem) — top-to-bottom placement and orthogonal routing
+  through `DemaConsulting.Rendering.Layout`.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode`, `SysmlTransitionNode` (Semantic subsystem) — model input.
 - `LayoutWarnings` (Layout Internal subsystem) — crossing-warning construction.
-- The `LayoutTree`, `LayoutBox`, `LayoutBadge`, and `LayoutLine` data types (Layout subsystem).
+- The `LayoutTree`, `LayoutBox`, `LayoutBadge`, and `LayoutLine` data types
+  (`DemaConsulting.Rendering`).
 
 ##### Callers
 

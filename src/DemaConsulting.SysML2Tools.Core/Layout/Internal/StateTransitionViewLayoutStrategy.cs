@@ -2,8 +2,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
-using DemaConsulting.SysML2Tools.Layout.Engine;
-using DemaConsulting.SysML2Tools.Layout.Engine.Layered;
+using DemaConsulting.Rendering;
+using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -13,16 +13,16 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 
 /// <summary>
 /// Layout strategy for State Transition View diagrams. Renders state usages as rounded boxes placed
-/// top-to-bottom by the layered layout pipeline, an initial pseudo-state marker entering the first
+/// top-to-bottom by the layered layout algorithm, an initial pseudo-state marker entering the first
 /// declared state, and transitions as orthogonal arrows annotated with their guard conditions.
 /// </summary>
 /// <remarks>
-/// States are placed by <see cref="LayeredLayoutPipeline"/> with <see cref="LayoutDirection.Down"/> so
-/// the state machine reads top-to-bottom: a transition leaves its source on the SOUTH face and enters
-/// its target on the NORTH face, and each transition follows the orthogonal polyline the pipeline
-/// routed for it. The cyclic transition graph is made acyclic by the pipeline's cycle-breaking stage;
-/// self-transitions are drawn as a small loop above the state. The initial state is taken to be the
-/// first state declared in the owning definition.
+/// States are placed by the bundled layered algorithm flowing top-to-bottom (down) so the state
+/// machine reads top-to-bottom: a transition leaves its source on the SOUTH face and enters its target
+/// on the NORTH face, and each transition follows the orthogonal polyline the algorithm routed for it.
+/// The cyclic transition graph is made acyclic by the algorithm's cycle-breaking stage; self-transitions
+/// are drawn as a small loop above the state. The initial state is taken to be the first state declared
+/// in the owning definition.
 /// </remarks>
 internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 {
@@ -72,29 +72,14 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
         var transitions = ResolveTransitions(root, index);
 
-        // Place state boxes with the layered pipeline flowing top-to-bottom (DOWN). Non-self
-        // transitions become directed edges; the pipeline's cycle-breaking stage makes the (cyclic)
+        // Place state boxes with the layered algorithm flowing top-to-bottom (down). Non-self
+        // transitions become directed edges; the algorithm's cycle-breaking stage makes the (cyclic)
         // state graph acyclic, so it tolerates back edges and loops.
-        var layerNodes = states.Select(s => new LayerNode(s.Width, s.Height)).ToList();
         var flowTransitions = transitions.Where(t => t.Source != t.Target).ToList();
-        var layerEdges = flowTransitions.Select(t => new LayerEdge(t.Source, t.Target)).ToList();
-
-        var graph = new LayeredGraph(layerNodes, layerEdges, LayoutDirection.Down)
-        {
-            // Reserve a clean straight approach for the open-chevron target marker that every
-            // transition carries, so the pipeline pushes reversed (back) edges far enough out that the
-            // renderer's rounded corner never intrudes into the decoration. The approach equals the
-            // marker's along-line length plus one corner radius (consumed by the rounded corner) plus
-            // a safety margin.
-            BackEdgeEntryApproach = NotationMetrics.AlongLineLength(EndMarkerStyle.OpenChevron)
-                + theme.LineCornerRadius + theme.CleanLegMargin,
-        };
-        var pipeline = LayeredLayoutPipeline.Builder()
-            .Direction(LayoutDirection.Down)
-            .Hierarchy(HierarchyHandling.Flat)
-            .AddDefaultStages()
-            .Build();
-        pipeline.Run(graph);
+        var placed = LayeredPlacement.Place(
+            states.Select(s => (s.Width, s.Height)).ToList(),
+            flowTransitions.Select(t => (t.Source, t.Target)).ToList(),
+            LayoutFlowDirection.Down);
 
         // Compute the top-left of the content bounding box over the real state nodes and the screen
         // offset that normalizes it into the canvas (leaving room at the top for the initial marker).
@@ -103,8 +88,8 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         var minY = double.PositiveInfinity;
         for (var i = 0; i < states.Count; i++)
         {
-            minX = Math.Min(minX, graph.AugX[i]);
-            minY = Math.Min(minY, graph.AugY[i]);
+            minX = Math.Min(minX, placed.Rects[i].X);
+            minY = Math.Min(minY, placed.Rects[i].Y);
         }
 
         var topReserve = margin + InitialMarkerSize + InitialMarkerGap;
@@ -114,7 +99,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         var stateRects = new Rect[states.Count];
         for (var i = 0; i < states.Count; i++)
         {
-            stateRects[i] = new Rect(graph.AugX[i] + offsetX, graph.AugY[i] + offsetY, states[i].Width, states[i].Height);
+            stateRects[i] = new Rect(placed.Rects[i].X + offsetX, placed.Rects[i].Y + offsetY, states[i].Width, states[i].Height);
         }
 
         var nodes = new List<LayoutNode>();
@@ -128,8 +113,8 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         // Initial pseudo-state entering the first declared state.
         AddInitialMarker(stateRects[0], nodes);
 
-        // Transition edges (with guard labels), mapped from the pipeline's routed polylines.
-        var crossings = AddTransitions(transitions, graph, stateRects, offsetX, offsetY, nodes);
+        // Transition edges (with guard labels), mapped from the algorithm's routed polylines.
+        var crossings = AddTransitions(transitions, flowTransitions, placed.EdgePolylines, stateRects, offsetX, offsetY, nodes);
 
         // Size the canvas to the actual rendered content: state boxes plus routed transition
         // polylines (back edges can bulge beyond the box columns), the initial marker, and the
@@ -361,28 +346,27 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     /// whose polyline crosses a non-endpoint state box.
     /// </summary>
     /// <remarks>
-    /// The pipeline's cycle-breaking stage drops self-loops, de-duplicates identical directed pairs,
-    /// and reverses back edges, so <see cref="LayeredGraph.Waypoints"/> is not 1:1 with the input
-    /// transitions. A lookup keyed by the routed <c>(source, target)</c> pair recovers each
-    /// transition's polyline; a transition whose routed edge was reversed reuses that polyline in
-    /// reverse so the open arrowhead lands on the true target. Successive transitions sharing one
-    /// routed corridor (parallel guards, or a forward/back-edge pair) are spread laterally so their
-    /// anchor points and labels do not coincide.
+    /// The layered algorithm returns exactly one routed polyline per input (non-self) transition, in
+    /// input order and already oriented source-to-target. A lookup keyed by the <c>(source, target)</c>
+    /// pair recovers each transition's polyline (self-transitions are drawn as a loop and carry no
+    /// routed edge). Successive transitions sharing one routed corridor (parallel guards, or a
+    /// forward/back-edge pair) are spread laterally so their anchor points and labels do not coincide.
     /// </remarks>
     private static int AddTransitions(
         IReadOnlyList<TransitionItem> transitions,
-        LayeredGraph graph,
+        IReadOnlyList<TransitionItem> flowTransitions,
+        IReadOnlyList<IReadOnlyList<Point2D>> edgePolylines,
         Rect[] stateRects,
         double offsetX,
         double offsetY,
         List<LayoutNode> nodes)
     {
-        // Build the routed (source, target) -> polyline lookup over the acyclic edge set.
+        // Build the routed (source, target) -> polyline lookup from the non-self transitions, which are
+        // index-aligned with the algorithm's returned polylines.
         var routed = new Dictionary<(int Source, int Target), IReadOnlyList<Point2D>>();
-        for (var k = 0; k < graph.Acyclic.Count; k++)
+        for (var k = 0; k < flowTransitions.Count; k++)
         {
-            var edge = graph.Acyclic[k];
-            routed[(edge.Source, edge.Target)] = graph.Waypoints[k];
+            routed[(flowTransitions[k].Source, flowTransitions[k].Target)] = edgePolylines[k];
         }
 
         var corridorUse = new Dictionary<(int, int), int>();

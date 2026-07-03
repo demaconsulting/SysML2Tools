@@ -4,6 +4,8 @@
 
 using System.Globalization;
 
+using DemaConsulting.Rendering;
+
 namespace DemaConsulting.SysML2Tools.Layout.Internal;
 
 /// <summary>

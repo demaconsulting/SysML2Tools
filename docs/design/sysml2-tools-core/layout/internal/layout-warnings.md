@@ -2,7 +2,8 @@
 
 ##### Purpose
 
-`LayoutWarnings` builds the non-fatal layout-quality warning messages surfaced on a `LayoutTree`.
+`LayoutWarnings` builds the non-fatal layout-quality warning messages surfaced on a `LayoutTree`
+from the `DemaConsulting.Rendering` package.
 Its single responsibility is to turn a count of connectors that had to cross a box into the
 human-readable warning text for a view.
 

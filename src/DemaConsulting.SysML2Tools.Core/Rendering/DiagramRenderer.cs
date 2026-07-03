@@ -2,6 +2,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+using DemaConsulting.Rendering;
+using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Internal;
 
@@ -9,7 +11,7 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 
 /// <summary>
 /// High-level rendering orchestrator that iterates over all views in a
-/// <see cref="SysmlWorkspace"/>, builds a <see cref="Layout.LayoutTree"/> via an
+/// <see cref="SysmlWorkspace"/>, builds a <see cref="LayoutTree"/> via an
 /// <see cref="ILayoutStrategy"/>, and writes each view to an output stream via
 /// an <see cref="IRenderer"/>.
 /// </summary>

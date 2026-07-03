@@ -2,6 +2,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+using DemaConsulting.Rendering;
+using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;

@@ -6,7 +6,7 @@ The Internal subsystem is verified through unit tests, one test class per view l
 that construct a synthetic `SysmlWorkspace`, invoke `BuildLayout`, and assert on the returned
 `LayoutTree`. The tests inspect the node tree for the expected boxes, ports, lines, badges, and
 canvas dimensions. No mocking is required: the strategies depend only on the in-memory semantic
-model, the geometric engines, and the theme, all of which the tests construct directly.
+model, the `DemaConsulting.Rendering` layout data types, `LayeredPlacement`, and render options.
 
 #### Test Environment
 

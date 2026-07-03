@@ -63,9 +63,9 @@ Entry point for the render command. Steps:
 
 - `WorkspaceLoader` (in `DemaConsulting.SysML2Tools.Semantic`) — loads workspace
 - `DiagramRenderer` (in `DemaConsulting.SysML2Tools.Rendering`) — renders views
-- `SvgRenderer` (in `DemaConsulting.SysML2Tools.Svg`) — produces SVG output
-- `PngRenderer` (in `DemaConsulting.SysML2Tools.Png`) — produces PNG output
-- `Themes.Light` (in `DemaConsulting.SysML2Tools.Rendering`) — default theme
+- `SvgRenderer` (in `DemaConsulting.Rendering.Svg`) — produces SVG output
+- `PngRenderer` (in `DemaConsulting.Rendering.Skia`) — produces PNG output
+- `Themes.Light` (in `DemaConsulting.Rendering.Abstractions`) — default theme
 - `Context` (in `DemaConsulting.SysML2Tools.Cli`) — reads arguments; writes output
 
 ##### Callers

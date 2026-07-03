@@ -2,87 +2,46 @@
 
 ### Verification Approach
 
-The Layout subsystem is verified by unit tests in `DemaConsulting.SysML2Tools.Tests`. Tests
-construct `LayoutTree` and its node types directly using positional record constructors, and
-assert that all fields are stored and retrievable without modification. No mocking is required;
-the Layout node types are pure immutable records with no dependencies.
+The Layout subsystem is verified by the view layout strategy tests in
+`DemaConsulting.SysML2Tools.Tests`. Each test constructs a synthetic `SysmlWorkspace`, invokes a
+view layout strategy, and asserts on the returned `LayoutTree`. Because the strategies build the
+tree by mapping the model onto the off-the-shelf `DemaConsulting.Rendering` intermediate
+representation and by delegating geometric placement and routing to the off-the-shelf
+`DemaConsulting.Rendering.Layout` layered algorithm (through the `LayeredPlacement` helper), a
+passing strategy layout is evidence that the mapping, placement, and routing all occurred
+correctly. No mocking is used; the real intermediate representation and layered algorithm run on
+every test.
 
 ### Test Environment
 
 Tests run via `dotnet test` against all three target frameworks: net8.0, net9.0, and net10.0.
-No external network access or services are required. All test inputs are constructed inline.
+No external network access or services are required beyond a standard .NET SDK installation and
+the referenced `DemaConsulting.Rendering` packages. All test inputs are constructed inline.
 
 ### Acceptance Criteria
 
-- All unit tests pass with zero failures across all three target frameworks.
-- `LayoutTree` stores `Width`, `Height`, and `Nodes` exactly as supplied to the constructor.
-- `LayoutBox` stores all nine constructor parameters including `Depth` as a plain integer.
-- `LayoutBox.Children` can contain nested `LayoutNode` instances of any concrete type.
-- `LayoutPort` stores absolute `CentreX`, `CentreY`, `Side`, and optional `Label`.
-- `LayoutLine` stores the `Waypoints` list, end-marker styles, line style, and optional label.
-- `LayoutLabel` stores `X`, `Y`, `MaxWidth`, `Text`, and `Align`.
-- `LayoutBadge` stores `CentreX`, `CentreY`, `Size`, `Shape`, and optional `Label`.
-- `LayoutBand` stores position, size, `Orientation`, optional `Label`, and `Children`.
-- `LayoutLifeline` stores `CentreX`, `TopY`, `BottomY`, `Label`, `HeaderWidth`, and `HeaderHeight`.
-- `LayoutActivation` stores `CentreX`, `TopY`, and `BottomY`.
-- `LayoutGrid` stores `X`, `Y`, and `Rows`; each `LayoutGridRow` stores `IsHeader` and `Cells`.
-- All coordinate values are stored as supplied; no transformation is applied by the data model.
+- All view layout strategy tests pass with zero failures across all three target frameworks.
+- Each view strategy maps its relevant model elements onto a populated `LayoutTree` of boxes,
+  ports, lines, and markers.
+- Geometric placement is delegated to the off-the-shelf layered algorithm and positions boxes so
+  that they do not overlap one another.
+- Connector routing is resolved before rendering, so `LayoutLine.Waypoints` holds the complete
+  ordered sequence of absolute points.
 
 ### Test Scenarios
 
-**LayoutTree_Construction_StoresWidthHeightNodes**: A `LayoutTree` is constructed with
-explicit `Width = 800.0`, `Height = 600.0`, and a non-empty `Nodes` list containing a single
-`LayoutBox`; all three properties are asserted to equal the supplied values. This confirms
-that `LayoutTree` is a transparent data container with no side effects.
+**SysML2Tools-Core-Layout-LayoutTree** is verified by
+`GeneralViewLayoutStrategy_BuildLayout_OneUserPartDef_ProducesLayoutBox`,
+`InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines`, and
+`SequenceView_BuildLayout_Messages_ProducesLifelinesAndOrderedLines`, which confirm that each
+view strategy maps the semantic model onto a populated `LayoutTree`.
 
-**LayoutBox_Construction_StoresAllFields**: A `LayoutBox` is constructed with all nine
-parameters set to non-default values; each property is asserted to equal the supplied value.
-This confirms correct positional record construction and property projection.
+**SysML2Tools-Core-Layout-DelegatedGeometry** is verified by
+`InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap` and
+`ActionFlowView_BuildLayout_NoOverlap`, which confirm that the geometry produced by the
+off-the-shelf layered algorithm places boxes without overlap.
 
-**LayoutBox_Depth_IsInteger**: A `LayoutBox` is constructed with `Depth = 3`; the `Depth`
-property is asserted to be of type `int` with value `3`. This confirms the depth-not-color
-invariant — no color property is present on the node.
-
-**LayoutBox_Coordinates_AreAbsolute**: A `LayoutBox` is constructed with `X = 100.0` and
-`Y = 200.0`; the `X` and `Y` properties are asserted to equal the supplied values without
-offset. This confirms that the data model does not apply any coordinate transform.
-
-**LayoutBox_Children_ContainsNestedNodes**: A `LayoutBox` is constructed with a `Children`
-list containing a `LayoutPort` and a nested `LayoutBox`; both child nodes are retrievable
-from `Children` in insertion order. This confirms that `LayoutBox.Children` supports
-heterogeneous node types.
-
-**LayoutPort_Construction_StoresAllFields**: A `LayoutPort` is constructed with `CentreX`,
-`CentreY`, `Side`, and `Label` set; all four properties are asserted to equal the supplied
-values. This confirms that ports carry sufficient information for absolute positioning.
-
-**LayoutPort_Coordinates_AreAbsolute**: A `LayoutPort` is constructed with
-`CentreX = 250.0` and `CentreY = 150.0`; both properties are asserted to equal the supplied
-values. This confirms that port positions are absolute and not relative to the parent box.
-
-**LayoutLine_Construction_StoresAllFields**: A `LayoutLine` is constructed with a two-element
-`Waypoints` list, non-default `SourceEnd`, `TargetEnd`, `LineStyle`, and a
-non-null `MidpointLabel`; all five properties are asserted to equal the supplied values.
-
-**LayoutLine_Waypoints_AreAbsolute**: A `LayoutLine` is constructed with waypoints at
-`(10.0, 20.0)` and `(200.0, 300.0)`; both `Point2D` instances in `Waypoints` are asserted
-to have the supplied `X` and `Y` values. This confirms that routing produces absolute coordinates.
-
-**LayoutLabel_Construction_StoresAllFields**: A `LayoutLabel` is constructed with all five
-parameters set to non-default values; each property is asserted to equal the supplied value.
-
-**LayoutBadge_Construction_StoresAllFields**: A `LayoutBadge` is constructed with all five
-parameters set; each property is asserted to equal the supplied value.
-
-**LayoutBand_Construction_StoresAllFields**: A `LayoutBand` is constructed with all seven
-parameters set; each property is asserted to equal the supplied value.
-
-**LayoutLifeline_Construction_StoresAllFields**: A `LayoutLifeline` is constructed with all
-six parameters set; each property is asserted to equal the supplied value.
-
-**LayoutActivation_Construction_StoresAllFields**: A `LayoutActivation` is constructed with
-`CentreX`, `TopY`, and `BottomY` set; all three properties are asserted to equal the supplied values.
-
-**LayoutGrid_Construction_StoresAllFields**: A `LayoutGrid` is constructed with `X`, `Y`,
-and a `Rows` list containing one `LayoutGridRow` with `IsHeader = true` and one
-`LayoutGridCell`; all fields are asserted to equal the supplied values.
+**SysML2Tools-Core-Layout-PreRoutedLines** is verified by
+`ActionFlowView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally` and
+`StateTransitionView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally`, which confirm that
+connectors are fully routed into orthogonal absolute waypoints before rendering.

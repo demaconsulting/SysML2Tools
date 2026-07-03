@@ -10,9 +10,9 @@ Rendering pieces are joined.
 
 #### Data Model
 
-`DiagramRenderer` is a `sealed class` with no instance state (a future phase will inject an
-`ILayoutStrategy`). It collaborates with `ViewContext`, `RenderOptions`, `RenderOutput`, the internal
-`DiagramTypeRouter`, and the internal `StdlibFilter`.
+`DiagramRenderer` is a `sealed class` with no instance state. It collaborates with the SysML-coupled
+`ViewContext`, the internal `DiagramTypeRouter`, and the internal `StdlibFilter`, and with the
+off-the-shelf `RenderOptions` and `RenderOutput` records from `DemaConsulting.Rendering.Abstractions`.
 
 #### Key Methods
 
@@ -44,7 +44,9 @@ failing the whole render.
 #### Dependencies
 
 - `SysmlWorkspace`, `SysmlViewNode`, `SysmlDefinitionNode` (Semantic subsystem).
-- `ILayoutStrategy`, `IRenderer`, `RenderOptions`, `RenderOutput`, `ViewContext` (Rendering subsystem).
+- `ILayoutStrategy`, `ViewContext` (retained SysML-coupled Rendering subsystem contract).
+- `LayoutTree`, `IRenderer`, `RenderOptions`, `RenderOutput` (off-the-shelf, from the
+  `DemaConsulting.Rendering` and `DemaConsulting.Rendering.Abstractions` OTS packages).
 - `DiagramTypeRouter` and `StdlibFilter` (Rendering Internal subsystem).
 
 #### Callers

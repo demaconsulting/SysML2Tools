@@ -1,0 +1,85 @@
+---
+# LayeredPlacement Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the LayeredPlacement helper unit
+# - LayeredPlacement adapts the DemaConsulting.Rendering.Layout OTS layered algorithm to the
+#   SysML view layout strategies, returning placed rectangles and routed connector polylines
+# - Requirements describe the observable placement contract the strategies rely on
+# - LayeredPlacement is exercised indirectly through the view layout strategy tests, which are
+#   the closest passing evidence for each requirement
+
+sections:
+  - title: LayeredPlacement Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Internal-LayeredPlacement-Adapt
+        title: >-
+          LayeredPlacement shall place sized nodes and directed edges by delegating to the
+          DemaConsulting.Rendering.Layout layered algorithm, returning a placed rectangle for
+          each node and a routed orthogonal polyline for each edge.
+        justification: |
+          The SysML view layout strategies no longer own a geometric layout engine; they depend
+          on LayeredPlacement to run the reusable off-the-shelf layered algorithm and hand back
+          plain rectangles and connector polylines they can map onto their own model. Strategy
+          layouts that emit placed boxes together with routed connector lines are the observable
+          evidence that the adapter drove the algorithm correctly.
+        tests:
+          - ActionFlowView_BuildLayout_ActionsAndSuccessions_ProducesBoxesMarkersAndFlows
+          - StateTransitionView_BuildLayout_StatesAndTransitions_ProducesBoxesBadgeAndLines
+          - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
+
+      - id: SysML2Tools-Core-Layout-Internal-LayeredPlacement-NodeOrder
+        title: >-
+          LayeredPlacement shall return exactly one placed rectangle per input node, in the
+          caller's input-node order, and shall position the rectangles so that they do not
+          overlap.
+        justification: |
+          The strategies map each returned rectangle back to its model element by index, so the
+          result must preserve the caller's node ordering and count. Non-overlapping placement is
+          the observable geometric property that keeps the resulting diagrams readable.
+        tests:
+          - InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap
+          - ActionFlowView_BuildLayout_NoOverlap
+
+      - id: SysML2Tools-Core-Layout-Internal-LayeredPlacement-EdgeOrder
+        title: >-
+          LayeredPlacement shall return exactly one routed polyline per input edge, in the
+          caller's input-edge order.
+        justification: |
+          The strategies map each routed polyline back to its succession, transition, or
+          connection by index, so the result must preserve the caller's edge ordering and count.
+          A strategy that draws one connector line per model edge is the observable evidence.
+        tests:
+          - ActionFlowView_BuildLayout_ActionsAndSuccessions_ProducesBoxesMarkersAndFlows
+          - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
+
+      - id: SysML2Tools-Core-Layout-Internal-LayeredPlacement-Orientation
+        title: >-
+          LayeredPlacement shall orient every returned polyline from its source node to its
+          target node, reversing internally routed back edges so the caller always receives a
+          source-to-target path.
+        justification: |
+          Callers attach a directional end marker to the target end of each connector, so a
+          polyline that ran target-to-source would place the arrowhead on the wrong box.
+          Guaranteeing source-to-target orientation lets the strategies attach markers without
+          re-checking direction. Cyclic inputs whose connectors still terminate correctly are the
+          observable evidence that back-edge reversal is handled.
+        tests:
+          - ActionFlowView_BuildLayout_SuccessionEdge_IsDashedWithOpenArrowhead
+          - StateTransitionView_BuildLayout_TransitionEdge_HasOpenArrowhead
+          - ActionFlowView_BuildLayout_Cycle_IsBroken
+
+      - id: SysML2Tools-Core-Layout-Internal-LayeredPlacement-Direction
+        title: >-
+          LayeredPlacement shall honor the caller's requested flow direction, placing the target
+          of a directed edge downstream of its source along that direction.
+        justification: |
+          The action-flow and state-transition strategies request a top-to-bottom direction so
+          the diagram reads downward, while the general and interconnection strategies request a
+          left-to-right direction. Honoring the requested direction is what makes the strategies'
+          reading order come out correct, so a forward chain that flows top-to-bottom is the
+          observable evidence.
+        tests:
+          - ActionFlowView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally
+          - StateTransitionView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally
+          - ActionFlowView_BuildLayout_Successions_FlowTopToBottom

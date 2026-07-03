@@ -2,8 +2,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
-using DemaConsulting.SysML2Tools.Layout.Engine;
-using DemaConsulting.SysML2Tools.Layout.Engine.Layered;
+using DemaConsulting.Rendering;
+using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -17,27 +17,24 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// <remarks>
 /// <para>
 /// Shows the internal structure of a single part definition: its nested part usages as
-/// boxes placed by <see cref="InterconnectionLayoutEngine"/>, ports on the box boundaries,
-/// and connection usages routed as orthogonal connector polylines between the ports, all
-/// enclosed by a container box for the host definition.
+/// boxes placed by the bundled layered algorithm, ports on the box boundaries, and connection
+/// usages routed as orthogonal connector polylines between the ports, all enclosed by a container
+/// box for the host definition.
 /// </para>
 /// <para>
 /// Box heights are scaled to ensure each port has at least <see cref="MinPortSlot"/> px of
 /// vertical clearance, so connectors remain visually distinct regardless of connection count.
-/// All placement and routing is delegated to <see cref="InterconnectionLayoutEngine"/>, which
-/// implements the full ELK-compatible Sugiyama pipeline.
+/// All placement and routing is delegated to the layered algorithm via <see cref="LayeredPlacement"/>.
 /// </para>
 /// <para>
 /// When a nested part is itself typed by a <c>part def</c> that has its own internal parts, the
-/// strategy lays out that inner structure recursively (bottom-up, ELK <c>SEPARATE_CHILDREN</c>):
-/// the inner definition is laid out first with the same flat engine, the container part is then
-/// treated as an atomic fixed-size node by the parent, and the inner content is nested as the
-/// container box's <see cref="LayoutBox.Children"/>. A single-level model (no part typed by a
-/// definition with internal parts) is a strict no-op: the recursion never fires and the output is
-/// identical to the non-recursive layout. The reserved
-/// <see cref="DemaConsulting.SysML2Tools.Layout.Engine.Layered.HierarchyHandling.Recursive"/> pipeline mode
-/// is intentionally left not wired; recursion is driven here, at the strategy level, because
-/// container detection is a semantic-model concern the model-independent engine cannot see.
+/// strategy lays out that inner structure recursively (bottom-up): the inner definition is laid out
+/// first with the same flat algorithm, the container part is then treated as an atomic fixed-size node
+/// by the parent, and the inner content is nested as the container box's
+/// <see cref="LayoutBox.Children"/>. A single-level model (no part typed by a definition with internal
+/// parts) is a strict no-op: the recursion never fires and the output is identical to the
+/// non-recursive layout. Recursion is driven here, at the strategy level, because container detection
+/// is a semantic-model concern the model-independent algorithm cannot see.
 /// </para>
 /// </remarks>
 internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
@@ -53,6 +50,12 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>Clearance used when computing the minimum box height from port count.</summary>
     private const double ConnectorClearance = 10.0;
+
+    /// <summary>
+    /// Uniform padding the layered algorithm adds around placed content (mirrors its internal
+    /// content padding), used to give routed connectors the same trailing inset as the boxes.
+    /// </summary>
+    private const double LayeredContentPadding = 20.0;
 
     /// <summary>
     /// A nested part usage with its computed intrinsic box size. When the part is a container (its
@@ -134,7 +137,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Lays out the interior of one definition: collects its parts (recursing into container
-    /// parts), places them with <see cref="InterconnectionLayoutEngine"/>, and emits one rounded
+    /// parts), places them with the bundled layered algorithm, and emits one rounded
     /// box per part plus a port pair and connector line per connection — all positioned relative to
     /// the container's own top-left origin <c>(0, 0)</c>.
     /// </summary>
@@ -163,33 +166,33 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             degree[p.B]++;
         }
 
-        var layerNodes = parts
+        var nodeSizes = parts
             .Select((p, i) =>
             {
                 var minH = (degree[i] * MinPortSlot) + (2.0 * ConnectorClearance);
-                return new LayerNode(p.Width, Math.Max(p.Height, minH));
+                return (p.Width, Math.Max(p.Height, minH));
             })
             .ToList();
 
-        var layerEdges = pairs.Select(p => new LayerEdge(p.A, p.B)).ToList();
+        var edgePairs = pairs.Select(p => (p.A, p.B)).ToList();
 
-        // Delegate all placement and routing to the engine.
-        var placed = InterconnectionLayoutEngine.Place(layerNodes, layerEdges);
+        // Delegate all placement and routing to the layered algorithm.
+        var placed = LayeredPlacement.Place(nodeSizes, edgePairs, LayoutFlowDirection.Right);
 
         // Shift placed content down/right to sit inside the container box.
         var titleArea = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true);
         var offsetX = theme.LabelPadding * 2.0;
         var offsetY = titleArea + (theme.LabelPadding * 2.0);
 
-        var containerWidth = placed.TotalWidth + (offsetX * 2.0);
-        var containerHeight = placed.TotalHeight + offsetY + (theme.LabelPadding * 2.0);
+        var containerWidth = placed.Width + (offsetX * 2.0);
+        var containerHeight = placed.Height + offsetY + (theme.LabelPadding * 2.0);
 
-        // InterconnectionLayoutEngine derives TotalWidth/Height from box extents only, but a
-        // connector can route beyond the boxes (e.g. wrapping below them). Extend the container so
-        // every waypoint is enclosed with the same trailing inset the boxes already receive, so no
-        // connector scrapes the container edge.
-        var trailingInset = LayeredLayoutMetrics.Padding + (theme.LabelPadding * 2.0);
-        foreach (var wp in placed.ConnectorWaypoints)
+        // The layered algorithm derives its size from box extents only, but a connector can route
+        // beyond the boxes (e.g. wrapping below them). Extend the container so every waypoint is
+        // enclosed with the same trailing inset the boxes already receive, so no connector scrapes the
+        // container edge.
+        var trailingInset = LayeredContentPadding + (theme.LabelPadding * 2.0);
+        foreach (var wp in placed.EdgePolylines)
         {
             foreach (var p in wp)
             {
@@ -207,24 +210,13 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             content.Add(MakePartBox(parts[i], new Rect(r.X + offsetX, r.Y + offsetY, r.Width, r.Height), depth + 1));
         }
 
-        // InterconnectionLayoutEngine populates ConnectorWaypoints per ACYCLIC edge: its cycle-breaking
-        // stage de-duplicates identical directed pairs and reverses back edges, so the polylines are not
-        // 1:1 with pairs (self-connections were already dropped in ResolveConnections). Build a
-        // (source, target) -> polyline lookup over the acyclic edge set and resolve each connection by
-        // its endpoints, reversing the polyline for a reversed back edge so the source/target ports
-        // stay on the correct box faces.
-        var routed = new Dictionary<(int Source, int Target), IReadOnlyList<Point2D>>();
-        for (var k = 0; k < placed.AcyclicEdges.Count; k++)
+        // One port pair and one connector line per connection. The algorithm returns exactly one
+        // routed polyline per input connection, in input order and oriented source -> target, so
+        // connection k uses EdgePolylines[k] directly.
+        for (var k = 0; k < pairs.Count; k++)
         {
-            var edge = placed.AcyclicEdges[k];
-            routed[(edge.Source, edge.Target)] = placed.ConnectorWaypoints[k];
-        }
-
-        // One port pair and one connector line per connection.
-        foreach (var pair in pairs)
-        {
-            var wp = ResolveConnectorPolyline(pair.A, pair.B, routed);
-            if (wp is null || wp.Count < 2)
+            var wp = placed.EdgePolylines[k];
+            if (wp.Count < 2)
             {
                 continue;
             }
@@ -247,34 +239,6 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         }
 
         return new InteriorLayout(containerWidth, containerHeight, content);
-    }
-
-    /// <summary>
-    /// Returns the routed connector polyline for a connection, reversing it when only the opposite
-    /// direction was routed (a reversed back edge), or <see langword="null"/> when neither direction
-    /// was routed.
-    /// </summary>
-    /// <param name="a">Source part index of the connection.</param>
-    /// <param name="b">Target part index of the connection.</param>
-    /// <param name="routed">The <c>(source, target)</c> to polyline lookup over the acyclic edge set.</param>
-    /// <returns>The polyline running from part <paramref name="a"/> to <paramref name="b"/>, or null.</returns>
-    private static IReadOnlyList<Point2D>? ResolveConnectorPolyline(
-        int a,
-        int b,
-        IReadOnlyDictionary<(int Source, int Target), IReadOnlyList<Point2D>> routed)
-    {
-        if (routed.TryGetValue((a, b), out var forward))
-        {
-            return forward;
-        }
-
-        if (routed.TryGetValue((b, a), out var backward))
-        {
-            // The pipeline reversed this back edge; reverse the polyline so it runs a -> b.
-            return [.. backward.Reverse()];
-        }
-
-        return null;
     }
 
     /// <summary>

@@ -2,14 +2,18 @@
 
 ### Overview
 
-The Rendering subsystem defines the interfaces and data types that form the rendering
-pipeline for SysML2 Tools. It bridges the Layout subsystem (which produces a `LayoutTree`)
-and the concrete renderer packages (`DemaConsulting.SysML2Tools.Svg` and
-`DemaConsulting.SysML2Tools.Png`) by declaring the contracts that both sides must satisfy.
+The Rendering subsystem wires together the rendering pipeline for SysML2 Tools. It bridges the
+Layout subsystem (which produces a `LayoutTree`) and the off-the-shelf renderer packages
+(`DemaConsulting.Rendering.Svg` and `DemaConsulting.Rendering.Skia`) using the contracts that
+both sides must satisfy.
 
-The subsystem contains these types: `IRenderer` (low-level render interface), `ILayoutStrategy`
-(layout computation interface), `Theme` (visual configuration), `RenderOptions`
-(per-render parameters), `RenderOutput` (render result), and `DiagramRenderer` (orchestrator).
+The SysML-agnostic rendering contracts — `IRenderer` (low-level render interface), `Theme`
+(visual configuration), `RenderOptions` (per-render parameters), and `RenderOutput` (render
+result) — are provided off-the-shelf by the `DemaConsulting.Rendering.Abstractions` package.
+The SysML-coupled types that remain in this subsystem are `ILayoutStrategy` and `ViewContext`
+(the layout computation contract) and `DiagramRenderer` (orchestrator), together with the
+internal `DiagramTypeRouter` and `StdlibFilter` helpers. SysML2Tools verifies its integration
+with the off-the-shelf contracts through its own tests.
 
 ### Interfaces
 
@@ -143,9 +147,8 @@ flowchart TD
 - `ViewContext.Workspace` references `SysmlWorkspace` from
   `DemaConsulting.SysML2Tools.Semantic`; the `using` directive `using DemaConsulting.SysML2Tools.Semantic;`
   is required in `ILayoutStrategy.cs` and `DiagramRenderer.cs`.
-- `IRenderer` implementations in `DemaConsulting.SysML2Tools.Svg` and
-  `DemaConsulting.SysML2Tools.Png` require `<ProjectReference>` entries pointing to
-  `DemaConsulting.SysML2Tools.csproj`.
+- The `IRenderer` implementations come from the off-the-shelf `DemaConsulting.Rendering.Svg` and
+  `DemaConsulting.Rendering.Skia` packages, referenced by the Tool via `<PackageReference>`.
 
 ### Requirements Traceability
 

@@ -2,14 +2,15 @@
 
 ### Overview
 
-The Layout subsystem defines the intermediate representation consumed by all renderers. It
-provides a tree of immutable records — collectively called a `LayoutTree` — that describes
-the visual structure of one rendered diagram view. All spatial decisions (node placement,
-line routing, compartment sizing) are made by an `ILayoutStrategy` before the tree is handed
-to a renderer; the renderer only reads the tree and writes output.
+The Layout subsystem maps the SysML semantic model onto the intermediate representation consumed
+by all renderers. That intermediate representation — a tree of immutable records collectively
+called a `LayoutTree` — is provided off-the-shelf by the `DemaConsulting.Rendering` package and
+describes the visual structure of one rendered diagram view. All spatial decisions (node
+placement, line routing, compartment sizing) are made by an `ILayoutStrategy` before the tree is
+handed to a renderer; the renderer only reads the tree and writes output.
 
-The Layout subsystem contains nine concrete node types, each a `sealed record` derived from
-the abstract base `LayoutNode`:
+The `LayoutTree` provided by the `DemaConsulting.Rendering` package exposes nine concrete node
+types, each a `sealed record` derived from the abstract base `LayoutNode`:
 
 | Node type | Role | SysML diagram types |
 | --- | --- | --- |
@@ -25,8 +26,9 @@ the abstract base `LayoutNode`:
 
 ### Interfaces
 
-The Layout subsystem exposes only data types. No methods are defined; all construction is
-performed by `ILayoutStrategy` implementations (see *Rendering Subsystem*).
+The `LayoutTree` intermediate representation exposes only data types, provided by the
+`DemaConsulting.Rendering` package. No methods are defined; all construction is performed by
+`ILayoutStrategy` implementations (see *Rendering Subsystem*).
 
 ```mermaid
 flowchart TD
@@ -143,8 +145,9 @@ flowchart TD
 
 ### Design
 
-The Layout subsystem is a pure data model with no methods or algorithms. The design
-decisions recorded here reflect constraints imposed during the Phase 3 vocabulary review.
+The `LayoutTree` intermediate representation is a pure data model with no methods or algorithms,
+now provided off-the-shelf by the `DemaConsulting.Rendering` package. The design decisions
+recorded here document the properties of that representation that SysML2Tools relies on.
 
 1. **Absolute coordinates.** All `X`, `Y`, `CentreX`, `CentreY`, `TopY`, `BottomY` fields
    store values in canvas space with the origin at the top-left corner. Renderers never
@@ -174,44 +177,34 @@ decisions recorded here reflect constraints imposed during the Phase 3 vocabular
 
 ### Design Constraints
 
-- All Layout types target net8.0, net9.0, and net10.0 with `<Nullable>enable</Nullable>`.
-- No methods or behaviors are defined in the Layout subsystem data types; it is a data model only.
-- `TextAlign` is declared in `LayoutLabel.cs` and reused by `LayoutGrid.cs`; both files
-  are in the same `DemaConsulting.SysML2Tools.Layout` namespace, so no cross-namespace
-  import is required.
+- The `LayoutTree` types are provided by the `DemaConsulting.Rendering` package, which targets
+  net8.0, net9.0, and net10.0 with `<Nullable>enable</Nullable>`.
+- No methods or behaviors are defined in the `LayoutTree` data types; it is a data model only.
+- The view layout strategies and the `LayeredPlacement` helper are the SysML-coupled code that
+  remains in this subsystem; they consume the off-the-shelf data model and layered algorithm.
 
 ### Subsystem Structure
 
-Beyond the `LayoutTree` data model described above, the Layout subsystem contains two
-sub-subsystems and one helper unit, each documented in its own chapter:
+Beyond the `LayoutTree` data model consumed from the `DemaConsulting.Rendering` package, the
+Layout subsystem contains one sub-subsystem and one helper unit, each documented in its own
+chapter:
 
-- **Engine** — the reusable, model-independent geometric layout engines (`ChannelRouter`,
-  `ContainmentPacker`, `InterconnectionLayoutEngine`, and the reusable `LayeredLayoutPipeline`
-  provided by the nested `Layered` sub-subsystem). See the *Layout Engine Subsystem* chapter.
 - **Internal** — the per-view layout strategies that map the semantic model to a
   `LayoutTree` (general, interconnection, state transition, action flow, sequence, grid, and
   browser views), plus `LayoutWarnings`. See the *Layout Internal Subsystem* chapter.
-- **ConnectorLabelPlacer** — collision-aware placement of connector midpoint labels. See its
-  own unit chapter.
+- **LayeredPlacement** — a thin helper that adapts the off-the-shelf
+  `DemaConsulting.Rendering.Layout` layered algorithm, returning placed rectangles and routed
+  polylines to the strategies. See its own unit chapter.
 
-The view strategies own the mapping from the SysML semantic model into geometric input,
-invoke one or more engines to compute geometry, and assemble the resulting `LayoutTree`. The
-engines themselves never reference the semantic model.
+The view strategies own the mapping from the SysML semantic model into geometric input, invoke
+`LayeredPlacement` (and thereby the off-the-shelf layered algorithm) to compute geometry, and
+assemble the resulting `LayoutTree`. The off-the-shelf algorithm never references the semantic
+model.
 
 ### Requirements Traceability
 
 | Requirement ID | Satisfied by |
 | --- | --- |
-| SysML2Tools-Core-Layout-LayoutTree | `LayoutTree` record |
-| SysML2Tools-Core-Layout-AbsoluteCoordinates | All coordinate fields; no transform logic |
-| SysML2Tools-Core-Layout-LayoutBox | `LayoutBox` record with `Depth`, `Shape`, `Compartments`, `Children` |
-| SysML2Tools-Core-Layout-DepthNotColor | `LayoutBox.Depth` int; no color field |
-| SysML2Tools-Core-Layout-TreeStructure | `LayoutBox.Children` and `LayoutBand.Children` |
-| SysML2Tools-Core-Layout-LayoutPort | `LayoutPort` record with `CentreX`, `CentreY`, `Side` |
-| SysML2Tools-Core-Layout-LayoutLine | `LayoutLine` record with `Waypoints`, end markers, `LineStyle` |
-| SysML2Tools-Core-Layout-LayoutLabel | `LayoutLabel` record |
-| SysML2Tools-Core-Layout-LayoutBadge | `LayoutBadge` record |
-| SysML2Tools-Core-Layout-LayoutBand | `LayoutBand` record |
-| SysML2Tools-Core-Layout-LayoutLifeline | `LayoutLifeline` and `LayoutActivation` records |
-| SysML2Tools-Core-Layout-LayoutGrid | `LayoutGrid`, `LayoutGridRow`, `LayoutGridCell` records |
-| SysML2Tools-Core-Layout-PreRoutedLines | `LayoutLine.Waypoints`; routing in `ILayoutStrategy` |
+| SysML2Tools-Core-Layout-LayoutTree | View strategies mapping the model to a `LayoutTree` |
+| SysML2Tools-Core-Layout-DelegatedGeometry | `LayeredPlacement` over the off-the-shelf algorithm |
+| SysML2Tools-Core-Layout-PreRoutedLines | `LayoutLine.Waypoints` resolved before rendering |

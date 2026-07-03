@@ -37,8 +37,6 @@ systems:
     - **Semantic/** — Language system: semantic model subsystem tests
     - **Layout/** — core system: layout subsystem tests
     - **Rendering/** — core system: rendering subsystem tests
-  - **DemaConsulting.SysML2Tools.Svg.Tests/** — SVG renderer tests
-  - **DemaConsulting.SysML2Tools.Png.Tests/** — PNG renderer tests
   - **DemaConsulting.SysML2Tools.Tool.Tests/** — dotnet tool unit and integration tests
 
 ## Companion Artifact Structure

@@ -18,6 +18,8 @@ The following OTS items have verification evidence in this section:
 
 - ANTLR4 (_antlr4.md_) — ANTLR4 runtime (Antlr4.Runtime.Standard)
 - BuildMark (_buildmark.md_) — build-notes documentation tool
+- DemaConsulting.Rendering (_dema-rendering.md_) — layout intermediate representation, layered
+  layout algorithm, and SVG/PNG renderers
 - FileAssert (_fileassert.md_) — document assertion tool
 - Pandoc (_pandoc.md_) — Markdown-to-HTML conversion tool
 - ReqStream (_reqstream.md_) — requirements traceability tool

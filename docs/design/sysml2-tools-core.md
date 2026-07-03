@@ -7,11 +7,14 @@ for SysML v2 diagram generation. It depends on `DemaConsulting.SysML2Tools.Langu
 parsing and semantic analysis, and on `DemaConsulting.SysML2Tools.Stdlib` for the pre-compiled
 standard library.
 
-Phase 3 introduces two subsystems: **Layout** and **Rendering**. The Layout subsystem defines
-the `LayoutTree` intermediate representation consumed by renderers — nine immutable node record
-types covering all SysML diagram elements. The Rendering subsystem defines the interfaces and
-data types that form the rendering pipeline: `IRenderer`, `ILayoutStrategy`, `Theme`,
-`RenderOptions`, `RenderOutput`, and `DiagramRenderer`.
+The core library provides two subsystems: **Layout** and **Rendering**. The Layout subsystem
+maps the SysML semantic model onto the `LayoutTree` intermediate representation — nine immutable
+node record types covering all SysML diagram elements — which is provided off-the-shelf by the
+`DemaConsulting.Rendering` package, and delegates geometric placement and routing to the
+off-the-shelf `DemaConsulting.Rendering.Layout` layered algorithm. The Rendering subsystem
+consumes the off-the-shelf rendering contracts (`IRenderer`, `Theme`, `RenderOptions`,
+`RenderOutput`) from the `DemaConsulting.Rendering.Abstractions` package and retains the
+SysML-coupled `ILayoutStrategy` and `DiagramRenderer` that drive the pipeline.
 
 ```mermaid
 flowchart TD
@@ -88,9 +91,10 @@ N/A — not a safety-classified software item.
    `RenderOptions`. For each view declared in the workspace it constructs a `ViewContext`
    containing the view name and workspace reference.
 2. `ILayoutStrategy.BuildLayout` is called with the `ViewContext` and `RenderOptions`. The
-   Layout subsystem produces a fully resolved `LayoutTree` via its layered layout pipeline,
-   placing every node at absolute coordinates and routing every connector as an orthogonal
-   polyline. The Rendering subsystem then renders that tree.
+   Layout subsystem produces a fully resolved `LayoutTree` by delegating geometric placement and
+   routing to the off-the-shelf `DemaConsulting.Rendering.Layout` layered algorithm (through the
+   `LayeredPlacement` helper), placing every node at absolute coordinates and routing every
+   connector as an orthogonal polyline. The Rendering subsystem then renders that tree.
 3. `IRenderer.Render` is called with the `LayoutTree`, `RenderOptions`, and a fresh output
    `Stream`. The renderer reads each `LayoutNode` in the tree, translates it to output-format
    primitives, and writes bytes to the stream.

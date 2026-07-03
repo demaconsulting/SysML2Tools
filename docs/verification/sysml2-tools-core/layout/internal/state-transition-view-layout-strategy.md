@@ -9,7 +9,7 @@ state definition with states and transitions, invoke `BuildLayout`, and assert o
 labels on the transition lines, compare transition endpoint waypoints to confirm distinct anchors,
 and verify the top-to-bottom flow (a forward chain's target boxes sit below their sources) with
 orthogonal transition polylines. No mocking is required; the strategy depends only on the in-memory
-model, the layered layout pipeline, and the theme.
+model, `LayeredPlacement`, and render options.
 
 ##### Test Environment
 

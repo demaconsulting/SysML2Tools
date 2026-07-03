@@ -9,7 +9,7 @@ returned `LayoutTree`. Assertions count the container box, rounded part boxes, p
 connector lines, and a geometric helper confirms that no two part boxes overlap. Nested-layout
 tests build a two-level workspace (a part typed by a definition with its own internal parts) and
 assert on the container box's nested `Children`. No mocking is required; the strategy depends only
-on the in-memory model, the layered placement engine, and the theme.
+on the in-memory model, `LayeredPlacement`, and render options.
 
 ##### Test Environment
 

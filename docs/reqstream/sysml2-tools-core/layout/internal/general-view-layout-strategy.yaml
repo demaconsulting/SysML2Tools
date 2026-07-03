@@ -11,11 +11,11 @@ sections:
     requirements:
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Definitions
         title: >-
-          GeneralViewLayoutStrategy shall render each user-defined definition as a labelled box
+          GeneralViewLayoutStrategy shall render each user-defined definition as a labeled box
           that carries the definition's keyword.
         justification: |
           A General View shows the user's declared definitions of every kind (part, port,
-          interface, action, and so on). Rendering each as a keyword-labelled box is the
+          interface, action, and so on). Rendering each as a keyword-labeled box is the
           observable content the view exists to provide.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_OneUserPartDef_ProducesLayoutBox
@@ -24,9 +24,9 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-PackageGrouping
         title: >-
           GeneralViewLayoutStrategy shall group the definitions that belong to a package within a
-          folder-shaped container box labelled with the package name.
+          folder-shaped container box labeled with the package name.
         justification: |
-          Grouping a package's definitions inside a labelled folder communicates ownership and
+          Grouping a package's definitions inside a labeled folder communicates ownership and
           keeps related definitions visually together, which is essential for readable diagrams
           of larger models.
         tests:
@@ -132,11 +132,12 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-LayeredPlacement
         title: >-
-          GeneralViewLayoutStrategy shall place definitions with the layered pipeline so that no two
+          GeneralViewLayoutStrategy shall place definitions through LayeredPlacement so that no two
           definition boxes overlap and every package folder stays clear of the others.
         justification: |
-          Delegating placement to the reusable layered pipeline (with a ComponentPacker stage) gives
-          the General view ELK-style box placement and orthogonal edge routing. The observable
+          Delegating placement through LayeredPlacement to the off-the-shelf
+          DemaConsulting.Rendering.Layout layered algorithm gives the General View ELK-style box
+          placement and orthogonal edge routing. The observable
           guarantee that matters to readers is that boxes and folders never overlap, regardless of
           model size or density, so the diagram stays legible without manual layout hints.
         tests:
