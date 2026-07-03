@@ -50,3 +50,15 @@ sections:
           failures automatically, preventing silent acceptance of invalid SysML models.
         tests:
           - LintSubsystem_ExitCode_InvalidFile_ReturnsOne
+
+      - id: SysML2Tools-Tool-Lint-LocalizableHelpText
+        title: >-
+          The lint command's help text (LintCommand.PrintHelp) shall be sourced from
+          culture-aware .resx resources via ResourceManager, falling back to invariant
+          English, so a future locale-specific .resx requires no code change.
+        justification: |
+          Mirrors the Program subsystem's resx-based localization approach so lint's help
+          text is not left as an inconsistent set of hardcoded string literals.
+        tests:
+          - ResxResource_EveryKey_ResolvesToNonEmptyText
+          - ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity

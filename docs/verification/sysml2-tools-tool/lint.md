@@ -36,3 +36,11 @@ integration tests alongside other subcommands. Parser-level behavior is verified
 Verifies that `lint --help` prints the lint-specific usage line and does not print the
 generic top-level `"Commands:"` section — a regression-proofing test added alongside the
 `help` command's command-aware `--help` dispatch (see `docs/design/sysml2-tools-tool/help.md`).
+
+#### ResxResource_EveryKey_ResolvesToNonEmptyText / ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity (ResxResourceTests.cs)
+
+For the `LintStrings` resource base name/accessor pair (one of four covered by these theory
+tests), every key discovered in `Lint/LintStrings.resx`'s invariant-culture resource set
+resolves to non-null/non-empty text via `ResourceManager`, and every such key has a matching
+`public static string` property on `LintStrings` (and vice versa). Satisfies
+`SysML2Tools-Tool-Lint-LocalizableHelpText`.

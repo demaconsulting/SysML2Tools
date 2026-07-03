@@ -251,3 +251,32 @@ sections:
           - QuerySubsystem_QueryHelp_NoVerb_PrintsGeneralHelpWithoutThrowing
           - QuerySubsystem_QueryVerbHelp_WithVerb_PrintsVerbHelpWithoutThrowing
           - Context_Create_QueryCommand_NoVerbWithHelp_LeavesQueryNull
+
+      - id: SysML2Tools-Tool-Query-LocalizableHelpText
+        title: >-
+          The query command's help text (QueryCommand.PrintGeneralHelp/PrintVerbHelp) shall
+          be sourced from culture-aware .resx resources via ResourceManager, falling back to
+          invariant English, so a future locale-specific .resx requires no code change.
+        justification: |
+          Mirrors the Program subsystem's resx-based localization approach so query's help
+          text (the largest and most detailed of the four subsystems) is not left as an
+          inconsistent set of hardcoded string literals.
+        tests:
+          - ResxResource_EveryKey_ResolvesToNonEmptyText
+          - ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity
+
+      - id: SysML2Tools-Tool-Query-HelpEnrichment
+        title: >-
+          Verb-specific help (`query <verb> --help`) shall include one real example
+          invocation drawn from the bundled VehicleExample fixture and a shared
+          Markdown/JSON output-shape schema hint, and general help (`query --help`) shall
+          include a "typical workflow" note recommending `list`/`find` before element-scoped
+          verbs.
+        justification: |
+          A fixed vocabulary of 11 verbs with deeply-nested qualified-name arguments is hard
+          to use from help text alone; a real, runnable example per verb and an explicit
+          discovery-first workflow tip make the CLI directly usable without external
+          documentation, especially for AI-assisted callers.
+        tests:
+          - QuerySubsystem_QueryVerbHelp_MentionsExampleInvocationAndSchemaHints
+          - QuerySubsystem_QueryHelp_NoVerb_MentionsTypicalWorkflow

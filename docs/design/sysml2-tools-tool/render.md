@@ -61,7 +61,11 @@ Entry point for the render command. Steps:
 `--format`, `--view`, `--auto`), plus a note about the shared global `--depth` option. This is
 the single source of truth for both `render --help` (dispatched from `Program.RunAsync`'s
 command-aware help block) and `help render` (dispatched from `Help.HelpCommand.Run`); neither
-entry point duplicates the help text.
+entry point duplicates the help text. Every line printed by `PrintHelp` is sourced from
+`RenderStrings`, a hand-written, culture-aware `ResourceManager` accessor over
+`Render/RenderStrings.resx` — see `docs/design/sysml2-tools-tool/program.md`'s
+"Localization / Resource Strings" section for the rationale and the zero-code-change
+future-locale story, which applies identically here.
 
 ##### Error Handling
 

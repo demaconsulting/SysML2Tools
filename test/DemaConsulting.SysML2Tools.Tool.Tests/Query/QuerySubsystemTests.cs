@@ -261,7 +261,78 @@ public class QuerySubsystemTests
     }
 
     /// <summary>
-    ///     'query uses --help' (verb + help) prints verb-specific help without throwing and
+    ///     'query --help' (no verb) includes the "typical workflow" note directing users to
+    ///     'list'/'find' before element-scoped verbs.
+    /// </summary>
+    [Fact]
+    public async Task QuerySubsystem_QueryHelp_NoVerb_MentionsTypicalWorkflow()
+    {
+        // Arrange
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act
+            using var context = Context.Create(["query", "--help"]);
+            await Program.RunAsync(context);
+
+            // Assert
+            var output = outWriter.ToString();
+            Assert.Contains("Typical workflow", output);
+            Assert.Contains("--element", output);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    /// <summary>
+    ///     'query &lt;verb&gt; --help' for every verb includes that verb's example invocation and
+    ///     the shared Markdown/JSON output-shape schema hints.
+    /// </summary>
+    [Theory]
+    [InlineData("uses", "query uses --element VehicleDefinitions::Vehicle")]
+    [InlineData("used-by", "query used-by --element VehicleDefinitions::Wheel")]
+    [InlineData("impact", "query impact --element VehicleDefinitions::Axle --depth 2")]
+    [InlineData("describe", "query describe --element VehicleUsages::vehicle_C1")]
+    [InlineData("hierarchy", "query hierarchy --element VehicleUsages::vehicle_C3 --direction up")]
+    [InlineData("requirements", "query requirements --element VehicleUsages::vehicle_C1")]
+    [InlineData("interface", "query interface --element VehicleDefinitions::Axle")]
+    [InlineData("connections", "query connections --element VehicleUsages::vehicle_C2::frontAxleAssembly::leftFrontMount")]
+    [InlineData("states", "query states --element VehicleUsages::vehicle_C1::OperatingStates")]
+    [InlineData("list", "query list --kind \"part def\"")]
+    [InlineData("find", "query find --name Wheel")]
+    public async Task QuerySubsystem_QueryVerbHelp_MentionsExampleInvocationAndSchemaHints(
+        string verbToken, string expectedExampleSubstring)
+    {
+        // Arrange
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act
+            using var context = Context.Create(["query", verbToken, "--help"]);
+            await Program.RunAsync(context);
+
+            // Assert
+            var output = outWriter.ToString();
+            Assert.Contains(expectedExampleSubstring, output);
+            Assert.Contains("Qualified Name", output);
+            Assert.Contains("QualifiedName", output);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    /// <summary>
+    ///     'query &lt;verb&gt; --help' (verb + help) prints verb-specific help without throwing and
     ///     without requiring --element.
     /// </summary>
     [Fact]

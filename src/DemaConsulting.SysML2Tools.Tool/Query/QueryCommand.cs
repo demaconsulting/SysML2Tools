@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Globalization;
 using DemaConsulting.SysML2Tools.Cli;
 using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -158,34 +159,39 @@ internal static class QueryCommand
     /// <param name="context">The CLI context for output.</param>
     public static void PrintGeneralHelp(Context context)
     {
-        context.WriteLine("Usage: sysml2tools query <verb> [options] <files...>");
+        context.WriteLine(QueryStrings.Query_GeneralUsage);
         context.WriteLine("");
-        context.WriteLine("Verbs:");
-        context.WriteLine("  uses           List the elements a given element uses");
-        context.WriteLine("  used-by        List the elements that use a given element");
-        context.WriteLine("  impact         Report the transitive impact of a change to a given element");
-        context.WriteLine("  describe       Describe a single element in detail");
-        context.WriteLine("  hierarchy      Report the specialization/generalization hierarchy of a given element");
-        context.WriteLine("  requirements   List requirements satisfied, verified, or traced to a given element");
-        context.WriteLine("  interface      Describe the ports and interfaces of a given element");
-        context.WriteLine("  connections    List the connections attached to a given element");
-        context.WriteLine("  states         List the states and transitions of a given state-machine element");
-        context.WriteLine("  list           List elements in the workspace, optionally filtered");
-        context.WriteLine("  find           Search the workspace for elements matching a filter");
+        context.WriteLine(QueryStrings.Query_VerbsHeader);
+        context.WriteLine(QueryStrings.Query_VerbUses);
+        context.WriteLine(QueryStrings.Query_VerbUsedBy);
+        context.WriteLine(QueryStrings.Query_VerbImpact);
+        context.WriteLine(QueryStrings.Query_VerbDescribe);
+        context.WriteLine(QueryStrings.Query_VerbHierarchy);
+        context.WriteLine(QueryStrings.Query_VerbRequirements);
+        context.WriteLine(QueryStrings.Query_VerbInterface);
+        context.WriteLine(QueryStrings.Query_VerbConnections);
+        context.WriteLine(QueryStrings.Query_VerbStates);
+        context.WriteLine(QueryStrings.Query_VerbList);
+        context.WriteLine(QueryStrings.Query_VerbFind);
         context.WriteLine("");
-        context.WriteLine("Options:");
-        context.WriteLine("  --element <name>, -e <name>  Qualified name of the target element (required for");
-        context.WriteLine("                                every verb except 'list' and 'find')");
-        context.WriteLine("  --format markdown|json       Output format (default: markdown); note this is a");
-        context.WriteLine("                                different set of values than the 'render' command's");
-        context.WriteLine("                                --format (svg/png)");
-        context.WriteLine("  --depth <#>                  Maximum impact-walk depth ('impact' verb only); note");
-        context.WriteLine("                                this is the same flag as the 'render' command's");
-        context.WriteLine("                                diagram nesting --depth");
-        context.WriteLine("  --direction up|down|both     Traversal direction ('hierarchy' verb only)");
-        context.WriteLine("  --kind <kind>                Element-kind filter ('list'/'find' verbs only)");
-        context.WriteLine("  --name <substring>           Name substring filter ('list'/'find' verbs only)");
-        context.WriteLine("  --include-stdlib             Include OMG standard library elements in results");
+        context.WriteLine(QueryStrings.Query_OptionsHeader);
+        context.WriteLine(QueryStrings.Query_GeneralOptionElement1);
+        context.WriteLine(QueryStrings.Query_GeneralOptionElement2);
+        context.WriteLine(QueryStrings.Query_GeneralOptionFormat1);
+        context.WriteLine(QueryStrings.Query_GeneralOptionFormat2);
+        context.WriteLine(QueryStrings.Query_GeneralOptionFormat3);
+        context.WriteLine(QueryStrings.Query_GeneralOptionDepth1);
+        context.WriteLine(QueryStrings.Query_GeneralOptionDepth2);
+        context.WriteLine(QueryStrings.Query_GeneralOptionDepth3);
+        context.WriteLine(QueryStrings.Query_GeneralOptionDirection);
+        context.WriteLine(QueryStrings.Query_GeneralOptionKind);
+        context.WriteLine(QueryStrings.Query_GeneralOptionName);
+        context.WriteLine(QueryStrings.Query_GeneralOptionIncludeStdlib);
+        context.WriteLine("");
+        context.WriteLine(QueryStrings.Query_WorkflowNote1);
+        context.WriteLine(QueryStrings.Query_WorkflowNote2);
+        context.WriteLine(QueryStrings.Query_WorkflowNote3);
+        context.WriteLine(QueryStrings.Query_WorkflowNote4);
     }
 
     /// <summary>
@@ -199,34 +205,40 @@ internal static class QueryCommand
         var requiresElement = QueryVerbParsing.RequiresElement(verb);
 
         context.WriteLine(requiresElement
-            ? $"Usage: sysml2tools query {verbToken} --element <name> [options] <files...>"
-            : $"Usage: sysml2tools query {verbToken} [options] <files...>");
+            ? string.Format(CultureInfo.InvariantCulture, QueryStrings.Query_VerbUsageWithElement, verbToken)
+            : string.Format(CultureInfo.InvariantCulture, QueryStrings.Query_VerbUsageNoElement, verbToken));
         context.WriteLine("");
-        context.WriteLine("Options:");
+        context.WriteLine(QueryStrings.Query_OptionsHeader);
 
         if (requiresElement)
         {
-            context.WriteLine("  --element <name>, -e <name>  Qualified name of the target element (required)");
+            context.WriteLine(QueryStrings.Query_OptionElementRequired);
         }
 
         switch (verb)
         {
             case QueryVerb.Impact:
-                context.WriteLine("  --depth <#>                   Maximum impact-walk depth (default: unlimited)");
+                context.WriteLine(QueryStrings.Query_OptionDepthImpact);
                 break;
 
             case QueryVerb.Hierarchy:
-                context.WriteLine("  --direction up|down|both      Traversal direction (default: both)");
+                context.WriteLine(QueryStrings.Query_OptionDirectionHierarchy);
                 break;
 
             case QueryVerb.List:
             case QueryVerb.Find:
-                context.WriteLine("  --kind <kind>                 Element-kind filter");
-                context.WriteLine("  --name <substring>            Name substring filter");
+                context.WriteLine(QueryStrings.Query_OptionKindListFind);
+                context.WriteLine(QueryStrings.Query_OptionNameListFind);
                 break;
         }
 
-        context.WriteLine("  --format markdown|json        Output format (default: markdown)");
-        context.WriteLine("  --include-stdlib              Include OMG standard library elements in results");
+        context.WriteLine(QueryStrings.Query_OptionFormatVerb);
+        context.WriteLine(QueryStrings.Query_OptionIncludeStdlibVerb);
+        context.WriteLine("");
+        context.WriteLine(QueryStrings.Query_ExampleHeader);
+        context.WriteLine(QueryStrings.GetExample(verb));
+        context.WriteLine("");
+        context.WriteLine(QueryStrings.Query_SchemaHint_Markdown);
+        context.WriteLine(QueryStrings.Query_SchemaHint_Json);
     }
 }

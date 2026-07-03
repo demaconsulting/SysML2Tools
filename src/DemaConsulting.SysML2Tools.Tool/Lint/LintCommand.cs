@@ -85,11 +85,11 @@ internal static class LintCommand
     /// </remarks>
     public static void PrintHelp(Context context)
     {
-        context.WriteLine("Usage: sysml2tools lint <files...>");
+        context.WriteLine(LintStrings.Lint_Usage);
         context.WriteLine("");
-        context.WriteLine("Parses the given SysML v2 / KerML files (and any file glob patterns) and reports");
-        context.WriteLine("syntax diagnostics. The 'lint' command accepts no flags of its own beyond the");
-        context.WriteLine("global options (see 'sysml2tools --help').");
+        context.WriteLine(LintStrings.Lint_Description1);
+        context.WriteLine(LintStrings.Lint_Description2);
+        context.WriteLine(LintStrings.Lint_Description3);
     }
 
     /// <summary>

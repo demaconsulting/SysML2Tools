@@ -128,3 +128,11 @@ N/A - not a safety-classified software item.
   close any open log file handle.
 - Path safety: all caller-supplied path components are validated by `PathHelpers.SafePathCombine`
   before file-system use.
+- Localization: `Program`, `Lint`, `Render`, and `Query`'s banner/help text (everything printed
+  by `PrintBanner`/`PrintTopLevelHelp`/`PrintHelp`/`PrintGeneralHelp`/`PrintVerbHelp`) is
+  sourced from per-subsystem `.resx` files via hand-written `ResourceManager` accessor classes
+  (`ProgramStrings`, `LintStrings`, `RenderStrings`, `QueryStrings`), so a future non-English
+  locale can be added with zero code changes (see
+  `docs/design/sysml2-tools-tool/program.md`). Operational/diagnostic messages (progress
+  lines, error messages) remain plain string literals and are explicitly out of scope for
+  this localization mechanism.

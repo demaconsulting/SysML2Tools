@@ -58,3 +58,12 @@ tested by `Program_Run_WithShortHelpFlag_DisplaysUsage`.
 **Program_Run_WithQuestionMarkFlag_DisplaysUsage**: `Program.Run` is called with a context from
 `["-?"]`; the output contains "Usage:" and "Options:" and exit code is 0. This scenario is
 tested by `Program_Run_WithQuestionMarkFlag_DisplaysUsage`.
+
+**ResxResource_EveryKey_ResolvesToNonEmptyText / ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity**
+(`ResxResourceTests.cs`): For the `ProgramStrings` resource base name/accessor pair (one of
+four covered by these theory tests), every key discovered in `ProgramStrings.resx`'s
+invariant-culture resource set resolves to non-null/non-empty text via `ResourceManager`, and
+every such key has a matching `public static string` property on `ProgramStrings` (and vice
+versa) — proving `Program`'s banner/help text is genuinely resx-sourced rather than merely
+duplicated alongside a dead resx file. Satisfies
+`SysML2Tools-Tool-Program-LocalizableHelpText`.

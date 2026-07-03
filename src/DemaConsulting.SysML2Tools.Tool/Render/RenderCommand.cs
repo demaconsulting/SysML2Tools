@@ -152,17 +152,17 @@ internal static class RenderCommand
     /// </remarks>
     public static void PrintHelp(Context context)
     {
-        context.WriteLine("Usage: sysml2tools render [options] <files...>");
+        context.WriteLine(RenderStrings.Render_Usage);
         context.WriteLine("");
-        context.WriteLine("Renders view diagrams to SVG or PNG files.");
+        context.WriteLine(RenderStrings.Render_Description);
         context.WriteLine("");
-        context.WriteLine("Options:");
-        context.WriteLine("  --output <dir>     Output directory for rendered files (default: current directory)");
-        context.WriteLine("  --format svg|png   Renderer format (default: svg)");
-        context.WriteLine("  --view <name>      Select a specific view to render, when multiple are defined");
-        context.WriteLine("  --auto             Auto-generate a view when none are defined");
+        context.WriteLine(RenderStrings.Render_OptionsHeader);
+        context.WriteLine(RenderStrings.Render_OptionOutput);
+        context.WriteLine(RenderStrings.Render_OptionFormat);
+        context.WriteLine(RenderStrings.Render_OptionView);
+        context.WriteLine(RenderStrings.Render_OptionAuto);
         context.WriteLine("");
-        context.WriteLine("The global --depth option also bounds diagram nesting depth for this command");
-        context.WriteLine("(see 'sysml2tools --help').");
+        context.WriteLine(RenderStrings.Render_DepthNote1);
+        context.WriteLine(RenderStrings.Render_DepthNote2);
     }
 }

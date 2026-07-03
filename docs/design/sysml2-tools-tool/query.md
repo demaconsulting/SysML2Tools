@@ -222,10 +222,31 @@ exposes `PrintGeneralHelp`/`PrintVerbHelp` for `Program`'s help handling.
    and writes each line/the JSON string via `context.WriteLine`.
 
 **`PrintGeneralHelp(Context context)`**: Lists all 11 verbs with a one-line description and
-the shared option set; used for `query --help` with no verb.
+the shared option set; used for `query --help` with no verb. Also prints a "typical
+workflow" note recommending `list`/`find` first to discover exact qualified names before
+using an element-scoped verb, since 9 of the 11 verbs require `--element`.
 
 **`PrintVerbHelp(Context context, QueryVerb verb)`**: Prints a verb-specific usage line and
-only the options relevant to that verb; used for `query <verb> --help`.
+only the options relevant to that verb, followed by one real example invocation (drawn from
+the bundled `test/SysMLModels/OMG/examples/VehicleExample/*.sysml` fixture, or explicitly
+marked "illustrative" for the two verbs — `requirements`, `states` — that fixture has no
+matching content for) and the shared Markdown/JSON output-shape schema hint (identical for
+every verb, since all 11 share one `QueryResult`/`QueryResultRenderer`); used for
+`query <verb> --help`.
+
+#### Localization / Resource Strings
+
+Every line printed by `PrintGeneralHelp`/`PrintVerbHelp` (including the verb list, options,
+the "typical workflow" note, the per-verb example invocations, and the schema hints) is
+sourced from `QueryStrings`, a hand-written, culture-aware `ResourceManager` accessor over
+`Query/QueryStrings.resx` — see `docs/design/sysml2-tools-tool/program.md`'s "Localization /
+Resource Strings" section for the rationale and the zero-code-change future-locale story,
+which applies identically here. The 11 per-verb example-invocation keys
+(`Query_Example_Uses` … `Query_Example_Find`) are each backed by their own
+`public static string` property (so the resx-key/accessor-property parity check in
+`ResxResourceTests` needs no special-casing), and are additionally exposed through a single
+`QueryStrings.GetExample(QueryVerb)` switch-expression helper so `PrintVerbHelp` only needs
+one call site instead of an 11-arm switch of its own.
 
 #### Error Handling
 
@@ -279,3 +300,5 @@ only the options relevant to that verb; used for `query <verb> --help`.
 | SysML2Tools-Tool-Query-StdlibFilter | `QueryEngine.IsVisible` |
 | SysML2Tools-Tool-Query-ElementNotFound | Element-lookup check in `QueryCommand.RunAsync` |
 | SysML2Tools-Tool-Query-OutputFormat | `QueryResultRenderer.RenderMarkdown`/`RenderJson`/`SortEntries` |
+| SysML2Tools-Tool-Query-LocalizableHelpText | `QueryStrings` accessor, used by `PrintGeneralHelp`/`PrintVerbHelp` |
+| SysML2Tools-Tool-Query-HelpEnrichment | `QueryStrings.GetExample`/`SchemaHint_*`, used by `PrintVerbHelp` |

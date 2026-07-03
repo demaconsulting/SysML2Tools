@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Globalization;
 using System.Reflection;
 using DemaConsulting.SysML2Tools.Cli;
 using DemaConsulting.SysML2Tools.Help;
@@ -182,8 +183,8 @@ internal static class Program
     /// <param name="context">The context for output.</param>
     private static void PrintBanner(Context context)
     {
-        context.WriteLine($"SysML2 Tools version {Version}");
-        context.WriteLine("Copyright (c) DEMA Consulting");
+        context.WriteLine(string.Format(CultureInfo.InvariantCulture, ProgramStrings.Banner_Version, Version));
+        context.WriteLine(ProgramStrings.Banner_Copyright);
         context.WriteLine("");
     }
 
@@ -198,39 +199,39 @@ internal static class Program
     /// </remarks>
     internal static void PrintTopLevelHelp(Context context)
     {
-        context.WriteLine("Usage: sysml2tools [options] <command> [files...]");
+        context.WriteLine(ProgramStrings.TopLevel_Usage);
         context.WriteLine("");
-        context.WriteLine("Commands:");
-        context.WriteLine("  lint <files...>            Parse files and report syntax errors");
-        context.WriteLine("  render [options] <files..> Render view diagrams to SVG or PNG files");
-        context.WriteLine("  query <verb> [options] <files...>");
-        context.WriteLine("                             Run a model-analysis query (preview; run");
-        context.WriteLine("                             'sysml2tools query --help' for the verb list)");
-        context.WriteLine("  help [command] [verb]      Print help for the tool, a command, or (for 'query')");
-        context.WriteLine("                             a specific verb");
+        context.WriteLine(ProgramStrings.TopLevel_CommandsHeader);
+        context.WriteLine(ProgramStrings.TopLevel_CommandLint);
+        context.WriteLine(ProgramStrings.TopLevel_CommandRender);
+        context.WriteLine(ProgramStrings.TopLevel_CommandQuery1);
+        context.WriteLine(ProgramStrings.TopLevel_CommandQuery2);
+        context.WriteLine(ProgramStrings.TopLevel_CommandQuery3);
+        context.WriteLine(ProgramStrings.TopLevel_CommandHelp1);
+        context.WriteLine(ProgramStrings.TopLevel_CommandHelp2);
         context.WriteLine("");
-        context.WriteLine("Options:");
-        context.WriteLine("  -v, --version              Display version information");
-        context.WriteLine("  -?, -h, --help             Display this help message");
-        context.WriteLine("  --silent                   Suppress console output");
-        context.WriteLine("  --validate                 Run self-validation");
-        context.WriteLine("  --results <file>           Write validation results to file (.trx or .xml)");
-        context.WriteLine("  --depth <#>                Set heading depth (1–6) and diagram render depth");
-        context.WriteLine("                             (default: 1); for the query command's 'impact' verb,");
-        context.WriteLine("                             --depth instead bounds the impact-walk depth");
-        context.WriteLine("  --log <file>               Write output to log file");
-        context.WriteLine("  --output <dir>             Output directory for rendered files (render command)");
-        context.WriteLine("  --format <fmt>             Renderer format: svg (default) or png (render command);");
-        context.WriteLine("                             for the query command, --format instead selects");
-        context.WriteLine("                             markdown (default) or json output");
-        context.WriteLine("  --view <name>              Select a specific view to render (render command)");
-        context.WriteLine("  --auto                     Auto-generate a view when none are defined (render command)");
-        context.WriteLine("  --element <name>, -e <name>");
-        context.WriteLine("                             Qualified name of the target element (query command)");
-        context.WriteLine("  --direction up|down|both   Traversal direction (query 'hierarchy' verb)");
-        context.WriteLine("  --kind <kind>              Element-kind filter (query 'list'/'find' verbs)");
-        context.WriteLine("  --name <substring>         Name substring filter (query 'list'/'find' verbs)");
-        context.WriteLine("  --include-stdlib           Include OMG standard library elements (query command)");
+        context.WriteLine(ProgramStrings.TopLevel_OptionsHeader);
+        context.WriteLine(ProgramStrings.TopLevel_OptionVersion);
+        context.WriteLine(ProgramStrings.TopLevel_OptionHelp);
+        context.WriteLine(ProgramStrings.TopLevel_OptionSilent);
+        context.WriteLine(ProgramStrings.TopLevel_OptionValidate);
+        context.WriteLine(ProgramStrings.TopLevel_OptionResults);
+        context.WriteLine(ProgramStrings.TopLevel_OptionDepth1);
+        context.WriteLine(ProgramStrings.TopLevel_OptionDepth2);
+        context.WriteLine(ProgramStrings.TopLevel_OptionDepth3);
+        context.WriteLine(ProgramStrings.TopLevel_OptionLog);
+        context.WriteLine(ProgramStrings.TopLevel_OptionOutput);
+        context.WriteLine(ProgramStrings.TopLevel_OptionFormat1);
+        context.WriteLine(ProgramStrings.TopLevel_OptionFormat2);
+        context.WriteLine(ProgramStrings.TopLevel_OptionFormat3);
+        context.WriteLine(ProgramStrings.TopLevel_OptionView);
+        context.WriteLine(ProgramStrings.TopLevel_OptionAuto);
+        context.WriteLine(ProgramStrings.TopLevel_OptionElement1);
+        context.WriteLine(ProgramStrings.TopLevel_OptionElement2);
+        context.WriteLine(ProgramStrings.TopLevel_OptionDirection);
+        context.WriteLine(ProgramStrings.TopLevel_OptionKind);
+        context.WriteLine(ProgramStrings.TopLevel_OptionName);
+        context.WriteLine(ProgramStrings.TopLevel_OptionIncludeStdlib);
     }
 
     /// <summary>
@@ -254,7 +255,7 @@ internal static class Program
                 break;
 
             default:
-                context.WriteLine("No command specified. Run 'sysml2tools --help' for usage.");
+                context.WriteLine(ProgramStrings.NoCommand_Message);
                 break;
         }
     }

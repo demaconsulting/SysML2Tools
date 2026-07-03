@@ -53,6 +53,12 @@ frameworks.
   their respective verbs, without asserting brittle exact counts.
 - Existing `lint`/`render` test suites continue to pass unmodified, confirming no
   regression.
+- `query <verb> --help` includes a real example invocation for the verb and the shared
+  Markdown/JSON output-shape schema hint; `query --help` (no verb) includes a "typical
+  workflow" note recommending `list`/`find` before element-scoped verbs.
+- All four subsystems' resx-backed help text (`ProgramStrings`, `LintStrings`,
+  `RenderStrings`, `QueryStrings`) resolve every key to non-empty text and stay in
+  bidirectional parity with their accessor classes.
 
 #### Test Scenarios
 
@@ -90,6 +96,31 @@ Verifies that `query --help` prints general help (listing the verbs) and returns
 
 Verifies that `query uses --help` prints verb-specific help and returns exit code 0, without
 requiring `--element`.
+
+##### QuerySubsystem_QueryHelp_NoVerb_MentionsTypicalWorkflow
+
+Verifies that `query --help` (no verb) includes the "typical workflow" note text (contains
+"Typical workflow" and "--element"), confirming `PrintGeneralHelp`'s enrichment content is
+actually rendered, not merely present in the resx file. Satisfies
+`SysML2Tools-Tool-Query-HelpEnrichment`.
+
+##### QuerySubsystem_QueryVerbHelp_MentionsExampleInvocationAndSchemaHints (theory, 11 cases)
+
+Verifies that `query <verb> --help`, for every one of the 11 verbs, contains that verb's
+real example-invocation substring (drawn from the `VehicleExample` fixture, per the
+planning report's verified enrichment content) and the shared Markdown/JSON schema-hint
+substrings (`"Qualified Name"` for Markdown, `"QualifiedName"` for JSON — matching the real
+`QueryResultRenderer`/`QueryResultSerializerContext` output shape, verified by direct CLI
+invocation during implementation). Satisfies `SysML2Tools-Tool-Query-HelpEnrichment`.
+
+##### ResxResource_EveryKey_ResolvesToNonEmptyText / ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity (ResxResourceTests.cs)
+
+For the `QueryStrings` resource base name/accessor pair (one of four covered by these theory
+tests), every key discovered in `Query/QueryStrings.resx`'s invariant-culture resource set
+resolves to non-null/non-empty text via `ResourceManager`, and every such key (including the
+11 `Query_Example_*` keys, each backed by its own accessor property) has a matching
+`public static string` property on `QueryStrings` (and vice versa). Satisfies
+`SysML2Tools-Tool-Query-LocalizableHelpText`.
 
 ##### QueryVerbsTests.cs
 

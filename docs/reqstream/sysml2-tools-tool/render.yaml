@@ -105,3 +105,15 @@ sections:
           producing an unexpected output format.
         tests:
           - RenderSubsystem_UnsupportedFormat_ThrowsArgumentException
+
+      - id: SysML2Tools-Tool-Render-LocalizableHelpText
+        title: >-
+          The render command's help text (RenderCommand.PrintHelp) shall be sourced from
+          culture-aware .resx resources via ResourceManager, falling back to invariant
+          English, so a future locale-specific .resx requires no code change.
+        justification: |
+          Mirrors the Program subsystem's resx-based localization approach so render's help
+          text is not left as an inconsistent set of hardcoded string literals.
+        tests:
+          - ResxResource_EveryKey_ResolvesToNonEmptyText
+          - ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity

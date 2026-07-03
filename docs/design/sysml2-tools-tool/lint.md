@@ -55,7 +55,12 @@ where `{severity}` is the lowercased `DiagnosticSeverity` enum value name.
 `LintCommand.PrintHelp(Context context)` prints `lint`'s usage line and a note that it accepts
 no flags of its own. This is the single source of truth for both `lint --help` (dispatched from
 `Program.RunAsync`'s command-aware help block) and `help lint` (dispatched from
-`Help.HelpCommand.Run`); neither entry point duplicates the help text.
+`Help.HelpCommand.Run`); neither entry point duplicates the help text. Every line printed by
+`PrintHelp` is sourced from `LintStrings`, a hand-written, culture-aware `ResourceManager`
+accessor over `Lint/LintStrings.resx` — see `docs/design/sysml2-tools-tool/program.md`'s
+"Localization / Resource Strings" section for the rationale (hand-written vs. Visual
+Studio-generated accessor) and the zero-code-change future-locale story, which applies
+identically here.
 
 The `Lint` subsystem depends on `DemaConsulting.SysML2Tools.Parser.WorkspaceParser` from the
 core library and on `Context`/`LintOptions`/`LintArgumentParser` from the `Cli`/`Lint`

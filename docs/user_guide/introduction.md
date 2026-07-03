@@ -130,6 +130,11 @@ model-comprehension and analysis questions via 11 verbs. Every verb accepts
 standard-library elements (excluded by default). Output is always sorted alphabetically by
 qualified name, regardless of format, for stable and reproducible results.
 
+`query <verb> --help` (and `help query <verb>`) shows a real example invocation for that
+verb and a schema hint describing the Markdown/JSON output shape; `query --help` (and
+`help query`, with no verb) shows a "typical workflow" note recommending `list`/`find` first
+to discover exact qualified names before using an element-scoped verb.
+
 ```bash
 # What does this element depend on? (outgoing edges: supertypes, typing, imports)
 sysml2tools query uses --element Model::Vehicle "src/**/*.sysml"
