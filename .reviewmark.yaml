@@ -782,6 +782,11 @@ reviews:
       - "docs/verification/sysml2-tools-tool/query.md"
       - "src/DemaConsulting.SysML2Tools.Tool/Query/*.cs"
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QuerySubsystemTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryTestFixtures.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryVerbsTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryRenderingTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryOmgFixtureTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryErrorPathTests.cs"
 
   # OTS Items
   - id: OTS-BuildMark

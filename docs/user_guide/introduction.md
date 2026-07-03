@@ -122,6 +122,73 @@ sysml2tools render model.sysml --output diagram.svg --depth 3
 PNG output uses an embedded Noto Sans font to guarantee pixel-identical output across
 Windows, Linux, and macOS.
 
+# Querying
+
+The `query` command loads a workspace, resolves the semantic model, and answers
+model-comprehension and analysis questions via 11 verbs. Every verb accepts
+`--format markdown` (default) or `--format json`, and `--include-stdlib` to include
+standard-library elements (excluded by default). Output is always sorted alphabetically by
+qualified name, regardless of format, for stable and reproducible results.
+
+```bash
+# What does this element depend on? (outgoing edges: supertypes, typing, imports)
+sysml2tools query uses --element Model::Vehicle "src/**/*.sysml"
+
+# What depends on this element? (incoming edges)
+sysml2tools query used-by --element Model::Engine "src/**/*.sysml"
+
+# Transitive blast radius of a change, optionally bounded
+sysml2tools query impact --element Model::Engine --depth 2 "src/**/*.sysml"
+
+# A single-element "fact sheet": kind, supertypes, typing, annotations, children
+sysml2tools query describe --element Model::Vehicle "src/**/*.sysml"
+
+# Supertype/subtype tree
+sysml2tools query hierarchy --element Model::Vehicle --direction both "src/**/*.sysml"
+
+# Requirement satisfy/verify/allocate relationships
+sysml2tools query requirements --element Model::Requirements::TopSpeed "src/**/*.sysml"
+
+# Ports and typed features exposed by a definition
+sysml2tools query interface --element Model::Vehicle "src/**/*.sysml"
+
+# Resolved connection endpoints (including dotted feature chains)
+sysml2tools query connections --element Model::Vehicle "src/**/*.sysml"
+
+# States and guarded transitions
+sysml2tools query states --element Model::VehicleStates "src/**/*.sysml"
+
+# Enumerate elements matching a kind and/or name substring
+sysml2tools query list --kind requirement "src/**/*.sysml"
+sysml2tools query find --name Engine "src/**/*.sysml" --format json
+```
+
+## Query Output Formats
+
+| Format | Flag | Notes |
+| --- | --- | --- |
+| Markdown | default, or `--format markdown` | Heading, summary bullets, table — readable by humans and LLMs |
+| JSON | `--format json` | Source-generated (AOT-safe) serialization of the same result shape |
+
+Markdown and JSON renderings of the same query always contain the same qualified names in
+the same order, so either format can be relied on for automated comparisons.
+
+## Verb Reference
+
+| Verb | Requires `--element` | Answers |
+| --- | --- | --- |
+| `uses` | yes | What does this element depend on? |
+| `used-by` | yes | What depends on this element? |
+| `impact` | yes | What is transitively affected by a change (`--depth` to bound)? |
+| `describe` | yes | What is this element (kind, supertypes, typing, annotations, children)? |
+| `hierarchy` | yes | What is the supertype/subtype tree (`--direction up`\|`down`\|`both`)? |
+| `requirements` | yes | What satisfy/verify/allocate relationships involve this element? |
+| `interface` | yes | What ports/typed features does this definition expose? |
+| `connections` | yes | What is this element connected to? |
+| `states` | yes | What states and transitions does this element contain? |
+| `list` | no | Enumerate elements, optionally filtered by `--kind`/`--name` |
+| `find` | no | Search elements — requires `--kind` and/or `--name` |
+
 # Global Options
 
 The following global options are accepted before the verb:

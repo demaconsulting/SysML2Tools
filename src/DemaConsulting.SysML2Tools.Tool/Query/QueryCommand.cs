@@ -19,13 +19,17 @@
 // SOFTWARE.
 
 using DemaConsulting.SysML2Tools.Cli;
+using DemaConsulting.SysML2Tools.Parser;
+using DemaConsulting.SysML2Tools.Semantic;
+using DemaConsulting.SysML2Tools.Semantic.Internal;
+using DemaConsulting.SysML2Tools.Stdlib;
 
 namespace DemaConsulting.SysML2Tools.Query;
 
 /// <summary>
-///     Implements the <c>query</c> command: dispatches to one of eleven model-analysis
-///     verbs. Every verb currently reports a "not yet implemented" diagnostic; real verb
-///     logic is added incrementally in future releases, one <c>switch</c> arm at a time.
+///     Implements the <c>query</c> command: loads a SysML v2 workspace and dispatches to one of
+///     eleven model-analysis verbs implemented by <see cref="QueryEngine"/>, rendering the result
+///     via <see cref="QueryResultRenderer"/> as Markdown (default) or JSON.
 /// </summary>
 internal static class QueryCommand
 {
@@ -34,84 +38,118 @@ internal static class QueryCommand
     /// </summary>
     /// <param name="context">The CLI context, supplying the parsed <see cref="QueryOptions"/> and output methods.</param>
     /// <exception cref="ArgumentException">
-    ///     Thrown when <see cref="Context.Query"/> is <see langword="null"/> (no verb was parsed), or when the verb
-    ///     requires <c>--element</c> and none was supplied.
+    ///     Thrown when <see cref="Context.Query"/> is <see langword="null"/> (no verb was parsed), when the verb
+    ///     requires <c>--element</c> and none was supplied, when <c>find</c> is invoked without <c>--kind</c> or
+    ///     <c>--name</c>, or when <c>--format</c> is not <c>markdown</c>/<c>json</c>.
     /// </exception>
-    public static Task RunAsync(Context context)
+    public static async Task RunAsync(Context context)
     {
         // Defensive: Program only reaches here when Command == Query, which Context.Create only
         // sets after successfully parsing a verb, so Query should never be null in practice.
         var options = context.Query
                       ?? throw new ArgumentException("query: no verb was specified.", nameof(context));
+        var verbToken = QueryVerbParsing.ToToken(options.Verb);
 
         // Verbs other than 'list'/'find' operate on a single target element
         if (QueryVerbParsing.RequiresElement(options.Verb) && string.IsNullOrWhiteSpace(options.Element))
         {
-            var verbToken = QueryVerbParsing.ToToken(options.Verb);
             throw new ArgumentException(
                 $"query {verbToken}: --element (-e) is required for this verb.",
                 nameof(context));
         }
 
-        // Each verb gets its own switch arm (rather than a lookup/loop) so a future release can
-        // replace one verb's stub with real logic without touching the others.
-        switch (options.Verb)
+        // 'find' additionally requires at least one of --kind/--name; validated up front so an
+        // obviously-invalid invocation fails fast without loading any files.
+        if (options.Verb == QueryVerb.Find &&
+            string.IsNullOrWhiteSpace(options.Kind) && string.IsNullOrWhiteSpace(options.NameFilter))
         {
-            case QueryVerb.Uses:
-                return NotImplementedAsync(context, QueryVerb.Uses);
-
-            case QueryVerb.UsedBy:
-                return NotImplementedAsync(context, QueryVerb.UsedBy);
-
-            case QueryVerb.Impact:
-                return NotImplementedAsync(context, QueryVerb.Impact);
-
-            case QueryVerb.Describe:
-                return NotImplementedAsync(context, QueryVerb.Describe);
-
-            case QueryVerb.Hierarchy:
-                return NotImplementedAsync(context, QueryVerb.Hierarchy);
-
-            case QueryVerb.Requirements:
-                return NotImplementedAsync(context, QueryVerb.Requirements);
-
-            case QueryVerb.Interface:
-                return NotImplementedAsync(context, QueryVerb.Interface);
-
-            case QueryVerb.Connections:
-                return NotImplementedAsync(context, QueryVerb.Connections);
-
-            case QueryVerb.States:
-                return NotImplementedAsync(context, QueryVerb.States);
-
-            case QueryVerb.List:
-                return NotImplementedAsync(context, QueryVerb.List);
-
-            case QueryVerb.Find:
-                return NotImplementedAsync(context, QueryVerb.Find);
-
-            default:
-                throw new ArgumentOutOfRangeException(nameof(context), options.Verb, "Unrecognized query verb.");
+            throw new ArgumentException(
+                "query find: at least one of --kind or --name is required.",
+                nameof(context));
         }
-    }
 
-    /// <summary>
-    ///     Reports that a verb's real implementation has not shipped yet.
-    /// </summary>
-    /// <param name="context">The CLI context used to report the diagnostic.</param>
-    /// <param name="verb">The verb that was requested.</param>
-    /// <returns>A completed task.</returns>
-    /// <remarks>
-    ///     Uses <see cref="Context.WriteError"/> (setting <see cref="Context.ExitCode"/> to 1)
-    ///     rather than throwing, matching the existing <c>lint</c>/<c>render</c> convention for
-    ///     reporting "not ready" conditions in a way that <see cref="Program.Main"/> handles
-    ///     cleanly without an unhandled-exception crash.
-    /// </remarks>
-    private static Task NotImplementedAsync(Context context, QueryVerb verb)
-    {
-        var verbToken = QueryVerbParsing.ToToken(verb);
-        context.WriteError($"query {verbToken}: not yet implemented. This verb will be implemented in a future release.");
-        return Task.CompletedTask;
+        // Reject unsupported --format values up front, before doing any work
+        var format = options.Format ?? "markdown";
+        if (!format.Equals("markdown", StringComparison.OrdinalIgnoreCase) &&
+            !format.Equals("json", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"query {verbToken}: unsupported --format value '{format}'. Valid values are: markdown, json.",
+                nameof(context));
+        }
+
+        if (options.Files.Count == 0)
+        {
+            context.WriteError($"query {verbToken}: no input files specified. Provide file glob patterns.");
+            return;
+        }
+
+        // Load the workspace from the supplied file patterns, exactly as 'lint'/'render' do
+        context.WriteLine($"Loading {options.Files.Count} file pattern(s)...");
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var loadResult = await WorkspaceLoader.LoadAsync(options.Files, stdlibTable).ConfigureAwait(false);
+
+        foreach (var diagnostic in loadResult.Diagnostics)
+        {
+            if (diagnostic.Severity == DiagnosticSeverity.Error)
+            {
+                context.WriteError($"  {diagnostic}");
+            }
+            else
+            {
+                context.WriteLine($"  {diagnostic}");
+            }
+        }
+
+        if (loadResult.Workspace is null)
+        {
+            context.WriteError($"query {verbToken}: workspace loading failed; no query performed.");
+            return;
+        }
+
+        var workspace = loadResult.Workspace;
+
+        // Look up the target element for verbs that require one
+        SysmlNode? element = null;
+        if (QueryVerbParsing.RequiresElement(options.Verb) &&
+            !workspace.Declarations.TryGetValue(options.Element!, out element))
+        {
+            context.WriteError(
+                $"query {verbToken}: element '{options.Element}' not found in the workspace.");
+            return;
+        }
+
+        // Each verb gets its own switch arm (rather than a lookup/loop) so a future release can
+        // change one verb's logic without touching the others.
+        var result = options.Verb switch
+        {
+            QueryVerb.Uses => QueryEngine.Uses(workspace, element!, options),
+            QueryVerb.UsedBy => QueryEngine.UsedBy(workspace, element!, options),
+            QueryVerb.Impact => QueryEngine.Impact(workspace, element!, options),
+            QueryVerb.Describe => QueryEngine.Describe(workspace, element!, options),
+            QueryVerb.Hierarchy => QueryEngine.Hierarchy(workspace, element!, options),
+            QueryVerb.Requirements => QueryEngine.Requirements(workspace, element!, options),
+            QueryVerb.Interface => QueryEngine.Interface(workspace, element!, options),
+            QueryVerb.Connections => QueryEngine.Connections(workspace, element!, options),
+            QueryVerb.States => QueryEngine.States(workspace, element!, options),
+            QueryVerb.List => QueryEngine.List(workspace, options),
+            QueryVerb.Find => QueryEngine.Find(workspace, options),
+            _ => throw new ArgumentOutOfRangeException(nameof(context), options.Verb, "Unrecognized query verb.")
+        };
+
+        // Render via the shared renderer; markdown lines are written one per WriteLine call,
+        // JSON is written as a single chunk (mirroring how other commands emit multi-line output)
+        if (format.Equals("json", StringComparison.OrdinalIgnoreCase))
+        {
+            context.WriteLine(QueryResultRenderer.RenderJson(result));
+        }
+        else
+        {
+            foreach (var line in QueryResultRenderer.RenderMarkdown(result))
+            {
+                context.WriteLine(line);
+            }
+        }
     }
 
     /// <summary>
@@ -190,7 +228,5 @@ internal static class QueryCommand
 
         context.WriteLine("  --format markdown|json        Output format (default: markdown)");
         context.WriteLine("  --include-stdlib              Include OMG standard library elements in results");
-        context.WriteLine("");
-        context.WriteLine($"Note: '{verbToken}' is not yet implemented; running it reports a diagnostic and exits with code 1.");
     }
 }

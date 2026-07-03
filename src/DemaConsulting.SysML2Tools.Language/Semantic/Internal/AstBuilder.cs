@@ -603,11 +603,19 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             return null;
         }
 
+        // Collect the state body (nested state usages and transitions) as children, mirroring
+        // VisitStateDefinition. Anonymous ("state x;") usages have no body items to collect.
+        _namespaceStack.Add(name);
+        var (children, annotations) = CollectChildren(context.stateUsageBody()?.stateBodyItem() ?? []);
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+
         return new SysmlFeatureNode
         {
             Name = name,
             QualifiedName = QualifyName(name),
             FeatureKeyword = "state",
+            Children = children,
+            Annotations = annotations,
         };
     }
 

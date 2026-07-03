@@ -89,19 +89,27 @@ sysml2tools render model.sysml --auto --output diagram.svg
 sysml2tools render model.sysml --output diagram.svg --depth 3
 ```
 
-### Querying (Preview)
-
-> **Preview**: the `query` command's argument parsing, verb dispatch, and help text are
-> implemented, but each verb currently reports "not yet implemented" and exits with a
-> non-zero code — verb-specific analysis logic ships incrementally in future releases.
+### Querying
 
 ```bash
-# List elements a given element uses (currently reports "not yet implemented")
+# What does this element depend on? (outgoing edges)
 sysml2tools query uses --element Pkg::MyPart model.sysml
+
+# What depends on this element? (incoming edges)
+sysml2tools query used-by --element Pkg::MyPart model.sysml
+
+# Fact sheet: kind, supertypes, typing, annotations, children
+sysml2tools query describe --element Pkg::MyPart model.sysml
 
 # List elements in the workspace, optionally filtered by kind and/or name
 sysml2tools query list --kind part --name Engine "src/**/*.sysml"
+
+# JSON output for scripting/automation
+sysml2tools query uses --element Pkg::MyPart model.sysml --format json
 ```
+
+See [Querying](docs/user_guide/introduction.md#querying) in the user guide for the full
+verb reference and more examples.
 
 ### Global Flags
 
@@ -131,8 +139,8 @@ sysml2tools [-v|--version] [-?|-h|--help] [--silent]
             [<verb> [verb-options] [<globs>]]
 ```
 
-`<verb>` is `lint`, `render`, or `query <query-verb>` (preview; 11 query verbs — see
-[Querying (Preview)](#querying-preview)).
+`<verb>` is `lint`, `render`, or `query <query-verb>` (11 query verbs — see
+[Querying](#querying)).
 
 ### Global Options
 
@@ -162,11 +170,11 @@ sysml2tools [-v|--version] [-?|-h|--help] [--silent]
 | `--auto` | Auto-render the BDD of the top-level `part def` when no view is defined |
 | `--depth <#>` | Limit rendered nesting depth; truncated parts show `+N more…` |
 
-### `query` Options (Preview)
+### `query` Options
 
 | Option | Description |
 | --- | --- |
-| `<verb>` | One of the 11 supported query verbs — see [Querying (Preview)](#querying-preview) |
+| `<verb>` | One of the 11 supported query verbs — see [Querying](#querying) |
 | `<globs>` | One or more glob patterns for `.sysml` input files |
 | `--element <name>`, `-e <name>` | Qualified name of the target element; required for every verb except `list`/`find` |
 | `--format markdown\|json` | Output format (default: `markdown`); distinct from `render`'s `--format` (`svg`/`png`) |

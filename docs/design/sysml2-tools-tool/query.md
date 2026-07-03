@@ -4,7 +4,7 @@
 
 The Query subsystem implements the `query` CLI command: a model-analysis interface exposing
 11 verbs (`uses`, `used-by`, `impact`, `describe`, `hierarchy`, `requirements`, `interface`,
-`connections`, `states`, `list`, `find`) over a SysML v2 workspace. It provides three
+`connections`, `states`, `list`, `find`) over a SysML v2 workspace. It provides five
 cooperating types:
 
 - `QueryVerb` — an enum identifying which of the 11 operations was requested, plus a
@@ -15,10 +15,121 @@ cooperating types:
   `Context.Create` for one `query` invocation.
 - `QueryCommand` — the entry-point dispatcher, mirroring `LintCommand`/`RenderCommand`'s
   `internal static class` shape with a `RunAsync(Context)` method, plus `PrintGeneralHelp`
-  and `PrintVerbHelp` for `--help` rendering.
+  and `PrintVerbHelp` for `--help` rendering. Loads the workspace, resolves the target
+  element, dispatches to `QueryEngine`, and renders the result via `QueryResultRenderer`.
+- `QueryEngine` — a stateless static class with one public method per verb, each taking
+  `(SysmlWorkspace workspace, SysmlNode element, QueryOptions options)` (for `list`/`find`,
+  `element` is an unused placeholder since those verbs operate workspace-wide) and returning
+  a `QueryResult`.
+- `QueryResult`/`QueryResultEntry`/`QueryResultRenderer`/`QueryResultSerializerContext` — the
+  shared, verb-agnostic output model and rendering layer (see **Output Model** below).
 
-As of this release, every verb dispatches to a shared "not yet implemented" stub; real
-verb logic is added incrementally in future releases (see **Stub Contract** below).
+#### Verb Semantics
+
+Every verb reads the semantic model built by the `Semantic`/`Semantic.Internal` types
+(`SemanticIndex`, `SysmlNode.ResolvedEdges`, `SysmlNode.Children`) rather than re-parsing or
+re-resolving anything; `QueryEngine` is a pure read-only consumer of the workspace built by
+`WorkspaceLoader.LoadAsync`.
+
+| Verb | Element required | Data source |
+| --- | --- | --- |
+| `uses` | yes | `Index.GetOutgoingEdges(qn)` |
+| `used-by` | yes | `Index.GetIncomingEdges(qn)` |
+| `impact` | yes | Breadth-first transitive closure over `used-by`, cycle-guarded, bounded by `--depth` |
+| `describe` | yes | Node's own kind, resolved supertypes, typing, annotations, children |
+| `hierarchy` | yes | Recursive `Supertype` edge walk, direction-controlled, cycle-guarded |
+| `requirements` | yes | `Satisfy`/`Verify`/`Allocate` edges where the element is source or target |
+| `interface` | yes | Direct `Children` that are ports or have a non-null `FeatureTyping` |
+| `connections` | yes | `QueryEngine.CollectConnectEdges` node-walk (see below) |
+| `states` | yes | Recursive descendant walk (`QueryEngine.CollectStates`, see below) |
+| `list` | no | `workspace.Declarations`, filtered by `--kind`/`--name` |
+| `find` | no | Same as `list`, but requires at least one of `--kind`/`--name` |
+
+Entry shapes, one row per verb:
+
+- `uses`/`used-by`: other-side qn, `Kind` = edge kind label, `Detail` = other side's kind.
+- `impact`: qn of every element transitively affected by a change to the target.
+- `describe`: direct `Children` as entries (child qn, `Kind` = child's kind); the node's
+  own kind/supertypes/typing/annotations/child-count appear in `Summary`, not `Entries`.
+  Supertypes are resolved via outgoing `Supertype` edges, falling back to raw
+  `SupertypeNames` only when no resolved edge exists.
+- `hierarchy`: qn, `Kind` = `"supertype"` or `"subtype"`; `--direction up` walks outgoing
+  `Supertype` edges, `down` walks incoming, `both` unions them.
+- `requirements`: other-side qn, `Kind` = edge kind label, `Detail` = direction arrow.
+- `interface`: feature qn, `Kind` = `FeatureKeyword`, `Detail` = typing + multiplicity.
+- `connections`: `Connect` edges are **not** exposed via `SemanticIndex.AllEdges`
+  (feature-chain resolution only mutates the originating connector node's own
+  `ResolvedEdges`, per `ReferenceResolver`'s design), so `QueryEngine.CollectConnectEdges`
+  walks every node reachable from `Declarations`, collecting each node's own resolved
+  `Connect` edges together with its connector keyword (`connect`/`connection`/`message`).
+  Entries: other-endpoint qn, `Kind` = connector keyword, `Detail` = `"A"`/`"B"` role.
+- `states`: a recursive descendant walk (`QueryEngine.CollectStates`) collects
+  `SysmlFeatureNode` entries with `FeatureKeyword == "state"` and `SysmlTransitionNode`
+  children (using the transition's own resolved `Transition` edge when present, else its
+  raw `Source`/`Target` text). States: qn, `Kind` = `"state"`. Transitions: target qn,
+  `Kind` = `"transition"`, `Detail` = `"{source} -> {target}"` (+ `" if {guard}"`).
+- `list`/`find`: qn, `Kind` = element's kind.
+
+Every verb applies the `--include-stdlib` filter identically via `IsVisible` (checks
+`workspace.StdlibNames.Contains(qualifiedName)`), and every entry is emitted unsorted by
+`QueryEngine` — deterministic alphabetical-by-qualified-name ordering is applied exactly
+once, downstream, in `QueryResultRenderer` (see **Output Model**).
+
+##### Known Model Gaps
+
+- **State-usage bodies with `accept X then Y` trigger-shorthand transitions**: a state usage
+  body item consisting of an accept-triggered transition (`accept SomeSignal then target;`,
+  with no explicit `first`/`transition` keyword) can, per the current ANTLR grammar/AST
+  builder, silently absorb a preceding sibling `state` usage instead of producing its own
+  `SysmlTransitionNode`. Plain `state x;` declarations and explicit
+  `transition first x if guard then y;` successions are unaffected and fully supported. This
+  is a pre-existing gap in the grammar/`AstBuilder` (predates this unit) that the `states`
+  verb inherits; it is out of scope for this unit to fix (see this unit's completion report
+  for the reproduction and analysis).
+
+#### Output Model
+
+##### QueryResult / QueryResultEntry Purpose
+
+A single, uniform result shape used by all 11 verbs so that `QueryResultRenderer` never
+needs verb-specific rendering logic, and so Markdown/JSON output are always structurally
+identical.
+
+##### QueryResult / QueryResultEntry Data Model
+
+- `QueryResult`: `Verb` (string token), `Element` (qualified name, or `null` for
+  `list`/`find`), `Summary` (`IReadOnlyList<string>`, free-form header lines), `Entries`
+  (`IReadOnlyList<QueryResultEntry>`).
+- `QueryResultEntry`: `QualifiedName`, `Kind`, `Detail` (`string?`), `Notes`
+  (`IReadOnlyList<string>`, currently unused by any verb but reserved for future
+  multi-line annotations).
+
+##### QueryResultRenderer Purpose
+
+The single point of Markdown/JSON rendering and the single point of deterministic ordering,
+so no verb implementation can accidentally produce out-of-order or format-inconsistent
+output.
+
+##### QueryResultRenderer Key Methods
+
+**`RenderMarkdown(QueryResult)`**: Returns `IReadOnlyList<string>` lines — an `# query
+<verb>[: <element>]` heading, the `Summary` lines as a bullet list, then either `_No
+entries._` or a Markdown table (`| Qualified Name | Kind | Detail |`) of `SortEntries`'
+output.
+
+**`RenderJson(QueryResult)`**: Returns an indented JSON string via
+`JsonSerializer.Serialize(sortedResult, QueryResultSerializerContext.Default.QueryResult)`,
+where `sortedResult` is a copy of the input with `Entries` replaced by `SortEntries`' output
+— guaranteeing the same ordering as `RenderMarkdown` for the same `QueryResult`.
+
+**`SortEntries(IReadOnlyList<QueryResultEntry>)`** (private): `OrderBy(e => e.QualifiedName,
+StringComparer.Ordinal)` — the single, shared sort used by both render methods.
+
+##### QueryResultSerializerContext Purpose
+
+Mirrors `AstSerializerContext`'s AOT-safe `System.Text.Json` source-generation pattern for
+the Tool assembly: `[JsonSerializable(typeof(QueryResult))]` with
+`[JsonSourceGenerationOptions(WriteIndented = true)]`.
 
 #### QueryVerb / QueryVerbParsing
 
@@ -79,7 +190,8 @@ then file globs) and differ only in which options are meaningful.
 ##### QueryCommand Purpose
 
 `QueryCommand.RunAsync` validates that a verb was successfully parsed and that
-`--element` was supplied when required, then dispatches to the verb's stub. It also
+`--element` was supplied when required, loads the workspace, resolves the target element,
+dispatches to `QueryEngine`, and renders the result via `QueryResultRenderer`. It also
 exposes `PrintGeneralHelp`/`PrintVerbHelp` for `Program`'s help handling.
 
 ##### QueryCommand Key Methods
@@ -91,14 +203,23 @@ exposes `PrintGeneralHelp`/`PrintVerbHelp` for `Program`'s help handling.
    `Query = null` together when `--help` was requested without a verb).
 2. Throws `ArgumentException` naming the verb when `QueryVerbParsing.RequiresElement` is
    `true` for the verb and `Element` is null/whitespace.
-3. Dispatches via an explicit 11-arm `switch` on `options.Verb` — one arm per verb, not a
-   loop — to `NotImplementedAsync`.
-
-**`NotImplementedAsync(Context context, QueryVerb verb)`**: Calls
-`context.WriteError($"query {token}: not yet implemented. ...")` and returns a completed
-task. Uses `WriteError` (not throwing `NotImplementedException`) so that `Program.Main`'s
-top-level handler does not treat the stub as an unexpected crash — matching the existing
-`lint`/`render` convention for reporting "not ready" conditions.
+3. Throws `ArgumentException` when `Verb == Find` and neither `Kind` nor `NameFilter` is
+   supplied (mirrors the `--element`-required validation style).
+4. Throws `ArgumentException` when `Format` is neither `null`, `"markdown"`, nor `"json"`
+   (case-insensitive).
+5. `WriteError`s "no input files" and returns (exit code 1) when `options.Files` is empty —
+   matching `lint`/`render`'s convention.
+6. Loads the workspace via `StdlibProvider.GetSymbolTable()` +
+   `WorkspaceLoader.LoadAsync(options.Files, stdlibTable)`, reporting diagnostics via
+   `WriteLine`/`WriteError` exactly like `RenderCommand`; `WriteError`s "workspace loading
+   failed" and returns if `Workspace` is `null`.
+7. For verbs requiring an element, looks up `workspace.Declarations.TryGetValue(element,
+   out node)`; `WriteError`s `"query {token}: element '{element}' not found in the
+   workspace."` and returns (exit code 1) when missing.
+8. Dispatches via an explicit 11-arm `switch` on `options.Verb` — one arm per verb, not a
+   loop or dictionary — to the matching `QueryEngine` method.
+9. Renders the resulting `QueryResult` via `QueryResultRenderer.RenderMarkdown`/`RenderJson`
+   and writes each line/the JSON string via `context.WriteLine`.
 
 **`PrintGeneralHelp(Context context)`**: Lists all 11 verbs with a one-line description and
 the shared option set; used for `query --help` with no verb.
@@ -106,28 +227,26 @@ the shared option set; used for `query --help` with no verb.
 **`PrintVerbHelp(Context context, QueryVerb verb)`**: Prints a verb-specific usage line and
 only the options relevant to that verb; used for `query <verb> --help`.
 
-#### Stub Contract (for future releases)
-
-Each of the 11 `switch` arms in `RunAsync` currently calls `NotImplementedAsync`. A future
-release implements one verb at a time by replacing that verb's single arm with a call to
-real analysis logic — no other arm, and no part of the validation logic above it, needs to
-change. This is a deliberate design choice: the `switch` is written with 11 explicit arms
-(not a dictionary/loop keyed by `QueryVerb`) specifically so that a diff implementing one
-verb touches only one arm.
-
 #### Error Handling
 
 - `context.Query is null`: `ArgumentException` (defensive; should not occur via `Program`).
 - `--element` required but missing: `ArgumentException` naming the verb token.
+- `find` with neither `--kind` nor `--name`: `ArgumentException`.
+- Unsupported `--format` value: `ArgumentException` naming the bad value.
 - Unrecognized verb token: `ArgumentException` (thrown by `QueryVerbParsing.Parse`, called
   from `Context`'s `ArgumentParser`) listing all valid tokens.
-- All 11 verbs (given valid input): `context.WriteError` reporting "not yet implemented";
+- No input files: `context.WriteError`; `Context.ExitCode` becomes 1.
+- Workspace failed to load: `context.WriteError`; `Context.ExitCode` becomes 1.
+- Target element not found in the workspace: `context.WriteError` naming the element;
   `Context.ExitCode` becomes 1.
 
 #### Dependencies
 
 - `Context`, `SysmlCommand` (in `DemaConsulting.SysML2Tools.Cli`) — reads `Query` options;
   writes output.
+- `WorkspaceLoader`, `StdlibProvider`, `SysmlWorkspace`, `SemanticIndex`, `SysmlNode` and
+  derived types (in `DemaConsulting.SysML2Tools.Semantic`/`.Internal`) — workspace loading
+  and the model read by `QueryEngine`.
 
 #### Callers
 
@@ -140,9 +259,22 @@ verb touches only one arm.
 
 | Requirement ID | Satisfied by |
 | --- | --- |
-| SysML2Tools-Tool-Query-VerbGrammar | `query` verb handling in `Context`'s `ArgumentParser`; `QueryVerbParsing.Parse` |
+| SysML2Tools-Tool-Query-VerbGrammar | `Context`'s `ArgumentParser`; `QueryVerbParsing.Parse` |
 | SysML2Tools-Tool-Query-UnknownVerb | `QueryVerbParsing.Parse`'s `ArgumentException` path |
 | SysML2Tools-Tool-Query-ElementRequired | Element-required check at the start of `QueryCommand.RunAsync` |
-| SysML2Tools-Tool-Query-Format | `--format` reused from render's `RendererFormat` field; `QueryOptions.Format` |
-| SysML2Tools-Tool-Query-NotImplementedStub | `NotImplementedAsync` called from each `switch` arm in `RunAsync` |
+| SysML2Tools-Tool-Query-Format | `QueryOptions.Format`; `QueryResultRenderer.RenderMarkdown`/`RenderJson` |
 | SysML2Tools-Tool-Query-Help | `QueryCommand.PrintGeneralHelp`/`PrintVerbHelp`, called from `Program.RunAsync` |
+| SysML2Tools-Tool-Query-Uses | `QueryEngine.Uses` |
+| SysML2Tools-Tool-Query-UsedBy | `QueryEngine.UsedBy` |
+| SysML2Tools-Tool-Query-Impact | `QueryEngine.Impact` |
+| SysML2Tools-Tool-Query-Describe | `QueryEngine.Describe` |
+| SysML2Tools-Tool-Query-Hierarchy | `QueryEngine.Hierarchy` |
+| SysML2Tools-Tool-Query-Requirements | `QueryEngine.Requirements` |
+| SysML2Tools-Tool-Query-Interface | `QueryEngine.Interface` |
+| SysML2Tools-Tool-Query-Connections | `QueryEngine.Connections`, `QueryEngine.CollectConnectEdges` |
+| SysML2Tools-Tool-Query-States | `QueryEngine.States`, `QueryEngine.CollectStates` |
+| SysML2Tools-Tool-Query-List | `QueryEngine.List` |
+| SysML2Tools-Tool-Query-Find | `QueryEngine.Find` |
+| SysML2Tools-Tool-Query-StdlibFilter | `QueryEngine.IsVisible` |
+| SysML2Tools-Tool-Query-ElementNotFound | Element-lookup check in `QueryCommand.RunAsync` |
+| SysML2Tools-Tool-Query-OutputFormat | `QueryResultRenderer.RenderMarkdown`/`RenderJson`/`SortEntries` |

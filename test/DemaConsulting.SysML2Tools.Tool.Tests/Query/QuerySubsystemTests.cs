@@ -24,62 +24,93 @@ using DemaConsulting.SysML2Tools.Query;
 namespace DemaConsulting.SysML2Tools.Tests.Query;
 
 /// <summary>
-///     Subsystem tests for the Query command covering verb dispatch to "not yet implemented"
-///     stubs, --element validation, unknown-verb errors, and query help rendering.
+///     Subsystem tests for the Query command covering verb dispatch to real
+///     <see cref="DemaConsulting.SysML2Tools.Query.QueryEngine"/> logic, --element validation,
+///     unknown-verb errors, and query help rendering.
 /// </summary>
 [Collection("Sequential")]
 public class QuerySubsystemTests
 {
     /// <summary>
-    ///     The full ordered list of query verb tokens and whether each requires --element.
+    ///     A minimal fixture providing at least one element usable by every verb: a specialized
+    ///     part def (uses/used-by/impact/hierarchy), a requirement satisfaction
+    ///     (requirements), a port (interface), a connection (connections), and a state machine
+    ///     (states).
     /// </summary>
-    public static TheoryData<string, bool> VerbTokens => new()
+    private const string Fixture = """
+        package Model {
+            part def Root;
+            part def Mid specializes Root;
+
+            part def Port;
+            part def Node {
+                port p : Port;
+            }
+            part def Assembly {
+                part a : Node;
+                part b : Node;
+                connection link connect a.p to b.p;
+            }
+
+            requirement def R;
+            requirement req : R;
+            part def Q {}
+            part subj : Q;
+            satisfy req by subj;
+
+            state def Light {
+                state stop;
+                state go;
+                transition first stop if t then go;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     The full ordered list of query verb tokens, whether each requires --element, and the
+    ///     qualified name to target when it does.
+    /// </summary>
+    public static TheoryData<string, string?> VerbTokens => new()
     {
-        { "uses", true },
-        { "used-by", true },
-        { "impact", true },
-        { "describe", true },
-        { "hierarchy", true },
-        { "requirements", true },
-        { "interface", true },
-        { "connections", true },
-        { "states", true },
-        { "list", false },
-        { "find", false }
+        { "uses", "Model::Mid" },
+        { "used-by", "Model::Root" },
+        { "impact", "Model::Root" },
+        { "describe", "Model::Mid" },
+        { "hierarchy", "Model::Mid" },
+        { "requirements", "Model::req" },
+        { "interface", "Model::Node" },
+        { "connections", "Model::Assembly::a" },
+        { "states", "Model::Light" },
+        { "list", null },
+        { "find", null }
     };
 
     /// <summary>
-    ///     Each of the 11 verbs, when supplied with --element (where required), reports the
-    ///     "not yet implemented" diagnostic and produces exit code 1.
+    ///     Each of the 11 verbs, given a valid element (where required) and a loadable workspace,
+    ///     dispatches to real <c>QueryEngine</c> logic and produces exit code 0.
     /// </summary>
     [Theory]
     [MemberData(nameof(VerbTokens))]
-    public async Task QuerySubsystem_AnyVerb_WithElement_ReportsNotImplementedStub(string verbToken, bool requiresElement)
+    public async Task QuerySubsystem_AnyVerb_WithValidInput_DispatchesToRealLogic(string verbToken, string? element)
     {
-        // Arrange
-        var originalError = Console.Error;
-        try
+        string[] args;
+        if (element is not null)
         {
-            using var errWriter = new StringWriter();
-            Console.SetError(errWriter);
-
-            var args = requiresElement
-                ? new[] { "query", verbToken, "--element", "Pkg::Foo", "file.sysml" }
-                : new[] { "query", verbToken, "file.sysml" };
-
-            // Act
-            using var context = Context.Create(args);
-            await QueryCommand.RunAsync(context);
-
-            // Assert: stub message written and exit code indicates failure
-            Assert.Equal(1, context.ExitCode);
-            Assert.Contains(verbToken, errWriter.ToString());
-            Assert.Contains("not yet implemented", errWriter.ToString());
+            args = [verbToken, "--element", element];
         }
-        finally
+        else if (verbToken == "find")
         {
-            Console.SetError(originalError);
+            args = [verbToken, "--kind", "part"];
         }
+        else
+        {
+            args = [verbToken];
+        }
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(Fixture, args);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains($"query {verbToken}", output);
     }
 
     /// <summary>
@@ -107,10 +138,11 @@ public class QuerySubsystemTests
     }
 
     /// <summary>
-    ///     'list' succeeds without --element (dispatches to its stub instead of throwing).
+    ///     'list' succeeds without --element, but reports a "no input files" error when no files
+    ///     are supplied (dispatch validation happens before file loading).
     /// </summary>
     [Fact]
-    public async Task QuerySubsystem_ListVerb_NoElement_DispatchesToStub()
+    public async Task QuerySubsystem_ListVerb_NoElementNoFiles_ReportsNoInputFilesError()
     {
         // Arrange
         var originalError = Console.Error;
@@ -126,6 +158,7 @@ public class QuerySubsystemTests
             // Assert
             Assert.Equal(1, context.ExitCode);
             Assert.Contains("list", errWriter.ToString());
+            Assert.Contains("no input files", errWriter.ToString());
         }
         finally
         {
@@ -134,10 +167,11 @@ public class QuerySubsystemTests
     }
 
     /// <summary>
-    ///     'find' succeeds without --element (dispatches to its stub instead of throwing).
+    ///     'find' succeeds without --element (dispatch validation happens before file loading, and
+    ///     'find' does not require --element).
     /// </summary>
     [Fact]
-    public async Task QuerySubsystem_FindVerb_NoElement_DispatchesToStub()
+    public async Task QuerySubsystem_FindVerb_NoElementNoFiles_ReportsNoInputFilesError()
     {
         // Arrange
         var originalError = Console.Error;
@@ -147,12 +181,13 @@ public class QuerySubsystemTests
             Console.SetError(errWriter);
 
             // Act
-            using var context = Context.Create(["query", "find"]);
+            using var context = Context.Create(["query", "find", "--kind", "part"]);
             await QueryCommand.RunAsync(context);
 
             // Assert
             Assert.Equal(1, context.ExitCode);
             Assert.Contains("find", errWriter.ToString());
+            Assert.Contains("no input files", errWriter.ToString());
         }
         finally
         {
@@ -161,55 +196,27 @@ public class QuerySubsystemTests
     }
 
     /// <summary>
-    ///     --format markdown parses and dispatches without error.
+    ///     --format markdown parses and dispatches without a parsing error.
     /// </summary>
     [Fact]
     public async Task QuerySubsystem_FormatMarkdown_DispatchesWithoutError()
     {
-        // Arrange
-        var originalError = Console.Error;
-        try
-        {
-            using var errWriter = new StringWriter();
-            Console.SetError(errWriter);
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(Fixture, "list", "--format", "markdown");
 
-            // Act
-            using var context = Context.Create(["query", "list", "--format", "markdown"]);
-            await QueryCommand.RunAsync(context);
-
-            // Assert: reaches the stub (exit code 1 from the stub, not from a parse error)
-            Assert.Equal(1, context.ExitCode);
-        }
-        finally
-        {
-            Console.SetError(originalError);
-        }
+        Assert.Equal(0, exitCode);
+        Assert.Contains("# query list", output);
     }
 
     /// <summary>
-    ///     --format json parses and dispatches without error.
+    ///     --format json parses and dispatches without a parsing error.
     /// </summary>
     [Fact]
     public async Task QuerySubsystem_FormatJson_DispatchesWithoutError()
     {
-        // Arrange
-        var originalError = Console.Error;
-        try
-        {
-            using var errWriter = new StringWriter();
-            Console.SetError(errWriter);
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(Fixture, "list", "--format", "json");
 
-            // Act
-            using var context = Context.Create(["query", "list", "--format", "json"]);
-            await QueryCommand.RunAsync(context);
-
-            // Assert
-            Assert.Equal(1, context.ExitCode);
-        }
-        finally
-        {
-            Console.SetError(originalError);
-        }
+        Assert.Equal(0, exitCode);
+        Assert.Contains("\"Verb\": \"list\"", output);
     }
 
     /// <summary>
