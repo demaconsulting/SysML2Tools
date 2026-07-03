@@ -86,6 +86,20 @@ public sealed class DiagramRenderer
     /// An ordered list of <see cref="RenderOutput"/> instances, one per view in declaration order.
     /// Returns an empty list when the workspace contains no view declarations.
     /// </returns>
+    /// <example>
+    /// <code>
+    /// var diagramRenderer = new DiagramRenderer();
+    /// var svgRenderer = new SvgRenderer();
+    /// var options = new RenderOptions(Themes.Light);
+    /// var outputs = diagramRenderer.RenderWorkspace(workspace, svgRenderer, options);
+    ///
+    /// foreach (var output in outputs)
+    /// {
+    ///     await using var file = File.Create(output.SuggestedFileName);
+    ///     await output.Data.CopyToAsync(file);
+    /// }
+    /// </code>
+    /// </example>
     // S2325: instance method — future phases will inject ILayoutStrategy via constructor making this non-static
 #pragma warning disable S2325
     public IReadOnlyList<RenderOutput> RenderWorkspace(

@@ -24,6 +24,12 @@ public static class StdlibProvider
     /// <returns>
     ///     A tuple of the stdlib symbol table and any diagnostics produced during pre-compilation.
     /// </returns>
+    /// <example>
+    /// <code>
+    /// var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+    /// var result = await WorkspaceLoader.LoadAsync(options.Files, stdlibTable);
+    /// </code>
+    /// </example>
     public static (SymbolTable Table, IReadOnlyList<SysmlDiagnostic> Diagnostics) GetSymbolTable()
         => _cached.Value;
 

@@ -8,6 +8,19 @@ namespace DemaConsulting.SysML2Tools.Semantic.Internal;
 /// <summary>
 ///     Base class for all SysML/KerML AST nodes.
 /// </summary>
+/// <example>
+/// A consumer typically pattern-matches over <see cref="Semantic.SysmlWorkspace.Declarations"/>
+/// to find nodes of interest:
+/// <code>
+/// foreach (var (qualifiedName, node) in workspace.Declarations)
+/// {
+///     if (node is SysmlDefinitionNode { DefinitionKeyword: "part def" } partDef)
+///     {
+///         Console.WriteLine($"{qualifiedName}: {partDef.SupertypeNames.Count} supertype(s)");
+///     }
+/// }
+/// </code>
+/// </example>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
 [JsonDerivedType(typeof(SysmlPackageNode), "package")]
 [JsonDerivedType(typeof(SysmlDefinitionNode), "definition")]

@@ -85,6 +85,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.5" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="All" />
+    <!-- ApiMark: generate Markdown API reference docs from the XML doc comments (see
+         GenerateDocumentationFile above). This project is IsPackable=false and has no nupkg
+         of its own; its generated api/ folder is folded into DemaConsulting.SysML2Tools.Core's
+         package by the CopyLanguageAndStdlibApiDocsToPackage target in Core.csproj. -->
+    <PackageReference Include="DemaConsulting.ApiMark.MSBuild" Version="0.4.9" PrivateAssets="All" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.301">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
