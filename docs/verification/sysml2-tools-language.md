@@ -36,6 +36,14 @@ SDK installation.
 - Unresolved `satisfy`/`verify`/`allocate` references produce a `Warning`-severity diagnostic
   and no edge is recorded, on either side of a two-sided reference (subject/requirement or
   the two allocation endpoints).
+- Resolved dotted feature chains (e.g. `engine.fuelPort`, `rearAxle.leftHalfAxle.axleToWheelPort`)
+  referenced by `"connection"`/`"message"` connection endpoints and transition `Source`/`Target`
+  are recorded as `Connect`/`Transition`-kind `SysmlEdge` entries, resolving each chain segment
+  via direct-child membership first and typing/supertype-inherited membership second.
+- Unresolved feature-chain endpoints/transition source/target produce a `Warning`-severity
+  diagnostic and no edge is recorded, on either side; an implied/omitted transition `Source`
+  produces no edge without a diagnostic (nothing to walk a chain from). A pathological
+  self-referential supertype chain terminates the walk without hanging or crashing.
 
 ## Test Scenarios
 
@@ -92,3 +100,29 @@ Primary acceptance evidence is provided by:
 - `AstSerializerTests.Serialize_SatisfyAndAllocationNodes_RoundTrip` — `SysmlSatisfyNode`,
   the `"allocation"` `SysmlConnectionNode` variant, and `VerifiedRequirementNames` round-trip
   through the polymorphic `$type` discriminator without loss.
+- `WorkspaceLoader_LoadAsync_ConnectionSingleSegmentEndpoints_RecordsConnectEdge` /
+  `WorkspaceLoader_LoadAsync_MessageEndpoints_RecordsConnectEdge` — a resolvable single-segment
+  `connection`/`message` endpoint pair is recorded as a `Connect` edge.
+- `WorkspaceLoader_LoadAsync_ConnectionTwoSegmentChain_ResolvesViaDirectChild` /
+  `WorkspaceLoader_LoadAsync_ConnectionTwoSegmentChain_ResolvesViaTypingFallback` — a 2-segment
+  chain resolves via an inline nested-usage direct child, and via the referenced definition's
+  direct child when the intermediate usage has no inline body.
+- `WorkspaceLoader_LoadAsync_ConnectionThreeSegmentChain_MixesDirectChildAndTypingFallback` —
+  a 3-segment chain mixing both lookup paths in a single chain resolves end to end.
+- `WorkspaceLoader_LoadAsync_ConnectionChain_ResolvesInheritedFeatureViaSupertype` — a chain
+  segment only reachable via a `Supertype`-chain ancestor resolves correctly.
+- `WorkspaceLoader_LoadAsync_ConnectionUnresolvedEndpoint_ProducesWarningNoEdge` — an endpoint
+  chain whose final segment does not exist on either the immediate type or any supertype
+  produces a Warning diagnostic and no `Connect` edge.
+- `WorkspaceLoader_LoadAsync_TransitionSourceAndTarget_RecordsTransitionEdge` — a transition
+  with both a resolvable `Source` and `Target` is recorded as a `Transition` edge.
+- `WorkspaceLoader_LoadAsync_TransitionImpliedSource_ProducesNoEdge` — a transition with an
+  implied/omitted `Source` produces no `Transition` edge (documented limitation, no crash).
+- `WorkspaceLoader_LoadAsync_ConnectionChain_SupertypeCycleTerminatesGracefully` — a
+  pathological self-referential supertype cycle terminates the chain walk without hanging or
+  crashing, and produces no edge.
+- `WorkspaceLoader_LoadAsync_ConnectionsExampleFixture_RecordsConnectEdge` /
+  `WorkspaceLoader_LoadAsync_2aPartsInterconnectionFixture_RecordsConnectEdge` /
+  `WorkspaceLoader_LoadAsync_2cPartsInterconnectionFixture_RecordsConnectEdge` /
+  `WorkspaceLoader_LoadAsync_StateDefinitionExampleFixture_RecordsTransitionEdge` — real OMG
+  fixture files exercise feature-chain connection and transition resolution end-to-end.

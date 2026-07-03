@@ -56,6 +56,18 @@ internal sealed class ReferenceResolver
             ResolveNode(root!, filePath, new HashSet<string>(), new List<string>(), imports, edges);
         }
 
+        // Pass 2: resolve dotted feature chains (connection/message endpoints, transition
+        // source/target) into Connect/Transition edges. This must run as a second pass, after
+        // pass 1 has resolved Typing/Supertype edges for ALL file roots, because a chain walk
+        // may depend on a Typing/Supertype edge belonging to a node visited later in document
+        // order within the same file, or to a node in a different file entirely (see
+        // "Feature-Chain Resolution" in the design doc for the full rationale).
+        foreach (var (filePath, root) in fileRootsList.Where(r => r.Root is not null))
+        {
+            var imports = CollectImportNodes(root!);
+            ResolveFeatureChains(root!, filePath, new HashSet<string>(), new List<string>(), imports, edges);
+        }
+
         return new SemanticIndex(edges);
     }
 
@@ -551,5 +563,260 @@ internal sealed class ReferenceResolver
         {
             namespaceStack.RemoveAt(namespaceStack.Count - 1);
         }
+    }
+
+    /// <summary>
+    ///     Second-pass traversal that resolves dotted feature chains (e.g. <c>engine.fuelPort</c>)
+    ///     referenced by <see cref="SysmlConnectionNode"/> (<c>"connection"</c>/<c>"message"</c>
+    ///     keyword variants only) and <see cref="SysmlTransitionNode"/> <c>Source</c>/<c>Target</c>,
+    ///     emitting a <see cref="SysmlEdgeKind.Connect"/>/<see cref="SysmlEdgeKind.Transition"/>
+    ///     edge only when both sides resolve. Must run after <see cref="ResolveNode"/> has
+    ///     completed for all file roots, since chain walking depends on the Typing/Supertype
+    ///     edges pass 1 attaches to <see cref="SysmlNode.ResolvedEdges"/>.
+    /// </summary>
+    /// <param name="node">The AST node to process.</param>
+    /// <param name="filePath">Source file path used when constructing diagnostics.</param>
+    /// <param name="resolvedInFile">
+    ///     Set of unresolved names already warned about in this file, preventing duplicate
+    ///     warnings for the same unresolved name within one file.
+    /// </param>
+    /// <param name="namespaceStack">
+    ///     Mutable stack of simple name segments for the current enclosing namespace path,
+    ///     maintained by this method as it recurses, mirroring <see cref="ResolveNode"/>'s own
+    ///     push/pop condition exactly so segment-0 resolution scope cannot silently diverge
+    ///     between the two passes.
+    /// </param>
+    /// <param name="imports">All import nodes collected from the current file.</param>
+    /// <param name="edges">
+    ///     Aggregate list of all edges resolved so far across the whole file-root traversal;
+    ///     appended to by this method.
+    /// </param>
+    private void ResolveFeatureChains(
+        SysmlNode node,
+        string filePath,
+        HashSet<string> resolvedInFile,
+        List<string> namespaceStack,
+        IReadOnlyList<SysmlImportNode> imports,
+        List<SysmlEdge> edges)
+    {
+        var nodeEdges = new List<SysmlEdge>();
+
+        // Connection/message endpoints (allocation endpoints are intentionally excluded — they
+        // remain single-segment-only per unit-3's existing, locked-in Allocate behavior).
+        if (node is SysmlConnectionNode { ConnectionKeyword: "connection" or "message" } connection)
+        {
+            var resolvedA = ResolveFeatureChainSide(
+                connection.EndpointA, filePath, resolvedInFile, namespaceStack, imports);
+            var resolvedB = ResolveFeatureChainSide(
+                connection.EndpointB, filePath, resolvedInFile, namespaceStack, imports);
+
+            if (resolvedA is not null && resolvedB is not null)
+            {
+                nodeEdges.Add(new SysmlEdge(resolvedA, resolvedB, SysmlEdgeKind.Connect));
+            }
+        }
+
+        // Transition source/target (an implied/omitted Source produces no edge — documented
+        // limitation, since there is nothing to walk a chain from).
+        if (node is SysmlTransitionNode transition)
+        {
+            var resolvedSource = ResolveFeatureChainSide(
+                transition.Source, filePath, resolvedInFile, namespaceStack, imports);
+            var resolvedTarget = ResolveFeatureChainSide(
+                transition.Target, filePath, resolvedInFile, namespaceStack, imports);
+
+            if (resolvedSource is not null && resolvedTarget is not null)
+            {
+                nodeEdges.Add(new SysmlEdge(resolvedSource, resolvedTarget, SysmlEdgeKind.Transition));
+            }
+        }
+
+        if (nodeEdges.Count > 0)
+        {
+            node.ResolvedEdges = node.ResolvedEdges.Count > 0
+                ? [.. node.ResolvedEdges, .. nodeEdges]
+                : nodeEdges;
+            edges.AddRange(nodeEdges);
+        }
+
+        // Push/pop condition mirrors ResolveNode's exactly (see the design doc's "Feature-Chain
+        // Resolution" section for the ordering rationale that requires this exact match).
+        var pushed = (node is SysmlPackageNode or SysmlDefinitionNode or SysmlFeatureNode) && node.Name is not null;
+        if (pushed)
+        {
+            namespaceStack.Add(node.Name!);
+        }
+
+        foreach (var child in node.Children)
+        {
+            ResolveFeatureChains(child, filePath, resolvedInFile, namespaceStack, imports, edges);
+        }
+
+        if (pushed)
+        {
+            namespaceStack.RemoveAt(namespaceStack.Count - 1);
+        }
+    }
+
+    /// <summary>
+    ///     Resolves one side (endpoint/source/target) of a feature-chain reference, emitting a
+    ///     Warning diagnostic (deduplicated per file) when the side is present but does not
+    ///     resolve. A <see langword="null"/>/empty side (e.g. an implied transition
+    ///     <c>Source</c>) is silently skipped — it is not an error, just absent.
+    /// </summary>
+    private string? ResolveFeatureChainSide(
+        string? side,
+        string filePath,
+        HashSet<string> resolvedInFile,
+        IReadOnlyList<string> namespaceStack,
+        IReadOnlyList<SysmlImportNode> imports)
+    {
+        if (side is not { Length: > 0 })
+        {
+            return null;
+        }
+
+        if (TryResolveFeatureChain(side, namespaceStack, imports, out var resolved))
+        {
+            return resolved;
+        }
+
+        if (resolvedInFile.Add(side))
+        {
+            _diagnostics.Add(new SysmlDiagnostic(
+                filePath,
+                0, 0,
+                DiagnosticSeverity.Warning,
+                $"Unresolved reference: '{side}'"));
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Resolves a dotted feature chain (e.g. <c>engine.fuelPort</c>,
+    ///     <c>rearAxle.leftHalfAxle.axleToWheelPort</c>) to the qualified name of its final
+    ///     segment. Segment 0 is resolved via the existing <see cref="TryResolve"/> four-step
+    ///     lookup (so it participates in the same scope/import resolution as any other single-name
+    ///     reference); each subsequent segment is resolved relative to the previous segment's
+    ///     node via <see cref="FindFeatureMember"/>. A single-segment "chain" (no <c>.</c>) is
+    ///     handled by the loop simply never executing, so this method also serves as the
+    ///     single-segment resolver used elsewhere.
+    /// </summary>
+    /// <param name="chain">The raw, possibly dotted, reference text.</param>
+    /// <param name="namespaceStack">
+    ///     Simple name segments of the current enclosing namespace path, used to resolve segment 0.
+    /// </param>
+    /// <param name="imports">All import nodes collected from the current file.</param>
+    /// <param name="resolvedName">
+    ///     When this method returns <see langword="true"/>, the qualified name of the chain's
+    ///     final segment. When this method returns <see langword="false"/>, set to
+    ///     <see cref="string.Empty"/>.
+    /// </param>
+    /// <returns>
+    ///     <see langword="true"/> if every segment of the chain resolves; <see langword="false"/>
+    ///     otherwise.
+    /// </returns>
+    private bool TryResolveFeatureChain(
+        string chain,
+        IReadOnlyList<string> namespaceStack,
+        IReadOnlyList<SysmlImportNode> imports,
+        out string resolvedName)
+    {
+        var segments = chain.Split('.');
+
+        if (!TryResolve(segments[0], namespaceStack, imports, out var current))
+        {
+            resolvedName = string.Empty;
+            return false;
+        }
+
+        for (var i = 1; i < segments.Length; i++)
+        {
+            var currentNode = _symbolTable.Lookup(current);
+            if (currentNode is null)
+            {
+                resolvedName = string.Empty;
+                return false;
+            }
+
+            var member = FindFeatureMember(currentNode, segments[i]);
+            if (member?.QualifiedName is not { Length: > 0 } memberQualifiedName)
+            {
+                resolvedName = string.Empty;
+                return false;
+            }
+
+            current = memberQualifiedName;
+        }
+
+        resolvedName = current;
+        return true;
+    }
+
+    /// <summary>
+    ///     Finds a member named <paramref name="name"/> reachable from <paramref name="node"/>,
+    ///     trying <paramref name="node"/>'s own direct children first (an inline nested usage or
+    ///     redefinition shadows a same-named definition-level member — see
+    ///     <c>2c-PartsInterconnection-MultipleDecompositions.sysml</c>'s <c>port :&gt;&gt; pe =
+    ///     c1.pb</c> pattern), then falling back to the member's <see cref="SysmlEdgeKind.Typing"/>
+    ///     target's own hierarchy (direct children and supertype chain) when no direct child
+    ///     matches.
+    /// </summary>
+    private SysmlNode? FindFeatureMember(SysmlNode node, string name)
+    {
+        var direct = node.Children.FirstOrDefault(c => c.Name == name);
+        if (direct is not null)
+        {
+            return direct;
+        }
+
+        var typingEdge = node.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Typing);
+        if (typingEdge is null)
+        {
+            return null;
+        }
+
+        var typeNode = _symbolTable.Lookup(typingEdge.TargetQualifiedName);
+        return typeNode is null ? null : FindMemberInTypeHierarchy(typeNode, name, new HashSet<string>());
+    }
+
+    /// <summary>
+    ///     Finds a member named <paramref name="name"/> in <paramref name="typeNode"/>'s own
+    ///     direct children, or — recursively — in any of its <see cref="SysmlEdgeKind.Supertype"/>
+    ///     ancestors' direct children, walking the supertype chain until a match is found or the
+    ///     chain is exhausted. <paramref name="visited"/> guards against supertype cycles
+    ///     (e.g. a malformed/adversarial <c>A :&gt; B :&gt; A</c> model), keyed on qualified type
+    ///     name, so this method always terminates.
+    /// </summary>
+    private SysmlNode? FindMemberInTypeHierarchy(SysmlNode typeNode, string name, HashSet<string> visited)
+    {
+        if (typeNode.QualifiedName is { Length: > 0 } qualifiedName && !visited.Add(qualifiedName))
+        {
+            return null;
+        }
+
+        var direct = typeNode.Children.FirstOrDefault(c => c.Name == name);
+        if (direct is not null)
+        {
+            return direct;
+        }
+
+        foreach (var supertypeEdge in typeNode.ResolvedEdges.Where(e => e.Kind == SysmlEdgeKind.Supertype))
+        {
+            var supertypeNode = _symbolTable.Lookup(supertypeEdge.TargetQualifiedName);
+            if (supertypeNode is null)
+            {
+                continue;
+            }
+
+            var found = FindMemberInTypeHierarchy(supertypeNode, name, visited);
+            if (found is not null)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 }

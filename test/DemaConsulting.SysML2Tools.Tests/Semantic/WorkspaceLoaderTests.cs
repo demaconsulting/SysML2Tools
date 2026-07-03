@@ -1505,6 +1505,552 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A <c>connect A to B;</c> usage whose endpoints are both plain (single-segment) feature
+    ///     references should be recorded as a <c>Connect</c> edge from the resolved first endpoint
+    ///     to the resolved second endpoint.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionSingleSegmentEndpoints_RecordsConnectEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Q {}
+                    part a : Q;
+                    part b : Q;
+                    connect a to b;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Connect &&
+                     e.SourceQualifiedName == "P::a" &&
+                     e.TargetQualifiedName == "P::b");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>connect</c> usage with a 2-segment endpoint chain (e.g. <c>engine.fuelPort</c>)
+    ///     where <c>fuelPort</c> is a direct (inline) child of <c>engine</c> should resolve via
+    ///     the direct-child lookup path, into a <c>Connect</c> edge targeting the port's
+    ///     qualified name.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionTwoSegmentChain_ResolvesViaDirectChild()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Q {}
+                    part vehicle {
+                        part engine {
+                            port fuelPort;
+                        }
+                        part transmission {
+                            port input;
+                        }
+                        connect engine.fuelPort to transmission.input;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Connect &&
+                     e.SourceQualifiedName == "P::vehicle::engine::fuelPort" &&
+                     e.TargetQualifiedName == "P::vehicle::transmission::input");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>connect</c> usage with a 2-segment endpoint chain where the first segment's
+    ///     usage has no inline body (only a <c>Typing</c> reference) should resolve the second
+    ///     segment via the typing-fallback path (the referenced definition's direct child).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionTwoSegmentChain_ResolvesViaTypingFallback()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Engine {
+                        port fuelCmdPort;
+                    }
+                    part def Transmission {
+                        port input;
+                    }
+                    part vehicle {
+                        part engine : Engine;
+                        part transmission : Transmission;
+                        connect engine.fuelCmdPort to transmission.input;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Connect &&
+                     e.SourceQualifiedName == "P::Engine::fuelCmdPort" &&
+                     e.TargetQualifiedName == "P::Transmission::input");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A 3-segment endpoint chain mixing a direct-child first hop with a typing-fallback
+    ///     second hop (e.g. <c>rearAxle.leftHalfAxle.axleToWheelPort</c>, mirroring the
+    ///     <c>2a-PartsInterconnection.sysml</c> fixture shape) should resolve end to end.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionThreeSegmentChain_MixesDirectChildAndTypingFallback()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def HalfAxle {
+                        port axleToWheelPort;
+                    }
+                    part def Wheel {
+                        port wheelToAxlePort;
+                    }
+                    part rearAxle {
+                        part leftHalfAxle : HalfAxle;
+                    }
+                    part leftWheel : Wheel;
+                    connect rearAxle.leftHalfAxle.axleToWheelPort to leftWheel.wheelToAxlePort;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Connect &&
+                     e.SourceQualifiedName == "P::HalfAxle::axleToWheelPort" &&
+                     e.TargetQualifiedName == "P::Wheel::wheelToAxlePort");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A chain segment that is only reachable via an inherited (<c>Supertype</c>-chain)
+    ///     feature should resolve by walking the supertype chain, not just the immediate type's
+    ///     own direct children.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionChain_ResolvesInheritedFeatureViaSupertype()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def AxleAssembly {
+                        port shaftPort;
+                    }
+                    part def RearAxleAssembly :> AxleAssembly {}
+                    part def Wheel {
+                        port wheelToAxlePort;
+                    }
+                    part rearAxleAssembly : RearAxleAssembly;
+                    part leftWheel : Wheel;
+                    connect rearAxleAssembly.shaftPort to leftWheel.wheelToAxlePort;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Connect &&
+                     e.SourceQualifiedName == "P::AxleAssembly::shaftPort" &&
+                     e.TargetQualifiedName == "P::Wheel::wheelToAxlePort");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>connect</c> usage whose second endpoint's last chain segment does not exist on
+    ///     either the immediate type or any supertype should produce a Warning diagnostic and no
+    ///     <c>Connect</c> edge (graceful failure, no crash).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionUnresolvedEndpoint_ProducesWarningNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Engine {
+                        port fuelCmdPort;
+                    }
+                    part def Transmission {}
+                    part engine : Engine;
+                    part transmission : Transmission;
+                    connect engine.fuelCmdPort to transmission.nonExistentPort;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("transmission.nonExistentPort"));
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Connect);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>message</c> (<c>ConnectionKeyword == "message"</c>) usage whose from/to events
+    ///     both resolve should be recorded as a <c>Connect</c> edge, the same edge kind used for
+    ///     <c>connection</c> endpoints.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_MessageEndpoints_RecordsConnectEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Q {}
+                    part a : Q;
+                    part b : Q;
+                    message msg from a to b;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Connect &&
+                     e.SourceQualifiedName == "P::a" &&
+                     e.TargetQualifiedName == "P::b");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A transition with both a <c>Source</c> and <c>Target</c> that resolve to sibling
+    ///     states should be recorded as a <c>Transition</c> edge.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_TransitionSourceAndTarget_RecordsTransitionEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    state def Behavior {
+                        state start;
+                        state off;
+                        first start then off;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Transition &&
+                     e.SourceQualifiedName == "P::Behavior::start" &&
+                     e.TargetQualifiedName == "P::Behavior::off");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A transition with an implied/omitted <c>Source</c> (an <c>accept ... then target;</c>
+    ///     form with no preceding state to walk from) should produce no <c>Transition</c> edge —
+    ///     a documented limitation of this unit, not a crash or a partial edge.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_TransitionImpliedSource_ProducesNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    item def Signal;
+                    state def Behavior {
+                        port requestPort;
+                        state off;
+                        accept Signal via requestPort
+                            then off;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Transition);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A pathological, self-referential supertype cycle (<c>A :&gt; B :&gt; A</c>) must not
+    ///     cause <c>FindMemberInTypeHierarchy</c>'s recursive supertype walk to hang or stack
+    ///     overflow; the cycle guard should simply terminate the walk with no match found (no
+    ///     edge, no crash).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionChain_SupertypeCycleTerminatesGracefully()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def A :> B;
+                    part def B :> A;
+                    part def Q {}
+                    part x : A;
+                    part y : Q;
+                    connect x.nonExistentMember to y;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var cancellationToken = TestContext.Current.CancellationToken;
+            var loadTask = WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            var completed = await Task.WhenAny(loadTask, Task.Delay(TimeSpan.FromSeconds(10), cancellationToken));
+
+            // Assert — the load must complete (not hang), and must not crash or produce an edge
+            Assert.Same(loadTask, completed);
+            var result = await loadTask;
+            Assert.NotNull(result.Workspace);
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Connect);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Loading the OMG <c>09.Connections/ConnectionsExample.sysml</c> training fixture should
+    ///     resolve its 3-segment <c>connect [0..1] lugBoltJoints to [1] wheel.w.mountingHoles;</c>
+    ///     chain (all direct-child hops) into a <c>Connect</c> edge.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionsExampleFixture_RecordsConnectEdge()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var fixturePath = Path.Combine(modelsRoot, "OMG", "training", "09.Connections", "ConnectionsExample.sysml");
+        if (!File.Exists(fixturePath))
+        {
+            return;
+        }
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([fixturePath], stdlibTable);
+
+        // Assert
+        Assert.NotNull(result.Workspace);
+        Assert.Contains(result.Workspace!.Index.AllEdges,
+            e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Connect);
+    }
+
+    /// <summary>
+    ///     Loading the OMG <c>2a-PartsInterconnection.sysml</c> validation fixture should resolve
+    ///     multiple real-world connection chains (direct-child, typing-fallback, and mixed
+    ///     3-segment forms such as <c>rearAxle.leftHalfAxle.axleToWheelPort</c>) into <c>Connect</c>
+    ///     edges.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_2aPartsInterconnectionFixture_RecordsConnectEdge()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var fixturePath = Path.Combine(
+            modelsRoot, "OMG", "validation", "02-PartsInterconnection", "2a-PartsInterconnection.sysml");
+        if (!File.Exists(fixturePath))
+        {
+            return;
+        }
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([fixturePath], stdlibTable);
+
+        // Assert
+        Assert.NotNull(result.Workspace);
+        Assert.Contains(result.Workspace!.Index.AllEdges,
+            e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Connect);
+    }
+
+    /// <summary>
+    ///     Loading the OMG <c>2c-PartsInterconnection-MultipleDecompositions.sysml</c> validation
+    ///     fixture should resolve at least one of its <c>connect</c> chains (e.g. <c>connect
+    ///     c1.pa to c2.pc;</c>, both direct children of <c>b11</c>) into a <c>Connect</c> edge.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_2cPartsInterconnectionFixture_RecordsConnectEdge()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var fixturePath = Path.Combine(
+            modelsRoot,
+            "OMG", "validation", "02-PartsInterconnection", "2c-PartsInterconnection-MultipleDecompositions.sysml");
+        if (!File.Exists(fixturePath))
+        {
+            return;
+        }
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([fixturePath], stdlibTable);
+
+        // Assert
+        Assert.NotNull(result.Workspace);
+        Assert.Contains(result.Workspace!.Index.AllEdges,
+            e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Connect);
+    }
+
+    /// <summary>
+    ///     Loading the OMG <c>23.StateDefinitions/StateDefinitionExample-1.sysml</c> training
+    ///     fixture should resolve its named <c>transition off_to_starting first off ... then
+    ///     starting;</c> (both a sibling-state source and target) into a <c>Transition</c> edge.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_StateDefinitionExampleFixture_RecordsTransitionEdge()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var fixturePath = Path.Combine(
+            modelsRoot, "OMG", "training", "23.StateDefinitions", "StateDefinitionExample-1.sysml");
+        if (!File.Exists(fixturePath))
+        {
+            return;
+        }
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([fixturePath], stdlibTable);
+
+        // Assert
+        Assert.NotNull(result.Workspace);
+        Assert.Contains(result.Workspace!.Index.AllEdges,
+            e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Transition);
+    }
+
+    /// <summary>
     ///     Loading the full OMG <c>32.Requirements</c> training fixture set (which spans multiple
     ///     files linked by wildcard imports) should resolve the <c>satisfy</c> usages in
     ///     <c>RequirementSatisfaction.sysml</c> into at least one <c>Satisfy</c> edge.

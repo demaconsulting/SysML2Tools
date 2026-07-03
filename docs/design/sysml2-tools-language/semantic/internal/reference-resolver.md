@@ -2,15 +2,19 @@
 
 ##### Overview
 
-`ReferenceResolver` performs two analyses over the loaded files:
+`ReferenceResolver` performs three analyses over the loaded files:
 
 1. **Import graph cycle detection** — builds a directed graph of import relationships between
    files and uses depth-first search to detect cycles.
-2. **Reference resolution** — checks each `SupertypeName`, `SysmlFeatureNode.FeatureTyping`,
+2. **Reference resolution (pass 1)** — checks each `SupertypeName`, `SysmlFeatureNode.FeatureTyping`,
    `ImportedName`, `VerifiedRequirementNames` entry, `SysmlSatisfyNode` subject/requirement, and
    `SysmlConnectionNode` (`ConnectionKeyword == "allocation"`) endpoint in all AST nodes against
    the symbol table, emitting a Warning for any name not found and recording a `SysmlEdge` for
    any name (or pair of names) that resolves.
+3. **Feature-chain resolution (pass 2)** — after pass 1 has completed for every file root,
+   resolves dotted feature chains (e.g. `engine.fuelPort`) referenced by `SysmlConnectionNode`
+   (`ConnectionKeyword == "connection"` or `"message"`) endpoints and `SysmlTransitionNode`
+   `Source`/`Target` into `Connect`/`Transition`-kind edges.
 
 ##### Import Graph
 
@@ -46,6 +50,63 @@ produced.
 
 `ResolveAll` returns a `SemanticIndex` built from the aggregate edge list once all file roots
 have been traversed.
+
+##### Feature-Chain Resolution
+
+After pass 1 (`ResolveNode`) has run to completion over **every** file root, `ResolveAll` runs a
+second traversal, `ResolveFeatureChains`, over every file root again. This ordering is required
+because a chain walk depends on `Typing`/`Supertype` edges attached to `node.ResolvedEdges` by
+pass 1 — and a chain in file A may reference a type declared (and typed/specialized) in file B, or
+reference a node that pass 1 has not yet visited within the same file (a forward reference in
+document order). Running feature-chain resolution as a strictly later, whole-workspace second pass
+guarantees every `Typing`/`Supertype` edge needed by the walk already exists.
+
+`ResolveFeatureChains` mirrors `ResolveNode`'s namespace-stack push/pop condition exactly
+(`(node is SysmlPackageNode or SysmlDefinitionNode or SysmlFeatureNode) && node.Name is not null`)
+so that segment-0 resolution scope cannot silently diverge between the two passes. For each
+`SysmlConnectionNode` with `ConnectionKeyword` `"connection"` or `"message"` (the `"allocation"`
+variant is excluded — it keeps its existing, unit-3, single-segment-only behavior), and for each
+`SysmlTransitionNode`, both sides (`EndpointA`/`EndpointB` or `Source`/`Target`) are resolved via
+`TryResolveFeatureChain`, and a `Connect`/`Transition` edge is emitted only when **both** sides
+resolve — mirroring the existing Satisfy/Allocate both-sides-must-resolve contract. New edges are
+appended to `node.ResolvedEdges` (pass-1 edges, if any, are preserved) and to the aggregate edge
+list.
+
+`TryResolveFeatureChain(chain, namespaceStack, imports, out resolvedName)` splits the raw
+reference text on `.`. Segment 0 is resolved via the existing `TryResolve` four-step lookup (so it
+participates in the same scope/import resolution as any other single-name reference); a
+single-segment "chain" is handled by the remaining-segment loop simply never executing. Each
+subsequent segment is resolved relative to the previous segment's node (looked up via
+`SymbolTable.Lookup`) using `FindFeatureMember`.
+
+`FindFeatureMember(node, name)` tries `node`'s own direct children first — an inline nested usage
+or redefinition shadows a same-named definition-level member (confirmed by the OMG fixture
+`2c-PartsInterconnection-MultipleDecompositions.sysml`'s `port :>> pe = c1.pb` pattern) — falling
+back to the member's `Typing`-edge target's own hierarchy only when no direct child matches.
+
+`FindMemberInTypeHierarchy(typeNode, name, visited)` finds a member in `typeNode`'s own direct
+children, or — recursively — in any `Supertype`-edge ancestor's direct children, walking the
+supertype chain until a match is found or the chain is exhausted. A `HashSet<string>` keyed on
+qualified type name guards against supertype cycles (e.g. a malformed `A :> B :> A` model), so the
+walk always terminates.
+
+##### Scope Boundary (Feature-Chain Resolution)
+
+- **`SysmlSatisfyNode` dotted subjects remain unresolved** — unchanged from unit 3; extending
+  chain resolution to `satisfy` subjects is left for a future unit.
+- **`"allocation"`-keyword endpoints remain single-segment-only** — unchanged from unit 3.
+- **Redefinition/subsetting compatibility is not validated** — a chain segment is matched by
+  `Name` only; `:>>`/`:>`/`subsets` compatibility between the redefining and redefined feature is
+  not checked (matching by name is safe because SysML redefinitions preserve or narrow, never
+  change, the feature's identity for chain-traversal purposes).
+- **Indexed/sequence access syntax (`#(n)`) is not supported** — a segment containing `#(...)`
+  simply fails to match any child `Name` and gracefully degrades to unresolved (Warning, no edge,
+  no crash).
+- **Imported/wildcard-imported feature members are not merged into type member lookup** — only
+  `Children` and `Supertype`-chain `Children` are searched.
+- **An implied/omitted `SysmlTransitionNode.Source` produces no edge** — there is nothing to walk
+  a chain from, so no partial/misleading edge is emitted; this is a documented limitation, not a
+  defect.
 
 ##### Requirement-Trace Edge Resolution
 
@@ -111,11 +172,14 @@ unresolved names are present.
 ##### Dependencies
 
 - `SymbolTable` — `Contains` method used to check whether a supertype, typing, or import name
-  is registered.
+  is registered; `Lookup` used by feature-chain resolution to walk from a resolved segment's
+  qualified name back to its node.
 - `SysmlNode` hierarchy — traversed to collect `SupertypeNames`, `ImportedNames`, and
   `VerifiedRequirementNames`; checks for `SysmlFeatureNode.FeatureTyping`, `SysmlSatisfyNode`
-  (`SubjectName`/`RequirementName`), and `SysmlConnectionNode` with
-  `ConnectionKeyword == "allocation"` (`EndpointA`/`EndpointB`).
+  (`SubjectName`/`RequirementName`), `SysmlConnectionNode` with `ConnectionKeyword ==
+  "allocation"` (`EndpointA`/`EndpointB`), `SysmlConnectionNode` with `ConnectionKeyword ==
+  "connection"` or `"message"`, and `SysmlTransitionNode` (`Source`/`Target`); reads
+  `ResolvedEdges` (`Typing`/`Supertype` kinds) during feature-chain resolution.
 - `SysmlEdge`, `SemanticIndex` — resolved references are recorded as `SysmlEdge` instances and
   aggregated into the returned `SemanticIndex`.
 - `SysmlDiagnostic`, `DiagnosticSeverity` — used to construct and emit Warning diagnostics.

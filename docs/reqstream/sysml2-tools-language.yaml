@@ -115,3 +115,31 @@ sections:
           - WorkspaceLoader_LoadAsync_12bAllocationFixture_RecordsAllocateEdge
           - WorkspaceLoader_LoadAsync_9VerificationSimplifiedFixture_RecordsVerifyEdge
           - AstSerializerTests.Serialize_SatisfyAndAllocationNodes_RoundTrip
+
+      - id: SysML2Tools-Language-FeatureChainResolution
+        title: >-
+          The Language library shall resolve dotted feature chains (e.g. `engine.fuelPort`,
+          `rearAxle.leftHalfAxle.axleToWheelPort`) referenced by connection/message endpoints and
+          transition source/target into Connect/Transition-kind edges recorded on the semantic
+          index, walking direct-child membership first and typing/supertype-inherited membership
+          second, gracefully degrading to a Warning diagnostic with no edge when any side is
+          unresolvable.
+        justification: |
+          Connect/Transition edges are the connector/state-topology data the forthcoming `query`
+          command's uses/used-by/impact verbs need to answer "what is this port connected to" and
+          "what transitions lead to/from this state" without a separate resolution pass.
+        tests:
+          - WorkspaceLoader_LoadAsync_ConnectionSingleSegmentEndpoints_RecordsConnectEdge
+          - WorkspaceLoader_LoadAsync_ConnectionTwoSegmentChain_ResolvesViaDirectChild
+          - WorkspaceLoader_LoadAsync_ConnectionTwoSegmentChain_ResolvesViaTypingFallback
+          - WorkspaceLoader_LoadAsync_ConnectionThreeSegmentChain_MixesDirectChildAndTypingFallback
+          - WorkspaceLoader_LoadAsync_ConnectionChain_ResolvesInheritedFeatureViaSupertype
+          - WorkspaceLoader_LoadAsync_ConnectionUnresolvedEndpoint_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_MessageEndpoints_RecordsConnectEdge
+          - WorkspaceLoader_LoadAsync_TransitionSourceAndTarget_RecordsTransitionEdge
+          - WorkspaceLoader_LoadAsync_TransitionImpliedSource_ProducesNoEdge
+          - WorkspaceLoader_LoadAsync_ConnectionChain_SupertypeCycleTerminatesGracefully
+          - WorkspaceLoader_LoadAsync_ConnectionsExampleFixture_RecordsConnectEdge
+          - WorkspaceLoader_LoadAsync_2aPartsInterconnectionFixture_RecordsConnectEdge
+          - WorkspaceLoader_LoadAsync_2cPartsInterconnectionFixture_RecordsConnectEdge
+          - WorkspaceLoader_LoadAsync_StateDefinitionExampleFixture_RecordsTransitionEdge

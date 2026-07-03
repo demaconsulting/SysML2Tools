@@ -45,6 +45,26 @@ public enum SysmlEdgeKind
     ///     the model).
     /// </summary>
     Allocate,
+
+    /// <summary>
+    ///     A resolved connector/message reference (<c>connect A to B</c> or a <c>message</c>'s
+    ///     from/to events), recorded as a single edge <c>Source=A, Target=B</c> reflecting the
+    ///     textual left-to-right order of the connector. Either endpoint may be a dotted feature
+    ///     chain (e.g. <c>engine.fuelPort</c>), resolved by <c>ReferenceResolver</c>'s
+    ///     feature-chain walk; the edge is recorded only when both endpoints resolve. This
+    ///     ordering is a documentation convention only — it does not imply a semantic
+    ///     "source causes target" direction, mirroring <see cref="Allocate"/>.
+    /// </summary>
+    Connect,
+
+    /// <summary>
+    ///     A resolved state-transition reference (<c>then</c> / <c>first ... then ...</c>), from
+    ///     the source state to the target state. Either side may be a dotted feature chain,
+    ///     resolved by <c>ReferenceResolver</c>'s feature-chain walk; the edge is recorded only
+    ///     when both the source and target resolve — an implied/omitted source (no preceding
+    ///     state to walk from) produces no edge, a documented limitation of this unit.
+    /// </summary>
+    Transition,
 }
 
 /// <summary>

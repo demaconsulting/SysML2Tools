@@ -70,12 +70,19 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   reusing this node's endpoint shape since `allocationUsageDeclaration`'s `connectorPart` is the
   exact same grammar rule used by `connectionUsage`).
 - `EndpointA` — the first endpoint reference (e.g., `"engine.fuelPort"`), or null when unresolved.
-- `EndpointB` — the second endpoint reference (e.g., `"transmission.input"`), or null when unresolved.
+  For `"connection"`/`"message"` keyword variants, resolved by `ReferenceResolver`'s feature-chain
+  walk into a `SysmlEdgeKind.Connect` edge (see `SysmlEdgeKind.Connect`); dotted chains on
+  `"allocation"` endpoints remain unresolved.
+- `EndpointB` — the second endpoint reference (e.g., `"transmission.input"`), or null when
+  unresolved. Resolved the same way as `EndpointA`.
 
 `SysmlTransitionNode` adds:
 
-- `Source` — the source state reference, or null when implied by the containing state.
-- `Target` — the target state reference.
+- `Source` — the source state reference, or null when implied by the containing state. May be a
+  dotted feature chain, resolved by `ReferenceResolver`'s feature-chain walk into a
+  `SysmlEdgeKind.Transition` edge together with `Target` — emitted only when both resolve; an
+  implied/omitted `Source` produces no edge.
+- `Target` — the target state reference. Resolved the same way as `Source`.
 - `Guard` — the guard expression text (the condition after `if`), or null when unguarded.
 
 `SysmlSatisfyNode` adds:
@@ -107,7 +114,9 @@ elements are filtered out by `AstBuilder` before a node is constructed.
   `"allocation"` `SysmlConnectionNode` variant via `VisitAllocationUsage`.
 - `SymbolTable` — traverses the node hierarchy via `Children`; reads `QualifiedName`.
 - `ReferenceResolver` — reads `SupertypeNames`, `FeatureTyping`, `ImportedNames`,
-  `VerifiedRequirementNames`, `Children`; checks for `SysmlImportNode`, `SysmlSatisfyNode`, and
-  the `"allocation"` `SysmlConnectionNode` variant; writes `ResolvedEdges` after resolving
-  references.
+  `VerifiedRequirementNames`, `Children`; checks for `SysmlImportNode`, `SysmlSatisfyNode`, the
+  `"allocation"` `SysmlConnectionNode` variant, the `"connection"`/`"message"`
+  `SysmlConnectionNode` variants, and `SysmlTransitionNode`; writes `ResolvedEdges` after
+  resolving references (in two passes — supertype/typing/import/satisfy/verify/allocate, then
+  feature-chain connect/transition).
 - `SupertypeWalker` — reads `SupertypeNames` on each node retrieved from `SymbolTable`.
