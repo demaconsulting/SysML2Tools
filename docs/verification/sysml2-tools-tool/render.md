@@ -27,6 +27,8 @@ on context output and exit code. File-writing scenarios use a temporary director
 - `--depth 1` produces SVG output containing the ellipsis character `"…"`
 - Multiple views without `--view` yields exit code 1 and an error message
 - `--view <name>` with a multi-view workspace renders exactly one file
+- Unsupported `--format` value throws `ArgumentException` when `RunAsync` executes (not at
+  `Context.Create` parse time)
 
 #### Test Scenarios
 
@@ -78,3 +80,10 @@ to the log.
 
 Verifies that `--view ViewAlpha` selects exactly one view from a two-view workspace and
 produces a single `.svg` output file.
+
+##### RenderSubsystem_UnsupportedFormat_ThrowsArgumentException
+
+Verifies that `--format xml` (an unsupported value) does not throw when `Context.Create` parses
+the arguments, but throws `ArgumentException` naming the bad value once `Program.RunAsync`
+actually runs the render command — mirroring the timing of the `query` command's `--format`
+validation.

@@ -115,7 +115,7 @@ This scenario is tested by `Context_Create_DepthFlag_ExceedsMaxValue_SetsMaxRend
 by `Context_Create_DepthFlag_SetsMaxRenderDepth`.
 
 **Context_Create_ViewFlag_SetsViewName**: `Context.Create` is called with
-`["--view", "MyView"]`; `ViewName` equals `"MyView"`. This scenario is tested by
+`["render", "--view", "MyView"]`; `Render.ViewName` equals `"MyView"`. This scenario is tested by
 `Context_Create_ViewFlag_SetsViewName`.
 
 **Context_WriteLine_NotSilent_WritesToConsole**: A non-silent `Context` calls `WriteLine` with
@@ -191,9 +191,9 @@ scenario is tested by
 
 **Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat**: `Context.Create` is
 called with `["query", "list", "--format", "markdown"]`; `Query.Format` equals `"markdown"`
-and `RendererFormat` equals `"markdown"` (same parsed value, interpreted independently per
-command). This scenario is tested by
-`Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat`.
+and `Context.Render` is null, confirming query's `--format` is interpreted independently of
+render's `--format` (they are separate typed properties, not a shared field). This scenario is
+tested by `Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat`.
 
 **Context_Create_QueryCommand_WithFormatJson_SetsQueryFormat**: `Context.Create` is called
 with `["query", "list", "--format", "json"]`; `Query.Format` equals `"json"`. This scenario
@@ -206,6 +206,44 @@ is tested by `Context_Create_QueryCommand_WithFormatJson_SetsQueryFormat`.
 
 **Context_Create_QueryCommand_WithFiles_SetsQueryFilesNotTopLevelFiles**: `Context.Create` is
 called with `["query", "list", "*.sysml"]`; `Query.Files` contains `"*.sysml"` while
-`Context.Files` remains empty, confirming query's positional files are kept separate from
-`lint`/`render`'s. This scenario is tested by
+`Context.Lint`/`Context.Render` remain null, confirming query's positional files are kept
+separate from `lint`/`render`'s. This scenario is tested by
 `Context_Create_QueryCommand_WithFiles_SetsQueryFilesNotTopLevelFiles`.
+
+**Context_Create_LintCommand_OutOfScopeAutoFlag_ThrowsArgumentException**: `Context.Create` is
+called with `["lint", "--auto", "file.sysml"]`; an `ArgumentException` is thrown naming both
+`--auto` and `lint`, confirming `lint` rejects flags belonging to other commands instead of
+silently ignoring them. This scenario is tested by
+`Context_Create_LintCommand_OutOfScopeAutoFlag_ThrowsArgumentException`.
+
+**Context_Create_LintCommand_OutOfScopeKindFlag_ThrowsArgumentException**: `Context.Create` is
+called with `["lint", "--kind", "part", "file.sysml"]`; an `ArgumentException` is thrown naming
+both `--kind` and `lint`. This scenario is tested by
+`Context_Create_LintCommand_OutOfScopeKindFlag_ThrowsArgumentException`.
+
+**Context_Create_RenderCommand_OutOfScopeKindFlag_ThrowsArgumentException**: `Context.Create`
+is called with `["render", "--kind", "foo", "file.sysml"]`; an `ArgumentException` is thrown
+naming both `--kind` and `render`. This scenario is tested by
+`Context_Create_RenderCommand_OutOfScopeKindFlag_ThrowsArgumentException`.
+
+**Context_Create_RenderCommand_OutOfScopeElementFlag_ThrowsArgumentException**:
+`Context.Create` is called with `["render", "--element", "Pkg::Foo", "file.sysml"]`; an
+`ArgumentException` is thrown naming both `--element` and `render`. This scenario is tested by
+`Context_Create_RenderCommand_OutOfScopeElementFlag_ThrowsArgumentException`.
+
+**Context_Create_QueryCommand_OutOfScopeAutoFlag_ThrowsArgumentException**: `Context.Create`
+is called with `["query", "describe", "--auto", "file.sysml"]`; an `ArgumentException` is
+thrown naming both `--auto` and `query`. This scenario is tested by
+`Context_Create_QueryCommand_OutOfScopeAutoFlag_ThrowsArgumentException`.
+
+**Context_Create_QueryCommand_NoVerbNoHelp_ThrowsArgumentException**: `Context.Create` is
+called with `["query"]` (no verb token, no `--help`); a clear `ArgumentException` mentioning
+"verb" is thrown, rather than silently leaving `Query` null. This scenario is tested by
+`Context_Create_QueryCommand_NoVerbNoHelp_ThrowsArgumentException`.
+
+**Context_Create_RenderCommand_WithUnsupportedFormatValue_DoesNotThrowAtParseTime**:
+`Context.Create` is called with `["render", "--format", "xml", "file.sysml"]`; no exception is
+thrown at parse time (`Render.Format` captures the raw `"xml"` value); value validation is
+deferred to `RenderCommand.RunAsync`, mirroring `query`'s `--format` validation timing. This
+scenario is tested by
+`Context_Create_RenderCommand_WithUnsupportedFormatValue_DoesNotThrowAtParseTime`.

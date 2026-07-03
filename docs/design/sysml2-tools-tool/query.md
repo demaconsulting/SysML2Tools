@@ -182,8 +182,8 @@ then file globs) and differ only in which options are meaningful.
   `list`/`find`.
 - `IncludeStdlib` (`bool`) — from `--include-stdlib`; applies to every verb.
 - `Files` (`IReadOnlyList<string>`) — file glob patterns supplied after the verb token; kept
-  separate from `Context.Files` (used by `lint`/`render`) so query's file handling cannot
-  affect the other commands.
+  separate from `Context.Lint`/`Context.Render`'s file lists (used by `lint`/`render`) so
+  query's file handling cannot affect the other commands.
 
 #### QueryCommand
 
@@ -234,7 +234,7 @@ only the options relevant to that verb; used for `query <verb> --help`.
 - `find` with neither `--kind` nor `--name`: `ArgumentException`.
 - Unsupported `--format` value: `ArgumentException` naming the bad value.
 - Unrecognized verb token: `ArgumentException` (thrown by `QueryVerbParsing.Parse`, called
-  from `Context`'s `ArgumentParser`) listing all valid tokens.
+  from `Cli.QueryArgumentParser`) listing all valid tokens.
 - No input files: `context.WriteError`; `Context.ExitCode` becomes 1.
 - Workspace failed to load: `context.WriteError`; `Context.ExitCode` becomes 1.
 - Target element not found in the workspace: `context.WriteError` naming the element;
@@ -259,7 +259,8 @@ only the options relevant to that verb; used for `query <verb> --help`.
 
 | Requirement ID | Satisfied by |
 | --- | --- |
-| SysML2Tools-Tool-Query-VerbGrammar | `Context`'s `ArgumentParser`; `QueryVerbParsing.Parse` |
+| SysML2Tools-Tool-Query-VerbGrammar | `Cli.QueryArgumentParser` verb-first parsing; `QueryVerbParsing.Parse` |
+| SysML2Tools-Tool-Context-QueryVerbRequired | `Cli.QueryArgumentParser`'s required-verb check |
 | SysML2Tools-Tool-Query-UnknownVerb | `QueryVerbParsing.Parse`'s `ArgumentException` path |
 | SysML2Tools-Tool-Query-ElementRequired | Element-required check at the start of `QueryCommand.RunAsync` |
 | SysML2Tools-Tool-Query-Format | `QueryOptions.Format`; `QueryResultRenderer.RenderMarkdown`/`RenderJson` |

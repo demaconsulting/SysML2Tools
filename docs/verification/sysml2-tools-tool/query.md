@@ -163,9 +163,10 @@ corresponding `QueryOptions` fields.
 
 ##### Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat / WithFormatJson_SetsQueryFormat (ContextTests.cs)
 
-Verifies that `--format markdown`/`--format json` populate `Query.Format`, and that the
-`markdown` case does not disturb `RendererFormat`'s existing value (both fields share the
-same raw parsed string by design).
+Verifies that `--format markdown`/`--format json` populate `Query.Format`, and that
+`Context.Render` is `null` for a `query` invocation, confirming query's `--format` is
+interpreted independently of render's `--format` (they are separate typed properties, not a
+shared field).
 
 ##### Context_Create_QueryCommand_WithDepthFlag_SetsQueryDepth (ContextTests.cs)
 

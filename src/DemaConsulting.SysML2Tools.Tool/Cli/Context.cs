@@ -18,31 +18,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using DemaConsulting.SysML2Tools.Lint;
 using DemaConsulting.SysML2Tools.Query;
+using DemaConsulting.SysML2Tools.Render;
 
 namespace DemaConsulting.SysML2Tools.Cli;
 
 /// <summary>
-///     Top-level command selected by the user.
-/// </summary>
-internal enum SysmlCommand
-{
-    /// <summary>No command specified — prints banner and help hint.</summary>
-    None,
-
-    /// <summary>Parse a workspace and report syntax diagnostics.</summary>
-    Lint,
-
-    /// <summary>Render view diagrams to SVG or PNG files.</summary>
-    Render,
-
-    /// <summary>Run a model-analysis query verb.</summary>
-    Query
-}
-
-/// <summary>
 ///     Context class that handles command-line arguments and program output.
 /// </summary>
+/// <remarks>
+///     Argument parsing is split into a <see cref="GlobalArgumentParser"/> pass (cross-cutting
+///     options that apply regardless of command) followed by exactly one per-command parser
+///     dispatch (<see cref="LintArgumentParser"/>, <see cref="RenderArgumentParser"/>, or
+///     <see cref="QueryArgumentParser"/>), so that each command rejects flags outside its own
+///     grammar instead of sharing one mega-switch. See
+///     <c>docs/design/sysml2-tools-tool/cli/context.md</c> for the full architecture.
+/// </remarks>
 internal sealed class Context : IDisposable
 {
     /// <summary>
@@ -86,12 +78,6 @@ internal sealed class Context : IDisposable
     public SysmlCommand Command { get; private init; }
 
     /// <summary>
-    ///     Gets the file glob patterns supplied as positional arguments.
-    /// </summary>
-    public IReadOnlyList<string> Files { get; private init; } = Array.Empty<string>();
-
-
-    /// <summary>
     ///     Gets the heading depth for markdown output; valid range 1–6, default 1;
     ///     supplied via <c>--depth</c>.
     /// </summary>
@@ -104,31 +90,16 @@ internal sealed class Context : IDisposable
     public int? MaxRenderDepth { get; private init; }
 
     /// <summary>
-    ///     Gets the view name filter for the render command; <see langword="null"/> means
-    ///     render all views. Supplied via <c>--view</c>.
+    ///     Gets the parsed options for the <c>lint</c> command; <see langword="null"/> unless
+    ///     <see cref="Command"/> is <see cref="SysmlCommand.Lint"/>.
     /// </summary>
-    public string? ViewName { get; private init; }
+    public LintOptions? Lint { get; private init; }
 
     /// <summary>
-    ///     Gets the output directory path for rendered diagram files.
+    ///     Gets the parsed options for the <c>render</c> command; <see langword="null"/> unless
+    ///     <see cref="Command"/> is <see cref="SysmlCommand.Render"/>.
     /// </summary>
-    public string? OutputDirectory { get; private init; }
-
-    /// <summary>
-    ///     Gets the renderer format identifier (e.g., <c>"svg"</c> or <c>"png"</c>).
-    ///     Defaults to <see langword="null"/>, which the render command interprets as SVG.
-    /// </summary>
-    public string? RendererFormat { get; private init; }
-
-    /// <summary>
-    ///     Gets a value indicating whether the <c>--auto</c> flag was specified.
-    /// </summary>
-    /// <remarks>
-    ///     When <see langword="true"/> and the workspace has no user-defined view declarations,
-    ///     the render command synthesizes a GeneralView targeting the most representative
-    ///     top-level element. The flag is silently ignored when views already exist.
-    /// </remarks>
-    public bool AutoView { get; private init; }
+    public RenderCommandOptions? Render { get; private init; }
 
     /// <summary>
     ///     Gets the parsed options for the <c>query</c> command; <see langword="null"/> unless
@@ -161,64 +132,63 @@ internal sealed class Context : IDisposable
         // Validate input
         ArgumentNullException.ThrowIfNull(args);
 
-        var parser = new ArgumentParser();
-        parser.ParseArguments(args);
+        // Parse the cross-cutting global options and identify the selected command, leaving the
+        // remaining tokens for that command's dedicated parser.
+        var global = GlobalArgumentParser.Parse(args);
+
+        LintOptions? lintOptions = null;
+        RenderCommandOptions? renderOptions = null;
+        QueryOptions? queryOptions = null;
+
+        switch (global.Command)
+        {
+            case SysmlCommand.Lint:
+                lintOptions = LintArgumentParser.Parse(global.CommandArgs);
+                break;
+
+            case SysmlCommand.Render:
+                renderOptions = RenderArgumentParser.Parse(global.CommandArgs);
+                break;
+
+            case SysmlCommand.Query:
+                queryOptions = QueryArgumentParser.Parse(global.CommandArgs, global.Help, global.MaxRenderDepth);
+                break;
+
+            default:
+                // No command selected: preserve the historical bare-invocation behavior of
+                // rejecting any leftover flag-like token (e.g., "sysml2tools --unknown").
+                var badArg = global.CommandArgs.FirstOrDefault(
+                    arg => arg.StartsWith("-", StringComparison.Ordinal));
+                if (badArg != null)
+                {
+                    throw new ArgumentException($"Unsupported argument '{badArg}'", nameof(args));
+                }
+
+                break;
+        }
 
         var result = new Context
         {
-            Version = parser.Version,
-            Help = parser.Help,
-            Silent = parser.Silent,
-            Validate = parser.Validate,
-            ResultsFile = parser.ResultsFile,
-            HeadingDepth = parser.HeadingDepth,
-            MaxRenderDepth = parser.MaxRenderDepth,
-            ViewName = parser.ViewName,
-            Command = parser.Command,
-            Files = parser.Files,
-            OutputDirectory = parser.OutputDirectory,
-            RendererFormat = parser.RendererFormat,
-            AutoView = parser.AutoView,
-            Query = BuildQueryOptions(parser)
+            Version = global.Version,
+            Help = global.Help,
+            Silent = global.Silent,
+            Validate = global.Validate,
+            ResultsFile = global.ResultsFile,
+            HeadingDepth = global.HeadingDepth,
+            MaxRenderDepth = global.MaxRenderDepth,
+            Command = global.Command,
+            Lint = lintOptions,
+            Render = renderOptions,
+            Query = queryOptions
         };
 
         // Open log file if specified
-        if (parser.LogFile != null)
+        if (global.LogFile != null)
         {
-            result.OpenLogFile(parser.LogFile);
+            result.OpenLogFile(global.LogFile);
         }
 
         return result;
-    }
-
-    /// <summary>
-    ///     Builds a <see cref="QueryOptions"/> instance from the parser's fields when the
-    ///     <c>query</c> command and a verb were both supplied.
-    /// </summary>
-    /// <param name="parser">The argument parser holding the parsed field values.</param>
-    /// <returns>
-    ///     A new <see cref="QueryOptions"/>, or <see langword="null"/> when <see cref="ArgumentParser.Command"/>
-    ///     is not <see cref="SysmlCommand.Query"/> or no verb was captured (e.g., <c>query --help</c>).
-    /// </returns>
-    private static QueryOptions? BuildQueryOptions(ArgumentParser parser)
-    {
-        if (parser.Command != SysmlCommand.Query || parser.QueryVerb is not { } verb)
-        {
-            return null;
-        }
-
-        return new QueryOptions
-        {
-            Verb = verb,
-            Element = parser.Element,
-            Format = parser.RendererFormat,
-            Depth = parser.MaxRenderDepth,
-            Direction = parser.Direction,
-            Kind = parser.Kind,
-            NameFilter = parser.NameFilter,
-            IncludeStdlib = parser.IncludeStdlib,
-            Files = parser.QueryFiles
-        };
     }
 
     /// <summary>
@@ -239,313 +209,6 @@ internal sealed class Context : IDisposable
         catch (Exception ex)
         {
             throw new InvalidOperationException($"Failed to open log file '{logFile}': {ex.Message}", ex);
-        }
-    }
-
-    /// <summary>
-    ///     Helper class for parsing command-line arguments
-    /// </summary>
-    private sealed class ArgumentParser
-    {
-        /// <summary>
-        ///     Gets a value indicating whether the version flag was specified.
-        /// </summary>
-        public bool Version { get; private set; }
-
-        /// <summary>
-        ///     Gets a value indicating whether the help flag was specified.
-        /// </summary>
-        public bool Help { get; private set; }
-
-        /// <summary>
-        ///     Gets a value indicating whether the silent flag was specified.
-        /// </summary>
-        public bool Silent { get; private set; }
-
-        /// <summary>
-        ///     Gets a value indicating whether the validate flag was specified.
-        /// </summary>
-        public bool Validate { get; private set; }
-
-        /// <summary>
-        ///     Gets the log file path.
-        /// </summary>
-        public string? LogFile { get; private set; }
-
-        /// <summary>
-        ///     Gets the validation results file path.
-        /// </summary>
-        public string? ResultsFile { get; private set; }
-
-        /// <summary>
-        ///     Gets the top-level command.
-        /// </summary>
-        public SysmlCommand Command { get; private set; }
-
-        /// <summary>
-        ///     File glob patterns collected from positional arguments.
-        /// </summary>
-        private readonly List<string> _files = [];
-
-        /// <summary>
-        ///     Gets the file glob patterns supplied as positional arguments.
-        /// </summary>
-        public IReadOnlyList<string> Files => _files;
-
-        /// <summary>
-        ///     File glob patterns collected from positional arguments after a <c>query</c> verb.
-        /// </summary>
-        /// <remarks>
-        ///     Kept separate from <see cref="_files"/> so that <c>query</c>'s positional file
-        ///     handling cannot interfere with the top-level <see cref="Files"/> read by
-        ///     <c>lint</c>/<c>render</c>.
-        /// </remarks>
-        private readonly List<string> _queryFiles = [];
-
-        /// <summary>
-        ///     Gets the file glob patterns supplied as positional arguments after a query verb.
-        /// </summary>
-        public IReadOnlyList<string> QueryFiles => _queryFiles;
-
-        /// <summary>
-        ///     Gets the recognized query verb captured from the first bare word following the
-        ///     <c>query</c> command token; <see langword="null"/> when no verb has been captured.
-        /// </summary>
-        public QueryVerb? QueryVerb { get; private set; }
-
-        /// <summary>
-        ///     Gets the target element qualified name supplied via <c>--element</c>/<c>-e</c>.
-        /// </summary>
-        public string? Element { get; private set; }
-
-        /// <summary>
-        ///     Gets the traversal direction supplied via <c>--direction</c> (query <c>hierarchy</c> verb).
-        /// </summary>
-        public string? Direction { get; private set; }
-
-        /// <summary>
-        ///     Gets the element-kind filter supplied via <c>--kind</c> (query <c>list</c>/<c>find</c> verbs).
-        /// </summary>
-        public string? Kind { get; private set; }
-
-        /// <summary>
-        ///     Gets the name substring filter supplied via <c>--name</c> (query <c>list</c>/<c>find</c> verbs).
-        /// </summary>
-        public string? NameFilter { get; private set; }
-
-        /// <summary>
-        ///     Gets a value indicating whether the <c>--include-stdlib</c> flag was specified.
-        /// </summary>
-        public bool IncludeStdlib { get; private set; }
-
-        /// <summary>
-        ///     Gets the heading depth for markdown output.
-        /// </summary>
-        public int HeadingDepth { get; private set; } = 1;
-
-        /// <summary>
-        ///     Gets the maximum diagram render depth; <see langword="null"/> means unlimited.
-        /// </summary>
-        public int? MaxRenderDepth { get; private set; }
-
-        /// <summary>
-        ///     Gets the view name filter for the render command.
-        /// </summary>
-        public string? ViewName { get; private set; }
-
-        /// <summary>
-        ///     Gets the output directory path for rendered diagram files.
-        /// </summary>
-        public string? OutputDirectory { get; private set; }
-
-        /// <summary>
-        ///     Gets the renderer format identifier supplied via <c>--format</c>.
-        /// </summary>
-        public string? RendererFormat { get; private set; }
-
-        /// <summary>
-        ///     Gets a value indicating whether the <c>--auto</c> flag was specified.
-        /// </summary>
-        public bool AutoView { get; private set; }
-
-        /// <summary>
-        ///     Parses command-line arguments
-        /// </summary>
-        /// <param name="args">Command-line arguments.</param>
-        public void ParseArguments(string[] args)
-        {
-            // Validate input
-            ArgumentNullException.ThrowIfNull(args);
-
-            int i = 0;
-            while (i < args.Length)
-            {
-                var arg = args[i++];
-                i = ParseArgument(arg, args, i);
-            }
-        }
-
-        /// <summary>
-        ///     Parses a single argument
-        /// </summary>
-        /// <param name="arg">Argument to parse</param>
-        /// <param name="args">All arguments</param>
-        /// <param name="index">Current index</param>
-        /// <returns>Updated index</returns>
-        private int ParseArgument(string arg, string[] args, int index)
-        {
-            switch (arg)
-            {
-                case "-v":
-                case "--version":
-                    Version = true;
-                    return index;
-
-                case "-?":
-                case "-h":
-                case "--help":
-                    Help = true;
-                    return index;
-
-                case "--silent":
-                    Silent = true;
-                    return index;
-
-                case "--validate":
-                    Validate = true;
-                    return index;
-
-                case "--log":
-                    LogFile = GetRequiredStringArgument(arg, args, index, "a filename argument");
-                    return index + 1;
-
-                case "--results":
-                case "--result":
-                    ResultsFile = GetRequiredStringArgument(arg, args, index, "a results filename argument");
-                    return index + 1;
-
-                case "--depth":
-                    var depth = GetRequiredIntArgument(arg, args, index, "a heading depth argument", 1);
-                    HeadingDepth = Math.Clamp(depth, 1, 6);
-                    MaxRenderDepth = depth;
-                    return index + 1;
-
-                case "--output":
-                    OutputDirectory = GetRequiredStringArgument(arg, args, index, "an output directory argument");
-                    return index + 1;
-
-                case "--format":
-                    RendererFormat = GetRequiredStringArgument(arg, args, index, "a format argument (svg or png)");
-                    return index + 1;
-
-                case "--view":
-                    ViewName = GetRequiredStringArgument(arg, args, index, "a view name argument");
-                    return index + 1;
-
-                case "--auto":
-                    AutoView = true;
-                    return index;
-
-                case "--element":
-                case "-e":
-                    Element = GetRequiredStringArgument(arg, args, index, "an element qualified-name argument");
-                    return index + 1;
-
-                case "--direction":
-                    Direction = GetRequiredStringArgument(arg, args, index, "a direction argument (up, down, or both)");
-                    return index + 1;
-
-                case "--kind":
-                    Kind = GetRequiredStringArgument(arg, args, index, "a kind filter argument");
-                    return index + 1;
-
-                case "--name":
-                    NameFilter = GetRequiredStringArgument(arg, args, index, "a name filter argument");
-                    return index + 1;
-
-                case "--include-stdlib":
-                    IncludeStdlib = true;
-                    return index;
-
-                case "lint":
-                    Command = SysmlCommand.Lint;
-                    return index;
-
-                case "render":
-                    Command = SysmlCommand.Render;
-                    return index;
-
-                case "query":
-                    Command = SysmlCommand.Query;
-                    return index;
-
-                default:
-                    if (!arg.StartsWith("-", StringComparison.Ordinal))
-                    {
-                        // When the 'query' command has been seen and no verb captured yet, the
-                        // first bare word is the verb token, not a file glob pattern. This guard
-                        // only activates for Command == Query, a value no lint/render invocation
-                        // can produce, so lint/render positional-file behavior is unaffected.
-                        if (Command == SysmlCommand.Query && QueryVerb is null)
-                        {
-                            QueryVerb = QueryVerbParsing.Parse(arg);
-                            return index;
-                        }
-
-                        // Positional argument — treat as a file glob pattern
-                        if (Command == SysmlCommand.Query)
-                        {
-                            _queryFiles.Add(arg);
-                        }
-                        else
-                        {
-                            _files.Add(arg);
-                        }
-
-                        return index;
-                    }
-
-                    throw new ArgumentException($"Unsupported argument '{arg}'", nameof(args));
-            }
-        }
-
-        /// <summary>
-        ///     Gets a required string argument value
-        /// </summary>
-        /// <param name="arg">Argument name</param>
-        /// <param name="args">All arguments</param>
-        /// <param name="index">Current index</param>
-        /// <param name="description">Description of what's required</param>
-        /// <returns>Argument value</returns>
-        private static string GetRequiredStringArgument(string arg, string[] args, int index, string description)
-        {
-            if (index >= args.Length)
-            {
-                throw new ArgumentException($"{arg} requires {description}", nameof(args));
-            }
-
-            return args[index];
-        }
-
-        /// <summary>
-        ///     Gets a required integer argument value
-        /// </summary>
-        /// <param name="arg">Argument name</param>
-        /// <param name="args">All arguments</param>
-        /// <param name="index">Current index</param>
-        /// <param name="description">Description of what's required</param>
-        /// <param name="min">Minimum valid value (inclusive)</param>
-        /// <param name="max">Maximum valid value (inclusive)</param>
-        /// <returns>Argument value as an integer in [min, max]</returns>
-        private static int GetRequiredIntArgument(string arg, string[] args, int index, string description, int min = 1, int max = int.MaxValue)
-        {
-            var value = GetRequiredStringArgument(arg, args, index, description);
-            if (!int.TryParse(value, out var result) || result < min || result > max)
-            {
-                throw new ArgumentException($"{arg} requires an integer between {min} and {max} for {description}", nameof(args));
-            }
-
-            return result;
         }
     }
 

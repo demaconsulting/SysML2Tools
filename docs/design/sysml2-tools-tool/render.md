@@ -20,8 +20,10 @@ a simple string comparison, and rendering orchestration to `DiagramRenderer`.
 
 No instance state. All data flows through the `Context` parameter and local variables.
 
-- Input: `Context` — file patterns (`Files`), format (`RendererFormat`), output path
-  (`OutputDirectory`), view filter (`ViewName`), render depth (`MaxRenderDepth`)
+- Input: `Context.Render` (a `RenderCommandOptions` populated by `RenderArgumentParser`) —
+  file patterns (`Files`), format (`Format`), output path (`OutputDirectory`), view filter
+  (`ViewName`), auto-view flag (`AutoView`); plus `Context.MaxRenderDepth` (render depth,
+  parsed globally — see `docs/design/sysml2-tools-tool/cli/context.md`)
 - Intermediate: `SysmlLoadResult` — workspace and diagnostics from `WorkspaceLoader`
 - Output: files written to `OutputDirectory` via `File.Create`
 
@@ -31,19 +33,25 @@ No instance state. All data flows through the `Context` parameter and local vari
 
 Entry point for the render command. Steps:
 
-1. Validates that `context.Files` is non-empty; calls `context.WriteError` and returns
-   when no patterns are supplied.
-2. Calls `WorkspaceLoader.LoadAsync(context.Files)` to load the workspace.
+1. Reads `context.Render` (throwing `ArgumentException` if somehow null — defensive only, since
+   `Program` only reaches here when `Context.Create` has already populated it) and validates
+   that `options.Files` is non-empty; calls `context.WriteError` and returns when no patterns
+   are supplied.
+2. Calls `WorkspaceLoader.LoadAsync(options.Files)` to load the workspace.
 3. Reports all diagnostics from `loadResult.Diagnostics`, writing errors via
    `context.WriteError` and other messages via `context.WriteLine`.
 4. Calls `DiagramRenderer.GetViewNames(workspace)` to enumerate renderable views.
-5. When `viewNames.Count > 1` and `context.ViewName` is null, calls `context.WriteError`
+5. When `viewNames.Count > 1` and `options.ViewName` is null, calls `context.WriteError`
    with a message listing the available names and returns early.
-6. Selects renderer: `PngRenderer` when `context.RendererFormat` equals `"png"`
-   (case-insensitive); `SvgRenderer` otherwise.
+6. Resolves `format = options.Format ?? "svg"` and eagerly rejects any value other than
+   `"svg"`/`"png"` (case-insensitive) with `ArgumentException` naming the bad value — mirroring
+   the `query` command's `--format` validation style. This is validated here, in `RunAsync`, not
+   inside `RenderArgumentParser`, so an invalid `--format` value (e.g., `render --format xml`)
+   throws only once the command actually runs. Selects `PngRenderer` when `format` equals
+   `"png"`; `SvgRenderer` otherwise.
 7. Calls `DiagramRenderer.RenderWorkspace` passing
    `new RenderOptions(Themes.Light, DepthLimit: context.MaxRenderDepth ?? 0)` and
-   `viewFilter: context.ViewName`.
+   `viewFilter: options.ViewName`.
 8. Writes a "No views found" message and returns when `outputs` is empty.
 9. Resolves the output directory (defaults to `Directory.GetCurrentDirectory()`), creates
    it via `Directory.CreateDirectory`, and writes each `RenderOutput.Data` stream to a
@@ -55,6 +63,8 @@ Entry point for the render command. Steps:
 - Load diagnostics: reported to the context; non-fatal; rendering proceeds regardless.
 - Multiple views without `--view`: `context.WriteError` lists available view names and
   returns early.
+- Unsupported `--format` value: `ArgumentException` is thrown naming the bad value and the
+  valid values (`svg`, `png`); propagates to `Program.Main`'s expected-exception handler.
 - No view declarations: informational message; no output files written; returns normally.
 - File system errors (e.g., permission denied): propagate as `IOException`; handled by
   `Program.Main`'s outer exception handler.
@@ -66,7 +76,8 @@ Entry point for the render command. Steps:
 - `SvgRenderer` (in `DemaConsulting.Rendering.Svg`) — produces SVG output
 - `PngRenderer` (in `DemaConsulting.Rendering.Skia`) — produces PNG output
 - `Themes.Light` (in `DemaConsulting.Rendering.Abstractions`) — default theme
-- `Context` (in `DemaConsulting.SysML2Tools.Cli`) — reads arguments; writes output
+- `Context`/`RenderCommandOptions`/`RenderArgumentParser` (in `DemaConsulting.SysML2Tools.Cli`
+  and `DemaConsulting.SysML2Tools.Render`) — reads arguments; writes output
 
 ##### Callers
 
@@ -85,3 +96,4 @@ Entry point for the render command. Steps:
 | SysML2Tools-Tool-Render-DepthLimit | `DepthLimit` passed to `RenderOptions` in `RunAsync` |
 | SysML2Tools-Tool-Render-MultipleViewError | Multi-view guard using `GetViewNames` in `RunAsync` |
 | SysML2Tools-Tool-Render-ViewSelection | `viewFilter` passed to `RenderWorkspace` in `RunAsync` |
+| SysML2Tools-Tool-Render-FormatValidation | Eager `--format` value guard in `RunAsync` |

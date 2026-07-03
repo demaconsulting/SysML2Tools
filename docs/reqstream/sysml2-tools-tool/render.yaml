@@ -92,3 +92,16 @@ sections:
           models without generating every diagram in the workspace.
         tests:
           - RenderSubsystem_MultipleViews_WithViewFlag_RendersSelectedView
+
+      - id: SysML2Tools-Tool-Render-FormatValidation
+        title: >-
+          The render command shall reject unsupported --format values with a clear
+          ArgumentException naming the invalid value, validated when the command runs
+          rather than at argument-parsing time.
+        justification: |
+          Previously an unrecognized --format value (e.g., "xml") was silently treated as
+          "svg", masking user typos. Rejecting unsupported values explicitly, mirroring the
+          query command's --format validation, surfaces the mistake instead of silently
+          producing an unexpected output format.
+        tests:
+          - RenderSubsystem_UnsupportedFormat_ThrowsArgumentException

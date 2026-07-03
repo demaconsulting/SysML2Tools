@@ -109,8 +109,9 @@ internal sealed record QueryOptions
     ///     Gets the file glob patterns supplied as positional arguments after the verb token.
     /// </summary>
     /// <remarks>
-    ///     Kept separate from <see cref="Cli.Context.Files"/> (used by <c>lint</c>/<c>render</c>)
-    ///     so that query-specific file handling cannot interfere with the other commands.
+    ///     Kept separate from <see cref="Cli.Context.Lint"/>/<see cref="Cli.Context.Render"/>'s
+    ///     file lists so that query-specific file handling cannot interfere with the other
+    ///     commands.
     /// </remarks>
     public IReadOnlyList<string> Files { get; init; } = [];
 }

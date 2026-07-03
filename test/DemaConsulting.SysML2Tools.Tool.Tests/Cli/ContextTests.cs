@@ -353,11 +353,11 @@ public class ContextTests
     [Fact]
     public void Context_Create_ViewFlag_SetsViewName()
     {
-        // Act: execute the operation being tested
-        using var context = Context.Create(["--view", "MyView"]);
+        // Act: execute the operation being tested — --view is scoped to the render command
+        using var context = Context.Create(["render", "--view", "MyView"]);
 
         // Assert: verify expected behavior
-        Assert.Equal("MyView", context.ViewName);
+        Assert.Equal("MyView", context.Render!.ViewName);
         Assert.Equal(0, context.ExitCode);
     }
 
@@ -555,7 +555,7 @@ public class ContextTests
     }
 
     /// <summary>
-    ///     Test creating a context with render command and --format svg sets RendererFormat to "svg".
+    ///     Test creating a context with render command and --format svg sets Render.Format to "svg".
     /// </summary>
     [Fact]
     public void Context_Create_RenderCommand_WithFormat_SetsSvgFormat()
@@ -564,12 +564,12 @@ public class ContextTests
         using var context = Context.Create(["render", "--format", "svg"]);
 
         // Assert: verify expected behavior
-        Assert.Equal("svg", context.RendererFormat);
+        Assert.Equal("svg", context.Render!.Format);
         Assert.Equal(0, context.ExitCode);
     }
 
     /// <summary>
-    ///     Test creating a context with render command and --format png sets RendererFormat to "png".
+    ///     Test creating a context with render command and --format png sets Render.Format to "png".
     /// </summary>
     [Fact]
     public void Context_Create_RenderCommand_WithPngFormat_SetsPngFormat()
@@ -578,7 +578,7 @@ public class ContextTests
         using var context = Context.Create(["render", "--format", "png"]);
 
         // Assert: verify expected behavior
-        Assert.Equal("png", context.RendererFormat);
+        Assert.Equal("png", context.Render!.Format);
         Assert.Equal(0, context.ExitCode);
     }
 
@@ -592,7 +592,7 @@ public class ContextTests
         using var context = Context.Create(["render", "--output", "output/path"]);
 
         // Assert: verify expected behavior
-        Assert.Equal("output/path", context.OutputDirectory);
+        Assert.Equal("output/path", context.Render!.OutputDirectory);
         Assert.Equal(0, context.ExitCode);
     }
 
@@ -606,8 +606,8 @@ public class ContextTests
         using var context = Context.Create(["render", "*.sysml"]);
 
         // Assert: verify expected behavior
-        Assert.Single(context.Files);
-        Assert.Equal("*.sysml", context.Files[0]);
+        Assert.Single(context.Render!.Files);
+        Assert.Equal("*.sysml", context.Render.Files[0]);
         Assert.Equal(0, context.ExitCode);
     }
 
@@ -775,7 +775,8 @@ public class ContextTests
 
     /// <summary>
     ///     Test creating a context with the query command and --format markdown sets
-    ///     Query.Format without disturbing RendererFormat's meaning for render.
+    ///     Query.Format independently of the render command's --format (context.Render is null
+    ///     for a query invocation, so there is no shared field to disturb).
     /// </summary>
     [Fact]
     public void Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat()
@@ -786,7 +787,7 @@ public class ContextTests
         // Assert: verify expected behavior
         Assert.NotNull(context.Query);
         Assert.Equal("markdown", context.Query.Format);
-        Assert.Equal("markdown", context.RendererFormat);
+        Assert.Null(context.Render);
     }
 
     /// <summary>
@@ -821,7 +822,7 @@ public class ContextTests
 
     /// <summary>
     ///     Test creating a context with the query command and file globs after the verb sets
-    ///     Query.Files, leaving the top-level Files empty.
+    ///     Query.Files, leaving the lint/render option objects null.
     /// </summary>
     [Fact]
     public void Context_Create_QueryCommand_WithFiles_SetsQueryFilesNotTopLevelFiles()
@@ -833,7 +834,104 @@ public class ContextTests
         Assert.NotNull(context.Query);
         Assert.Single(context.Query.Files);
         Assert.Equal("*.sysml", context.Query.Files[0]);
-        Assert.Empty(context.Files);
+        Assert.Null(context.Lint);
+        Assert.Null(context.Render);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the lint command and an out-of-scope flag (--auto,
+    ///     belonging to render) throws ArgumentException naming the flag and the 'lint' command.
+    /// </summary>
+    [Fact]
+    public void Context_Create_LintCommand_OutOfScopeAutoFlag_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(
+            () => Context.Create(["lint", "--auto", "file.sysml"]));
+        Assert.Contains("--auto", exception.Message);
+        Assert.Contains("lint", exception.Message);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the lint command and an out-of-scope flag (--kind,
+    ///     belonging to query) throws ArgumentException naming the flag and the 'lint' command.
+    /// </summary>
+    [Fact]
+    public void Context_Create_LintCommand_OutOfScopeKindFlag_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(
+            () => Context.Create(["lint", "--kind", "part", "file.sysml"]));
+        Assert.Contains("--kind", exception.Message);
+        Assert.Contains("lint", exception.Message);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the render command and an out-of-scope flag (--kind,
+    ///     belonging to query) throws ArgumentException naming the flag and the 'render' command.
+    /// </summary>
+    [Fact]
+    public void Context_Create_RenderCommand_OutOfScopeKindFlag_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(
+            () => Context.Create(["render", "--kind", "foo", "file.sysml"]));
+        Assert.Contains("--kind", exception.Message);
+        Assert.Contains("render", exception.Message);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the render command and an out-of-scope flag (--element,
+    ///     belonging to query) throws ArgumentException naming the flag and the 'render' command.
+    /// </summary>
+    [Fact]
+    public void Context_Create_RenderCommand_OutOfScopeElementFlag_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(
+            () => Context.Create(["render", "--element", "Pkg::Foo", "file.sysml"]));
+        Assert.Contains("--element", exception.Message);
+        Assert.Contains("render", exception.Message);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and an out-of-scope flag (--auto,
+    ///     belonging to render) throws ArgumentException naming the flag and the 'query' command.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_OutOfScopeAutoFlag_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(
+            () => Context.Create(["query", "describe", "--auto", "file.sysml"]));
+        Assert.Contains("--auto", exception.Message);
+        Assert.Contains("query", exception.Message);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and no verb token (and no --help)
+    ///     throws a clear ArgumentException rather than silently leaving Query null.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_NoVerbNoHelp_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() => Context.Create(["query"]));
+        Assert.Contains("verb", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the render command and --format but an unsupported value
+    ///     does not throw at parse time; validation is deferred to RenderCommand.RunAsync.
+    /// </summary>
+    [Fact]
+    public void Context_Create_RenderCommand_WithUnsupportedFormatValue_DoesNotThrowAtParseTime()
+    {
+        // Act: execute the operation being tested — value validation happens later, in RunAsync
+        using var context = Context.Create(["render", "--format", "xml", "file.sysml"]);
+
+        // Assert: the raw value is captured without eager validation
+        Assert.Equal("xml", context.Render!.Format);
     }
 }
 

@@ -401,6 +401,36 @@ public class RenderSubsystemTests
     }
 
     /// <summary>
+    ///     RenderCommand with an unsupported --format value throws ArgumentException naming the
+    ///     bad value; validation happens in RunAsync, not at Context.Create parse time, mirroring
+    ///     the query command's --format validation.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_UnsupportedFormat_ThrowsArgumentException()
+    {
+        // Arrange: write a minimal valid SysML file to a temp location
+        var tempFile = Path.Combine(Path.GetTempPath(), $"render_bad_format_{Guid.NewGuid():N}.sysml");
+        await File.WriteAllTextAsync(tempFile, "package LoadTest {}", TestContext.Current.CancellationToken);
+
+        try
+        {
+            // Act: create the context with an unsupported --format value
+            using var context = Context.Create(["render", "--format", "xml", tempFile]);
+
+            // Assert: Program.RunAsync throws, naming the bad value
+            var exception = await Assert.ThrowsAsync<ArgumentException>(() => Program.RunAsync(context));
+            Assert.Contains("xml", exception.Message);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
     ///     RenderCommand with --view selects a specific view and renders it successfully.
     /// </summary>
     [Fact]

@@ -33,17 +33,20 @@ internal static class RenderCommand
     /// <returns>A task that completes when all files have been rendered and written.</returns>
     public static async Task RunAsync(Context context)
     {
+        var options = context.Render
+                       ?? throw new ArgumentException("render: no render options were parsed.", nameof(context));
+
         // Validate that at least one file pattern was supplied
-        if (context.Files.Count == 0)
+        if (options.Files.Count == 0)
         {
             context.WriteError("render: no input files specified. Provide file glob patterns.");
             return;
         }
 
         // Load the workspace from the supplied file patterns
-        context.WriteLine($"Loading {context.Files.Count} file pattern(s)...");
+        context.WriteLine($"Loading {options.Files.Count} file pattern(s)...");
         var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
-        var loadResult = await WorkspaceLoader.LoadAsync(context.Files, stdlibTable).ConfigureAwait(false);
+        var loadResult = await WorkspaceLoader.LoadAsync(options.Files, stdlibTable).ConfigureAwait(false);
 
         // Report any diagnostics from the load phase
         foreach (var diagnostic in loadResult.Diagnostics)
@@ -67,7 +70,7 @@ internal static class RenderCommand
 
         // Enumerate renderable views; require --view when multiple views are present
         var viewNames = DiagramRenderer.GetViewNames(loadResult.Workspace);
-        if (viewNames.Count > 1 && context.ViewName is null)
+        if (viewNames.Count > 1 && options.ViewName is null)
         {
             var available = string.Join(", ", viewNames);
             context.WriteError(
@@ -77,7 +80,7 @@ internal static class RenderCommand
 
         // When --auto is requested and no user-defined views exist, synthesize a GeneralView
         // targeting the most representative top-level element in the workspace
-        if (viewNames.Count == 0 && context.AutoView)
+        if (viewNames.Count == 0 && options.AutoView)
         {
             var autoView = DiagramRenderer.SynthesizeAutoView(loadResult.Workspace);
             if (autoView != null)
@@ -90,17 +93,26 @@ internal static class RenderCommand
             }
         }
 
-        // Select the renderer based on the format option (default: svg)
-        var format = context.RendererFormat ?? "svg";
+        // Select the renderer based on the format option (default: svg); reject anything else up
+        // front, before doing any rendering work, mirroring the query command's --format handling.
+        var format = options.Format ?? "svg";
+        if (!format.Equals("svg", StringComparison.OrdinalIgnoreCase) &&
+            !format.Equals("png", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"render: unsupported --format value '{format}'. Valid values are: svg, png.",
+                nameof(context));
+        }
+
         IRenderer renderer = format.Equals("png", StringComparison.OrdinalIgnoreCase)
             ? new PngRenderer()
             : new SvgRenderer();
 
         // Render all views in the workspace (or the selected view when --view is specified)
         var diagramRenderer = new DiagramRenderer();
-        var options = new RenderOptions(Themes.Light, DepthLimit: context.MaxRenderDepth ?? 0);
+        var renderOptions = new RenderOptions(Themes.Light, DepthLimit: context.MaxRenderDepth ?? 0);
         var outputs = diagramRenderer.RenderWorkspace(
-            loadResult.Workspace, renderer, options, viewFilter: context.ViewName);
+            loadResult.Workspace, renderer, renderOptions, viewFilter: options.ViewName);
 
         if (outputs.Count == 0)
         {
@@ -109,7 +121,7 @@ internal static class RenderCommand
         }
 
         // Determine the output directory (default: current directory)
-        var outputDir = context.OutputDirectory ?? Directory.GetCurrentDirectory();
+        var outputDir = options.OutputDirectory ?? Directory.GetCurrentDirectory();
         Directory.CreateDirectory(outputDir);
 
         // Write each render output to disk

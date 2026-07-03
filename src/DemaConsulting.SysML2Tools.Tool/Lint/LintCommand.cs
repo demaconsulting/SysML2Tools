@@ -36,7 +36,9 @@ internal static class LintCommand
     /// <param name="context">The CLI context, supplying file patterns and output methods.</param>
     public static async Task RunAsync(Context context)
     {
-        var files = ResolveFiles(context.Files);
+        var options = context.Lint
+                      ?? throw new ArgumentException("lint: no lint options were parsed.", nameof(context));
+        var files = ResolveFiles(options.Files);
 
         if (files.Count == 0)
         {
