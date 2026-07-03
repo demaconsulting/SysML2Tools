@@ -4,7 +4,8 @@
 # PURPOSE:
 # - Define system-level requirements for the DemaConsulting.SysML2Tools.Language library
 # - Language library provides: ANTLR parser, SysmlNode AST types, AstBuilder, WorkspaceParser,
-#   SymbolTable, ReferenceResolver, SupertypeWalker, WorkspaceLoader, AstSerializer/AstDeserializer
+#   SymbolTable, ReferenceResolver, SupertypeWalker, SysmlEdge, SemanticIndex, WorkspaceLoader,
+#   AstSerializer/AstDeserializer
 
 sections:
   - title: SysML2Tools Language Requirements
@@ -47,3 +48,22 @@ sections:
           - Serialize_AllNodeTypes_RoundTrip
           - Serialize_Diagnostics_RoundTrip
           - Serialize_SupertypeAndImportedNames_Preserved
+
+      - id: SysML2Tools-Language-ReverseIndex
+        title: >-
+          The Language library shall persist resolved supertype, feature-typing, and import
+          references as edges on each AST node and expose a reverse-lookup index over all
+          resolved edges via the loaded workspace.
+        justification: |
+          A persisted, queryable reverse index over resolved qualified-name references is the
+          foundational data structure required by the `query` command's uses/used-by/impact/
+          hierarchy verbs, avoiding a re-resolution pass for every query invocation.
+        tests:
+          - WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge
+          - WorkspaceLoader_LoadAsync_ResolvedFeatureTyping_RecordsTypingEdge
+          - WorkspaceLoader_LoadAsync_UnresolvedFeatureTyping_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_WildcardImport_RecordsImportEdge
+          - WorkspaceLoader_LoadAsync_NamedImport_RecordsImportEdge
+          - WorkspaceLoader_LoadAsync_SupertypeAcrossEnclosingNamespace_RecordsResolvedTargetName
+          - WorkspaceLoader_LoadAsync_UnresolvedImport_ProducesWarningNoCrash
+          - WorkspaceLoader_LoadAsync_MultiKindFixtureModel_IndexAnswersIncomingAndOutgoingQueries

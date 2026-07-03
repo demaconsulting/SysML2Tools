@@ -149,6 +149,8 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SupertypeWalker.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SerializedStdlib.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/AstSerializerContext.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SysmlEdge.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SemanticIndex.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/OmgModelsTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"

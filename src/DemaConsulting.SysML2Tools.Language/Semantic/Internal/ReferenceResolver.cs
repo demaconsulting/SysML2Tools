@@ -31,9 +31,15 @@ internal sealed class ReferenceResolver
     }
 
     /// <summary>
-    ///     Runs import-graph cycle detection and supertype reference resolution over all file roots.
+    ///     Runs import-graph cycle detection and supertype/typing/import reference resolution
+    ///     over all file roots, building a reverse-lookup index over the resolved edges.
     /// </summary>
-    public void ResolveAll(IEnumerable<(string FilePath, SysmlNode? Root)> fileRoots)
+    /// <param name="fileRoots">The parsed file roots to resolve references within.</param>
+    /// <returns>
+    ///     A <see cref="SemanticIndex"/> over all resolved edges discovered while walking
+    ///     <paramref name="fileRoots"/>.
+    /// </returns>
+    public SemanticIndex ResolveAll(IEnumerable<(string FilePath, SysmlNode? Root)> fileRoots)
     {
         // Build import graph first
         var fileRootsList = fileRoots.ToList();
@@ -42,12 +48,15 @@ internal sealed class ReferenceResolver
         // Detect circular imports
         DetectCircularImports(importGraph);
 
-        // Resolve references in each file using the per-file import context
+        // Resolve references in each file using the per-file import context, accumulating edges
+        var edges = new List<SysmlEdge>();
         foreach (var (filePath, root) in fileRootsList.Where(r => r.Root is not null))
         {
             var imports = CollectImportNodes(root!);
-            ResolveNode(root!, filePath, new HashSet<string>(), new List<string>(), imports);
+            ResolveNode(root!, filePath, new HashSet<string>(), new List<string>(), imports, edges);
         }
+
+        return new SemanticIndex(edges);
     }
 
     /// <summary>
@@ -214,6 +223,11 @@ internal sealed class ReferenceResolver
     ///     (e.g., <c>["A", "B"]</c> for a symbol nested inside <c>A::B</c>).
     /// </param>
     /// <param name="imports">All import nodes collected from the current file.</param>
+    /// <param name="resolvedName">
+    ///     When this method returns <see langword="true"/>, the fully-qualified name that
+    ///     matched (the exact key registered in the symbol table). When this method returns
+    ///     <see langword="false"/>, set to <see cref="string.Empty"/>.
+    /// </param>
     /// <returns>
     ///     <see langword="true"/> if the name resolves to a known symbol;
     ///     <see langword="false"/> otherwise.
@@ -221,11 +235,13 @@ internal sealed class ReferenceResolver
     private bool TryResolve(
         string name,
         IReadOnlyList<string> namespaceStack,
-        IReadOnlyList<SysmlImportNode> imports)
+        IReadOnlyList<SysmlImportNode> imports,
+        out string resolvedName)
     {
         // Step 1: Direct lookup — handles already-qualified names
         if (_symbolTable.Contains(name))
         {
+            resolvedName = name;
             return true;
         }
 
@@ -234,16 +250,23 @@ internal sealed class ReferenceResolver
         for (var i = namespaceStack.Count; i > 0; i--)
         {
             var prefix = string.Join("::", namespaceStack.Take(i));
-            if (_symbolTable.Contains($"{prefix}::{name}"))
+            var candidate = $"{prefix}::{name}";
+            if (_symbolTable.Contains(candidate))
             {
+                resolvedName = candidate;
                 return true;
             }
         }
 
         // Step 3: Wildcard imports — for each `import X::*` in the file, try X::name
-        if (imports.Any(i => i.IsWildcard && _symbolTable.Contains($"{i.ImportedNamespace}::{name}")))
+        foreach (var wildcard in imports.Where(i => i.IsWildcard))
         {
-            return true;
+            var candidate = $"{wildcard.ImportedNamespace}::{name}";
+            if (_symbolTable.Contains(candidate))
+            {
+                resolvedName = candidate;
+                return true;
+            }
         }
 
         // Step 4: Explicit named imports — for each `import X::Y` where Y == name,
@@ -254,16 +277,20 @@ internal sealed class ReferenceResolver
             var lastName = lastSep >= 0 ? ns[(lastSep + 2)..] : ns;
             if (lastName == name && _symbolTable.Contains(ns))
             {
+                resolvedName = ns;
                 return true;
             }
         }
 
+        resolvedName = string.Empty;
         return false;
     }
 
     /// <summary>
-    ///     Resolves supertype names in the given AST node and its descendants, emitting a Warning
-    ///     diagnostic for each name that cannot be resolved through the four-step lookup.
+    ///     Resolves supertype, feature-typing, and import references in the given AST node and
+    ///     its descendants, emitting a Warning diagnostic for each name that cannot be resolved
+    ///     through the four-step lookup and recording a <see cref="SysmlEdge"/> for each name
+    ///     that does resolve.
     /// </summary>
     /// <param name="node">The AST node to process.</param>
     /// <param name="filePath">Source file path used when constructing diagnostics.</param>
@@ -277,23 +304,76 @@ internal sealed class ReferenceResolver
     ///     and pops entries but does not allocate the list.
     /// </param>
     /// <param name="imports">All import nodes collected from the current file.</param>
+    /// <param name="edges">
+    ///     Aggregate list of all edges resolved so far across the whole file-root traversal;
+    ///     appended to by this method, mirroring <paramref name="namespaceStack"/> and
+    ///     <paramref name="resolvedInFile"/>.
+    /// </param>
     private void ResolveNode(
         SysmlNode node,
         string filePath,
         HashSet<string> resolvedInFile,
         List<string> namespaceStack,
-        IReadOnlyList<SysmlImportNode> imports)
+        IReadOnlyList<SysmlImportNode> imports,
+        List<SysmlEdge> edges)
     {
+        var nodeEdges = new List<SysmlEdge>();
+
         // Resolve each supertype name using the current namespace context and file imports
-        foreach (var supertypeName in node.SupertypeNames.Where(
-                     n => !resolvedInFile.Contains(n) && !TryResolve(n, namespaceStack, imports)))
+        foreach (var supertypeName in node.SupertypeNames)
         {
-            resolvedInFile.Add(supertypeName);
-            _diagnostics.Add(new SysmlDiagnostic(
-                filePath,
-                0, 0,
-                DiagnosticSeverity.Warning,
-                $"Unresolved reference: '{supertypeName}'"));
+            if (TryResolve(supertypeName, namespaceStack, imports, out var resolvedSupertype))
+            {
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedSupertype, SysmlEdgeKind.Supertype));
+            }
+            else if (resolvedInFile.Add(supertypeName))
+            {
+                _diagnostics.Add(new SysmlDiagnostic(
+                    filePath,
+                    0, 0,
+                    DiagnosticSeverity.Warning,
+                    $"Unresolved reference: '{supertypeName}'"));
+            }
+        }
+
+        // Feature typing — the type referenced after ':' on a usage/feature element
+        if (node is SysmlFeatureNode { FeatureTyping: { } typing })
+        {
+            if (TryResolve(typing, namespaceStack, imports, out var resolvedTyping))
+            {
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedTyping, SysmlEdgeKind.Typing));
+            }
+            else if (resolvedInFile.Add(typing))
+            {
+                _diagnostics.Add(new SysmlDiagnostic(
+                    filePath,
+                    0, 0,
+                    DiagnosticSeverity.Warning,
+                    $"Unresolved reference: '{typing}'"));
+            }
+        }
+
+        // Imports — uniform with SupertypeNames, now that ImportedNames is populated by AstBuilder
+        foreach (var importedName in node.ImportedNames)
+        {
+            if (TryResolve(importedName, namespaceStack, imports, out var resolvedImport))
+            {
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedImport, SysmlEdgeKind.Import));
+            }
+            else if (resolvedInFile.Add(importedName))
+            {
+                _diagnostics.Add(new SysmlDiagnostic(
+                    filePath,
+                    0, 0,
+                    DiagnosticSeverity.Warning,
+                    $"Unresolved reference: '{importedName}'"));
+            }
+        }
+
+        if (nodeEdges.Count > 0)
+        {
+            node.ResolvedEdges = nodeEdges;
+            edges.AddRange(nodeEdges);
         }
 
         // Push this node's name onto the namespace stack before recursing into its children,
@@ -306,7 +386,7 @@ internal sealed class ReferenceResolver
 
         foreach (var child in node.Children)
         {
-            ResolveNode(child, filePath, resolvedInFile, namespaceStack, imports);
+            ResolveNode(child, filePath, resolvedInFile, namespaceStack, imports, edges);
         }
 
         if (pushed)

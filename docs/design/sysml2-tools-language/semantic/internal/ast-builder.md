@@ -36,6 +36,13 @@ Elements with no declared name are treated as anonymous and are not registered i
 `ownedSubclassification()` entries and calls `qualifiedName().GetText()` on each to produce
 the supertype name list.
 
+`VisitImportRule` builds a `SysmlImportNode` for both the wildcard (`namespaceImport`) and
+membership (`membershipImport`) grammar alternatives. In both branches it sets the inherited
+`ImportedNames` to a single-element list containing the extracted qualified/dotted name text,
+alongside the existing `ImportedNamespace` property — letting `ReferenceResolver` treat import
+references uniformly with `SupertypeNames` and `FeatureTyping` without any node-type
+special-casing.
+
 ##### Error Handling
 
 Anonymous elements (null declared names) are silently skipped — visitor methods return `null`

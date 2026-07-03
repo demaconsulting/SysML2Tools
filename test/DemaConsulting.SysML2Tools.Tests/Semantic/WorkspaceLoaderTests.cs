@@ -728,6 +728,323 @@ public sealed class WorkspaceLoaderTests
         }
     }
 
+    /// <summary>
+    ///     A resolved supertype reference should be recorded as a <c>Supertype</c> edge in the
+    ///     workspace's <see cref="SysmlWorkspace.Index"/>, queryable from both directions.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package A {
+                    part def Ancestor {}
+                    part def Child specializes Ancestor {}
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var outgoing = result.Workspace!.Index.GetOutgoingEdges("A::Child");
+            Assert.Contains(outgoing,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Supertype &&
+                     e.TargetQualifiedName == "A::Ancestor");
+
+            var incoming = result.Workspace.Index.GetIncomingEdges("A::Ancestor");
+            Assert.Contains(incoming,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Supertype &&
+                     e.SourceQualifiedName == "A::Child");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A resolved feature typing reference should be recorded as a <c>Typing</c> edge in the
+    ///     workspace's <see cref="SysmlWorkspace.Index"/>, queryable from both directions.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ResolvedFeatureTyping_RecordsTypingEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                part def Engine {}
+                part def Car {
+                    part engine : Engine;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var outgoing = result.Workspace!.Index.GetOutgoingEdges("Car::engine");
+            Assert.Contains(outgoing,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Typing &&
+                     e.TargetQualifiedName == "Engine");
+
+            var incoming = result.Workspace.Index.GetIncomingEdges("Engine");
+            Assert.Contains(incoming,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Typing &&
+                     e.SourceQualifiedName == "Car::engine");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A feature typed by a non-existent type should produce a Warning diagnostic (same
+    ///     message format as unresolved supertype references) and must not produce a
+    ///     <c>Typing</c> edge for that reference.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnresolvedFeatureTyping_ProducesWarningNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def X {
+                        part y : NonExistentType;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("NonExistentType"));
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Typing &&
+                     e.TargetQualifiedName == "NonExistentType");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A wildcard import (<c>import Other::*;</c>) should be recorded as an <c>Import</c>
+    ///     edge whose target is the imported namespace, queryable via
+    ///     <see cref="DemaConsulting.SysML2Tools.Semantic.Internal.SemanticIndex"/>'s
+    ///     incoming-edge lookup.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_WildcardImport_RecordsImportEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package Other { part def Thing {} }
+                package Consumer {
+                    import Other::*;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var incoming = result.Workspace!.Index.GetIncomingEdges("Other");
+            Assert.Contains(incoming, e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Import);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A named import (<c>import Other::Thing;</c>) should be recorded as an <c>Import</c>
+    ///     edge whose target is the fully-qualified imported member.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_NamedImport_RecordsImportEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package Other { part def Thing {} }
+                package Consumer {
+                    import Other::Thing;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var incoming = result.Workspace!.Index.GetIncomingEdges("Other::Thing");
+            Assert.Contains(incoming, e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Import);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A supertype referenced by its short (unqualified) name, resolved via an enclosing
+    ///     namespace scope, should produce a <c>Supertype</c> edge whose target is the
+    ///     fully-qualified name, not the raw short name.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SupertypeAcrossEnclosingNamespace_RecordsResolvedTargetName()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package A {
+                    part def Foo {}
+                    part def Baz specializes Foo {}
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert — the edge's target must be the fully-qualified "A::Foo", not raw "Foo"
+            Assert.NotNull(result.Workspace);
+            var outgoing = result.Workspace!.Index.GetOutgoingEdges("A::Baz");
+            Assert.Contains(outgoing,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Supertype &&
+                     e.TargetQualifiedName == "A::Foo");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     An import referencing a nonexistent namespace should produce a Warning diagnostic and
+    ///     must not crash <see cref="WorkspaceLoader.LoadAsync"/>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnresolvedImport_ProducesWarningNoCrash()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    import NonExistentNs::Thing;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("NonExistentNs"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A small fixture model combining a package hierarchy, a specialization, a typed
+    ///     feature, and a wildcard import should let the workspace's
+    ///     <see cref="SysmlWorkspace.Index"/> answer both incoming and outgoing edge queries
+    ///     correctly for each node kind.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_MultiKindFixtureModel_IndexAnswersIncomingAndOutgoingQueries()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package Lib {
+                    part def Ancestor {}
+                    part def Widget {}
+                }
+                package App {
+                    import Lib::*;
+                    part def Gadget specializes Ancestor {
+                        part core : Widget;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var index = result.Workspace!.Index;
+
+            // Supertype edge, both directions
+            Assert.Contains(index.GetOutgoingEdges("App::Gadget"),
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Supertype &&
+                     e.TargetQualifiedName == "Lib::Ancestor");
+            Assert.Contains(index.GetIncomingEdges("Lib::Ancestor"),
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Supertype &&
+                     e.SourceQualifiedName == "App::Gadget");
+
+            // Typing edge, both directions
+            Assert.Contains(index.GetOutgoingEdges("App::Gadget::core"),
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Typing &&
+                     e.TargetQualifiedName == "Lib::Widget");
+            Assert.Contains(index.GetIncomingEdges("Lib::Widget"),
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Typing &&
+                     e.SourceQualifiedName == "App::Gadget::core");
+
+            // Import edge, incoming direction (anonymous import node has no source)
+            Assert.Contains(index.GetIncomingEdges("Lib"),
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Import &&
+                     e.SourceQualifiedName == null);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     /// <summary>Asserts that a feature with the given name has the expected keyword and typing.</summary>
     private static void AssertFeature(
         IEnumerable<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlFeatureNode> features,

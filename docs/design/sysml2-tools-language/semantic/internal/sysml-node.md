@@ -27,7 +27,13 @@ All nodes carry:
 - `QualifiedName` — fully-qualified name in containing namespace.
 - `Children` — nested AST nodes.
 - `SupertypeNames` — qualified names of supertypes referenced via `specializes` / `:>`.
-- `ImportedNames` — qualified names of imported namespaces.
+- `ImportedNames` — qualified/dotted-name text of imported namespaces or members; populated by
+  `AstBuilder.VisitImportRule` for `SysmlImportNode` (mirroring `ImportedNamespace`), and empty
+  for all other node types today.
+- `ResolvedEdges` — resolved outgoing `SysmlEdge` entries (supertype, typing, import),
+  populated post-construction by `ReferenceResolver`; a settable (not `init`) property since
+  resolution runs after the AST is built and the symbol table is fully populated. Empty for
+  stdlib-only nodes, which are registered but never passed through `ReferenceResolver.ResolveAll`.
 
 ##### Key Methods
 
@@ -65,7 +71,9 @@ elements are filtered out by `AstBuilder` before a node is constructed.
 
 ##### Callers
 
-- `AstBuilder` — constructs all concrete node instances during CST visitor traversal.
+- `AstBuilder` — constructs all concrete node instances during CST visitor traversal; sets
+  `ImportedNames` alongside `ImportedNamespace` for `SysmlImportNode`.
 - `SymbolTable` — traverses the node hierarchy via `Children`; reads `QualifiedName`.
-- `ReferenceResolver` — reads `SupertypeNames`, `Children`; checks for `SysmlImportNode`.
+- `ReferenceResolver` — reads `SupertypeNames`, `FeatureTyping`, `ImportedNames`, `Children`;
+  checks for `SysmlImportNode`; writes `ResolvedEdges` after resolving references.
 - `SupertypeWalker` — reads `SupertypeNames` on each node retrieved from `SymbolTable`.

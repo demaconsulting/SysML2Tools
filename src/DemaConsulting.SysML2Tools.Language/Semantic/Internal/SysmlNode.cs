@@ -43,6 +43,19 @@ public abstract class SysmlNode
     ///     Gets the imported namespace names.
     /// </summary>
     public IReadOnlyList<string> ImportedNames { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    ///     Gets or sets the resolved outgoing edges (supertype, typing, import) originating from
+    ///     this node, populated by <see cref="ReferenceResolver"/> after symbol-table
+    ///     construction. Empty until resolution has run (e.g., for stdlib-only nodes, which are
+    ///     registered but never passed through <see cref="ReferenceResolver.ResolveAll"/>).
+    /// </summary>
+    /// <remarks>
+    ///     Settable (not <c>init</c>) because resolution runs after AST construction and after
+    ///     the full symbol table is populated, mirroring the post-construction mutation pattern
+    ///     already used by <see cref="Semantic.SysmlWorkspace.AddDeclaration"/>.
+    /// </remarks>
+    public IReadOnlyList<SysmlEdge> ResolvedEdges { get; set; } = Array.Empty<SysmlEdge>();
 }
 
 /// <summary>

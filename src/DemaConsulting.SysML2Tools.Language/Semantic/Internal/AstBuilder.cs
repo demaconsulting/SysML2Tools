@@ -643,6 +643,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 return new SysmlImportNode
                 {
                     ImportedNamespace = qn,
+                    ImportedNames = [qn],
                     IsWildcard = true,
                 };
             }
@@ -659,6 +660,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 return new SysmlImportNode
                 {
                     ImportedNamespace = qn,
+                    ImportedNames = [qn],
                     IsWildcard = memImport.STAR_STAR() is not null,
                 };
             }

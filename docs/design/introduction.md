@@ -50,8 +50,11 @@ system, subsystem, and unit levels:
       - **SysmlNode** (Unit) — public AST node hierarchy: eight types with JSON polymorphism
       - **AstBuilder** (Unit) — builds AST from ANTLR4 CST with qualified names and supertype lists
       - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes
-      - **ReferenceResolver** (Unit) — resolves supertype references; detects circular imports
+      - **ReferenceResolver** (Unit) — resolves supertype, typing, and import references;
+        detects circular imports; returns a `SemanticIndex` of resolved edges
       - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
+      - **SysmlEdge** (Unit) — public resolved-reference record (Supertype/Typing/Import)
+      - **SemanticIndex** (Unit) — public reverse-lookup index over resolved `SysmlEdge` instances
       - **SerializedStdlib** (Unit) — DTO for stdlib binary serialization
       - **AstSerializerContext** (Unit) — source-generated JSON context for AOT-safe serialization
 - **DemaConsulting.SysML2Tools.Stdlib** (System) — stdlib library: pre-compiled SysML v2 standard
@@ -133,7 +136,8 @@ reviewers an explicit navigation aid from design to code:
       - **Internal/** — internal implementation (SysmlDiagnosticListener)
     - **Semantic/** — semantic model subsystem
       - **Internal/** — internal implementation (SysmlNode, AstBuilder, SymbolTable,
-        ReferenceResolver, SupertypeWalker, SerializedStdlib, AstSerializerContext)
+        ReferenceResolver, SupertypeWalker, SysmlEdge, SemanticIndex, SerializedStdlib,
+        AstSerializerContext)
   - **DemaConsulting.SysML2Tools.Stdlib/** — stdlib library
     - **Stdlib/** — SysML v2 standard library source files (EPL-2.0; see Stdlib/README.md)
   - **DemaConsulting.SysML2Tools.Core/** — core library
