@@ -27,10 +27,10 @@ documentation, CI/CD pipelines, and AI-assisted modeling workflows.
 - **`lint` Command**: Load a workspace and report all diagnostics; exit non-zero if errors
   are present — suitable for CI/CD and AI-assisted model-fix loops
 - **`render` Command**: Load a workspace, resolve a view, and render to SVG or PNG
-- **`query` Command (preview)**: Model-analysis verbs (`uses`, `used-by`, `impact`,
-  `describe`, `hierarchy`, `requirements`, `interface`, `connections`, `states`, `list`,
-  `find`) for AI and human callers; verb grammar and dispatch are implemented today, with
-  verb-specific analysis logic shipping incrementally in future releases
+- **`query` Command**: 11 model-analysis verbs (`uses`, `used-by`, `impact`, `describe`,
+  `hierarchy`, `requirements`, `interface`, `connections`, `states`, `list`, `find`) for AI
+  and human callers, with Markdown or JSON output — designed so an AI agent can query
+  architecture and traceability facts directly instead of reading raw `.sysml` files
 - **`help` Command**: Print help for the tool itself, a specific command
   (`lint`/`render`/`query`), or a specific `query` verb — identical output to the
   corresponding `<command> --help`

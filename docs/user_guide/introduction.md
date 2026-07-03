@@ -8,13 +8,15 @@ a paid GUI tool or a non-.NET runtime dependency.
 
 A secondary audience is AI agents iterating on SysML v2 models: the `lint` command provides
 structured diagnostic output (file, line, column, severity) that enables a model-fix loop
-without requiring a rendered diagram.
+without requiring a rendered diagram, and the `query` command lets an AI agent answer
+architecture and traceability questions (dependencies, requirement trace links, structure,
+behavior) directly from the semantic model instead of reading raw `.sysml` files.
 
 ## Purpose
 
 This guide covers the installation, configuration, and use of SysML2Tools. It describes
-the `lint` and `render` commands, the global CLI flags, view selection behavior, output
-formats, and depth limiting.
+the `lint`, `render`, `query`, and `help` commands, the global CLI flags, view selection
+behavior, output formats, and depth limiting.
 
 ## Scope
 
@@ -23,6 +25,8 @@ This user guide covers:
 - Installation via `dotnet tool install`
 - Linting SysML v2 workspaces with the `lint` command
 - Rendering diagrams with the `render` command
+- Querying the semantic model with the `query` command
+- Getting command and verb-specific help with the `help` command
 - Global CLI options
 - View selection and depth limiting
 - Self-validation for tool qualification evidence
