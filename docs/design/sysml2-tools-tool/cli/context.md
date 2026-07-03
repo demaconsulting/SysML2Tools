@@ -37,16 +37,26 @@ was absent. Used by the render command to filter which view is rendered.
 
 **Command**: `SysmlCommand` — `SysmlCommand.Lint` when `lint` is the first positional
 argument; `SysmlCommand.Render` when `render` is the first positional argument;
-`SysmlCommand.None` otherwise.
+`SysmlCommand.Query` when `query` is the first positional argument; `SysmlCommand.None`
+otherwise.
 
 **Files**: `IReadOnlyList<string>` — file glob patterns collected from positional arguments
-after the command token.
+after the command token. Not populated for the `query` command — see `Query.Files` instead.
 
 **OutputDirectory**: `string?` — path supplied after `--output`, or `null` if the option
 was absent. Used by the render command as the output directory for diagram files.
 
 **RendererFormat**: `string?` — value supplied after `--format` (e.g., `"svg"` or `"png"`),
 or `null` if the option was absent. Used by the render command to select the output format.
+The same raw value is also exposed as `Query.Format` for the `query` command, which
+interprets it as `"markdown"`/`"json"` instead — the flag name is shared but its meaning is
+command-specific.
+
+**Query**: `QueryOptions?` — populated only when `Command` is `SysmlCommand.Query` and a
+recognized verb token was captured; `null` when `query` was supplied without a verb (e.g.,
+`query --help`) or when a different command was selected. Carries `--element`/`-e`,
+`--direction`, `--kind`, `--name`, `--include-stdlib`, plus the reused `--format`/`--depth`
+values and the query-specific `Files` list.
 
 **ExitCode**: `int` (derived) — Returns 1 if `_hasErrors` is true; returns 0 otherwise.
 
@@ -64,6 +74,14 @@ Delegates to the private `ArgumentParser` helper to parse flags, then opens the 
 calling `OpenLogFile` if `--log` was present. For `--depth`, the raw value is stored as
 `MaxRenderDepth` without clamping and `HeadingDepth` is set to `Math.Clamp(depth, 1, 6)`.
 The `--view` flag stores its value in `ViewName`.
+When the `query` command is selected, the first bare word following it is parsed as a verb
+token via `QueryVerbParsing.Parse` (throwing `ArgumentException` listing all valid verbs on
+failure) instead of being collected as a file pattern; once a verb is captured, `Create`
+builds a `QueryOptions` from the parser's query-specific fields and the same `--format`/
+`--depth` values already parsed for `render`, and assigns it to `Query`. This positional
+verb-capture guard only activates when `Command == SysmlCommand.Query`, a value no
+`lint`/`render` invocation can produce, so `lint`/`render` positional-file parsing is
+unaffected.
 Throws `ArgumentException` for unknown or malformed arguments; throws
 `InvalidOperationException` if the log file cannot be opened.
 
@@ -113,3 +131,4 @@ available.
 - **Validation** — receives `Context` from `Program` and calls `WriteLine` and `WriteError`.
 - **RenderCommand** — reads `Files`, `RendererFormat`, `OutputDirectory`, `ViewName`, and
   `MaxRenderDepth`; calls `WriteLine` and `WriteError`.
+- **QueryCommand** — reads `Query` (`QueryOptions`); calls `WriteLine` and `WriteError`.

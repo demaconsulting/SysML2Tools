@@ -1,0 +1,88 @@
+---
+# Query Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the DemaConsulting.SysML2Tools.Tool Query subsystem
+# - QueryCommand implements the CLI query verb dispatcher (QueryVerb/QueryOptions support it)
+# - Requirements describe observable behavior of the query command's parsing, validation,
+#   dispatch, and (currently stubbed) verb execution
+
+sections:
+  - title: Query Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Tool-Query-VerbGrammar
+        title: >-
+          The query command shall accept a verb token immediately following `query` and
+          recognize the 11 verbs uses, used-by, impact, describe, hierarchy, requirements,
+          interface, connections, states, list, and find.
+        justification: |
+          A fixed, positional verb vocabulary keeps the query grammar simple and predictable
+          for both human and AI-assisted callers, matching the verb set already fixed by
+          ROADMAP.md's "Model query & analysis" design.
+        tests:
+          - Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb
+          - QuerySubsystem_AnyVerb_WithElement_ReportsNotImplementedStub
+
+      - id: SysML2Tools-Tool-Query-UnknownVerb
+        title: >-
+          The query command shall report a clear error naming the invalid token when an
+          unrecognized verb is supplied.
+        justification: |
+          Clear feedback for an unrecognized verb helps users (and AI callers) quickly
+          correct mistakes instead of silently misinterpreting the token as a file pattern.
+        tests:
+          - Context_Create_QueryCommand_UnknownVerb_ThrowsArgumentException
+          - QuerySubsystem_UnknownVerb_ThrowsArgumentException
+
+      - id: SysML2Tools-Tool-Query-ElementRequired
+        title: >-
+          The query command shall require the --element (-e) option for every verb except
+          list and find, and report a clear error when it is missing.
+        justification: |
+          Every verb except the workspace-wide enumeration verbs operates on a single named
+          target element; requiring it explicitly prevents ambiguous or accidental
+          whole-workspace analysis.
+        tests:
+          - QuerySubsystem_ElementRequiredVerb_MissingElement_ThrowsArgumentException
+          - QuerySubsystem_ListVerb_NoElement_DispatchesToStub
+          - QuerySubsystem_FindVerb_NoElement_DispatchesToStub
+          - Context_Create_QueryCommand_WithElementFlag_SetsElement
+          - Context_Create_QueryCommand_WithShortElementFlag_SetsElement
+
+      - id: SysML2Tools-Tool-Query-Format
+        title: >-
+          The query command shall accept --format markdown or --format json, defaulting to
+          markdown, independently of the render command's --format (svg/png) values.
+        justification: |
+          Reusing the --format flag name for both commands (with command-specific accepted
+          values) avoids a duplicate flag while keeping each command's output format concern
+          self-contained.
+        tests:
+          - Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat
+          - Context_Create_QueryCommand_WithFormatJson_SetsQueryFormat
+          - QuerySubsystem_FormatMarkdown_DispatchesWithoutError
+          - QuerySubsystem_FormatJson_DispatchesWithoutError
+
+      - id: SysML2Tools-Tool-Query-NotImplementedStub
+        title: >-
+          Each of the 11 query verbs shall report a "not yet implemented" diagnostic and
+          exit with a non-zero code until its real analysis logic ships.
+        justification: |
+          Carrying the query command's parsing and dispatch end-to-end now, with an honest
+          "not implemented" stub per verb, lets the CLI grammar and help text stabilize
+          before verb-specific analysis logic is implemented incrementally in later releases.
+        tests:
+          - QuerySubsystem_AnyVerb_WithElement_ReportsNotImplementedStub
+
+      - id: SysML2Tools-Tool-Query-Help
+        title: >-
+          The query command shall render general help listing all 11 verbs when invoked as
+          `query --help` with no verb, and verb-specific help when invoked as
+          `query <verb> --help`, in both cases without requiring --element.
+        justification: |
+          Per-verb help lets users discover each verb's specific options without needing
+          --element to be present merely to view help output.
+        tests:
+          - QuerySubsystem_QueryHelp_NoVerb_PrintsGeneralHelpWithoutThrowing
+          - QuerySubsystem_QueryVerbHelp_WithVerb_PrintsVerbHelpWithoutThrowing
+          - Context_Create_QueryCommand_NoVerbWithHelp_LeavesQueryNull

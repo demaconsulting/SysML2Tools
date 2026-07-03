@@ -15,6 +15,9 @@ flowchart TD
     subgraph Lint
         LintCommand
     end
+    subgraph Query
+        QueryCommand
+    end
     subgraph SelfTest
         Validation
     end
@@ -23,14 +26,16 @@ flowchart TD
     end
     Program --> Context
     Program --> LintCommand
+    Program --> QueryCommand
     Program --> Validation
     Validation --> Program
     Validation --> PathHelpers
 ```
 
 `Program` is the entry point. It creates a `Context` from the `Cli` subsystem, dispatches to
-`LintCommand` when the `lint` subcommand is passed, dispatches to `Validation` when `--validate`
-is passed, and returns the exit code from `Context`. `Validation` calls `Program.Run` recursively
+`LintCommand` when the `lint` subcommand is passed, dispatches to `QueryCommand` when the
+`query` subcommand is passed, dispatches to `Validation` when `--validate` is passed, and
+returns the exit code from `Context`. `Validation` calls `Program.Run` recursively
 to exercise the tool during self-testing, and uses `PathHelpers` to construct safe temporary file
 paths.
 
@@ -42,7 +47,10 @@ paths.
 - *Role*: Consumer (the host environment invokes the system with command-line arguments).
 - *Contract*: Accepts arguments `-v`/`--version`, `-?`/`-h`/`--help`, `--silent`, `--validate`,
   `--results <file>`, `--result <file>` (legacy alias for `--results`), `--depth <n>`, and
-  `--log <file>`. Accepts `lint <patterns...>` as a subcommand that invokes lint mode. Returns
+  `--log <file>`. Accepts `lint <patterns...>` as a subcommand that invokes lint mode. Accepts
+  `query <verb> [options] <patterns...>` (11 verbs; `--element`/`-e`, `--format`,
+  `--direction`, `--kind`, `--name`, `--include-stdlib` options) as a preview subcommand whose
+  verbs currently report a "not yet implemented" diagnostic. Returns
   exit code 0 for success and 1 for failures.
 - *Constraints*: Unknown arguments cause exit code 1 and an error message on stderr.
 

@@ -21,6 +21,7 @@
 using System.Reflection;
 using DemaConsulting.SysML2Tools.Cli;
 using DemaConsulting.SysML2Tools.Lint;
+using DemaConsulting.SysML2Tools.Query;
 using DemaConsulting.SysML2Tools.Render;
 using DemaConsulting.SysML2Tools.SelfTest;
 
@@ -121,7 +122,22 @@ internal static class Program
         // Priority 2: Help
         if (context.Help)
         {
-            PrintHelp(context);
+            if (context.Command == SysmlCommand.Query)
+            {
+                if (context.Query is { } queryOptions)
+                {
+                    QueryCommand.PrintVerbHelp(context, queryOptions.Verb);
+                }
+                else
+                {
+                    QueryCommand.PrintGeneralHelp(context);
+                }
+            }
+            else
+            {
+                PrintHelp(context);
+            }
+
             return;
         }
 
@@ -158,6 +174,9 @@ internal static class Program
         context.WriteLine("Commands:");
         context.WriteLine("  lint <files...>            Parse files and report syntax errors");
         context.WriteLine("  render [options] <files..> Render view diagrams to SVG or PNG files");
+        context.WriteLine("  query <verb> [options] <files...>");
+        context.WriteLine("                             Run a model-analysis query (preview; run");
+        context.WriteLine("                             'sysml2tools query --help' for the verb list)");
         context.WriteLine("");
         context.WriteLine("Options:");
         context.WriteLine("  -v, --version              Display version information");
@@ -165,12 +184,22 @@ internal static class Program
         context.WriteLine("  --silent                   Suppress console output");
         context.WriteLine("  --validate                 Run self-validation");
         context.WriteLine("  --results <file>           Write validation results to file (.trx or .xml)");
-        context.WriteLine("  --depth <#>                Set heading depth (1–6) and diagram render depth (default: 1)");
+        context.WriteLine("  --depth <#>                Set heading depth (1–6) and diagram render depth");
+        context.WriteLine("                             (default: 1); for the query command's 'impact' verb,");
+        context.WriteLine("                             --depth instead bounds the impact-walk depth");
         context.WriteLine("  --log <file>               Write output to log file");
         context.WriteLine("  --output <dir>             Output directory for rendered files (render command)");
-        context.WriteLine("  --format <fmt>             Renderer format: svg (default) or png (render command)");
+        context.WriteLine("  --format <fmt>             Renderer format: svg (default) or png (render command);");
+        context.WriteLine("                             for the query command, --format instead selects");
+        context.WriteLine("                             markdown (default) or json output");
         context.WriteLine("  --view <name>              Select a specific view to render (render command)");
         context.WriteLine("  --auto                     Auto-generate a view when none are defined (render command)");
+        context.WriteLine("  --element <name>, -e <name>");
+        context.WriteLine("                             Qualified name of the target element (query command)");
+        context.WriteLine("  --direction up|down|both   Traversal direction (query 'hierarchy' verb)");
+        context.WriteLine("  --kind <kind>              Element-kind filter (query 'list'/'find' verbs)");
+        context.WriteLine("  --name <substring>         Name substring filter (query 'list'/'find' verbs)");
+        context.WriteLine("  --include-stdlib           Include OMG standard library elements (query command)");
     }
 
     /// <summary>
@@ -187,6 +216,10 @@ internal static class Program
 
             case SysmlCommand.Render:
                 await RenderCommand.RunAsync(context).ConfigureAwait(false);
+                break;
+
+            case SysmlCommand.Query:
+                await QueryCommand.RunAsync(context).ConfigureAwait(false);
                 break;
 
             default:

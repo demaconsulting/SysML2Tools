@@ -771,6 +771,18 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Tool/Render/RenderCommand.cs"
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Render/RenderSubsystemTests.cs"
 
+  - id: SysML2Tools-Tool-Query
+    title: Review of SysML2 Tools Query subsystem implementation
+    context:
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-tool/query.yaml"
+      - "docs/design/sysml2-tools-tool/query.md"
+      - "docs/verification/sysml2-tools-tool/query.md"
+      - "src/DemaConsulting.SysML2Tools.Tool/Query/*.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QuerySubsystemTests.cs"
+
   # OTS Items
   - id: OTS-BuildMark
     title: Review of BuildMark OTS verification evidence

@@ -134,3 +134,27 @@ sections:
           - Context_Create_RenderCommand_WithFiles_SetsFiles
           - Context_Create_RenderCommand_FormatWithoutValue_ThrowsArgumentException
           - Context_Create_RenderCommand_OutputWithoutValue_ThrowsArgumentException
+
+      - id: SysML2Tools-Tool-Context-QueryDispatch
+        title: >-
+          The Context class shall parse the query command and its verb token into a
+          QueryOptions value without altering parsing behavior for lint/render.
+        justification: |
+          Centralizing query's argument parsing in Context (mirroring how lint/render are
+          already parsed) keeps a single, consistent argument-parsing entry point for all
+          commands while confining query-specific option fields to a dedicated QueryOptions
+          record so the existing lint/render properties are unaffected.
+        tests:
+          - Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb
+          - Context_Create_QueryCommand_UnknownVerb_ThrowsArgumentException
+          - Context_Create_QueryCommand_NoVerbWithHelp_LeavesQueryNull
+          - Context_Create_QueryCommand_WithElementFlag_SetsElement
+          - Context_Create_QueryCommand_WithShortElementFlag_SetsElement
+          - Context_Create_QueryCommand_WithDirectionFlag_SetsDirection
+          - Context_Create_QueryCommand_WithKindFlag_SetsKind
+          - Context_Create_QueryCommand_WithNameFlag_SetsNameFilter
+          - Context_Create_QueryCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue
+          - Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat
+          - Context_Create_QueryCommand_WithFormatJson_SetsQueryFormat
+          - Context_Create_QueryCommand_WithDepthFlag_SetsQueryDepth
+          - Context_Create_QueryCommand_WithFiles_SetsQueryFilesNotTopLevelFiles

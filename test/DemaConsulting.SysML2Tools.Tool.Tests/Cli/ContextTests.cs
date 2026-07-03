@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 using DemaConsulting.SysML2Tools.Cli;
+using DemaConsulting.SysML2Tools.Query;
 
 namespace DemaConsulting.SysML2Tools.Tests;
 
@@ -630,6 +631,209 @@ public class ContextTests
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(() => Context.Create(["render", "--output"]));
         Assert.Contains("--output", exception.Message);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and each of the 11 verb tokens sets
+    ///     Command to SysmlCommand.Query and Query.Verb to the matching enum value.
+    /// </summary>
+    [Theory]
+    [InlineData("uses")]
+    [InlineData("used-by")]
+    [InlineData("impact")]
+    [InlineData("describe")]
+    [InlineData("hierarchy")]
+    [InlineData("requirements")]
+    [InlineData("interface")]
+    [InlineData("connections")]
+    [InlineData("states")]
+    [InlineData("list")]
+    [InlineData("find")]
+    public void Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb(string token)
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", token, "--element", "Pkg::Foo"]);
+
+        // Assert: verify expected behavior
+        Assert.Equal(SysmlCommand.Query, context.Command);
+        Assert.NotNull(context.Query);
+        Assert.Equal(token, QueryVerbParsing.ToToken(context.Query.Verb));
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and an unknown verb throws
+    ///     ArgumentException naming the bad token.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_UnknownVerb_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() => Context.Create(["query", "bogus"]));
+        Assert.Contains("bogus", exception.Message);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command, no verb, and --help leaves Query null.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_NoVerbWithHelp_LeavesQueryNull()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "--help"]);
+
+        // Assert: verify expected behavior
+        Assert.Equal(SysmlCommand.Query, context.Command);
+        Assert.True(context.Help);
+        Assert.Null(context.Query);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and --element sets Query.Element.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithElementFlag_SetsElement()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "uses", "--element", "Pkg::Foo"]);
+
+        // Assert: verify expected behavior
+        Assert.NotNull(context.Query);
+        Assert.Equal("Pkg::Foo", context.Query.Element);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and -e (short flag) sets Query.Element.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithShortElementFlag_SetsElement()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "uses", "-e", "Pkg::Foo"]);
+
+        // Assert: verify expected behavior
+        Assert.NotNull(context.Query);
+        Assert.Equal("Pkg::Foo", context.Query.Element);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and --direction sets Query.Direction.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithDirectionFlag_SetsDirection()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "hierarchy", "--element", "Pkg::Foo", "--direction", "up"]);
+
+        // Assert: verify expected behavior
+        Assert.NotNull(context.Query);
+        Assert.Equal("up", context.Query.Direction);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and --kind sets Query.Kind.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithKindFlag_SetsKind()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "list", "--kind", "part"]);
+
+        // Assert: verify expected behavior
+        Assert.NotNull(context.Query);
+        Assert.Equal("part", context.Query.Kind);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and --name sets Query.NameFilter.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithNameFlag_SetsNameFilter()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "find", "--name", "Engine"]);
+
+        // Assert: verify expected behavior
+        Assert.NotNull(context.Query);
+        Assert.Equal("Engine", context.Query.NameFilter);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and --include-stdlib sets
+    ///     Query.IncludeStdlib to true.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "list", "--include-stdlib"]);
+
+        // Assert: verify expected behavior
+        Assert.NotNull(context.Query);
+        Assert.True(context.Query.IncludeStdlib);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and --format markdown sets
+    ///     Query.Format without disturbing RendererFormat's meaning for render.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "list", "--format", "markdown"]);
+
+        // Assert: verify expected behavior
+        Assert.NotNull(context.Query);
+        Assert.Equal("markdown", context.Query.Format);
+        Assert.Equal("markdown", context.RendererFormat);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and --format json sets Query.Format.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithFormatJson_SetsQueryFormat()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "list", "--format", "json"]);
+
+        // Assert: verify expected behavior
+        Assert.NotNull(context.Query);
+        Assert.Equal("json", context.Query.Format);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and --depth sets Query.Depth without
+    ///     disturbing MaxRenderDepth's meaning for render.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithDepthFlag_SetsQueryDepth()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "impact", "--element", "Pkg::Foo", "--depth", "3"]);
+
+        // Assert: verify expected behavior
+        Assert.NotNull(context.Query);
+        Assert.Equal(3, context.Query.Depth);
+        Assert.Equal(3, context.MaxRenderDepth);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and file globs after the verb sets
+    ///     Query.Files, leaving the top-level Files empty.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithFiles_SetsQueryFilesNotTopLevelFiles()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "list", "*.sysml"]);
+
+        // Assert: verify expected behavior
+        Assert.NotNull(context.Query);
+        Assert.Single(context.Query.Files);
+        Assert.Equal("*.sysml", context.Query.Files[0]);
+        Assert.Empty(context.Files);
     }
 }
 

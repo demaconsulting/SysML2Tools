@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using DemaConsulting.SysML2Tools.Query;
+
 namespace DemaConsulting.SysML2Tools.Cli;
 
 /// <summary>
@@ -32,7 +34,10 @@ internal enum SysmlCommand
     Lint,
 
     /// <summary>Render view diagrams to SVG or PNG files.</summary>
-    Render
+    Render,
+
+    /// <summary>Run a model-analysis query verb.</summary>
+    Query
 }
 
 /// <summary>
@@ -126,6 +131,13 @@ internal sealed class Context : IDisposable
     public bool AutoView { get; private init; }
 
     /// <summary>
+    ///     Gets the parsed options for the <c>query</c> command; <see langword="null"/> unless
+    ///     <see cref="Command"/> is <see cref="SysmlCommand.Query"/> and a recognized verb was
+    ///     supplied.
+    /// </summary>
+    public QueryOptions? Query { get; private init; }
+
+    /// <summary>
     ///     Gets the proposed exit code for the application (0 for success, 1 for errors).
     /// </summary>
     public int ExitCode => _hasErrors ? 1 : 0;
@@ -166,7 +178,8 @@ internal sealed class Context : IDisposable
             Files = parser.Files,
             OutputDirectory = parser.OutputDirectory,
             RendererFormat = parser.RendererFormat,
-            AutoView = parser.AutoView
+            AutoView = parser.AutoView,
+            Query = BuildQueryOptions(parser)
         };
 
         // Open log file if specified
@@ -176,6 +189,36 @@ internal sealed class Context : IDisposable
         }
 
         return result;
+    }
+
+    /// <summary>
+    ///     Builds a <see cref="QueryOptions"/> instance from the parser's fields when the
+    ///     <c>query</c> command and a verb were both supplied.
+    /// </summary>
+    /// <param name="parser">The argument parser holding the parsed field values.</param>
+    /// <returns>
+    ///     A new <see cref="QueryOptions"/>, or <see langword="null"/> when <see cref="ArgumentParser.Command"/>
+    ///     is not <see cref="SysmlCommand.Query"/> or no verb was captured (e.g., <c>query --help</c>).
+    /// </returns>
+    private static QueryOptions? BuildQueryOptions(ArgumentParser parser)
+    {
+        if (parser.Command != SysmlCommand.Query || parser.QueryVerb is not { } verb)
+        {
+            return null;
+        }
+
+        return new QueryOptions
+        {
+            Verb = verb,
+            Element = parser.Element,
+            Format = parser.RendererFormat,
+            Depth = parser.MaxRenderDepth,
+            Direction = parser.Direction,
+            Kind = parser.Kind,
+            NameFilter = parser.NameFilter,
+            IncludeStdlib = parser.IncludeStdlib,
+            Files = parser.QueryFiles
+        };
     }
 
     /// <summary>
@@ -248,6 +291,52 @@ internal sealed class Context : IDisposable
         ///     Gets the file glob patterns supplied as positional arguments.
         /// </summary>
         public IReadOnlyList<string> Files => _files;
+
+        /// <summary>
+        ///     File glob patterns collected from positional arguments after a <c>query</c> verb.
+        /// </summary>
+        /// <remarks>
+        ///     Kept separate from <see cref="_files"/> so that <c>query</c>'s positional file
+        ///     handling cannot interfere with the top-level <see cref="Files"/> read by
+        ///     <c>lint</c>/<c>render</c>.
+        /// </remarks>
+        private readonly List<string> _queryFiles = [];
+
+        /// <summary>
+        ///     Gets the file glob patterns supplied as positional arguments after a query verb.
+        /// </summary>
+        public IReadOnlyList<string> QueryFiles => _queryFiles;
+
+        /// <summary>
+        ///     Gets the recognized query verb captured from the first bare word following the
+        ///     <c>query</c> command token; <see langword="null"/> when no verb has been captured.
+        /// </summary>
+        public QueryVerb? QueryVerb { get; private set; }
+
+        /// <summary>
+        ///     Gets the target element qualified name supplied via <c>--element</c>/<c>-e</c>.
+        /// </summary>
+        public string? Element { get; private set; }
+
+        /// <summary>
+        ///     Gets the traversal direction supplied via <c>--direction</c> (query <c>hierarchy</c> verb).
+        /// </summary>
+        public string? Direction { get; private set; }
+
+        /// <summary>
+        ///     Gets the element-kind filter supplied via <c>--kind</c> (query <c>list</c>/<c>find</c> verbs).
+        /// </summary>
+        public string? Kind { get; private set; }
+
+        /// <summary>
+        ///     Gets the name substring filter supplied via <c>--name</c> (query <c>list</c>/<c>find</c> verbs).
+        /// </summary>
+        public string? NameFilter { get; private set; }
+
+        /// <summary>
+        ///     Gets a value indicating whether the <c>--include-stdlib</c> flag was specified.
+        /// </summary>
+        public bool IncludeStdlib { get; private set; }
 
         /// <summary>
         ///     Gets the heading depth for markdown output.
@@ -357,6 +446,27 @@ internal sealed class Context : IDisposable
                     AutoView = true;
                     return index;
 
+                case "--element":
+                case "-e":
+                    Element = GetRequiredStringArgument(arg, args, index, "an element qualified-name argument");
+                    return index + 1;
+
+                case "--direction":
+                    Direction = GetRequiredStringArgument(arg, args, index, "a direction argument (up, down, or both)");
+                    return index + 1;
+
+                case "--kind":
+                    Kind = GetRequiredStringArgument(arg, args, index, "a kind filter argument");
+                    return index + 1;
+
+                case "--name":
+                    NameFilter = GetRequiredStringArgument(arg, args, index, "a name filter argument");
+                    return index + 1;
+
+                case "--include-stdlib":
+                    IncludeStdlib = true;
+                    return index;
+
                 case "lint":
                     Command = SysmlCommand.Lint;
                     return index;
@@ -365,11 +475,33 @@ internal sealed class Context : IDisposable
                     Command = SysmlCommand.Render;
                     return index;
 
+                case "query":
+                    Command = SysmlCommand.Query;
+                    return index;
+
                 default:
                     if (!arg.StartsWith("-", StringComparison.Ordinal))
                     {
+                        // When the 'query' command has been seen and no verb captured yet, the
+                        // first bare word is the verb token, not a file glob pattern. This guard
+                        // only activates for Command == Query, a value no lint/render invocation
+                        // can produce, so lint/render positional-file behavior is unaffected.
+                        if (Command == SysmlCommand.Query && QueryVerb is null)
+                        {
+                            QueryVerb = QueryVerbParsing.Parse(arg);
+                            return index;
+                        }
+
                         // Positional argument — treat as a file glob pattern
-                        _files.Add(arg);
+                        if (Command == SysmlCommand.Query)
+                        {
+                            _queryFiles.Add(arg);
+                        }
+                        else
+                        {
+                            _files.Add(arg);
+                        }
+
                         return index;
                     }
 
