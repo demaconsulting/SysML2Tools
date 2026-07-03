@@ -42,10 +42,11 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <inheritdoc/>
     public override SysmlNode? VisitRootNamespace(SysMLv2Parser.RootNamespaceContext context)
     {
-        var children = CollectBodyElements(context.packageBodyElement());
+        var (children, annotations) = CollectBodyElements(context.packageBodyElement());
         return new SysmlPackageNode
         {
             Children = children,
+            Annotations = annotations,
         };
     }
 
@@ -61,7 +62,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var qualifiedName = QualifyName(name);
 
         _namespaceStack.Add(name);
-        var children = CollectBodyElements(context.packageBody()?.packageBodyElement() ?? []);
+        var (children, annotations) = CollectBodyElements(context.packageBody()?.packageBodyElement() ?? []);
         _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
 
         return new SysmlPackageNode
@@ -69,6 +70,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             Name = name,
             QualifiedName = qualifiedName,
             Children = children,
+            Annotations = annotations,
         };
     }
 
@@ -84,7 +86,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var qualifiedName = QualifyName(name);
 
         _namespaceStack.Add(name);
-        var children = CollectBodyElements(context.packageBody()?.packageBodyElement() ?? []);
+        var (children, annotations) = CollectBodyElements(context.packageBody()?.packageBodyElement() ?? []);
         _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
 
         return new SysmlPackageNode
@@ -92,7 +94,73 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             Name = name,
             QualifiedName = qualifiedName,
             Children = children,
+            Annotations = annotations,
         };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitAnnotatingElement(SysMLv2Parser.AnnotatingElementContext context)
+    {
+        if (context.comment() is { } comment)
+        {
+            return new AnnotationCapture
+            {
+                Annotation = new SysmlAnnotation(
+                    SysmlAnnotationKind.Comment,
+                    ExtractCommentText(comment.REGULAR_COMMENT())),
+            };
+        }
+
+        if (context.documentation() is { } documentation)
+        {
+            return new AnnotationCapture
+            {
+                Annotation = new SysmlAnnotation(
+                    SysmlAnnotationKind.Documentation,
+                    ExtractCommentText(documentation.REGULAR_COMMENT())),
+            };
+        }
+
+        // textualRepresentation / metadataFeature: out of scope for this unit, preserves the
+        // existing drop behavior (falls through to the default visitor, which returns null).
+        return base.VisitAnnotatingElement(context);
+    }
+
+    /// <summary>
+    ///     Strips the <c>/*</c>/<c>//*</c> opening delimiter and trailing <c>*/</c> closing
+    ///     delimiter from a <c>REGULAR_COMMENT</c> token's text, preserving all interior
+    ///     whitespace, newlines, and bullet characters verbatim.
+    /// </summary>
+    private static string ExtractCommentText(Antlr4.Runtime.Tree.ITerminalNode? token)
+    {
+        var raw = token?.GetText() ?? string.Empty;
+        if (raw.StartsWith("//*", StringComparison.Ordinal))
+        {
+            raw = raw[3..];
+        }
+        else if (raw.StartsWith("/*", StringComparison.Ordinal))
+        {
+            raw = raw[2..];
+        }
+
+        if (raw.EndsWith("*/", StringComparison.Ordinal))
+        {
+            raw = raw[..^2];
+        }
+
+        return raw;
+    }
+
+    /// <summary>
+    ///     Sentinel node used to carry a captured <see cref="SysmlAnnotation"/> up through the
+    ///     generic ANTLR <c>Visit</c> pipeline. Never appears in a real
+    ///     <see cref="SysmlNode.Children"/> list — the collection helpers below always
+    ///     intercept it and route its <see cref="Annotation"/> into the owning node's
+    ///     <see cref="SysmlNode.Annotations"/> list instead.
+    /// </summary>
+    private sealed class AnnotationCapture : SysmlNode
+    {
+        public required SysmlAnnotation Annotation { get; init; }
     }
 
     /// <inheritdoc/>
@@ -188,7 +256,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
         // Collect the action body (action usages and successions) as children.
         _namespaceStack.Add(name);
-        var children = CollectChildren(context.actionBody()?.actionBodyItem() ?? []);
+        var (children, annotations) = CollectChildren(context.actionBody()?.actionBodyItem() ?? []);
         _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
 
         return new SysmlDefinitionNode
@@ -198,6 +266,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             DefinitionKeyword = "action def",
             SupertypeNames = supertypeNames,
             Children = children,
+            Annotations = annotations,
         };
     }
 
@@ -257,7 +326,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
         // Collect the state body (state usages and transitions) as children.
         _namespaceStack.Add(name);
-        var children = CollectChildren(context.stateDefBody()?.stateBodyItem() ?? []);
+        var (children, annotations) = CollectChildren(context.stateDefBody()?.stateBodyItem() ?? []);
         _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
 
         return new SysmlDefinitionNode
@@ -267,6 +336,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             DefinitionKeyword = "state def",
             SupertypeNames = supertypeNames,
             Children = children,
+            Annotations = annotations,
         };
     }
 
@@ -488,6 +558,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         // Named usages contribute a namespace segment for any nested usages they own.
         var qualifiedName = name is not null ? QualifyName(name) : null;
         IReadOnlyList<SysmlNode> children = Array.Empty<SysmlNode>();
+        IReadOnlyList<SysmlAnnotation> annotations = Array.Empty<SysmlAnnotation>();
         var body = usage.usageCompletion()?.usageBody()?.definitionBody();
         if (body is not null)
         {
@@ -496,7 +567,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 _namespaceStack.Add(name);
             }
 
-            children = CollectDefinitionBodyItems(body.definitionBodyItem());
+            (children, annotations) = CollectDefinitionBodyItems(body.definitionBodyItem());
 
             if (name is not null)
             {
@@ -512,6 +583,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             FeatureTyping = typing,
             Multiplicity = multiplicity,
             Children = children,
+            Annotations = annotations,
         };
     }
 
@@ -729,7 +801,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var supertypeNames = GetSuperclassingSupertypes(decl?.superclassingPart());
 
         _namespaceStack.Add(name);
-        var children = CollectTypeBodyItems(body?.typeBodyElement() ?? []);
+        var (children, annotations) = CollectTypeBodyItems(body?.typeBodyElement() ?? []);
         _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
 
         return new SysmlDefinitionNode
@@ -739,6 +811,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             DefinitionKeyword = keyword,
             SupertypeNames = supertypeNames,
             Children = children,
+            Annotations = annotations,
         };
     }
 
@@ -768,21 +841,28 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
     /// <summary>
     ///     Collects child nodes from an array of <see cref="SysMLv2Parser.TypeBodyElementContext"/>.
+    ///     Comment/documentation annotations nested among the items are separated out into
+    ///     <see cref="SysmlAnnotation"/> entries rather than becoming children.
     /// </summary>
-    private IReadOnlyList<SysmlNode> CollectTypeBodyItems(
+    private (IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations) CollectTypeBodyItems(
         IEnumerable<SysMLv2Parser.TypeBodyElementContext> items)
     {
-        var result = new List<SysmlNode>();
+        var children = new List<SysmlNode>();
+        var annotations = new List<SysmlAnnotation>();
         foreach (var item in items)
         {
             var node = Visit(item);
-            if (node is not null)
+            if (node is AnnotationCapture capture)
             {
-                result.Add(node);
+                annotations.Add(capture.Annotation);
+            }
+            else if (node is not null)
+            {
+                children.Add(node);
             }
         }
 
-        return result;
+        return (children, annotations);
     }
 
 
@@ -844,7 +924,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
         // Collect body children
         _namespaceStack.Add(name);
-        var children = CollectDefinitionBodyItems(definition.definitionBody()?.definitionBodyItem() ?? []);
+        var (children, annotations) = CollectDefinitionBodyItems(definition.definitionBody()?.definitionBodyItem() ?? []);
         _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
 
         return new SysmlDefinitionNode
@@ -854,6 +934,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             DefinitionKeyword = keyword,
             SupertypeNames = supertypeNames,
             Children = children,
+            Annotations = annotations,
         };
     }
 
@@ -920,58 +1001,80 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <summary>
     ///     Collects child nodes by visiting an arbitrary sequence of parse-tree contexts, keeping
     ///     each non-null result. Used for specialized bodies (e.g. state bodies) whose item type
-    ///     differs from the generic definition body item.
+    ///     differs from the generic definition body item. Comment/documentation annotations
+    ///     nested among the items are separated out into <see cref="SysmlAnnotation"/> entries
+    ///     rather than becoming children.
     /// </summary>
-    private IReadOnlyList<SysmlNode> CollectChildren(IEnumerable<Antlr4.Runtime.Tree.IParseTree> items)
+    private (IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations) CollectChildren(
+        IEnumerable<Antlr4.Runtime.Tree.IParseTree> items)
     {
-        var result = new List<SysmlNode>();
+        var children = new List<SysmlNode>();
+        var annotations = new List<SysmlAnnotation>();
         foreach (var item in items)
         {
             var node = Visit(item);
-            if (node is not null)
+            if (node is AnnotationCapture capture)
             {
-                result.Add(node);
+                annotations.Add(capture.Annotation);
+            }
+            else if (node is not null)
+            {
+                children.Add(node);
             }
         }
 
-        return result;
+        return (children, annotations);
     }
 
     /// <summary>
     ///     Collects child nodes from an array of <see cref="SysMLv2Parser.PackageBodyElementContext"/>.
+    ///     Comment/documentation annotations nested among the elements are separated out into
+    ///     <see cref="SysmlAnnotation"/> entries rather than becoming children.
     /// </summary>
-    private IReadOnlyList<SysmlNode> CollectBodyElements(
+    private (IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations) CollectBodyElements(
         IEnumerable<SysMLv2Parser.PackageBodyElementContext> elements)
     {
-        var result = new List<SysmlNode>();
+        var children = new List<SysmlNode>();
+        var annotations = new List<SysmlAnnotation>();
         foreach (var element in elements)
         {
             var node = Visit(element);
-            if (node is not null)
+            if (node is AnnotationCapture capture)
             {
-                result.Add(node);
+                annotations.Add(capture.Annotation);
+            }
+            else if (node is not null)
+            {
+                children.Add(node);
             }
         }
 
-        return result;
+        return (children, annotations);
     }
 
     /// <summary>
     ///     Collects child nodes from an array of <see cref="SysMLv2Parser.DefinitionBodyItemContext"/>.
+    ///     Comment/documentation annotations nested among the items are separated out into
+    ///     <see cref="SysmlAnnotation"/> entries rather than becoming children.
     /// </summary>
-    private IReadOnlyList<SysmlNode> CollectDefinitionBodyItems(
+    private (IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations) CollectDefinitionBodyItems(
         IEnumerable<SysMLv2Parser.DefinitionBodyItemContext> items)
     {
-        var result = new List<SysmlNode>();
+        var children = new List<SysmlNode>();
+        var annotations = new List<SysmlAnnotation>();
         foreach (var item in items)
         {
             var node = Visit(item);
-            if (node is not null)
+            if (node is AnnotationCapture capture)
             {
-                result.Add(node);
+                annotations.Add(capture.Annotation);
+            }
+            else if (node is not null)
+            {
+                children.Add(node);
             }
         }
 
-        return result;
+        return (children, annotations);
     }
 }

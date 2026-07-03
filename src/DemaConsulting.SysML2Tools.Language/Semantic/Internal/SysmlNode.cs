@@ -56,6 +56,21 @@ public abstract class SysmlNode
     ///     already used by <see cref="Semantic.SysmlWorkspace.AddDeclaration"/>.
     /// </remarks>
     public IReadOnlyList<SysmlEdge> ResolvedEdges { get; set; } = Array.Empty<SysmlEdge>();
+
+    /// <summary>
+    ///     Gets the comment and documentation annotations captured for this element, in source
+    ///     order. Populated by <see cref="AstBuilder"/> from <c>comment</c>/<c>documentation</c>
+    ///     members nested directly in this element's body.
+    /// </summary>
+    /// <remarks>
+    ///     An annotation with an explicit <c>about X</c> target is still attached to its
+    ///     lexically enclosing node rather than to the referenced element <c>X</c>; resolving
+    ///     explicit <c>about</c> targets is deferred to a future unit. Comments/docs nested
+    ///     inside a relationship body (e.g. <c>alias Car for Automobile { /* ... */ }</c>) are
+    ///     also not yet captured, since no <see cref="AstBuilder"/> visitor currently collects
+    ///     relationship bodies.
+    /// </remarks>
+    public IReadOnlyList<SysmlAnnotation> Annotations { get; init; } = Array.Empty<SysmlAnnotation>();
 }
 
 /// <summary>

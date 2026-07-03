@@ -43,6 +43,36 @@ alongside the existing `ImportedNamespace` property — letting `ReferenceResolv
 references uniformly with `SupertypeNames` and `FeatureTyping` without any node-type
 special-casing.
 
+`VisitAnnotatingElement(AnnotatingElementContext)` intercepts the `comment` and `documentation`
+grammar alternatives of `annotatingElement` (`comment | documentation | textualRepresentation |
+metadataFeature`) and returns a private `AnnotationCapture` sentinel node wrapping a
+`SysmlAnnotation` built from `ExtractCommentText(REGULAR_COMMENT())`. `textualRepresentation`
+and `metadataFeature` are unhandled (falls through to `base.VisitAnnotatingElement`, returning
+`null`, unchanged from prior behavior).
+
+`ExtractCommentText(ITerminalNode?)` strips the `/*`/`//*` opening delimiter and trailing `*/`
+closing delimiter from a `REGULAR_COMMENT` token's raw text, preserving all interior
+whitespace, newlines, and bullet characters verbatim.
+
+The four body-collection helpers — `CollectBodyElements`, `CollectDefinitionBodyItems`,
+`CollectChildren`, and `CollectTypeBodyItems` — each return a
+`(IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations)` tuple.
+While iterating body items, any `Visit(item)` result that is an `AnnotationCapture` is routed
+into the `Annotations` list instead of `Children`; all other non-null results are added to
+`Children` as before. Every one of the eight call sites that construct a body-bearing node
+(`VisitRootNamespace`, `VisitPackage`, `VisitLibraryPackage`, `VisitActionDefinition`,
+`VisitStateDefinition`, `BuildUsageNode`, `BuildDefinitionNode`, `BuildClassifierNode`)
+unpacks both elements and sets `Children` and `Annotations` on the constructed node.
+
+An `AnnotationCapture` (private nested `SysmlNode` subtype carrying a single `SysmlAnnotation`)
+is never registered as a `[JsonDerivedType]` and must never reach a real `Children` list — it
+is always intercepted by one of the four collection helpers before being added. If any future
+body-bearing construct bypasses all four helpers (e.g. a hand-rolled loop calling `Visit`
+directly), an `AnnotationCapture` leaking into `Children` throws `NotSupportedException` during
+JSON serialization (the polymorphic type resolver rejects an unregistered runtime type), which
+surfaced and was fixed during this unit's implementation for the `CollectTypeBodyItems`
+(KerML classifier body) call path.
+
 ##### Error Handling
 
 Anonymous elements (null declared names) are silently skipped — visitor methods return `null`
@@ -57,6 +87,8 @@ results without propagating failures.
 - `SysMLv2Parser` — provides all CST context types consumed by the visitor methods.
 - `SysmlNode` hierarchy (`SysmlPackageNode`, `SysmlDefinitionNode`, `SysmlViewNode`,
   `SysmlViewpointNode`) — AST node types constructed by the visitor.
+- `SysmlAnnotation` / `SysmlAnnotationKind` — captured comment/documentation data attached to
+  `SysmlNode.Annotations`.
 
 ##### Callers
 

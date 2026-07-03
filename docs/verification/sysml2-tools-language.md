@@ -24,6 +24,9 @@ SDK installation.
 - Resolved supertype, feature-typing, and import references are recorded as `SysmlEdge`
   entries queryable via `SysmlWorkspace.Index.GetOutgoingEdges`/`GetIncomingEdges` in both
   directions.
+- Comment (`comment`) and documentation (`doc`) annotating-element text is captured verbatim
+  onto the owning node's `SysmlNode.Annotations` list, in source order, and is empty (never
+  null) for nodes with none.
 - `AstSerializer.Serialize` followed by `AstDeserializer.Deserialize` round-trips all six
   node types, node properties, and diagnostics without loss.
 - `WorkspaceLoader.LoadAsync` with a `seedSymbolTable` correctly incorporates seed symbols
@@ -49,6 +52,10 @@ Primary acceptance evidence is provided by:
   a fixture model combining a package hierarchy, a specialization, a typed feature, and an
   import; asserts `SysmlWorkspace.Index` answers both incoming and outgoing queries correctly
   for each node kind.
+- `WorkspaceLoader_LoadAsync_CommentAndDocumentation_CapturesBothInSourceOrder` — an element
+  with both a `comment` and a `doc` member captures both annotations, in source order.
+- `WorkspaceLoader_LoadAsync_DocumentationExampleFixture_CapturesExpectedDocText` — a real OMG
+  fixture file's package-level and part-def-level `doc` text is captured verbatim end-to-end.
 - `AstSerializerTests.Serialize_EmptyTable_RoundTrips` — empty table serializes to empty table.
 - `AstSerializerTests.Serialize_AllNodeTypes_RoundTrip` — all six node types round-trip correctly.
 - `AstSerializerTests.Serialize_Diagnostics_RoundTrip` — diagnostics round-trip with severity preserved.

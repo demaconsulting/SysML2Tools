@@ -55,6 +55,8 @@ system, subsystem, and unit levels:
       - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
       - **SysmlEdge** (Unit) — public resolved-reference record (Supertype/Typing/Import)
       - **SemanticIndex** (Unit) — public reverse-lookup index over resolved `SysmlEdge` instances
+      - **SysmlAnnotation** (Unit) — public captured-comment/documentation record
+        (Comment/Documentation)
       - **SerializedStdlib** (Unit) — DTO for stdlib binary serialization
       - **AstSerializerContext** (Unit) — source-generated JSON context for AOT-safe serialization
 - **DemaConsulting.SysML2Tools.Stdlib** (System) — stdlib library: pre-compiled SysML v2 standard
@@ -136,8 +138,8 @@ reviewers an explicit navigation aid from design to code:
       - **Internal/** — internal implementation (SysmlDiagnosticListener)
     - **Semantic/** — semantic model subsystem
       - **Internal/** — internal implementation (SysmlNode, AstBuilder, SymbolTable,
-        ReferenceResolver, SupertypeWalker, SysmlEdge, SemanticIndex, SerializedStdlib,
-        AstSerializerContext)
+        ReferenceResolver, SupertypeWalker, SysmlEdge, SemanticIndex, SysmlAnnotation,
+        SerializedStdlib, AstSerializerContext)
   - **DemaConsulting.SysML2Tools.Stdlib/** — stdlib library
     - **Stdlib/** — SysML v2 standard library source files (EPL-2.0; see Stdlib/README.md)
   - **DemaConsulting.SysML2Tools.Core/** — core library

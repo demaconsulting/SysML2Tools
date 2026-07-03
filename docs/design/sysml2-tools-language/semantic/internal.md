@@ -3,8 +3,8 @@
 #### Overview
 
 The Semantic Internal subsystem provides the implementation details of the semantic loading pipeline.
-It contains six units: `AstBuilder`, `SymbolTable`, `ReferenceResolver`, `SupertypeWalker`,
-`SysmlEdge`, and `SemanticIndex`.
+It contains seven units: `AstBuilder`, `SymbolTable`, `ReferenceResolver`, `SupertypeWalker`,
+`SysmlEdge`, `SemanticIndex`, and `SysmlAnnotation`.
 
 #### Interfaces
 
@@ -58,6 +58,7 @@ over resolved edges.
 | `SupertypeWalker` | Walks specialization chains; detects cyclic specialization |
 | `SysmlEdge` | Public record modeling one resolved directed reference (Supertype/Typing/Import) |
 | `SemanticIndex` | Public reverse-lookup index over resolved `SysmlEdge` instances |
+| `SysmlAnnotation` | Public record modeling one captured `comment`/`doc` annotation (Comment/Documentation) |
 
 Interaction sequence:
 

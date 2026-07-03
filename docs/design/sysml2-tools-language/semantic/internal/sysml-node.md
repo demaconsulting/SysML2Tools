@@ -9,7 +9,7 @@ packages, definitions, features, imports, views, viewpoints, connections, and tr
 
 | Class | Purpose |
 | --- | --- |
-| `SysmlNode` (abstract) | Base: Name, QualifiedName, Children, SupertypeNames, ImportedNames |
+| `SysmlNode` (abstract) | Base: Name, QualifiedName, Children, SupertypeNames, ImportedNames, Annotations |
 | `SysmlPackageNode` | Package or namespace declaration |
 | `SysmlDefinitionNode` | Definition element (part def, attribute def, etc.); adds DefinitionKeyword |
 | `SysmlFeatureNode` | Feature/usage element |
@@ -34,6 +34,10 @@ All nodes carry:
   populated post-construction by `ReferenceResolver`; a settable (not `init`) property since
   resolution runs after the AST is built and the symbol table is fully populated. Empty for
   stdlib-only nodes, which are registered but never passed through `ReferenceResolver.ResolveAll`.
+- `Annotations` — captured `comment`/`doc` annotating-element text, in source order; populated
+  by `AstBuilder` from annotations lexically nested directly in this element's body. An
+  explicit `about X` target is not resolved — the annotation is attached to the lexically
+  enclosing node, not to `X` (see `SysmlAnnotation` design doc for known limitations).
 
 ##### Key Methods
 
@@ -72,7 +76,8 @@ elements are filtered out by `AstBuilder` before a node is constructed.
 ##### Callers
 
 - `AstBuilder` — constructs all concrete node instances during CST visitor traversal; sets
-  `ImportedNames` alongside `ImportedNamespace` for `SysmlImportNode`.
+  `ImportedNames` alongside `ImportedNamespace` for `SysmlImportNode`; sets `Annotations` from
+  captured `comment`/`doc` annotating elements nested in the node's body.
 - `SymbolTable` — traverses the node hierarchy via `Children`; reads `QualifiedName`.
 - `ReferenceResolver` — reads `SupertypeNames`, `FeatureTyping`, `ImportedNames`, `Children`;
   checks for `SysmlImportNode`; writes `ResolvedEdges` after resolving references.

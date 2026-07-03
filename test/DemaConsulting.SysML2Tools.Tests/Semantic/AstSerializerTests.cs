@@ -126,6 +126,54 @@ public sealed class AstSerializerTests
     }
 
     /// <summary>
+    ///     Annotations are preserved through a round-trip, including kind and text.
+    /// </summary>
+    [Fact]
+    public void Serialize_Annotations_Preserved()
+    {
+        var table = new SymbolTable();
+        var node = new SysmlPackageNode
+        {
+            Name = "Pkg",
+            QualifiedName = "Pkg",
+            Annotations =
+            [
+                new SysmlAnnotation(SysmlAnnotationKind.Comment, " a comment "),
+                new SysmlAnnotation(SysmlAnnotationKind.Documentation, " some\nmulti-line\ndoc "),
+            ],
+        };
+        table.RegisterAll(node);
+
+        var bytes = AstSerializer.Serialize(table, []);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        var rt = result.Symbols["Pkg"];
+        Assert.Equal(2, rt.Annotations.Count);
+        Assert.Equal(SysmlAnnotationKind.Comment, rt.Annotations[0].Kind);
+        Assert.Equal(" a comment ", rt.Annotations[0].Text);
+        Assert.Equal(SysmlAnnotationKind.Documentation, rt.Annotations[1].Kind);
+        Assert.Equal(" some\nmulti-line\ndoc ", rt.Annotations[1].Text);
+    }
+
+    /// <summary>
+    ///     A node with no annotations round-trips with an empty (never null) Annotations list.
+    /// </summary>
+    [Fact]
+    public void Serialize_NoAnnotations_RoundTripsEmptyNotNull()
+    {
+        var table = new SymbolTable();
+        var node = new SysmlPackageNode { Name = "Pkg", QualifiedName = "Pkg" };
+        table.RegisterAll(node);
+
+        var bytes = AstSerializer.Serialize(table, []);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        var rt = result.Symbols["Pkg"];
+        Assert.NotNull(rt.Annotations);
+        Assert.Empty(rt.Annotations);
+    }
+
+    /// <summary>
     ///     Diagnostics are preserved through a round-trip.
     /// </summary>
     [Fact]

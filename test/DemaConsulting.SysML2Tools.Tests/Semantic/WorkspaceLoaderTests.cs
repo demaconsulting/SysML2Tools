@@ -1045,6 +1045,237 @@ public sealed class WorkspaceLoaderTests
         }
     }
 
+    /// <summary>
+    ///     An element with a single <c>comment</c> member and no <c>doc</c> captures one
+    ///     <see cref="DemaConsulting.SysML2Tools.Semantic.Internal.SysmlAnnotationKind.Comment"/>
+    ///     annotation and no others.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_CommentOnly_CapturesCommentAnnotation()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    comment /* a note about P */
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var package = result.Workspace!.Declarations["P"];
+            var annotation = Assert.Single(package.Annotations);
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Internal.SysmlAnnotationKind.Comment, annotation.Kind);
+            Assert.Equal(" a note about P ", annotation.Text);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     An element with a single <c>doc</c> member and no <c>comment</c> captures one
+    ///     <see cref="DemaConsulting.SysML2Tools.Semantic.Internal.SysmlAnnotationKind.Documentation"/>
+    ///     annotation and no others.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DocumentationOnly_CapturesDocumentationAnnotation()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    doc /* documentation about P */
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var package = result.Workspace!.Declarations["P"];
+            var annotation = Assert.Single(package.Annotations);
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Internal.SysmlAnnotationKind.Documentation, annotation.Kind);
+            Assert.Equal(" documentation about P ", annotation.Text);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     An element with both a <c>comment</c> and a <c>doc</c> member captures both
+    ///     annotations, in source order.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_CommentAndDocumentation_CapturesBothInSourceOrder()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    comment /* first: a comment */
+                    doc /* second: a doc */
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var package = result.Workspace!.Declarations["P"];
+            Assert.Equal(2, package.Annotations.Count);
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Internal.SysmlAnnotationKind.Comment, package.Annotations[0].Kind);
+            Assert.Equal(" first: a comment ", package.Annotations[0].Text);
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Internal.SysmlAnnotationKind.Documentation, package.Annotations[1].Kind);
+            Assert.Equal(" second: a doc ", package.Annotations[1].Text);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     An element with no <c>comment</c>/<c>doc</c> members has an empty (never null)
+    ///     <see cref="DemaConsulting.SysML2Tools.Semantic.Internal.SysmlNode.Annotations"/> list.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_NoAnnotations_AnnotationsIsEmptyNotNull()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "package P {}", TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var package = result.Workspace!.Declarations["P"];
+            Assert.NotNull(package.Annotations);
+            Assert.Empty(package.Annotations);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Multi-line comment/documentation free text is preserved verbatim, including interior
+    ///     newlines and leading <c>*</c> bullet characters, with only the delimiters removed.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_MultiLineAnnotation_PreservesTextVerbatim()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                "package P {\n" +
+                "    doc /* line one\n" +
+                "     * line two\n" +
+                "     */\n" +
+                "}\n", TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var package = result.Workspace!.Declarations["P"];
+            var annotation = Assert.Single(package.Annotations);
+            Assert.Equal(" line one\n     * line two\n     ", annotation.Text);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Loading the OMG <c>DocumentationExample.sysml</c> training fixture captures the
+    ///     package-level and part-def-level <c>doc</c> annotation text verbatim on the
+    ///     corresponding nodes, exercising the real ANTLR grammar/lexer path end-to-end.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DocumentationExampleFixture_CapturesExpectedDocText()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var fixturePath = Path.Combine(modelsRoot, "OMG", "training", "01.Packages", "DocumentationExample.sysml");
+        if (!File.Exists(fixturePath))
+        {
+            return;
+        }
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([fixturePath], stdlibTable);
+
+        // Assert — package-level doc
+        Assert.NotNull(result.Workspace);
+        var package = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlPackageNode>(
+            result.Workspace!.Declarations["'Documentation Example'"]);
+        var packageDoc = Assert.Single(package.Annotations);
+        Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Internal.SysmlAnnotationKind.Documentation, packageDoc.Kind);
+        Assert.Contains("This is documentation of the owning", packageDoc.Text);
+        Assert.Contains("package.", packageDoc.Text);
+
+        // Assert — part-def-level named doc
+        var automobile = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlDefinitionNode>(
+            result.Workspace!.Declarations["'Documentation Example'::Automobile"]);
+        var automobileDoc = Assert.Single(automobile.Annotations);
+        Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Internal.SysmlAnnotationKind.Documentation, automobileDoc.Kind);
+        Assert.Equal(" This documentation of Automobile. ", automobileDoc.Text);
+    }
+
+    /// <summary>
+    ///     Finds the test/SysMLModels directory relative to the test assembly.
+    /// </summary>
+    private static string? FindSysMLModelsRoot()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null)
+        {
+            var candidate = Path.Combine(dir, "test", "SysMLModels");
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        return null;
+    }
+
     /// <summary>Asserts that a feature with the given name has the expected keyword and typing.</summary>
     private static void AssertFeature(
         IEnumerable<DemaConsulting.SysML2Tools.Semantic.Internal.SysmlFeatureNode> features,

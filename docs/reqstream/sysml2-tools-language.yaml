@@ -4,8 +4,8 @@
 # PURPOSE:
 # - Define system-level requirements for the DemaConsulting.SysML2Tools.Language library
 # - Language library provides: ANTLR parser, SysmlNode AST types, AstBuilder, WorkspaceParser,
-#   SymbolTable, ReferenceResolver, SupertypeWalker, SysmlEdge, SemanticIndex, WorkspaceLoader,
-#   AstSerializer/AstDeserializer
+#   SymbolTable, ReferenceResolver, SupertypeWalker, SysmlEdge, SemanticIndex, SysmlAnnotation,
+#   WorkspaceLoader, AstSerializer/AstDeserializer
 
 sections:
   - title: SysML2Tools Language Requirements
@@ -67,3 +67,23 @@ sections:
           - WorkspaceLoader_LoadAsync_SupertypeAcrossEnclosingNamespace_RecordsResolvedTargetName
           - WorkspaceLoader_LoadAsync_UnresolvedImport_ProducesWarningNoCrash
           - WorkspaceLoader_LoadAsync_MultiKindFixtureModel_IndexAnswersIncomingAndOutgoingQueries
+
+      - id: SysML2Tools-Language-AnnotationCapture
+        title: >-
+          The Language library shall capture comment (`comment`) and documentation (`doc`)
+          annotating-element free text onto the AST node it lexically annotates, preserving
+          the text verbatim and in source order.
+        justification: |
+          SysML v2 comment/documentation text is fully parsed by the ANTLR grammar today but
+          silently dropped by the AST builder. Capturing it onto each node is the foundational
+          data required by the forthcoming `query` command's `describe` verb, and is purely
+          additive to the in-memory semantic model.
+        tests:
+          - WorkspaceLoader_LoadAsync_CommentOnly_CapturesCommentAnnotation
+          - WorkspaceLoader_LoadAsync_DocumentationOnly_CapturesDocumentationAnnotation
+          - WorkspaceLoader_LoadAsync_CommentAndDocumentation_CapturesBothInSourceOrder
+          - WorkspaceLoader_LoadAsync_NoAnnotations_AnnotationsIsEmptyNotNull
+          - WorkspaceLoader_LoadAsync_MultiLineAnnotation_PreservesTextVerbatim
+          - WorkspaceLoader_LoadAsync_DocumentationExampleFixture_CapturesExpectedDocText
+          - AstSerializerTests.Serialize_Annotations_Preserved
+          - AstSerializerTests.Serialize_NoAnnotations_RoundTripsEmptyNotNull

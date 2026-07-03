@@ -10,7 +10,7 @@ operates as a second layer above the Parser subsystem, consuming ANTLR4 CSTs pro
 
 The Semantic subsystem contains one public unit (`WorkspaceLoader`) and an internal subsystem
 (`Internal`) containing `AstBuilder`, `SymbolTable`, `ReferenceResolver`, `SupertypeWalker`,
-`SysmlEdge`, and `SemanticIndex`.
+`SysmlEdge`, `SemanticIndex`, and `SysmlAnnotation`.
 
 ```mermaid
 flowchart TD
@@ -66,8 +66,9 @@ optionally seeded with a pre-populated symbol table.
    constructor `new SymbolTable(seedSymbolTable.Symbols)` when a seed is provided, or creates an
    empty `SymbolTable` when `seedSymbolTable` is `null`.
 2. All caller-supplied file paths are dispatched via `Task.WhenAll`, each parsing
-   its content via `WorkspaceParser.ParseSourceToCst`, building an AST, and registering into
-   the same `SymbolTable`.
+   its content via `WorkspaceParser.ParseSourceToCst`, building an AST — capturing any
+   `comment`/`doc` annotating-element text onto each owning node's `Annotations` as it goes —
+   and registering into the same `SymbolTable`.
 3. `ReferenceResolver.ResolveAll` traverses all AST nodes, checks each supertype, feature-typing,
    and import reference against the symbol table, and emits Warning diagnostics for unresolved
    references. It also builds an import graph and performs cycle detection, and returns a
