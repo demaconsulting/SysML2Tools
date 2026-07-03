@@ -465,4 +465,36 @@ public class RenderSubsystemTests
             Directory.Delete(tempDir, recursive: true);
         }
     }
+
+    /// <summary>
+    ///     'render --help' now prints render-specific usage (a regression-proofing test for the
+    ///     command-aware help dispatch added alongside the 'help' command).
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_Help_PrintsRenderSpecificUsage()
+    {
+        // Arrange
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act
+            using var context = Context.Create(["render", "--help"]);
+            await Program.RunAsync(context);
+
+            // Assert: render-specific usage/options, not the generic top-level command list
+            var output = outWriter.ToString();
+            Assert.Contains("Usage: sysml2tools render [options] <files...>", output);
+            Assert.Contains("--output", output);
+            Assert.Contains("--auto", output);
+            Assert.DoesNotContain("Commands:", output);
+            Assert.Equal(0, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
 }

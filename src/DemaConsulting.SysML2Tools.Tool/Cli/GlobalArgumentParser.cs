@@ -107,6 +107,10 @@ internal static class GlobalArgumentParser
                     command = SysmlCommand.Query;
                     break;
 
+                case "help" when command == SysmlCommand.None:
+                    command = SysmlCommand.Help;
+                    break;
+
                 default:
                     // Not a recognized global flag or command token — leave it for the
                     // command-specific parser to interpret.

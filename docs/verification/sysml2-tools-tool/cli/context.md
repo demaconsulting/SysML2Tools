@@ -247,3 +247,30 @@ thrown at parse time (`Render.Format` captures the raw `"xml"` value); value val
 deferred to `RenderCommand.RunAsync`, mirroring `query`'s `--format` validation timing. This
 scenario is tested by
 `Context_Create_RenderCommand_WithUnsupportedFormatValue_DoesNotThrowAtParseTime`.
+
+**Context_Create_HelpCommand_NoArgs_PopulatesEmptyHelpOptions**: `Context.Create` is called
+with `["help"]`; `Command` equals `SysmlCommand.Help`, `HelpCommand` is non-null with both
+`TargetCommand` and `TargetVerb` null, and `Lint`/`Render`/`Query` all remain null. This
+scenario is tested by `Context_Create_HelpCommand_NoArgs_PopulatesEmptyHelpOptions`.
+
+**Context_Create_HelpCommand_WithLintTarget_SetsTargetCommand** /
+**Context_Create_HelpCommand_WithRenderTarget_SetsTargetCommand**: `Context.Create` is called
+with `["help", "lint"]` / `["help", "render"]`; `HelpCommand.TargetCommand` equals `"lint"` /
+`"render"` respectively, with `TargetVerb` null. These scenarios are tested by
+`Context_Create_HelpCommand_WithLintTarget_SetsTargetCommand` and
+`Context_Create_HelpCommand_WithRenderTarget_SetsTargetCommand`.
+
+**Context_Create_HelpCommand_WithQueryVerbTarget_SetsTargetCommandAndVerb**: `Context.Create`
+is called with `["help", "query", "uses"]`; `HelpCommand.TargetCommand` equals `"query"` and
+`HelpCommand.TargetVerb` equals `"uses"`. This scenario is tested by
+`Context_Create_HelpCommand_WithQueryVerbTarget_SetsTargetCommandAndVerb`.
+
+**Context_Create_HelpCommand_UnknownTarget_ThrowsArgumentException**: `Context.Create` is
+called with `["help", "bogus-command"]`; an `ArgumentException` containing
+`"bogus-command"` is thrown. This scenario is tested by
+`Context_Create_HelpCommand_UnknownTarget_ThrowsArgumentException`.
+
+**Context_Create_HelpCommand_QueryUnknownVerb_ThrowsArgumentException**: `Context.Create` is
+called with `["help", "query", "bogus-verb"]`; an `ArgumentException` containing
+`"bogus-verb"` is thrown (reusing `QueryVerbParsing.Parse`'s error message). This scenario is
+tested by `Context_Create_HelpCommand_QueryUnknownVerb_ThrowsArgumentException`.

@@ -12,12 +12,12 @@ grammar, rather than sharing one mega-switch across `lint`/`render`/`query`:
 
 1. **`GlobalArgumentParser`** parses the cross-cutting options that apply regardless of which
    command (or no command) is selected, and identifies the selected command token
-   (`lint`/`render`/`query`). Everything else is collected, in original order, into
+   (`lint`/`render`/`query`/`help`). Everything else is collected, in original order, into
    `GlobalArguments.CommandArgs` for stage 2.
-2. Exactly one **per-command parser** — `LintArgumentParser`, `RenderArgumentParser`, or
-   `QueryArgumentParser` — interprets `CommandArgs` according to that command's own grammar,
-   rejecting any flag it does not recognize with an `ArgumentException` naming both the flag and
-   the command.
+2. Exactly one **per-command parser** — `LintArgumentParser`, `RenderArgumentParser`,
+   `QueryArgumentParser`, or `HelpArgumentParser` — interprets `CommandArgs` according to that
+   command's own grammar, rejecting any flag it does not recognize with an `ArgumentException`
+   naming both the flag and the command.
 
 **Design decision — `--depth` is a global option, not scoped to `render`:** although `--depth`
 semantically feeds `render`'s diagram nesting depth and `query`'s `impact`-walk depth, it must
@@ -56,8 +56,9 @@ to 6. `null` when `--depth` was not specified. Used by the render command as the
 
 **Command**: `SysmlCommand` — `SysmlCommand.Lint` when `lint` is the first recognized command
 token; `SysmlCommand.Render` when `render` is the first recognized command token;
-`SysmlCommand.Query` when `query` is the first recognized command token; `SysmlCommand.None`
-otherwise. Defined in its own file, `Cli/SysmlCommand.cs`.
+`SysmlCommand.Query` when `query` is the first recognized command token; `SysmlCommand.Help`
+when `help` is the first recognized command token; `SysmlCommand.None` otherwise. Defined in
+its own file, `Cli/SysmlCommand.cs`.
 
 **Lint**: `LintOptions?` — populated only when `Command` is `SysmlCommand.Lint`. Carries the
 `Files` glob-pattern list; `lint` recognizes no flags of its own.
@@ -75,6 +76,12 @@ Carries `--element`/`-e`, `--direction`, `--kind`, `--name`, `--include-stdlib`,
 `--format` (`"markdown"`/`"json"`, a value independent of `render`'s `--format` even though the
 flag name is shared), the `Depth` value threaded from the global `--depth`, and the
 query-specific `Files` list.
+
+**HelpCommand**: `HelpOptions?` — populated only when `Command` is `SysmlCommand.Help`. Named
+`HelpCommand` (not `Help`) to avoid colliding with the existing `Help` flag property, which
+reflects the global `-h`/`-?`/`--help` flag independently of which command token was recognized.
+Carries `TargetCommand` (`string?` — `"lint"`/`"render"`/`"query"`, or `null` for bare `help`)
+and `TargetVerb` (`string?` — meaningful only when `TargetCommand` is `"query"`).
 
 **ExitCode**: `int` (derived) — Returns 1 if `_hasErrors` is true; returns 0 otherwise.
 
@@ -102,6 +109,10 @@ switches on `GlobalArguments.Command` to dispatch to exactly one per-command par
 - `SysmlCommand.None` → no per-command parser runs; any leftover `-`-prefixed token in
   `global.CommandArgs` throws `ArgumentException("Unsupported argument '{arg}'")`, preserving the
   historical bare-invocation error behavior.
+- `SysmlCommand.Help` → `HelpArgumentParser.Parse(global.CommandArgs)` → `HelpCommand`. The
+  `help` grammar is purely positional: an optional target command (`lint`/`render`/`query`),
+  followed — only when the target is `query` — by an optional verb token, re-validated via
+  `QueryVerbParsing.Parse` rather than duplicating the verb vocabulary.
 
 Each per-command parser rejects any flag outside its own recognized set with
 `ArgumentException($"Unsupported argument '{arg}' for the '{command}' command.")` — e.g.,
@@ -157,8 +168,8 @@ available.
   the one deliberate piece of DRY sharing across parsers; command scoping/dispatch itself is not
   shared.
 - **`LintOptions`/`LintArgumentParser`**, **`RenderCommandOptions`/`RenderArgumentParser`**,
-  **`QueryOptions`/`QueryArgumentParser`** — the per-command option records and parsers dispatched
-  to by `Create`.
+  **`QueryOptions`/`QueryArgumentParser`**, **`HelpOptions`/`HelpArgumentParser`** — the
+  per-command option records and parsers dispatched to by `Create`.
 
 #### Callers
 
@@ -168,3 +179,6 @@ available.
 - **RenderCommand** — reads `Render` (`RenderCommandOptions`) and `MaxRenderDepth`; calls
   `WriteLine` and `WriteError`.
 - **QueryCommand** — reads `Query` (`QueryOptions`); calls `WriteLine` and `WriteError`.
+- **HelpCommand** — reads `HelpCommand` (`HelpOptions`); dispatches to
+  `Program.PrintTopLevelHelp`/`LintCommand.PrintHelp`/`RenderCommand.PrintHelp`/
+  `QueryCommand.PrintGeneralHelp`/`PrintVerbHelp`, all of which call `WriteLine`.

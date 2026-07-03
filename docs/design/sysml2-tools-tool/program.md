@@ -35,16 +35,28 @@ Creates a `Context` using `Context.Create(args)`, calls `Run(context)`, and retu
 - *Postconditions*: Exactly one handler has been called.
 
 Inspects flags in priority order: (1) if `context.Version` is true, calls
-`context.WriteLine(Version)` and returns; (2) calls `PrintBanner`; (3) if `context.Help` is
-true, calls `PrintHelp` and returns; (4) if `context.Validate` is true, calls
+`context.WriteLine(Version)` and returns; (2) calls `PrintBanner`; (3) help dispatch (see
+below) and returns if triggered; (4) if `context.Validate` is true, calls
 `Validation.Run(context)`; (5) otherwise calls `RunToolLogic(context)`.
+
+**Help dispatch** (within `Run`/`RunAsync`, not a separate method): if `context.Command ==
+SysmlCommand.Help`, calls `Help.HelpCommand.Run(context)` and returns — **regardless of
+`context.Help`**, so bare `sysml2tools help` works without also requiring `--help`. Otherwise,
+if `context.Help` is true, dispatch is command-aware: `SysmlCommand.Lint` →
+`LintCommand.PrintHelp`; `SysmlCommand.Render` → `RenderCommand.PrintHelp`;
+`SysmlCommand.Query` → `QueryCommand.PrintGeneralHelp`/`PrintVerbHelp` (depending on whether a
+verb was parsed); otherwise → `PrintTopLevelHelp`. Every branch delegates to the same
+single-source-of-truth methods that `Help.HelpCommand.Run` itself calls, so `<command>
+--help` and `help <command>` never duplicate help text.
 
 **PrintBanner**: Writes the tool name, version, and copyright line to `context`.
 
 - *Parameters*: `Context context` — output target.
 - *Returns*: `void`.
 
-**PrintHelp**: Writes the usage synopsis and options table to `context`.
+**PrintTopLevelHelp**: Writes the top-level usage synopsis (command list) and global options
+table to `context`. Internal (not private), so `Help.HelpCommand` can call it directly for
+bare `help`/`--help` invocations — the single source of truth for top-level help text.
 
 - *Parameters*: `Context context` — output target.
 - *Returns*: `void`.

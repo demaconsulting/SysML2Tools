@@ -75,6 +75,24 @@ internal static class LintCommand
     }
 
     /// <summary>
+    ///     Prints help for the <c>lint</c> command.
+    /// </summary>
+    /// <param name="context">The CLI context for output.</param>
+    /// <remarks>
+    ///     The single source of truth for both <c>lint --help</c> and <c>help lint</c> — see
+    ///     <see cref="Help.HelpCommand"/> and <c>Program.RunAsync</c>'s command-aware help
+    ///     dispatch.
+    /// </remarks>
+    public static void PrintHelp(Context context)
+    {
+        context.WriteLine("Usage: sysml2tools lint <files...>");
+        context.WriteLine("");
+        context.WriteLine("Parses the given SysML v2 / KerML files (and any file glob patterns) and reports");
+        context.WriteLine("syntax diagnostics. The 'lint' command accepts no flags of its own beyond the");
+        context.WriteLine("global options (see 'sysml2tools --help').");
+    }
+
+    /// <summary>
     ///     Resolves file glob patterns to concrete file paths.
     /// </summary>
     private static IReadOnlyList<string> ResolveFiles(IReadOnlyList<string> patterns)

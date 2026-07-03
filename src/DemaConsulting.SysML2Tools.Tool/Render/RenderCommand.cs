@@ -141,4 +141,28 @@ internal static class RenderCommand
 
         context.WriteLine($"Rendered {outputs.Count} view(s).");
     }
+
+    /// <summary>
+    /// Prints help for the <c>render</c> command.
+    /// </summary>
+    /// <param name="context">The CLI context for output.</param>
+    /// <remarks>
+    /// The single source of truth for both <c>render --help</c> and <c>help render</c> — see
+    /// <see cref="Help.HelpCommand"/> and <c>Program.RunAsync</c>'s command-aware help dispatch.
+    /// </remarks>
+    public static void PrintHelp(Context context)
+    {
+        context.WriteLine("Usage: sysml2tools render [options] <files...>");
+        context.WriteLine("");
+        context.WriteLine("Renders view diagrams to SVG or PNG files.");
+        context.WriteLine("");
+        context.WriteLine("Options:");
+        context.WriteLine("  --output <dir>     Output directory for rendered files (default: current directory)");
+        context.WriteLine("  --format svg|png   Renderer format (default: svg)");
+        context.WriteLine("  --view <name>      Select a specific view to render, when multiple are defined");
+        context.WriteLine("  --auto             Auto-generate a view when none are defined");
+        context.WriteLine("");
+        context.WriteLine("The global --depth option also bounds diagram nesting depth for this command");
+        context.WriteLine("(see 'sysml2tools --help').");
+    }
 }

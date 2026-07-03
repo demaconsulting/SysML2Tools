@@ -57,6 +57,12 @@ Entry point for the render command. Steps:
    it via `Directory.CreateDirectory`, and writes each `RenderOutput.Data` stream to a
    file named `RenderOutput.SuggestedFileName`.
 
+**`PrintHelp(Context context)`**: Prints `render`'s usage line and its four flags (`--output`,
+`--format`, `--view`, `--auto`), plus a note about the shared global `--depth` option. This is
+the single source of truth for both `render --help` (dispatched from `Program.RunAsync`'s
+command-aware help block) and `help render` (dispatched from `Help.HelpCommand.Run`); neither
+entry point duplicates the help text.
+
 ##### Error Handling
 
 - Missing file patterns: `context.WriteError` is called and the method returns early.

@@ -104,6 +104,11 @@ system, subsystem, and unit levels:
     - **LintCommand** (Unit) — resolves glob patterns, invokes WorkspaceLoader with stdlib seed, reports diagnostics
   - **Render** (Subsystem) — render command implementation
     - **RenderCommand** (Unit) — loads workspace with stdlib seed, selects renderer, writes diagram output files
+  - **Help** (Subsystem) — help command implementation; pure dispatch to the single source of
+    truth for each command's help text (`Program.PrintTopLevelHelp`, `LintCommand.PrintHelp`,
+    `RenderCommand.PrintHelp`, `QueryCommand.PrintGeneralHelp`/`PrintVerbHelp`)
+    - **HelpCommand** (Unit) — parses the optional target command/verb and dispatches to that
+      command's help-printing method
   - **SelfTest** (Subsystem) — self-validation test runner
     - **Validation** (Unit) — self-validation test runner
   - **Utilities** (Subsystem) — shared utilities
@@ -151,6 +156,7 @@ reviewers an explicit navigation aid from design to code:
   - **DemaConsulting.SysML2Tools.Tool/** — dotnet tool CLI wrapper
     - **Cli/** — command-line interface subsystem
     - **Lint/** — lint command subsystem
+    - **Help/** — help command subsystem
     - **SelfTest/** — self-validation subsystem
     - **Utilities/** — shared utilities subsystem
   - **Tools/StdlibGen/** — build-time stdlib pre-compiler tool
@@ -162,6 +168,7 @@ reviewers an explicit navigation aid from design to code:
     - **cli/** — Cli subsystem design
     - **lint/** — Lint subsystem design
     - **render/** — Render subsystem design (render.md)
+    - **help.md** — Help subsystem design
     - **self-test/** — SelfTest subsystem design
     - **utilities/** — Utilities subsystem design
 

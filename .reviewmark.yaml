@@ -796,6 +796,18 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryOmgFixtureTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryErrorPathTests.cs"
 
+  - id: SysML2Tools-Tool-Help
+    title: Review of SysML2 Tools Help subsystem implementation
+    context:
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-tool/help.yaml"
+      - "docs/design/sysml2-tools-tool/help.md"
+      - "docs/verification/sysml2-tools-tool/help.md"
+      - "src/**/Help/*.cs"
+      - "test/**/Help/*.cs"
+
   # OTS Items
   - id: OTS-BuildMark
     title: Review of BuildMark OTS verification evidence

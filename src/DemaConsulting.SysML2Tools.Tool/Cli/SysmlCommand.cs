@@ -35,5 +35,8 @@ internal enum SysmlCommand
     Render,
 
     /// <summary>Run a model-analysis query verb.</summary>
-    Query
+    Query,
+
+    /// <summary>Print help for the tool or a specific command/verb.</summary>
+    Help
 }

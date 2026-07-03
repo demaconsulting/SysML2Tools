@@ -193,3 +193,21 @@ sections:
         tests:
           - Context_Create_QueryCommand_NoVerbNoHelp_ThrowsArgumentException
           - Context_Create_QueryCommand_NoVerbWithHelp_LeavesQueryNull
+
+      - id: SysML2Tools-Tool-Context-HelpDispatch
+        title: >-
+          The Context class shall recognize `help` as a command token, dispatching to
+          HelpArgumentParser and populating the HelpCommand property (distinct from the
+          existing boolean Help flag property) with the parsed target command/verb.
+        justification: |
+          Making `help` a genuine top-level command (rather than only a global flag) lets
+          `sysml2tools help [command] [verb]` be parsed through the same per-command dispatch
+          pattern already used for lint/render/query, keeping Context's argument-parsing
+          architecture uniform across all four commands.
+        tests:
+          - Context_Create_HelpCommand_NoArgs_PopulatesEmptyHelpOptions
+          - Context_Create_HelpCommand_WithLintTarget_SetsTargetCommand
+          - Context_Create_HelpCommand_WithRenderTarget_SetsTargetCommand
+          - Context_Create_HelpCommand_WithQueryVerbTarget_SetsTargetCommandAndVerb
+          - Context_Create_HelpCommand_UnknownTarget_ThrowsArgumentException
+          - Context_Create_HelpCommand_QueryUnknownVerb_ThrowsArgumentException

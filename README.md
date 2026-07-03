@@ -31,6 +31,9 @@ documentation, CI/CD pipelines, and AI-assisted modeling workflows.
   `describe`, `hierarchy`, `requirements`, `interface`, `connections`, `states`, `list`,
   `find`) for AI and human callers; verb grammar and dispatch are implemented today, with
   verb-specific analysis logic shipping incrementally in future releases
+- **`help` Command**: Print help for the tool itself, a specific command
+  (`lint`/`render`/`query`), or a specific `query` verb — identical output to the
+  corresponding `<command> --help`
 - **GeneralView Layout**: Package-grouped definition block diagrams placed by a layered (ELK-style)
   engine with orthogonal specialization and membership edges, depth-coded fill colors, compartments,
   and configurable depth limiting
@@ -111,6 +114,23 @@ sysml2tools query uses --element Pkg::MyPart model.sysml --format json
 See [Querying](docs/user_guide/introduction.md#querying) in the user guide for the full
 verb reference and more examples.
 
+### Getting Help
+
+```bash
+# Top-level help (same as bare --help)
+sysml2tools help
+
+# Command-specific help (identical to `lint --help`/`render --help`)
+sysml2tools help lint
+sysml2tools help render
+
+# Query verb overview (identical to `query --help`)
+sysml2tools help query
+
+# Query verb-specific help (identical to `query <verb> --help`)
+sysml2tools help query hierarchy
+```
+
 ### Global Flags
 
 ```bash
@@ -137,6 +157,7 @@ sysml2tools --silent --log output.log
 sysml2tools [-v|--version] [-?|-h|--help] [--silent]
             [--validate] [--result|--results <file>] [--depth <#>] [--log <file>]
             [<verb> [verb-options] [<globs>]]
+sysml2tools help [lint|render|query [<query-verb>]]
 ```
 
 `<verb>` is `lint`, `render`, or `query <query-verb>` (11 query verbs — see
@@ -183,6 +204,13 @@ sysml2tools [-v|--version] [-?|-h|--help] [--silent]
 | `--kind <kind>` | Element-kind filter (`list`/`find` verbs only) |
 | `--name <substring>` | Name substring filter (`list`/`find` verbs only) |
 | `--include-stdlib` | Include OMG standard library elements in results |
+
+### `help` Options
+
+| Option | Description |
+| --- | --- |
+| `[command]` | Optional: `lint`, `render`, or `query`; omit for top-level help |
+| `[verb]` | Optional; only meaningful when `command` is `query` — one of the 11 supported query verbs |
 
 ## View Selection
 

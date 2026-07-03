@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using DemaConsulting.SysML2Tools.Help;
 using DemaConsulting.SysML2Tools.Lint;
 using DemaConsulting.SysML2Tools.Query;
 using DemaConsulting.SysML2Tools.Render;
@@ -30,9 +31,9 @@ namespace DemaConsulting.SysML2Tools.Cli;
 /// <remarks>
 ///     Argument parsing is split into a <see cref="GlobalArgumentParser"/> pass (cross-cutting
 ///     options that apply regardless of command) followed by exactly one per-command parser
-///     dispatch (<see cref="LintArgumentParser"/>, <see cref="RenderArgumentParser"/>, or
-///     <see cref="QueryArgumentParser"/>), so that each command rejects flags outside its own
-///     grammar instead of sharing one mega-switch. See
+///     dispatch (<see cref="LintArgumentParser"/>, <see cref="RenderArgumentParser"/>,
+///     <see cref="QueryArgumentParser"/>, or <see cref="HelpArgumentParser"/>), so that each
+///     command rejects flags outside its own grammar instead of sharing one mega-switch. See
 ///     <c>docs/design/sysml2-tools-tool/cli/context.md</c> for the full architecture.
 /// </remarks>
 internal sealed class Context : IDisposable
@@ -109,6 +110,18 @@ internal sealed class Context : IDisposable
     public QueryOptions? Query { get; private init; }
 
     /// <summary>
+    ///     Gets the parsed options for the <c>help</c> command; <see langword="null"/> unless
+    ///     <see cref="Command"/> is <see cref="SysmlCommand.Help"/>.
+    /// </summary>
+    /// <remarks>
+    ///     Named <c>HelpCommand</c> (rather than <c>Help</c>) to avoid colliding with the existing
+    ///     <see cref="Help"/> flag property, which reflects the global <c>-h</c>/<c>-?</c>/
+    ///     <c>--help</c> flag independently of whether <see cref="SysmlCommand.Help"/> was
+    ///     selected as the command.
+    /// </remarks>
+    public HelpOptions? HelpCommand { get; private init; }
+
+    /// <summary>
     ///     Gets the proposed exit code for the application (0 for success, 1 for errors).
     /// </summary>
     public int ExitCode => _hasErrors ? 1 : 0;
@@ -139,6 +152,7 @@ internal sealed class Context : IDisposable
         LintOptions? lintOptions = null;
         RenderCommandOptions? renderOptions = null;
         QueryOptions? queryOptions = null;
+        HelpOptions? helpOptions = null;
 
         switch (global.Command)
         {
@@ -152,6 +166,10 @@ internal sealed class Context : IDisposable
 
             case SysmlCommand.Query:
                 queryOptions = QueryArgumentParser.Parse(global.CommandArgs, global.Help, global.MaxRenderDepth);
+                break;
+
+            case SysmlCommand.Help:
+                helpOptions = HelpArgumentParser.Parse(global.CommandArgs);
                 break;
 
             default:
@@ -179,7 +197,8 @@ internal sealed class Context : IDisposable
             Command = global.Command,
             Lint = lintOptions,
             Render = renderOptions,
-            Query = queryOptions
+            Query = queryOptions,
+            HelpCommand = helpOptions
         };
 
         // Open log file if specified

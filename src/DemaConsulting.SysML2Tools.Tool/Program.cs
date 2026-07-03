@@ -20,6 +20,7 @@
 
 using System.Reflection;
 using DemaConsulting.SysML2Tools.Cli;
+using DemaConsulting.SysML2Tools.Help;
 using DemaConsulting.SysML2Tools.Lint;
 using DemaConsulting.SysML2Tools.Query;
 using DemaConsulting.SysML2Tools.Render;
@@ -119,23 +120,46 @@ internal static class Program
         // Print application banner
         PrintBanner(context);
 
-        // Priority 2: Help
+        // Priority 2: Help. The 'help' command (Command == Help) always prints help and returns,
+        // regardless of the 'context.Help' flag — this lets bare 'sysml2tools help' work without
+        // also requiring '--help'. Otherwise, when the global '--help'/'-h'/'-?' flag was
+        // supplied, dispatch is command-aware so 'lint --help'/'render --help'/'query --help'
+        // (and 'query <verb> --help') show command/verb-specific detail instead of the generic
+        // top-level help; every branch here delegates to the same single-source-of-truth methods
+        // used by the 'help' command (see HelpCommand.Run), so neither path duplicates help text.
+        if (context.Command == SysmlCommand.Help)
+        {
+            HelpCommand.Run(context);
+            return;
+        }
+
         if (context.Help)
         {
-            if (context.Command == SysmlCommand.Query)
+            switch (context.Command)
             {
-                if (context.Query is { } queryOptions)
-                {
-                    QueryCommand.PrintVerbHelp(context, queryOptions.Verb);
-                }
-                else
-                {
-                    QueryCommand.PrintGeneralHelp(context);
-                }
-            }
-            else
-            {
-                PrintHelp(context);
+                case SysmlCommand.Lint:
+                    LintCommand.PrintHelp(context);
+                    break;
+
+                case SysmlCommand.Render:
+                    RenderCommand.PrintHelp(context);
+                    break;
+
+                case SysmlCommand.Query:
+                    if (context.Query is { } queryOptions)
+                    {
+                        QueryCommand.PrintVerbHelp(context, queryOptions.Verb);
+                    }
+                    else
+                    {
+                        QueryCommand.PrintGeneralHelp(context);
+                    }
+
+                    break;
+
+                default:
+                    PrintTopLevelHelp(context);
+                    break;
             }
 
             return;
@@ -164,10 +188,15 @@ internal static class Program
     }
 
     /// <summary>
-    ///     Prints usage information.
+    ///     Prints top-level usage information: the command list and global options.
     /// </summary>
     /// <param name="context">The context for output.</param>
-    private static void PrintHelp(Context context)
+    /// <remarks>
+    ///     Widened to <see langword="internal"/> (from <see langword="private"/>) so that
+    ///     <see cref="Help.HelpCommand"/> can call it directly for bare <c>help</c>/<c>--help</c>
+    ///     invocations, making this method the single source of truth for top-level help text.
+    /// </remarks>
+    internal static void PrintTopLevelHelp(Context context)
     {
         context.WriteLine("Usage: sysml2tools [options] <command> [files...]");
         context.WriteLine("");
@@ -177,6 +206,8 @@ internal static class Program
         context.WriteLine("  query <verb> [options] <files...>");
         context.WriteLine("                             Run a model-analysis query (preview; run");
         context.WriteLine("                             'sysml2tools query --help' for the verb list)");
+        context.WriteLine("  help [command] [verb]      Print help for the tool, a command, or (for 'query')");
+        context.WriteLine("                             a specific verb");
         context.WriteLine("");
         context.WriteLine("Options:");
         context.WriteLine("  -v, --version              Display version information");

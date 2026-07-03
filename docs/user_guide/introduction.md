@@ -203,6 +203,34 @@ The following global options are accepted before the verb:
 | `--depth <#>` | Set heading depth for validation output (default: 1) |
 | `--log <file>` | Write all output to a log file |
 
+## Getting Help
+
+In addition to the global `-?`/`-h`/`--help` flag (see the table above), `help` is also a
+first-class top-level command: `sysml2tools help [command] [verb]`. Both forms produce
+identical output for the same target — `help <command>` and `<command> --help` share a
+single source of truth for each command's help text, so neither can drift out of sync with
+the other.
+
+```bash
+# Top-level help (same as bare --help)
+sysml2tools help
+
+# Command-specific help (identical to `lint --help`/`render --help`)
+sysml2tools help lint
+sysml2tools help render
+
+# Query verb overview (identical to `query --help`)
+sysml2tools help query
+
+# Query verb-specific help (identical to `query <verb> --help`)
+sysml2tools help query hierarchy
+```
+
+An unrecognized command or verb (e.g., `sysml2tools help bogus`, `sysml2tools help query
+bogus-verb`) reports a clear error naming the invalid token rather than crashing. Note that
+`--silent` suppresses `help`'s console output exactly as it suppresses every other command's
+output — there is no special case that lets `help` bypass `--silent`.
+
 # Self-Validation
 
 Self-validation exercises the tool against embedded test models and produces a structured
