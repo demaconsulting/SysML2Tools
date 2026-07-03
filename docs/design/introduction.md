@@ -198,7 +198,7 @@ The four top-level systems map to these kebab-case folder names:
 | --- | --- |
 | `DemaConsulting.SysML2Tools.Language` | `sysml2-tools-language` |
 | `DemaConsulting.SysML2Tools.Stdlib` | `sysml2-tools-stdlib` |
-| `DemaConsulting.SysML2Tools` | `sysml2-tools-core` |
+| `DemaConsulting.SysML2Tools.Core` | `sysml2-tools-core` |
 | `DemaConsulting.SysML2Tools.Tool` | `sysml2-tools-tool` |
 
 OTS items have integration/usage design documentation parallel to system folders:

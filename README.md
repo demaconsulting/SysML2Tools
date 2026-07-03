@@ -52,7 +52,7 @@ documentation, CI/CD pipelines, and AI-assisted modeling workflows.
 Install the tool globally using the .NET CLI:
 
 ```bash
-dotnet tool install -g DemaConsulting.SysML2Tools
+dotnet tool install -g DemaConsulting.SysML2Tools.Tool
 ```
 
 ## Usage
@@ -226,12 +226,11 @@ sysml2tools help [lint|render|query [<query-verb>]]
 
 | Package | Description |
 | --- | --- |
-| `DemaConsulting.SysML2Tools` | Core library: parser, semantic model, layout, `IRenderer` interface |
-| `DemaConsulting.SysML2Tools.Svg` | SVG renderer — zero external dependencies |
-| `DemaConsulting.SysML2Tools.Png` | PNG renderer — SkiaSharp (MIT), embedded Noto Sans font |
+| `DemaConsulting.SysML2Tools.Core` | Library: parser, semantic model, layout, `IRenderer` interface |
+| `DemaConsulting.SysML2Tools.Tool` | CLI tool: `lint`, `render`, and `query` commands |
 
-Library consumers can take a dependency on `DemaConsulting.SysML2Tools` alone to access
-parsing, semantic model, and layout without pulling in any native graphics binaries.
+Library consumers can take a dependency on `DemaConsulting.SysML2Tools.Core` alone to access
+parsing, semantic model, and layout without pulling in the CLI tool.
 
 ## Contributing
 
@@ -252,7 +251,7 @@ By contributing to this project, you agree that your contributions will be licen
 [badge-build]: https://img.shields.io/github/actions/workflow/status/demaconsulting/SysML2Tools/build_on_push.yaml?style=plastic
 [badge-quality]: https://sonarcloud.io/api/project_badges/measure?project=demaconsulting_SysML2Tools&metric=alert_status
 [badge-security]: https://sonarcloud.io/api/project_badges/measure?project=demaconsulting_SysML2Tools&metric=security_rating
-[badge-nuget]: https://img.shields.io/nuget/v/DemaConsulting.SysML2Tools?style=plastic
+[badge-nuget]: https://img.shields.io/nuget/v/DemaConsulting.SysML2Tools.Tool?style=plastic
 
 <!-- Link References -->
 [link-forks]: https://github.com/demaconsulting/SysML2Tools/network/members
@@ -262,4 +261,4 @@ By contributing to this project, you agree that your contributions will be licen
 [link-build]: https://github.com/demaconsulting/SysML2Tools/actions/workflows/build_on_push.yaml
 [link-quality]: https://sonarcloud.io/dashboard?id=demaconsulting_SysML2Tools
 [link-security]: https://sonarcloud.io/dashboard?id=demaconsulting_SysML2Tools
-[link-nuget]: https://www.nuget.org/packages/DemaConsulting.SysML2Tools
+[link-nuget]: https://www.nuget.org/packages/DemaConsulting.SysML2Tools.Tool

@@ -207,6 +207,7 @@ jobs:
           --no-restore
           --configuration Release
           --property:PackageVersion=${{ inputs.version }}
+          --output ./artifacts/packages
 
       # === UPLOAD ARTIFACTS ===
       # This section uploads all generated artifacts for use by downstream jobs.
@@ -223,8 +224,8 @@ jobs:
         with:
           name: packages-${{ matrix.os }}
           path: |
-            src/DemaConsulting.SysML2Tools.Tool/bin/Release/*.nupkg
-            src/DemaConsulting.SysML2Tools.Tool/bin/Release/*.snupkg
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
 
   # Runs CodeQL security and quality analysis, gathering results to include
   # in the code quality report.
@@ -348,7 +349,7 @@ jobs:
           dotnet tool install --global \
             --add-source packages \
             --version ${{ inputs.version }} \
-            DemaConsulting.SysML2Tools
+            DemaConsulting.SysML2Tools.Tool
 
       # === CAPTURE TOOL VERSIONS ===
       # This section captures the versions of all tools used in the integration tests.

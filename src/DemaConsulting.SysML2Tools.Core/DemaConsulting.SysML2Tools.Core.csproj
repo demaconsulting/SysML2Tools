@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <IsPackable>false</IsPackable>
+    <IsPackable>true</IsPackable>
     <PackageId>DemaConsulting.SysML2Tools.Core</PackageId>
     <AssemblyName>DemaConsulting.SysML2Tools.Core</AssemblyName>
     <Version>0.0.0</Version>
@@ -16,6 +16,9 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/demaconsulting/SysML2Tools</PackageProjectUrl>
     <RepositoryUrl>https://github.com/demaconsulting/SysML2Tools</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>Icon.png</PackageIcon>
+    <PackageTags>sysml2;sysml;mbse;parser</PackageTags>
     <Copyright>Copyright DEMA Consulting</Copyright>
     <Title>SysML2 Tools</Title>
     <Product>DemaConsulting.SysML2Tools</Product>
@@ -33,6 +36,9 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
+    <!-- Suppress NU5104: this library intentionally depends on the pre-release
+         DemaConsulting.Rendering.Layout package until it reaches a stable release. -->
+    <NoWarn>$(NoWarn);NU5104</NoWarn>
 
     <!-- SBOM Configuration -->
     <GenerateSBOM>true</GenerateSBOM>
@@ -47,13 +53,33 @@
     <PackageReference Include="DemaConsulting.Rendering.Layout" Version="0.1.0-beta.2" />
   </ItemGroup>
 
+  <!-- Language and Stdlib are internal (IsPackable=false) projects, so their PrivateAssets="all"
+       marking here prevents them from being emitted as NuGet package dependencies. Instead, the
+       CopyProjectReferencesToPackage target below embeds their compiled assemblies directly into
+       this package's lib folder (see docs/design/introduction.md for details). -->
   <ItemGroup>
-    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Language\DemaConsulting.SysML2Tools.Language.csproj" />
-    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Stdlib\DemaConsulting.SysML2Tools.Stdlib.csproj" />
+    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Language\DemaConsulting.SysML2Tools.Language.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Stdlib\DemaConsulting.SysML2Tools.Stdlib.csproj" PrivateAssets="all" />
   </ItemGroup>
+
+  <!-- Embed the Language and Stdlib assemblies (both IsPackable=false) directly into this
+       package's lib folder, since they cannot be resolved as separate NuGet dependencies. -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+  <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferencePath)" Condition="'%(ReferencePath.ReferenceSourceTarget)' == 'ProjectReference'" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <InternalsVisibleTo Include="DemaConsulting.SysML2Tools.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\Icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <!-- Code Analysis Dependencies -->
