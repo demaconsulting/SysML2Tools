@@ -191,6 +191,7 @@ ignorePaths:
   - "**/third-party/**"
   - "**/3rd-party/**"
   - "**/generated/**"
+  - "**/api/**"  # ApiMark-generated Markdown API reference docs
   - "**/Parser/Antlr/**"
   - "**/Stdlib/**"
   - "**/AGENT_REPORT_*.md"

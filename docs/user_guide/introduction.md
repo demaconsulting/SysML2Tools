@@ -273,7 +273,8 @@ on the core library alone, without pulling in the full CLI tool:
 
 Consumers who need only the parsed semantic model, `LayoutTree`, or rendering interfaces
 take a dependency on `DemaConsulting.SysML2Tools.Core` only. Consumers who need the CLI
-install `DemaConsulting.SysML2Tools.Tool` as a dotnet tool.
+install `DemaConsulting.SysML2Tools.Tool` as a dotnet tool. The `DemaConsulting.SysML2Tools.Core`
+package also bundles generated Markdown API reference documentation alongside the assembly.
 
 # Continuous Compliance
 

@@ -51,6 +51,7 @@ ignores:
   - "**/third-party/**"
   - "**/3rd-party/**"
   - "**/generated/**"
+  - "**/api/**"  # ApiMark-generated Markdown API reference docs
   - "**/AGENT_REPORT_*.md"
   - "**/.agent-logs/**"
   - "ROADMAP.md"

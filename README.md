@@ -230,7 +230,8 @@ sysml2tools help [lint|render|query [<query-verb>]]
 | `DemaConsulting.SysML2Tools.Tool` | CLI tool: `lint`, `render`, and `query` commands |
 
 Library consumers can take a dependency on `DemaConsulting.SysML2Tools.Core` alone to access
-parsing, semantic model, and layout without pulling in the CLI tool.
+parsing, semantic model, and layout without pulling in the CLI tool. The `Core` package also
+bundles generated Markdown API reference documentation alongside the assembly.
 
 ## Contributing
 
