@@ -1,15 +1,16 @@
 # SysML2Tools Roadmap
 
-This roadmap defines the work remaining to reach a **0.1.0 release** — conforming the rendered
+This roadmap lists the work remaining to reach a **0.1.0 release** — conforming the rendered
 output to SysML v2 graphical notation, completing the remaining view dynamics, and finishing
 release packaging — followed by the **0.2.0** direction: turning SysML2Tools into an
 AI-assistable *model query and analysis* tool, not just a renderer.
 
-Completed work (the parser, semantic model, `LayoutTree`, the layout engines, the seven
-implemented view types, the SVG/PNG renderers, and Layout Engine v2 including highway routing
-and approach-zone connector clarity) has been removed from this document to keep it
-forward-looking. That history lives in the git log and the generated build/release notes. The
-eighth view — Geometry — is deferred to 0.2.0; see §5.
+This document is intentionally limited to **work to be done**. Completed work (parser, semantic
+model, `LayoutTree`, the layout engines including Layout Engine v2, the seven implemented view
+types, and the SVG/PNG renderers) lives in the git log and the generated release notes.
+Reference material for understanding the tool (SysML v2 graphical-notation tables, layout-engine
+architecture, `LayoutTree` vocabulary) lives in `docs/`, not here. The eighth view — Geometry —
+is deferred to 0.2.0; see §4.
 
 ---
 
@@ -18,98 +19,29 @@ eighth view — Geometry — is deferred to 0.2.0; see §5.
 0.1.0 is reached when all of the following hold:
 
 - **All 7 implemented view types render** with notation fidelity. (The 8th view, Geometry, is
-  deferred to 0.2.0 and documented as not yet supported — see §5 and Phase 17.)
+  deferred to 0.2.0 and documented as not yet supported — see §4 and Phase 17.)
 - **Graphical-notation conformance**: rendered connectors, node shapes, compartments, and
-  annotations match the SysML v2 graphical notation (see §2) closely enough that a diagram is
-  recognizable to a SysML v2 practitioner — verified by visual inspection against the OMG
-  reference templates and training material.
+  annotations match the SysML v2 graphical notation closely enough that a diagram is recognizable
+  to a SysML v2 practitioner — verified by visual inspection against the OMG reference templates
+  and training material.
 - **View dynamics complete**: sequence activation bars and combined fragments; action
   fork/join/merge/decision nodes and swim-lanes.
 - **Release packaging**: third-party license/attribution output (`--licenses`), per-package
-  README notes (incl. SkiaSharp native assets), the `docs/rendering` techniques document, a
-  regenerated gallery, version metadata, and release notes.
+  README notes (incl. SkiaSharp native assets), the rendering-techniques document, a regenerated
+  gallery, version metadata, and release notes.
 - **Green CI**: build/tests on net8/9/10, full `lint.ps1`, ReqStream `--enforce`, ReviewMark.
 
 Each phase below is independently reviewable and ships behind the same quality gates.
 
 ---
 
-## 2. SysML v2 Graphical Notation Reference
-
-This is the authoritative notation reference for the conformance phases. It is derived from the
-OMG SysML v2 release materials. Detailed source notes: `docs/.../files/omg-notation-research.md`
-in session artifacts; primary sources below.
-
-### 2.1 Reference sources (where ground truth lives)
-
-The `Systems-Modeling/SysML-v2-Release` repository's `doc/images/sysml/` directory is a **mix**:
-
-| Location | What it is | Use |
-|---|---|---|
-| `doc/images/sysml/fig-08/15/22/23/24/30/33…` | Metamodel **class diagrams** (MagicDraw/Batik) | ❌ NOT user notation |
-| Higher worked `fig-*` (e.g. `fig-70` requirements group) | Genuine **notation examples** | ✅ Ground truth |
-| `doc/images/sysml/clause-8.2.3/` | Concrete-syntax **notation templates** (Inkscape), one per element | ✅ Primary template source |
-| `doc/images/sysml/clause-7/` | Per-row **kernel notation tables** with real examples | ✅ Ground truth |
-| `doc/Intro to the SysML v2 Language-Graphical Notation.pdf` | Dedicated graphical-notation **training** doc | ✅ Best worked examples |
-
-### 2.2 Node shapes
-
-| Element class | Shape | Status |
-|---|---|---|
-| Any **Definition** (Part/Action/State/Port/Attribute… def) | Plain rectangle (sharp corners) | ✅ Done |
-| Any **Usage** (part/action/state/connection/interface…) | Rounded rectangle (cubic-bezier corners) | ✅ Done |
-| **Package** | Rectangle with folder tab | ✅ Done |
-| **Documentation / Comment** | Note shape (folded-corner rectangle) | ⬜ `BoxShape.Note` defined, unused |
-| **Accept action** | Rounded rectangle + filled concave "receive" pentagon | ⬜ |
-| **Fork / Join** | Thick solid bar | ⬜ |
-| **Decision / Merge** | Diamond | ⬜ |
-| **Actor** (use-case lifeline head) | Stick figure | ⬜ |
-
-The Definition/Usage distinction is encoded **entirely** in box shape — keyword/compartments
-distinguish *kinds*, the rounded-vs-sharp corner distinguishes def-vs-usage.
-
-### 2.3 Connector ends and line styles (the conformance core)
-
-End shapes sit at the **owner/target** end as indicated; lines are solid unless noted.
-
-| Relationship | Line | End shape | At end | Status |
-|---|---|---|---|---|
-| Specialization / subclassification | solid | hollow **triangle** | supertype | ✅ Done |
-| Redefinition (usage→usage) | solid | hollow triangle **+ ⊥ crossbar** near tip | redefined | ⬜ |
-| Composite feature membership (owned/nested) | solid | **filled diamond** | owner | ⬜ (`EndMarkerStyle.FilledDiamond` defined, unused) |
-| Reference feature membership (e.g. requirement `subject`) | solid | **hollow diamond** | owner | ⬜ (`EndMarkerStyle.HollowDiamond` defined, unused) |
-| Connection / connector (interconnection) | solid | none (ends may show multiplicity) | — | ✅ Done (plain line) |
-| Succession (action flow) | **dashed** | **open V** (stroke-only) | target | ⚠️ Solid + filled today |
-| State transition | solid | **open V** (verify vs training PDF) | target | ⚠️ Filled today |
-| Sequence message | solid | **open V** (stroke-only) | receiver | ⚠️ Filled today |
-| Dependency | dashed | open V | target | ⬜ |
-
-Subsetting / feature-typing in the templates are frequently shown **textually** in
-compartments (`:>`, `:>>`) rather than as separate edges — match that convention.
-
-### 2.4 Typography and color
-
-- Body labels Arial/sans **12px**; state entry/do labels **11px**; sequence message labels
-  **10px**. (Our themes use an embedded Noto Sans; sizes are theme-driven — verify ratios.)
-- Spec diagrams are **black on white**, no fill color. Our themes add subtle fills by depth;
-  a **Print** theme already approximates the spec's monochrome look.
-
-### 2.5 Compartments
-
-`«keyword» Name` in the name compartment (bold; keyword in guillemets), then stacked,
-separator-lined compartments: e.g. state `entry/`, `do/`, `exit/`; requirement `doc`,
-`attributes`, `constraints`, `subject`, `references`; part `attributes`, `ports`, `parts`.
-We render attributes/ports/parts today; deeper compartments are a gap (see Phase 15).
-
----
-
-## 3. Phase Gate (every phase must satisfy)
+## 2. Phase Gate (every phase must satisfy)
 
 Each phase is delivered on its own feature branch and merged via PR only after **all** of the
 following gates pass. A phase is not "done" until the feature **and** its supporting
 documentation ship together in the same PR.
 
-### 3.1 Automated quality gates (all must pass)
+### 2.1 Automated quality gates (all must pass)
 
 - `pwsh ./build.ps1` — solution builds and all unit tests pass on **net8.0, net9.0, net10.0**,
   zero errors, zero warnings (analyzers are warnings-as-errors).
@@ -121,7 +53,7 @@ documentation ship together in the same PR.
 - **ReviewMark `--lint`** — all review-sets resolve; every new source/doc file is assigned to a
   review-set.
 
-### 3.2 Multimodal LLM visual inspection
+### 2.2 Multimodal LLM visual inspection
 
 Coordinate-arithmetic tests cannot see "the end marker is filled instead of open" or "the
 connector grazes a box." Every rendering phase therefore includes a visual gate performed by the
@@ -131,12 +63,12 @@ implementing agent:
    (and, for SVG-specific behavior, convert the SVG → PNG so the vector output is inspected as
    rendered).
 2. The agent reads each image back with the multimodal `view` tool and checks the phase's
-   **specific visual criteria** (listed per phase) against the §2 notation reference and the OMG
-   `clause-8.2.3` templates / training PDF.
+   **specific visual criteria** (listed per phase) against the SysML v2 graphical-notation
+   reference in `docs/` and the OMG `clause-8.2.3` templates / training PDF.
 3. Record pass/fail per criterion; fix and re-render until all pass.
 4. Temporary `_check/` artifacts are deleted and never committed.
 
-### 3.3 Supporting-documentation updates (in the same PR, as applicable)
+### 2.3 Supporting-documentation updates (in the same PR, as applicable)
 
 | Artifact | Update when | Standard |
 |---|---|---|
@@ -148,13 +80,12 @@ implementing agent:
 | **README** | user-visible capability/feature change | keep feature claims accurate |
 | **User Guide** (`docs/user_guide/`) | CLI option / behavior / output change | reflect actual usage |
 | **Gallery** (`docs/gallery/`) | any visible rendering change | regenerate affected diagrams + captions |
-| **Rendering doc** (`docs/rendering/`, from Phase 17) | notation/technique change | update notation + technique sections |
 
-### 3.4 Process gates (run for every phase — not just the last)
+### 2.4 Process gates (run for every phase — not just the last)
 
 Before each phase's PR, in order:
 
-1. **Validate** — automated gates (§3.1) and the multimodal visual gate (§3.2) all pass.
+1. **Validate** — automated gates (§2.1) and the multimodal visual gate (§2.2) all pass.
 2. **change-review agent** — run the built-in change-review agent on the phase diff and address
    any egregious findings. Running it every phase keeps PR review comments small and catches
    issues while context is fresh.
@@ -166,11 +97,11 @@ Before each phase's PR, in order:
 `CHANGELOG`/`CHANGES.md`; write clear, descriptive commit messages so the generated notes are
 useful.
 
-### 3.5 Execution & model strategy (sub-agent delegation)
+### 2.5 Execution & model strategy (sub-agent delegation)
 
 Phases are run by an orchestrator that **delegates each task to a sub-agent launched with an
 explicitly chosen model**. Default to the cheaper driver; escalate only where deeper reasoning
-earns its cost. This is safe because the §3 gates are objective — they catch regressions, back-
+earns its cost. This is safe because the §2 gates are objective — they catch regressions, back-
 driven requirements, and notation slips regardless of which model produced the work.
 
 | Task | Sub-agent | Model |
@@ -178,10 +109,10 @@ driven requirements, and notation slips regardless of which model produced the w
 | Feature implementation (shapes/edges/line-styles/strategies) | developer / general-purpose | **Driver** (e.g. Sonnet 4.6) |
 | Doc authoring (requirements/design/verification, README, user guide) | developer / general-purpose | Driver |
 | Self-validation tests + package-validation script | developer | Driver |
-| Multimodal visual inspection (render → `view` → judge vs §2) | general-purpose (multimodal) | Driver; escalate if not converging |
+| Multimodal visual inspection (render → `view` → judge vs notation) | general-purpose (multimodal) | Driver; escalate if not converging |
 | Layout/geometry debugging that does not converge | general-purpose | **Escalation** (e.g. Opus 4.8) |
-| Per-phase change-review gate (§3.4) | code-review | **Strong reviewer** (e.g. Opus 4.8) |
-| Lint cleanup (§3.4) | lint-fix | Driver |
+| Per-phase change-review gate (§2.4) | code-review | **Strong reviewer** (e.g. Opus 4.8) |
+| Lint cleanup (§2.4) | lint-fix | Driver |
 
 Rules:
 
@@ -195,14 +126,17 @@ Rules:
 
 ---
 
-## 4. Release Phases (0.1.0)
+## 3. Release Phases (0.1.0)
 
 Each phase below lists its **scope** and its phase-specific **visual criteria**; all phases
-additionally satisfy the §3 Phase Gate (automated + multimodal + docs + process).
+additionally satisfy the §2 Phase Gate (automated + multimodal + docs + process). The
+authoritative SysML v2 graphical-notation reference used by the conformance phases lives in
+`docs/`.
 
 ### Phase 13 — Connector-end & line-style conformance
 
-Bring routed connectors into line with §2.3 — the highest-value, broadest-impact change.
+Bring routed connectors into line with the SysML v2 notation — the highest-value, broadest-impact
+change.
 
 - Wire the already-defined end markers to relationships: **filled/hollow diamonds** for
   composite/reference membership; **redefinition** crossbar variant.
@@ -214,13 +148,13 @@ Bring routed connectors into line with §2.3 — the highest-value, broadest-imp
 
 **Scope:** `LayoutLine` end-marker/line-style assignments in the view strategies; renderer
 marker defs (already present). No new engines.
-**Visual gate:** state/action/sequence/general galleries match §2.3 end shapes; membership
+**Visual gate:** state/action/sequence/general galleries match the spec end shapes; membership
 diamonds appear where membership is shown.
 
 ### Phase 15 — Additional relationship edges (General View)
 
 Render the relationships currently omitted from the General View, each routed via
-`ChannelRouter` and carrying the correct §2.3 end shape:
+`ChannelRouter` and carrying the correct spec end shape:
 
 - Redefinition, subsetting (where shown as edges), feature typing, dependency, containment,
   connection/binding, allocation.
@@ -293,17 +227,15 @@ source but not the produced packages — add a repeatable check that:
    and `--licenses`.
 3. **Library-consumer smoke test:** a throwaway project referencing each library package from the
    local feed → restore → exercise parse→layout→render-to-SVG-in-memory and render-to-PNG (again
-   proving SkiaSharp natives for `.Png` consumers — documented concern #3).
+   proving SkiaSharp natives for `.Png` consumers).
 
 **Licensing/attribution:** `--licenses` output covering Noto Sans (SIL OFL 1.1) and other OTS;
 per-package README notes incl. the SkiaSharp native-assets requirement for
 `DemaConsulting.SysML2Tools.Png` consumers.
 
 **Documentation:** the **README and User Guide must state that the Geometry View is not yet
-supported** (planned for 0.2.0). Finalise `docs/layout/` (the layout algorithm
-reference) — add the §2 notation-conventions table, an
-invariants/gotchas section, and any remaining SVG illustrations; wire into CI
-(`build.yaml`, `.fileassert.yaml`, `.reviewmark.yaml`).
+supported** (planned for 0.2.0). Finalise the layout-algorithm reference in `docs/` and wire it
+into CI (`build.yaml`, `.fileassert.yaml`, `.reviewmark.yaml`).
 
 **Gallery & packaging:** regenerate the gallery against the final notation and refresh
 `docs/gallery/README.md`; set version metadata, package descriptions/icons/tags, and 0.1.0
@@ -322,7 +254,7 @@ release with notes and gallery highlights. **Publishing requires maintainer auth
 
 ---
 
-## 5. 0.2.0 — AI-Assisted Model Analysis
+## 4. 0.2.0 — AI-Assisted Model Analysis
 
 SysML v2 is emerging as a substrate for AI-verified engineering: a machine-readable, semantically
 resolved model of a system's structure, behavior, requirements, and traceability. An AI agent
@@ -480,12 +412,12 @@ scoped and gated, and any may be pulled forward or deferred:
 - **Machine-readable `--format json` everywhere** — extend the shared formatter so every command
   (not just `query`) can emit JSON, keeping the CLI uniformly scriptable.
 
-**Gate (per option):** the §3 Phase Gate applies; each option ships with tests, docs, and stable,
+**Gate (per option):** the §2 Phase Gate applies; each option ships with tests, docs, and stable,
 deterministic output.
 
 ---
 
-## 6. Deferred Beyond 0.1.0
+## 5. Deferred Beyond 0.1.0
 
 These remain explicitly out of the 0.1.0 scope unless pulled forward:
 
@@ -500,39 +432,3 @@ These remain explicitly out of the 0.1.0 scope unless pulled forward:
 - **`export` verb** / additional output formats — see Phase 23.
 - **3D Geometry** rendering (2D projection only, even once Geometry ships in 0.2.0).
 - **Nested state regions** and other advanced behavioral notation.
-
----
-
-## 7. Layout Engine Architecture (reference)
-
-Reusable, stateless engines in `Layout/Engine/` accept plain geometric input (no SysML
-model references) and return computed geometry; each is independently unit-tested. Layered
-views (General, State Transition, Action Flow) drive their geometry through the reusable
-`LayeredLayoutPipeline` and its single-responsibility stages; `InterconnectionLayoutEngine`
-is a thin façade over that same pipeline.
-
-| Engine | Capability | Used by |
-|---|---|---|
-| `ContainmentPacker` | Bottom-up sizing + bin-packing of children in a container | General, Interconnection |
-| `ChannelRouter` | Orthogonal edge routing around obstacles, clearance-retry, perpendicular stubs | General, Interconnection, State |
-| `InterconnectionLayoutEngine` | Façade assembling the layered pipeline (`RIGHT`, recursive nesting) for the interconnection view | Interconnection |
-| `LayeredLayoutPipeline` | Reusable ELK-style Sugiyama pipeline of single-responsibility stages | General, State, Action Flow, Interconnection |
-
-Helper units: `ConnectorLabelPlacer` (collision-aware label placement), `LayoutWarnings`
-(layout diagnostics), `BoxMetrics` (sizing). Sequence/Grid/Browser/Geometry layouts are pure
-arithmetic in their strategies (no engine).
-
----
-
-## 8. LayoutTree Vocabulary Coverage (reference)
-
-| Primitive | Status |
-|---|---|
-| `LayoutBox`, `LayoutLabel`, `LayoutLine`, `LayoutCompartment`, `LayoutPort`, `LayoutLifeline`, `LayoutBadge`, `LayoutGrid` | ✅ Rendered |
-| `LayoutActivation` (sequence bars) | ✅ Defined — populated in Phase 17 |
-| `LayoutBand` (swim-lanes) | ✅ Defined — populated in Phase 17 |
-
-End-marker vocabulary (`EndMarkerStyle`): `None`, `OpenChevron`, `HollowTriangle`,
-`HollowTriangleCrossbar`, `FilledArrow`, `HollowDiamond`, `FilledDiamond`, `Circle`, `Bar` — all
-marker defs exist in both renderers; `HollowDiamond`/`FilledDiamond` and the open-chevron style are
-wired to relationships in Phase 13.
