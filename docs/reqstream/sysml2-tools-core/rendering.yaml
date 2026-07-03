@@ -15,10 +15,10 @@ sections:
     requirements:
       - id: SysML2Tools-Core-Rendering-IRenderer
         title: >-
-          The Rendering subsystem shall provide format renderers that each report the
-          media type and the default file extension of the output they produce, and that
-          write a laid-out diagram to a caller-supplied output stream according to the
-          supplied render options.
+          The Rendering subsystem shall render diagrams using off-the-shelf format renderers
+          that each report the media type and the default file extension of the output they
+          produce, and that write a laid-out diagram to a caller-supplied output stream
+          according to the supplied render options.
         justification: |
           A common IRenderer contract allows the orchestrator (DiagramRenderer) and the
           CLI tool to treat SVG and PNG renderers uniformly. Callers can select a renderer
@@ -46,10 +46,11 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-Theme
         title: >-
-          The Rendering subsystem shall provide a theme that determines a diagram's
-          complete appearance — including per-depth fill colors, stroke color and width,
-          line corner radius, title and body font sizes, label padding, and connector stub
-          and bend geometry — so that appearance is governed entirely by the selected theme.
+          The Rendering subsystem shall style diagrams using an off-the-shelf theme that
+          determines a diagram's complete appearance — including per-depth fill colors,
+          stroke color and width, line corner radius, title and body font sizes, label
+          padding, and connector stub and bend geometry — so that appearance is governed
+          entirely by the selected theme.
         justification: |
           Centralizing all visual parameters in a Theme record allows the entire appearance
           of a rendered diagram to be changed by substituting a single object, without
@@ -74,9 +75,10 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-RenderOptions
         title: >-
-          The Rendering subsystem shall let callers supply render options — a theme, a
-          scale factor defaulting to 1.0, an output resolution defaulting to 96 DPI, and a
-          depth limit defaulting to 0 (meaning unlimited) — that govern how a diagram is produced.
+          The Rendering subsystem shall configure rendering through off-the-shelf render
+          options — a theme, a scale factor defaulting to 1.0, an output resolution
+          defaulting to 96 DPI, and a depth limit defaulting to 0 (meaning unlimited) —
+          that govern how a diagram is produced.
         justification: |
           RenderOptions bundles all rendering parameters into one object passed to both
           ILayoutStrategy.BuildLayout and IRenderer.Render. A DepthLimit of 0 meaning
@@ -126,9 +128,9 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-BuiltinThemes
         title: >-
-          The Rendering subsystem shall provide at least three built-in themes: a light
-          theme for screen display, a dark theme for dark-mode display, and a print theme
-          for black-and-white output.
+          The Rendering subsystem shall have available at least three off-the-shelf themes:
+          a light theme for screen display, a dark theme for dark-mode display, and a print
+          theme for black-and-white output.
         justification: |
           Built-in themes allow callers to produce professional output without specifying
           every visual parameter. They also serve as reference values for testing and as
