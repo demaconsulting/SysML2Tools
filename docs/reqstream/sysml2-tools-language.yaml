@@ -85,8 +85,8 @@ sections:
           - WorkspaceLoader_LoadAsync_NoAnnotations_AnnotationsIsEmptyNotNull
           - WorkspaceLoader_LoadAsync_MultiLineAnnotation_PreservesTextVerbatim
           - WorkspaceLoader_LoadAsync_DocumentationExampleFixture_CapturesExpectedDocText
-          - AstSerializerTests.Serialize_Annotations_Preserved
-          - AstSerializerTests.Serialize_NoAnnotations_RoundTripsEmptyNotNull
+          - Serialize_Annotations_Preserved
+          - Serialize_NoAnnotations_RoundTripsEmptyNotNull
 
       - id: SysML2Tools-Language-RequirementTraceEdges
         title: >-
@@ -114,7 +114,7 @@ sections:
           - WorkspaceLoader_LoadAsync_8RequirementsFixture_RecordsSatisfyEdge
           - WorkspaceLoader_LoadAsync_12bAllocationFixture_RecordsAllocateEdge
           - WorkspaceLoader_LoadAsync_9VerificationSimplifiedFixture_RecordsVerifyEdge
-          - AstSerializerTests.Serialize_SatisfyAndAllocationNodes_RoundTrip
+          - Serialize_SatisfyAndAllocationNodes_RoundTrip
 
       - id: SysML2Tools-Language-FeatureChainResolution
         title: >-

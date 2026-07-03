@@ -77,9 +77,9 @@ sections:
           output; deterministic ordering is required for stable diffs and reproducible
           AI-assisted analysis workflows.
         tests:
-          - QueryRenderingTests.Query_MarkdownAndJsonFormats_AgreeOnEntryContentAndOrder
-          - QueryRenderingTests.RenderMarkdown_UnorderedEntries_SortsByQualifiedNameOrdinal
-          - QueryRenderingTests.RenderJson_UnorderedEntries_SortsByQualifiedNameOrdinal
+          - Query_MarkdownAndJsonFormats_AgreeOnEntryContentAndOrder
+          - RenderMarkdown_UnorderedEntries_SortsByQualifiedNameOrdinal
+          - RenderJson_UnorderedEntries_SortsByQualifiedNameOrdinal
 
       - id: SysML2Tools-Tool-Query-StdlibFilter
         title: >-
@@ -91,7 +91,7 @@ sections:
           rarer case of auditing library usage.
         tests:
           - Context_Create_QueryCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue
-          - QueryVerbsTests.List_IncludeStdlib_TogglesStandardLibraryVisibility
+          - List_IncludeStdlib_TogglesStandardLibraryVisibility
 
       - id: SysML2Tools-Tool-Query-ElementNotFound
         title: >-
@@ -101,7 +101,7 @@ sections:
           A precise "element not found" message (rather than a null-reference failure or
           silent empty result) helps users quickly detect typos in qualified names.
         tests:
-          - QueryErrorPathTests.Query_ElementNotFound_ReportsErrorAndNonZeroExitCode
+          - Query_ElementNotFound_ReportsErrorAndNonZeroExitCode
 
       - id: SysML2Tools-Tool-Query-Uses
         title: >-
@@ -113,7 +113,7 @@ sections:
           exposing the semantic index's outgoing-edge view directly answers it without manual
           model inspection.
         tests:
-          - QueryVerbsTests.Uses_ReportsOutgoingSupertypeTypingImportEdges
+          - Uses_ReportsOutgoingSupertypeTypingImportEdges
 
       - id: SysML2Tools-Tool-Query-UsedBy
         title: >-
@@ -124,7 +124,7 @@ sections:
           "What depends on this element?" (the reverse of uses) is essential for assessing
           the safety of changing or removing an element.
         tests:
-          - QueryVerbsTests.UsedBy_ReportsIncomingReferences
+          - UsedBy_ReportsIncomingReferences
 
       - id: SysML2Tools-Tool-Query-Impact
         title: >-
@@ -136,8 +136,8 @@ sections:
           elements; a bounded transitive closure gives a practical, terminating answer to
           "what breaks if I change this?".
         tests:
-          - QueryVerbsTests.Impact_DepthOne_OnlyReachesDirectReferences
-          - QueryVerbsTests.Impact_Unbounded_ReachesTransitiveClosure
+          - Impact_DepthOne_OnlyReachesDirectReferences
+          - Impact_Unbounded_ReachesTransitiveClosure
 
       - id: SysML2Tools-Tool-Query-Describe
         title: >-
@@ -148,9 +148,9 @@ sections:
           A single-element "fact sheet" is the most common starting point for model
           exploration, consolidating information otherwise scattered across the raw source.
         tests:
-          - QueryVerbsTests.Describe_ReportsKindSupertypesAnnotationsAndChildren
-          - QueryVerbsTests.Describe_MultiLineComment_CollapsesToSingleSummaryLine
-          - QueryOmgFixtureTests.Describe_CommentsFixture_ReportsAnnotations
+          - Describe_ReportsKindSupertypesAnnotationsAndChildren
+          - Describe_MultiLineComment_CollapsesToSingleSummaryLine
+          - Describe_CommentsFixture_ReportsAnnotations
 
       - id: SysML2Tools-Tool-Query-Hierarchy
         title: >-
@@ -161,10 +161,10 @@ sections:
           traversal answers "what is this related to via specialization?" without manual
           recursive lookups.
         tests:
-          - QueryVerbsTests.Hierarchy_DirectionUp_ReportsOnlySupertypes
-          - QueryVerbsTests.Hierarchy_DirectionDown_ReportsOnlySubtypes
-          - QueryVerbsTests.Hierarchy_DirectionBoth_ReportsSupertypesAndSubtypes
-          - QueryOmgFixtureTests.Hierarchy_GeneralizationExampleFixture_ReportsSupertypes
+          - Hierarchy_DirectionUp_ReportsOnlySupertypes
+          - Hierarchy_DirectionDown_ReportsOnlySubtypes
+          - Hierarchy_DirectionBoth_ReportsSupertypesAndSubtypes
+          - Hierarchy_GeneralizationExampleFixture_ReportsSupertypes
 
       - id: SysML2Tools-Tool-Query-Requirements
         title: >-
@@ -175,8 +175,8 @@ sections:
           systems-engineering question that the requirements verb answers directly from the
           semantic model built in unit 3.
         tests:
-          - QueryVerbsTests.Requirements_ReportsSatisfyVerifyAndAllocateEdges
-          - QueryOmgFixtureTests.Requirements_RequirementSatisfactionFixture_ReportsAtLeastOneRelationship
+          - Requirements_ReportsSatisfyVerifyAndAllocateEdges
+          - Requirements_RequirementSatisfactionFixture_ReportsAtLeastOneRelationship
 
       - id: SysML2Tools-Tool-Query-Interface
         title: >-
@@ -186,7 +186,7 @@ sections:
           elements connect to; surfacing it directly supports interface-compatibility
           analysis.
         tests:
-          - QueryVerbsTests.Interface_ReportsPortsAndTypedFeatures
+          - Interface_ReportsPortsAndTypedFeatures
 
       - id: SysML2Tools-Tool-Query-Connections
         title: >-
@@ -199,8 +199,8 @@ sections:
           connections verb performs the necessary node walk so callers do not need to know
           this implementation detail.
         tests:
-          - QueryVerbsTests.Connections_ReportsResolvedEndpointsIncludingFeatureChain
-          - QueryOmgFixtureTests.Connections_ConnectionsExampleFixture_ReportsAtLeastOneEndpoint
+          - Connections_ReportsResolvedEndpointsIncludingFeatureChain
+          - Connections_ConnectionsExampleFixture_ReportsAtLeastOneEndpoint
 
       - id: SysML2Tools-Tool-Query-States
         title: >-
@@ -211,8 +211,8 @@ sections:
           dimension from generalization/composition; the states verb answers "what states
           and transitions exist here?" directly.
         tests:
-          - QueryVerbsTests.States_ReportsStatesAndGuardedTransitions
-          - QueryOmgFixtureTests.States_StateDecompositionFixture_ReportsStatesAndTransitions
+          - States_ReportsStatesAndGuardedTransitions
+          - States_StateDecompositionFixture_ReportsStatesAndTransitions
 
       - id: SysML2Tools-Tool-Query-List
         title: >-
@@ -224,9 +224,9 @@ sections:
           querying them individually, and for kind-based inventories (e.g., "list every
           requirement").
         tests:
-          - QueryVerbsTests.List_NoFilters_ReturnsAllNonStdlibElements
-          - QueryVerbsTests.List_KindFilter_OnlyMatchesGivenKind
-          - QueryVerbsTests.List_NameFilter_OnlyMatchesGivenSubstring
+          - List_NoFilters_ReturnsAllNonStdlibElements
+          - List_KindFilter_OnlyMatchesGivenKind
+          - List_NameFilter_OnlyMatchesGivenSubstring
 
       - id: SysML2Tools-Tool-Query-Find
         title: >-
@@ -237,8 +237,8 @@ sections:
           requiring a filter prevents accidental whole-workspace output when a targeted
           search was intended.
         tests:
-          - QueryVerbsTests.Find_WithNameFilter_Succeeds
-          - QueryErrorPathTests.Find_WithoutFilter_ThrowsArgumentException
+          - Find_WithNameFilter_Succeeds
+          - Find_WithoutFilter_ThrowsArgumentException
 
       - id: SysML2Tools-Tool-Query-Help
         title: >-
