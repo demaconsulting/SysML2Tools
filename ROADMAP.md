@@ -1,139 +1,25 @@
 # SysML2Tools Roadmap
 
-This roadmap lists the work remaining to reach a **0.1.0 release** — conforming the rendered
-output to SysML v2 graphical notation, completing the remaining view dynamics, and finishing
-release packaging — followed by the **0.2.0** direction: turning SysML2Tools into an
-AI-assistable *model query and analysis* tool, not just a renderer.
+This document lists planned work — what we intend to change and notes on how to change it. It is
+deliberately limited to work to be done. Completed work (parser, semantic model, `LayoutTree`,
+the layout engines, the seven implemented view types, and the SVG/PNG renderers) lives in the git
+log and the generated release notes. Reference material for understanding the tool (SysML v2
+graphical-notation tables, layout-engine architecture, `LayoutTree` vocabulary) lives in `docs/`,
+not here.
 
-This document is intentionally limited to **work to be done**. Completed work (parser, semantic
-model, `LayoutTree`, the layout engines including Layout Engine v2, the seven implemented view
-types, and the SVG/PNG renderers) lives in the git log and the generated release notes.
-Reference material for understanding the tool (SysML v2 graphical-notation tables, layout-engine
-architecture, `LayoutTree` vocabulary) lives in `docs/`, not here. The eighth view — Geometry —
-is deferred to 0.2.0; see §4.
+The work falls into three themes:
 
----
-
-## 1. Release Goal — Definition of Done for 0.1.0
-
-0.1.0 is reached when all of the following hold:
-
-- **All 7 implemented view types render** with notation fidelity. (The 8th view, Geometry, is
-  deferred to 0.2.0 and documented as not yet supported — see §4 and Phase 17.)
-- **Graphical-notation conformance**: rendered connectors, node shapes, compartments, and
-  annotations match the SysML v2 graphical notation closely enough that a diagram is recognizable
-  to a SysML v2 practitioner — verified by visual inspection against the OMG reference templates
-  and training material.
-- **View dynamics complete**: sequence activation bars and combined fragments; action
-  fork/join/merge/decision nodes and swim-lanes.
-- **Release packaging**: third-party license/attribution output (`--licenses`), per-package
-  README notes (incl. SkiaSharp native assets), the rendering-techniques document, a regenerated
-  gallery, version metadata, and release notes.
-- **Green CI**: build/tests on net8/9/10, full `lint.ps1`, ReqStream `--enforce`, ReviewMark.
-
-Each phase below is independently reviewable and ships behind the same quality gates.
+- **Notation & view conformance** — bring rendered output in line with SysML v2 graphical notation
+  and finish the remaining view dynamics.
+- **Release & packaging** — self-validation coverage, package validation, and licensing/attribution.
+- **Model query & analysis** — turn SysML2Tools from a renderer into a model query engine that an
+  AI (or a human) drives from the command line.
 
 ---
 
-## 2. Phase Gate (every phase must satisfy)
+## Notation & view conformance
 
-Each phase is delivered on its own feature branch and merged via PR only after **all** of the
-following gates pass. A phase is not "done" until the feature **and** its supporting
-documentation ship together in the same PR.
-
-### 2.1 Automated quality gates (all must pass)
-
-- `pwsh ./build.ps1` — solution builds and all unit tests pass on **net8.0, net9.0, net10.0**,
-  zero errors, zero warnings (analyzers are warnings-as-errors).
-- **Targeted unit tests** added for the phase's new behavior, each linked from a requirement.
-- `pwsh ./lint.ps1` exits 0 — markdownlint-cli2, cspell (US English), yamllint, `dotnet format`,
-  ReqStream `--lint`, VersionMark, ReviewMark.
-- **ReqStream `--enforce`** against fresh test results — every new/changed requirement traces to
-  a passing test at its own level.
-- **ReviewMark `--lint`** — all review-sets resolve; every new source/doc file is assigned to a
-  review-set.
-
-### 2.2 Multimodal LLM visual inspection
-
-Coordinate-arithmetic tests cannot see "the end marker is filled instead of open" or "the
-connector grazes a box." Every rendering phase therefore includes a visual gate performed by the
-implementing agent:
-
-1. Publish the tool and render the affected **gallery models and targeted test models** to PNG
-   (and, for SVG-specific behavior, convert the SVG → PNG so the vector output is inspected as
-   rendered).
-2. The agent reads each image back with the multimodal `view` tool and checks the phase's
-   **specific visual criteria** (listed per phase) against the SysML v2 graphical-notation
-   reference in `docs/` and the OMG `clause-8.2.3` templates / training PDF.
-3. Record pass/fail per criterion; fix and re-render until all pass.
-4. Temporary `_check/` artifacts are deleted and never committed.
-
-### 2.3 Supporting-documentation updates (in the same PR, as applicable)
-
-| Artifact | Update when | Standard |
-|---|---|---|
-| **Requirements** (`docs/reqstream/…`) | any new observable behavior | generic WHAT; link to a passing test |
-| **Design** (`docs/design/…`) | any new behavior | the HOW (algorithms, shapes, dispatch) |
-| **Verification** (`docs/verification/…`) | any new behavior | test scenarios + acceptance criteria |
-| **ReviewMark** (`.reviewmark.yaml`) | new units/files | per-unit + subsystem review-sets |
-| **Wiring** (`requirements.yaml`, design/verification `definition.yaml`) | new doc files | include the new files |
-| **README** | user-visible capability/feature change | keep feature claims accurate |
-| **User Guide** (`docs/user_guide/`) | CLI option / behavior / output change | reflect actual usage |
-| **Gallery** (`docs/gallery/`) | any visible rendering change | regenerate affected diagrams + captions |
-
-### 2.4 Process gates (run for every phase — not just the last)
-
-Before each phase's PR, in order:
-
-1. **Validate** — automated gates (§2.1) and the multimodal visual gate (§2.2) all pass.
-2. **change-review agent** — run the built-in change-review agent on the phase diff and address
-   any egregious findings. Running it every phase keeps PR review comments small and catches
-   issues while context is fresh.
-3. **lint-fix agent** — run the built-in lint-fix agent so `lint.ps1` passes and CI does not fail
-   on formatting/spelling on first run.
-4. **Re-validate & open the PR** — branch + PR; **no direct commits to `main`**.
-
-**Release notes are generated from commit messages via the build notes** — there is no
-`CHANGELOG`/`CHANGES.md`; write clear, descriptive commit messages so the generated notes are
-useful.
-
-### 2.5 Execution & model strategy (sub-agent delegation)
-
-Phases are run by an orchestrator that **delegates each task to a sub-agent launched with an
-explicitly chosen model**. Default to the cheaper driver; escalate only where deeper reasoning
-earns its cost. This is safe because the §2 gates are objective — they catch regressions, back-
-driven requirements, and notation slips regardless of which model produced the work.
-
-| Task | Sub-agent | Model |
-|---|---|---|
-| Feature implementation (shapes/edges/line-styles/strategies) | developer / general-purpose | **Driver** (e.g. Sonnet 4.6) |
-| Doc authoring (requirements/design/verification, README, user guide) | developer / general-purpose | Driver |
-| Self-validation tests + package-validation script | developer | Driver |
-| Multimodal visual inspection (render → `view` → judge vs notation) | general-purpose (multimodal) | Driver; escalate if not converging |
-| Layout/geometry debugging that does not converge | general-purpose | **Escalation** (e.g. Opus 4.8) |
-| Per-phase change-review gate (§2.4) | code-review | **Strong reviewer** (e.g. Opus 4.8) |
-| Lint cleanup (§2.4) | lint-fix | Driver |
-
-Rules:
-
-- The orchestrator **names the model explicitly** when launching each sub-agent (model override).
-- Escalate the driver to the stronger model only after ~2 inspect-fix iterations fail to resolve
-  a visual/geometry bug on the cheaper model.
-- The **change-review gate always runs on the strong model** — it is the safety net for cheaper-
-  driver output, and keeps PR review comments minimal.
-- **Notation judgment calls where the OMG sources conflict** (e.g. open-V vs filled end markers)
-  are surfaced to the maintainer for a decision — not resolved autonomously by any model.
-
----
-
-## 3. Release Phases (0.1.0)
-
-Each phase below lists its **scope** and its phase-specific **visual criteria**; all phases
-additionally satisfy the §2 Phase Gate (automated + multimodal + docs + process). The
-authoritative SysML v2 graphical-notation reference used by the conformance phases lives in
-`docs/`.
-
-### Phase 13 — Connector-end & line-style conformance
+### Connector-end & line-style conformance
 
 Bring routed connectors into line with the SysML v2 notation — the highest-value, broadest-impact
 change.
@@ -151,7 +37,7 @@ marker defs (already present). No new engines.
 **Visual gate:** state/action/sequence/general galleries match the spec end shapes; membership
 diamonds appear where membership is shown.
 
-### Phase 15 — Additional relationship edges (General View)
+### Additional relationship edges (General View)
 
 Render the relationships currently omitted from the General View, each routed via
 `ChannelRouter` and carrying the correct spec end shape:
@@ -165,7 +51,7 @@ Render the relationships currently omitted from the General View, each routed vi
 `GeneralViewLayoutStrategy` edge emission; resolver coverage.
 **Visual gate:** a model exercising each relationship renders distinct, correctly-headed edges.
 
-### Phase 16 — Annotating elements & compartment depth
+### Annotating elements & compartment depth
 
 - Render **Documentation/Comment** notes as `BoxShape.Note` (folded-corner) nodes attached to
   their annotated element.
@@ -176,7 +62,7 @@ Render the relationships currently omitted from the General View, each routed vi
 and renderers; possibly `LayoutLabel`/compartment tweaks.
 **Visual gate:** a documented requirement/part renders its note and full compartments.
 
-### Phase 17 — View dynamics refinements
+### View dynamics refinements
 
 - **Sequence View:** populate `LayoutActivation` execution bars; combined-fragment boxes
   (alt/opt/loop); async/reply message styling.
@@ -188,15 +74,18 @@ primitives (bar, diamond, pentagon, note). `LayoutActivation`/`LayoutBand` alrea
 **Visual gate:** sequence shows activation bars + a fragment; action flow shows a fork/join and
 a decision/merge with correct shapes.
 
-### Phase 18 — Release readiness
+---
 
-**Self-validation suite (expand from 3 to ~12 tests).** Downstream projects run
-`sysml2tools --validate` in their own environment as tool-qualification evidence, and the
-win/mac/linux integration-test matrix runs it per-OS. Tests follow the DEMA naming convention
-`SysML2Tools_{Capability}` (tool prefix + descriptive capability) for instant recognition in
-per-OS evidence. Rename the existing three (drop the redundant `SelfTest` suffix) and add the
-rest; each render test emits **both `.svg` and `.png`** and asserts output validity, so SkiaSharp
-native assets are exercised on every view and every OS:
+## Release & packaging
+
+### Self-validation suite (expand from 3 to ~12 tests)
+
+Downstream projects run `sysml2tools --validate` in their own environment as tool-qualification
+evidence, and the win/mac/linux integration-test matrix runs it per-OS. Tests follow the DEMA
+naming convention `SysML2Tools_{Capability}` (tool prefix + descriptive capability) for instant
+recognition in per-OS evidence. Rename the existing three (drop the redundant `SelfTest` suffix)
+and add the rest; each render test emits **both `.svg` and `.png`** and asserts output validity,
+so SkiaSharp native assets are exercised on every view and every OS:
 
 | Test | Proves |
 |---|---|
@@ -216,8 +105,10 @@ native assets are exercised on every view and every OS:
 Validity is asserted (well-formed SVG root; PNG signature + non-zero dimensions), not exact
 bytes, so the evidence is robust across environments.
 
-**Package Validation gate (automated, before publish).** `build.ps1`/`lint.ps1` validate the
-source but not the produced packages — add a repeatable check that:
+### Package validation gate (automated, before publish)
+
+`build.ps1`/`lint.ps1` validate the source but not the produced packages — add a repeatable check
+that:
 
 1. `dotnet pack` all four packages → unzip each `.nupkg` and assert contents (expected DLLs,
    license file, third-party notices incl. Noto Sans OFL, README, icon, correct dependencies and
@@ -229,39 +120,31 @@ source but not the produced packages — add a repeatable check that:
    local feed → restore → exercise parse→layout→render-to-SVG-in-memory and render-to-PNG (again
    proving SkiaSharp natives for `.Png` consumers).
 
-**Licensing/attribution:** `--licenses` output covering Noto Sans (SIL OFL 1.1) and other OTS;
-per-package README notes incl. the SkiaSharp native-assets requirement for
-`DemaConsulting.SysML2Tools.Png` consumers.
+### Licensing, docs, gallery, publish
 
-**Documentation:** the **README and User Guide must state that the Geometry View is not yet
-supported** (planned for 0.2.0). Finalise the layout-algorithm reference in `docs/` and wire it
-into CI (`build.yaml`, `.fileassert.yaml`, `.reviewmark.yaml`).
-
-**Gallery & packaging:** regenerate the gallery against the final notation and refresh
-`docs/gallery/README.md`; set version metadata, package descriptions/icons/tags, and 0.1.0
-release notes (generated from commit messages via the build notes — no `CHANGELOG`/`CHANGES.md`);
-confirm `dotnet tool install` and library-package consumption paths.
-
-**Gate:** the self-validation suite passes on all three OSes; the package-validation script passes
-(tool installs and renders SVG + PNG; library consumer renders PNG); `--licenses` lists OFL text;
-README/User Guide note Geometry as unsupported; gallery reflects Phase 13–17 notation.
-
-### Phase 19 — 0.1.0 Release
-
-Final full-suite validation; tag `v0.1.0`; publish the four NuGet packages; create the GitHub
-release with notes and gallery highlights. **Publishing requires maintainer authorization
-(credentials, irreversible) — prepared to the edge of publish, then handed off.**
+- **Licensing/attribution:** `--licenses` output covering Noto Sans (SIL OFL 1.1) and other OTS;
+  per-package README notes incl. the SkiaSharp native-assets requirement for
+  `DemaConsulting.SysML2Tools.Png` consumers.
+- **Documentation:** README and User Guide state that the Geometry View is not yet supported.
+  Finalise the layout-algorithm reference in `docs/` and wire it into CI (`build.yaml`,
+  `.fileassert.yaml`, `.reviewmark.yaml`).
+- **Gallery & packaging:** regenerate the gallery against the final notation and refresh
+  `docs/gallery/README.md`; set version metadata, package descriptions/icons/tags, and release
+  notes (generated from commit messages via the build notes).
+- **Publish:** final full-suite validation; tag; publish the four NuGet packages; create the
+  GitHub release with notes and gallery highlights. **Publishing requires maintainer authorization
+  (credentials, irreversible) — prepared to the edge of publish, then handed off.**
 
 ---
 
-## 4. 0.2.0 — AI-Assisted Model Analysis
+## Model query & analysis
 
 SysML v2 is emerging as a substrate for AI-verified engineering: a machine-readable, semantically
 resolved model of a system's structure, behavior, requirements, and traceability. An AI agent
 changing or reviewing code could re-derive all of that by reading raw source — or it could ask
-SysML2Tools targeted questions and get small, authoritative, token-cheap answers. The 0.2.0 theme
-turns SysML2Tools from a *renderer* into a **model query and analysis engine** that an AI (or a
-human) drives from the command line.
+SysML2Tools targeted questions and get small, authoritative, token-cheap answers. This theme turns
+SysML2Tools from a *renderer* into a **model query and analysis engine** driven from the command
+line.
 
 The semantic model already parsed today (packages, definitions, features with typing and
 multiplicity, imports, views, viewpoints, connections with endpoints, transitions with guards,
@@ -270,16 +153,15 @@ substrate for this. The main new machinery is **reverse/relationship indexes** (
 table only resolves name→node forward) and, for the requirements story, first-class
 **satisfy/verify/allocate** edges and **doc**-body capture.
 
-### Phase 20 — CLI architecture: per-verb command model
+### CLI architecture: per-verb command model
 
 **Motivation.** Today the CLI has two simple commands (`lint`, `render`) served by a single
-`Context`/`ArgumentParser` and one flat arguments record. The 0.2.0 work introduces a `query`
-command with **many sub-verbs** (`uses`, `used-by`, `impact`, `describe`, `hierarchy`,
-`requirements`, `interface`, `connections`, `states`, `list`, `find`), plus dynamic-view options
-on `render`. A single flat record where every option is a nullable property on one shared object
-does not scale: verbs have different required/optional arguments, different validation, and
-different defaults, and a flat record cannot express "`--element` is required for `describe` but
-meaningless for `list`."
+`Context`/`ArgumentParser` and one flat arguments record. This theme introduces a `query` command
+with **many sub-verbs** (`uses`, `used-by`, `impact`, `describe`, `hierarchy`, `requirements`,
+`interface`, `connections`, `states`, `list`, `find`), plus dynamic-view options on `render`. A
+single flat record where every option is a nullable property on one shared object does not scale:
+verbs have different required/optional arguments, different validation, and different defaults, and
+a flat record cannot express "`--element` is required for `describe` but meaningless for `list`."
 
 **Scope.**
 
@@ -293,8 +175,7 @@ meaningless for `list`."
 - Per-verb records make required-argument enforcement, defaults, and help text **local to the
   verb** — each verb can render its own focused `--help`.
 - Preserve backward compatibility for `lint` and `render` invocations (same flags, same
-  behavior); this phase is a **refactor + extension point**, not a behavior change for existing
-  commands.
+  behavior); this is a **refactor + extension point**, not a behavior change for existing commands.
 
 **Design notes.**
 
@@ -306,9 +187,9 @@ meaningless for `list`."
   output straight into the next `--element`.
 
 **Gate:** existing `lint`/`render` behavior unchanged (regression tests); the new command model
-carries at least one non-trivial verb end-to-end (Phase 21); per-verb `--help` renders.
+carries at least one non-trivial verb end-to-end (the `query` command); per-verb `--help` renders.
 
-### Phase 21 — `query` command: model analysis for AI and humans
+### `query` command: model analysis for AI and humans
 
 Add a `query` command that answers structural, dependency, requirements, and behavioral questions
 against a loaded workspace, in an LLM-friendly format. General form:
@@ -355,12 +236,12 @@ over it; JSON is offered for agent harnesses that parse results programmatically
 - **Doc / comment bodies** — surface element documentation in `describe` output so the AI sees
   human intent, not just structure.
 
-**Scope:** `query` verb parsers (Phase 20 model); query engine over the semantic model; reverse
-index; markdown + json result renderers; new requirements/design/verification + ReviewMark.
+**Scope:** `query` verb parsers (per-verb command model); query engine over the semantic model;
+reverse index; markdown + json result renderers; new requirements/design/verification + ReviewMark.
 **Gate:** each verb has targeted tests over fixture models; markdown and json outputs carry
 identical IDs; deterministic ordering verified; `--help` per verb.
 
-### Phase 22 — Dynamic (ad-hoc) views
+### Dynamic (ad-hoc) views
 
 **Motivation.** Today rendering requires the SysML source to declare a `view`. That means a
 consumer cannot get a diagram of an element the model author did not pre-declare a view for — an
@@ -389,15 +270,15 @@ no model edits (critical for read-only AI review workflows), and composes natura
 `query` command: an AI can `query describe` an element, then `render --view-type` the most
 relevant view of it — all without touching source files.
 
-**Scope:** `render` option parsing (Phase 20 model); synthetic view construction for each view
-type; target/type compatibility validation; requirements/design/verification + ReviewMark.
+**Scope:** `render` option parsing (per-verb command model); synthetic view construction for each
+view type; target/type compatibility validation; requirements/design/verification + ReviewMark.
 **Gate:** each view type renders for a suitable ad-hoc target with no model-declared view;
 incompatible type/target combinations produce a clear diagnostic, not a broken diagram.
 
-### Phase 23 — Additional AI-analysis options (candidates)
+### Additional AI-analysis options (candidates)
 
 Lower-priority options that further support AI analysis of a model; each is independently
-scoped and gated, and any may be pulled forward or deferred:
+scoped and gated, and any may be pulled forward or dropped:
 
 - **`--format sarif` for `lint`** — `SysmlDiagnostic` is already structurally SARIF-compatible;
   emitting SARIF lets AI/CI toolchains consume lint findings through standard tooling.
@@ -412,23 +293,17 @@ scoped and gated, and any may be pulled forward or deferred:
 - **Machine-readable `--format json` everywhere** — extend the shared formatter so every command
   (not just `query`) can emit JSON, keeping the CLI uniformly scriptable.
 
-**Gate (per option):** the §2 Phase Gate applies; each option ships with tests, docs, and stable,
-deterministic output.
-
 ---
 
-## 5. Deferred Beyond 0.1.0
+## Deferred / out of scope (for now)
 
-These remain explicitly out of the 0.1.0 scope unless pulled forward:
+Not planned yet; listed so the boundary is explicit:
 
-- **Geometry View (0.2.0)** — the 8th view: 2D spatial placement (3D projected to 2D) of items
-  whose spatial coordinates are specified in the model via the SysML geometry/spatial library.
-  Deferred because it requires new semantic capability (extracting numeric attribute *values*,
-  not just structure) and a coordinate convention plus test models that use it. **0.1.0 must
-  document the Geometry View as not yet supported in the README and User Guide** (see Phase 17).
-- **SARIF** diagnostic output (`SysmlDiagnostic` is already structurally compatible) — see
-  Phase 23.
+- **Geometry View** — the 8th view: 2D spatial placement (3D projected to 2D) of items whose
+  spatial coordinates are specified in the model via the SysML geometry/spatial library. Requires
+  new semantic capability (extracting numeric attribute *values*, not just structure) and a
+  coordinate convention plus test models that use it. Until it ships, the README and User Guide
+  document it as not yet supported.
+- **3D Geometry** rendering (2D projection only, even once Geometry ships).
 - **Loadable theme files** (YAML/JSON) — the `Theme` record is forward-compatible.
-- **`export` verb** / additional output formats — see Phase 23.
-- **3D Geometry** rendering (2D projection only, even once Geometry ships in 0.2.0).
 - **Nested state regions** and other advanced behavioral notation.
