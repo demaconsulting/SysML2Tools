@@ -54,9 +54,9 @@ over resolved edges.
 | --- | --- |
 | `AstBuilder` | Visits ANTLR4 CST; builds typed AST nodes with qualified names and supertype lists |
 | `SymbolTable` | Registry mapping fully-qualified names to their AST nodes |
-| `ReferenceResolver` | Resolves supertype/typing/import refs; detects circular imports; builds a `SemanticIndex` |
+| `ReferenceResolver` | Resolves supertype/typing/import/satisfy/verify/allocate refs; builds `SemanticIndex` |
 | `SupertypeWalker` | Walks specialization chains; detects cyclic specialization |
-| `SysmlEdge` | Public record modeling one resolved directed reference (Supertype/Typing/Import) |
+| `SysmlEdge` | Public record modeling one resolved reference (Supertype/Typing/Import/Satisfy/Verify/Allocate) |
 | `SemanticIndex` | Public reverse-lookup index over resolved `SysmlEdge` instances |
 | `SysmlAnnotation` | Public record modeling one captured `comment`/`doc` annotation (Comment/Documentation) |
 

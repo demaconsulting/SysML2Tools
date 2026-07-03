@@ -17,6 +17,7 @@ namespace DemaConsulting.SysML2Tools.Semantic.Internal;
 [JsonDerivedType(typeof(SysmlViewpointNode), "viewpoint")]
 [JsonDerivedType(typeof(SysmlConnectionNode), "connection")]
 [JsonDerivedType(typeof(SysmlTransitionNode), "transition")]
+[JsonDerivedType(typeof(SysmlSatisfyNode), "satisfy")]
 public abstract class SysmlNode
 {
     /// <summary>
@@ -43,6 +44,16 @@ public abstract class SysmlNode
     ///     Gets the imported namespace names.
     /// </summary>
     public IReadOnlyList<string> ImportedNames { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    ///     Gets the raw requirement reference names verified by this node's nested <c>verify</c>
+    ///     members (from <c>requirementVerificationMember</c>), one entry per <c>verify</c>
+    ///     found directly or transitively nested in this node's specialized body (e.g. a
+    ///     <c>requirement</c>/<c>case</c>/<c>verification</c>/<c>analysis</c> body, or an
+    ///     <c>objective</c> nested within one). Resolved uniformly by <see cref="ReferenceResolver"/>
+    ///     into <see cref="SysmlEdgeKind.Verify"/> edges sourced from this node.
+    /// </summary>
+    public IReadOnlyList<string> VerifiedRequirementNames { get; init; } = Array.Empty<string>();
 
     /// <summary>
     ///     Gets or sets the resolved outgoing edges (supertype, typing, import) originating from
@@ -148,7 +159,10 @@ public sealed class SysmlViewpointNode : SysmlNode
 public sealed class SysmlConnectionNode : SysmlNode
 {
     /// <summary>
-    ///     Gets the connection keyword (e.g., "connection", "binding").
+    ///     Gets the connection keyword. One of <c>"connection"</c>, <c>"message"</c>, or
+    ///     <c>"allocation"</c> (the latter reusing this node's endpoint shape for
+    ///     <c>allocate A to B</c>, since <c>allocationUsageDeclaration</c>'s <c>connectorPart</c>
+    ///     is the exact same grammar rule used by <c>connectionUsage</c>).
     /// </summary>
     public string ConnectionKeyword { get; init; } = string.Empty;
 
@@ -182,4 +196,24 @@ public sealed class SysmlTransitionNode : SysmlNode
     ///     Gets the guard expression text (the condition after <c>if</c>), or null when unguarded.
     /// </summary>
     public string? Guard { get; init; }
+}
+
+/// <summary>
+///     AST node representing a <c>satisfy X by Y;</c> requirement-satisfaction usage.
+/// </summary>
+public sealed class SysmlSatisfyNode : SysmlNode
+{
+    /// <summary>
+    ///     Gets the raw reference text of the requirement being satisfied (from
+    ///     <c>ownedReferenceSubsetting</c> when the <c>satisfy &lt;ref&gt;</c> form is used, or
+    ///     from the declared/typed name of the <c>satisfy requirement &lt;usageDeclaration&gt;</c>
+    ///     form), or null if it could not be determined.
+    /// </summary>
+    public string? RequirementName { get; init; }
+
+    /// <summary>
+    ///     Gets the raw reference text of the satisfying subject (from the <c>by &lt;subject&gt;</c>
+    ///     clause), or null when no <c>by</c> clause is present.
+    /// </summary>
+    public string? SubjectName { get; init; }
 }

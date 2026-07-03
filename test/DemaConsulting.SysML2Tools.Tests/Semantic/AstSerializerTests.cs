@@ -220,4 +220,53 @@ public sealed class AstSerializerTests
         Assert.Equivalent(new[] { "Base1", "Base2" }, rt.SupertypeNames);
         Assert.Equivalent(new[] { "NS1", "NS2" }, rt.ImportedNames);
     }
+
+    /// <summary>
+    ///     The new <see cref="SysmlSatisfyNode"/> node type, the <c>"allocation"</c>
+    ///     <see cref="SysmlConnectionNode.ConnectionKeyword"/> variant, and
+    ///     <see cref="SysmlNode.VerifiedRequirementNames"/> all round-trip through the polymorphic
+    ///     <c>$type</c> discriminator without loss.
+    /// </summary>
+    [Fact]
+    public void Serialize_SatisfyAndAllocationNodes_RoundTrip()
+    {
+        var table = new SymbolTable();
+        table.RegisterAll(new SysmlSatisfyNode
+        {
+            Name = "sat",
+            QualifiedName = "sat",
+            RequirementName = "Spec",
+            SubjectName = "vehicle_design",
+        });
+        table.RegisterAll(new SysmlConnectionNode
+        {
+            Name = "alloc",
+            QualifiedName = "alloc",
+            ConnectionKeyword = "allocation",
+            EndpointA = "torqueGenerator",
+            EndpointB = "powerTrain",
+        });
+        table.RegisterAll(new SysmlDefinitionNode
+        {
+            Name = "verifyingCase",
+            QualifiedName = "verifyingCase",
+            DefinitionKeyword = "verification def",
+            VerifiedRequirementNames = ["MassRequirement"],
+        });
+
+        var bytes = AstSerializer.Serialize(table, []);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        var sat = Assert.IsType<SysmlSatisfyNode>(result.Symbols["sat"]);
+        Assert.Equal("Spec", sat.RequirementName);
+        Assert.Equal("vehicle_design", sat.SubjectName);
+
+        var alloc = Assert.IsType<SysmlConnectionNode>(result.Symbols["alloc"]);
+        Assert.Equal("allocation", alloc.ConnectionKeyword);
+        Assert.Equal("torqueGenerator", alloc.EndpointA);
+        Assert.Equal("powerTrain", alloc.EndpointB);
+
+        var verifyingCase = Assert.IsType<SysmlDefinitionNode>(result.Symbols["verifyingCase"]);
+        Assert.Equivalent(new[] { "MassRequirement" }, verifyingCase.VerifiedRequirementNames);
+    }
 }

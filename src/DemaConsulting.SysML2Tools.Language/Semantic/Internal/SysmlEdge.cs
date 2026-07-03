@@ -22,6 +22,29 @@ public enum SysmlEdgeKind
     ///     An import reference (<see cref="SysmlNode.ImportedNames"/> / <c>import X::Y</c> or <c>import X::*</c>).
     /// </summary>
     Import,
+
+    /// <summary>
+    ///     A requirement satisfaction reference (<c>satisfy X by Y</c>), from the satisfying
+    ///     subject (<c>Y</c>) to the satisfied requirement (<c>X</c>).
+    /// </summary>
+    Satisfy,
+
+    /// <summary>
+    ///     A requirement verification reference (<c>verify ... : Requirement</c> or
+    ///     <c>verify Requirement</c>), from the verifying case/requirement to the verified
+    ///     requirement.
+    /// </summary>
+    Verify,
+
+    /// <summary>
+    ///     An allocation reference (<c>allocate A to B</c>), recorded as a single edge
+    ///     <c>Source=A, Target=B</c> reflecting the textual left-to-right order of the
+    ///     <c>allocate</c> statement. This ordering is a documentation convention only — it does
+    ///     not imply a semantic "source causes target" direction (mirroring how
+    ///     <c>connectorPart</c>'s two ends are treated as unordered A/B endpoints elsewhere in
+    ///     the model).
+    /// </summary>
+    Allocate,
 }
 
 /// <summary>

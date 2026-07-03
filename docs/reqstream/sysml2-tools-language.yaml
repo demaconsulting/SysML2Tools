@@ -87,3 +87,31 @@ sections:
           - WorkspaceLoader_LoadAsync_DocumentationExampleFixture_CapturesExpectedDocText
           - AstSerializerTests.Serialize_Annotations_Preserved
           - AstSerializerTests.Serialize_NoAnnotations_RoundTripsEmptyNotNull
+
+      - id: SysML2Tools-Language-RequirementTraceEdges
+        title: >-
+          The Language library shall resolve requirement satisfaction (`satisfy X by Y`),
+          requirement verification (`verify`), and allocation (`allocate A to B`) references
+          into Satisfy/Verify/Allocate-kind edges recorded on the semantic index, gracefully
+          degrading to a Warning diagnostic with no edge when any side is unresolvable.
+        justification: |
+          Satisfy/Verify/Allocate edges are the requirement-traceability data the forthcoming
+          `query` command's trace/impact verbs need to answer "what satisfies/verifies this
+          requirement" and "what is this part allocated to" without a separate resolution pass.
+        tests:
+          - WorkspaceLoader_LoadAsync_SatisfyByName_RecordsSatisfyEdge
+          - WorkspaceLoader_LoadAsync_SatisfyUnresolvedSubject_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_SatisfyUnresolvedRequirement_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_SatisfyFeatureChainSubject_GracefullyUnresolved
+          - WorkspaceLoader_LoadAsync_VerifyOwnedReferenceSubsetting_RecordsVerifyEdge
+          - WorkspaceLoader_LoadAsync_VerifyTypedRequirementPlaceholder_RecordsVerifyEdge
+          - WorkspaceLoader_LoadAsync_VerifyNestedInObjectiveMember_RecordsVerifyEdge
+          - WorkspaceLoader_LoadAsync_VerifyUnresolvedReference_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_AllocateBinaryEnds_RecordsAllocateEdge
+          - WorkspaceLoader_LoadAsync_AllocateUnresolvedEnd_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_TraceEdges_ReverseIndexAnswersIncomingOutgoing
+          - WorkspaceLoader_LoadAsync_RequirementSatisfactionFixture_RecordsSatisfyEdge
+          - WorkspaceLoader_LoadAsync_8RequirementsFixture_RecordsSatisfyEdge
+          - WorkspaceLoader_LoadAsync_12bAllocationFixture_RecordsAllocateEdge
+          - WorkspaceLoader_LoadAsync_9VerificationSimplifiedFixture_RecordsVerifyEdge
+          - AstSerializerTests.Serialize_SatisfyAndAllocationNodes_RoundTrip

@@ -258,10 +258,14 @@ internal sealed class ReferenceResolver
             }
         }
 
-        // Step 3: Wildcard imports — for each `import X::*` in the file, try X::name
+        // Step 3: Wildcard imports — for each `import X::*` in the file, try X::name. X itself is
+        // resolved first (direct or via enclosing scope) so that wildcard imports of a *nested*
+        // namespace (e.g. `import Inner::*;` inside `package Outer { package Inner {...} }`)
+        // match members of the fully-qualified "Outer::Inner", not just a top-level "Inner".
         foreach (var wildcard in imports.Where(i => i.IsWildcard))
         {
-            var candidate = $"{wildcard.ImportedNamespace}::{name}";
+            var resolvedNamespace = ResolveNamespaceName(wildcard.ImportedNamespace, namespaceStack);
+            var candidate = $"{resolvedNamespace}::{name}";
             if (_symbolTable.Contains(candidate))
             {
                 resolvedName = candidate;
@@ -270,20 +274,56 @@ internal sealed class ReferenceResolver
         }
 
         // Step 4: Explicit named imports — for each `import X::Y` where Y == name,
-        // accept the reference if X::Y is a known symbol
+        // accept the reference if X::Y is a known symbol. X is resolved the same way as for
+        // wildcard imports, so a nested-namespace explicit import also matches.
         foreach (var ns in imports.Where(i => !i.IsWildcard).Select(i => i.ImportedNamespace))
         {
             var lastSep = ns.LastIndexOf("::", StringComparison.Ordinal);
+            var nsPrefix = lastSep >= 0 ? ns[..lastSep] : string.Empty;
             var lastName = lastSep >= 0 ? ns[(lastSep + 2)..] : ns;
-            if (lastName == name && _symbolTable.Contains(ns))
+            if (lastName != name)
             {
-                resolvedName = ns;
+                continue;
+            }
+
+            var resolvedPrefix = nsPrefix.Length > 0 ? ResolveNamespaceName(nsPrefix, namespaceStack) : null;
+            var candidate = resolvedPrefix is not null ? $"{resolvedPrefix}::{lastName}" : ns;
+            if (_symbolTable.Contains(candidate))
+            {
+                resolvedName = candidate;
                 return true;
             }
         }
 
         resolvedName = string.Empty;
         return false;
+    }
+
+    /// <summary>
+    ///     Resolves a raw (possibly nested-relative) namespace name referenced by an <c>import</c>
+    ///     statement to its fully-qualified form, trying a direct symbol-table lookup first and
+    ///     then progressively shorter enclosing-scope prefixes (mirroring <see cref="TryResolve"/>'s
+    ///     own Step 2). Falls back to the raw name unchanged when no match is found, preserving the
+    ///     previous behavior for namespaces that are already fully qualified or do not resolve.
+    /// </summary>
+    private string ResolveNamespaceName(string ns, IReadOnlyList<string> namespaceStack)
+    {
+        if (_symbolTable.Contains(ns))
+        {
+            return ns;
+        }
+
+        for (var i = namespaceStack.Count; i > 0; i--)
+        {
+            var prefix = string.Join("::", namespaceStack.Take(i));
+            var candidate = $"{prefix}::{ns}";
+            if (_symbolTable.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return ns;
     }
 
     /// <summary>
@@ -370,6 +410,118 @@ internal sealed class ReferenceResolver
             }
         }
 
+        // Verified requirement names — uniform with SupertypeNames/ImportedNames, sourced from
+        // the owning def/usage node's own qualified name (the verifying case/requirement).
+        foreach (var verifiedName in node.VerifiedRequirementNames)
+        {
+            if (TryResolve(verifiedName, namespaceStack, imports, out var resolvedVerified))
+            {
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedVerified, SysmlEdgeKind.Verify));
+            }
+            else if (resolvedInFile.Add(verifiedName))
+            {
+                _diagnostics.Add(new SysmlDiagnostic(
+                    filePath,
+                    0, 0,
+                    DiagnosticSeverity.Warning,
+                    $"Unresolved reference: '{verifiedName}'"));
+            }
+        }
+
+        // Satisfy usages resolve two independent sides (subject and requirement); no bespoke
+        // resolution logic is needed beyond TryResolve, but — unlike the uniform loops above — an
+        // edge is only emitted when BOTH sides resolve (graceful degradation: partial/misleading
+        // edges are never produced). Dotted feature-chain subjects (e.g. "a.b") are out of scope
+        // for this unit and simply fail to resolve as a single symbol name, which is graceful.
+        if (node is SysmlSatisfyNode satisfy)
+        {
+            string? resolvedSubject = null;
+            string? resolvedRequirement = null;
+
+            if (satisfy.SubjectName is { Length: > 0 } subjectName)
+            {
+                if (TryResolve(subjectName, namespaceStack, imports, out var subj))
+                {
+                    resolvedSubject = subj;
+                }
+                else if (resolvedInFile.Add(subjectName))
+                {
+                    _diagnostics.Add(new SysmlDiagnostic(
+                        filePath,
+                        0, 0,
+                        DiagnosticSeverity.Warning,
+                        $"Unresolved reference: '{subjectName}'"));
+                }
+            }
+
+            if (satisfy.RequirementName is { Length: > 0 } requirementName)
+            {
+                if (TryResolve(requirementName, namespaceStack, imports, out var req))
+                {
+                    resolvedRequirement = req;
+                }
+                else if (resolvedInFile.Add(requirementName))
+                {
+                    _diagnostics.Add(new SysmlDiagnostic(
+                        filePath,
+                        0, 0,
+                        DiagnosticSeverity.Warning,
+                        $"Unresolved reference: '{requirementName}'"));
+                }
+            }
+
+            if (resolvedSubject is not null && resolvedRequirement is not null)
+            {
+                nodeEdges.Add(new SysmlEdge(resolvedSubject, resolvedRequirement, SysmlEdgeKind.Satisfy));
+            }
+        }
+
+        // Allocation usages (SysmlConnectionNode reused with ConnectionKeyword == "allocation")
+        // resolve both endpoints independently, same graceful-degradation contract as satisfy.
+        // Regular "connection"/"message" endpoints remain intentionally unresolved (out of scope).
+        if (node is SysmlConnectionNode { ConnectionKeyword: "allocation" } allocation)
+        {
+            string? resolvedA = null;
+            string? resolvedB = null;
+
+            if (allocation.EndpointA is { Length: > 0 } endpointA)
+            {
+                if (TryResolve(endpointA, namespaceStack, imports, out var a))
+                {
+                    resolvedA = a;
+                }
+                else if (resolvedInFile.Add(endpointA))
+                {
+                    _diagnostics.Add(new SysmlDiagnostic(
+                        filePath,
+                        0, 0,
+                        DiagnosticSeverity.Warning,
+                        $"Unresolved reference: '{endpointA}'"));
+                }
+            }
+
+            if (allocation.EndpointB is { Length: > 0 } endpointB)
+            {
+                if (TryResolve(endpointB, namespaceStack, imports, out var b))
+                {
+                    resolvedB = b;
+                }
+                else if (resolvedInFile.Add(endpointB))
+                {
+                    _diagnostics.Add(new SysmlDiagnostic(
+                        filePath,
+                        0, 0,
+                        DiagnosticSeverity.Warning,
+                        $"Unresolved reference: '{endpointB}'"));
+                }
+            }
+
+            if (resolvedA is not null && resolvedB is not null)
+            {
+                nodeEdges.Add(new SysmlEdge(resolvedA, resolvedB, SysmlEdgeKind.Allocate));
+            }
+        }
+
         if (nodeEdges.Count > 0)
         {
             node.ResolvedEdges = nodeEdges;
@@ -377,8 +529,14 @@ internal sealed class ReferenceResolver
         }
 
         // Push this node's name onto the namespace stack before recursing into its children,
-        // mirroring the scope that was in effect when AstBuilder computed qualified names
-        var pushed = (node is SysmlPackageNode or SysmlDefinitionNode) && node.Name is not null;
+        // mirroring the scope that was in effect when AstBuilder computed qualified names.
+        // Feature nodes (e.g. a named `part` usage) are included alongside Package/Definition
+        // because AstBuilder's own QualifyName scoping (BuildUsageNode) pushes named usages onto
+        // its namespace stack the same way, and real-world satisfy/verify targets are frequently
+        // nested two or more Feature levels deep (e.g. a `satisfy`/named `requirement` usage
+        // inside a named `part { ... }` body, as in the OMG "8-Requirements.sysml" fixture) —
+        // without this, such nested references could never resolve via the enclosing-scope step.
+        var pushed = (node is SysmlPackageNode or SysmlDefinitionNode or SysmlFeatureNode) && node.Name is not null;
         if (pushed)
         {
             namespaceStack.Add(node.Name!);

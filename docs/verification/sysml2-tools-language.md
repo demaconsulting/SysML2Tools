@@ -31,6 +31,11 @@ SDK installation.
   node types, node properties, and diagnostics without loss.
 - `WorkspaceLoader.LoadAsync` with a `seedSymbolTable` correctly incorporates seed symbols
   into the resolved workspace.
+- Resolved `satisfy`/`verify`/`allocate` references are recorded as `Satisfy`/`Verify`/
+  `Allocate`-kind `SysmlEdge` entries queryable via `SysmlWorkspace.Index`.
+- Unresolved `satisfy`/`verify`/`allocate` references produce a `Warning`-severity diagnostic
+  and no edge is recorded, on either side of a two-sided reference (subject/requirement or
+  the two allocation endpoints).
 
 ## Test Scenarios
 
@@ -61,3 +66,29 @@ Primary acceptance evidence is provided by:
 - `AstSerializerTests.Serialize_Diagnostics_RoundTrip` — diagnostics round-trip with severity preserved.
 - `AstSerializerTests.Serialize_SupertypeAndImportedNames_Preserved` — supertype and import
   name lists round-trip without loss.
+- `WorkspaceLoader_LoadAsync_SatisfyByName_RecordsSatisfyEdge` /
+  `WorkspaceLoader_LoadAsync_VerifyOwnedReferenceSubsetting_RecordsVerifyEdge` /
+  `WorkspaceLoader_LoadAsync_AllocateBinaryEnds_RecordsAllocateEdge` — a resolvable
+  `satisfy`/`verify`/`allocate` usage is recorded as the corresponding edge kind.
+- `WorkspaceLoader_LoadAsync_VerifyTypedRequirementPlaceholder_RecordsVerifyEdge` /
+  `WorkspaceLoader_LoadAsync_VerifyNestedInObjectiveMember_RecordsVerifyEdge` — both `verify`
+  grammar forms (typed placeholder, and nested inside an `objective` member) are found and
+  resolved.
+- `WorkspaceLoader_LoadAsync_SatisfyUnresolvedSubject_ProducesWarningNoEdge` /
+  `WorkspaceLoader_LoadAsync_SatisfyUnresolvedRequirement_ProducesWarningNoEdge` /
+  `WorkspaceLoader_LoadAsync_VerifyUnresolvedReference_ProducesWarningNoEdge` /
+  `WorkspaceLoader_LoadAsync_AllocateUnresolvedEnd_ProducesWarningNoEdge` — an unresolvable
+  reference on either side produces a Warning diagnostic and no edge.
+- `WorkspaceLoader_LoadAsync_SatisfyFeatureChainSubject_GracefullyUnresolved` — a dotted
+  feature-chain subject fails to resolve gracefully (no crash).
+- `WorkspaceLoader_LoadAsync_TraceEdges_ReverseIndexAnswersIncomingOutgoing` — a fixture
+  combining all three new edge kinds is answered correctly by
+  `SysmlWorkspace.Index` in both directions.
+- `WorkspaceLoader_LoadAsync_RequirementSatisfactionFixture_RecordsSatisfyEdge` /
+  `WorkspaceLoader_LoadAsync_8RequirementsFixture_RecordsSatisfyEdge` /
+  `WorkspaceLoader_LoadAsync_12bAllocationFixture_RecordsAllocateEdge` /
+  `WorkspaceLoader_LoadAsync_9VerificationSimplifiedFixture_RecordsVerifyEdge` — real OMG
+  fixture files exercise each new edge kind end-to-end.
+- `AstSerializerTests.Serialize_SatisfyAndAllocationNodes_RoundTrip` — `SysmlSatisfyNode`,
+  the `"allocation"` `SysmlConnectionNode` variant, and `VerifiedRequirementNames` round-trip
+  through the polymorphic `$type` discriminator without loss.

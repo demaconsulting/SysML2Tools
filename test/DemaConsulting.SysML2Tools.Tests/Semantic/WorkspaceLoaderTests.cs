@@ -1046,6 +1046,597 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A <c>satisfy X by Y;</c> usage with both the requirement and subject resolvable should
+    ///     be recorded as a <c>Satisfy</c> edge from the resolved subject to the resolved
+    ///     requirement.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SatisfyByName_RecordsSatisfyEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    requirement def R;
+                    requirement req : R;
+                    part def Q {}
+                    part subj : Q;
+                    satisfy req by subj;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Satisfy &&
+                     e.SourceQualifiedName == "P::subj" &&
+                     e.TargetQualifiedName == "P::req");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>satisfy</c> usage whose subject cannot be resolved should produce a Warning
+    ///     diagnostic and must not produce a <c>Satisfy</c> edge (no partial edge).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SatisfyUnresolvedSubject_ProducesWarningNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    requirement def R;
+                    requirement req : R;
+                    satisfy req by nonExistentSubject;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("nonExistentSubject"));
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Satisfy);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>satisfy</c> usage whose requirement cannot be resolved should produce a Warning
+    ///     diagnostic and must not produce a <c>Satisfy</c> edge (no partial edge).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SatisfyUnresolvedRequirement_ProducesWarningNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Q {}
+                    part subj : Q;
+                    satisfy nonExistentReq by subj;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("nonExistentReq"));
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Satisfy);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>satisfy</c> usage whose subject is a dotted feature chain (e.g. <c>a.b</c>) should
+    ///     gracefully fail to resolve (no crash, Warning diagnostic, no edge) rather than crashing —
+    ///     dotted feature-chain resolution is out of scope for this unit.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SatisfyFeatureChainSubject_GracefullyUnresolved()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    requirement def R;
+                    requirement req : R;
+                    part def Q {
+                        part sub;
+                    }
+                    part container : Q;
+                    satisfy req by container.sub;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert — graceful: no crash, a Warning diagnostic, and no Satisfy edge
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("container.sub"));
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Satisfy);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>verify &lt;ref&gt;;</c> member (the redefine/reference form,
+    ///     <c>ownedReferenceSubsetting</c>) nested directly in a requirement usage's body should be
+    ///     recorded as a <c>Verify</c> edge from the owning requirement usage to the resolved
+    ///     referenced requirement.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_VerifyOwnedReferenceSubsetting_RecordsVerifyEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    requirement def R;
+                    requirement req : R;
+                    requirement outer {
+                        verify req;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Verify &&
+                     e.SourceQualifiedName == "P::outer" &&
+                     e.TargetQualifiedName == "P::req");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>verify requirement &lt;name&gt; : &lt;Type&gt;;</c> member (the typed-placeholder
+    ///     form) nested directly in a requirement usage's body should be recorded as a
+    ///     <c>Verify</c> edge to the resolved type.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_VerifyTypedRequirementPlaceholder_RecordsVerifyEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    requirement def R;
+                    requirement outer {
+                        verify requirement placeholder : R;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Verify &&
+                     e.SourceQualifiedName == "P::outer" &&
+                     e.TargetQualifiedName == "P::R");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>verify</c> member nested inside an <c>objective</c> member of a <c>case def</c>
+    ///     (the real-world <c>verification def MassTest { objective ... { verify ... } }</c>
+    ///     pattern used by OMG's <c>9-Verification-simplified.sysml</c> fixture) should still be
+    ///     found and recorded as a <c>Verify</c> edge, exercising the narrow recursive
+    ///     verification-member finder rather than the direct requirement-usage-body path.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_VerifyNestedInObjectiveMember_RecordsVerifyEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    requirement def R;
+                    case def C {
+                        objective obj {
+                            verify requirement placeholder : R;
+                        }
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Verify &&
+                     e.SourceQualifiedName == "P::C" &&
+                     e.TargetQualifiedName == "P::R");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>verify</c> member whose referenced requirement cannot be resolved should produce a
+    ///     Warning diagnostic and must not produce a <c>Verify</c> edge (no partial edge), mirroring
+    ///     the equivalent unresolved-reference tests for <c>satisfy</c>/<c>allocate</c>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_VerifyUnresolvedReference_ProducesWarningNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    requirement def R;
+                    requirement outer {
+                        verify nonExistentReq;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("nonExistentReq"));
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Verify);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     An <c>allocate A to B;</c> usage with both ends resolvable should be recorded as an
+    ///     <c>Allocate</c> edge from the resolved first end to the resolved second end, reusing
+    ///     the connector-part endpoint extraction shared with <c>connectionUsage</c>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_AllocateBinaryEnds_RecordsAllocateEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Q {}
+                    part a : Q;
+                    part b : Q;
+                    allocate a to b;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Allocate &&
+                     e.SourceQualifiedName == "P::a" &&
+                     e.TargetQualifiedName == "P::b");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     An <c>allocate</c> usage with one unresolvable end should produce a Warning diagnostic
+    ///     and must not produce an <c>Allocate</c> edge (no partial edge, no crash).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_AllocateUnresolvedEnd_ProducesWarningNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Q {}
+                    part a : Q;
+                    allocate a to nonExistentEnd;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("nonExistentEnd"));
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Allocate);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A fixture combining <c>satisfy</c>, <c>verify</c>, and <c>allocate</c> should let the
+    ///     workspace's <see cref="SysmlWorkspace.Index"/> answer both incoming and outgoing edge
+    ///     queries correctly for all three new edge kinds, mirroring unit 1's reverse-index test.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_TraceEdges_ReverseIndexAnswersIncomingOutgoing()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    requirement def R;
+                    requirement req : R;
+                    part def Q {}
+                    part subj : Q;
+                    satisfy req by subj;
+
+                    case def C {
+                        objective obj {
+                            verify requirement placeholder : R;
+                        }
+                    }
+
+                    part a : Q;
+                    part b : Q;
+                    allocate a to b;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var index = result.Workspace!.Index;
+
+            // Satisfy edge, both directions
+            Assert.Contains(index.GetOutgoingEdges("P::subj"),
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Satisfy &&
+                     e.TargetQualifiedName == "P::req");
+            Assert.Contains(index.GetIncomingEdges("P::req"),
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Satisfy &&
+                     e.SourceQualifiedName == "P::subj");
+
+            // Verify edge, both directions
+            Assert.Contains(index.GetOutgoingEdges("P::C"),
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Verify &&
+                     e.TargetQualifiedName == "P::R");
+            Assert.Contains(index.GetIncomingEdges("P::R"),
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Verify &&
+                     e.SourceQualifiedName == "P::C");
+
+            // Allocate edge, both directions
+            Assert.Contains(index.GetOutgoingEdges("P::a"),
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Allocate &&
+                     e.TargetQualifiedName == "P::b");
+            Assert.Contains(index.GetIncomingEdges("P::b"),
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Allocate &&
+                     e.SourceQualifiedName == "P::a");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Loading the full OMG <c>32.Requirements</c> training fixture set (which spans multiple
+    ///     files linked by wildcard imports) should resolve the <c>satisfy</c> usages in
+    ///     <c>RequirementSatisfaction.sysml</c> into at least one <c>Satisfy</c> edge.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RequirementSatisfactionFixture_RecordsSatisfyEdge()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var fixtureDir = Path.Combine(modelsRoot, "OMG", "training", "32.Requirements");
+        if (!Directory.Exists(fixtureDir))
+        {
+            return;
+        }
+
+        var fixtureFiles = Directory.GetFiles(fixtureDir, "*.sysml");
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync(fixtureFiles, stdlibTable);
+
+        // Assert — smoke test: at least one Satisfy edge is present (exact resolved names are not
+        // pinned, since the fixture spans multiple files and packages)
+        Assert.NotNull(result.Workspace);
+        Assert.Contains(result.Workspace!.Index.AllEdges,
+            e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Satisfy);
+    }
+
+    /// <summary>
+    ///     Loading the OMG <c>8-Requirements.sysml</c> validation fixture should resolve the named
+    ///     <c>satisfy 'vehicle1-c1 Specification' by vehicle1_c1;</c> usage (a named requirement
+    ///     <em>usage</em> target, exercising the new minimal requirement-usage visitor) into at
+    ///     least one <c>Satisfy</c> edge.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_8RequirementsFixture_RecordsSatisfyEdge()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var fixturePath = Path.Combine(modelsRoot, "OMG", "validation", "08-Requirements", "8-Requirements.sysml");
+        if (!File.Exists(fixturePath))
+        {
+            return;
+        }
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([fixturePath], stdlibTable);
+
+        // Assert
+        Assert.NotNull(result.Workspace);
+        Assert.Contains(result.Workspace!.Index.AllEdges,
+            e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Satisfy);
+    }
+
+    /// <summary>
+    ///     Loading the OMG <c>12b-Allocation.sysml</c> validation fixture should resolve the
+    ///     top-level <c>allocate torqueGenerator to powerTrain { ... }</c> usage into at least one
+    ///     <c>Allocate</c> edge.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_12bAllocationFixture_RecordsAllocateEdge()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var fixturePath = Path.Combine(
+            modelsRoot, "OMG", "validation", "12-DependencyRelationships", "12b-Allocation.sysml");
+        if (!File.Exists(fixturePath))
+        {
+            return;
+        }
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([fixturePath], stdlibTable);
+
+        // Assert
+        Assert.NotNull(result.Workspace);
+        Assert.Contains(result.Workspace!.Index.AllEdges,
+            e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Allocate);
+    }
+
+    /// <summary>
+    ///     Loading the OMG <c>9-Verification-simplified.sysml</c> validation fixture should
+    ///     resolve the <c>verify requirement massRequirement : MassRequirement;</c> member nested
+    ///     inside <c>verification def MassTest</c>'s <c>objective</c> into at least one
+    ///     <c>Verify</c> edge. (Not <c>34.Verification/VerificationCaseUsageExample.sysml</c> —
+    ///     that fixture contains no <c>verify</c> keyword at all, only a case <em>usage</em>.)
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_9VerificationSimplifiedFixture_RecordsVerifyEdge()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var fixturePath = Path.Combine(
+            modelsRoot, "OMG", "validation", "09-Verification", "9-Verification-simplified.sysml");
+        if (!File.Exists(fixturePath))
+        {
+            return;
+        }
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([fixturePath], stdlibTable);
+
+        // Assert
+        Assert.NotNull(result.Workspace);
+        Assert.Contains(result.Workspace!.Index.AllEdges,
+            e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Internal.SysmlEdgeKind.Verify);
+    }
+
+    /// <summary>
     ///     An element with a single <c>comment</c> member and no <c>doc</c> captures one
     ///     <see cref="DemaConsulting.SysML2Tools.Semantic.Internal.SysmlAnnotationKind.Comment"/>
     ///     annotation and no others.

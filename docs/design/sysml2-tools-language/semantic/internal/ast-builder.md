@@ -23,6 +23,9 @@ stack with `::` to form the fully-qualified name.
 | `VisitItemDefinition` | `ItemDefinitionContext` | `SysmlDefinitionNode` |
 | `VisitViewDefinition` | `ViewDefinitionContext` | `SysmlViewNode` |
 | `VisitViewpointDefinition` | `ViewpointDefinitionContext` | `SysmlViewpointNode` |
+| `VisitAllocationUsage` | `AllocationUsageContext` | `SysmlConnectionNode` (`ConnectionKeyword = "allocation"`) |
+| `VisitSatisfyRequirementUsage` | `SatisfyRequirementUsageContext` | `SysmlSatisfyNode` |
+| `VisitRequirementUsage` | `RequirementUsageContext` | `SysmlFeatureNode` (`FeatureKeyword = "requirement"`) |
 
 `GetDeclaredName(IdentificationContext)` handles the three grammar alternatives:
 
@@ -73,6 +76,43 @@ JSON serialization (the polymorphic type resolver rejects an unregistered runtim
 surfaced and was fixed during this unit's implementation for the `CollectTypeBodyItems`
 (KerML classifier body) call path.
 
+`VisitAllocationUsage` builds a `SysmlConnectionNode` with `ConnectionKeyword = "allocation"` for
+`allocate A to B;` usages, reusing the existing `ExtractConnectorEnds` helper: the generated
+`AllocationUsageDeclarationContext.connectorPart()` exposes the exact same `ConnectorPartContext`
+shape as `ConnectionUsageContext.connectorPart()`, so no new endpoint-extraction logic is needed.
+
+`VisitSatisfyRequirementUsage` builds a `SysmlSatisfyNode` for `satisfy X by Y;` usages. The
+satisfied requirement's raw reference text is taken from `ownedReferenceSubsetting()` when the
+`satisfy <ref>` form is used, falling back to the declared/typed name of the
+`satisfy requirement <usageDeclaration>` form. The optional satisfying subject's raw reference
+text comes from `satisfactionSubjectMember()` (the `by <subject>` clause), or is `null` when
+absent.
+
+`VisitRequirementUsage` performs a minimal capture (name/qualified-name only, so named
+requirement usages become resolvable symbols) and additionally invokes `FindVerificationMembers`
+against its own `requirementBody()` (when present) to populate `VerifiedRequirementNames` —
+covering the case where a `verify` member appears directly inside a `requirement { }` usage
+body.
+
+`FindVerificationMembers(IParseTree root)` / `CollectVerificationMembers(IParseTree, List<string>)`
+/ `ExtractVerifiedRequirementName(RequirementVerificationUsageContext?)` are a narrow, additive
+recursive tree-walk helper trio (not a generic body-traversal rewrite) used to find
+`requirementVerificationMember` nodes nested arbitrarily inside `objectiveMember →
+objectiveRequirementUsage → requirementBody` chains, since `caseBodyItem` does not expose
+`requirementVerificationMember` via a typed accessor. `FindVerificationMembers` seeds an empty
+list and delegates to `CollectVerificationMembers`, which recursively walks every child of the
+given `IParseTree`, extracting a name via `ExtractVerifiedRequirementName` whenever it encounters
+a `RequirementVerificationMemberContext`. `ExtractVerifiedRequirementName` prefers the
+`ownedReferenceSubsetting()` reference form (`verify <ref>;`), falling back to the typed-
+placeholder form's feature typing (`verify requirement <name> : <Type>;`, via the existing
+`ExtractFeatureTyping` helper). This trio is wired into 4 call sites: `VisitCaseDefinition`,
+`VisitAnalysisCaseDefinition`, `VisitVerificationCaseDefinition` (via an optional
+`specializedBody` parameter added to the shared `BuildDefinitionFromDeclaration`, defaulting to
+`null` for backward compatibility with callers that don't have a specialized body to scan), and
+`VisitRequirementUsage` (via its own `requirementBody()`). This walk is safe from double-counting
+because nothing else in `AstBuilder` currently visits into `requirementBody`/`caseBody`
+subtrees.
+
 ##### Error Handling
 
 Anonymous elements (null declared names) are silently skipped — visitor methods return `null`
@@ -86,7 +126,8 @@ results without propagating failures.
   dispatch over the CST.
 - `SysMLv2Parser` — provides all CST context types consumed by the visitor methods.
 - `SysmlNode` hierarchy (`SysmlPackageNode`, `SysmlDefinitionNode`, `SysmlViewNode`,
-  `SysmlViewpointNode`) — AST node types constructed by the visitor.
+  `SysmlViewpointNode`, `SysmlSatisfyNode`, `SysmlConnectionNode`) — AST node types constructed
+  by the visitor.
 - `SysmlAnnotation` / `SysmlAnnotationKind` — captured comment/documentation data attached to
   `SysmlNode.Annotations`.
 

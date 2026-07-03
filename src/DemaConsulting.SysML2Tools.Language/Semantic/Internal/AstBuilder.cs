@@ -367,19 +367,19 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <inheritdoc/>
     public override SysmlNode? VisitCaseDefinition(SysMLv2Parser.CaseDefinitionContext context)
     {
-        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "case def");
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "case def", context.caseBody());
     }
 
     /// <inheritdoc/>
     public override SysmlNode? VisitAnalysisCaseDefinition(SysMLv2Parser.AnalysisCaseDefinitionContext context)
     {
-        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "analysis def");
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "analysis def", context.caseBody());
     }
 
     /// <inheritdoc/>
     public override SysmlNode? VisitVerificationCaseDefinition(SysMLv2Parser.VerificationCaseDefinitionContext context)
     {
-        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "verification def");
+        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "verification def", context.caseBody());
     }
 
     /// <inheritdoc/>
@@ -470,6 +470,128 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             EndpointA = from,
             EndpointB = to,
         };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitAllocationUsage(SysMLv2Parser.AllocationUsageContext context)
+    {
+        // allocationUsageDeclaration.connectorPart() returns the exact same ConnectorPartContext
+        // type as connectionUsage.connectorPart(), so the existing ExtractConnectorEnds helper is
+        // reusable as-is for allocate's two ends.
+        var decl = context.allocationUsageDeclaration();
+        var name = GetDeclaredName(decl?.usageDeclaration()?.identification());
+        var (endpointA, endpointB) = ExtractConnectorEnds(decl?.connectorPart());
+
+        return new SysmlConnectionNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            ConnectionKeyword = "allocation",
+            EndpointA = endpointA,
+            EndpointB = endpointB,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitSatisfyRequirementUsage(SysMLv2Parser.SatisfyRequirementUsageContext context)
+    {
+        // Prefer the ownedReferenceSubsetting form (satisfy <ref> ...); fall back to the
+        // typed/declared name of the "REQUIREMENT usageDeclaration?" form.
+        var requirementName = context.ownedReferenceSubsetting()?.GetText()
+            ?? GetDeclaredName(context.usageDeclaration()?.identification())
+            ?? context.usageDeclaration()?.GetText();
+
+        var subjectName = context.satisfactionSubjectMember()?.GetText();
+
+        return new SysmlSatisfyNode
+        {
+            RequirementName = requirementName,
+            SubjectName = subjectName,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitRequirementUsage(SysMLv2Parser.RequirementUsageContext context)
+    {
+        // Minimal capture: name/qualified-name only, so that named requirement usages (the common
+        // real-world satisfy/verify target pattern) become resolvable symbols. Subject/constraint/
+        // actor compartment members remain unvisited, consistent with existing scope discipline
+        // for specialized bodies (see BuildDefinitionFromDeclaration).
+        var name = GetDeclaredName(context.constraintUsageDeclaration()?.usageDeclaration()?.identification());
+
+        var verifiedRequirementNames = context.requirementBody() is { } body
+            ? FindVerificationMembers(body)
+            : Array.Empty<string>();
+
+        return new SysmlFeatureNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            FeatureKeyword = "requirement",
+            VerifiedRequirementNames = verifiedRequirementNames,
+        };
+    }
+
+    /// <summary>
+    ///     Recursively scans a parse (sub)tree for <see cref="SysMLv2Parser.RequirementVerificationMemberContext"/>
+    ///     nodes at any depth, extracting the raw requirement reference name from each. This is a
+    ///     manual tree-walk (not <c>Visit</c>/<c>VisitChildren</c> dispatch) because nothing else
+    ///     in <see cref="AstBuilder"/> currently visits into <c>requirementBody</c>/<c>caseBody</c>
+    ///     subtrees, so no double-counting risk exists; it is intentionally narrow (only looks for
+    ///     this one context type) rather than a general-purpose parse-tree utility.
+    /// </summary>
+    private static IReadOnlyList<string> FindVerificationMembers(Antlr4.Runtime.Tree.IParseTree root)
+    {
+        var names = new List<string>();
+        CollectVerificationMembers(root, names);
+        return names;
+    }
+
+    /// <summary>Recursive helper for <see cref="FindVerificationMembers"/>.</summary>
+    private static void CollectVerificationMembers(Antlr4.Runtime.Tree.IParseTree node, List<string> names)
+    {
+        if (node is SysMLv2Parser.RequirementVerificationMemberContext member)
+        {
+            var name = ExtractVerifiedRequirementName(member.requirementVerificationUsage());
+            if (name is { Length: > 0 })
+            {
+                names.Add(name);
+            }
+
+            // requirementVerificationMember does not nest further verification members, but keep
+            // walking regardless (safe: none exist for this context in practice, and consistent
+            // with the "no special casing" design).
+        }
+
+        for (var i = 0; i < node.ChildCount; i++)
+        {
+            var child = node.GetChild(i);
+            if (child is not null)
+            {
+                CollectVerificationMembers(child, names);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Extracts the raw requirement reference name from a <c>verify</c> member's usage: either
+    ///     the redefine/reference form (<c>ownedReferenceSubsetting</c>) or the typed-placeholder
+    ///     form (<c>constraintUsageDeclaration</c>'s feature typing, reusing <see cref="ExtractFeatureTyping"/>).
+    /// </summary>
+    private static string? ExtractVerifiedRequirementName(SysMLv2Parser.RequirementVerificationUsageContext? usage)
+    {
+        if (usage is null)
+        {
+            return null;
+        }
+
+        var byReference = usage.ownedReferenceSubsetting()?.GetText();
+        if (byReference is { Length: > 0 })
+        {
+            return byReference;
+        }
+
+        return ExtractFeatureTyping(usage.constraintUsageDeclaration()?.usageDeclaration()?.featureSpecializationPart());
     }
 
     /// <inheritdoc/>
@@ -871,14 +993,24 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     for definition kinds whose grammar rule uses a specialized body (e.g. action, state,
     ///     requirement, enum) rather than the generic <c>definition</c> rule.
     /// </summary>
+    /// <param name="decl">The definition declaration (name/supertypes) to build from.</param>
+    /// <param name="keyword">The definition keyword (e.g. "requirement def").</param>
+    /// <param name="specializedBody">
+    ///     Optional specialized body (e.g. a <see cref="SysMLv2Parser.CaseBodyContext"/>) to scan
+    ///     for nested <c>verify</c> members via <see cref="FindVerificationMembers"/>. Defaults to
+    ///     <see langword="null"/>, which is behavior-neutral for callers that don't have (or don't
+    ///     need to scan) a specialized body.
+    /// </param>
     /// <remarks>
-    ///     Only the declared name and supertype names are captured. The specialized body contents
-    ///     (nested usages and compartment members) are not yet collected; that is handled in a later
-    ///     phase that adds usage and compartment rendering.
+    ///     Only the declared name, supertype names, and (when <paramref name="specializedBody"/> is
+    ///     given) nested verified-requirement names are captured. The specialized body's other
+    ///     contents (nested usages and compartment members) are not yet collected; that is handled
+    ///     in a later phase that adds usage and compartment rendering.
     /// </remarks>
     private SysmlDefinitionNode? BuildDefinitionFromDeclaration(
         SysMLv2Parser.DefinitionDeclarationContext? decl,
-        string keyword)
+        string keyword,
+        Antlr4.Runtime.Tree.IParseTree? specializedBody = null)
     {
         var name = GetDeclaredName(decl?.identification());
         if (name is null)
@@ -888,6 +1020,9 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
         var qualifiedName = QualifyName(name);
         var supertypeNames = GetSubclassificationSupertypes(decl?.subclassificationPart());
+        var verifiedRequirementNames = specializedBody is not null
+            ? FindVerificationMembers(specializedBody)
+            : Array.Empty<string>();
 
         return new SysmlDefinitionNode
         {
@@ -895,6 +1030,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             QualifiedName = qualifiedName,
             DefinitionKeyword = keyword,
             SupertypeNames = supertypeNames,
+            VerifiedRequirementNames = verifiedRequirementNames,
         };
     }
 

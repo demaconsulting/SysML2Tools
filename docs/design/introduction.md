@@ -47,13 +47,14 @@ system, subsystem, and unit levels:
     - **AstSerializer** (Unit) — serializes SymbolTable + diagnostics to UTF-8 JSON bytes
     - **AstDeserializer** (Unit) — deserializes bytes back to SymbolTable + diagnostics
     - **Internal** (Subsystem) — internal semantic implementation
-      - **SysmlNode** (Unit) — public AST node hierarchy: eight types with JSON polymorphism
+      - **SysmlNode** (Unit) — public AST node hierarchy: nine types with JSON polymorphism
       - **AstBuilder** (Unit) — builds AST from ANTLR4 CST with qualified names and supertype lists
       - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes
-      - **ReferenceResolver** (Unit) — resolves supertype, typing, and import references;
-        detects circular imports; returns a `SemanticIndex` of resolved edges
+      - **ReferenceResolver** (Unit) — resolves supertype, typing, import, satisfy, verify, and
+        allocate references; detects circular imports; returns a `SemanticIndex` of resolved edges
       - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
-      - **SysmlEdge** (Unit) — public resolved-reference record (Supertype/Typing/Import)
+      - **SysmlEdge** (Unit) — public resolved-reference record (Supertype/Typing/Import/
+        Satisfy/Verify/Allocate)
       - **SemanticIndex** (Unit) — public reverse-lookup index over resolved `SysmlEdge` instances
       - **SysmlAnnotation** (Unit) — public captured-comment/documentation record
         (Comment/Documentation)
