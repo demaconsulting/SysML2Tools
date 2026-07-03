@@ -97,6 +97,8 @@ sections:
           consumed by any IRenderer implementation, maximizing reuse.
         tests:
           - ViewContext_Construction_StoresAllFields
+          - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsSvgOutput
+          - DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames
 
       - id: SysML2Tools-Core-Rendering-DiagramRenderer
         title: >-

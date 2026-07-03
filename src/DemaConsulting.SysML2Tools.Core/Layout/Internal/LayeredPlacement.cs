@@ -45,6 +45,9 @@ internal static class LayeredPlacement
     /// <param name="edges">Directed edges between nodes (by index), in caller order.</param>
     /// <param name="direction">Primary flow direction for the layered layout.</param>
     /// <returns>The placed rectangles, routed polylines, and overall content size.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="nodes"/> or <paramref name="edges"/> is <see langword="null"/>.
+    /// </exception>
     public static PlacedLayout Place(
         IReadOnlyList<(double Width, double Height)> nodes,
         IReadOnlyList<(int From, int To)> edges,

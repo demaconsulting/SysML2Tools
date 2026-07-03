@@ -40,10 +40,10 @@ Action boxes are positioned by calling `LayeredPlacement.Place` with a top-to-bo
 direction: each action becomes a sized node and each succession a directed edge, so the flow reads
 top-to-bottom. `LayeredPlacement` delegates to the off-the-shelf `DemaConsulting.Rendering.Layout`
 layered algorithm, which returns placed rectangles for the actions and routed orthogonal polylines
-for the successions. The strategy uses the open-chevron along-line length from `NotationMetrics` in
-`DemaConsulting.Rendering.Abstractions`, plus `Theme.LineCornerRadius` and `Theme.CleanLegMargin`, so
-any routed back edge has enough final
-straight approach that the renderer's rounded corner never intrudes into the end marker. The placed
+for the successions, each already oriented source-to-target because the algorithm reverses back
+edges internally. (The previous internal engine reserved a custom straight approach for the
+open-chevron marker on reversed edges; that knob has no public equivalent, so a reversed
+succession's final approach may differ by about a pixel — a purely cosmetic change.) The placed
 coordinates are normalized so the content starts at a margin offset, reserving a `MarkerBand` of
 empty space at the top (for the start marker) and at the bottom (for the done marker). The canvas is
 sized to the full content extent, including routed succession polylines that can bulge beyond the box

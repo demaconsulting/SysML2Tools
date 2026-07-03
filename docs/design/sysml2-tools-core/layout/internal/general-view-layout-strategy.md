@@ -4,12 +4,14 @@
 
 `GeneralViewLayoutStrategy` implements `ILayoutStrategy` to produce a General View diagram. It
 renders every user-defined definition (part, port, interface, requirement, action, and so on) as
-a keyword-labelled box, groups the boxes that belong to a package inside a folder-shaped
+a keyword-labeled box, groups the boxes that belong to a package inside a folder-shaped
 container, lists each definition's owned usages in compartments, and draws specialization,
-membership, and attribute-typing edges orthogonally between the boxes. Box placement and
-intra-package edge routing are delegated through `LayeredPlacement` to the off-the-shelf
-`DemaConsulting.Rendering.Layout` layered algorithm, so definitions and their relationships are
-arranged the same way as ELK's layered algorithm.
+membership, and attribute-typing edges orthogonally between the boxes. Within each package folder,
+box placement and intra-package edge routing are delegated through `LayeredPlacement` to the
+off-the-shelf `DemaConsulting.Rendering.Layout` layered algorithm; the folders themselves are packed
+across the canvas with `ContainmentLayout.Pack`, and the rare cross-package edge is routed with
+`ConnectorRouter.Route`, both from `DemaConsulting.Rendering.Layout`. Box title and folder-tab
+geometry come from `BoxMetrics` in `DemaConsulting.Rendering.Abstractions`.
 
 ##### Data Model
 
@@ -108,8 +110,11 @@ produces valid geometry, so no crossing warnings are emitted.
 - `ILayoutStrategy` and `ViewContext` (Rendering subsystem) — the strategy contract and view input.
 - `RenderOptions` and `Theme` (`DemaConsulting.Rendering.Abstractions`) — render options and sizing
   inputs.
-- `LayeredPlacement` (Layout Internal subsystem) — box placement and orthogonal routing through
-  `DemaConsulting.Rendering.Layout`.
+- `LayeredPlacement` (Layout Internal subsystem) — per-package box placement and orthogonal routing
+  through `DemaConsulting.Rendering.Layout`.
+- `ContainmentLayout` and `ConnectorRouter` (`DemaConsulting.Rendering.Layout`) — folder packing
+  across the canvas and cross-package connector routing.
+- `BoxMetrics` (`DemaConsulting.Rendering.Abstractions`) — box title-area and folder-tab geometry.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode` (Semantic subsystem) — model input.
 - The `LayoutTree`, `LayoutBox`, `LayoutCompartment`, `LayoutLine`, and `Point2D` data types

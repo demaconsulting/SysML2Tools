@@ -62,12 +62,12 @@ sections:
           - id: SysML2Tools-OTS-DemaRendering-Routing
             title: >-
               DemaConsulting.Rendering shall route connectors as orthogonal segments between the
-              boxes it places without running them through unrelated boxes.
+              boxes it places.
             justification: |
-              Readable diagrams require connectors that turn at right angles and skirt the boxes
-              between their endpoints. The package's orthogonal router produces such polylines,
-              evidenced by forward chains that route top-to-bottom orthogonally and by the routed
-              connectors produced for an interconnection diagram whose boxes do not overlap.
+              Readable diagrams require connectors that turn at right angles between their
+              endpoints. The package's orthogonal router produces such polylines, evidenced by
+              forward chains that route top-to-bottom orthogonally and by the routed connectors
+              produced for an interconnection diagram whose boxes do not overlap.
             tags: [ots]
             tests:
               - ActionFlowView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally

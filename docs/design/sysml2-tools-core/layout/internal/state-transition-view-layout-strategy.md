@@ -42,10 +42,11 @@ State boxes are positioned by calling `LayeredPlacement.Place` with a top-to-bot
 direction: each state becomes a sized node and each non-self transition a directed edge, so the
 machine reads top-to-bottom. `LayeredPlacement` delegates to the off-the-shelf
 `DemaConsulting.Rendering.Layout` layered algorithm, which returns placed rectangles for the states
-and routed orthogonal polylines for the transitions. The strategy uses the open-chevron along-line
-length from `NotationMetrics` in `DemaConsulting.Rendering.Abstractions`, plus
-`Theme.LineCornerRadius` and `Theme.CleanLegMargin`, so any routed back edge has enough final straight
-approach that the renderer's rounded corner never intrudes into the end marker. The placed coordinates
+and routed orthogonal polylines for the transitions, each already oriented source-to-target because
+the algorithm reverses back edges internally. (The previous internal engine reserved a custom
+straight approach for the open-chevron marker on reversed edges; that knob has no public equivalent,
+so a reversed transition's final approach may differ by about a pixel — a purely cosmetic change.)
+The placed coordinates
 are normalized so the content starts at a margin offset
 (reserving room at the top for the initial marker), and the canvas is sized to the full content
 extent, including routed transition polylines that can bulge beyond the box columns and the actual
