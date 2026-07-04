@@ -1,4 +1,4 @@
-### Semantic Internal Subsystem Verification
+### Semantic Model Subsystem Verification
 
 #### Verification Approach
 

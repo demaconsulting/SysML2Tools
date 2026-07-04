@@ -8,15 +8,15 @@ operates as a second layer above the Parser subsystem, consuming ANTLR4 CSTs pro
 
 ### Interfaces
 
-The Semantic subsystem contains one public unit (`WorkspaceLoader`) and an internal subsystem
-(`Internal`) containing `AstBuilder`, `SymbolTable`, `ReferenceResolver`, `SupertypeWalker`,
+The Semantic subsystem contains one public unit (`WorkspaceLoader`) and a Model subsystem
+(`Model`) containing `AstBuilder`, `SymbolTable`, `ReferenceResolver`, `SupertypeWalker`,
 `SysmlEdge`, `SemanticIndex`, and `SysmlAnnotation`.
 
 ```mermaid
 flowchart TD
     subgraph Semantic
         WorkspaceLoader
-        subgraph Internal
+        subgraph Model
             AstBuilder
             SymbolTable
             ReferenceResolver
@@ -58,7 +58,7 @@ optionally seeded with a pre-populated symbol table.
 - *Contract*: Exposes `IReadOnlyList<string> Files`, `IReadOnlySet<string> StdlibNames`,
   `IReadOnlyDictionary<string, SysmlNode> Declarations` mapping qualified names to declaration
   nodes, and `SemanticIndex Index` — a reverse-lookup index over resolved supertype, typing,
-  and import edges (see Semantic Internal Subsystem).
+  and import edges (see Semantic Model Subsystem).
 
 ### Design
 

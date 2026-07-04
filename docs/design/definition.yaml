@@ -5,7 +5,7 @@ resource-path:
   - docs/design/sysml2-tools-language/parser
   - docs/design/sysml2-tools-language/parser/internal
   - docs/design/sysml2-tools-language/semantic
-  - docs/design/sysml2-tools-language/semantic/internal
+  - docs/design/sysml2-tools-language/semantic/model
   - docs/design/sysml2-tools-core
   - docs/design/sysml2-tools-core/layout
   - docs/design/sysml2-tools-core/layout/internal
@@ -31,12 +31,15 @@ input-files:
   - docs/design/sysml2-tools-language/semantic/workspace-loader.md
   - docs/design/sysml2-tools-language/semantic/ast-serializer.md
   - docs/design/sysml2-tools-language/semantic/ast-deserializer.md
-  - docs/design/sysml2-tools-language/semantic/internal.md
-  - docs/design/sysml2-tools-language/semantic/internal/sysml-node.md
-  - docs/design/sysml2-tools-language/semantic/internal/ast-builder.md
-  - docs/design/sysml2-tools-language/semantic/internal/symbol-table.md
-  - docs/design/sysml2-tools-language/semantic/internal/reference-resolver.md
-  - docs/design/sysml2-tools-language/semantic/internal/supertype-walker.md
+  - docs/design/sysml2-tools-language/semantic/model.md
+  - docs/design/sysml2-tools-language/semantic/model/sysml-node.md
+  - docs/design/sysml2-tools-language/semantic/model/sysml-edge.md
+  - docs/design/sysml2-tools-language/semantic/model/sysml-annotation.md
+  - docs/design/sysml2-tools-language/semantic/model/semantic-index.md
+  - docs/design/sysml2-tools-language/semantic/model/symbol-table.md
+  - docs/design/sysml2-tools-language/semantic/model/ast-builder.md
+  - docs/design/sysml2-tools-language/semantic/model/reference-resolver.md
+  - docs/design/sysml2-tools-language/semantic/model/supertype-walker.md
   - docs/design/sysml2-tools-stdlib.md
   - docs/design/sysml2-tools-stdlib/stdlib-provider.md
   - docs/design/sysml2-tools-core.md

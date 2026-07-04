@@ -5,7 +5,7 @@ resource-path:
   - docs/verification/sysml2-tools-language/parser
   - docs/verification/sysml2-tools-language/parser/internal
   - docs/verification/sysml2-tools-language/semantic
-  - docs/verification/sysml2-tools-language/semantic/internal
+  - docs/verification/sysml2-tools-language/semantic/model
   - docs/verification/sysml2-tools-core
   - docs/verification/sysml2-tools-core/layout
   - docs/verification/sysml2-tools-core/layout/internal
@@ -31,12 +31,15 @@ input-files:
   - docs/verification/sysml2-tools-language/semantic/workspace-loader.md
   - docs/verification/sysml2-tools-language/semantic/ast-serializer.md
   - docs/verification/sysml2-tools-language/semantic/ast-deserializer.md
-  - docs/verification/sysml2-tools-language/semantic/internal.md
-  - docs/verification/sysml2-tools-language/semantic/internal/sysml-node.md
-  - docs/verification/sysml2-tools-language/semantic/internal/ast-builder.md
-  - docs/verification/sysml2-tools-language/semantic/internal/symbol-table.md
-  - docs/verification/sysml2-tools-language/semantic/internal/reference-resolver.md
-  - docs/verification/sysml2-tools-language/semantic/internal/supertype-walker.md
+  - docs/verification/sysml2-tools-language/semantic/model.md
+  - docs/verification/sysml2-tools-language/semantic/model/sysml-node.md
+  - docs/verification/sysml2-tools-language/semantic/model/sysml-edge.md
+  - docs/verification/sysml2-tools-language/semantic/model/sysml-annotation.md
+  - docs/verification/sysml2-tools-language/semantic/model/semantic-index.md
+  - docs/verification/sysml2-tools-language/semantic/model/symbol-table.md
+  - docs/verification/sysml2-tools-language/semantic/model/ast-builder.md
+  - docs/verification/sysml2-tools-language/semantic/model/reference-resolver.md
+  - docs/verification/sysml2-tools-language/semantic/model/supertype-walker.md
   - docs/verification/sysml2-tools-stdlib.md
   - docs/verification/sysml2-tools-stdlib/stdlib-provider.md
   - docs/verification/sysml2-tools-core.md

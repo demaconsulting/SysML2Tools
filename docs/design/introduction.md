@@ -46,7 +46,7 @@ system, subsystem, and unit levels:
     - **WorkspaceLoader** (Unit) — public API: loads SysML/KerML files into a semantic workspace with optional seed
     - **AstSerializer** (Unit) — serializes SymbolTable + diagnostics to UTF-8 JSON bytes
     - **AstDeserializer** (Unit) — deserializes bytes back to SymbolTable + diagnostics
-    - **Internal** (Subsystem) — internal semantic implementation
+    - **Model** (Subsystem) — semantic model: public model types plus internal build/resolve implementation
       - **SysmlNode** (Unit) — public AST node hierarchy: nine types with JSON polymorphism
       - **AstBuilder** (Unit) — builds AST from ANTLR4 CST with qualified names and supertype lists
       - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes

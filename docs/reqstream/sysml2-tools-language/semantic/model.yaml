@@ -1,14 +1,14 @@
 ---
-# Semantic Internal Subsystem Requirements
+# Semantic Model Subsystem Requirements
 #
 # PURPOSE:
-# - Define requirements for the internal implementation of the Semantic subsystem
-# - Internal components: AstBuilder, SymbolTable, ReferenceResolver, SupertypeWalker
+# - Define requirements for the Semantic Model subsystem (AstBuilder, SymbolTable,
+#   ReferenceResolver, SupertypeWalker)
 
 sections:
-  - title: Semantic Internal Subsystem Requirements
+  - title: Semantic Model Subsystem Requirements
     requirements:
-      - id: SysML2Tools-Language-Semantic-Internal-AstBuild
+      - id: SysML2Tools-Language-Semantic-Model-AstBuild
         title: >-
           The internal semantic components shall build an AST from the ANTLR4 CST and
           register all named elements in the symbol table.
@@ -20,7 +20,7 @@ sections:
           - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames
           - WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition
 
-      - id: SysML2Tools-Language-Semantic-Internal-ReferenceResolution
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolution
         title: >-
           The ReferenceResolver shall resolve supertype references against the symbol table
           and produce Warning diagnostics for any unresolved names.
@@ -32,7 +32,7 @@ sections:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered
 
-      - id: SysML2Tools-Language-Semantic-Internal-SupertypeWalking
+      - id: SysML2Tools-Language-Semantic-Model-SupertypeWalking
         title: >-
           The SupertypeWalker shall traverse specialization chains and detect cyclic
           specialization, producing a Warning diagnostic for each cycle.

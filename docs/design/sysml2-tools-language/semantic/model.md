@@ -1,9 +1,9 @@
-### Semantic Internal Subsystem
+### Semantic Model Subsystem
 
 #### Overview
 
-The Semantic Internal subsystem provides the implementation details of the semantic loading pipeline.
-It contains seven units: `AstBuilder`, `SymbolTable`, `ReferenceResolver`, `SupertypeWalker`,
+The Semantic Model subsystem provides the semantic model types (public) and the internal
+build/resolve implementation of the semantic loading pipeline. It contains seven units: `AstBuilder`, `SymbolTable`, `ReferenceResolver`, `SupertypeWalker`,
 `SysmlEdge`, `SemanticIndex`, and `SysmlAnnotation`.
 
 #### Interfaces
