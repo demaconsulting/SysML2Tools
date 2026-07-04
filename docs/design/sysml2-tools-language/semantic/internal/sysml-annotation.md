@@ -38,9 +38,9 @@ N/A — `SysmlAnnotation` is a pure data record with no logic or validation.
 
 ##### Known Limitations
 
-- An annotating element with an explicit `about X` target is still attached to its lexically
-  enclosing node rather than to the referenced element `X`; resolving explicit `about` targets
-  is deferred to a future unit.
+- An annotating element with an explicit `about X` target is attached to its lexically
+  enclosing node rather than to the referenced element `X`; explicit `about` targets are not
+  currently resolved.
 - Comments/docs nested inside a relationship body (e.g.
   `alias Car for Automobile { /* ... */ }`) are not captured, since no `AstBuilder` visitor
   currently collects relationship bodies (`relationshipBody`).

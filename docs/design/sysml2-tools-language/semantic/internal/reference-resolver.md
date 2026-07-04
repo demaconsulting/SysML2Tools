@@ -92,8 +92,8 @@ walk always terminates.
 
 ##### Scope Boundary (Feature-Chain Resolution)
 
-- **`SysmlSatisfyNode` dotted subjects remain unresolved** — unchanged from unit 3; extending
-  chain resolution to `satisfy` subjects is left for a future unit.
+- **`SysmlSatisfyNode` dotted subjects remain unresolved** — unchanged from unit 3; chain
+  resolution is not currently extended to `satisfy` subjects.
 - **`"allocation"`-keyword endpoints remain single-segment-only** — unchanged from unit 3.
 - **Redefinition/subsetting compatibility is not validated** — a chain segment is matched by
   `Name` only; `:>>`/`:>`/`subsets` compatibility between the redefining and redefined feature is
