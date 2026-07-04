@@ -2,12 +2,12 @@
 # AstBuilder Requirements
 #
 # PURPOSE:
-# - Define requirements for the AstBuilder internal unit
+# - Define requirements for the AstBuilder unit (Semantic Model subsystem)
 
 sections:
   - title: AstBuilder Requirements
     requirements:
-      - id: SysML2Tools-Language-Semantic-Internal-AstBuilder-Build
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-Build
         title: >-
           AstBuilder shall visit the ANTLR4 CST produced by SysMLv2Parser and return a
           SysmlPackageNode representing the root namespace.
@@ -17,7 +17,7 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
 
-      - id: SysML2Tools-Language-Semantic-Internal-AstBuilder-QualifiedNames
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-QualifiedNames
         title: >-
           AstBuilder shall compute fully-qualified names by joining ancestor names with
           the "::" separator as it descends into nested namespaces.
@@ -28,7 +28,7 @@ sections:
           - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames
           - WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition
 
-      - id: SysML2Tools-Language-Semantic-Internal-AstBuilder-Supertypes
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-Supertypes
         title: >-
           AstBuilder shall extract supertype qualified names from subclassification and
           specialization parts and attach them to the corresponding AST node.

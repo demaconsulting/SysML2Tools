@@ -3,11 +3,24 @@
 
 using System.Text.Json.Serialization;
 
-namespace DemaConsulting.SysML2Tools.Semantic.Internal;
+namespace DemaConsulting.SysML2Tools.Semantic.Model;
 
 /// <summary>
 ///     Base class for all SysML/KerML AST nodes.
 /// </summary>
+/// <example>
+/// A consumer typically pattern-matches over <see cref="Semantic.SysmlWorkspace.Declarations"/>
+/// to find nodes of interest:
+/// <code>
+/// foreach (var (qualifiedName, node) in workspace.Declarations)
+/// {
+///     if (node is SysmlDefinitionNode { DefinitionKeyword: "part def" } partDef)
+///     {
+///         Console.WriteLine($"{qualifiedName}: {partDef.SupertypeNames.Count} supertype(s)");
+///     }
+/// }
+/// </code>
+/// </example>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
 [JsonDerivedType(typeof(SysmlPackageNode), "package")]
 [JsonDerivedType(typeof(SysmlDefinitionNode), "definition")]
@@ -74,12 +87,10 @@ public abstract class SysmlNode
     ///     members nested directly in this element's body.
     /// </summary>
     /// <remarks>
-    ///     An annotation with an explicit <c>about X</c> target is still attached to its
-    ///     lexically enclosing node rather than to the referenced element <c>X</c>; resolving
-    ///     explicit <c>about</c> targets is deferred to a future unit. Comments/docs nested
+    ///     An annotation with an explicit <c>about X</c> target is attached to its lexically
+    ///     enclosing node rather than to the referenced element <c>X</c>. Comments/docs nested
     ///     inside a relationship body (e.g. <c>alias Car for Automobile { /* ... */ }</c>) are
-    ///     also not yet captured, since no <see cref="AstBuilder"/> visitor currently collects
-    ///     relationship bodies.
+    ///     not captured, since no <see cref="AstBuilder"/> visitor collects relationship bodies.
     /// </remarks>
     public IReadOnlyList<SysmlAnnotation> Annotations { get; init; } = Array.Empty<SysmlAnnotation>();
 }
@@ -87,6 +98,10 @@ public abstract class SysmlNode
 /// <summary>
 ///     AST node representing a SysML/KerML package or namespace.
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlPackageNode : SysmlNode
 {
 }
@@ -94,6 +109,10 @@ public sealed class SysmlPackageNode : SysmlNode
 /// <summary>
 ///     AST node representing a definition element (part def, attribute def, etc.).
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlDefinitionNode : SysmlNode
 {
     /// <summary>
@@ -105,6 +124,10 @@ public sealed class SysmlDefinitionNode : SysmlNode
 /// <summary>
 ///     AST node representing a usage/feature element (part, attribute, etc.).
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlFeatureNode : SysmlNode
 {
     /// <summary>
@@ -126,6 +149,10 @@ public sealed class SysmlFeatureNode : SysmlNode
 /// <summary>
 ///     AST node representing an import declaration.
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlImportNode : SysmlNode
 {
     /// <summary>
@@ -142,6 +169,10 @@ public sealed class SysmlImportNode : SysmlNode
 /// <summary>
 ///     AST node representing a view definition.
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlViewNode : SysmlNode
 {
 }
@@ -149,6 +180,10 @@ public sealed class SysmlViewNode : SysmlNode
 /// <summary>
 ///     AST node representing a viewpoint definition.
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlViewpointNode : SysmlNode
 {
 }
@@ -156,6 +191,10 @@ public sealed class SysmlViewpointNode : SysmlNode
 /// <summary>
 ///     AST node representing a connection/binding usage between two endpoints.
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlConnectionNode : SysmlNode
 {
     /// <summary>
@@ -180,6 +219,10 @@ public sealed class SysmlConnectionNode : SysmlNode
 /// <summary>
 ///     AST node representing a state transition (source state, target state, optional guard).
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlTransitionNode : SysmlNode
 {
     /// <summary>
@@ -201,6 +244,10 @@ public sealed class SysmlTransitionNode : SysmlNode
 /// <summary>
 ///     AST node representing a <c>satisfy X by Y;</c> requirement-satisfaction usage.
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlSatisfyNode : SysmlNode
 {
     /// <summary>

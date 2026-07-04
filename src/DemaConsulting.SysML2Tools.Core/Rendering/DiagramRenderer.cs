@@ -5,7 +5,7 @@
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.SysML2Tools.Semantic;
-using DemaConsulting.SysML2Tools.Semantic.Internal;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 
 namespace DemaConsulting.SysML2Tools.Rendering;
 
@@ -20,9 +20,23 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 /// It delegates layout selection to <see cref="Internal.DiagramTypeRouter"/> and collects
 /// one <see cref="RenderOutput"/> per view found in <see cref="SysmlWorkspace.Declarations"/>.
 /// Views whose type is not supported by any available strategy are silently skipped.
+/// <para>
+/// The <see cref="RenderWorkspace"/> example below requires a concrete <c>IRenderer</c>
+/// implementation from a renderer package — see the <c>DemaConsulting.SysML2Tools.Rendering</c>
+/// namespace remarks for the exact package reference(s) needed (e.g.
+/// <c>DemaConsulting.Rendering.Svg</c> for <c>SvgRenderer</c>).
+/// </para>
 /// </remarks>
 public sealed class DiagramRenderer
 {
+    /// <summary>
+    /// Initializes a new <see cref="DiagramRenderer"/> instance. The renderer is stateless; a
+    /// single instance may be reused across multiple <see cref="RenderWorkspace"/> calls.
+    /// </summary>
+    public DiagramRenderer()
+    {
+    }
+
     /// <summary>
     /// Returns the display names of all renderable user-defined views in the workspace,
     /// mirroring the filtering applied by <see cref="RenderWorkspace"/>.
@@ -86,6 +100,20 @@ public sealed class DiagramRenderer
     /// An ordered list of <see cref="RenderOutput"/> instances, one per view in declaration order.
     /// Returns an empty list when the workspace contains no view declarations.
     /// </returns>
+    /// <example>
+    /// <code>
+    /// var diagramRenderer = new DiagramRenderer();
+    /// var svgRenderer = new SvgRenderer();
+    /// var options = new RenderOptions(Themes.Light);
+    /// var outputs = diagramRenderer.RenderWorkspace(workspace, svgRenderer, options);
+    ///
+    /// foreach (var output in outputs)
+    /// {
+    ///     await using var file = File.Create(output.SuggestedFileName);
+    ///     await output.Data.CopyToAsync(file);
+    /// }
+    /// </code>
+    /// </example>
     // S2325: instance method — future phases will inject ILayoutStrategy via constructor making this non-static
 #pragma warning disable S2325
     public IReadOnlyList<RenderOutput> RenderWorkspace(

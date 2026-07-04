@@ -11,8 +11,16 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 /// <summary>
 /// Context passed to an <see cref="ILayoutStrategy"/> describing the view to lay out.
 /// </summary>
-/// <param name="ViewName">Name of the view being rendered.</param>
-/// <param name="Workspace">The SysML workspace containing model elements.</param>
+/// <param name="ViewName">
+/// Name of the view being rendered — the display name resolved by
+/// <see cref="DiagramRenderer.RenderWorkspace"/> (the view's simple <c>Name</c> when set,
+/// otherwise its fully-qualified name).
+/// </param>
+/// <param name="Workspace">
+/// The loaded <see cref="SysmlWorkspace"/> containing all model elements, so the strategy can
+/// resolve the view's target element(s) and traverse related declarations while building the
+/// layout tree.
+/// </param>
 public sealed record ViewContext(
     string ViewName,
     SysmlWorkspace Workspace);
@@ -21,6 +29,13 @@ public sealed record ViewContext(
 /// Computes a <see cref="LayoutTree"/> from a <see cref="ViewContext"/>.
 /// Implementations are responsible for node placement and line routing (including A* path-finding).
 /// </summary>
+/// <remarks>
+/// Implement this interface to add support for a new diagram kind (e.g. a new SysML view
+/// keyword), or to swap in an alternative layout algorithm for an existing kind. Strategy
+/// selection for a given view is performed by <c>Internal.DiagramTypeRouter</c>, which
+/// <see cref="DiagramRenderer.RenderWorkspace"/> consults for each view declaration in the
+/// workspace.
+/// </remarks>
 public interface ILayoutStrategy
 {
     /// <summary>

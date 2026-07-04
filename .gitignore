@@ -91,6 +91,9 @@ __pycache__/
 **/generated/
 *.pdf
 
+# ApiMark-generated Markdown API reference documentation (regenerated on every build)
+**/api/
+
 # Test results
 TestResults/
 *.trx

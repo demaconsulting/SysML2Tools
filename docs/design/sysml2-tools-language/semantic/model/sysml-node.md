@@ -102,7 +102,7 @@ elements are filtered out by `AstBuilder` before a node is constructed.
 ##### Dependencies
 
 - No external dependencies. All node types are internal sealed classes or the abstract base class
-  within the `Semantic.Internal` namespace.
+  within the `Semantic.Model` namespace.
 
 ##### Callers
 

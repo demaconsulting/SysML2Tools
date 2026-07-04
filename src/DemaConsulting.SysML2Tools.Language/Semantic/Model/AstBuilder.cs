@@ -3,7 +3,7 @@
 
 using DemaConsulting.SysML2Tools.Parser.Antlr;
 
-namespace DemaConsulting.SysML2Tools.Semantic.Internal;
+namespace DemaConsulting.SysML2Tools.Semantic.Model;
 
 /// <summary>
 ///     Builds a SysML/KerML AST from an ANTLR4 CST produced by <see cref="SysMLv2Parser"/>.

@@ -1,15 +1,23 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
-namespace DemaConsulting.SysML2Tools.Semantic.Internal;
+namespace DemaConsulting.SysML2Tools.Semantic.Model;
 
 /// <summary>
 ///     Reverse-lookup index over resolved semantic edges (supertype, typing, import), answering
 ///     "what does X reference" and "what references X" queries in O(1) average time. Built once
 ///     per <see cref="ReferenceResolver.ResolveAll"/> pass and exposed via
-///     <see cref="Semantic.SysmlWorkspace"/> for consumption by the <c>query</c> command
-///     (<c>uses</c>/<c>used-by</c>/<c>impact</c>/<c>hierarchy</c> verbs, added in later units).
+///     <see cref="Semantic.SysmlWorkspace.Index"/> for consumption by the <c>query</c> command's
+///     <c>uses</c>/<c>used-by</c>/<c>impact</c>/<c>hierarchy</c> verbs.
 /// </summary>
+/// <example>
+/// <code>
+/// foreach (var edge in workspace.Index.GetOutgoingEdges("Vehicles::Car"))
+/// {
+///     Console.WriteLine($"Car --{edge.Kind}--> {edge.TargetQualifiedName}");
+/// }
+/// </code>
+/// </example>
 public sealed class SemanticIndex
 {
     /// <summary>

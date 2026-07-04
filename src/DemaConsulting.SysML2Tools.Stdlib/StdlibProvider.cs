@@ -3,7 +3,7 @@
 
 using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Semantic;
-using DemaConsulting.SysML2Tools.Semantic.Internal;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 
 namespace DemaConsulting.SysML2Tools.Stdlib;
 
@@ -24,6 +24,12 @@ public static class StdlibProvider
     /// <returns>
     ///     A tuple of the stdlib symbol table and any diagnostics produced during pre-compilation.
     /// </returns>
+    /// <example>
+    /// <code>
+    /// var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+    /// var result = await WorkspaceLoader.LoadAsync(options.Files, stdlibTable);
+    /// </code>
+    /// </example>
     public static (SymbolTable Table, IReadOnlyList<SysmlDiagnostic> Diagnostics) GetSymbolTable()
         => _cached.Value;
 

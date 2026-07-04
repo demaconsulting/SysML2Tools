@@ -2,13 +2,26 @@
 // Licensed under the MIT License.
 
 using DemaConsulting.SysML2Tools.Parser;
-using DemaConsulting.SysML2Tools.Semantic.Internal;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 
 namespace DemaConsulting.SysML2Tools.Semantic;
 
 /// <summary>
 ///     Loads SysML/KerML files into a semantic workspace with symbol registration and reference resolution.
 /// </summary>
+/// <remarks>
+///     <see cref="LoadAsync"/> is the primary entry point for consuming this library: it parses
+///     all supplied files in parallel, registers every declaration in a symbol table, resolves
+///     supertype/typing/import references, and walks specialization chains — returning a fully
+///     resolved <see cref="SysmlWorkspace"/> plus the aggregated diagnostics from every phase.
+///     <para>
+///     Always seed the <c>seedSymbolTable</c> parameter with the pre-compiled standard library
+///     symbol table (<c>StdlibProvider.GetSymbolTable()</c>) unless the caller has a specific
+///     reason to load user files against an empty namespace; without the stdlib seed, references
+///     to standard-library types (e.g. <c>ScalarValues::Real</c>) resolve to unresolved-reference
+///     Warning diagnostics rather than a loaded declaration.
+///     </para>
+/// </remarks>
 public static class WorkspaceLoader
 {
     /// <summary>
@@ -26,6 +39,18 @@ public static class WorkspaceLoader
     /// <returns>
     ///     A <see cref="SysmlLoadResult"/> containing the workspace and all diagnostics.
     /// </returns>
+    /// <example>
+    /// <code>
+    /// var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+    /// var result = await WorkspaceLoader.LoadAsync(["model.sysml"], stdlibTable);
+    /// if (result.HasErrors)
+    /// {
+    ///     return; // inspect result.Diagnostics for details
+    /// }
+    ///
+    /// Console.WriteLine($"Loaded {result.Workspace!.Declarations.Count} declaration(s).");
+    /// </code>
+    /// </example>
     public static async Task<SysmlLoadResult> LoadAsync(
         IEnumerable<string> filePaths,
         SymbolTable? seedSymbolTable = null)

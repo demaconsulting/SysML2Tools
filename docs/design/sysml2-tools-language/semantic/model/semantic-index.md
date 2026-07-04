@@ -5,7 +5,7 @@
 `SemanticIndex` is a reverse-lookup index over the resolved `SysmlEdge` collection produced
 by `ReferenceResolver.ResolveAll`. It answers "what does X reference" (outgoing) and "what
 references X" (incoming) queries, forming the foundation for the `query` command's
-`uses`/`used-by`/`impact`/`hierarchy` verbs added in later units.
+`uses`/`used-by`/`impact`/`hierarchy` verbs.
 
 ##### Algorithm
 

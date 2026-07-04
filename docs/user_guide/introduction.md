@@ -36,7 +36,7 @@ This user guide covers:
 Install the tool globally using the .NET CLI:
 
 ```bash
-dotnet tool install -g DemaConsulting.SysML2Tools
+dotnet tool install -g DemaConsulting.SysML2Tools.Tool
 ```
 
 # Workspaces
@@ -263,19 +263,22 @@ sysml2tools --validate --depth 2
 
 # NuGet Library Packages
 
-SysML2Tools is structured as four NuGet packages. Library consumers can take individual
-packages without pulling in the full CLI tool or native graphics binaries:
+SysML2Tools is structured as four NuGet packages. Library consumers can take a dependency
+on the core library alone, without pulling in the full CLI tool:
 
 | Package | Contents |
 | --- | --- |
-| `DemaConsulting.SysML2Tools` | Core library: parser, semantic model, layout, `IRenderer` interface |
-| `DemaConsulting.SysML2Tools.Svg` | SVG renderer — zero external dependencies |
-| `DemaConsulting.SysML2Tools.Png` | PNG renderer — requires SkiaSharp native assets at publish time |
-| `DemaConsulting.SysML2Tools.Tool` | dotnet tool — references all three packages |
+| `DemaConsulting.SysML2Tools.Language` | Library: SysML v2/KerML parser, AST, semantic model |
+| `DemaConsulting.SysML2Tools.Stdlib` | Library: pre-compiled SysML v2 standard library |
+| `DemaConsulting.SysML2Tools.Core` | Library: parser, semantic model, layout, `IRenderer` interface |
+| `DemaConsulting.SysML2Tools.Tool` | CLI tool: `lint`, `render`, `query`, and `help` commands |
 
-Consumers who need only the parsed semantic model or `LayoutTree` take a dependency on
-`DemaConsulting.SysML2Tools` only. Consumers who need SVG or PNG output opt in to the
-respective renderer package explicitly.
+Consumers who need only the parsed semantic model, `LayoutTree`, or rendering interfaces
+take a dependency on `DemaConsulting.SysML2Tools.Core` only, which automatically pulls in
+`DemaConsulting.SysML2Tools.Language` and `DemaConsulting.SysML2Tools.Stdlib` as NuGet
+dependencies. Consumers who need the CLI install `DemaConsulting.SysML2Tools.Tool` as a
+dotnet tool. Each package ships its own generated Markdown API reference documentation
+alongside its assembly.
 
 # Continuous Compliance
 

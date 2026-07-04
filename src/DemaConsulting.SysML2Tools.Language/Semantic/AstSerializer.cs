@@ -3,13 +3,19 @@
 
 using System.Text.Json;
 using DemaConsulting.SysML2Tools.Parser;
-using DemaConsulting.SysML2Tools.Semantic.Internal;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 
 namespace DemaConsulting.SysML2Tools.Semantic;
 
 /// <summary>
 ///     Serializes a <see cref="SymbolTable"/> and diagnostics to a binary blob for embedding as a resource.
 /// </summary>
+/// <remarks>
+///     Infrastructure for the standard-library pre-compilation pipeline (used by the build-time
+///     <c>StdlibGen</c> tool to produce the embedded <c>stdlib.bin</c> resource). Application code
+///     does not normally call this directly — consume the pre-compiled stdlib symbol table via
+///     <c>StdlibProvider.GetSymbolTable()</c> (the Stdlib project's <c>StdlibProvider</c> class) instead.
+/// </remarks>
 public static class AstSerializer
 {
     /// <summary>

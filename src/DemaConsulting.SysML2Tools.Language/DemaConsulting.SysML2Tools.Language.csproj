@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <IsPackable>false</IsPackable>
+    <IsPackable>true</IsPackable>
     <PackageId>DemaConsulting.SysML2Tools.Language</PackageId>
     <AssemblyName>DemaConsulting.SysML2Tools.Language</AssemblyName>
     <Version>0.0.0</Version>
@@ -16,6 +16,9 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/demaconsulting/SysML2Tools</PackageProjectUrl>
     <RepositoryUrl>https://github.com/demaconsulting/SysML2Tools</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>Icon.png</PackageIcon>
+    <PackageTags>sysml2;sysml;mbse;parser;kerml</PackageTags>
     <Copyright>Copyright DEMA Consulting</Copyright>
     <Title>SysML2 Tools Language</Title>
     <Product>DemaConsulting.SysML2Tools</Product>
@@ -36,6 +39,18 @@
     <!-- Suppress errors from ANTLR4-generated code: 1584/1658 (cref keyword syntax), 3021 (CLSCompliant) -->
     <NoWarn>1584;1658;3021</NoWarn>
 
+    <!-- Exclude the ANTLR4-generated grammar/parser/lexer/listener/visitor code-gen namespace
+         from ApiMark-generated docs. These thousands of near-duplicate generated-code doc files
+         (SysMLv2Lexer, SysMLv2Parser, listener/visitor classes, etc.) provide zero value to
+         consumers of the packaged API reference docs. Confirmed working with ApiMark.MSBuild
+         0.4.10's native exclude wildcard feature (equivalent to its CLI "exclude" option). -->
+    <ApiMarkExclude>DemaConsulting.SysML2Tools.Parser.Antlr*</ApiMarkExclude>
+
+    <!-- ApiMark Configuration: generate Markdown API reference docs from the XML doc
+         comments (see GenerateDocumentationFile above) and bundle them into the NuGet
+         package alongside the assembly. -->
+    <ApiMarkPackDocs>true</ApiMarkPackDocs>
+
     <!-- SBOM Configuration -->
     <GenerateSBOM>true</GenerateSBOM>
     <SBOMPackageName>$(Product)</SBOMPackageName>
@@ -48,12 +63,21 @@
     <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.5" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="All" />
     <PackageReference Include="Polyfill" Version="10.10.0" PrivateAssets="All" />
+    <!-- ApiMark: generate Markdown API reference docs from the XML doc comments (see
+         GenerateDocumentationFile above) and bundle them into this project's own NuGet
+         package (see ApiMarkPackDocs above). -->
+    <PackageReference Include="DemaConsulting.ApiMark.MSBuild" Version="0.4.10" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="DemaConsulting.SysML2Tools.Tests" />
     <InternalsVisibleTo Include="DemaConsulting.SysML2Tools.Stdlib" />
     <InternalsVisibleTo Include="StdlibGen" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\Icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <!-- Code Analysis Dependencies -->

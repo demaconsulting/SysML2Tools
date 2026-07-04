@@ -11,7 +11,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>sysml2tools</ToolCommandName>
     <AssemblyName>DemaConsulting.SysML2Tools</AssemblyName>
-    <PackageId>DemaConsulting.SysML2Tools</PackageId>
+    <PackageId>DemaConsulting.SysML2Tools.Tool</PackageId>
     <Version>0.0.0</Version>
     <Authors>DEMA Consulting</Authors>
     <Company>DEMA Consulting</Company>

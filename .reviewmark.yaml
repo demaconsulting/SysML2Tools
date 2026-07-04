@@ -146,22 +146,25 @@ reviews:
       - docs/design/sysml2-tools-language.md
     paths:
       - "src/DemaConsulting.SysML2Tools.Language/Parser/WorkspaceParser.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Parser/NamespaceDoc.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Parser/Internal/SysmlDiagnosticListener.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/WorkspaceLoader.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/NamespaceDoc.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/AstSerializer.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/AstDeserializer.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/SysmlLoadResult.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/SysmlWorkspace.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SysmlNode.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/AstBuilder.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SymbolTable.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/ReferenceResolver.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SupertypeWalker.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SerializedStdlib.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/AstSerializerContext.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SysmlEdge.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SemanticIndex.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SysmlAnnotation.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SysmlNode.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/NamespaceDoc.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/AstBuilder.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SymbolTable.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/ReferenceResolver.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SupertypeWalker.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SerializedStdlib.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/AstSerializerContext.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SysmlEdge.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SemanticIndex.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SysmlAnnotation.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/OmgModelsTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
@@ -216,6 +219,7 @@ reviews:
       - docs/design/sysml2-tools-stdlib.md
     paths:
       - "src/DemaConsulting.SysML2Tools.Stdlib/StdlibProvider.cs"
+      - "src/DemaConsulting.SysML2Tools.Stdlib/NamespaceDoc.cs"
       - "src/Tools/StdlibGen/Program.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/StdlibProviderTests.cs"
 
@@ -229,6 +233,7 @@ reviews:
       - "docs/design/sysml2-tools-stdlib/stdlib-provider.md"
       - "docs/verification/sysml2-tools-stdlib/stdlib-provider.md"
       - "src/DemaConsulting.SysML2Tools.Stdlib/StdlibProvider.cs"
+      - "src/DemaConsulting.SysML2Tools.Stdlib/NamespaceDoc.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/StdlibProviderTests.cs"
 
   # SysML2Tools Core Library
@@ -352,13 +357,15 @@ reviews:
       - docs/design/sysml2-tools-language.md
     paths:
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/WorkspaceLoader.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/NamespaceDoc.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/SysmlLoadResult.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/SysmlWorkspace.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SysmlNode.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/AstBuilder.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SymbolTable.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/ReferenceResolver.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SupertypeWalker.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SysmlNode.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/NamespaceDoc.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/AstBuilder.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SymbolTable.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/ReferenceResolver.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SupertypeWalker.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
 
@@ -386,6 +393,7 @@ reviews:
       - "docs/design/sysml2-tools-language/parser/workspace-parser.md"
       - "docs/verification/sysml2-tools-language/parser/workspace-parser.md"
       - "src/DemaConsulting.SysML2Tools.Language/Parser/WorkspaceParser.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Parser/NamespaceDoc.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
 
   - id: SysML2Tools-Language-Parser-Internal-SysmlDiagnosticListener
@@ -414,8 +422,8 @@ reviews:
       - "docs/design/sysml2-tools-language/semantic/ast-serializer.md"
       - "docs/verification/sysml2-tools-language/semantic/ast-serializer.md"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/AstSerializer.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/SerializedStdlib.cs"
-      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Internal/AstSerializerContext.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SerializedStdlib.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/AstSerializerContext.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstSerializerTests.cs"
 
   - id: SysML2Tools-Language-Semantic-AstDeserializer
@@ -629,6 +637,7 @@ reviews:
       - docs/design/sysml2-tools-core/rendering.md
     paths:
       - "src/DemaConsulting.SysML2Tools.Core/Rendering/ILayoutStrategy.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/NamespaceDoc.cs"
       - "src/DemaConsulting.SysML2Tools.Core/Rendering/Internal/StdlibFilter.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Rendering/RenderingTests.cs"
 

@@ -3,7 +3,7 @@
 
 using DemaConsulting.SysML2Tools.Parser;
 
-namespace DemaConsulting.SysML2Tools.Semantic.Internal;
+namespace DemaConsulting.SysML2Tools.Semantic.Model;
 
 /// <summary>
 ///     Walks specialization chains to validate supertype references and detect cycles.
