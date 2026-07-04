@@ -36,6 +36,13 @@
     <!-- Suppress errors from ANTLR4-generated code: 1584/1658 (cref keyword syntax), 3021 (CLSCompliant) -->
     <NoWarn>1584;1658;3021</NoWarn>
 
+    <!-- Exclude the ANTLR4-generated grammar/parser/lexer/listener/visitor code-gen namespace
+         from ApiMark-generated docs. These thousands of near-duplicate generated-code doc files
+         (SysMLv2Lexer, SysMLv2Parser, listener/visitor classes, etc.) provide zero value to
+         consumers of the packaged API reference docs. Confirmed working with ApiMark.MSBuild
+         0.4.10's native exclude wildcard feature (equivalent to its CLI "exclude" option). -->
+    <ApiMarkExclude>DemaConsulting.SysML2Tools.Parser.Antlr*</ApiMarkExclude>
+
     <!-- SBOM Configuration -->
     <GenerateSBOM>true</GenerateSBOM>
     <SBOMPackageName>$(Product)</SBOMPackageName>
@@ -52,7 +59,7 @@
          GenerateDocumentationFile above). This project is IsPackable=false and has no nupkg
          of its own; its generated api/ folder is folded into DemaConsulting.SysML2Tools.Core's
          package by the CopyLanguageAndStdlibApiDocsToPackage target in Core.csproj. -->
-    <PackageReference Include="DemaConsulting.ApiMark.MSBuild" Version="0.4.9" PrivateAssets="All" />
+    <PackageReference Include="DemaConsulting.ApiMark.MSBuild" Version="0.4.10" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>

@@ -55,7 +55,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.5" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="All" />
-    <PackageReference Include="DemaConsulting.ApiMark.MSBuild" Version="0.4.9" PrivateAssets="All" />
+    <PackageReference Include="DemaConsulting.ApiMark.MSBuild" Version="0.4.10" PrivateAssets="All" />
     <PackageReference Include="DemaConsulting.Rendering.Layout" Version="0.1.0-beta.2" />
   </ItemGroup>
 
