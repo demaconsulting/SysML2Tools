@@ -11,9 +11,10 @@ The library contains two subsystems: **Parser** and **Semantic**. The Parser sub
 provides syntax-level parsing, while the Semantic subsystem builds a symbol table and performs
 reference resolution. The Parser subsystem contains the public API unit (`WorkspaceParser`)
 and an internal unit (`SysmlDiagnosticListener`). The Semantic subsystem contains the public
-`WorkspaceLoader` unit, serialization units (`AstSerializer`, `AstDeserializer`), and an
-internal subsystem with `AstBuilder`, `SymbolTable`, `ReferenceResolver`, `SupertypeWalker`,
-`SysmlNode`, `SerializedStdlib`, and `AstSerializerContext`.
+`WorkspaceLoader` unit, serialization units (`AstSerializer`, `AstDeserializer`), and the
+**Model** subsystem — a public API surface (not internal) with `AstBuilder`, `SymbolTable`,
+`ReferenceResolver`, `SupertypeWalker`, `SysmlNode` (and its subtypes), `SysmlEdge`,
+`SysmlAnnotation`, `SemanticIndex`, `SerializedStdlib`, and `AstSerializerContext`.
 Supporting data types (`SysmlLoadResult`, `SysmlWorkspace`) are declared at the `Semantic`
 namespace level. `DiagnosticSeverity`, `SysmlDiagnostic`, and `WorkspaceParseResult` remain
 in the `Parser` namespace.
@@ -33,6 +34,9 @@ flowchart TD
         ReferenceResolver
         SupertypeWalker
         SysmlNode
+        SysmlEdge
+        SysmlAnnotation
+        SemanticIndex
         SerializedStdlib
         AstSerializerContext
     end
@@ -101,8 +105,9 @@ and diagnostics.
 
 - *Type*: Public abstract class with JSON polymorphism attributes.
 - *Role*: Data model.
-- *Contract*: Six concrete subtypes: `SysmlPackageNode`, `SysmlDefinitionNode`, `SysmlFeatureNode`,
-  `SysmlImportNode`, `SysmlViewNode`, `SysmlViewpointNode`. All are public and JSON-serializable.
+- *Contract*: Nine concrete subtypes: `SysmlPackageNode`, `SysmlDefinitionNode`, `SysmlFeatureNode`,
+  `SysmlImportNode`, `SysmlViewNode`, `SysmlViewpointNode`, `SysmlConnectionNode`,
+  `SysmlTransitionNode`, `SysmlSatisfyNode`. All are public and JSON-serializable.
 
 **SysmlLoadResult**: Aggregate result record returned by `WorkspaceLoader.LoadAsync`.
 

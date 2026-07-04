@@ -58,6 +58,15 @@ diagnostics produced during pre-compilation.
 
 N/A — not a safety-classified software item.
 
+## Packaging
+
+`DemaConsulting.SysML2Tools.Stdlib` is an independently packable NuGet package
+(`IsPackable=true`) with its own `GenerateDocumentationFile` and `DemaConsulting.ApiMark.MSBuild`
+(`ApiMarkPackDocs=true`) wiring, so it bundles its own `api/` folder of ApiMark-generated
+API reference documentation and the embedded `stdlib.bin` resource. Consumers of
+`DemaConsulting.SysML2Tools.Core` receive this package transitively via a normal NuGet
+`<dependency>` reference — it is not embedded into another package's assembly.
+
 ## Data Flow
 
 ### Build-Time Flow

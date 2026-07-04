@@ -36,9 +36,9 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 /// <code>
 /// var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
 /// var loadResult = await WorkspaceLoader.LoadAsync(["model.sysml"], stdlibTable);
-/// if (loadResult.Workspace is null)
+/// if (loadResult.HasErrors)
 /// {
-///     return; // parse/resolution errors — see loadResult.Diagnostics
+///     return; // inspect loadResult.Diagnostics for details
 /// }
 ///
 /// var diagramRenderer = new DiagramRenderer();

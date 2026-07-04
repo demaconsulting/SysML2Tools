@@ -79,6 +79,16 @@ flowchart TD
 - **DemaConsulting.SysML2Tools.Stdlib** — provides `StdlibProvider.GetSymbolTable()` used
   by `DiagramRenderer` to seed the semantic workspace with the pre-compiled standard library.
 
+## Packaging
+
+The `DemaConsulting.SysML2Tools.Core` NuGet package is built with `GenerateDocumentationFile`
+and `DemaConsulting.ApiMark.MSBuild` (`ApiMarkPackDocs=true`), so an `api/` folder of
+ApiMark-generated API reference documentation for this library's own public types is bundled
+into the package at pack time. `Language` and `Stdlib` are independent, separately packable
+NuGet packages that bundle their own API reference documentation the same way; Core references
+them via normal `<ProjectReference>`s that `dotnet pack` resolves to ordinary NuGet
+`<dependency>` entries (not embedded assemblies).
+
 ## Risk Control Measures
 
 N/A — not a safety-classified software item.

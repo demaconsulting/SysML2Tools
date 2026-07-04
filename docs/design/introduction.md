@@ -67,7 +67,7 @@ system, subsystem, and unit levels:
 - **StdlibGen** (Build-time tool) — console tool that parses stdlib source files and writes stdlib.bin
   (build-time tooling; excluded from the software-items requirements/design/verification tree — see _Scope_)
   - **Program** (Unit) — entry point: parses stdlib, runs resolution, serializes to stdlib.bin
-- **DemaConsulting.SysML2Tools** (System) — core library: layout strategies, rendering
+- **DemaConsulting.SysML2Tools.Core** (System) — core library: layout strategies, rendering
   orchestration, and the SysML-coupled rendering pipeline
   - **Layout** (Subsystem) — maps the SysML semantic model onto the off-the-shelf `LayoutTree`
     intermediate representation and delegates geometric placement and routing to the off-the-shelf

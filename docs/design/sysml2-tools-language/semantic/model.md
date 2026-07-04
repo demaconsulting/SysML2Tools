@@ -2,10 +2,12 @@
 
 #### Overview
 
-The Semantic Model subsystem provides the semantic model types (public) and the internal
-build/resolve implementation of the semantic loading pipeline. It contains seven units:
-`AstBuilder`, `SymbolTable`, `ReferenceResolver`, `SupertypeWalker`, `SysmlEdge`,
-`SemanticIndex`, and `SysmlAnnotation`.
+The Semantic Model subsystem provides the public semantic model types (`SysmlNode` and its
+subtypes, `SysmlEdge`, `SysmlAnnotation`, `SemanticIndex`) alongside the internal build/resolve
+implementation of the semantic loading pipeline (`AstBuilder`, `SymbolTable`,
+`ReferenceResolver`, `SupertypeWalker`). It contains eight units: `AstBuilder`, `SymbolTable`,
+`ReferenceResolver`, `SupertypeWalker`, `SysmlNode`, `SysmlEdge`, `SemanticIndex`, and
+`SysmlAnnotation`.
 
 #### Interfaces
 
@@ -57,6 +59,7 @@ over resolved edges.
 | `SymbolTable` | Registry mapping fully-qualified names to their AST nodes |
 | `ReferenceResolver` | Resolves supertype/typing/import/satisfy/verify/allocate/connect/transition refs; builds index |
 | `SupertypeWalker` | Walks specialization chains; detects cyclic specialization |
+| `SysmlNode` | Public abstract base record (and subtypes) modeling one parsed AST element |
 | `SysmlEdge` | Public record modeling one resolved reference (Supertype/Typing/Import/Satisfy/Verify/Allocate/etc.) |
 | `SemanticIndex` | Public reverse-lookup index over resolved `SysmlEdge` instances |
 | `SysmlAnnotation` | Public record modeling one captured `comment`/`doc` annotation (Comment/Documentation) |

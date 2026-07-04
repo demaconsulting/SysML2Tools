@@ -17,8 +17,8 @@ namespace DemaConsulting.SysML2Tools.Stdlib;
 /// </remarks>
 /// <example>
 /// <code>
-/// var (table, _) = StdlibProvider.GetSymbolTable();
-/// Assert.True(table.Symbols.Count > 0, "Stdlib symbol table should not be empty.");
+/// var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+/// var result = await WorkspaceLoader.LoadAsync(["model.sysml"], stdlibTable);
 /// </code>
 /// </example>
 internal static class NamespaceDoc
