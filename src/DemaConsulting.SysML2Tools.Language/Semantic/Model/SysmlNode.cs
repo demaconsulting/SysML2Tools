@@ -87,12 +87,10 @@ public abstract class SysmlNode
     ///     members nested directly in this element's body.
     /// </summary>
     /// <remarks>
-    ///     An annotation with an explicit <c>about X</c> target is still attached to its
-    ///     lexically enclosing node rather than to the referenced element <c>X</c>; resolving
-    ///     explicit <c>about</c> targets is deferred to a future unit. Comments/docs nested
+    ///     An annotation with an explicit <c>about X</c> target is attached to its lexically
+    ///     enclosing node rather than to the referenced element <c>X</c>. Comments/docs nested
     ///     inside a relationship body (e.g. <c>alias Car for Automobile { /* ... */ }</c>) are
-    ///     also not yet captured, since no <see cref="AstBuilder"/> visitor currently collects
-    ///     relationship bodies.
+    ///     not captured, since no <see cref="AstBuilder"/> visitor collects relationship bodies.
     /// </remarks>
     public IReadOnlyList<SysmlAnnotation> Annotations { get; init; } = Array.Empty<SysmlAnnotation>();
 }
