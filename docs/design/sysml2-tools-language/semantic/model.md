@@ -3,8 +3,9 @@
 #### Overview
 
 The Semantic Model subsystem provides the semantic model types (public) and the internal
-build/resolve implementation of the semantic loading pipeline. It contains seven units: `AstBuilder`, `SymbolTable`, `ReferenceResolver`, `SupertypeWalker`,
-`SysmlEdge`, `SemanticIndex`, and `SysmlAnnotation`.
+build/resolve implementation of the semantic loading pipeline. It contains seven units:
+`AstBuilder`, `SymbolTable`, `ReferenceResolver`, `SupertypeWalker`, `SysmlEdge`,
+`SemanticIndex`, and `SysmlAnnotation`.
 
 #### Interfaces
 
