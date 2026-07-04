@@ -1,7 +1,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
-using DemaConsulting.SysML2Tools.Semantic.Internal;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 
 namespace DemaConsulting.SysML2Tools.Semantic;
 
@@ -10,6 +10,17 @@ namespace DemaConsulting.SysML2Tools.Semantic;
 /// </summary>
 public sealed class SysmlWorkspace
 {
+    /// <summary>
+    ///     Initializes a new, empty <see cref="SysmlWorkspace"/>.
+    /// </summary>
+    /// <remarks>
+    ///     In normal usage, prefer <see cref="WorkspaceLoader.LoadAsync"/>, which constructs and
+    ///     populates a workspace from source files.
+    /// </remarks>
+    public SysmlWorkspace()
+    {
+    }
+
     /// <summary>
     ///     Mutable backing store for <see cref="Declarations"/>; allows post-construction
     ///     injection of synthetic nodes (e.g., auto-generated views) without requiring a
@@ -36,11 +47,22 @@ public sealed class SysmlWorkspace
     ///     Gets the qualified-name registry mapping fully-qualified names to their declaration nodes.
     /// </summary>
     /// <remarks>
+    ///     Contains every declared element by fully-qualified name, including the standard-library
+    ///     seed (when <see cref="WorkspaceLoader"/> was called with a seed symbol table) as well as
+    ///     user-file declarations — use <see cref="StdlibNames"/> to distinguish the two.
+    ///     <para>
     ///     The property is backed by a mutable <see cref="Dictionary{TKey,TValue}"/> so that
     ///     <see cref="AddDeclaration"/> can inject synthetic nodes after the workspace is constructed.
     ///     The <c>init</c> accessor copies the supplied dictionary so that construction-time
     ///     collection expressions are fully supported.
+    ///     </para>
     /// </remarks>
+    /// <example>
+    /// <code>
+    /// var userDeclarations = workspace.Declarations
+    ///     .Where(kv => !workspace.StdlibNames.Contains(kv.Key));
+    /// </code>
+    /// </example>
     public IReadOnlyDictionary<string, SysmlNode> Declarations
     {
         get => _declarations;

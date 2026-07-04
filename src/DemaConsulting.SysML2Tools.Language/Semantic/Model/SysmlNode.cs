@@ -3,7 +3,7 @@
 
 using System.Text.Json.Serialization;
 
-namespace DemaConsulting.SysML2Tools.Semantic.Internal;
+namespace DemaConsulting.SysML2Tools.Semantic.Model;
 
 /// <summary>
 ///     Base class for all SysML/KerML AST nodes.
@@ -100,6 +100,10 @@ public abstract class SysmlNode
 /// <summary>
 ///     AST node representing a SysML/KerML package or namespace.
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlPackageNode : SysmlNode
 {
 }
@@ -107,6 +111,10 @@ public sealed class SysmlPackageNode : SysmlNode
 /// <summary>
 ///     AST node representing a definition element (part def, attribute def, etc.).
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlDefinitionNode : SysmlNode
 {
     /// <summary>
@@ -118,6 +126,10 @@ public sealed class SysmlDefinitionNode : SysmlNode
 /// <summary>
 ///     AST node representing a usage/feature element (part, attribute, etc.).
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlFeatureNode : SysmlNode
 {
     /// <summary>
@@ -139,6 +151,10 @@ public sealed class SysmlFeatureNode : SysmlNode
 /// <summary>
 ///     AST node representing an import declaration.
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlImportNode : SysmlNode
 {
     /// <summary>
@@ -155,6 +171,10 @@ public sealed class SysmlImportNode : SysmlNode
 /// <summary>
 ///     AST node representing a view definition.
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlViewNode : SysmlNode
 {
 }
@@ -162,6 +182,10 @@ public sealed class SysmlViewNode : SysmlNode
 /// <summary>
 ///     AST node representing a viewpoint definition.
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlViewpointNode : SysmlNode
 {
 }
@@ -169,6 +193,10 @@ public sealed class SysmlViewpointNode : SysmlNode
 /// <summary>
 ///     AST node representing a connection/binding usage between two endpoints.
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlConnectionNode : SysmlNode
 {
     /// <summary>
@@ -193,6 +221,10 @@ public sealed class SysmlConnectionNode : SysmlNode
 /// <summary>
 ///     AST node representing a state transition (source state, target state, optional guard).
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlTransitionNode : SysmlNode
 {
     /// <summary>
@@ -214,6 +246,10 @@ public sealed class SysmlTransitionNode : SysmlNode
 /// <summary>
 ///     AST node representing a <c>satisfy X by Y;</c> requirement-satisfaction usage.
 /// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
 public sealed class SysmlSatisfyNode : SysmlNode
 {
     /// <summary>

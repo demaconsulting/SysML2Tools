@@ -3,7 +3,7 @@
 
 using System.Text.Json.Serialization;
 
-namespace DemaConsulting.SysML2Tools.Semantic.Internal;
+namespace DemaConsulting.SysML2Tools.Semantic.Model;
 
 /// <summary>
 ///     Source-generator context for serializing/deserializing the stdlib binary.

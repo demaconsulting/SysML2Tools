@@ -3,7 +3,7 @@
 
 using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Semantic;
-using DemaConsulting.SysML2Tools.Semantic.Internal;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 
 namespace DemaConsulting.SysML2Tools.Stdlib;
 

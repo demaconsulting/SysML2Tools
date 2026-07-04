@@ -10,7 +10,7 @@ run time.
 #### Data Model
 
 `AstSerializer` is a static class with no instance state. It relies on two grouped internal types
-declared in the `Semantic/Internal` namespace:
+declared in the `Semantic/Model` namespace:
 
 - **`SerializedStdlib`** — an internal DTO record pairing the symbol dictionary
   (`Dictionary<string, SysmlNode>`) with the diagnostics list. It is the on-the-wire shape written

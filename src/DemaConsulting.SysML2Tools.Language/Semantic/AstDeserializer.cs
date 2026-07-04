@@ -3,13 +3,18 @@
 
 using System.Text.Json;
 using DemaConsulting.SysML2Tools.Parser;
-using DemaConsulting.SysML2Tools.Semantic.Internal;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 
 namespace DemaConsulting.SysML2Tools.Semantic;
 
 /// <summary>
 ///     Deserializes a pre-compiled stdlib binary back to a <see cref="SymbolTable"/> and diagnostics.
 /// </summary>
+/// <remarks>
+///     Infrastructure used internally by <c>StdlibProvider.GetSymbolTable()</c> (the Stdlib
+///     project's <c>StdlibProvider</c> class) to reconstruct the symbol table from the embedded
+///     <c>stdlib.bin</c> resource. Application code does not normally call this directly.
+/// </remarks>
 public static class AstDeserializer
 {
     /// <summary>

@@ -19,6 +19,18 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 /// <c>StdlibProvider.GetSymbolTable()</c> (<see cref="Stdlib.StdlibProvider"/>) and load user
 /// files via <c>WorkspaceLoader.LoadAsync</c> (<see cref="Semantic.WorkspaceLoader"/>).
 /// </para>
+/// <para>
+/// The example below additionally requires a renderer package reference beyond what this project
+/// (<c>DemaConsulting.SysML2Tools.Core</c>) already brings in transitively via
+/// <c>DemaConsulting.Rendering.Layout</c> (which supplies <c>DemaConsulting.Rendering</c> and
+/// <c>DemaConsulting.Rendering.Abstractions</c> — the source of <c>RenderOptions</c>,
+/// <c>Themes</c>, and <c>RenderOutput</c> used below). Add a concrete renderer package for the
+/// output format you need:
+/// <code>
+/// dotnet add package DemaConsulting.Rendering.Svg   # for SvgRenderer
+/// dotnet add package DemaConsulting.Rendering.Skia  # for PngRenderer
+/// </code>
+/// </para>
 /// </remarks>
 /// <example>
 /// <code>

@@ -26,7 +26,7 @@ cooperating types:
 
 #### Verb Semantics
 
-Every verb reads the semantic model built by the `Semantic`/`Semantic.Internal` types
+Every verb reads the semantic model built by the `Semantic`/`Semantic.Model` types
 (`SemanticIndex`, `SysmlNode.ResolvedEdges`, `SysmlNode.Children`) rather than re-parsing or
 re-resolving anything; `QueryEngine` is a pure read-only consumer of the workspace built by
 `WorkspaceLoader.LoadAsync`.

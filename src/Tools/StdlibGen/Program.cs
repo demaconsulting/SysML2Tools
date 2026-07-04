@@ -6,7 +6,7 @@
 
 using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Semantic;
-using DemaConsulting.SysML2Tools.Semantic.Internal;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 
 // Parse arguments — extracted to keep the top-level program's cognitive complexity within limits
 var (stdlibDir, outputPath) = ParseArgs(args);

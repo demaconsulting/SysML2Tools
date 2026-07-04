@@ -28,7 +28,7 @@ N/A — `SysmlAnnotation` is a pure data record with no logic or validation.
 
 ##### Dependencies
 
-- No external dependencies. Public types within the `Semantic.Internal` namespace.
+- No external dependencies. Public types within the `Semantic.Model` namespace.
 
 ##### Callers
 

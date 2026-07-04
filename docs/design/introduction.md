@@ -144,7 +144,7 @@ reviewers an explicit navigation aid from design to code:
       - **Antlr/** — ANTLR4-generated C# (committed; not hand-written)
       - **Internal/** — internal implementation (SysmlDiagnosticListener)
     - **Semantic/** — semantic model subsystem
-      - **Internal/** — internal implementation (SysmlNode, AstBuilder, SymbolTable,
+      - **Model/** — internal implementation (SysmlNode, AstBuilder, SymbolTable,
         ReferenceResolver, SupertypeWalker, SysmlEdge, SemanticIndex, SysmlAnnotation,
         SerializedStdlib, AstSerializerContext)
   - **DemaConsulting.SysML2Tools.Stdlib/** — stdlib library
