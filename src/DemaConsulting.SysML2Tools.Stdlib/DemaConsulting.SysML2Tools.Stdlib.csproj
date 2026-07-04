@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <IsPackable>false</IsPackable>
+    <IsPackable>true</IsPackable>
     <PackageId>DemaConsulting.SysML2Tools.Stdlib</PackageId>
     <AssemblyName>DemaConsulting.SysML2Tools.Stdlib</AssemblyName>
     <Version>0.0.0</Version>
@@ -16,6 +16,9 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/demaconsulting/SysML2Tools</PackageProjectUrl>
     <RepositoryUrl>https://github.com/demaconsulting/SysML2Tools</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>Icon.png</PackageIcon>
+    <PackageTags>sysml2;sysml;mbse;stdlib</PackageTags>
     <Copyright>Copyright DEMA Consulting</Copyright>
     <Title>SysML2 Tools Stdlib</Title>
     <Product>DemaConsulting.SysML2Tools</Product>
@@ -33,6 +36,11 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
+
+    <!-- ApiMark Configuration: generate Markdown API reference docs from the XML doc
+         comments (see GenerateDocumentationFile above) and bundle them into the NuGet
+         package alongside the assembly. -->
+    <ApiMarkPackDocs>true</ApiMarkPackDocs>
 
     <!-- SBOM Configuration -->
     <GenerateSBOM>true</GenerateSBOM>
@@ -86,9 +94,8 @@
     <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.5" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="All" />
     <!-- ApiMark: generate Markdown API reference docs from the XML doc comments (see
-         GenerateDocumentationFile above). This project is IsPackable=false and has no nupkg
-         of its own; its generated api/ folder is folded into DemaConsulting.SysML2Tools.Core's
-         package by the CopyLanguageAndStdlibApiDocsToPackage target in Core.csproj. -->
+         GenerateDocumentationFile above) and bundle them into this project's own NuGet
+         package (see ApiMarkPackDocs above). -->
     <PackageReference Include="DemaConsulting.ApiMark.MSBuild" Version="0.4.10" PrivateAssets="All" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.301">
       <PrivateAssets>all</PrivateAssets>
@@ -98,6 +105,11 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\Icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

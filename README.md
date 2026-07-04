@@ -226,12 +226,15 @@ sysml2tools help [lint|render|query [<query-verb>]]
 
 | Package | Description |
 | --- | --- |
+| `DemaConsulting.SysML2Tools.Language` | Library: SysML v2/KerML parser, AST, semantic model |
+| `DemaConsulting.SysML2Tools.Stdlib` | Library: pre-compiled SysML v2 standard library |
 | `DemaConsulting.SysML2Tools.Core` | Library: parser, semantic model, layout, `IRenderer` interface |
 | `DemaConsulting.SysML2Tools.Tool` | CLI tool: `lint`, `render`, and `query` commands |
 
 Library consumers can take a dependency on `DemaConsulting.SysML2Tools.Core` alone to access
-parsing, semantic model, and layout without pulling in the CLI tool. The `Core` package also
-bundles generated Markdown API reference documentation alongside the assembly.
+parsing, semantic model, and layout without pulling in the CLI tool; `Core` automatically pulls
+in `Language` and `Stdlib` as NuGet dependencies. Each package ships its own generated Markdown
+API reference documentation alongside its assembly.
 
 ## Contributing
 

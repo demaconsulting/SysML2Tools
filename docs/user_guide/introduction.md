@@ -263,18 +263,22 @@ sysml2tools --validate --depth 2
 
 # NuGet Library Packages
 
-SysML2Tools is structured as two NuGet packages. Library consumers can take a dependency
+SysML2Tools is structured as four NuGet packages. Library consumers can take a dependency
 on the core library alone, without pulling in the full CLI tool:
 
 | Package | Contents |
 | --- | --- |
+| `DemaConsulting.SysML2Tools.Language` | Library: SysML v2/KerML parser, AST, semantic model |
+| `DemaConsulting.SysML2Tools.Stdlib` | Library: pre-compiled SysML v2 standard library |
 | `DemaConsulting.SysML2Tools.Core` | Library: parser, semantic model, layout, `IRenderer` interface |
 | `DemaConsulting.SysML2Tools.Tool` | CLI tool: `lint`, `render`, `query`, and `help` commands |
 
 Consumers who need only the parsed semantic model, `LayoutTree`, or rendering interfaces
-take a dependency on `DemaConsulting.SysML2Tools.Core` only. Consumers who need the CLI
-install `DemaConsulting.SysML2Tools.Tool` as a dotnet tool. The `DemaConsulting.SysML2Tools.Core`
-package also bundles generated Markdown API reference documentation alongside the assembly.
+take a dependency on `DemaConsulting.SysML2Tools.Core` only, which automatically pulls in
+`DemaConsulting.SysML2Tools.Language` and `DemaConsulting.SysML2Tools.Stdlib` as NuGet
+dependencies. Consumers who need the CLI install `DemaConsulting.SysML2Tools.Tool` as a
+dotnet tool. Each package ships its own generated Markdown API reference documentation
+alongside its assembly.
 
 # Continuous Compliance
 

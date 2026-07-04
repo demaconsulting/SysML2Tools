@@ -59,140 +59,14 @@
     <PackageReference Include="DemaConsulting.Rendering.Layout" Version="0.1.0-beta.2" />
   </ItemGroup>
 
-  <!-- Language and Stdlib are internal (IsPackable=false) projects, so their PrivateAssets="all"
-       marking here prevents them from being emitted as NuGet package dependencies. Instead, the
-       CopyProjectReferencesToPackage target below embeds their compiled assemblies directly into
-       this package's lib folder (see docs/design/introduction.md for details). -->
+  <!-- Language and Stdlib are independently packable NuGet packages of their own
+       (DemaConsulting.SysML2Tools.Language, DemaConsulting.SysML2Tools.Stdlib), each bundling
+       their own ApiMark-generated docs. Plain ProjectReferences here let `dotnet pack` emit
+       <dependency> elements for them in this package's nuspec automatically. -->
   <ItemGroup>
-    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Language\DemaConsulting.SysML2Tools.Language.csproj" PrivateAssets="all" />
-    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Stdlib\DemaConsulting.SysML2Tools.Stdlib.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Language\DemaConsulting.SysML2Tools.Language.csproj" />
+    <ProjectReference Include="..\DemaConsulting.SysML2Tools.Stdlib\DemaConsulting.SysML2Tools.Stdlib.csproj" />
   </ItemGroup>
-
-  <!-- Embed the Language and Stdlib assemblies (both IsPackable=false) directly into this
-       package's lib folder, since they cannot be resolved as separate NuGet dependencies. Also
-       embeds their XML doc-comment files alongside the assemblies so Visual Studio IntelliSense
-       resolves doc comments for types re-exported from Language/Stdlib (e.g. WorkspaceLoader,
-       StdlibProvider) when consumed through this package. -->
-  <PropertyGroup>
-    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
-  </PropertyGroup>
-  <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="ResolveReferences">
-    <ItemGroup>
-      <BuildOutputInPackage Include="@(ReferencePath)" Condition="'%(ReferencePath.ReferenceSourceTarget)' == 'ProjectReference'" />
-      <_ProjectReferenceXmlDocs Include="@(ReferencePath->'%(RootDir)%(Directory)%(Filename).xml')"
-                                 Condition="'%(ReferencePath.ReferenceSourceTarget)' == 'ProjectReference'
-                                            and Exists('%(ReferencePath.RootDir)%(ReferencePath.Directory)%(ReferencePath.Filename).xml')" />
-      <BuildOutputInPackage Include="@(_ProjectReferenceXmlDocs)" />
-    </ItemGroup>
-  </Target>
-
-  <!-- Inline task used by CopyLanguageAndStdlibApiDocsToPackage (below) to merge the Language's
-       and Stdlib's own namespace-table rows into this project's own generated api.md index, so
-       that the folded-in namespace pages are discoverable/linked from the package's natural
-       entry point instead of being orphaned files in the api/ tree. Written to no-op safely
-       (skip the merge, leave TargetIndexFile unchanged) if the expected table separator or a
-       source file is missing, so a future ApiMark output-format change degrades gracefully
-       rather than breaking the build. -->
-  <UsingTask TaskName="MergeApiMarkNamespaceIndex" TaskFactory="RoslynCodeTaskFactory"
-             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
-    <ParameterGroup>
-      <TargetIndexFile ParameterType="System.String" Required="true" />
-      <SourceIndexFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
-    </ParameterGroup>
-    <Task>
-      <Using Namespace="System.IO" />
-      <Using Namespace="System.Collections.Generic" />
-      <Code Type="Fragment" Language="cs"><![CDATA[
-        if (!File.Exists(TargetIndexFile))
-        {
-            Log.LogMessage("MergeApiMarkNamespaceIndex: target index file not found, skipping merge: " + TargetIndexFile);
-            return true;
-        }
-
-        var lines = new List<string>(File.ReadAllLines(TargetIndexFile));
-        var separatorIndex = lines.FindIndex(l => l.Trim() == "| --- | --- | --- |");
-        if (separatorIndex < 0)
-        {
-            Log.LogMessage("MergeApiMarkNamespaceIndex: namespace table separator not found, skipping merge: " + TargetIndexFile);
-            return true;
-        }
-
-        var newRows = new List<string>();
-        foreach (var sourceItem in SourceIndexFiles)
-        {
-            var sourceFile = sourceItem.ItemSpec;
-            if (!File.Exists(sourceFile))
-            {
-                continue;
-            }
-
-            foreach (var line in File.ReadAllLines(sourceFile))
-            {
-                if (line.StartsWith("| [", StringComparison.Ordinal))
-                {
-                    newRows.Add(line);
-                }
-            }
-        }
-
-        if (newRows.Count == 0)
-        {
-            Log.LogMessage("MergeApiMarkNamespaceIndex: no namespace rows found in source index files, skipping merge.");
-            return true;
-        }
-
-        lines.InsertRange(separatorIndex + 1, newRows);
-        File.WriteAllLines(TargetIndexFile, lines);
-        Log.LogMessage("MergeApiMarkNamespaceIndex: merged " + newRows.Count + " namespace row(s) into " + TargetIndexFile);
-      ]]></Code>
-    </Task>
-  </UsingTask>
-
-  <!-- Fold the Language and Stdlib projects' ApiMark-generated api/ folders into this package's
-       own api/ folder. Language and Stdlib are IsPackable=false and have no nupkg of their own
-       (see above), so this is the only way their "getting started" namespaces (Semantic, Parser,
-       Stdlib) reach a consumer's browsable API reference docs. Each project's own top-level
-       api.md index (a single-assembly summary table) is intentionally excluded from the copy —
-       it describes only that project's own namespaces and would collide with, or misleadingly
-       duplicate, this project's own api.md index; the per-namespace/per-type Markdown pages
-       (which do not collide, since namespaces differ) are copied as-is. After copying, the
-       MergeApiMarkNamespaceIndex inline task (above) appends Language's and Stdlib's own
-       namespace-table rows into this project's own generated api.md, so that the copied-in
-       namespace pages are linked/discoverable from the package's natural entry point rather than
-       being orphaned files only reachable by browsing the raw api/ folder tree.
-       DependsOnTargets="ResolveReferences" is not required for correctness here (MSBuild already
-       guarantees Language/Stdlib finish building — including their own AfterTargets="Build"
-       ApiMark step — before this project's Build completes, since they are ProjectReferences),
-       but AfterTargets/BeforeTargets below pin this target's ordering relative to ApiMark's own
-       generation and pack-inclusion targets; verified end-to-end with a real `dotnet pack`.
-       The TFM-restriction condition mirrors ApiMark's own GenerateApiMarkDocumentation/
-       _ApiMarkIncludeDocsInPackage targets so this target (copy + index-merge) runs exactly once
-       per pack/build, instead of once per inner per-TFM build (which would otherwise race
-       multiple concurrent copies/merges against the same destination files). -->
-  <Target Name="CopyLanguageAndStdlibApiDocsToPackage"
-          Condition="'$(ApiMarkPackDocs)' == 'true'
-                 and ('$(TargetFrameworks)' == '' or '$(TargetFramework)' == '$(_ApiMarkPackDocsTargetFramework)')"
-          AfterTargets="GenerateApiMarkDocumentation"
-          BeforeTargets="_ApiMarkIncludeDocsInPackage">
-    <ItemGroup>
-      <_LanguageApiDocFiles Include="$(MSBuildThisFileDirectory)..\DemaConsulting.SysML2Tools.Language\api\**\*"
-                            Exclude="$(MSBuildThisFileDirectory)..\DemaConsulting.SysML2Tools.Language\api\api.md" />
-      <_StdlibApiDocFiles Include="$(MSBuildThisFileDirectory)..\DemaConsulting.SysML2Tools.Stdlib\api\**\*"
-                          Exclude="$(MSBuildThisFileDirectory)..\DemaConsulting.SysML2Tools.Stdlib\api\api.md" />
-      <_ApiMarkSourceIndexFiles Include="$(MSBuildThisFileDirectory)..\DemaConsulting.SysML2Tools.Language\api\api.md" />
-      <_ApiMarkSourceIndexFiles Include="$(MSBuildThisFileDirectory)..\DemaConsulting.SysML2Tools.Stdlib\api\api.md" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_LanguageApiDocFiles)"
-          DestinationFolder="$(ApiMarkOutputDir)\%(RecursiveDir)"
-          SkipUnchangedFiles="true"
-          Condition="'@(_LanguageApiDocFiles)' != ''" />
-    <Copy SourceFiles="@(_StdlibApiDocFiles)"
-          DestinationFolder="$(ApiMarkOutputDir)\%(RecursiveDir)"
-          SkipUnchangedFiles="true"
-          Condition="'@(_StdlibApiDocFiles)' != ''" />
-    <MergeApiMarkNamespaceIndex TargetIndexFile="$(ApiMarkOutputDir)\api.md"
-                                SourceIndexFiles="@(_ApiMarkSourceIndexFiles)" />
-  </Target>
 
   <ItemGroup>
     <InternalsVisibleTo Include="DemaConsulting.SysML2Tools.Tests" />
