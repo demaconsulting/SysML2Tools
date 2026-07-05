@@ -2,12 +2,13 @@
 
 ##### Purpose
 
-`LayeredPlacement` adapts the reusable "layered" layout algorithm bundled in the
-`DemaConsulting.Rendering.Layout` off-the-shelf package to the SysML view layout strategies. Its
-single responsibility is to accept plain sized nodes and directed edges from a strategy, run the
-package's layered algorithm, and return the placed box rectangles together with the routed
-connector polylines. It carries no SysML semantics: callers translate their model into sizes and
-index pairs, and translate the returned geometry back onto their model by index.
+`LayeredPlacement` adapts the `DemaConsulting.Rendering.Layout` off-the-shelf package's public
+layout engine to the SysML view layout strategies for flat, flow-chart-like diagrams. Its single
+responsibility is to accept plain sized nodes and directed edges from a strategy, lay them out
+through the `LayoutEngine.Layout(LayoutGraph)` facade, and return the placed box rectangles
+together with the routed connector polylines. It carries no SysML semantics: callers translate
+their model into sizes and index pairs, and translate the returned geometry back onto their model
+by index.
 
 ##### Data Model
 
@@ -25,14 +26,21 @@ index pairs, and translate the returned geometry back onto their model by index.
 
 ###### `Place(nodes, edges, direction)`
 
-Places sized nodes and directed edges with the bundled layered algorithm:
+Places sized nodes and directed edges by delegating to the public layout engine facade:
 
 1. Validates that `nodes` and `edges` are non-null.
 2. Builds a `LayoutGraph`, adding one `LayoutGraphNode` per input node (sized from the supplied
    width and height, keyed by its ordinal index) and one edge per input edge (keyed by its ordinal
    index) between the referenced graph nodes.
-3. Sets the `CoreOptions.Direction` layout option to the requested `LayoutFlowDirection` and runs
-   `LayeredLayoutAlgorithm.Apply`, obtaining a laid-out `LayoutTree`.
+3. Sets the requested `LayoutFlowDirection` directly on the graph via
+   `graph.Set(CoreOptions.Direction, direction)` and calls `LayoutEngine.Layout(graph)`, obtaining
+   a laid-out `LayoutTree`. The direction must be set on the graph itself (not passed through a
+   `LayoutOptions` instance) because the facade always seeds its internal cascade with an empty
+   `LayoutOptions`, honoring only settings declared directly on the graph. The graph built here is
+   always flat (no container nodes), so the facade's default `hierarchical` algorithm is guaranteed
+   byte-for-byte identical to the bundled `layered` algorithm applied directly — using the public
+   facade rather than instantiating `LayeredLayoutAlgorithm` directly costs nothing and keeps this
+   helper aligned with the package's intended entry point.
 4. Reads the tree's `LayoutBox` nodes into `Rects` (in emitted order, which mirrors input-node
    order) and the tree's `LayoutLine` nodes into `EdgePolylines` (in emitted order, which mirrors
    input-edge order).
@@ -46,20 +54,24 @@ polyline runs source-to-target.
 ##### Error Handling
 
 `Place` throws `ArgumentNullException` when `nodes` or `edges` is null. All other behavior is
-delegated to the off-the-shelf layered algorithm; the helper adds no additional validation.
+delegated to the off-the-shelf layout engine; the helper adds no additional validation.
 
 ##### Dependencies
 
 - `DemaConsulting.Rendering` (OTS) — the layout intermediate representation (`LayoutGraph`,
   `LayoutGraphNode`, `LayoutTree`, `LayoutBox`, `LayoutLine`), the geometric value types (`Rect`,
-  `Point2D`), and the layout option system (`LayoutOptions`, `CoreOptions.Direction`).
-- `DemaConsulting.Rendering.Layout` (OTS) — the `LayeredLayoutAlgorithm` that performs the actual
-  ELK-style layered placement and orthogonal connector routing.
+  `Point2D`), and the layout option system (`CoreOptions.Direction`, `IPropertyHolder.Set`).
+- `DemaConsulting.Rendering.Layout` (OTS) — the `LayoutEngine.Layout(LayoutGraph)` facade that
+  resolves and runs the appropriate bundled algorithm (the bundled `layered` algorithm, for the
+  flat graphs built here) to perform the actual ELK-style layered placement and orthogonal
+  connector routing.
 - `System.Globalization.CultureInfo` — invariant-culture formatting of the node and edge keys.
 
 ##### Callers
 
 The view layout strategies that arrange nodes with the layered algorithm call
-`LayeredPlacement.Place`: `GeneralViewLayoutStrategy` and `InterconnectionViewLayoutStrategy` (with
-a left-to-right direction), and `ActionFlowViewLayoutStrategy` and
-`StateTransitionViewLayoutStrategy` (with a top-to-bottom direction).
+`LayeredPlacement.Place`: `InterconnectionViewLayoutStrategy` (with a left-to-right direction), and
+`ActionFlowViewLayoutStrategy` and `StateTransitionViewLayoutStrategy` (with a top-to-bottom
+direction). `GeneralViewLayoutStrategy` builds and places its own `LayoutGraph` directly (via
+`HierarchicalLayoutAlgorithm`, since its graph is nested with package-folder containers) rather
+than going through this helper.
