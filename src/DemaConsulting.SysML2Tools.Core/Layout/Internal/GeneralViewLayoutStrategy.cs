@@ -19,15 +19,19 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// attribute-typing edges orthogonally between the boxes.
 /// </summary>
 /// <remarks>
-/// Box placement and intra-package edge routing use the bundled layered algorithm (via
-/// <see cref="LayeredPlacement"/>) running left-to-right: each package's definitions and the edges
-/// between them are laid out together inside the package folder, with disconnected definitions (such
-/// as standalone interface or attribute defs) packed beside the connected core by the algorithm's
-/// component packing. The folders themselves are packed across the canvas with
-/// <see cref="ContainmentLayout"/> so they never overlap. The rare cross-package edge (an endpoint in
-/// a different package folder) is routed orthogonally around the placed folders with
-/// <see cref="ConnectorRouter"/>. Standard-library declarations are excluded via
-/// <see cref="StdlibFilter"/>.
+/// Every definition and package folder is expressed as a single <see cref="LayoutGraph"/> — packages
+/// as <see cref="BoxShape.Folder"/>-shaped container nodes, definitions as leaf nodes carrying their
+/// <see cref="LayoutGraphNode.Keyword"/> and <see cref="LayoutGraphNode.Compartments"/> — and the
+/// whole graph is placed with a single <see cref="HierarchicalLayoutAlgorithm.Apply"/> call: the root
+/// scope packs package folders and top-level definitions by reading order
+/// (<see cref="ContainmentLayoutAlgorithm"/>), while each folder's own contents are ordered by their
+/// intra-package edges with the bundled layered algorithm (<see cref="LayeredLayoutAlgorithm"/>). All
+/// box sizing (title bands, compartment rows) remains this strategy's responsibility, since the
+/// layout stage is theme-agnostic. Standard-library declarations are excluded via
+/// <see cref="StdlibFilter"/>. Depth-limited (truncated) package contents are never added to the
+/// graph as individual boxes — the truncated folder becomes a single leaf node sized like a plain
+/// ellipsis indicator, and the "+N more…" label is stamped onto its placed box once the layout is
+/// known.
 /// </remarks>
 internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 {
@@ -36,9 +40,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>Approximate width-per-character factor relative to font size.</summary>
     private const double CharWidthFactor = 0.62;
-
-    /// <summary>Clearance kept between cross-package routed edges and boxes.</summary>
-    private const double EdgeClearance = 12.0;
 
     /// <summary>A feature membership: the keyword and the raw typing reference of one owned feature.</summary>
     private sealed record FeatureMembership(string Keyword, string TypeName);
@@ -63,37 +64,19 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         Typing,
     }
 
-    /// <summary>An intra-package edge expressed in package-local node indices, plus its target decoration.</summary>
-    /// <param name="SourceLocal">Index of the source definition within its package group.</param>
-    /// <param name="TargetLocal">Index of the target definition within its package group.</param>
-    /// <param name="Arrowhead">Arrowhead drawn at the target (supertype, owner, or attribute-type) end.</param>
-    /// <param name="Kind">The edge classification, which selects the rendered line style.</param>
-    private sealed record IntraEdge(int SourceLocal, int TargetLocal, EndMarkerStyle Arrowhead, EdgeKind Kind);
-
-    /// <summary>A cross-package edge between two definitions in different package groups.</summary>
+    /// <summary>
+    /// A model edge between two definitions, expressed by qualified name so it can be resolved into
+    /// the correct graph scope once every definition's node (or absence, if depth-truncated) is known.
+    /// </summary>
     /// <param name="SourceQualified">Qualified name of the source definition.</param>
     /// <param name="TargetQualified">Qualified name of the target (supertype, owner, or attribute-type) definition.</param>
     /// <param name="Arrowhead">Arrowhead drawn at the target end.</param>
     /// <param name="Kind">The edge classification, which selects the rendered line style.</param>
-    private sealed record CrossEdge(string SourceQualified, string TargetQualified, EndMarkerStyle Arrowhead, EdgeKind Kind);
+    private sealed record ModelEdge(string SourceQualified, string TargetQualified, EndMarkerStyle Arrowhead, EdgeKind Kind);
 
     /// <summary>Maps an edge kind to its rendered line style: typing edges are dashed, all others solid.</summary>
     private static LineStyle LineStyleForKind(EdgeKind kind) =>
         kind == EdgeKind.Typing ? LineStyle.Dashed : LineStyle.Solid;
-
-    /// <summary>
-    /// The package-local placement of one group: each definition's top-left relative to the group's
-    /// content origin, the content size, and the routed intra-group edge polylines (also content-local).
-    /// </summary>
-    /// <param name="LocalPos">Content-local top-left of each definition box, by group index.</param>
-    /// <param name="ContentWidth">Width of the group's content bounding box.</param>
-    /// <param name="ContentHeight">Height of the group's content bounding box.</param>
-    /// <param name="Edges">Routed intra-group edges (content-local polyline + target arrowhead + line style).</param>
-    private sealed record GroupLayout(
-        IReadOnlyList<(double X, double Y)> LocalPos,
-        double ContentWidth,
-        double ContentHeight,
-        IReadOnlyList<(IReadOnlyList<Point2D> Points, EndMarkerStyle Arrowhead, LineStyle LineStyle)> Edges);
 
     /// <summary>A user-defined definition together with its computed box size and supertypes.</summary>
     private sealed record DefBox(
@@ -106,8 +89,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         double Width,
         double Height);
 
-    /// <summary>A placed definition box with absolute coordinates, used for edge anchoring.</summary>
-    private sealed record PlacedBox(string QualifiedName, string SimpleName, double X, double Y, double Width, double Height);
+    /// <summary>Where a located definition's node lives: the node itself and its owning package.</summary>
+    private readonly record struct Location(LayoutGraphNode Node, string Package);
+
+    /// <summary>
+    /// A package folder that was depth-truncated: replaced by a leaf node sized as an ellipsis
+    /// indicator, decorated with its "+N more…" label once the layout places it.
+    /// </summary>
+    /// <param name="Node">The leaf graph node standing in for the folder.</param>
+    /// <param name="HiddenCount">Number of hidden definitions the ellipsis label reports.</param>
+    private sealed record TruncatedFolder(LayoutGraphNode Node, int HiddenCount);
 
     /// <inheritdoc/>
     public LayoutTree BuildLayout(ViewContext context, RenderOptions options)
@@ -127,23 +118,25 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Group definitions by their owning package (prefix before the last "::").
         var groups = GroupByPackage(defs);
 
-        // Resolve the specialization/membership/attribute-typing edge set into intra-package edges
-        // (handled by the layered pipeline inside each folder) and cross-package edges (routed around
-        // the folders).
-        var (intraByGroup, crossEdges) = BuildEdges(groups);
+        // Resolve the specialization/membership/attribute-typing edge set by qualified name; the
+        // graph-construction pass below drops any edge touching a definition that never received a
+        // node (because its folder was depth-truncated).
+        var modelEdges = BuildModelEdges(defs);
 
-        // Place package folders (and the top-level frameless block) across the canvas. Each folder's
-        // definitions and intra-package edges are laid out together by the layered pipeline.
-        var hGap = 4.0 * theme.LabelPadding;
-        var vGap = 5.0 * theme.LabelPadding;
-        var (nodes, placed, intraLines, canvasWidth, canvasHeight) =
-            PlaceGroups(groups, intraByGroup, theme, options.DepthLimit, hGap, vGap);
+        // Build the single input graph: package folders as containers, definitions as leaves.
+        var (graph, truncated) = BuildGraph(groups, modelEdges, theme, options.DepthLimit);
 
-        // Emit the intra-package edges (already routed by the pipeline) and the cross-package edges.
-        nodes.AddRange(intraLines);
-        nodes.AddRange(RouteCrossEdges(crossEdges, placed));
+        // Lay out the whole graph in one call: the root scope packs folders/top-level definitions by
+        // reading order (containment), while each folder's own contents are ordered by their
+        // intra-package edges with the layered algorithm — selected per folder node, per the
+        // established per-container-algorithm convention.
+        var rootOptions = LayoutOptions.ForAlgorithm(ContainmentLayoutAlgorithm.AlgorithmId);
+        var tree = new HierarchicalLayoutAlgorithm().Apply(graph, rootOptions);
 
-        return new LayoutTree(canvasWidth, canvasHeight, nodes);
+        // Stamp the "+N more…" ellipsis label onto each truncated folder's placed box. The leaf
+        // algorithm emits one box per root node in Nodes order, so the boxes portion of the placed
+        // tree aligns with graph.Nodes by index.
+        return truncated.Count == 0 ? tree : DecorateTruncatedFolders(tree, graph, truncated, theme);
     }
 
     /// <summary>
@@ -334,468 +327,253 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Lays out each package group (with the layered pipeline) inside a folder box, emits the
-    /// top-level definitions as a single frameless block, and packs all blocks across the canvas so
-    /// folders never overlap. Returns the emitted nodes, the absolute box placements (for
-    /// cross-package routing), the routed intra-package edge lines, and the canvas size.
+    /// Resolves the specialization, membership, and attribute-typing relationships across every
+    /// definition (regardless of package) into a flat list of qualified-name edges. Self-references
+    /// and unresolved targets are skipped; whether an edge's endpoints actually receive a graph node
+    /// (i.e., were not depth-truncated) is decided later, in <see cref="BuildGraph"/>.
     /// </summary>
-    private static (List<LayoutNode> Nodes, List<PlacedBox> Placed, List<LayoutLine> IntraEdges, double Width, double Height) PlaceGroups(
-        IReadOnlyList<(string Package, List<DefBox> Items)> groups,
-        IReadOnlyList<IReadOnlyList<IntraEdge>> intraByGroup,
-        Theme theme,
-        int depthLimit,
-        double hGap,
-        double vGap)
+    private static List<ModelEdge> BuildModelEdges(IReadOnlyList<DefBox> defs)
     {
-        var margin = 2.0 * theme.LabelPadding;
-
-        // Reserve the full title area (package keyword + name) above a folder's contents so the
-        // label never overlaps the first child box. The renderer draws the smaller tab notch within.
-        var folderTitleHeight = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true);
-
-        // Folder contents sit at depth 1; truncate them when the depth limit forbids that level.
-        var truncateFolderContents = depthLimit > 0 && depthLimit <= 1;
-
-        // Pre-compute the outer size of each top-level block (package folder or the frameless block of
-        // top-level definitions). Folders reserve a title area; the frameless block does not.
-        var blocks = new List<BlockPlan>();
-        for (var g = 0; g < groups.Count; g++)
+        // Index every definition by qualified and simple name (first-seen wins for simple names,
+        // mirroring how packages may reuse a simple name across different qualified locations).
+        var byQualified = new HashSet<string>(defs.Select(d => d.QualifiedName), StringComparer.Ordinal);
+        var bySimple = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var def in defs)
         {
-            var (package, items) = groups[g];
-            var isFolder = !string.IsNullOrEmpty(package);
+            bySimple.TryAdd(def.SimpleName, def.QualifiedName);
+        }
 
-            if (isFolder && truncateFolderContents)
+        var edges = new List<ModelEdge>();
+        foreach (var def in defs)
+        {
+            // Specialization: subtype → supertype, open arrowhead at the supertype (target) end.
+            foreach (var supertype in def.SupertypeNames)
             {
-                // Replace the folder's definition boxes with a single ellipsis indicator.
-                var ellipsisWidth = Math.Max(MinBoxWidth, (2.0 * margin) + (items.Count.ToString(System.Globalization.CultureInfo.InvariantCulture).Length * 8.0) + 60.0);
-                var ellipsisHeight = (2.0 * margin) + theme.FontSizeTitle;
-                blocks.Add(new BlockPlan(package, items, ellipsisWidth, folderTitleHeight + ellipsisHeight) { Truncated = true });
-                continue;
-            }
-
-            // Lay out the group's definitions and intra-group edges with the layered pipeline.
-            var layout = LayoutGroup(items, intraByGroup[g]);
-            var titleArea = isFolder ? folderTitleHeight : 0.0;
-            var blockWidth = layout.ContentWidth + (2.0 * margin);
-            var blockHeight = titleArea + layout.ContentHeight + (2.0 * margin);
-            blocks.Add(new BlockPlan(package, items, blockWidth, blockHeight) { Layout = layout });
-        }
-
-        // Pack the blocks across the canvas (atomic blocks → folders never overlap). The blocks are
-        // represented as sized placeholder boxes; ContainmentLayout returns them repositioned.
-        var packChildren = blocks
-            .Select(b => new LayoutBox(0, 0, b.Width, b.Height, null, 0, BoxShape.Rectangle, [], []))
-            .ToList();
-        var outer = ContainmentLayout.Pack(
-            packChildren,
-            new ContainmentOptions(
-                MaxContentWidth: ComputeCanvasWidth(blocks),
-                HorizontalGap: hGap,
-                VerticalGap: vGap,
-                Padding: margin));
-
-        var nodes = new List<LayoutNode>();
-        var placed = new List<PlacedBox>();
-        var intraEdges = new List<LayoutLine>();
-
-        for (var i = 0; i < blocks.Count; i++)
-        {
-            var c = outer.Children[i];
-            PlaceBlock(blocks[i], new Rect(c.X, c.Y, c.Width, c.Height), folderTitleHeight, margin, theme, nodes, placed, intraEdges);
-        }
-
-        return (nodes, placed, intraEdges, outer.Width, outer.Height);
-    }
-
-    /// <summary>
-    /// Lays out one package group with the layered algorithm (whose component packing places
-    /// disconnected definitions beside the connected core), then reads back each definition's
-    /// package-local top-left and each intra-group edge's polyline, normalized against the group's
-    /// content bounding box.
-    /// </summary>
-    /// <param name="items">The group's definitions, in group order.</param>
-    /// <param name="intraEdges">The intra-group edges in package-local node indices.</param>
-    /// <returns>The package-local placement of the group's definitions and routed edges.</returns>
-    private static GroupLayout LayoutGroup(IReadOnlyList<DefBox> items, IReadOnlyList<IntraEdge> intraEdges)
-    {
-        // Run the layered algorithm left-to-right; its component packing places disconnected
-        // definitions (e.g. standalone interface/attribute defs) beside the connected core. Self-edges
-        // carry no routed polyline, so only non-self edges are placed and mapped back by index.
-        var flowIntra = intraEdges.Where(e => e.SourceLocal != e.TargetLocal).ToList();
-        var placed = LayeredPlacement.Place(
-            items.Select(d => (d.Width, d.Height)).ToList(),
-            flowIntra.Select(e => (e.SourceLocal, e.TargetLocal)).ToList(),
-            LayoutFlowDirection.Right);
-
-        // Compute the content bounding box over the real definition nodes (indices [0, items.Count)).
-        var minX = double.PositiveInfinity;
-        var minY = double.PositiveInfinity;
-        var maxX = double.NegativeInfinity;
-        var maxY = double.NegativeInfinity;
-        for (var i = 0; i < items.Count; i++)
-        {
-            minX = Math.Min(minX, placed.Rects[i].X);
-            minY = Math.Min(minY, placed.Rects[i].Y);
-            maxX = Math.Max(maxX, placed.Rects[i].X + items[i].Width);
-            maxY = Math.Max(maxY, placed.Rects[i].Y + items[i].Height);
-        }
-
-        // Normalize node positions so the content bounding box starts at the local origin (0, 0).
-        var localPos = new (double X, double Y)[items.Count];
-        for (var i = 0; i < items.Count; i++)
-        {
-            localPos[i] = (placed.Rects[i].X - minX, placed.Rects[i].Y - minY);
-        }
-
-        // The algorithm returns exactly one routed polyline per non-self edge, in input order and
-        // oriented source -> target, so non-self edge k uses EdgePolylines[k] directly. Each polyline
-        // is translated into the content-local frame.
-        var edges = new List<(IReadOnlyList<Point2D> Points, EndMarkerStyle Arrowhead, LineStyle LineStyle)>(flowIntra.Count);
-        for (var k = 0; k < flowIntra.Count; k++)
-        {
-            var intra = flowIntra[k];
-            var poly = placed.EdgePolylines[k];
-            var routedPoints = poly.Count >= 2
-                ? poly
-                : [NodeCentre(placed.Rects, items, intra.SourceLocal), NodeCentre(placed.Rects, items, intra.TargetLocal)];
-
-            var points = routedPoints.Select(p => new Point2D(p.X - minX, p.Y - minY)).ToList();
-            edges.Add((points, intra.Arrowhead, LineStyleForKind(intra.Kind)));
-        }
-
-        return new GroupLayout(localPos, maxX - minX, maxY - minY, edges);
-    }
-
-    /// <summary>Returns the centre point of a group definition's placed box, in algorithm coordinates.</summary>
-    /// <param name="rects">The placed box rectangles, in group order.</param>
-    /// <param name="items">The group's definitions, in group order.</param>
-    /// <param name="index">Group-local index of the definition.</param>
-    /// <returns>The box centre used as a straight-line fallback when no route was found.</returns>
-    private static Point2D NodeCentre(IReadOnlyList<Rect> rects, IReadOnlyList<DefBox> items, int index) =>
-        new(rects[index].X + (items[index].Width / 2.0), rects[index].Y + (items[index].Height / 2.0));
-
-    /// <summary>
-    /// Emits the layout nodes for one placed block: a package folder with its child definition boxes,
-    /// the frameless top-level definitions, or a truncated folder with an ellipsis indicator. Records
-    /// each rendered definition's absolute placement and the absolute intra-group edge lines.
-    /// </summary>
-    private static void PlaceBlock(
-        BlockPlan block,
-        Rect rect,
-        double folderTitleHeight,
-        double margin,
-        Theme theme,
-        List<LayoutNode> nodes,
-        List<PlacedBox> placed,
-        List<LayoutLine> intraEdges)
-    {
-        var isFolder = !string.IsNullOrEmpty(block.Package);
-
-        if (block.Truncated)
-        {
-            // Show a visible truncation indicator instead of the hidden definition boxes.
-            var indicator = new List<LayoutNode>
-            {
-                new LayoutLabel(
-                    X: rect.X + theme.LabelPadding,
-                    Y: rect.Y + folderTitleHeight + theme.LabelPadding + (theme.FontSizeTitle / 2.0),
-                    MaxWidth: block.Width - (2.0 * theme.LabelPadding),
-                    Text: $"+{block.Items.Count} more\u2026",
-                    Align: TextAlign.Center,
-                    Weight: FontWeight.Regular,
-                    Style: FontStyle.Normal,
-                    FontSize: theme.FontSizeTitle),
-            };
-
-            nodes.Add(MakeFolderBox(block, rect, indicator));
-            return;
-        }
-
-        var layout = block.Layout!;
-        var titleArea = isFolder ? folderTitleHeight : 0.0;
-        var contentOriginX = rect.X + margin;
-        var contentOriginY = rect.Y + titleArea + margin;
-
-        // Place the definition boxes. Folder children sit at depth 1 inside the folder; the frameless
-        // top-level block emits its definitions directly at depth 0.
-        var children = new List<LayoutNode>();
-        for (var k = 0; k < block.Items.Count; k++)
-        {
-            var def = block.Items[k];
-            var absX = contentOriginX + layout.LocalPos[k].X;
-            var absY = contentOriginY + layout.LocalPos[k].Y;
-            var box = MakeDefBox(def, absX, absY, depth: isFolder ? 1 : 0);
-            if (isFolder)
-            {
-                children.Add(box);
-            }
-            else
-            {
-                nodes.Add(box);
-            }
-
-            placed.Add(new PlacedBox(def.QualifiedName, def.SimpleName, absX, absY, def.Width, def.Height));
-        }
-
-        if (isFolder)
-        {
-            nodes.Add(MakeFolderBox(block, rect, children));
-        }
-
-        // Offset the pipeline-routed intra-group edges into absolute canvas coordinates.
-        foreach (var (points, arrowhead, lineStyle) in layout.Edges)
-        {
-            var absPoints = points.Select(p => new Point2D(contentOriginX + p.X, contentOriginY + p.Y)).ToList();
-            intraEdges.Add(new LayoutLine(
-                Waypoints: absPoints,
-                SourceEnd: EndMarkerStyle.None,
-                TargetEnd: arrowhead,
-                LineStyle: lineStyle,
-                MidpointLabel: null));
-        }
-    }
-
-    /// <summary>Creates the folder <see cref="LayoutBox"/> for a package block with the given children.</summary>
-    private static LayoutBox MakeFolderBox(BlockPlan block, Rect rect, List<LayoutNode> children) =>
-        new(
-            X: rect.X,
-            Y: rect.Y,
-            Width: block.Width,
-            Height: block.Height,
-            Label: SimplePackageName(block.Package),
-            Depth: 0,
-            Shape: BoxShape.Folder,
-            Compartments: [],
-            Children: children,
-            Keyword: "package");
-
-    /// <summary>Creates a definition <see cref="LayoutBox"/> at the given absolute position.</summary>
-    private static LayoutBox MakeDefBox(DefBox def, double x, double y, int depth) =>
-        new(
-            X: x,
-            Y: y,
-            Width: def.Width,
-            Height: def.Height,
-            Label: def.SimpleName,
-            Depth: depth,
-            Shape: BoxShape.Rectangle,
-            Compartments: def.Compartments,
-            Children: [],
-            Keyword: def.Keyword);
-
-    /// <summary>
-    /// Resolves the specialization, membership, and attribute-typing edge set into intra-package edges
-    /// (both endpoints in the same package group, laid out together by the layered pipeline) and
-    /// cross-package edges (both endpoints resolved but in different package groups, routed around the
-    /// placed folders).
-    /// </summary>
-    /// <param name="groups">The definitions grouped by owning package.</param>
-    /// <returns>One intra-edge list per group (parallel to <paramref name="groups"/>) and the cross-edge list.</returns>
-    private static (IReadOnlyList<List<IntraEdge>> Intra, List<CrossEdge> Cross) BuildEdges(
-        IReadOnlyList<(string Package, List<DefBox> Items)> groups)
-    {
-        // Index every definition by qualified and simple name, mapping to its (group, local) position.
-        var locByQualified = new Dictionary<string, (int Group, int Local)>(StringComparer.Ordinal);
-        var locBySimple = new Dictionary<string, (int Group, int Local)>(StringComparer.Ordinal);
-        for (var g = 0; g < groups.Count; g++)
-        {
-            var items = groups[g].Items;
-            for (var l = 0; l < items.Count; l++)
-            {
-                locByQualified.TryAdd(items[l].QualifiedName, (g, l));
-                locBySimple.TryAdd(items[l].SimpleName, (g, l));
-            }
-        }
-
-        var intra = groups.Select(_ => new List<IntraEdge>()).ToList();
-        var cross = new List<CrossEdge>();
-
-        for (var g = 0; g < groups.Count; g++)
-        {
-            var items = groups[g].Items;
-            for (var l = 0; l < items.Count; l++)
-            {
-                var def = items[l];
-
-                // Specialization: subtype → supertype, open arrowhead at the supertype (target) end.
-                foreach (var supertype in def.SupertypeNames)
+                if (TryResolveQualified(supertype, byQualified, bySimple, out var target) &&
+                    target != def.QualifiedName)
                 {
-                    if (TryResolveLoc(supertype, locByQualified, locBySimple, out var target) &&
-                        !(target.Group == g && target.Local == l))
-                    {
-                        if (target.Group == g)
-                        {
-                            intra[g].Add(new IntraEdge(l, target.Local, EndMarkerStyle.HollowTriangle, EdgeKind.Specialization));
-                        }
-                        else
-                        {
-                            cross.Add(new CrossEdge(def.QualifiedName, groups[target.Group].Items[target.Local].QualifiedName, EndMarkerStyle.HollowTriangle, EdgeKind.Specialization));
-                        }
-                    }
+                    edges.Add(new ModelEdge(def.QualifiedName, target, EndMarkerStyle.HollowTriangle, EdgeKind.Specialization));
+                }
+            }
+
+            // Membership: member-type → owner, diamond at the owner (target) end. Structural keywords
+            // (part/port) use a filled diamond; reference (ref) uses a hollow diamond; others emit none.
+            foreach (var membership in def.Memberships)
+            {
+                var arrowhead = membership.Keyword switch
+                {
+                    "part" or "port" => EndMarkerStyle.FilledDiamond,
+                    "ref" => EndMarkerStyle.HollowDiamond,
+                    _ => EndMarkerStyle.None,
+                };
+
+                if (arrowhead != EndMarkerStyle.None &&
+                    TryResolveQualified(membership.TypeName, byQualified, bySimple, out var memberType) &&
+                    memberType != def.QualifiedName)
+                {
+                    edges.Add(new ModelEdge(memberType, def.QualifiedName, arrowhead, EdgeKind.Membership));
+                }
+            }
+
+            // Attribute typing: owner → attribute-type dependency, open chevron at the type (target)
+            // end. This is a usage-type dependency, not composition, so it uses the OMG dependency
+            // notation rather than a membership diamond. Unresolved types and self-references are
+            // skipped, exactly as above.
+            foreach (var membership in def.Memberships)
+            {
+                if (membership.Keyword is not ("attribute" or "enum"))
+                {
+                    continue;
                 }
 
-                // Membership: member-type → owner, diamond at the owner (target) end. Structural keywords
-                // (part/port) use a filled diamond; reference (ref) uses a hollow diamond; others emit none.
-                foreach (var membership in def.Memberships)
+                if (TryResolveQualified(membership.TypeName, byQualified, bySimple, out var attrType) &&
+                    attrType != def.QualifiedName)
                 {
-                    var arrowhead = membership.Keyword switch
-                    {
-                        "part" or "port" => EndMarkerStyle.FilledDiamond,
-                        "ref" => EndMarkerStyle.HollowDiamond,
-                        _ => EndMarkerStyle.None,
-                    };
-
-                    if (arrowhead == EndMarkerStyle.None)
-                    {
-                        continue;
-                    }
-
-                    if (TryResolveLoc(membership.TypeName, locByQualified, locBySimple, out var memberType) &&
-                        !(memberType.Group == g && memberType.Local == l))
-                    {
-                        if (memberType.Group == g)
-                        {
-                            // Source = member-type local, target = owner local (the diamond sits on the owner).
-                            intra[g].Add(new IntraEdge(memberType.Local, l, arrowhead, EdgeKind.Membership));
-                        }
-                        else
-                        {
-                            cross.Add(new CrossEdge(groups[memberType.Group].Items[memberType.Local].QualifiedName, def.QualifiedName, arrowhead, EdgeKind.Membership));
-                        }
-                    }
-                }
-
-                // Attribute typing: owner → attribute-type dependency, open chevron at the type (target) end.
-                // An attribute (or enum-typed attribute) feature typed by a def in the view draws a dashed
-                // dependency line so the attribute def joins the cluster near its referencing def(s). This is
-                // a usage-type dependency, not composition, so it uses the dependency notation rather than a
-                // membership diamond. Unresolved types and self-references are skipped, exactly as above.
-                foreach (var membership in def.Memberships)
-                {
-                    if (membership.Keyword is not ("attribute" or "enum"))
-                    {
-                        continue;
-                    }
-
-                    if (TryResolveLoc(membership.TypeName, locByQualified, locBySimple, out var attrType) &&
-                        !(attrType.Group == g && attrType.Local == l))
-                    {
-                        if (attrType.Group == g)
-                        {
-                            // Source = owner local, target = attribute-type local (the chevron points at the type).
-                            intra[g].Add(new IntraEdge(l, attrType.Local, EndMarkerStyle.OpenChevron, EdgeKind.Typing));
-                        }
-                        else
-                        {
-                            cross.Add(new CrossEdge(def.QualifiedName, groups[attrType.Group].Items[attrType.Local].QualifiedName, EndMarkerStyle.OpenChevron, EdgeKind.Typing));
-                        }
-                    }
+                    edges.Add(new ModelEdge(def.QualifiedName, attrType, EndMarkerStyle.OpenChevron, EdgeKind.Typing));
                 }
             }
         }
 
-        return (intra, cross);
+        return edges;
     }
 
-    /// <summary>Resolves a supertype/type reference to a definition's (group, local) position by qualified then simple name.</summary>
-    private static bool TryResolveLoc(
+    /// <summary>Resolves a supertype/type reference to a definition's qualified name, by qualified then simple name.</summary>
+    private static bool TryResolveQualified(
         string reference,
-        Dictionary<string, (int Group, int Local)> byQualified,
-        Dictionary<string, (int Group, int Local)> bySimple,
-        out (int Group, int Local) location)
+        HashSet<string> byQualified,
+        Dictionary<string, string> bySimple,
+        out string qualified)
     {
-        if (byQualified.TryGetValue(reference, out location))
+        if (byQualified.Contains(reference))
         {
+            qualified = reference;
             return true;
         }
 
         var sep = reference.LastIndexOf("::", StringComparison.Ordinal);
         var simple = sep >= 0 ? reference[(sep + 2)..] : reference;
-        return bySimple.TryGetValue(simple, out location);
+        return bySimple.TryGetValue(simple, out qualified!);
     }
 
     /// <summary>
-    /// Routes the cross-package edges around the placed folders with <see cref="ConnectorRouter"/>.
-    /// Cross-package edges are rare in practice (most General-view models are single-package); each is
-    /// drawn cost-neutrally between the two folders, with the recorded arrowhead at the target end.
+    /// Builds the single input <see cref="LayoutGraph"/>: each package becomes a folder container
+    /// node holding its definitions as leaves (or, when depth-truncated, a single leaf ellipsis
+    /// placeholder); top-level (unpackaged) definitions become leaves directly on the root graph.
+    /// Model edges are added once every definition's node placement is known: an edge whose endpoints
+    /// share a non-empty package is added to that folder's own scope (an intra-package edge the
+    /// layered algorithm can use to order the folder's contents); every other edge — including any
+    /// crossing packages — is added at the root, referencing the descendant nodes directly, per the
+    /// lowest-common-ancestor edge convention. An edge touching a depth-truncated (unrendered)
+    /// definition has no node to reference and is dropped, exactly as before.
     /// </summary>
-    /// <param name="crossEdges">The cross-package edges to route.</param>
-    /// <param name="placed">The absolute placements of every rendered definition box.</param>
-    /// <returns>One routed <see cref="LayoutLine"/> per cross-package edge whose endpoints are both placed.</returns>
-    private static List<LayoutLine> RouteCrossEdges(IReadOnlyList<CrossEdge> crossEdges, IReadOnlyList<PlacedBox> placed)
+    private static (LayoutGraph Graph, List<TruncatedFolder> Truncated) BuildGraph(
+        IReadOnlyList<(string Package, List<DefBox> Items)> groups,
+        IReadOnlyList<ModelEdge> modelEdges,
+        Theme theme,
+        int depthLimit)
     {
-        var lines = new List<LayoutLine>();
-        if (crossEdges.Count == 0)
+        var graph = new LayoutGraph();
+        var truncated = new List<TruncatedFolder>();
+
+        // Reserve the full title area (package keyword + name) above a folder's contents so the
+        // label never overlaps the first child box; the renderer draws the smaller tab notch within.
+        var folderTitleHeight = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true);
+        var margin = 2.0 * theme.LabelPadding;
+
+        // Folder contents sit at depth 1; truncate them when the depth limit forbids that level.
+        var truncateFolderContents = depthLimit > 0 && depthLimit <= 1;
+
+        // Every located definition's node and owning package, so edges can be resolved and scoped.
+        var located = new Dictionary<string, Location>(StringComparer.Ordinal);
+
+        // Each non-truncated package folder's own child scope, keyed by package name, so intra-package
+        // edges can be added there instead of at the root.
+        var folderScopes = new Dictionary<string, LayoutGraph>(StringComparer.Ordinal);
+
+        for (var g = 0; g < groups.Count; g++)
         {
-            return lines;
+            var (package, items) = groups[g];
+            var isFolder = !string.IsNullOrEmpty(package);
+
+            if (!isFolder)
+            {
+                // Top-level (unpackaged) definitions become plain leaves directly on the root graph.
+                foreach (var def in items)
+                {
+                    var leaf = MakeDefNode(graph, def);
+                    located[def.QualifiedName] = new Location(leaf, package);
+                }
+
+                continue;
+            }
+
+            if (truncateFolderContents)
+            {
+                // Replace the folder's definition boxes with a single leaf ellipsis indicator. It
+                // stays a leaf (its Children graph is never touched) so the hierarchical engine keeps
+                // this caller-computed size rather than auto-sizing it as a container.
+                var ellipsisWidth = Math.Max(
+                    MinBoxWidth,
+                    (2.0 * margin) + (items.Count.ToString(System.Globalization.CultureInfo.InvariantCulture).Length * 8.0) + 60.0);
+                var ellipsisHeight = (2.0 * margin) + theme.FontSizeTitle;
+                var placeholder = graph.AddNode($"folder:{package}", ellipsisWidth, folderTitleHeight + ellipsisHeight);
+                placeholder.Label = SimplePackageName(package);
+                placeholder.Shape = BoxShape.Folder;
+                placeholder.Keyword = "package";
+                truncated.Add(new TruncatedFolder(placeholder, items.Count));
+
+                // None of the folder's definitions receive a node: every edge touching one is dropped.
+                continue;
+            }
+
+            var folder = graph.AddNode($"folder:{package}", 0, 0);
+            folder.Label = SimplePackageName(package);
+            folder.Shape = BoxShape.Folder;
+            folder.Keyword = "package";
+            folder.TitleHeight = folderTitleHeight;
+            folder.Set(CoreOptions.Algorithm, LayeredLayoutAlgorithm.AlgorithmId);
+            folderScopes[package] = folder.Children;
+
+            foreach (var def in items)
+            {
+                var leaf = MakeDefNode(folder.Children, def);
+                located[def.QualifiedName] = new Location(leaf, package);
+            }
         }
 
-        // Index placed boxes by qualified name so cross edges resolve to absolute box geometry. Edges
-        // touching a truncated (unrendered) definition are skipped because the box is absent.
-        var byQualified = new Dictionary<string, PlacedBox>(StringComparer.Ordinal);
-        foreach (var p in placed)
+        // Add every model edge whose endpoints both received a node, scoped per the
+        // lowest-common-ancestor rule: same non-empty package → that folder's own scope; otherwise the
+        // root graph, referencing the (possibly nested) endpoint nodes directly.
+        var edgeId = 0;
+        foreach (var edge in modelEdges)
         {
-            byQualified.TryAdd(p.QualifiedName, p);
-        }
-
-        foreach (var edge in crossEdges)
-        {
-            if (!byQualified.TryGetValue(edge.SourceQualified, out var fromBox) ||
-                !byQualified.TryGetValue(edge.TargetQualified, out var toBox))
+            if (!located.TryGetValue(edge.SourceQualified, out var source) ||
+                !located.TryGetValue(edge.TargetQualified, out var target))
             {
                 continue;
             }
 
-            lines.Add(RouteCrossEdge(fromBox, toBox, placed, edge.Arrowhead, LineStyleForKind(edge.Kind)));
+            var scope = source.Package.Length > 0 &&
+                source.Package == target.Package &&
+                folderScopes.TryGetValue(source.Package, out var folderScope)
+                ? folderScope
+                : graph;
+
+            var added = scope.AddEdge($"e{edgeId++}", source.Node, target.Node);
+            added.TargetEnd = edge.Arrowhead;
+            added.LineStyle = LineStyleForKind(edge.Kind);
         }
 
-        return lines;
+        return (graph, truncated);
+    }
+
+    /// <summary>Creates a definition leaf node in the given scope, carrying its keyword and compartments.</summary>
+    private static LayoutGraphNode MakeDefNode(LayoutGraph scope, DefBox def)
+    {
+        var node = scope.AddNode(def.QualifiedName, def.Width, def.Height);
+        node.Label = def.SimpleName;
+        node.Shape = BoxShape.Rectangle;
+        node.Keyword = def.Keyword;
+        node.Compartments = def.Compartments;
+        return node;
     }
 
     /// <summary>
-    /// Routes a single cross-package edge from the source box to the target box, placing the supplied
-    /// arrowhead at the target (supertype, owner, or attribute-type) end with the supplied line style.
+    /// Replaces each truncated folder's placed box with one carrying its "+N more…" ellipsis label,
+    /// positioned within the box's now-known absolute placement.
     /// </summary>
-    private static LayoutLine RouteCrossEdge(PlacedBox from, PlacedBox to, IReadOnlyList<PlacedBox> placed, EndMarkerStyle targetArrowhead, LineStyle lineStyle)
+    private static LayoutTree DecorateTruncatedFolders(
+        LayoutTree tree,
+        LayoutGraph graph,
+        IReadOnlyList<TruncatedFolder> truncated,
+        Theme theme)
     {
-        // Represent every placed definition as a box for the router. The from/to boxes are the
-        // connection endpoints; every other box is an obstacle the router steers around. The router
-        // picks the anchor faces the two endpoints present to each other.
-        var fromBox = ToRouteBox(from);
-        var toBox = ToRouteBox(to);
-        var boxes = new List<LayoutBox>(placed.Count);
-        foreach (var b in placed)
+        var hiddenByNode = truncated.ToDictionary(t => t.Node, t => t.HiddenCount);
+        var folderTitleHeight = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true);
+
+        var nodes = new List<LayoutNode>(tree.Nodes);
+        for (var i = 0; i < graph.Nodes.Count && i < nodes.Count; i++)
         {
-            if (b.QualifiedName == from.QualifiedName)
+            if (!hiddenByNode.TryGetValue(graph.Nodes[i], out var hiddenCount) ||
+                nodes[i] is not LayoutBox box)
             {
-                boxes.Add(fromBox);
+                continue;
             }
-            else if (b.QualifiedName == to.QualifiedName)
-            {
-                boxes.Add(toBox);
-            }
-            else
-            {
-                boxes.Add(ToRouteBox(b));
-            }
+
+            var indicator = new LayoutLabel(
+                X: box.X + theme.LabelPadding,
+                Y: box.Y + folderTitleHeight + theme.LabelPadding + (theme.FontSizeTitle / 2.0),
+                MaxWidth: box.Width - (2.0 * theme.LabelPadding),
+                Text: $"+{hiddenCount} more\u2026",
+                Align: TextAlign.Center,
+                Weight: FontWeight.Regular,
+                Style: FontStyle.Normal,
+                FontSize: theme.FontSizeTitle);
+
+            nodes[i] = box with { Children = [indicator] };
         }
 
-        var connection = new Connection(fromBox, toBox, targetArrowhead, lineStyle, null);
-        return ConnectorRouter.Route(boxes, connection, new ConnectorRouteOptions(EdgeRouting.Orthogonal, EdgeClearance));
-    }
-
-    /// <summary>Represents a placed definition as a plain rectangle box for connector routing.</summary>
-    private static LayoutBox ToRouteBox(PlacedBox box) =>
-        new(box.X, box.Y, box.Width, box.Height, null, 0, BoxShape.Rectangle, [], []);
-
-    /// <summary>Computes the packing width used to lay out top-level blocks across the canvas.</summary>
-    private static double ComputeCanvasWidth(IReadOnlyList<BlockPlan> blocks)
-    {
-        // Target a roughly 4:3 canvas by packing to the square root of the total block area.
-        var totalArea = blocks.Sum(b => (b.Width + 30.0) * (b.Height + 30.0));
-        var maxBlockWidth = blocks.Max(b => b.Width);
-        var target = Math.Sqrt(totalArea) * 1.25;
-        return Math.Max(maxBlockWidth, target);
+        return tree with { Nodes = nodes };
     }
 
     /// <summary>Returns the last segment of a qualified package name for use as a folder label.</summary>
@@ -803,19 +581,5 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     {
         var sep = package.LastIndexOf("::", StringComparison.Ordinal);
         return sep >= 0 ? package[(sep + 2)..] : package;
-    }
-
-    /// <summary>Internal plan for one top-level block (a package folder or the frameless top-level block).</summary>
-    /// <param name="Package">Owning package name; empty for the frameless top-level block.</param>
-    /// <param name="Items">The definitions placed within this block, in group order.</param>
-    /// <param name="Width">Outer width of the block in logical pixels.</param>
-    /// <param name="Height">Outer height of the block in logical pixels.</param>
-    private sealed record BlockPlan(string Package, IReadOnlyList<DefBox> Items, double Width, double Height)
-    {
-        /// <summary>Package-local placement of the block's definitions and routed edges; null when truncated.</summary>
-        public GroupLayout? Layout { get; init; }
-
-        /// <summary>When true, the folder's contents are replaced by an ellipsis truncation indicator.</summary>
-        public bool Truncated { get; init; }
     }
 }

@@ -90,8 +90,8 @@
 
   <!-- Rendering output packages: the SVG renderer and the SkiaSharp raster renderers -->
   <ItemGroup>
-    <PackageReference Include="DemaConsulting.Rendering.Svg" Version="0.1.0-beta.2" />
-    <PackageReference Include="DemaConsulting.Rendering.Skia" Version="0.1.0-beta.2" />
+    <ProjectReference Include="..\..\..\Rendering\src\DemaConsulting.Rendering.Svg\DemaConsulting.Rendering.Svg.csproj" />
+    <ProjectReference Include="..\..\..\Rendering\src\DemaConsulting.Rendering.Skia\DemaConsulting.Rendering.Skia.csproj" />
   </ItemGroup>
 
   <ItemGroup>

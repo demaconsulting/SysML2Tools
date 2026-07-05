@@ -132,12 +132,18 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-LayeredPlacement
         title: >-
-          GeneralViewLayoutStrategy shall place definitions through LayeredPlacement so that no two
-          definition boxes overlap and every package folder stays clear of the others.
+          GeneralViewLayoutStrategy shall place definitions through the bundled
+          DemaConsulting.Rendering.Layout hierarchical layout engine so that no two definition
+          boxes overlap and every package folder stays clear of the others.
         justification: |
-          Delegating placement through LayeredPlacement to the off-the-shelf
-          DemaConsulting.Rendering.Layout layered algorithm gives the General View ELK-style box
-          placement and orthogonal edge routing. The observable
+          The whole General View is expressed as a single input LayoutGraph — package folders as
+          container nodes, definitions as leaves — and placed with one
+          HierarchicalLayoutAlgorithm.Apply call: the root scope packs folders and top-level
+          definitions by reading order (ContainmentLayoutAlgorithm), while each folder's own
+          contents are ordered by their intra-package edges with the bundled layered algorithm
+          (LayeredLayoutAlgorithm). Delegating the whole placement, including cross-container edge
+          anchoring, to Rendering's own engine gives the General View ELK-style box placement and
+          orthogonal edge routing without SysML2Tools duplicating any layout logic. The observable
           guarantee that matters to readers is that boxes and folders never overlap, regardless of
           model size or density, so the diagram stays legible without manual layout hints.
         tests:
