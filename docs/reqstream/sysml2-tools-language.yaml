@@ -40,9 +40,10 @@ sections:
           representation and faithfully deserialize them, preserving all node types,
           qualified names, supertype lists, and import names.
         justification: |
-          Round-trip serialization enables the build-time StdlibGen tool to write a
-          pre-compiled stdlib.bin and the runtime StdlibProvider to deserialize it,
-          eliminating the 25-second cold-start parse at application launch.
+          Round-trip serialization enables the StdlibGen tool to write a
+          pre-compiled, gzip-compressed stdlib.json.gz and the runtime StdlibProvider to
+          decompress and deserialize it, eliminating the 25-second cold-start parse at
+          application launch.
         tests:
           - Serialize_EmptyTable_RoundTrips
           - Serialize_AllNodeTypes_RoundTrip
