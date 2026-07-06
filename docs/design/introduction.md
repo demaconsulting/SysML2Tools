@@ -64,9 +64,11 @@ system, subsystem, and unit levels:
       - **AstSerializerContext** (Unit) — source-generated JSON context for AOT-safe serialization
 - **DemaConsulting.SysML2Tools.Stdlib** (System) — stdlib library: pre-compiled SysML v2 standard
   library JSON embedded as a gzip-compressed managed resource
-  - **StdlibProvider** (Unit) — lazy-cached GetSymbolTable() decompressed/deserialized from embedded stdlib.json.gz
-- **StdlibGen** (Standalone tool) — console tool that parses stdlib source files and writes stdlib.json.gz
-  (invoked by build.ps1, not part of the MSBuild graph; excluded from the software-items requirements/design/verification tree — see _Scope_)
+  - **StdlibProvider** (Unit) — lazy-cached GetSymbolTable() decompressed/deserialized from
+    embedded stdlib.json.gz
+- **StdlibGen** (Standalone tool) — console tool that parses stdlib source files and writes
+  stdlib.json.gz (invoked by build.ps1, not part of the MSBuild graph; excluded from the
+  software-items requirements/design/verification tree — see _Scope_)
   - **Program** (Unit) — entry point: parses stdlib, runs resolution, serializes and compresses to stdlib.json.gz
 - **DemaConsulting.SysML2Tools.Core** (System) — core library: layout strategies, rendering
   orchestration, and the SysML-coupled rendering pipeline
