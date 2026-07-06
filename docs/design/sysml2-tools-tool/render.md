@@ -37,7 +37,9 @@ Entry point for the render command. Steps:
    `Program` only reaches here when `Context.Create` has already populated it) and validates
    that `options.Files` is non-empty; calls `context.WriteError` and returns when no patterns
    are supplied.
-2. Calls `WorkspaceLoader.LoadAsync(options.Files)` to load the workspace.
+2. Calls `StdlibProvider.GetSymbolTable()` to obtain the pre-resolved OMG stdlib symbol table,
+   then calls `WorkspaceLoader.LoadAsync(options.Files, stdlibTable)` to load the workspace,
+   seeded with the stdlib symbol table so stdlib elements resolve without re-parsing them.
 3. Reports all diagnostics from `loadResult.Diagnostics`, writing errors via
    `context.WriteError` and other messages via `context.WriteLine`.
 4. Calls `DiagramRenderer.GetViewNames(workspace)` to enumerate renderable views.
@@ -76,6 +78,11 @@ future-locale story, which applies identically here.
 - Load diagnostics: reported to the context; non-fatal; rendering proceeds regardless.
 - Multiple views without `--view`: no error; every declared view is rendered (one output file
   per view), supporting bulk "render everything" exports.
+- Output file name collision: when rendering all views (`--view` not specified) with more than
+  one output, and two or more views' sanitized display names produce the same output file
+  name, `context.WriteError` reports every colliding group (listing the colliding qualified
+  view names and the shared file name) and the method returns before any file is written for
+  this run, rather than silently overwriting one view's output with another's.
 - Unknown `--view` name: `context.WriteError` lists available view names and returns early.
 - Unsupported `--format` value: `ArgumentException` is thrown naming the bad value and the
   valid values (`svg`, `png`); propagates to `Program.Main`'s expected-exception handler.
@@ -85,8 +92,12 @@ future-locale story, which applies identically here.
 
 ##### Dependencies
 
+- `StdlibProvider` (in `DemaConsulting.SysML2Tools.Stdlib`) — supplies the pre-resolved OMG
+  stdlib symbol table used to seed `WorkspaceLoader.LoadAsync`
 - `WorkspaceLoader` (in `DemaConsulting.SysML2Tools.Semantic`) — loads workspace
-- `DiagramRenderer` (in `DemaConsulting.SysML2Tools.Rendering`) — renders views
+- `DiagramRenderer` (in `DemaConsulting.SysML2Tools.Rendering`) — renders views; also exposes
+  `GetViewIdentities` used to attribute colliding output file names back to their originating
+  qualified view names
 - `SvgRenderer` (in `DemaConsulting.Rendering.Svg`) — produces SVG output
 - `PngRenderer` (in `DemaConsulting.Rendering.Skia`) — produces PNG output
 - `Themes.Light` (in `DemaConsulting.Rendering.Abstractions`) — default theme
@@ -112,3 +123,4 @@ future-locale story, which applies identically here.
 | SysML2Tools-Tool-Render-UnknownViewError | Unknown `--view` name guard using `viewNames` in `RunAsync` |
 | SysML2Tools-Tool-Render-ViewSelection | `viewFilter` passed to `RenderWorkspace` in `RunAsync` |
 | SysML2Tools-Tool-Render-FormatValidation | Eager `--format` value guard in `RunAsync` |
+| SysML2Tools-Tool-Render-FileNameCollision | Output file name collision guard in `RunAsync` |

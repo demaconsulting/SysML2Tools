@@ -122,6 +122,16 @@ internal static class RenderCommand
             return;
         }
 
+        // When rendering every view (no --view filter) with more than one output, guard against
+        // two views whose display names sanitize to the same output file name — without this
+        // check, the second file written below would silently overwrite the first while the
+        // final "Rendered N view(s)." message still reports both as rendered.
+        if (options.ViewName is null && outputs.Count > 1 &&
+            ReportFileNameCollisions(context, loadResult.Workspace, outputs))
+        {
+            return;
+        }
+
         // Determine the output directory (default: current directory)
         var outputDir = options.OutputDirectory ?? Directory.GetCurrentDirectory();
         Directory.CreateDirectory(outputDir);
@@ -142,6 +152,72 @@ internal static class RenderCommand
         }
 
         context.WriteLine($"Rendered {outputs.Count} view(s).");
+    }
+
+    /// <summary>
+    /// Detects and reports output file name collisions among the given render outputs, sourcing
+    /// each output's originating view qualified name from <see cref="DiagramRenderer.GetViewIdentities"/>.
+    /// </summary>
+    /// <param name="context">The CLI context used to write the error message.</param>
+    /// <param name="workspace">The workspace that produced <paramref name="outputs"/>.</param>
+    /// <param name="outputs">
+    /// The render outputs to check, in the same order that <see cref="DiagramRenderer.GetViewIdentities"/>
+    /// enumerates renderable views for this workspace.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when at least one collision was found and reported (the caller
+    /// must abort without writing any files); <see langword="false"/> when no collision exists.
+    /// </returns>
+    /// <remarks>
+    /// <see cref="RenderOutput"/> (from the external <c>DemaConsulting.Rendering.Abstractions</c>
+    /// package) exposes only <c>SuggestedFileName</c>, <c>MediaType</c>, <c>Data</c>, and
+    /// <c>Warnings</c> — it carries no reference back to the originating view — so the qualified
+    /// name for each output must be sourced separately, by index, from
+    /// <see cref="DiagramRenderer.GetViewIdentities"/>. Both that method and
+    /// <see cref="DiagramRenderer.RenderWorkspace"/> apply the identical filter/iteration over
+    /// <see cref="SysmlWorkspace.Declarations"/> with no mutation in between (the same
+    /// invariant this command already relies on when calling <c>GetViewNames</c> once for
+    /// <c>--view</c> validation and <c>RenderWorkspace</c> separately), so the two lists line up
+    /// by index.
+    /// </remarks>
+    private static bool ReportFileNameCollisions(
+        Context context,
+        SysmlWorkspace workspace,
+        IReadOnlyList<RenderOutput> outputs)
+    {
+        var identities = DiagramRenderer.GetViewIdentities(workspace);
+        if (identities.Count != outputs.Count)
+        {
+            // Defensive: the two enumerations should always line up 1:1 (see remarks); if this
+            // invariant is ever broken by a future change, fail loudly rather than mis-attribute
+            // qualified names to the wrong output.
+            throw new InvalidOperationException(
+                $"render: internal error — view identity count ({identities.Count}) does not " +
+                $"match render output count ({outputs.Count}).");
+        }
+
+        // Group the colliding qualified names by shared output file name
+        var groups = identities
+            .Select((identity, index) => (identity.QualifiedName, outputs[index].SuggestedFileName))
+            .GroupBy(entry => entry.SuggestedFileName, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .ToList();
+
+        if (groups.Count == 0)
+        {
+            return false;
+        }
+
+        // Report every colliding group before aborting, so users see all collisions at once
+        foreach (var group in groups)
+        {
+            var qualifiedNames = string.Join(", ", group.Select(entry => entry.QualifiedName));
+            context.WriteError(
+                $"render: output file name collision '{group.Key}' between views: {qualifiedNames}. " +
+                "Rename one of the views, or use --view to render a single view.");
+        }
+
+        return true;
     }
 
     /// <summary>

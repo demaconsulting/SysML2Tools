@@ -38,6 +38,20 @@ public sealed class DiagramRenderer
     }
 
     /// <summary>
+    /// Identifies a single renderable view by both its fully qualified name and its display
+    /// name (the name used to derive the output file name).
+    /// </summary>
+    /// <param name="QualifiedName">
+    /// The view's fully qualified name (e.g. <c>"PkgA::SharedView"</c>), unique within the
+    /// workspace.
+    /// </param>
+    /// <param name="DisplayName">
+    /// The view's display name: the simple <c>Name</c> when present, otherwise the qualified
+    /// name. Two views in different packages may share the same display name.
+    /// </param>
+    public readonly record struct ViewIdentity(string QualifiedName, string DisplayName);
+
+    /// <summary>
     /// Returns the display names of all renderable user-defined views in the workspace,
     /// mirroring the filtering applied by <see cref="RenderWorkspace"/>.
     /// </summary>
@@ -46,14 +60,34 @@ public sealed class DiagramRenderer
     /// An ordered list of view display names. Returns an empty list when the workspace
     /// contains no renderable view declarations.
     /// </returns>
-    public static IReadOnlyList<string> GetViewNames(SysmlWorkspace workspace)
+    public static IReadOnlyList<string> GetViewNames(SysmlWorkspace workspace) =>
+        GetViewIdentities(workspace).Select(identity => identity.DisplayName).ToList();
+
+    /// <summary>
+    /// Returns the qualified and display names of all renderable user-defined views in the
+    /// workspace, in the same order that <see cref="RenderWorkspace"/> produces its outputs.
+    /// </summary>
+    /// <param name="workspace">The SysML workspace whose view declarations are inspected.</param>
+    /// <returns>
+    /// An ordered list of <see cref="ViewIdentity"/> values, one per renderable view. Returns an
+    /// empty list when the workspace contains no renderable view declarations.
+    /// </returns>
+    /// <remarks>
+    /// Callers that need to correlate each <see cref="RenderOutput"/> produced by
+    /// <see cref="RenderWorkspace"/> with the originating view's qualified name (for example, to
+    /// report a collision between two views that sanitize to the same output file name) may zip
+    /// this list by index against the <see cref="RenderWorkspace"/> result, because both methods
+    /// apply the identical filter/iteration over <see cref="SysmlWorkspace.Declarations"/> with no
+    /// intervening mutation.
+    /// </remarks>
+    public static IReadOnlyList<ViewIdentity> GetViewIdentities(SysmlWorkspace workspace)
     {
         // Validate input — null workspace would produce silent failures
         ArgumentNullException.ThrowIfNull(workspace);
 
-        var names = new List<string>();
+        var identities = new List<ViewIdentity>();
 
-        // Iterate over all declarations and collect each renderable view name
+        // Iterate over all declarations and collect each renderable view's identity
         foreach (var (qualifiedName, node) in workspace.Declarations)
         {
             // Skip non-view declarations
@@ -79,10 +113,11 @@ public sealed class DiagramRenderer
             _ = strategy;
 
             // Resolve the display name: prefer the simple name, fall back to qualified name
-            names.Add(viewNode.Name ?? qualifiedName);
+            var displayName = viewNode.Name ?? qualifiedName;
+            identities.Add(new ViewIdentity(qualifiedName, displayName));
         }
 
-        return names;
+        return identities;
     }
 
     /// <summary>

@@ -57,7 +57,8 @@ public class RenderSubsystemTests
             using var context = Context.Create(["render"]);
             await Program.RunAsync(context);
 
-            // Assert: error message written and exit code indicates failure
+            // Assert: expected diagnostic text written and exit code indicates failure
+            Assert.Contains("no input files specified", errWriter.ToString());
             Assert.Equal(1, context.ExitCode);
         }
         finally
@@ -362,6 +363,61 @@ public class RenderSubsystemTests
         finally
         {
             Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     RenderCommand reports a collision error and writes no output files when two views in
+    ///     different packages share the same simple name (and therefore the same sanitized
+    ///     output file name).
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_DuplicateViewFileNames_ReportsCollisionError()
+    {
+        // Arrange: write a SysML model with two packages each declaring a view of the same
+        // simple name ("SharedView"), producing qualified names "PkgA::SharedView" and
+        // "PkgB::SharedView" that both sanitize to the output file name "SharedView.svg"
+        const string sysmlWithDuplicateViewNames = """
+            package PkgA {
+                part def BlockA {}
+                view def SharedView {}
+            }
+            package PkgB {
+                part def BlockB {}
+                view def SharedView {}
+            }
+            """;
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_collision_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        await File.WriteAllTextAsync(
+            tempFile, sysmlWithDuplicateViewNames, TestContext.Current.CancellationToken);
+
+        var outputDir = Path.Combine(tempDir, "out");
+        var originalError = Console.Error;
+        try
+        {
+            using var errWriter = new StringWriter();
+            Console.SetError(errWriter);
+
+            // Act: render without --view so both colliding views are considered for rendering
+            using var context = Context.Create(["render", "--output", outputDir, tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert: exit code indicates failure; error message names both colliding qualified
+            // views and the shared file name; no output directory/files were created
+            Assert.Equal(1, context.ExitCode);
+            var errorText = errWriter.ToString();
+            Assert.Contains("PkgA::SharedView", errorText);
+            Assert.Contains("PkgB::SharedView", errorText);
+            Assert.Contains("SharedView.svg", errorText);
+            Assert.False(Directory.Exists(outputDir), "Expected no output directory to be created");
+        }
+        finally
+        {
+            Console.SetError(originalError);
             Directory.Delete(tempDir, recursive: true);
         }
     }

@@ -116,6 +116,20 @@ sections:
         tests:
           - RenderSubsystem_UnsupportedFormat_ThrowsArgumentException
 
+      - id: SysML2Tools-Tool-Render-FileNameCollision
+        title: >-
+          The render command shall detect and report, before writing any output files, when
+          rendering all declared views (--view not specified) would produce two or more
+          output files with the same sanitized file name, naming the colliding views and the
+          shared file name, and shall abort without writing any files for that run.
+        justification: |
+          Two declared views in different packages that share the same simple name sanitize
+          to the same output file name. Without a collision guard, the second file written
+          silently overwrites the first while the final "Rendered N view(s)." message still
+          misreports both views as rendered, masking data loss from the user.
+        tests:
+          - RenderSubsystem_DuplicateViewFileNames_ReportsCollisionError
+
       - id: SysML2Tools-Tool-Render-LocalizableHelpText
         title: >-
           The render command's help text (RenderCommand.PrintHelp) shall be sourced from

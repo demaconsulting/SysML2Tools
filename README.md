@@ -73,23 +73,24 @@ Exit code is non-zero if any errors are present, making it suitable for CI/CD pi
 
 ### Rendering
 
-Render a SysML v2 workspace to SVG or PNG:
+Render a SysML v2 workspace to SVG or PNG. `--output` names an output *directory*
+(default: current directory); `--format` selects `svg` (default) or `png`:
 
 ```bash
 # Render to SVG (auto-selects the single view in the workspace)
-sysml2tools render model.sysml --output diagram.svg
+sysml2tools render model.sysml --output out --format svg
 
 # Render to PNG
-sysml2tools render model.sysml --output diagram.png
+sysml2tools render model.sysml --output out --format png
 
 # Render a named view from a multi-view workspace
-sysml2tools render "src/**/*.sysml" --view SystemContext --output context.svg
+sysml2tools render "src/**/*.sysml" --view SystemContext --output out --format svg
 
 # Auto-render the top-level part def when no view is defined
-sysml2tools render model.sysml --auto --output diagram.svg
+sysml2tools render model.sysml --auto --output out --format svg
 
 # Limit nesting depth (truncated parts show "+N more…")
-sysml2tools render model.sysml --output diagram.svg --depth 3
+sysml2tools render model.sysml --output out --depth 3
 ```
 
 ### Querying
@@ -160,8 +161,8 @@ sysml2tools [-v|--version] [-?|-h|--help] [--silent]
 sysml2tools help [lint|render|query [<query-verb>]]
 ```
 
-`<verb>` is `lint`, `render`, or `query <query-verb>` (11 query verbs — see
-[Querying](#querying)).
+`<verb>` is `lint`, `render`, or `query <query-verb>` (11 query verbs — see the *Querying*
+section above).
 
 ### Global Options
 
@@ -186,7 +187,8 @@ sysml2tools help [lint|render|query [<query-verb>]]
 | Option | Description |
 | --- | --- |
 | `<globs>` | One or more glob patterns for `.sysml` input files |
-| `--output <file>` | Output file path; extension determines format (`.svg` or `.png`) |
+| `--output <dir>` | Output directory for rendered files (default: current directory) |
+| `--format svg\|png` | Renderer format (default: `svg`) |
 | `--view <name>` | Name of the view to render; omit to render every declared view (default) |
 | `--auto` | Auto-render the BDD of the top-level `part def` when no view is defined |
 | `--depth <#>` | Limit rendered nesting depth; truncated parts show `+N more…` |
@@ -195,7 +197,7 @@ sysml2tools help [lint|render|query [<query-verb>]]
 
 | Option | Description |
 | --- | --- |
-| `<verb>` | One of the 11 supported query verbs — see [Querying](#querying) |
+| `<verb>` | One of the 11 supported query verbs — see the *Querying* section above |
 | `<globs>` | One or more glob patterns for `.sysml` input files |
 | `--element <name>`, `-e <name>` | Qualified name of the target element; required for every verb except `list`/`find` |
 | `--format markdown\|json` | Output format (default: `markdown`); distinct from `render`'s `--format` (`svg`/`png`) |
@@ -218,7 +220,7 @@ sysml2tools help [lint|render|query [<query-verb>]]
 | --- | --- |
 | Exactly one view in workspace | Render it |
 | Zero views, `--auto` specified | Auto-render BDD of top-level `part def` silently |
-| Zero views, no `--auto` | Warn and auto-render |
+| Zero views, no `--auto` | Informational message; no output files written |
 | Multiple views, none specified | Render every declared view (one output file per view) |
 | Multiple views, `--view <name>` | Render only the named view |
 | `--view <name>` names a view that does not exist | Error: lists available view names and exits non-zero |
