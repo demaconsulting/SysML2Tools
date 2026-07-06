@@ -64,4 +64,12 @@ package QuadcopterDrone {
     requirement def FlightTimeRequirement;
 
     view def DroneGeneralView {}
+
+    // A view-scoped rendering example: `expose` narrows the diagram to just
+    // the Battery subsystem's containment subtree, instead of the whole
+    // workspace. See docs/gallery/README.md section 1b and the user guide's
+    // "Expose vs. Render" section for more detail.
+    view BatterySubsystemView {
+        expose Battery;
+    }
 }
