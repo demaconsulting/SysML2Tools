@@ -131,10 +131,17 @@ helper (see below) against each `expose` member's wrapped `namespaceImport()`/
 `ExtractImportTarget(NamespaceImportContext?, MembershipImportContext?)` is a shared helper
 extracted from `VisitImportRule`'s previously inline logic, returning the extracted
 qualified/dotted name text and whether the reference is a wildcard, for either the
-namespace-import form (`qualifiedName::*`, always a wildcard) or the membership-import form
-(`qualifiedName`, optionally `::**`). `VisitImportRule` and `ExtractExposedNames` both call this
-one helper rather than duplicating the extraction logic, per the Copy-Paste Programming
-anti-pattern guidance in coding-principles.md.
+namespace-import form (`qualifiedName::*`, always a wildcard), the membership-import form
+(`qualifiedName`, optionally `::**`), or the bracketed-filter form nested inside a
+namespace-import (`qualifiedName::**[<filterExpr>]`) — the dominant `expose` shape in the real
+OMG corpus (e.g. `expose vehicle::**[@Safety];`). The grammar nests the qualified name two levels
+deeper for that third form: `namespaceImport -> filterPackage -> filterPackageImportDeclaration ->
+(membershipImport | namespaceImportDirect)`. `ExtractImportTarget` descends into
+`filterPackage().filterPackageImportDeclaration()` and extracts the qualified name from whichever
+of `membershipImport()`/`namespaceImportDirect()` is present there, rather than only checking the
+direct `qualifiedName()` child (which is null for this alternative). `VisitImportRule` and
+`ExtractExposedNames` both call this one helper rather than duplicating the extraction logic, per
+the Copy-Paste Programming anti-pattern guidance in coding-principles.md.
 
 `VisitRequirementUsage` performs a minimal capture (name/qualified-name only, so named
 requirement usages become resolvable symbols) and additionally invokes `FindVerificationMembers`

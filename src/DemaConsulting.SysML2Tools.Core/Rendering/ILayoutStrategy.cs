@@ -24,7 +24,7 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 /// </param>
 /// <param name="ViewNode">
 /// The resolved <see cref="SysmlViewNode"/> the view was declared from, carrying its resolved
-/// <c>Render</c>/<c>Expose</c> edges and raw <c>FilterExpressionText</c> so a strategy can scope
+/// <c>Expose</c> edges and raw <c>FilterExpressionText</c> so a strategy can scope
 /// its diagram accordingly. Nullable to preserve the <c>--auto</c> synthetic-view path, whose
 /// synthesized <see cref="SysmlViewNode"/> carries no render/expose/filter data; defaults to
 /// <see langword="null"/> so existing two-argument construction call sites remain unchanged.

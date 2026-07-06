@@ -8,6 +8,7 @@ using DemaConsulting.SysML2Tools.Layout.Internal;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
+using DemaConsulting.SysML2Tools.Stdlib;
 
 namespace DemaConsulting.SysML2Tools.Tests.Layout;
 
@@ -951,6 +952,100 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Contains("B", labels);
         Assert.Contains("Child", labels);
         Assert.Empty(layout.Warnings);
+    }
+
+    /// <summary>
+    ///     Regression guard for the bracketed-filter <c>expose</c> parsing bug:
+    ///     <c>vehicleMandatorySafetyFeatureViewStandalone</c> in the real OMG corpus fixture
+    ///     <c>11b-SafetyAndSecurityFeatureViews.sysml</c> declares
+    ///     <c>expose vehicle::**[@Safety and (as Safety).isMandatory];</c> — the bracketed-filter
+    ///     grammar form that <c>AstBuilder.ExtractImportTarget</c> previously failed to descend
+    ///     into, leaving the view with zero <c>Expose</c> edges and causing
+    ///     <see cref="GeneralViewLayoutStrategy"/> to silently fall back to rendering the entire
+    ///     workspace. After the fix, this view's layout must be scoped to the <c>vehicle</c>
+    ///     subtree — which, in this fixture, contains no <c>part def</c> declarations (only
+    ///     usages), so the correctly-scoped rendering drops to zero boxes, strictly fewer than the
+    ///     unscoped full-workspace rendering (which still includes the unrelated
+    ///     <c>AnnotationDefinitions::Safety</c>/<c>Security</c> metadata definitions). Before the
+    ///     fix, scoped and full box counts were identical (both rendered everything).
+    /// </summary>
+    // cspell:ignore Feaure -- typo present verbatim in the real OMG corpus fixture's package name
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_OmgSafetyFeatureViewsFixture_ScopesToExposedVehicleSubtree()
+    {
+        // Arrange: load the real OMG corpus fixture.
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var fixturePath = Path.Combine(
+            modelsRoot, "OMG", "validation", "11-ViewAndViewpoint", "11b-SafetyAndSecurityFeatureViews.sysml");
+        if (!File.Exists(fixturePath))
+        {
+            return;
+        }
+
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([fixturePath], stdlibTable);
+        Assert.NotNull(result.Workspace);
+        var workspace = result.Workspace!;
+
+        const string viewQualifiedName =
+            "'11b-Safety and Security Feaure Views'::Views::vehicleMandatorySafetyFeatureViewStandalone";
+        var viewNode = Assert.IsType<SysmlViewNode>(workspace.Declarations[viewQualifiedName]);
+
+        // Confirm the fix actually resolved an Expose edge before asserting on layout scoping —
+        // otherwise this test would pass vacuously by comparing full-workspace to full-workspace.
+        Assert.NotEmpty(viewNode.ExposedNames);
+        Assert.Contains(workspace.Index.AllEdges,
+            e => e.Kind == SysmlEdgeKind.Expose && e.SourceQualifiedName == viewQualifiedName);
+
+        var strategy = new GeneralViewLayoutStrategy();
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var scoped = strategy.BuildLayout(new ViewContext("scoped", workspace, viewNode), options);
+        var full = strategy.BuildLayout(new ViewContext("full", workspace), options);
+
+        // Assert: the scoped view renders strictly fewer boxes than the full workspace. In this
+        // fixture the `vehicle` subtree is built entirely from part *usages* (not `part def`
+        // declarations), which `GeneralViewLayoutStrategy.CollectDefinitions` does not render as
+        // boxes — so the correctly-scoped view renders zero boxes here, while the unscoped full
+        // workspace still renders the two unrelated `AnnotationDefinitions` metadata definitions
+        // (`Safety`, `Security`). That drop from 2 boxes to 0 is itself the regression signal:
+        // before the fix, `ResolveExposedScope` saw no `Expose` edges and fell back to rendering
+        // the entire workspace (i.e. scoped would equal full, not be strictly smaller).
+        var scopedBoxes = CollectBoxes(scoped.Nodes);
+        var fullBoxes = CollectBoxes(full.Nodes);
+        Assert.True(scopedBoxes.Count < fullBoxes.Count,
+            $"expected scoped box count ({scopedBoxes.Count}) < full box count ({fullBoxes.Count})");
+        var fullLabels = fullBoxes.Select(b => b.Label).ToList();
+        Assert.Contains("Safety", fullLabels);
+        Assert.Contains("Security", fullLabels);
+        var scopedLabels = scopedBoxes.Select(b => b.Label).ToList();
+        Assert.DoesNotContain("Safety", scopedLabels);
+        Assert.DoesNotContain("Security", scopedLabels);
+    }
+
+    /// <summary>
+    ///     Finds the test/SysMLModels directory relative to the test assembly.
+    /// </summary>
+    private static string? FindSysMLModelsRoot()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null)
+        {
+            var candidate = Path.Combine(dir, "test", "SysMLModels");
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -1018,6 +1018,35 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             {
                 return (qn, true);
             }
+
+            // Bracketed-filter form: qualifiedName::**[filterExpr] — the dominant expose form in
+            // the real OMG corpus. The grammar nests the qualified name two levels deeper here:
+            // namespaceImport -> filterPackage -> filterPackageImportDeclaration -> (membershipImport
+            // | namespaceImportDirect). Descend through that chain rather than only checking the
+            // direct qualifiedName() child (which is null for this alternative).
+            var filterDecl = namespaceImport.filterPackage()?.filterPackageImportDeclaration();
+            if (filterDecl is not null)
+            {
+                var filterMembershipImport = filterDecl.membershipImport();
+                if (filterMembershipImport is not null)
+                {
+                    var filterQn = filterMembershipImport.qualifiedName()?.GetText();
+                    if (filterQn is { Length: > 0 })
+                    {
+                        return (filterQn, filterMembershipImport.STAR_STAR() is not null);
+                    }
+                }
+
+                var namespaceImportDirect = filterDecl.namespaceImportDirect();
+                if (namespaceImportDirect is not null)
+                {
+                    var directQn = namespaceImportDirect.qualifiedName()?.GetText();
+                    if (directQn is { Length: > 0 })
+                    {
+                        return (directQn, true);
+                    }
+                }
+            }
         }
 
         // Membership import: qualifiedName (optional ::**)
