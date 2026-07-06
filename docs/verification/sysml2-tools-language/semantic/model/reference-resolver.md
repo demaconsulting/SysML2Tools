@@ -27,11 +27,12 @@ external services or additional configuration are required beyond a standard .NE
   unresolved one produces a Warning diagnostic and no edge.
 - A resolved import reference (wildcard or named) is recorded as an `Import`-kind `SysmlEdge`;
   an unresolved import reference produces a Warning diagnostic without crashing.
-- A view's resolved `render <target>;` reference is recorded as a `Render`-kind `SysmlEdge`; an
-  unresolved render target produces a Warning diagnostic naming the unresolved identifier and no
-  edge — the exact fix for the reported bug (previously, an unresolved render target rendered
-  the full workspace silently with no diagnostic).
-- A view usage's resolved `expose <name>;` reference is recorded as an `Expose`-kind `SysmlEdge`.
+- A view usage's resolved `expose <name>;` reference is recorded as an `Expose`-kind `SysmlEdge`;
+  an unresolved `expose` reference produces a Warning diagnostic naming the unresolved
+  identifier and no edge. A view's `render <target>;` member (a rendering style/format selector
+  per the SysML v2 grammar, never content) is captured on `SysmlViewNode.RenderTargetName` but
+  never inspected by `ReferenceResolver` — no edge is produced and no diagnostic is emitted for
+  it, even when the named identifier is not declared anywhere in the file.
 
 ##### Test Scenarios
 
@@ -46,7 +47,6 @@ external services or additional configuration are required beyond a standard .NE
 | Wildcard import records edge | `WorkspaceLoader_LoadAsync_WildcardImport_RecordsImportEdge` |
 | Named import records edge | `WorkspaceLoader_LoadAsync_NamedImport_RecordsImportEdge` |
 | Unresolved import — Warning, no crash | `WorkspaceLoader_LoadAsync_UnresolvedImport_ProducesWarningNoCrash` |
-| Resolved render target records edge | `WorkspaceLoader_LoadAsync_ViewRenderTargetResolves_RecordsRenderEdge` |
-| Unresolved render target, no edge | `WorkspaceLoader_LoadAsync_ViewRenderTargetUnresolved_ProducesWarningNoEdge` |
+| RenderTargetName captured raw | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | Resolved expose name records edge | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
-| E2E diagnostic visibility | `RenderSubsystem_ViewsWithDistinctRenderTargets_ProduceDifferingOutputsAndDiagnostic` |
+| E2E diagnostic visibility | `RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic` |

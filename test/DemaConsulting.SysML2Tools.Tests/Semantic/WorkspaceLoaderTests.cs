@@ -2395,12 +2395,15 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
-    ///     A <c>view def</c> with a <c>render &lt;target&gt;;</c> member whose target resolves
-    ///     should be recorded as a <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Render"/>
-    ///     edge from the view to the resolved qualified name.
+    ///     A <c>view def</c> with a <c>render &lt;target&gt;;</c> member naming a rendering-style
+    ///     identifier that is not declared anywhere in the file (which would have failed
+    ///     resolution under the old, incorrect content-scoping semantics) produces zero
+    ///     diagnostics and zero edges sourced from the view — <c>ReferenceResolver</c> never
+    ///     inspects <c>RenderTargetName</c> — while <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.RenderTargetName"/>
+    ///     is still captured verbatim.
     /// </summary>
     [Fact]
-    public async Task WorkspaceLoader_LoadAsync_ViewRenderTargetResolves_RecordsRenderEdge()
+    public async Task WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic()
     {
         // Arrange
         var tempFile = Path.GetTempFileName() + ".sysml";
@@ -2408,9 +2411,8 @@ public sealed class WorkspaceLoaderTests
         {
             await File.WriteAllTextAsync(tempFile, """
                 package P {
-                    part def Target {}
                     view def V {
-                        render Target;
+                        render asTreeDiagram;
                     }
                 }
                 """, TestContext.Current.CancellationToken);
@@ -2421,49 +2423,12 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
-                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Render &&
-                     e.SourceQualifiedName == "P::V" &&
-                     e.TargetQualifiedName == "P::Target");
-        }
-        finally
-        {
-            File.Delete(tempFile);
-        }
-    }
-
-    /// <summary>
-    ///     A <c>view def</c> with a <c>render &lt;target&gt;;</c> member whose target does NOT
-    ///     resolve (e.g. a typo) must produce an unresolved-reference Warning diagnostic and must
-    ///     not produce a <c>Render</c> edge — the exact fix for the reported bug (a bogus render
-    ///     target previously rendered everything silently, with no signal to the user).
-    /// </summary>
-    [Fact]
-    public async Task WorkspaceLoader_LoadAsync_ViewRenderTargetUnresolved_ProducesWarningNoEdge()
-    {
-        // Arrange
-        var tempFile = Path.GetTempFileName() + ".sysml";
-        try
-        {
-            await File.WriteAllTextAsync(tempFile, """
-                package P {
-                    view def V {
-                        render thisIdentifierDoesNotExistAnywhere;
-                    }
-                }
-                """, TestContext.Current.CancellationToken);
-
-            // Act
-            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
-            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
-
-            // Assert
-            Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Diagnostics,
-                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
-                     d.Message.Contains("thisIdentifierDoesNotExistAnywhere"));
+            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
+                result.Workspace!.Declarations["P::V"]);
+            Assert.Equal("asTreeDiagram", view.RenderTargetName);
+            Assert.Empty(result.Diagnostics);
             Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
-                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Render);
+                e => e.SourceQualifiedName == "P::V");
         }
         finally
         {

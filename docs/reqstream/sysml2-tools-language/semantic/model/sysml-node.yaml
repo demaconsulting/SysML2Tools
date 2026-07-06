@@ -36,13 +36,14 @@ sections:
           each `expose <name>;` member, empty when absent), and FilterExpressionText (the raw
           source text of its `filter [<expr>];` member, or null when absent).
         justification: |
-          Every declared view previously rendered the identical full-workspace diagram: none of
-          its `render`/`expose`/`filter` body statements were observable anywhere in the AST, so
-          no downstream component (ReferenceResolver, GeneralViewLayoutStrategy) could act on
-          them. These three fields make a view's declared rendering intent user-observable data,
-          not merely an internal implementation detail.
+          These three fields make a view's declared body statements user-observable data, not
+          merely an internal implementation detail. RenderTargetName is exposed as raw metadata
+          only: per the SysML v2 grammar it names a rendering style/format (e.g.
+          `asTreeDiagram`, `asElementTable`), never content, so it is never resolved into an edge
+          and has no effect on scope. ExposedNames is the field ReferenceResolver resolves into
+          `Expose`-kind edges that GeneralViewLayoutStrategy uses for scoping.
         tests:
-          - WorkspaceLoader_LoadAsync_ViewRenderTargetResolves_RecordsRenderEdge
+          - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic
           - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
           - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
           - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty

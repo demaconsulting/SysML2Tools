@@ -20,10 +20,10 @@ external services or additional configuration are required beyond a standard .NE
   and the fully-qualified `TargetQualifiedName`.
 - A resolved feature typing reference produces a `SysmlEdge` with `Kind == SysmlEdgeKind.Typing`.
 - A resolved import reference produces a `SysmlEdge` with `Kind == SysmlEdgeKind.Import`.
-- A resolved view render-target reference produces a `SysmlEdge` with
-  `Kind == SysmlEdgeKind.Render`.
 - A resolved view-usage exposed-name reference produces a `SysmlEdge` with
-  `Kind == SysmlEdgeKind.Expose`.
+  `Kind == SysmlEdgeKind.Expose`; `SysmlEdgeKind.Render` no longer exists, since a view's
+  `render <target>;` member is never resolved into an edge (it names a rendering style/format,
+  not content).
 
 ##### Test Scenarios
 
@@ -33,5 +33,5 @@ external services or additional configuration are required beyond a standard .NE
 | Typing edge recorded | `WorkspaceLoader_LoadAsync_ResolvedFeatureTyping_RecordsTypingEdge` |
 | Import edge recorded (wildcard) | `WorkspaceLoader_LoadAsync_WildcardImport_RecordsImportEdge` |
 | Import edge recorded (named) | `WorkspaceLoader_LoadAsync_NamedImport_RecordsImportEdge` |
-| Render edge recorded | `WorkspaceLoader_LoadAsync_ViewRenderTargetResolves_RecordsRenderEdge` |
+| RenderTargetName never resolved | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | Expose edge recorded | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |

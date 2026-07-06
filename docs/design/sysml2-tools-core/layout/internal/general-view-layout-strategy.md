@@ -34,7 +34,7 @@ from the structural relationships.
 
 ###### `BuildLayout(ViewContext context, RenderOptions options)`
 
-Entry point. First resolves the view's render-target subject scope via `ResolveSubjectScope`,
+Entry point. First resolves the view's exposed-name scope via `ResolveExposedScope`,
 then calls `CollectDefinitions` to gather user definitions restricted to that scope (or every
 definition when no scope applies); returns a minimal 200×100 empty `LayoutTree` when none are
 found. Otherwise groups the definitions by package with `GroupByPackage`, resolves the
@@ -50,23 +50,29 @@ box. Finally, when `context.ViewNode?.FilterExpressionText` is non-null, attache
 tree's `Warnings` via the `LayoutTree with { Warnings = … }` record-copy idiom, leaving the
 resolved (unfiltered) scope's content unchanged.
 
-###### `ResolveSubjectScope(SysmlViewNode? viewNode)`
+###### `ResolveExposedScope(SysmlWorkspace workspace, SysmlViewNode? viewNode)`
 
-Resolves the render-target subject scope a view's `render`/`expose` statements restrict the
-diagram to. Returns `null` — meaning "render everything", byte-identical to the pre-scoping
-behavior — in three equivalent cases: a `null` `viewNode` (the `--auto` synthesized view, which
-never carries render/expose/filter data), a view with no `render` statement, and a view whose
-`render` target failed to resolve (`ReferenceResolver` never adds a `Render` edge for an
-unresolvable target; the diagnostic informing the user is emitted there, not here). When a
-`Render` edge is present, returns a list starting with its resolved target qualified name,
-followed by the resolved target qualified name of every `Expose` edge on the same view — i.e. the
-render subject plus each exposed name, additively.
+Resolves the qualified-name containment-subtree scope a view's `expose` statements restrict the
+diagram to — the only content-scoping mechanism a view has (`render <target>;` names a
+rendering style/format, e.g. `asTreeDiagram`/`asElementTable`, per the SysML v2 grammar, never
+content, so `RenderTargetName` never affects this decision). Returns `null` — meaning "render
+everything", byte-identical to the pre-scoping behavior — whenever the view has no resolved
+`Expose`-kind `ResolvedEdges` entries: covering a `null` `viewNode` (the `--auto` synthesized
+view, which never carries expose/render/filter data), a view with no `expose` statement, and a
+view whose every `expose` entry failed to resolve, uniformly. Otherwise, for each resolved
+`Expose` edge's target qualified name, adds that name to the scope; when
+`workspace.Declarations` resolves the target to a `SysmlFeatureNode` (a usage, e.g.
+`part myVehicle : Vehicle;`) rather than a `SysmlDefinitionNode`, additionally resolves the
+usage's own `Typing`-kind `ResolvedEdges` entry (if any) and adds *that* type's qualified name to
+the scope too — the usage-to-type resolution fix for the containment gap where a usage's own
+(typically empty) subtree would otherwise silently produce zero content.
 
 ###### `IsInSubjectScope(qualifiedName, subjects)`
 
 Returns `true` when `qualifiedName` equals one of `subjects` or lies within one of their
 containment subtrees (a `"{subject}::"` prefix match) — the same qualified-name-prefix idiom
-`StdlibFilter.IsStdlibElement` already uses for stdlib-prefix matching.
+`StdlibFilter.IsStdlibElement` already uses for stdlib-prefix matching. Generic over any subject
+list; unchanged by this fix.
 
 ###### `CollectDefinitions(workspace, theme, scope)`
 
@@ -152,7 +158,7 @@ produces valid geometry, so no crossing warnings are emitted.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode` (Semantic subsystem) — model input.
 - `SysmlViewNode`, `SysmlEdge`, `SysmlEdgeKind` (Semantic subsystem) — a view's resolved
-  render/expose data, read by `ResolveSubjectScope`.
+  `expose` data, read by `ResolveExposedScope`.
 - `LayoutWarnings` (Layout Internal subsystem) — `ForUnevaluatedFilter` supplies the
   "parsed but not yet evaluated" filter-expression warning text.
 - The `LayoutTree`, `LayoutBox`, `LayoutCompartment`, `LayoutLine`, `LayoutLabel`, and `Point2D` data

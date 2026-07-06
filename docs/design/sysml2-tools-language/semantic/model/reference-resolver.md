@@ -132,17 +132,12 @@ no edge):
   = resolved first end, `Target` = resolved second end) only when both ends resolve, using the
   identical both-sides-must-resolve contract as `Satisfy`. Regular `"connection"`/`"message"`
   keyword variants remain intentionally unresolved (out of scope for this unit).
-- **`SysmlViewNode` (Render/Expose)** — resolves `RenderTargetName` and each `ExposedNames`
-  entry **independently of one another** (unlike `Satisfy`/`Allocate`'s two-sided contract,
-  since `render`/`expose` are functionally unrelated statements): a resolved `RenderTargetName`
-  produces one `SysmlEdgeKind.Render` edge sourced from `node.QualifiedName`, and each resolved
-  `ExposedNames` entry produces its own `SysmlEdgeKind.Expose` edge, independently. An
-  unresolvable `RenderTargetName` (e.g. a typo) produces only the standard unresolved-reference
-  Warning and no `Render` edge — `GeneralViewLayoutStrategy` observes the resulting absence of a
-  `Render` edge and falls back to rendering the full workspace, the same observable state as a
-  view with no `render` statement at all. This is the fix for the reported bug: a bogus render
-  target now surfaces a visible diagnostic instead of silently rendering everything.
-  `FilterExpressionText` is raw source text, not a reference, and is never inspected here.
+- **`SysmlViewNode` (Expose)** — resolves each `ExposedNames` entry into its own
+  `SysmlEdgeKind.Expose` edge, or the standard unresolved-reference Warning diagnostic when it
+  does not resolve. `RenderTargetName` names a rendering style/format (e.g. `asTreeDiagram`,
+  `asElementTable`) per the SysML v2 grammar — never model content — so `ReferenceResolver`
+  never inspects it: no edge is produced and no diagnostic is emitted for it, exactly mirroring
+  how `FilterExpressionText` (raw source text, not a reference) is also never inspected here.
 
 ##### Deviations From Uniform Resolution (Behavior-Neutral Additive Fixes)
 
@@ -190,7 +185,7 @@ unresolved names are present.
   (`SubjectName`/`RequirementName`), `SysmlConnectionNode` with `ConnectionKeyword ==
   "allocation"` (`EndpointA`/`EndpointB`), `SysmlConnectionNode` with `ConnectionKeyword ==
   "connection"` or `"message"`, `SysmlTransitionNode` (`Source`/`Target`), and `SysmlViewNode`
-  (`RenderTargetName`/`ExposedNames`; `FilterExpressionText` is never read); reads
+  (`ExposedNames`; `RenderTargetName`/`FilterExpressionText` are never read); reads
   `ResolvedEdges` (`Typing`/`Supertype` kinds) during feature-chain resolution.
 - `SysmlEdge`, `SemanticIndex` — resolved references are recorded as `SysmlEdge` instances and
   aggregated into the returned `SemanticIndex`.

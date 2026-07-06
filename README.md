@@ -225,9 +225,11 @@ section above).
 | Multiple views, `--view <name>` | Render only the named view |
 | `--view <name>` names a view that does not exist | Error: lists available view names and exits non-zero |
 
-A view's body `render <target>;` and `expose <...>;` statements now scope the rendered diagram
-to that target's containment subtree (plus any exposed names), instead of always rendering the
-full workspace — see the *Introduction* user guide for details.
+A view's body `expose <...>;` statements now scope the rendered diagram to the union of the
+exposed names' containment subtrees, instead of always rendering the full workspace; a view with
+no `expose` statement continues to render the full workspace. `render <target>;` names a
+rendering style (not yet honored) and has no effect on scope — see the *Introduction* user guide
+for details.
 
 ## NuGet Packages
 

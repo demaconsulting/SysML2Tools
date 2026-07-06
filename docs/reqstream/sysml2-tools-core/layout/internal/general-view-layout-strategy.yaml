@@ -151,39 +151,42 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_ConnectedModelKeepsBoxesSeparated
           - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelProducesCompactCanvas
 
-      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-RenderTargetScoping
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposeScoping
         title: >-
-          When a view's ViewContext carries a resolved Render edge to a qualified name Q,
-          GeneralViewLayoutStrategy shall scope the diagram to Q and every declaration whose
-          qualified name is Q or has "Q::" as a prefix (Q's containment subtree), additionally
-          merging in the containment subtree of every resolved Expose edge target, combined
-          with Q's subtree.
+          When a view's ViewContext carries one or more resolved Expose edges,
+          GeneralViewLayoutStrategy shall scope the diagram to the union of each edge's target
+          containment subtree, resolved through the target's own type reference when the target
+          is a usage rather than a definition.
         justification: |
-          Every declared view previously rendered the identical full-workspace "GeneralView"
-          diagram regardless of its `render <target>;`/`expose <...>;` body statements — the
-          reported bug. Scoping the diagram to the render target's (and any exposed names')
-          containment subtree makes those statements finally have an observable effect, matching
-          the SysML v2 view/viewpoint mechanism's subject-scoping intent.
+          `expose <name>;` is the only real content-scoping mechanism a view has in SysML v2 —
+          `render <target>;` names a rendering style/format (e.g. `asTreeDiagram`,
+          `asElementTable`), never content, so it plays no role in scoping. Scoping the diagram
+          to the union of every resolved `expose` target's containment subtree makes `expose`
+          statements finally have an observable effect, matching the SysML v2 view mechanism's
+          subject-scoping intent. When an exposed target resolves to a feature usage rather than
+          a definition, its own containment subtree is typically empty — the real content lives
+          under its type's subtree — so the target's own resolved type reference is additionally
+          followed to include that type's subtree, fixing the usage-vs-definition containment gap.
         tests:
-          - GeneralViewLayoutStrategy_BuildLayout_ResolvedRenderTarget_ScopesToSubtreeFewerBoxes
           - GeneralViewLayoutStrategy_BuildLayout_ExposedName_UnionsAdditionalSubtree
+          - GeneralViewLayoutStrategy_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree
 
-      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UnresolvedRenderFallback
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NoExposeFallback
         title: >-
-          When a view's ViewContext carries no resolved Render edge — because the view has no
-          `render` statement, its ViewNode is null (e.g. the `--auto` synthesized view), or its
-          declared render target failed to resolve — GeneralViewLayoutStrategy shall render the
-          full workspace, unchanged from its pre-scoping behavior.
+          When a view's ViewContext carries no resolved Expose edge — because the view has no
+          `expose` statement, its ViewNode is null (e.g. the `--auto` synthesized view), or its
+          every declared `expose` entry failed to resolve — GeneralViewLayoutStrategy shall
+          render the full workspace, unchanged from its pre-scoping behavior, regardless of
+          whether `RenderTargetName`/`FilterExpressionText` are present.
         justification: |
-          An unresolved `render <target>;` (e.g. a typo) must not produce a broken or empty
-          diagram; falling back to full-workspace rendering (with the unresolved-reference
-          diagnostic already surfaced by ReferenceResolver) preserves today's behavior as a safe
-          default while still giving the user a visible signal elsewhere in the diagnostics
-          output. Views with no `render` statement at all — including the `--auto` synthesized
-          view, which never carries render/expose/filter data — must continue to render
-          everything exactly as before this change, with zero regression risk.
+          Nearly every real-world view declares no `expose` statement at all, so rendering the
+          full workspace must remain the default. This also guards against a bogus `expose <name>;`
+          silently rendering nothing: an unresolvable exposed name (e.g. a typo) falls back to
+          full-workspace rendering (with the unresolved-reference diagnostic already surfaced by
+          `ReferenceResolver`) rather than producing a broken or empty diagram. `RenderTargetName`
+          (a rendering-style/format selector, not content) never affects this decision.
         tests:
-          - GeneralViewLayoutStrategy_BuildLayout_UnresolvedRenderTarget_FallsBackToFullWorkspace
+          - GeneralViewLayoutStrategy_BuildLayout_RenderTargetNameOnly_NoExposeEdges_RendersFullWorkspace
           - GeneralViewLayoutStrategy_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UnevaluatedFilterWarning

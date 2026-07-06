@@ -27,22 +27,26 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop
 
-      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewRenderExpose
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewExpose
         title: >-
-          ReferenceResolver.ResolveAll shall independently resolve a view's RenderTargetName
-          into a Render-kind edge and each of its ExposedNames into an Expose-kind edge, and
-          shall produce an unresolved-reference Warning diagnostic (with no corresponding edge)
-          for either when it cannot resolve — mirroring the existing SubjectName/EndpointA
-          unresolved-reference diagnostic pattern. FilterExpressionText is raw source text, not
-          a reference, and is never inspected here.
+          ReferenceResolver.ResolveAll shall resolve each of a view's ExposedNames into an
+          Expose-kind edge, and shall produce an unresolved-reference Warning diagnostic (with no
+          corresponding edge) when an entry cannot resolve — mirroring the existing
+          SubjectName/EndpointA unresolved-reference diagnostic pattern. RenderTargetName names a
+          rendering style/format per the SysML v2 grammar (e.g. `asTreeDiagram`,
+          `asElementTable`), never model content, and is raw metadata that ReferenceResolver never
+          inspects: no edge is produced and no diagnostic is emitted for it. FilterExpressionText
+          is likewise raw source text, not a reference, and is never inspected here.
         justification: |
-          Before this change, an unresolved `render <target>;` (e.g. a typo) silently rendered
-          the full workspace with no diagnostic at all, indistinguishable from a view with no
-          `render` statement — the exact bug being fixed. Surfacing the same unresolved-reference
-          diagnostic already used for satisfy/allocate gives the user a visible signal instead of
-          silent full-workspace rendering.
+          `expose <name>;` is the only reference a view's body statements resolve into model
+          content; a `render <target>;` member never refers to content per the SysML v2 grammar
+          (confirmed against the OMG test corpus, where every `render` member names a
+          rendering-style identifier such as `asTreeDiagram`), so attempting to resolve it as a
+          reference could only ever produce a false "Unresolved reference" diagnostic or
+          coincidentally match an unrelated stdlib symbol of the same name. Restricting resolution
+          to ExposedNames removes that false-diagnostic risk while preserving the genuine
+          unresolved-reference signal for a bogus `expose` entry.
         tests:
-          - WorkspaceLoader_LoadAsync_ViewRenderTargetResolves_RecordsRenderEdge
-          - WorkspaceLoader_LoadAsync_ViewRenderTargetUnresolved_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic
           - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
-          - RenderSubsystem_ViewsWithDistinctRenderTargets_ProduceDifferingOutputsAndDiagnostic
+          - RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic

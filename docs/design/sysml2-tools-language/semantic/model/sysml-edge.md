@@ -33,17 +33,14 @@ render, and expose references, and are the raw material indexed by `SemanticInde
   from the source state and targeting the target state (`SysmlTransitionNode`). Either side may
   be a dotted feature chain, resolved the same way as `Connect`; recorded only when both the
   source and target resolve — an implied/omitted source produces no edge.
-- `Render` — a view's resolved render-target reference (`render <target>;`), sourced from the
-  view's qualified name and targeting the resolved `SysmlViewNode.RenderTargetName`.
-  `GeneralViewLayoutStrategy` scopes its diagram to this target's containment subtree when
-  present; an unresolvable render target produces no `Render` edge (only the standard
-  unresolved-reference diagnostic), and the layout strategy falls back to rendering the full
-  workspace for that view.
 - `Expose` — a view usage's resolved exposed-name reference (`expose <name>;`, valid only inside
   a `view` usage's body), sourced from the view's qualified name and targeting each resolvable
-  entry in `SysmlViewNode.ExposedNames`, one `Expose` edge per entry. `GeneralViewLayoutStrategy`
-  additively unions each exposed name's containment subtree on top of the `Render` subject's
-  subtree.
+  entry in `SysmlViewNode.ExposedNames`, one `Expose` edge per entry. `Expose` is the sole
+  view-scoping edge kind: `GeneralViewLayoutStrategy` scopes its diagram to the union of every
+  `Expose` edge's target containment subtree; a view with no `Expose` edges renders the full
+  workspace, unchanged from the pre-scoping baseline. `SysmlViewNode.RenderTargetName` (a
+  rendering-style/format selector, e.g. `asTreeDiagram`) is captured but never resolved into an
+  edge and has no effect on scope.
 
 `SysmlEdge` is a sealed positional record with three properties:
 

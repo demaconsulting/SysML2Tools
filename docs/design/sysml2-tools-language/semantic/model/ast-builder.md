@@ -97,6 +97,18 @@ only body form that may additionally contain `expose` members) the same way, plu
 `ExtractExposedNames` to populate `ExposedNames`. Unnamed view usages are skipped (no declared
 name), mirroring the existing anonymous-element convention.
 
+**`VisitViewUsage` is an intentional capability addition, not merely an `expose`-capture
+prerequisite.** Before this override existed, named `view Name { ... }` usages were silently
+dropped by the default `VisitChildren` aggregation — only `view def` declarations were ever
+visible as renderable top-level declarations. Adding `VisitViewUsage` means every named `view`
+usage in a workspace (whether or not it declares `expose`) now becomes its own `SysmlViewNode`
+declaration that the render subsystem discovers and renders. This is a deliberate, documented
+increase in output surface area: for example, the OMG corpus fixture
+`test/SysMLModels/OMG/validation/11-ViewAndViewpoint/11b-SafetyAndSecurityFeatureViews.sysml`
+declares 2 `view def`s plus 3 named `view` usages, so rendering it with no `--view` filter now
+produces 5 output files instead of 2 (see
+`RenderSubsystemTests.RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages`).
+
 `ExtractViewRenderAndFilter<TItem>(IEnumerable<TItem> bodyItems)` is a single generic helper
 shared by both `VisitViewDefinition` (`ViewDefinitionBodyItemContext`) and `VisitViewUsage`
 (`ViewBodyItemContext`) — the two context types are unrelated in the generated parser's type

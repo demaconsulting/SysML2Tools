@@ -47,13 +47,12 @@ sections:
           `expose <name>;` members, `view` usages only) as raw, unevaluated data on the
           corresponding SysmlViewNode.
         justification: |
-          Every declared view previously rendered the identical full-workspace diagram because
-          none of its `render`/`expose`/`filter` body statements were captured at all. Capturing
-          this data during AST construction is the prerequisite for GeneralViewLayoutStrategy to
-          scope a view's diagram to its declared subject, and for ReferenceResolver to resolve
-          the render/expose references into edges.
+          Capturing this data during AST construction is the prerequisite for ReferenceResolver
+          to resolve the `expose` references into edges that GeneralViewLayoutStrategy uses for
+          scoping. `RenderTargetName` names a rendering style/format, not content, so it is
+          captured verbatim only and never drives scoping or resolution.
         tests:
-          - WorkspaceLoader_LoadAsync_ViewRenderTargetResolves_RecordsRenderEdge
+          - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic
           - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
           - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
 
@@ -66,6 +65,14 @@ sections:
           `expose <name>;` is only valid grammar inside a `view` usage's body, not a `view def`
           definition's body; without a dedicated VisitViewUsage override, named view usages
           (including every `expose` statement) were never visited at all, so a view's exposed
-          names could never be captured, resolved, or scoped.
+          names could never be captured, resolved, or scoped. This is also an intentional
+          capability addition beyond `expose` support alone: `VisitViewUsage` causes every named
+          `view` usage — whether or not it declares `expose` — to become its own renderable
+          top-level `SysmlViewNode` declaration, whereas previously only `view def` declarations
+          were ever visible to the render subsystem. For example, the OMG corpus fixture
+          `11b-SafetyAndSecurityFeatureViews.sysml` declares 2 `view def`s plus 3 named `view`
+          usages, so rendering it with no `--view` filter now produces 5 output files instead
+          of 2.
         tests:
           - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
+          - RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages

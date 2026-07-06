@@ -97,17 +97,22 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
 `SysmlViewNode` adds:
 
 - `RenderTargetName` — the raw reference text of the view's `render <target>;` member (the
-  first one found if more than one appears), or null when the view has no `render` member.
-  Extracted by the shared `AstBuilder.ExtractRenderTargetName` helper, which follows the same
-  two-form fallback pattern (direct reference, then typed placeholder) `VisitSatisfyRequirementUsage`
-  already uses. Resolved by `ReferenceResolver` into a `SysmlEdgeKind.Render` edge, or an
-  unresolved-reference diagnostic (and no edge) when the target does not resolve.
+  first one found if more than one appears), or null when the view has no `render` member. Per
+  the SysML v2 grammar this names a rendering style/format usage (e.g. `asTreeDiagram`,
+  `asElementTable`) — never a content-scoping subject. Extracted by the shared
+  `AstBuilder.ExtractRenderTargetName` helper, which follows the same two-form fallback pattern
+  (direct reference, then typed placeholder) `VisitSatisfyRequirementUsage` already uses.
+  Captured verbatim only: `ReferenceResolver` never inspects or resolves this value (no edge is
+  produced, no diagnostic is emitted), and it has no effect on `GeneralViewLayoutStrategy`'s
+  rendered scope. Reserved for a possible future capability that selects among rendering-style
+  strategies — see the project ROADMAP.
 - `ExposedNames` — the raw reference text of each `expose <name>;` member in a `view` usage's
   body, in source order, or empty when none are present (and always empty for a `view def`
   definition — `expose` is only valid grammar inside a `view` usage's body). Extracted by
   `AstBuilder.ExtractExposedNames`, sharing the same `ExtractImportTarget` helper `VisitImportRule`
   uses for plain `import`. Each entry is independently resolved by `ReferenceResolver` into a
-  `SysmlEdgeKind.Expose` edge, or an unresolved-reference diagnostic (and no edge) for that entry.
+  `SysmlEdgeKind.Expose` edge, or an unresolved-reference diagnostic (and no edge) for that
+  entry. This is the sole field `GeneralViewLayoutStrategy` uses to scope a rendered diagram.
 - `FilterExpressionText` — the raw source text of the view's `filter [<expr>];` member's
   bracketed expression, or null when absent. Captured verbatim by `AstBuilder`
   (`elementFilterMember().ownedExpression().GetText()`) and never evaluated or inspected by
@@ -141,7 +146,8 @@ elements are filtered out by `AstBuilder` before a node is constructed.
   `VerifiedRequirementNames`, `Children`; checks for `SysmlImportNode`, `SysmlSatisfyNode`, the
   `"allocation"` `SysmlConnectionNode` variant, the `"connection"`/`"message"`
   `SysmlConnectionNode` variants, `SysmlTransitionNode`, and `SysmlViewNode` (reading
-  `RenderTargetName`/`ExposedNames`, never `FilterExpressionText`); writes `ResolvedEdges` after
-  resolving references (in two passes — supertype/typing/import/satisfy/verify/allocate/render/
-  expose, then feature-chain connect/transition).
+  `ExposedNames`; `RenderTargetName`/`FilterExpressionText` are never read); writes
+  `ResolvedEdges` after resolving references (in two passes —
+  supertype/typing/import/satisfy/verify/allocate/expose, then feature-chain
+  connect/transition).
 - `SupertypeWalker` — reads `SupertypeNames` on each node retrieved from `SymbolTable`.

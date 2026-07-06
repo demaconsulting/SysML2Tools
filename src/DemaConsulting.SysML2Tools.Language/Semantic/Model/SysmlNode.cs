@@ -178,11 +178,13 @@ public sealed class SysmlViewNode : SysmlNode
     /// <summary>
     ///     Gets the raw reference text of this view's <c>render &lt;target&gt;;</c> statement
     ///     (from <c>viewRenderingMember().viewRenderingUsage()</c>), or <see langword="null"/>
-    ///     when the view declares no rendering member. Resolved by <see cref="ReferenceResolver"/>
-    ///     into a <see cref="SysmlEdgeKind.Render"/> edge when the name resolves, or an
-    ///     unresolved-reference diagnostic when it does not — an unresolved (or absent) render
-    ///     target causes <c>GeneralViewLayoutStrategy</c> to fall back to rendering the full
-    ///     workspace, unchanged from the pre-scoping behavior.
+    ///     when the view declares no rendering member. Per the SysML v2 grammar, this names a
+    ///     rendering style/format usage (e.g. <c>asTreeDiagram</c>, <c>asElementTable</c>) — never
+    ///     a content-scoping subject. Captured verbatim only: <see cref="ReferenceResolver"/> never
+    ///     inspects or resolves this value (no edge is produced, no diagnostic is emitted), and it
+    ///     has no effect on <c>GeneralViewLayoutStrategy</c>'s rendered scope. Reserved for a
+    ///     possible future capability that selects among rendering-style strategies — see the
+    ///     project ROADMAP.
     /// </summary>
     public string? RenderTargetName { get; init; }
 

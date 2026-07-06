@@ -30,7 +30,9 @@ external services or additional configuration are required beyond a standard .NE
   node with none.
 - `SysmlViewNode.RenderTargetName`/`FilterExpressionText`/`ExposedNames` are populated verbatim
   from a view's `render`/`filter`/`expose` body members (raw reference/expression text, never
-  evaluated), and are `null`/empty for a view with no such members.
+  evaluated), and are `null`/empty for a view with no such members. `RenderTargetName` is
+  captured but never resolved into an edge or diagnostic (it names a rendering style/format, not
+  content); `ExposedNames` is the only field independently resolved by `ReferenceResolver`.
 
 ##### Test Scenarios
 
@@ -41,7 +43,7 @@ external services or additional configuration are required beyond a standard .NE
 | `SupertypeNames` population | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
 | `ResolvedEdges` populated | `WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge` |
 | `Annotations` populated | `WorkspaceLoader_LoadAsync_CommentAndDocumentation_CapturesBothInSourceOrder` |
-| `SysmlViewNode.RenderTargetName` resolves | `WorkspaceLoader_LoadAsync_ViewRenderTargetResolves_RecordsRenderEdge` |
+| `RenderTargetName` unresolved | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | `FilterExpressionText` verbatim | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | `SysmlViewNode.ExposedNames` from a `view` usage | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | Empty view body leaves all fields null/empty | `WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty` |

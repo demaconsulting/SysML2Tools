@@ -112,28 +112,112 @@ sysml2tools render model.sysml --auto --output out --format svg
 
 A `view def`/`view` declaration's body may contain `render <target>;`, `expose <name>;`, and
 `filter [<expr>];` statements. For the General View strategy (the diagram produced when no
-more specialized view kind applies), these statements now scope the rendered diagram instead
-of always rendering the entire workspace:
+more specialized view kind applies), `expose` now scopes the rendered diagram instead of always
+rendering the entire workspace:
 
-- `render <target>;` — scopes the diagram to `<target>` plus every declaration whose qualified
-  name is `<target>` or is contained within it (a containment-subtree match, not just the exact
-  element). If `<target>` does not resolve to any declaration in the workspace (for example, a
-  typo), the tool falls back to rendering the full workspace for that view — but now also
-  reports a diagnostic identifying the unresolved name, so the mistake is visible instead of
-  silently rendering everything with no signal.
-- `expose <name>;` — additively includes `<name>`'s containment subtree alongside the `render`
-  target's subtree. Like `render`, an unresolved `expose` name produces a diagnostic.
+- `expose <name>;` (valid only inside a named `view` usage's body, not a `view def`
+  definition's body) — scopes the diagram to the union of every exposed name's containment
+  subtree: `<name>` plus every declaration whose qualified name is `<name>` or is contained
+  within it (a containment-subtree match, not just the exact element). If `<name>` does not
+  resolve to any declaration in the workspace (for example, a typo), the tool falls back to
+  rendering the full workspace for that view — but now also reports a diagnostic identifying the
+  unresolved name, so the mistake is visible instead of silently rendering everything with no
+  signal.
+- `render <target>;` — per the SysML v2 grammar, this names a rendering style/format (e.g.
+  `asTreeDiagram`, `asElementTable`) rather than content. It is captured but currently has **no
+  effect** on the rendered scope — see `ROADMAP.md` for the planned future capability to honor
+  it as a rendering-style selector.
 - `filter [<expr>];` — the bracketed filter expression is parsed and captured, but **not yet
-  evaluated**: the resolved (render/expose) scope is rendered unfiltered, and a diagnostic
-  reports that the filter expression was parsed but not yet evaluated. Full filter-expression
+  evaluated**: the resolved (`expose`) scope is rendered unfiltered, and a diagnostic reports
+  that the filter expression was parsed but not yet evaluated. Full filter-expression
   evaluation is planned future work — see `ROADMAP.md`.
-- A view with **no** `render` statement (including the `--auto`-synthesized view) renders the
+- A view with **no** `expose` statement (including the `--auto`-synthesized view) renders the
   full workspace, exactly as before this scoping behavior was introduced.
 
-Only the General View layout strategy honors `render`/`expose` scoping in this release; the
-other view kinds (Interconnection, State Transition, Action Flow, Sequence, Grid, Browser)
-continue to render their full applicable scope regardless of a view's declared render target —
-see `ROADMAP.md` for the planned follow-up extending scoping to those view kinds.
+Only the General View layout strategy honors `expose` scoping in this release; the other view
+kinds (Interconnection, State Transition, Action Flow, Sequence, Grid, Browser) continue to
+render their full applicable scope regardless of a view's declared `expose` statements — see
+`ROADMAP.md` for the planned follow-up extending scoping to those view kinds.
+
+Named `view Name { ... }` usages (not just `view def` declarations) are also now recognized as
+their own renderable declarations: a workspace containing both `view def` declarations and named
+`view` usages surfaces both kinds as views the `render` command discovers and renders.
+
+## Expose vs. Render: Worked Examples
+
+The three view body statements look similar but do very different jobs. This is a common point
+of confusion, so it is worth stating plainly:
+
+> **`render <target>;` looks like it should select what's shown, but it does not — use
+> `expose` for that.**
+
+| Statement | What it actually does |
+| --- | --- |
+| `expose <name>;` | The **only** mechanism scoping which model content appears in the diagram (see above). |
+| `render <renderingKind>;` | Selects a rendering *style/format* (e.g. `asTreeDiagram`). Metadata only, no scoping. |
+| `filter [<expr>];` | Captured as raw text only; not yet evaluated (see ROADMAP.md's filter-evaluation entry). |
+
+### Example A: exposing a definition to scope down to a subsystem
+
+```sysml
+package Vehicle {
+    part def Engine {
+        part cylinder[4];
+    }
+    part def Vehicle {
+        part engine : Engine;
+        part wheel[4];
+    }
+    part myVehicle : Vehicle;
+
+    view EngineOnlyView {
+        expose Engine;
+        render asTreeDiagram;
+    }
+}
+```
+
+`EngineOnlyView` renders **only** the `Engine` definition's containment subtree (`Engine` and
+its `cylinder` part) — `Vehicle`, `myVehicle`, and `wheel` are excluded entirely. Removing the
+`expose Engine;` statement (leaving only `render asTreeDiagram;`, or an empty view body) renders
+the **full workspace** instead: `render` never narrows the scope, only `expose` does.
+
+> **Note:** `expose` targets are qualified names (`::`-separated), not dotted member-access
+> chains. `expose myVehicle.engine;` is a **syntax error**, not merely an unresolved reference —
+> the grammar's `qualifiedName` rule does not accept `.`. To scope to a specific part *usage*,
+> expose the usage itself by its own name (as in Example B below), not a dotted path into it.
+
+### Example B: exposing a usage vs. exposing a definition
+
+```sysml
+package Vehicle {
+    part def Engine {
+        part cylinder[4];
+    }
+    part def Vehicle {
+        part engine : Engine;
+        part wheel[4];
+    }
+    part myVehicle : Vehicle;
+
+    view UsageExposeView {
+        expose myVehicle;
+        render asTreeDiagram;
+    }
+}
+```
+
+Here `expose myVehicle;` names a **usage** (`myVehicle : Vehicle`), not a `def`. The tool
+resolves `myVehicle`'s own `Typing` edge to find the definition it is typed by (`Vehicle`), and
+scopes the diagram to the union of `myVehicle`'s and `Vehicle`'s containment subtrees. The
+rendered diagram therefore includes `Vehicle` (with its `engine` and `wheel` parts) and, because
+`engine` is typed by `Engine`, the `Engine` definition (with its `cylinder` part) as well.
+
+Contrast this with `expose Vehicle;` (exposing the **definition** directly, as in Example A):
+that scopes straight to `Vehicle`'s own containment subtree without needing to resolve any
+`Typing` edge, since a definition's subtree is already the thing being scoped to. Exposing a
+usage takes one extra hop — through the usage's type reference — to arrive at the same kind of
+definition subtree that exposing a `def` reaches directly.
 
 ## Depth Limiting
 

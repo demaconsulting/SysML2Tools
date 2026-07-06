@@ -534,35 +534,15 @@ internal sealed class ReferenceResolver
             }
         }
 
-        // Views resolve two independent reference sets: RenderTargetName (a view's `render
-        // <target>;` subject) and each entry of ExposedNames (a view's `expose <name>;`
-        // members). Unlike Satisfy/Allocate, each is resolved and edged independently — a
-        // resolved RenderTargetName produces a Render edge even when an ExposedNames entry fails
-        // to resolve, and vice versa, since the two statements are functionally unrelated (unlike
-        // satisfy's two-sided subject/requirement pair). An unresolved RenderTargetName produces
-        // only the Warning diagnostic below; GeneralViewLayoutStrategy observes the resulting
-        // absence of a Render edge and falls back to rendering the full workspace for that view
-        // — the same observable state as a view with no `render` statement at all.
-        // FilterExpressionText is raw source text, not a reference, and is intentionally never
-        // touched here.
+        // Views resolve only ExposedNames (a view's expose members) into Expose edges; each entry
+        // is resolved independently, and an unresolved entry produces the Warning diagnostic below
+        // with no edge. RenderTargetName (a view's render member) names a rendering style or
+        // format, not a content-scoping subject -- per the SysML v2 grammar it never refers to
+        // model content, so ReferenceResolver never inspects it: no edge is produced and no
+        // diagnostic is emitted for it, mirroring how FilterExpressionText (raw source text, not a
+        // reference) is also intentionally never touched here.
         if (node is SysmlViewNode view)
         {
-            if (view.RenderTargetName is { Length: > 0 } renderTargetName)
-            {
-                if (TryResolve(renderTargetName, namespaceStack, imports, out var resolvedTarget))
-                {
-                    nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedTarget, SysmlEdgeKind.Render));
-                }
-                else if (resolvedInFile.Add(renderTargetName))
-                {
-                    _diagnostics.Add(new SysmlDiagnostic(
-                        filePath,
-                        0, 0,
-                        DiagnosticSeverity.Warning,
-                        $"Unresolved reference: '{renderTargetName}'"));
-                }
-            }
-
             foreach (var exposedName in view.ExposedNames)
             {
                 if (TryResolve(exposedName, namespaceStack, imports, out var resolvedExposed))

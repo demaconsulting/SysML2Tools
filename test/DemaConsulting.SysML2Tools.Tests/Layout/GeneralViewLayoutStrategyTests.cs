@@ -757,8 +757,8 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     Builds the fixed three-definition workspace shared by the render/expose scoping tests:
-    ///     <c>Root::A</c> (the render target), <c>Root::A::Child</c> (inside <c>A</c>'s containment
+    ///     Builds the fixed three-definition workspace shared by the expose-scoping tests:
+    ///     <c>Root::A</c> (an expose target), <c>Root::A::Child</c> (inside <c>A</c>'s containment
     ///     subtree, qualified name prefixed <c>"Root::A::"</c>), and <c>Root::B</c> (an unrelated
     ///     sibling definition, outside <c>A</c>'s subtree).
     /// </summary>
@@ -773,23 +773,46 @@ public sealed class GeneralViewLayoutStrategyTests
     };
 
     /// <summary>
-    ///     A view with a resolved <c>Render</c> edge to <c>Root::A</c> scopes the diagram to
+    ///     Builds a workspace modeling the usage-vs-definition containment gap fix: a
+    ///     <c>Root::Vehicle</c> definition with an owned child <c>Root::Vehicle::Engine</c>, and a
+    ///     <c>Root::myVehicle</c> feature usage typed by <c>Vehicle</c> (a resolved <c>Typing</c>
+    ///     edge to <c>Root::Vehicle</c>) plus an unrelated sibling <c>Root::Other</c>.
+    /// </summary>
+    private static SysmlWorkspace BuildUsageTypingWorkspace() => new()
+    {
+        Declarations = new Dictionary<string, SysmlNode>
+        {
+            ["Root::Vehicle"] = new SysmlDefinitionNode { Name = "Vehicle", QualifiedName = "Root::Vehicle", DefinitionKeyword = "part def" },
+            ["Root::Vehicle::Engine"] = new SysmlDefinitionNode { Name = "Engine", QualifiedName = "Root::Vehicle::Engine", DefinitionKeyword = "part def" },
+            ["Root::myVehicle"] = new SysmlFeatureNode
+            {
+                Name = "myVehicle",
+                QualifiedName = "Root::myVehicle",
+                FeatureTyping = "Vehicle",
+                ResolvedEdges = [new SysmlEdge("Root::myVehicle", "Root::Vehicle", SysmlEdgeKind.Typing)]
+            },
+            ["Root::Other"] = new SysmlDefinitionNode { Name = "Other", QualifiedName = "Root::Other", DefinitionKeyword = "part def" }
+        }
+    };
+
+    /// <summary>
+    ///     A view with a resolved <c>Expose</c> edge to <c>Root::A</c> scopes the diagram to
     ///     <c>Root::A</c> plus its containment subtree (<c>Root::A::Child</c>), excluding the
     ///     unrelated sibling <c>Root::B</c> — producing fewer boxes than rendering the full
     ///     workspace.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_ResolvedRenderTarget_ScopesToSubtreeFewerBoxes()
+    public void GeneralViewLayoutStrategy_BuildLayout_ExposedName_UnionsAdditionalSubtree()
     {
-        // Arrange: a view whose render target resolves to Root::A
+        // Arrange: a view exposing only Root::A
         var strategy = new GeneralViewLayoutStrategy();
         var workspace = BuildScopingWorkspace();
         var viewNode = new SysmlViewNode
         {
             Name = "V",
             QualifiedName = "Root::V",
-            RenderTargetName = "A",
-            ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Render)]
+            ExposedNames = ["A"],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
@@ -808,27 +831,55 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A view with a resolved <c>Render</c> edge to <c>Root::A</c> plus a resolved
-    ///     <c>Expose</c> edge to <c>Root::B</c> additively includes <c>Root::B</c>'s containment
-    ///     subtree alongside the render subject's subtree.
+    ///     A view whose <c>RenderTargetName</c> is present but has no <c>Expose</c> edges renders
+    ///     the full workspace, byte-identical (same box count/labels) to the null-<c>ViewNode</c>
+    ///     case — proving <c>RenderTargetName</c> never affects scope, since it names a rendering
+    ///     style/format, not content.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_ExposedName_UnionsAdditionalSubtree()
+    public void GeneralViewLayoutStrategy_BuildLayout_RenderTargetNameOnly_NoExposeEdges_RendersFullWorkspace()
     {
-        // Arrange: a view rendering Root::A and additionally exposing Root::B
+        // Arrange: a view with a RenderTargetName but no resolved Expose edges
         var strategy = new GeneralViewLayoutStrategy();
         var workspace = BuildScopingWorkspace();
         var viewNode = new SysmlViewNode
         {
             Name = "V",
             QualifiedName = "Root::V",
-            RenderTargetName = "A",
-            ExposedNames = ["B"],
-            ResolvedEdges =
-            [
-                new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Render),
-                new SysmlEdge("Root::V", "Root::B", SysmlEdgeKind.Expose)
-            ]
+            RenderTargetName = "asTreeDiagram",
+            ResolvedEdges = []
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var inert = strategy.BuildLayout(context, options);
+        var full = strategy.BuildLayout(new ViewContext("full", workspace), options);
+
+        // Assert: identical box count/labels to the full-workspace (no-ViewNode) rendering.
+        var inertLabels = CollectBoxes(inert.Nodes).Select(b => b.Label).OrderBy(l => l).ToList();
+        var fullLabels = CollectBoxes(full.Nodes).Select(b => b.Label).OrderBy(l => l).ToList();
+        Assert.Equal(fullLabels, inertLabels);
+    }
+
+    /// <summary>
+    ///     A view whose <c>Expose</c> edge resolves to a feature usage (not a definition) still
+    ///     renders that usage's type's containment subtree, by additionally resolving the usage's
+    ///     own <c>Typing</c> edge — the fix for the usage-vs-definition containment gap. Excludes
+    ///     the unrelated sibling <c>Root::Other</c>.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree()
+    {
+        // Arrange: a view exposing Root::myVehicle, a usage typed by Root::Vehicle
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildUsageTypingWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposedNames = ["myVehicle"],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
@@ -836,44 +887,12 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: A, A::Child, and B (the exposed subtree) are all present.
+        // Assert: Vehicle and its Engine child are present (resolved through the usage's typing
+        // edge), but the unrelated Other definition is excluded.
         var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
-        Assert.Contains("A", labels);
-        Assert.Contains("Child", labels);
-        Assert.Contains("B", labels);
-    }
-
-    /// <summary>
-    ///     A view whose <c>RenderTargetName</c> failed to resolve (no <c>Render</c> edge on
-    ///     <see cref="SysmlNode.ResolvedEdges"/>, since <c>ReferenceResolver</c> never adds one
-    ///     for an unresolved target) falls back to rendering the full workspace — the same
-    ///     byte/box-count-identical result as a view with no <c>render</c> statement at all. This
-    ///     is the regression-safe fallback required by the bug-fix binding decision.
-    /// </summary>
-    [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_UnresolvedRenderTarget_FallsBackToFullWorkspace()
-    {
-        // Arrange: a view whose render target never resolved (no Render edge present)
-        var strategy = new GeneralViewLayoutStrategy();
-        var workspace = BuildScopingWorkspace();
-        var viewNode = new SysmlViewNode
-        {
-            Name = "V",
-            QualifiedName = "Root::V",
-            RenderTargetName = "thisIdentifierDoesNotExistAnywhere",
-            ResolvedEdges = []
-        };
-        var context = new ViewContext("v", workspace, viewNode);
-        var options = new RenderOptions(Themes.Light);
-
-        // Act
-        var fallback = strategy.BuildLayout(context, options);
-        var full = strategy.BuildLayout(new ViewContext("full", workspace), options);
-
-        // Assert: identical box count/labels to the full-workspace (no-ViewNode) rendering.
-        var fallbackLabels = CollectBoxes(fallback.Nodes).Select(b => b.Label).OrderBy(l => l).ToList();
-        var fullLabels = CollectBoxes(full.Nodes).Select(b => b.Label).OrderBy(l => l).ToList();
-        Assert.Equal(fullLabels, fallbackLabels);
+        Assert.Contains("Vehicle", labels);
+        Assert.Contains("Engine", labels);
+        Assert.DoesNotContain("Other", labels);
     }
 
     /// <summary>
@@ -901,7 +920,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: a warning about the unevaluated filter is present, and the resolved (unfiltered)
-        // scope — here, the full workspace, since no render target was declared — still renders.
+        // scope — here, the full workspace, since no expose statement was declared — still renders.
         Assert.Contains(layout.Warnings, w => w.Contains("filter expression") && w.Contains("not yet evaluated"));
         var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
         Assert.Contains("A", labels);
@@ -909,7 +928,7 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A view with no <c>render</c> statement (a null <see cref="ViewContext.ViewNode"/>, e.g.
+    ///     A view with no <c>expose</c> statement (a null <see cref="ViewContext.ViewNode"/>, e.g.
     ///     the <c>--auto</c> synthesized view) renders identically to the pre-scoping-change
     ///     baseline: every non-stdlib definition in the workspace. This is the critical regression
     ///     guard confirming the scoping feature is fully backward-compatible when unused.

@@ -71,9 +71,9 @@ a decision/merge with correct shapes.
 
 ### View `filter [<expr>];` expression evaluation
 
-`GeneralViewLayoutStrategy` now scopes a rendered diagram to a view's `render <target>;`/
-`expose <...>;` subject subtree, but a view's `filter [<expr>];` body statement is only parsed
-into `SysmlViewNode.FilterExpressionText` (raw source text) — it is never evaluated, and a
+`GeneralViewLayoutStrategy` now scopes a rendered diagram to a view's `expose <...>;` subject
+subtree, but a view's `filter [<expr>];` body statement is only parsed into
+`SysmlViewNode.FilterExpressionText` (raw source text) — it is never evaluated, and a
 layout warning ("parsed but not yet evaluated") is emitted in its place. SysML v2 view filtering
 is part of the standard's view/viewpoint mechanism for selectively including/excluding elements
 from a rendered diagram by predicate, beyond simple subject-subtree containment scoping (for
@@ -84,37 +84,61 @@ the warning.
 - Design and implement an expression evaluator for the bracketed filter expression grammar
   (boolean/membership predicates over the resolved scope's elements), reusing/aligning with
   existing expression-parsing infrastructure where practical.
-- Apply the evaluated predicate as an additional filter over the resolved (render/expose)
-  scope in `GeneralViewLayoutStrategy`, removing the "not yet evaluated" warning once a filter
+- Apply the evaluated predicate as an additional filter over the resolved (expose) scope in
+  `GeneralViewLayoutStrategy`, removing the "not yet evaluated" warning once a filter
   expression is present and successfully evaluated.
 - Surface a diagnostic for filter expressions that fail to parse or evaluate, mirroring the
-  unresolved-render-target diagnostic pattern.
+  unresolved-reference diagnostic pattern already used for `expose`.
 
 **Scope:** `AstBuilder`/`SysmlViewNode` (expression AST capture, if warranted, beyond raw text);
 new expression-evaluation component; `GeneralViewLayoutStrategy` filter application.
 **Visual gate:** a view with a `filter [<predicate>];` statement renders only the elements
 satisfying the predicate, with no "not yet evaluated" warning.
 
-### Render-target scoping for the remaining layout strategies
+### Expose-based scoping for the remaining layout strategies
 
-`GeneralViewLayoutStrategy` implements render-target subject-scoping (containment-subtree
-filtering driven by a view's `render`/`expose` body statements), but `InterconnectionView`,
-`StateTransitionView`, `ActionFlowView`, `SequenceView`, `GridView`, and `BrowserView` layout
-strategies do not yet honor `ViewContext.ViewNode`'s `Render`/`Expose` edges and continue to
-render their full applicable scope regardless of a view's declared render target.
+`GeneralViewLayoutStrategy` implements `expose`-based subject-scoping (containment-subtree
+filtering driven by a view's `expose` body statements — the only content-scoping mechanism a
+view has), but `InterconnectionView`, `StateTransitionView`, `ActionFlowView`, `SequenceView`,
+`GridView`, and `BrowserView` layout strategies do not yet honor `ViewContext.ViewNode`'s
+`Expose` edges and continue to render their full applicable scope regardless of a view's
+declared `expose` statements.
 
-- Extend the same `ResolveSubjectScope`/`IsInSubjectScope` containment-subtree idiom (or a
+- Extend the same `ResolveExposedScope`/`IsInSubjectScope` containment-subtree idiom (or a
   shared helper extracted from `GeneralViewLayoutStrategy`) to each of the six remaining layout
-  strategies, respecting the "no `Render` edge → render everything unchanged" fallback used by
+  strategies, respecting the "no `Expose` edge → render everything unchanged" fallback used by
   `GeneralViewLayoutStrategy`.
-- Add regression tests per strategy mirroring `GeneralViewLayoutStrategyTests`'s scoping,
-  expose-union, unresolved-fallback, and no-render-statement-regression scenarios.
+- Add regression tests per strategy mirroring `GeneralViewLayoutStrategyTests`'s expose-scoping,
+  expose-union, and no-expose-statement-regression scenarios.
 
 **Scope:** `InterconnectionViewLayoutStrategy`, `StateTransitionViewLayoutStrategy`,
 `ActionFlowViewLayoutStrategy`, `SequenceViewLayoutStrategy`, `GridViewLayoutStrategy`,
 `BrowserViewLayoutStrategy`; corresponding test files.
-**Visual gate:** each of the six views renders a scoped diagram when its view declares a
-`render <target>;` statement naming a resolvable target, unchanged when it does not.
+**Visual gate:** each of the six views renders a scoped diagram when its view declares an
+`expose <...>;` statement naming a resolvable target, unchanged when it does not.
+
+### Support selecting rendering style via `render <renderingKind>;`
+
+A view's `render <target>;` member names a rendering style/format usage per the SysML v2
+grammar (e.g. `asTreeDiagram`, `asElementTable`, `asTextualNotation`, `asTextualNotationTable` —
+`rendering` usages, a distinct usage/definition kind) — it is captured verbatim on
+`SysmlViewNode.RenderTargetName` but currently has no effect on rendering; every view renders
+through the single `DiagramTypeRouter` → `ILayoutStrategy` selection regardless of its declared
+`render` member. This is a distinct future capability from content scoping, which is `expose`'s
+exclusive role.
+
+- Design a mapping from recognized rendering-style names (`asTreeDiagram`, `asElementTable`,
+  and so on, once corresponding layout/rendering strategies exist) to an `ILayoutStrategy`/
+  renderer selection, honored when a view declares a `render` member naming one.
+- Leave `RenderTargetName` un-honored (as today) for rendering-style names with no corresponding
+  strategy, with no diagnostic — an unrecognized rendering-style name is not an error, since
+  `render` selects presentation, not content.
+
+**Scope:** `DiagramTypeRouter`/`RenderCommand` (rendering-style selection); new layout/rendering
+strategies for tree-diagram/element-table/textual-notation styles, if not already covered by an
+existing strategy.
+**Visual gate:** a view declaring `render asTreeDiagram;` (once a tree-diagram strategy exists)
+renders using that style instead of the default `GeneralView` layout.
 
 ---
 
