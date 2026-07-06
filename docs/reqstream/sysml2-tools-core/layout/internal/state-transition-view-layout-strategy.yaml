@@ -72,3 +72,38 @@ sections:
           clear and matches the block-diagram visual style used across the tool.
         tests:
           - StateTransitionView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ExposeScoping
+        title: >-
+          When a view's ViewContext carries one or more resolved Expose edges,
+          StateTransitionViewLayoutStrategy shall restrict its heuristic root selection to a
+          candidate relevant to the resolved scope and narrow the selected root's declared states
+          to those within that scope, still including any excluded state re-referenced by an
+          in-scope transition.
+        justification: |
+          The State Transition View renders exactly one selected root's states, so `expose`
+          scoping cannot narrow a workspace-wide collection directly; instead it restricts which
+          root is selected — accepting the current heuristic root itself, an inner state of it, or
+          a definition containing the heuristic default — and then narrows the selected root's own
+          declared states to the resolved scope, while the existing transition-endpoint pass
+          (which has no independent qualified name to filter against) continues to reintroduce any
+          state still referenced by an in-scope transition, so only genuinely isolated
+          out-of-scope states are dropped.
+        tests:
+          - StateTransitionView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot
+          - StateTransitionView_BuildLayout_ExposeInnerChildOfNonHeuristicRoot_SelectsItsRoot
+          - StateTransitionView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas
+          - StateTransitionView_BuildLayout_ExposeSingleState_DropsIsolatedOutOfScopeState
+          - StateTransitionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-NoExposeFallback
+        title: >-
+          When a view's ViewContext carries no resolved Expose edge — including a null ViewNode
+          — StateTransitionViewLayoutStrategy shall select its root by the pre-scoping heuristic
+          and render every state, unchanged from its pre-scoping behavior.
+        justification: |
+          Nearly every real-world view declares no `expose` statement, and the synthetic `--auto`
+          view never carries a ViewNode at all; the pre-scoping heuristic root selection and full
+          state rendering must remain the default in both cases.
+        tests:
+          - StateTransitionView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged

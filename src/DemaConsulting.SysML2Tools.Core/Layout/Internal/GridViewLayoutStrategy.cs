@@ -36,7 +36,7 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
 
         var theme = options.Theme;
 
-        var defs = CollectDefinitions(context.Workspace);
+        var defs = CollectDefinitions(context.Workspace, ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode));
         if (defs.Count == 0)
         {
             return new LayoutTree(200.0, 100.0, []);
@@ -88,13 +88,22 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
     /// <summary>A user-defined definition with its supertype references.</summary>
     private sealed record DefRow(string Name, IReadOnlyList<string> SupertypeNames);
 
-    /// <summary>Collects the non-stdlib definitions of the workspace in deterministic order.</summary>
-    private static IReadOnlyList<DefRow> CollectDefinitions(SysmlWorkspace workspace)
+    /// <summary>
+    /// Collects the non-stdlib definitions of the workspace in deterministic order, restricted to
+    /// <paramref name="scope"/> when non-null (the view's resolved <c>expose</c> containment
+    /// subtrees).
+    /// </summary>
+    private static IReadOnlyList<DefRow> CollectDefinitions(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
     {
         var result = new List<DefRow>();
         foreach (var qn in workspace.Declarations.Keys.OrderBy(k => k, StringComparer.Ordinal))
         {
             if (StdlibFilter.IsStdlibElement(qn, workspace.StdlibNames))
+            {
+                continue;
+            }
+
+            if (scope is not null && !ExposeScopeResolver.IsInSubjectScope(qn, scope))
             {
                 continue;
             }

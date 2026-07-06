@@ -18,16 +18,22 @@ its computed box size; successions are carried as `(int From, int To)` index pai
 
 ###### `BuildLayout(ViewContext context, RenderOptions options)`
 
-Entry point. Selects the root definition via `FindRoot`, collects its actions, resolves its
-successions, lays the actions out in layers, adds the succession edges and the start/done markers,
-and assembles the tree. Returns a minimal 200×100 empty `LayoutTree` when no root or no actions
-are found.
+Entry point. Resolves the view's `expose` scope via `ExposeScopeResolver.ResolveExposedScope`,
+selects the root definition via `FindRoot(workspace, scope)`, collects its actions via
+`CollectActions(root, theme, scope)`, resolves its successions, lays the actions out in layers,
+adds the succession edges and the start/done markers, and assembles the tree. Returns a minimal
+200×100 empty `LayoutTree` when no root or no actions are found.
 
-###### `FindRoot(workspace)` and `CollectActions(root, theme)`
+###### `FindRoot(workspace, scope)` and `CollectActions(root, theme, scope)`
 
 `FindRoot` chooses the non-standard-library definition that scores highest on successions (then
-actions). `CollectActions` gathers the declared `action` usages and any action named only by a
-succession endpoint, building a name → index lookup.
+actions), restricted — when a scope is resolved — to candidates for which
+`ExposeScopeResolver.IsRootRelevantToScope` returns `true`. `CollectActions` gathers the declared
+`action` usages, excluding — when a scope is resolved — any declared action feature whose
+qualified name fails `ExposeScopeResolver.IsInSubjectScope`; it then adds any additional action
+named only by a succession endpoint **unconditionally** (this second pass has no independent
+qualified name of its own to scope against, since it exists solely because a succession names it),
+building a name → index lookup.
 
 ###### `ResolveSuccessions(root, index)`
 
@@ -58,6 +64,25 @@ and returns the number of successions whose polyline crosses a non-endpoint acti
 centred over the actions with no incoming edge and a bullseye done marker centred under the actions
 with no outgoing edge, joining each with a solid filled-arrow flow line.
 
+##### Expose Scoping
+
+Because this strategy renders exactly one selected root's actions, scoping restricts **which
+root is selected** and then narrows **which of that root's actions are shown**, mirroring
+`StateTransitionViewLayoutStrategy`'s approach. `FindRoot` only considers candidates
+`ExposeScopeResolver.IsRootRelevantToScope` accepts, so exposing the current heuristic root
+itself, an inner action of it, or a definition that itself contains the heuristic default all
+correctly select a root, while exposing an unrelated definition yields no root and thus the
+minimal empty canvas. `CollectActions` then narrows the selected root's own **declared** action
+features to those within the resolved scope; however, any declared-but-excluded action that is
+still referenced by an in-scope succession is transparently re-added by the unconditional
+succession-endpoint pass, since that pass has no independent qualified name to filter against — so
+expose-scoping only reliably drops an action that is genuinely isolated (never referenced by any
+succession of the selected root). `ResolveSuccessions`'s existing name-lookup approach naturally
+omits any succession whose endpoint action was never added — no new edge-side logic was required.
+A view with no `expose` statement (including the synthesized `--auto` view, whose `ViewNode` is
+`null`) resolves no scope, so `FindRoot` considers every candidate and `CollectActions` keeps
+every action, unchanged from the pre-scoping behavior.
+
 ##### Error Handling
 
 Null `context` or `options` arguments throw `ArgumentNullException`. The absence of an eligible
@@ -73,6 +98,9 @@ surfaced through `LayoutWarnings`.
 - `LayeredPlacement` (Layout Internal subsystem) — top-to-bottom placement and orthogonal routing
   through `DemaConsulting.Rendering.Layout`.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
+- `ExposeScopeResolver` (Layout Internal subsystem) — `ResolveExposedScope`,
+  `IsRootRelevantToScope`, and `IsInSubjectScope` supply the shared `expose`-scoping used by
+  `BuildLayout`, `FindRoot`, and `CollectActions`.
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode`, `SysmlTransitionNode` (Semantic subsystem) — model input.
 - `LayoutWarnings` (Layout Internal subsystem) — crossing-warning construction.
 - The `LayoutTree`, `LayoutBox`, `LayoutBadge`, and `LayoutLine` data types

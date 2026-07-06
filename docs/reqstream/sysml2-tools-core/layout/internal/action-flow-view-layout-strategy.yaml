@@ -77,3 +77,38 @@ sections:
         tests:
           - ActionFlowView_BuildLayout_BranchAndJoin
           - ActionFlowView_BuildLayout_Cycle_IsBroken
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExposeScoping
+        title: >-
+          When a view's ViewContext carries one or more resolved Expose edges,
+          ActionFlowViewLayoutStrategy shall restrict its heuristic root selection to a candidate
+          relevant to the resolved scope and narrow the selected root's declared actions to those
+          within that scope, still including any excluded action re-referenced by an in-scope
+          succession.
+        justification: |
+          The Action Flow View renders exactly one selected root's actions, so `expose` scoping
+          cannot narrow a workspace-wide collection directly; instead it restricts which root is
+          selected — accepting the current heuristic root itself, an inner action of it, or a
+          definition containing the heuristic default — and then narrows the selected root's own
+          declared actions to the resolved scope, while the existing succession-endpoint pass
+          (which has no independent qualified name to filter against) continues to reintroduce any
+          action still referenced by an in-scope succession, so only genuinely isolated
+          out-of-scope actions are dropped.
+        tests:
+          - ActionFlowView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot
+          - ActionFlowView_BuildLayout_ExposeInnerChildOfNonHeuristicRoot_SelectsItsRoot
+          - ActionFlowView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas
+          - ActionFlowView_BuildLayout_ExposeSingleAction_DropsOutOfScopeAction
+          - ActionFlowView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-NoExposeFallback
+        title: >-
+          When a view's ViewContext carries no resolved Expose edge — including a null ViewNode
+          — ActionFlowViewLayoutStrategy shall select its root by the pre-scoping heuristic and
+          render every action, unchanged from its pre-scoping behavior.
+        justification: |
+          Nearly every real-world view declares no `expose` statement, and the synthetic `--auto`
+          view never carries a ViewNode at all; the pre-scoping heuristic root selection and full
+          action rendering must remain the default in both cases.
+        tests:
+          - ActionFlowView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged

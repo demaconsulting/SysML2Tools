@@ -40,13 +40,15 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
 
         var theme = options.Theme;
 
-        var root = FindRoot(context.Workspace);
+        var scope = ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode);
+
+        var root = FindRoot(context.Workspace, scope);
         if (root is null)
         {
             return new LayoutTree(200.0, 100.0, []);
         }
 
-        var (lifelines, index) = CollectLifelines(root);
+        var (lifelines, index) = CollectLifelines(root, scope);
         var messages = ResolveMessages(root, index);
         if (lifelines.Count == 0 || messages.Count == 0)
         {
@@ -106,8 +108,14 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
         return new LayoutTree(width, height, nodes);
     }
 
-    /// <summary>Finds the definition with the most messages to use as the diagram root.</summary>
-    private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace)
+    /// <summary>
+    /// Finds the definition with the most messages to use as the diagram root. When
+    /// <paramref name="scope"/> is non-null (the view's resolved <c>expose</c> containment-subtree
+    /// scope), candidates are first restricted to those relevant to the scope via
+    /// <see cref="ExposeScopeResolver.IsRootRelevantToScope"/> before the message-count tie-break
+    /// applies; when no candidate is scope-relevant, no root is chosen (an empty canvas results).
+    /// </summary>
+    private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
     {
         SysmlDefinitionNode? best = null;
         var bestMessages = 0;
@@ -120,6 +128,11 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
             }
 
             if (StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
+            {
+                continue;
+            }
+
+            if (scope is not null && !ExposeScopeResolver.IsRootRelevantToScope(qualifiedName, scope))
             {
                 continue;
             }
@@ -137,9 +150,19 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Collects the lifelines participating in the root's messages — the distinct first segments of
-    /// the message from/to references — in first-appearance order.
+    /// the message from/to references — in first-appearance order. When <paramref name="scope"/> is
+    /// non-null, a lifeline is skipped when its reconstructed absolute qualified name
+    /// (<c>"{root.QualifiedName}::{lifelineName}"</c> — a message-endpoint lifeline name is the first
+    /// dotted segment of an endpoint reference, which names a feature declared directly under
+    /// <paramref name="root"/>, confirmed against real declared features in
+    /// <c>client-server-sequence.sysml</c>) fails <see cref="ExposeScopeResolver.IsInSubjectScope"/>.
+    /// When <paramref name="root"/> has no <c>QualifiedName</c> (defensive; every workspace
+    /// declaration carries one), the reconstruction is skipped and lifeline scoping does not apply,
+    /// so the strategy never filters based on an unreliable name.
     /// </summary>
-    private static (IReadOnlyList<string> Lifelines, Dictionary<string, int> Index) CollectLifelines(SysmlDefinitionNode root)
+    private static (IReadOnlyList<string> Lifelines, Dictionary<string, int> Index) CollectLifelines(
+        SysmlDefinitionNode root,
+        IReadOnlyList<string>? scope)
     {
         var lifelines = new List<string>();
         var index = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -150,6 +173,15 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
             if (name is null || index.ContainsKey(name))
             {
                 return;
+            }
+
+            if (scope is not null && root.QualifiedName is { Length: > 0 } rootQualified)
+            {
+                var reconstructed = $"{rootQualified}::{name}";
+                if (!ExposeScopeResolver.IsInSubjectScope(reconstructed, scope))
+                {
+                    return;
+                }
             }
 
             index[name] = lifelines.Count;

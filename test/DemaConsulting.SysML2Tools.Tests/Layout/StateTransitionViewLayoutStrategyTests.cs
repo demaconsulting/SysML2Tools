@@ -232,4 +232,218 @@ public sealed class StateTransitionViewLayoutStrategyTests
             }
         }
     }
+
+    /// <summary>
+    ///     Builds a workspace with two candidate roots: <c>SM::MachineA</c> (two transitions — the
+    ///     heuristic's default pick, one of its declared states <c>s3</c> is isolated with no
+    ///     transitions), <c>SM::MachineB</c> (one transition), and an unrelated sibling definition
+    ///     <c>SM::Unrelated</c> with no transitions.
+    /// </summary>
+    private static SysmlWorkspace BuildTwoRootWorkspace()
+    {
+        var machineA = new SysmlDefinitionNode
+        {
+            Name = "MachineA",
+            QualifiedName = "SM::MachineA",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "s1", QualifiedName = "SM::MachineA::s1", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "s2", QualifiedName = "SM::MachineA::s2", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "s3", QualifiedName = "SM::MachineA::s3", FeatureKeyword = "state" },
+                new SysmlTransitionNode { Source = "s1", Target = "s2", Guard = "g1" },
+                new SysmlTransitionNode { Source = "s2", Target = "s1", Guard = "g2" }
+            ]
+        };
+        var machineB = new SysmlDefinitionNode
+        {
+            Name = "MachineB",
+            QualifiedName = "SM::MachineB",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "b1", QualifiedName = "SM::MachineB::b1", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "b2", QualifiedName = "SM::MachineB::b2", FeatureKeyword = "state" },
+                new SysmlTransitionNode { Source = "b1", Target = "b2", Guard = "g" }
+            ]
+        };
+        var unrelated = new SysmlDefinitionNode { Name = "Unrelated", QualifiedName = "SM::Unrelated", DefinitionKeyword = "state def" };
+        return new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["SM::MachineA"] = machineA,
+                ["SM::MachineB"] = machineB,
+                ["SM::Unrelated"] = unrelated
+            }
+        };
+    }
+
+    /// <summary>
+    ///     With no <c>expose</c> statement (null <c>ViewNode</c>), the heuristic picks the
+    ///     definition with the most transitions (<c>MachineA</c>), unchanged from pre-scoping
+    ///     behavior — the critical --auto/no-expose regression guard.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged()
+    {
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var workspace = BuildTwoRootWorkspace();
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var boxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        Assert.Contains(boxes, b => b.Label == "s1");
+        Assert.Contains(boxes, b => b.Label == "s2");
+    }
+
+    /// <summary>
+    ///     An <c>expose</c> edge pointing at a definition other than the heuristic's default root
+    ///     (<c>MachineB</c>, which has fewer transitions than <c>MachineA</c>) selects
+    ///     <c>MachineB</c> as the root instead.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot()
+    {
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var workspace = BuildTwoRootWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "SM::V",
+            ExposedNames = ["MachineB"],
+            ResolvedEdges = [new SysmlEdge("SM::V", "SM::MachineB", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var boxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        Assert.Contains(boxes, b => b.Label == "b1");
+        Assert.Contains(boxes, b => b.Label == "b2");
+        Assert.DoesNotContain(boxes, b => b.Label is "s1" or "s2" or "s3");
+    }
+
+    /// <summary>
+    ///     An <c>expose</c> edge pointing at an inner child of a non-heuristic root
+    ///     (<c>SM::MachineB::b1</c>) still selects <c>MachineB</c> as the root, since the exposed
+    ///     subject lies within the candidate root's own containment subtree.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_ExposeInnerChildOfNonHeuristicRoot_SelectsItsRoot()
+    {
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var workspace = BuildTwoRootWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "SM::V",
+            ExposedNames = ["b1"],
+            ResolvedEdges = [new SysmlEdge("SM::V", "SM::MachineB::b1", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var boxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        Assert.Contains(boxes, b => b.Label == "b1");
+    }
+
+    /// <summary>
+    ///     An <c>expose</c> edge pointing at a definition unrelated to every candidate root makes no
+    ///     root scope-relevant, so no root is chosen and an empty canvas results.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas()
+    {
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var workspace = BuildTwoRootWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "SM::V",
+            ExposedNames = ["Unrelated"],
+            ResolvedEdges = [new SysmlEdge("SM::V", "SM::Unrelated", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        Assert.Empty(layout.Nodes);
+    }
+
+    /// <summary>
+    ///     Exposing state <c>s1</c> of <c>MachineA</c> narrows the declared states to those in
+    ///     scope: the isolated declared state <c>s3</c> (never referenced by a transition) is
+    ///     dropped, while <c>s2</c> remains because it is re-synthesized from the <c>s1</c>-&gt;
+    ///     <c>s2</c> transition endpoint (the existing synthesized-state mechanism, unaffected by
+    ///     scope, per the containment design). This produces strictly fewer state boxes than the
+    ///     unscoped rendering.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_ExposeSingleState_DropsIsolatedOutOfScopeState()
+    {
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var workspace = BuildTwoRootWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "SM::V",
+            ExposedNames = ["s1"],
+            ResolvedEdges = [new SysmlEdge("SM::V", "SM::MachineA::s1", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var scoped = strategy.BuildLayout(context, options);
+        var full = strategy.BuildLayout(new ViewContext("full", workspace), options);
+
+        var scopedLabels = scoped.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").Select(b => b.Label).ToList();
+        var fullLabels = full.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").Select(b => b.Label).ToList();
+
+        Assert.Contains("s1", scopedLabels);
+        Assert.Contains("s2", scopedLabels);
+        Assert.DoesNotContain("s3", scopedLabels);
+        Assert.True(scopedLabels.Count < fullLabels.Count, $"expected scoped ({scopedLabels.Count}) < full ({fullLabels.Count})");
+    }
+
+    /// <summary>
+    ///     An <c>expose</c> edge that resolves to a feature usage (not a definition) still selects
+    ///     the definition it types via the shared usage-to-type fallback in
+    ///     <c>ExposeScopeResolver.ResolveExposedScope</c>: exposing a usage <c>myMachine</c> typed
+    ///     by <c>MachineB</c> selects <c>MachineB</c> as the root.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot()
+    {
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var workspace = BuildTwoRootWorkspace();
+        workspace.AddDeclaration("SM::myMachine", new SysmlFeatureNode
+        {
+            Name = "myMachine",
+            QualifiedName = "SM::myMachine",
+            FeatureTyping = "MachineB",
+            ResolvedEdges = [new SysmlEdge("SM::myMachine", "SM::MachineB", SysmlEdgeKind.Typing)]
+        });
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "SM::V",
+            ExposedNames = ["myMachine"],
+            ResolvedEdges = [new SysmlEdge("SM::V", "SM::myMachine", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var boxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        Assert.Contains(boxes, b => b.Label == "b1");
+        Assert.Contains(boxes, b => b.Label == "b2");
+    }
 }

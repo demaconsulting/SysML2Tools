@@ -30,3 +30,32 @@ sections:
           could be mistaken for missing content.
         tests:
           - BrowserAndGrid_BuildLayout_EmptyWorkspace_ReturnMinimalCanvas
+
+      - id: SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-ExposeScoping
+        title: >-
+          When a view's ViewContext carries one or more resolved Expose edges,
+          BrowserViewLayoutStrategy shall scope the tree to the union of each edge's target
+          containment subtree, resolved through the target's own type reference when the target
+          is a usage rather than a definition, promoting an exposed target whose own parent was
+          filtered out to a forest root.
+        justification: |
+          The Browser View has no single-root heuristic to restrict, so it applies the shared
+          `expose` scope directly as a workspace-wide element filter, giving it the same
+          observable scoping behavior as every other view kind, while still producing a
+          well-formed forest when an exposed target's parent falls outside the scope.
+        tests:
+          - BrowserView_BuildLayout_ExposedName_UnionsAdditionalSubtree
+          - BrowserView_BuildLayout_ExposeMultipleTargets_UnionsBothSubtrees
+          - BrowserView_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree
+
+      - id: SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-NoExposeFallback
+        title: >-
+          When a view's ViewContext carries no resolved Expose edge — including a null ViewNode
+          — BrowserViewLayoutStrategy shall render the full membership forest, unchanged from its
+          pre-scoping behavior.
+        justification: |
+          Nearly every real-world view declares no `expose` statement, and the synthetic `--auto`
+          view never carries a ViewNode at all; rendering the full membership forest must remain
+          the default in both cases.
+        tests:
+          - BrowserView_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged

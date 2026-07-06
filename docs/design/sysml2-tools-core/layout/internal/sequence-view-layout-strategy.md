@@ -20,25 +20,55 @@ record holding the sender and receiver lifeline indices and the message label. O
 
 Builds the diagram:
 
-1. **Root selection.** `FindRoot` scans the non-stdlib declarations and chooses the definition that
-   declares the most `message` connections, so the most message-rich definition drives the view.
-2. **Lifeline collection.** `CollectLifelines` walks the root's messages and records the distinct
+1. **Scope resolution.** `ExposeScopeResolver.ResolveExposedScope` resolves the view's `expose`
+   scope once (or `null` when none applies).
+2. **Root selection.** `FindRoot` scans the non-stdlib declarations and chooses the definition that
+   declares the most `message` connections, so the most message-rich definition drives the view —
+   restricted, when a scope was resolved, to candidates for which
+   `ExposeScopeResolver.IsRootRelevantToScope` returns `true`.
+3. **Lifeline collection.** `CollectLifelines` walks the root's messages and records the distinct
    participants in first-appearance order, where a participant is the first dot-separated segment of
-   a message endpoint reference (for example `client` from `client.a`). An index map from name to
-   column is built alongside.
-3. **Message resolution.** `ResolveMessages` maps each message's endpoints to lifeline indices,
-   preserving declaration order and skipping messages whose endpoints do not resolve.
-4. **Arithmetic placement.** Lifeline X is `margin + headerWidth/2 + columnIndex * pitch`, where
+   a message endpoint reference (for example `client` from `client.a`) — excluding, when a scope was
+   resolved, any participant whose reconstructed qualified name (`"{root.QualifiedName}::{name}"`,
+   which matches a directly-nested part feature's own `QualifiedName`) fails
+   `ExposeScopeResolver.IsInSubjectScope`. An index map from name to column is built alongside.
+4. **Message resolution.** `ResolveMessages` maps each message's endpoints to lifeline indices,
+   preserving declaration order and skipping messages whose endpoints do not resolve — including any
+   message with an endpoint on a lifeline excluded by scoping, since that lifeline was never added to
+   the index; no new edge-side logic was required.
+5. **Arithmetic placement.** Lifeline X is `margin + headerWidth/2 + columnIndex * pitch`, where
    `pitch` is computed by `ComputePitch` from the widest label (clamped to a minimum). Message Y is
    `firstMessageY + messageOrdinal * rowPitch`. Header height and margins derive from the theme.
-5. **Node emission.** Each lifeline becomes a `LayoutLifeline`; each message becomes a horizontal
+6. **Node emission.** Each lifeline becomes a `LayoutLifeline`; each message becomes a horizontal
    `LayoutLine` with no source end marker and an open target end marker, carrying the message label
    as its midpoint label. A message whose sender and receiver are the same lifeline is emitted by
    `BuildSelfMessage` as a small rectangular self-loop. The open target end marker matches SysML v2
    sequence message notation.
 
-When no root is found, or there are no lifelines or messages, a minimal empty `LayoutTree` with no
-nodes is returned.
+When no root is found (including when scoping excludes every heuristic candidate), or there are no
+lifelines or messages (including when scoping excludes every message's remaining endpoint), a
+minimal empty `LayoutTree` with no nodes is returned.
+
+##### Expose Scoping
+
+Because this strategy renders exactly one selected root's lifelines, scoping restricts **which
+root is selected** and then narrows **which of that root's lifelines are shown**, mirroring the
+other single-root strategies' approach. `FindRoot` only considers candidates
+`ExposeScopeResolver.IsRootRelevantToScope` accepts, so exposing the current heuristic root
+itself, an inner lifeline of it, or a definition that itself contains the heuristic default all
+correctly select a root, while exposing an unrelated definition yields no root and thus the
+minimal empty canvas. `CollectLifelines` then narrows the selected root's lifelines by
+reconstructing each candidate participant's qualified name as `"{root.QualifiedName}::{name}"` and
+testing it with `ExposeScopeResolver.IsInSubjectScope`; this reconstruction was confirmed reliable
+for realistic models — a directly-nested `part` feature under a root part definition, referenced by
+a message endpoint's first dotted segment, has exactly this `QualifiedName` — by a dedicated test
+(`SequenceView_LifelineQualifiedNameReconstruction_MatchesDeclaredFeature`) mirroring the real
+`client-server-sequence.sysml` fixture, so no conservative fallback (restricting only root
+selection) was needed. `ResolveMessages`'s existing "skip a message whose endpoint did not resolve"
+behavior transparently drops any message touching an excluded lifeline — no new edge-side logic was
+required. A view with no `expose` statement (including the synthesized `--auto` view, whose
+`ViewNode` is `null`) resolves no scope, so `FindRoot` considers every candidate and
+`CollectLifelines` keeps every lifeline, unchanged from the pre-scoping behavior.
 
 ##### Error Handling
 
@@ -53,6 +83,9 @@ not throw: the strategy returns an empty diagram rather than failing.
   (`DemaConsulting.Rendering.Abstractions`).
 - `SysmlWorkspace`, `SysmlDefinitionNode`, and `SysmlConnectionNode` (Semantic subsystem).
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
+- `ExposeScopeResolver` (Layout Internal subsystem) — `ResolveExposedScope`,
+  `IsRootRelevantToScope`, and `IsInSubjectScope` supply the shared `expose`-scoping used by
+  `BuildLayout`, `FindRoot`, and `CollectLifelines`.
 
 ##### Callers
 

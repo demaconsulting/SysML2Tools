@@ -118,3 +118,36 @@ sections:
           still drawing the part.
         tests:
           - InterconnectionView_BuildLayout_SelfReferentialType_TreatedAsLeaf
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposeScoping
+        title: >-
+          When a view's ViewContext carries one or more resolved Expose edges,
+          InterconnectionViewLayoutStrategy shall restrict its heuristic root selection to a
+          candidate relevant to the resolved scope and narrow the selected root's nested parts to
+          those within that scope, dropping any connection whose endpoint was excluded.
+        justification: |
+          The Interconnection View renders exactly one selected root's interior, so `expose`
+          scoping cannot narrow a workspace-wide collection directly; instead it restricts which
+          root is selected — accepting the current heuristic root itself, an inner part of it, or
+          a definition containing the heuristic default — and then narrows the selected root's
+          own nested parts to the resolved scope, relying on the existing connection endpoint
+          lookup to drop any connection that references an excluded part.
+        tests:
+          - InterconnectionView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot
+          - InterconnectionView_BuildLayout_ExposeInnerChildOfNonHeuristicRoot_SelectsItsRoot
+          - InterconnectionView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas
+          - InterconnectionView_BuildLayout_ExposeSinglePart_NarrowsToThatPart
+          - InterconnectionView_BuildLayout_ExposeMultipleParts_UnionsBothSubtrees
+          - InterconnectionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NoExposeFallback
+        title: >-
+          When a view's ViewContext carries no resolved Expose edge — including a null ViewNode
+          — InterconnectionViewLayoutStrategy shall select its root by the pre-scoping heuristic
+          and render every nested part, unchanged from its pre-scoping behavior.
+        justification: |
+          Nearly every real-world view declares no `expose` statement, and the synthetic `--auto`
+          view never carries a ViewNode at all; the pre-scoping heuristic root selection and full
+          interior rendering must remain the default in both cases.
+        tests:
+          - InterconnectionView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged

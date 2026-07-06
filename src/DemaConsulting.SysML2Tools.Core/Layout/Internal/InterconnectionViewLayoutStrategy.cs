@@ -88,8 +88,10 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
         var theme = options.Theme;
 
+        var scope = ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode);
+
         // Choose the part definition whose internals to show.
-        var root = FindRoot(context.Workspace);
+        var root = FindRoot(context.Workspace, scope);
         if (root is null)
         {
             return new LayoutTree(200.0, 100.0, []);
@@ -112,7 +114,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             visited.Add(root.QualifiedName);
         }
 
-        var interior = LayOutInterior(root, theme, depth: 0, defsByName, visited);
+        var interior = LayOutInterior(root, theme, depth: 0, defsByName, visited, scope);
 
         var nodes = new List<LayoutNode>(interior.Content.Count + 1)
         {
@@ -146,15 +148,19 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <param name="depth">Nesting depth of this definition's container box (0 for the root).</param>
     /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
     /// <param name="visited">Qualified names already on the recursion path, guarding against cycles.</param>
+    /// <param name="scope">
+    /// The view's resolved <c>expose</c> containment-subtree scope, or null when no scoping applies.
+    /// </param>
     /// <returns>The laid-out interior size and content.</returns>
     private static InteriorLayout LayOutInterior(
         SysmlDefinitionNode def,
         Theme theme,
         int depth,
         IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
-        ISet<string> visited)
+        ISet<string> visited,
+        IReadOnlyList<string>? scope)
     {
-        var parts = CollectParts(def, theme, depth, defsByName, visited);
+        var parts = CollectParts(def, theme, depth, defsByName, visited, scope);
         var partIndex = BuildPartIndex(parts);
         var pairs = ResolveConnections(def, partIndex);
 
@@ -243,9 +249,16 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Finds the part definition whose interior to render: the non-stdlib <c>part def</c>
-    /// with the most connections, falling back to the one with the most part usages.
+    /// with the most connections, falling back to the one with the most part usages. When
+    /// <paramref name="scope"/> is non-null (the view's resolved <c>expose</c> containment-subtree
+    /// scope), candidates are first restricted to those relevant to the scope via
+    /// <see cref="ExposeScopeResolver.IsRootRelevantToScope"/> — the candidate itself is an exposed
+    /// subject, lies within an exposed subject's subtree, or an exposed subject lies within the
+    /// candidate's own subtree — before the same connections/parts tie-break applies; when no
+    /// candidate is scope-relevant, no root is chosen (an empty canvas results, matching the
+    /// existing null-root path).
     /// </summary>
-    private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace)
+    private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
     {
         SysmlDefinitionNode? best = null;
         var bestConnections = -1;
@@ -259,6 +272,11 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             }
 
             if (StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
+            {
+                continue;
+            }
+
+            if (scope is not null && !ExposeScopeResolver.IsRootRelevantToScope(qualifiedName, scope))
             {
                 continue;
             }
@@ -281,19 +299,30 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// Collects the nested part usages of a definition, sized for rendering. A part whose type
     /// resolves to a container definition (a non-stdlib <c>part def</c> with its own internal parts,
     /// not already on the recursion path) is laid out recursively and sized to fit its interior;
-    /// every other part is sized intrinsically as a leaf.
+    /// every other part is sized intrinsically as a leaf. When <paramref name="scope"/> is non-null,
+    /// a part feature whose own <c>QualifiedName</c> fails
+    /// <see cref="ExposeScopeResolver.IsInSubjectScope"/> is skipped; the same absolute
+    /// <paramref name="scope"/> list is passed unchanged into recursive container calls, since
+    /// subject qualified names are absolute and need no re-resolution at deeper nesting levels.
     /// </summary>
     private static IReadOnlyList<PartItem> CollectParts(
         SysmlDefinitionNode root,
         Theme theme,
         int depth,
         IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
-        ISet<string> visited)
+        ISet<string> visited,
+        IReadOnlyList<string>? scope)
     {
         var result = new List<PartItem>();
         foreach (var feature in root.Children.OfType<SysmlFeatureNode>())
         {
             if (feature.FeatureKeyword != "part")
+            {
+                continue;
+            }
+
+            if (scope is not null && feature.QualifiedName is { Length: > 0 } fqn &&
+                !ExposeScopeResolver.IsInSubjectScope(fqn, scope))
             {
                 continue;
             }
@@ -304,7 +333,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             {
                 // Container part: lay out its interior bottom-up and treat it as an atomic node.
                 var childVisited = new HashSet<string>(visited, StringComparer.Ordinal) { childDef.QualifiedName! };
-                var inner = LayOutInterior(childDef, theme, depth + 1, defsByName, childVisited);
+                var inner = LayOutInterior(childDef, theme, depth + 1, defsByName, childVisited, scope);
                 result.Add(new PartItem(name, "part", feature.FeatureTyping, inner.Width, inner.Height, inner.Content));
             }
             else

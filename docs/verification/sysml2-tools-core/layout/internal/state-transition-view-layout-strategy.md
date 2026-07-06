@@ -26,6 +26,19 @@ configuration are required beyond a standard .NET SDK installation.
 - Each transition edge carries an open chevron end marker at the target state.
 - A forward chain of transitions flows top-to-bottom with orthogonal transition polylines.
 - An empty workspace yields a canvas with no nodes.
+- A `null` `ViewContext.ViewNode` selects the pre-scoping heuristic root and renders every state,
+  unchanged from before this feature — the critical `--auto`/no-expose regression guard.
+- A view whose resolved `Expose` edge names a definition other than the heuristic root selects
+  that definition as the root instead.
+- A view whose resolved `Expose` edge names an inner state of a non-heuristic-root definition
+  selects that definition's own root.
+- A view whose resolved `Expose` edge names a definition unrelated to any candidate root selects
+  no root, producing the minimal empty canvas.
+- A view whose resolved `Expose` edge names a single state drops a genuinely isolated
+  out-of-scope state while still rendering any excluded state re-referenced by an in-scope
+  transition.
+- A view whose resolved `Expose` edge names a feature usage (not a definition) still resolves to
+  the usage's type as the root, via the shared usage-to-type fallback.
 
 ##### Test Scenarios
 
@@ -37,3 +50,9 @@ configuration are required beyond a standard .NET SDK installation.
 | `StateTransitionView_BuildLayout_InAndOutOnSameEdge_UseDistinctAnchors` | In/out transitions use distinct anchors |
 | `StateTransitionView_BuildLayout_TransitionEdge_HasOpenArrowhead` | Open chevron end marker at target state |
 | `StateTransitionView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally` | Top-to-bottom orthogonal flow |
+| `StateTransitionView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged` | Null `ViewNode` renders unchanged |
+| `StateTransitionView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot` | Non-heuristic root is selected |
+| `StateTransitionView_BuildLayout_ExposeInnerChildOfNonHeuristicRoot_SelectsItsRoot` | Inner state selects its root |
+| `StateTransitionView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas` | Unrelated def |
+| `StateTransitionView_BuildLayout_ExposeSingleState_DropsIsolatedOutOfScopeState` | Isolated state dropped |
+| `StateTransitionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |

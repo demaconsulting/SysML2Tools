@@ -30,3 +30,30 @@ sections:
           that could be mistaken for missing data.
         tests:
           - BrowserAndGrid_BuildLayout_EmptyWorkspace_ReturnMinimalCanvas
+
+      - id: SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-ExposeScoping
+        title: >-
+          When a view's ViewContext carries one or more resolved Expose edges,
+          GridViewLayoutStrategy shall scope the matrix to the union of each edge's target
+          containment subtree, resolved through the target's own type reference when the target
+          is a usage rather than a definition.
+        justification: |
+          The Grid View has no single-root heuristic to restrict, so it applies the shared
+          `expose` scope directly as a workspace-wide definition filter, giving it the same
+          observable scoping behavior as every other view kind.
+        tests:
+          - GridView_BuildLayout_ExposedName_UnionsAdditionalSubtree
+          - GridView_BuildLayout_ExposeMultipleTargets_UnionsBothSubtrees
+          - GridView_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree
+
+      - id: SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-NoExposeFallback
+        title: >-
+          When a view's ViewContext carries no resolved Expose edge — including a null ViewNode
+          — GridViewLayoutStrategy shall render every non-stdlib definition, unchanged from its
+          pre-scoping behavior.
+        justification: |
+          Nearly every real-world view declares no `expose` statement, and the synthetic `--auto`
+          view never carries a ViewNode at all; rendering the full workspace must remain the
+          default in both cases.
+        tests:
+          - GridView_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged

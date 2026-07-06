@@ -20,20 +20,36 @@ single `LayoutGrid` of `LayoutGridRow` and `LayoutGridCell` values.
 
 Builds the matrix:
 
-1. **Definition collection.** `CollectDefinitions` gathers the non-stdlib definitions in
-   deterministic (ordinal qualified-name) order. An index map from simple name to column is built
-   from them.
-2. **Sizing.** Row height derives from the body font size and label padding; the header column width
+1. **Scope resolution.** `ExposeScopeResolver.ResolveExposedScope` resolves the view's `expose`
+   scope once (or `null` when none applies).
+2. **Definition collection.** `CollectDefinitions` gathers the non-stdlib definitions in
+   deterministic (ordinal qualified-name) order, additionally excluding — when a scope was
+   resolved — any definition whose qualified name is not within it per
+   `ExposeScopeResolver.IsInSubjectScope`. An index map from simple name to column is built from
+   the (possibly narrowed) set.
+3. **Sizing.** Row height derives from the body font size and label padding; the header column width
    and the data column width derive from `MaxLabelWidth`, the widest definition label.
-3. **Header row.** An empty corner cell is followed by one centered header cell per definition.
-4. **Data rows.** For each row definition, a left-aligned header cell carries its name, then one
+4. **Header row.** An empty corner cell is followed by one centered header cell per definition.
+5. **Data rows.** For each row definition, a left-aligned header cell carries its name, then one
    cell per column carries the mark where `ResolveSupertypeIndices` reports that the row definition
    specializes the column definition (matching supertype references to columns by simple name) and
    an empty cell otherwise.
-5. **Assembly.** The rows are wrapped in a `LayoutGrid` positioned with a small padding offset, and
+6. **Assembly.** The rows are wrapped in a `LayoutGrid` positioned with a small padding offset, and
    the overall canvas width and height are computed from the column counts and sizes.
 
-When there are no user-defined definitions, a minimal empty `LayoutTree` with no nodes is returned.
+When there are no user-defined definitions (either because the workspace is empty or because
+scoping excludes every definition), a minimal empty `LayoutTree` with no nodes is returned.
+
+##### Expose Scoping
+
+`CollectDefinitions` is the only place scoping applies: it is a direct, workspace-wide filter with
+no single-root heuristic to restrict, so a resolved `expose` scope simply narrows the matrix to the
+definitions within the exposed targets' containment subtrees (plus, via
+`ExposeScopeResolver.ResolveExposedScope`'s usage-to-type fallback, an exposed feature usage's own
+type). Multiple `expose` targets union their subtrees, since `IsInSubjectScope` matches against
+every resolved subject. A view with no `expose` statement (including the synthesized `--auto`
+view, whose `ViewNode` is `null`) resolves no scope and renders every non-stdlib definition,
+unchanged from the pre-scoping behavior.
 
 ##### Error Handling
 
@@ -48,6 +64,8 @@ throw: the strategy returns an empty diagram rather than failing.
   (`DemaConsulting.Rendering.Abstractions`).
 - `SysmlWorkspace` and `SysmlDefinitionNode` (Semantic subsystem).
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
+- `ExposeScopeResolver` (Layout Internal subsystem) — `ResolveExposedScope` and
+  `IsInSubjectScope` supply the shared `expose`-scoping used by `CollectDefinitions`.
 
 ##### Callers
 

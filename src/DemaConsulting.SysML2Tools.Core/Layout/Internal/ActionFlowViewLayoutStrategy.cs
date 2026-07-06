@@ -53,13 +53,15 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
 
         var theme = options.Theme;
 
-        var root = FindRoot(context.Workspace);
+        var scope = ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode);
+
+        var root = FindRoot(context.Workspace, scope);
         if (root is null)
         {
             return new LayoutTree(200.0, 100.0, []);
         }
 
-        var (actions, index) = CollectActions(root, theme);
+        var (actions, index) = CollectActions(root, theme, scope);
         if (actions.Count == 0)
         {
             return new LayoutTree(200.0, 100.0, []);
@@ -113,8 +115,15 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         return new LayoutTree(maxX + margin, maxY + margin, nodes) { Warnings = warnings };
     }
 
-    /// <summary>Finds the definition with the most successions to use as the diagram root.</summary>
-    private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace)
+    /// <summary>
+    /// Finds the definition with the most successions to use as the diagram root. When
+    /// <paramref name="scope"/> is non-null (the view's resolved <c>expose</c> containment-subtree
+    /// scope), candidates are first restricted to those relevant to the scope via
+    /// <see cref="ExposeScopeResolver.IsRootRelevantToScope"/> before the succession/action-count
+    /// tie-break applies; when no candidate is scope-relevant, no root is chosen (an empty canvas
+    /// results).
+    /// </summary>
+    private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
     {
         SysmlDefinitionNode? best = null;
         var bestScore = -1;
@@ -127,6 +136,11 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             }
 
             if (StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
+            {
+                continue;
+            }
+
+            if (scope is not null && !ExposeScopeResolver.IsRootRelevantToScope(qualifiedName, scope))
             {
                 continue;
             }
@@ -144,10 +158,18 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         return best;
     }
 
-    /// <summary>Collects the action usages of the root definition and builds a name → index lookup.</summary>
+    /// <summary>
+    /// Collects the action usages of the root definition and builds a name → index lookup. When
+    /// <paramref name="scope"/> is non-null, an <c>action</c>-keyword feature whose own
+    /// <c>QualifiedName</c> fails <see cref="ExposeScopeResolver.IsInSubjectScope"/> is skipped;
+    /// actions synthesized only from succession endpoints have no independent qualified name and
+    /// are always added, since they exist only because a succession endpoint that already named
+    /// them exists on the (already scope-selected) root.
+    /// </summary>
     private static (IReadOnlyList<ActionItem> Actions, Dictionary<string, int> Index) CollectActions(
         SysmlDefinitionNode root,
-        Theme theme)
+        Theme theme,
+        IReadOnlyList<string>? scope)
     {
         var actions = new List<ActionItem>();
         var index = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -166,10 +188,18 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
 
         foreach (var feature in root.Children.OfType<SysmlFeatureNode>())
         {
-            if (feature.FeatureKeyword == "action" && feature.Name is not null)
+            if (feature.FeatureKeyword != "action" || feature.Name is null)
             {
-                Add(feature.Name);
+                continue;
             }
+
+            if (scope is not null && feature.QualifiedName is { Length: > 0 } fqn &&
+                !ExposeScopeResolver.IsInSubjectScope(fqn, scope))
+            {
+                continue;
+            }
+
+            Add(feature.Name);
         }
 
         foreach (var succession in root.Children.OfType<SysmlTransitionNode>())

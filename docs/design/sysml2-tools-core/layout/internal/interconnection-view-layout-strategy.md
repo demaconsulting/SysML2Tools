@@ -22,10 +22,12 @@ content produced by laying out one definition's interior).
 
 ###### `BuildLayout(ViewContext context, RenderOptions options)`
 
-Entry point. Selects the root part definition via `FindRoot`, builds the container-definition
-index via `BuildDefinitionIndex`, lays out the root's interior via `LayOutInterior`, and assembles
-the root container box plus the interior content into the `LayoutTree`. Returns a minimal 200×100
-empty `LayoutTree` when no root or no parts are found.
+Entry point. Resolves the view's `expose` scope via `ExposeScopeResolver.ResolveExposedScope`,
+selects the root part definition via `FindRoot(workspace, scope)`, builds the container-definition
+index via `BuildDefinitionIndex`, lays out the root's interior via `LayOutInterior` (threading
+`scope` through every recursive call), and assembles the root container box plus the interior
+content into the `LayoutTree`. Returns a minimal 200×100 empty `LayoutTree` when no root or no
+parts are found.
 
 ###### Recursive nested layout (`LayOutInterior`, `CollectParts`, `BuildDefinitionIndex`)
 
@@ -70,17 +72,39 @@ node by its parent, which is laid out with the **same** flat placement.
   the known `SEPARATE_CHILDREN` limitation (no true cross-boundary routing); gallery models avoid
   relying on cross-boundary endpoints.
 
-###### `FindRoot(workspace)`
+###### `FindRoot(workspace, scope)`
 
 Chooses the non-standard-library `part def` with the most connection usages (breaking ties by the
-most part usages) as the definition whose interior to render.
+most part usages) as the definition whose interior to render, restricted — when a scope is
+resolved — to candidates for which `ExposeScopeResolver.IsRootRelevantToScope` returns `true`;
+returns `null` when no candidate is relevant to a non-null scope (an empty canvas results), and
+falls back to considering every candidate when `scope` is `null`.
 
 ###### `CollectParts(root, theme)` and `ResolveConnections(root, partIndex)`
 
 `CollectParts` gathers the root's nested `part` usages, sizing each box from its `name : Type`
-label. `ResolveConnections` maps each binary connection's dotted endpoint references to nested-part
-indices by matching the first segment against the part names, keeping only distinct, resolvable
-pairs.
+label, additionally excluding — when a scope is resolved — any part feature whose qualified name
+fails `ExposeScopeResolver.IsInSubjectScope`. `ResolveConnections` maps each binary connection's
+dotted endpoint references to nested-part indices by matching the first segment against the
+(possibly narrowed) part names, keeping only distinct, resolvable pairs; a connection whose
+endpoint was excluded by scoping simply fails to resolve and is dropped by this existing
+endpoint-lookup logic — no separate edge-side scoping is needed.
+
+##### Expose Scoping
+
+Because this strategy renders exactly one selected root's interior, scoping cannot narrow a
+workspace-wide collection the way `GridViewLayoutStrategy` and `BrowserViewLayoutStrategy` do;
+instead it restricts **which root is selected** and then narrows **which of that root's parts are
+shown**. `FindRoot` only considers candidates `ExposeScopeResolver.IsRootRelevantToScope` accepts,
+so exposing the current heuristic root itself, an inner part of it, or a definition that itself
+contains the heuristic default all correctly select a root, while exposing an unrelated
+definition yields no root and thus the minimal empty canvas. `CollectParts` then narrows the
+selected root's own part features to those within the resolved scope (via
+`ExposeScopeResolver.IsInSubjectScope`), and `ResolveConnections`'s existing "skip connections
+whose endpoint did not resolve" behavior transparently drops any connection touching an excluded
+part — no new edge-side logic was required. A view with no `expose` statement (including the
+synthesized `--auto` view, whose `ViewNode` is `null`) resolves no scope, so `FindRoot` considers
+every candidate and `CollectParts` keeps every part, unchanged from the pre-scoping behavior.
 
 ###### Placement and routing
 
@@ -110,6 +134,9 @@ Connectors that cannot be routed cleanly are still drawn; this strategy does not
 - `LayeredPlacement` (Layout Internal subsystem) — placement and routing through
   `DemaConsulting.Rendering.Layout`.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
+- `ExposeScopeResolver` (Layout Internal subsystem) — `ResolveExposedScope`,
+  `IsRootRelevantToScope`, and `IsInSubjectScope` supply the shared `expose`-scoping used by
+  `BuildLayout`, `FindRoot`, and `CollectParts`.
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode`, `SysmlConnectionNode` (Semantic subsystem) — model input.
 - The `LayoutTree`, `LayoutBox`, `LayoutPort`, and `LayoutLine` data types
   (`DemaConsulting.Rendering`).

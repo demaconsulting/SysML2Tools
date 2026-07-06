@@ -18,8 +18,8 @@ The subsystem contains one strategy per supported view type:
 | `ActionFlowViewLayoutStrategy` | Lays out actions top-to-bottom with start/done markers and successions |
 
 The subsystem also contains the `BrowserViewLayoutStrategy`, `GridViewLayoutStrategy`, and
-`SequenceViewLayoutStrategy` strategies and the `LayoutWarnings` helper, each documented in its
-own chapter.
+`SequenceViewLayoutStrategy` strategies, the shared `ExposeScopeResolver` helper, and the
+`LayoutWarnings` helper, each documented in its own chapter.
 
 #### Interfaces
 
@@ -31,9 +31,10 @@ The renderers see only the returned tree.
 #### Design
 
 Each strategy follows the same shape: collect the relevant model elements (excluding
-standard-library declarations), compute an intrinsic size for each box, use arithmetic placement
-or delegate geometry through `LayeredPlacement`, and build the `LayoutNode` tree. When a
-connector cannot be routed without crossing a box, the strategy records a layout warning through
-`LayoutWarnings` rather than silently producing a misleading diagram. A view with no relevant
-elements returns a minimal empty canvas. The detailed mapping and heuristics of each strategy are
-described in its own unit chapter.
+standard-library declarations), restrict that collection to the view's resolved `expose` scope
+(via the shared `ExposeScopeResolver`) when one applies, compute an intrinsic size for each box,
+use arithmetic placement or delegate geometry through `LayeredPlacement`, and build the
+`LayoutNode` tree. When a connector cannot be routed without crossing a box, the strategy records
+a layout warning through `LayoutWarnings` rather than silently producing a misleading diagram. A
+view with no relevant elements returns a minimal empty canvas. The detailed mapping and
+heuristics of each strategy are described in its own unit chapter.
