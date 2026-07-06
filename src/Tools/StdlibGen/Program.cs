@@ -76,7 +76,20 @@ if (outputDir is { Length: > 0 })
     Directory.CreateDirectory(outputDir);
 }
 
-await File.WriteAllBytesAsync(outputPath, bytes).ConfigureAwait(false);
+// Write via a unique temp file, then atomically rename into place. This is required
+// for safety under concurrent invocations: MSBuild's multi-targeted/solution builds can
+// invoke StdlibGen more than once concurrently for the same --output path (e.g. once per
+// top-level project that references DemaConsulting.SysML2Tools.Stdlib). Writing directly
+// via File.WriteAllBytesAsync(outputPath, ...) opens the destination with FileMode.Create
+// (truncate-in-place) and FileShare.Read, which does not permit a second concurrent
+// writer - a second invocation racing on the same path can throw a sharing-violation
+// IOException. Each invocation instead writes its own uniquely-named temp file (no shared
+// handle, no contention), then File.Move(..., overwrite: true) atomically renames it onto
+// the destination (a single filesystem rename, not a truncate-and-copy) - safe regardless
+// of how many invocations race, with the last rename to complete winning deterministically.
+var tempPath = $"{outputPath}.{Guid.NewGuid():N}.tmp";
+await File.WriteAllBytesAsync(tempPath, bytes).ConfigureAwait(false);
+File.Move(tempPath, outputPath, overwrite: true);
 
 var errorCount = allDiagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
 var warnCount = allDiagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);

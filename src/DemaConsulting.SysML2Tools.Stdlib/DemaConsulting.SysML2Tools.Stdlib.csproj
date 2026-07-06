@@ -49,10 +49,8 @@
     <SBOMPackageSupplier>Organization: $(Company)</SBOMPackageSupplier>
   </PropertyGroup>
 
-  <!-- StdlibGen build-time tool: must complete before Stdlib compiles.
-       ReferenceOutputAssembly=false: do not link StdlibGen into Stdlib.dll.
-       SkipGetTargetFrameworkProperties=true: suppress TFM compatibility checks
-       (StdlibGen targets net10.0; Stdlib also targets net8.0 and net9.0). -->
+  <!-- StdlibGen build-time tool: must complete before Stdlib compiles. Not declared as a
+       ProjectReference item - see the GenerateStdlibBin target below for why. -->
   <ItemGroup>
     <ProjectReference Include="..\DemaConsulting.SysML2Tools.Language\DemaConsulting.SysML2Tools.Language.csproj" />
   </ItemGroup>
@@ -64,15 +62,46 @@
   </ItemGroup>
 
   <!-- Generate stdlib.bin once in the outer (cross-targeting) build before inner
-       TFM builds are dispatched. Uses <Exec> (not <MSBuild>) to build StdlibGen
-       in a child process so it never competes for MSBuild worker nodes.
-       Skipped when outputs are already up to date (incremental build). -->
+       TFM builds are dispatched, so all three inner TFM builds (net8.0/net9.0/net10.0)
+       see an already-generated obj\stdlib.bin regardless of their internal dispatch order.
+       Skipped when outputs are already up to date (incremental build).
+
+       Uses the <MSBuild> task (not <Exec "dotnet build">) to restore+build StdlibGen. This
+       runs StdlibGen's build in-process, in the SAME MSBuild engine/BuildManager session as
+       the outer solution build - not a second, uncoordinated `dotnet build` process. That
+       matters because StdlibGen.csproj ProjectReferences Language.csproj (net10.0), which
+       is also built directly by Stdlib/Core/Tool/Tests elsewhere in the same solution
+       build: within one MSBuild session, identical project+global-property build requests
+       (Language.csproj, TargetFramework=net10.0) are de-duplicated and cached by the
+       BuildManager, so Language.csproj is only ever compiled once and its output is safely
+       reused - no second process racing to write the same obj/bin files (which previously
+       caused CS2012 "file in use"), and no risk of duplicate-attribute errors from
+       re-evaluating the same project with different intermediate-output overrides.
+
+       Deliberately NOT a <ProjectReference> item: a real ProjectReference makes StdlibGen
+       discoverable by other multi-targeted projects' own "GetTargetFrameworks"-style
+       negotiation calls (e.g. Core.csproj resolving which of Stdlib's TFMs to reference),
+       and those auxiliary, non-build evaluations build referenced projects with whatever
+       default global properties they use (observed: Configuration=Debug) - independent of
+       this target's own guard below. Restoring+building StdlibGen only from inside this
+       explicitly guarded target (Targets="Restore;Build") keeps it invisible to every
+       other build path, so it is built exactly once, always with $(Configuration).
+
+       BuildingProject guard: BeforeTargets="PrepareForBuild" also fires during lightweight,
+       non-build MSBuild evaluations of this project - e.g. the "GetTargetFrameworks"-style
+       calls other multi-targeted projects (Core.csproj) make to negotiate which of
+       Stdlib's TFMs to reference. Those auxiliary evaluations default Configuration to
+       Debug regardless of the real build's Configuration, so without this guard the
+       target would fire an extra, spurious Debug-config build of StdlibGen. $(BuildingProject)
+       is only "true" for the actual Build execution, not these auxiliary evaluations. -->
   <Target Name="GenerateStdlibBin"
           BeforeTargets="DispatchToInnerBuilds;PrepareForBuild"
-          Condition="'$(TargetFrameworks)' != '' OR '$(TargetFramework)' == 'net10.0'"
+          Condition="'$(TargetFrameworks)' != '' AND '$(BuildingProject)' == 'true'"
           Inputs="@(StdlibSourceFiles)"
           Outputs="$(BaseIntermediateOutputPath)stdlib.bin">
-    <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\Tools\StdlibGen\StdlibGen.csproj&quot; -c $(Configuration) -f net10.0 -v:q" />
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\Tools\StdlibGen\StdlibGen.csproj"
+             Targets="Restore;Build"
+             Properties="Configuration=$(Configuration);TargetFramework=net10.0" />
     <PropertyGroup>
       <_StdlibGenDll>$(MSBuildThisFileDirectory)..\Tools\StdlibGen\bin\$(Configuration)\net10.0\StdlibGen.dll</_StdlibGenDll>
     </PropertyGroup>
