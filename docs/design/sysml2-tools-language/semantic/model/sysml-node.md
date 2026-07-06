@@ -42,7 +42,8 @@ All nodes carry:
   sourced from this node — there is no standalone verify-usage node type; this list is the sole
   producer of `Verify` edges.
 - `ResolvedEdges` — resolved outgoing `SysmlEdge` entries (supertype, typing, import, satisfy,
-  verify, allocate), populated post-construction by `ReferenceResolver`; a settable (not `init`)
+  verify, allocate, connect, transition, expose), populated post-construction by
+  `ReferenceResolver`; a settable (not `init`)
   property since resolution runs after the AST is built and the symbol table is fully populated.
   Empty for stdlib-only nodes, which are registered but never passed through
   `ReferenceResolver.ResolveAll`.

@@ -2406,7 +2406,7 @@ public sealed class WorkspaceLoaderTests
     public async Task WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic()
     {
         // Arrange
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(tempFile, """
@@ -2446,7 +2446,7 @@ public sealed class WorkspaceLoaderTests
     public async Task WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge()
     {
         // Arrange
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(tempFile, """
@@ -2487,7 +2487,7 @@ public sealed class WorkspaceLoaderTests
     public async Task WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge()
     {
         // Arrange
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(tempFile, """
@@ -2534,7 +2534,7 @@ public sealed class WorkspaceLoaderTests
     public async Task WorkspaceLoader_LoadAsync_ViewUsageWithBracketedFilterExpose_RecordsExposeEdge()
     {
         // Arrange
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(tempFile, """
@@ -2577,7 +2577,7 @@ public sealed class WorkspaceLoaderTests
     public async Task WorkspaceLoader_LoadAsync_ViewUsageWithPlainWildcardExpose_RecordsExposeEdge()
     {
         // Arrange
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(tempFile, """
@@ -2661,7 +2661,7 @@ public sealed class WorkspaceLoaderTests
     public async Task WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty()
     {
         // Arrange
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(tempFile, """

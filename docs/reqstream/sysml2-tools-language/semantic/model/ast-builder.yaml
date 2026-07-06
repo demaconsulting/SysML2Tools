@@ -39,21 +39,45 @@ sections:
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
 
-      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewRenderFilter
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewRenderTarget
         title: >-
           AstBuilder shall capture a view's render target reference text (from its
-          `render <target>;` member), its filter expression source text (from its
-          `filter [<expr>];` member), and its exposed name references (from its
-          `expose <name>;` members, `view` usages only) as raw, unevaluated data on the
-          corresponding SysmlViewNode.
+          `render <target>;` member) as raw, unevaluated data on the corresponding
+          SysmlViewNode's RenderTargetName property.
+        justification: |
+          `RenderTargetName` names a rendering style/format, not content, so it is captured
+          verbatim only and never drives scoping or resolution.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic
+          - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewFilterExpression
+        title: >-
+          AstBuilder shall capture a view's filter expression source text (from its
+          `filter [<expr>];` member) as raw, unevaluated data on the corresponding
+          SysmlViewNode's FilterExpressionText property.
+        justification: |
+          Full filter expression evaluation is deferred future work; capturing the raw source
+          text during AST construction preserves the information for a future capability
+          without requiring premature expression-evaluation logic in this unit.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
+          - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewExposedNames
+        title: >-
+          AstBuilder shall capture the raw reference text of each `expose <name>;` member
+          (`view` usages only, in source order) on the corresponding SysmlViewNode's
+          ExposedNames property.
         justification: |
           Capturing this data during AST construction is the prerequisite for ReferenceResolver
           to resolve the `expose` references into edges that GeneralViewLayoutStrategy uses for
-          scoping. `RenderTargetName` names a rendering style/format, not content, so it is
-          captured verbatim only and never drives scoping or resolution.
+          scoping. `expose` is only valid grammar inside a `view` usage's body, not a `view def`
+          definition's body.
         tests:
-          - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic
-          - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
+          - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
+          - WorkspaceLoader_LoadAsync_ViewUsageWithBracketedFilterExpose_RecordsExposeEdge
+          - WorkspaceLoader_LoadAsync_ViewUsageWithPlainWildcardExpose_RecordsExposeEdge
           - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewUsageExpose

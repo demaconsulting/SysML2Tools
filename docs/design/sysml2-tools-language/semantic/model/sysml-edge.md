@@ -5,11 +5,11 @@
 `SysmlEdge` and `SysmlEdgeKind` model a single resolved directed reference between two
 qualified names in the semantic model. Edges are produced by `ReferenceResolver` while
 walking supertype, feature-typing, import, satisfy, verify, allocate, connect, transition,
-render, and expose references, and are the raw material indexed by `SemanticIndex`.
+and expose references, and are the raw material indexed by `SemanticIndex`.
 
 ##### Types
 
-`SysmlEdgeKind` is an enum with ten members:
+`SysmlEdgeKind` is an enum with nine members:
 
 - `Supertype` — a specialization reference (`SupertypeNames` / `specializes` / `:>`).
 - `Typing` — a feature typing reference (`SysmlFeatureNode.FeatureTyping`, the type after `:`).

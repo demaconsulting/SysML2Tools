@@ -110,10 +110,12 @@ sysml2tools render model.sysml --auto --output out --format svg
 
 ## View Body Statements
 
-A `view def`/`view` declaration's body may contain `render <target>;`, `expose <name>;`, and
-`filter [<expr>];` statements. For the General View strategy (the diagram produced when no
-more specialized view kind applies), `expose` now scopes the rendered diagram instead of always
-rendering the entire workspace:
+A `view def`/`view` declaration's body may contain `render <target>;` and `filter [<expr>];`
+statements; a named `view` usage's body may additionally contain `expose <name>;` statements
+(per the SysML v2 grammar, `expose` is only valid inside a `view` usage's body, not a `view def`
+definition's body). For the General View strategy (the diagram produced when no more specialized
+view kind applies), `expose` now scopes the rendered diagram instead of always rendering the
+entire workspace:
 
 - `expose <name>;` (valid only inside a named `view` usage's body, not a `view def`
   definition's body) — scopes the diagram to the union of every exposed name's containment

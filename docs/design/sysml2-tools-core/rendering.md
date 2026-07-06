@@ -55,9 +55,12 @@ flowchart TD
 - *Role*: Data transfer object.
 - *Contract*: `string ViewName`, `SysmlWorkspace Workspace`, `SysmlViewNode? ViewNode = null`.
   `ViewNode` is the view's resolved AST node, giving a layout strategy access to the view's
-  declared `render`/`expose`/`filter` body statements (`RenderTargetName`, `ExposedNames`,
-  `FilterExpressionText`, and their `ResolvedEdges`); it is `null` for the `--auto` synthesized
-  view, which carries no AST node of its own.
+  declared `render`/`expose`/`filter` body statements. Of these, only `ExposedNames` (and its
+  resolved `Expose` edges) drives content scoping; `RenderTargetName` names a rendering
+  style/format per the SysML v2 grammar and is captured as inert metadata only (it never
+  affects scope or resolution); `FilterExpressionText` is captured as raw text and not yet
+  evaluated. `ViewNode` is `null` for the `--auto` synthesized view, which carries no AST node
+  of its own.
 
 **Theme**: Visual configuration record.
 
@@ -135,8 +138,12 @@ flowchart TD
    name, and (when available) the view's resolved AST node, plus `RenderOptions` for size and
    scale hints. It produces a fully resolved `LayoutTree` with all waypoints in absolute canvas
    coordinates. `GeneralViewLayoutStrategy` is the only strategy that currently reads
-   `ViewContext.ViewNode` to scope its diagram to a declared render target's subtree; every
-   other strategy ignores it and renders as before (see the Layout subsystem's
+   `ViewContext.ViewNode` to scope its diagram: when the view has one or more resolved `Expose`
+   edges, the diagram is scoped to the union of the exposed targets' containment subtrees
+   (resolving through a usage's type to its definition's subtree where needed); a view with no
+   `Expose` edges renders the full workspace, unchanged from prior behavior. The view's
+   `render`/`filter` statements never affect this scope. Every other strategy ignores
+   `ViewContext.ViewNode` and renders as before (see the Layout subsystem's
    `general-view-layout-strategy` design doc for the scoping algorithm).
 
 3. `IRenderer.Render` receives the `LayoutTree` and `RenderOptions` and writes all rendered
