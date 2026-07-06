@@ -74,7 +74,7 @@
     <value>  --format svg|png   Renderer format (default: svg)</value>
   </data>
   <data name="Render_OptionView" xml:space="preserve">
-    <value>  --view &lt;name&gt;      Select a specific view to render, when multiple are defined</value>
+    <value>  --view &lt;name&gt;      Select a specific view to render, instead of rendering all views</value>
   </data>
   <data name="Render_OptionAuto" xml:space="preserve">
     <value>  --auto             Auto-generate a view when none are defined</value>

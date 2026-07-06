@@ -187,7 +187,7 @@ sysml2tools help [lint|render|query [<query-verb>]]
 | --- | --- |
 | `<globs>` | One or more glob patterns for `.sysml` input files |
 | `--output <file>` | Output file path; extension determines format (`.svg` or `.png`) |
-| `--view <name>` | Name of the view to render (required when workspace has multiple views) |
+| `--view <name>` | Name of the view to render; omit to render every declared view (default) |
 | `--auto` | Auto-render the BDD of the top-level `part def` when no view is defined |
 | `--depth <#>` | Limit rendered nesting depth; truncated parts show `+N more…` |
 
@@ -219,8 +219,9 @@ sysml2tools help [lint|render|query [<query-verb>]]
 | Exactly one view in workspace | Render it |
 | Zero views, `--auto` specified | Auto-render BDD of top-level `part def` silently |
 | Zero views, no `--auto` | Warn and auto-render |
-| Multiple views, none specified | Error: lists available view names and exits non-zero |
-| Multiple views, `--view <name>` | Render the named view |
+| Multiple views, none specified | Render every declared view (one output file per view) |
+| Multiple views, `--view <name>` | Render only the named view |
+| `--view <name>` names a view that does not exist | Error: lists available view names and exits non-zero |
 
 ## NuGet Packages
 

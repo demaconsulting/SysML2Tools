@@ -41,8 +41,11 @@ Entry point for the render command. Steps:
 3. Reports all diagnostics from `loadResult.Diagnostics`, writing errors via
    `context.WriteError` and other messages via `context.WriteLine`.
 4. Calls `DiagramRenderer.GetViewNames(workspace)` to enumerate renderable views.
-5. When `viewNames.Count > 1` and `options.ViewName` is null, calls `context.WriteError`
-   with a message listing the available names and returns early.
+5. Calls `DiagramRenderer.GetViewNames(loadResult.Workspace)` again (via the same call at step
+   4) to validate `options.ViewName` when supplied: when `options.ViewName` is not null and does
+   not match any declared view name, calls `context.WriteError` with a message listing the
+   available view names and returns early. When `options.ViewName` is null, no validation is
+   performed here — every declared view will be rendered in step 7.
 6. Resolves `format = options.Format ?? "svg"` and eagerly rejects any value other than
    `"svg"`/`"png"` (case-insensitive) with `ArgumentException` naming the bad value — mirroring
    the `query` command's `--format` validation style. This is validated here, in `RunAsync`, not
@@ -71,8 +74,9 @@ future-locale story, which applies identically here.
 
 - Missing file patterns: `context.WriteError` is called and the method returns early.
 - Load diagnostics: reported to the context; non-fatal; rendering proceeds regardless.
-- Multiple views without `--view`: `context.WriteError` lists available view names and
-  returns early.
+- Multiple views without `--view`: no error; every declared view is rendered (one output file
+  per view), supporting bulk "render everything" exports.
+- Unknown `--view` name: `context.WriteError` lists available view names and returns early.
 - Unsupported `--format` value: `ArgumentException` is thrown naming the bad value and the
   valid values (`svg`, `png`); propagates to `Program.Main`'s expected-exception handler.
 - No view declarations: informational message; no output files written; returns normally.
@@ -104,6 +108,7 @@ future-locale story, which applies identically here.
 | SysML2Tools-Tool-Render-Output | Output directory resolution in `RunAsync` |
 | SysML2Tools-Tool-Render-Empty | Empty-outputs message in `RunAsync` |
 | SysML2Tools-Tool-Render-DepthLimit | `DepthLimit` passed to `RenderOptions` in `RunAsync` |
-| SysML2Tools-Tool-Render-MultipleViewError | Multi-view guard using `GetViewNames` in `RunAsync` |
+| SysML2Tools-Tool-Render-AllViewsExport | Default render-all-views logic using `viewNames` in `RunAsync` |
+| SysML2Tools-Tool-Render-UnknownViewError | Unknown `--view` name guard using `viewNames` in `RunAsync` |
 | SysML2Tools-Tool-Render-ViewSelection | `viewFilter` passed to `RenderWorkspace` in `RunAsync` |
 | SysML2Tools-Tool-Render-FormatValidation | Eager `--format` value guard in `RunAsync` |

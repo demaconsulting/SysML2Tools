@@ -103,8 +103,9 @@ sysml2tools render model.sysml --auto --output diagram.svg
 | Exactly one view in workspace | Render it |
 | Zero views, `--auto` specified | Auto-render BDD of top-level `part def` silently |
 | Zero views, no `--auto` | Warn: "define a view or use --auto", then auto-render |
-| Multiple views, none specified | Error: lists available view names, exits non-zero |
-| Multiple views, `--view <name>` | Render the named view |
+| Multiple views, none specified | Render every declared view (one output file per view) |
+| Multiple views, `--view <name>` | Render only the named view |
+| `--view <name>` names a view that does not exist | Error: lists available view names, exits non-zero |
 
 ## Depth Limiting
 

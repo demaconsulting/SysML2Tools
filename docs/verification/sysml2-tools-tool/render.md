@@ -25,8 +25,11 @@ on context output and exit code. File-writing scenarios use a temporary director
 - No output files written when workspace has no views
 - Informational message written when workspace has no views
 - `--depth 1` produces SVG output containing the ellipsis character `"…"`
-- Multiple views without `--view` yields exit code 1 and an error message
+- Multiple views without `--view` renders every declared view, producing one output file per
+  view, exit code 0
 - `--view <name>` with a multi-view workspace renders exactly one file
+- `--view <name>` naming a view that does not exist yields exit code 1 and an error message
+  listing available view names
 - Unsupported `--format` value throws `ArgumentException` when `RunAsync` executes (not at
   `Context.Create` parse time)
 - `render --help` prints render-specific usage and options (not the generic top-level command
@@ -70,14 +73,15 @@ informational message.
 Verifies that `--depth 1` causes the SVG output to contain the ellipsis character `"…"`,
 confirming that child part-def boxes were replaced by the depth-limit indicator.
 
-##### RenderSubsystem_MultipleViews_NoViewFlag_ReportsError
+##### RenderSubsystem_MultipleViews_NoViewFlag_RendersAllViews
 
-Verifies that rendering a workspace with two views and no `--view` flag yields exit code 1.
+Verifies that rendering a workspace with two views and no `--view` flag renders every
+declared view: exit code 0, and exactly two `.svg` output files produced (one per view).
 
-##### RenderSubsystem_MultipleViews_NoViewFlag_ListsAvailableViews
+##### RenderSubsystem_UnknownViewFlag_ReportsErrorWithAvailableViews
 
-Verifies that the multi-view error path writes an error containing the available view names
-to the log.
+Verifies that `--view <nonexistent-name>` yields exit code 1 and an error message listing
+the available view names (`ViewAlpha` and `ViewBeta`).
 
 ##### RenderSubsystem_MultipleViews_WithViewFlag_RendersSelectedView
 

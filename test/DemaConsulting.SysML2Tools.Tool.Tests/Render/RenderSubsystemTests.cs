@@ -331,11 +331,11 @@ public class RenderSubsystemTests
         """;
 
     /// <summary>
-    ///     RenderCommand reports an error when the workspace contains multiple views and
-    ///     --view is not specified.
+    ///     RenderCommand renders every declared view when the workspace contains multiple
+    ///     views and --view is not specified, producing one output file per view.
     /// </summary>
     [Fact]
-    public async Task RenderSubsystem_MultipleViews_NoViewFlag_ReportsError()
+    public async Task RenderSubsystem_MultipleViews_NoViewFlag_RendersAllViews()
     {
         // Arrange: write a SysML model with two views
         var tempDir = Path.Combine(Path.GetTempPath(), $"render_multi_{Guid.NewGuid():N}");
@@ -344,35 +344,37 @@ public class RenderSubsystemTests
         await File.WriteAllTextAsync(tempFile, SysmlWithTwoViews, TestContext.Current.CancellationToken);
 
         var outputDir = Path.Combine(tempDir, "out");
-        var originalError = Console.Error;
+        var originalOut = Console.Out;
         try
         {
-            using var errWriter = new StringWriter();
-            Console.SetError(errWriter);
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
 
             // Act: render without --view flag
             using var context = Context.Create(["render", "--output", outputDir, tempFile]);
             await Program.RunAsync(context);
 
-            // Assert: exit code indicates failure; error was reported
-            Assert.Equal(1, context.ExitCode);
+            // Assert: exit code indicates success; exactly two .svg files were produced
+            Assert.Equal(0, context.ExitCode);
+            var svgFiles = Directory.GetFiles(outputDir, "*.svg");
+            Assert.Equal(2, svgFiles.Length);
         }
         finally
         {
-            Console.SetError(originalError);
+            Console.SetOut(originalOut);
             Directory.Delete(tempDir, recursive: true);
         }
     }
 
     /// <summary>
-    ///     RenderCommand error output lists available view names when multiple views are
-    ///     present and --view is not specified.
+    ///     RenderCommand reports an error listing available view names when --view names a
+    ///     view that does not exist in the workspace.
     /// </summary>
     [Fact]
-    public async Task RenderSubsystem_MultipleViews_NoViewFlag_ListsAvailableViews()
+    public async Task RenderSubsystem_UnknownViewFlag_ReportsErrorWithAvailableViews()
     {
         // Arrange: write a SysML model with two named views
-        var tempDir = Path.Combine(Path.GetTempPath(), $"render_multi_views_{Guid.NewGuid():N}");
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_unknown_view_{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
         var tempFile = Path.Combine(tempDir, "model.sysml");
         await File.WriteAllTextAsync(tempFile, SysmlWithTwoViews, TestContext.Current.CancellationToken);
@@ -384,14 +386,22 @@ public class RenderSubsystemTests
             using var errWriter = new StringWriter();
             Console.SetError(errWriter);
 
-            // Act: render without --view flag; use log to capture output for assertion
+            // Act: render with --view naming a view that does not exist; use log to capture
+            // output for assertion
             var logFile = Path.Combine(tempDir, "output.log");
-            using var context = Context.Create(
-                ["render", "--silent", "--log", logFile, "--output", outputDir, tempFile]);
-            await Program.RunAsync(context);
+            using (var context = Context.Create(
+                       ["render", "--silent", "--log", logFile, "--view", "NoSuchView", "--output", outputDir, tempFile]))
+            {
+                await Program.RunAsync(context);
 
-            // Assert: exit code indicates failure; error message in log lists view names
-            Assert.Equal(1, context.ExitCode);
+                // Assert: exit code indicates failure
+                Assert.Equal(1, context.ExitCode);
+            }
+
+            // Assert: log content lists available view names
+            var logContent = await File.ReadAllTextAsync(logFile, TestContext.Current.CancellationToken);
+            Assert.Contains("ViewAlpha", logContent);
+            Assert.Contains("ViewBeta", logContent);
         }
         finally
         {

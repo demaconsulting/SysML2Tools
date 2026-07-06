@@ -68,13 +68,15 @@ internal static class RenderCommand
             return;
         }
 
-        // Enumerate renderable views; require --view when multiple views are present
+        // Enumerate renderable views. By default (no --view) every declared view is rendered,
+        // supporting bulk "render everything" exports for CI/design-doc publishing; --view narrows
+        // the run to a single named view.
         var viewNames = DiagramRenderer.GetViewNames(loadResult.Workspace);
-        if (viewNames.Count > 1 && options.ViewName is null)
+        if (options.ViewName is not null && !viewNames.Contains(options.ViewName, StringComparer.Ordinal))
         {
             var available = string.Join(", ", viewNames);
             context.WriteError(
-                $"error: multiple views found; use --view to select one (available: {available})");
+                $"error: view '{options.ViewName}' not found; use --view to select one (available: {available})");
             return;
         }
 
