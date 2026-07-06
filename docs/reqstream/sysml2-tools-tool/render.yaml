@@ -71,25 +71,35 @@ sections:
         tests:
           - RenderSubsystem_WithDepth_LimitsNesting
 
-      - id: SysML2Tools-Tool-Render-MultipleViewError
+      - id: SysML2Tools-Tool-Render-AllViewsExport
+        title: >-
+          The render command shall render every declared view in the workspace, producing
+          one output file per view, when --view is not specified.
+        justification: |
+          Rendering every declared view by default supports bulk "render everything"
+          exports for CI pipelines and design-doc publishing without requiring the user
+          to invoke the command once per view.
+        tests:
+          - RenderSubsystem_MultipleViews_NoViewFlag_RendersAllViews
+
+      - id: SysML2Tools-Tool-Render-UnknownViewError
         title: >-
           The render command shall report an error listing all available view names when
-          the workspace contains multiple renderable views and --view is not specified.
+          --view specifies a view name that does not exist in the workspace.
         justification: |
-          Requiring explicit view selection prevents rendering the wrong diagram when
-          a model contains multiple views, and the error lists choices so the user knows
-          what to supply.
+          Reporting an error with the list of available view names gives users an
+          actionable message when they mistype or misremember a view's display name.
         tests:
-          - RenderSubsystem_MultipleViews_NoViewFlag_ReportsError
-          - RenderSubsystem_MultipleViews_NoViewFlag_ListsAvailableViews
+          - RenderSubsystem_UnknownViewFlag_ReportsErrorWithAvailableViews
 
       - id: SysML2Tools-Tool-Render-ViewSelection
         title: >-
           The render command shall render only the view whose display name matches the
-          value supplied via --view.
+          value supplied via --view, when --view is specified.
         justification: |
           View selection enables targeting a single diagram for output in multi-view
-          models without generating every diagram in the workspace.
+          models without generating every diagram in the workspace; it is always
+          optional, narrowing the default render-all behavior to one view on request.
         tests:
           - RenderSubsystem_MultipleViews_WithViewFlag_RendersSelectedView
 
@@ -105,6 +115,20 @@ sections:
           producing an unexpected output format.
         tests:
           - RenderSubsystem_UnsupportedFormat_ThrowsArgumentException
+
+      - id: SysML2Tools-Tool-Render-FileNameCollision
+        title: >-
+          The render command shall detect and report, before writing any output files, when
+          rendering all declared views (--view not specified) would produce two or more
+          output files with the same sanitized file name, naming the colliding views and the
+          shared file name, and shall abort without writing any files for that run.
+        justification: |
+          Two declared views in different packages that share the same simple name sanitize
+          to the same output file name. Without a collision guard, the second file written
+          silently overwrites the first while the final "Rendered N view(s)." message still
+          misreports both views as rendered, masking data loss from the user.
+        tests:
+          - RenderSubsystem_DuplicateViewFileNames_ReportsCollisionError
 
       - id: SysML2Tools-Tool-Render-LocalizableHelpText
         title: >-

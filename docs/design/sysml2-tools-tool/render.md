@@ -37,12 +37,17 @@ Entry point for the render command. Steps:
    `Program` only reaches here when `Context.Create` has already populated it) and validates
    that `options.Files` is non-empty; calls `context.WriteError` and returns when no patterns
    are supplied.
-2. Calls `WorkspaceLoader.LoadAsync(options.Files)` to load the workspace.
+2. Calls `StdlibProvider.GetSymbolTable()` to obtain the pre-resolved OMG stdlib symbol table,
+   then calls `WorkspaceLoader.LoadAsync(options.Files, stdlibTable)` to load the workspace,
+   seeded with the stdlib symbol table so stdlib elements resolve without re-parsing them.
 3. Reports all diagnostics from `loadResult.Diagnostics`, writing errors via
    `context.WriteError` and other messages via `context.WriteLine`.
 4. Calls `DiagramRenderer.GetViewNames(workspace)` to enumerate renderable views.
-5. When `viewNames.Count > 1` and `options.ViewName` is null, calls `context.WriteError`
-   with a message listing the available names and returns early.
+5. Calls `DiagramRenderer.GetViewNames(loadResult.Workspace)` again (via the same call at step
+   4) to validate `options.ViewName` when supplied: when `options.ViewName` is not null and does
+   not match any declared view name, calls `context.WriteError` with a message listing the
+   available view names and returns early. When `options.ViewName` is null, no validation is
+   performed here — every declared view will be rendered in step 7.
 6. Resolves `format = options.Format ?? "svg"` and eagerly rejects any value other than
    `"svg"`/`"png"` (case-insensitive) with `ArgumentException` naming the bad value — mirroring
    the `query` command's `--format` validation style. This is validated here, in `RunAsync`, not
@@ -71,8 +76,14 @@ future-locale story, which applies identically here.
 
 - Missing file patterns: `context.WriteError` is called and the method returns early.
 - Load diagnostics: reported to the context; non-fatal; rendering proceeds regardless.
-- Multiple views without `--view`: `context.WriteError` lists available view names and
-  returns early.
+- Multiple views without `--view`: no error; every declared view is rendered (one output file
+  per view), supporting bulk "render everything" exports.
+- Output file name collision: when rendering all views (`--view` not specified) with more than
+  one output, and two or more views' sanitized display names produce the same output file
+  name, `context.WriteError` reports every colliding group (listing the colliding qualified
+  view names and the shared file name) and the method returns before any file is written for
+  this run, rather than silently overwriting one view's output with another's.
+- Unknown `--view` name: `context.WriteError` lists available view names and returns early.
 - Unsupported `--format` value: `ArgumentException` is thrown naming the bad value and the
   valid values (`svg`, `png`); propagates to `Program.Main`'s expected-exception handler.
 - No view declarations: informational message; no output files written; returns normally.
@@ -81,8 +92,12 @@ future-locale story, which applies identically here.
 
 ##### Dependencies
 
+- `StdlibProvider` (in `DemaConsulting.SysML2Tools.Stdlib`) — supplies the pre-resolved OMG
+  stdlib symbol table used to seed `WorkspaceLoader.LoadAsync`
 - `WorkspaceLoader` (in `DemaConsulting.SysML2Tools.Semantic`) — loads workspace
-- `DiagramRenderer` (in `DemaConsulting.SysML2Tools.Rendering`) — renders views
+- `DiagramRenderer` (in `DemaConsulting.SysML2Tools.Rendering`) — renders views; also exposes
+  `GetViewIdentities` used to attribute colliding output file names back to their originating
+  qualified view names
 - `SvgRenderer` (in `DemaConsulting.Rendering.Svg`) — produces SVG output
 - `PngRenderer` (in `DemaConsulting.Rendering.Skia`) — produces PNG output
 - `Themes.Light` (in `DemaConsulting.Rendering.Abstractions`) — default theme
@@ -104,6 +119,8 @@ future-locale story, which applies identically here.
 | SysML2Tools-Tool-Render-Output | Output directory resolution in `RunAsync` |
 | SysML2Tools-Tool-Render-Empty | Empty-outputs message in `RunAsync` |
 | SysML2Tools-Tool-Render-DepthLimit | `DepthLimit` passed to `RenderOptions` in `RunAsync` |
-| SysML2Tools-Tool-Render-MultipleViewError | Multi-view guard using `GetViewNames` in `RunAsync` |
+| SysML2Tools-Tool-Render-AllViewsExport | Default render-all-views logic using `viewNames` in `RunAsync` |
+| SysML2Tools-Tool-Render-UnknownViewError | Unknown `--view` name guard using `viewNames` in `RunAsync` |
 | SysML2Tools-Tool-Render-ViewSelection | `viewFilter` passed to `RenderWorkspace` in `RunAsync` |
 | SysML2Tools-Tool-Render-FormatValidation | Eager `--format` value guard in `RunAsync` |
+| SysML2Tools-Tool-Render-FileNameCollision | Output file name collision guard in `RunAsync` |

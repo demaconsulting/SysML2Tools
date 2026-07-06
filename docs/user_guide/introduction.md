@@ -53,7 +53,7 @@ sysml2tools lint model.sysml
 sysml2tools lint "src/**/*.sysml"
 
 # Multiple patterns
-sysml2tools render "common/**/*.sysml" "system/**/*.sysml" --output diagram.svg
+sysml2tools render "common/**/*.sysml" "system/**/*.sysml" --output out
 ```
 
 # Linting
@@ -80,20 +80,21 @@ This structured output is suitable for:
 # Rendering
 
 The `render` command loads a workspace, resolves a view, and renders it to SVG or PNG.
-The output format is determined by the file extension of `--output`.
+`--output` names an output *directory* (default: current directory); `--format` selects
+`svg` (default) or `png`.
 
 ```bash
 # Render to SVG
-sysml2tools render model.sysml --output diagram.svg
+sysml2tools render model.sysml --output out --format svg
 
 # Render to PNG
-sysml2tools render model.sysml --output diagram.png
+sysml2tools render model.sysml --output out --format png
 
 # Render a named view from a multi-view workspace
-sysml2tools render "src/**/*.sysml" --view SystemContext --output context.svg
+sysml2tools render "src/**/*.sysml" --view SystemContext --output out --format svg
 
 # Auto-render the top-level part def when no view is defined
-sysml2tools render model.sysml --auto --output diagram.svg
+sysml2tools render model.sysml --auto --output out --format svg
 ```
 
 ## View Selection
@@ -102,9 +103,10 @@ sysml2tools render model.sysml --auto --output diagram.svg
 | --- | --- |
 | Exactly one view in workspace | Render it |
 | Zero views, `--auto` specified | Auto-render BDD of top-level `part def` silently |
-| Zero views, no `--auto` | Warn: "define a view or use --auto", then auto-render |
-| Multiple views, none specified | Error: lists available view names, exits non-zero |
-| Multiple views, `--view <name>` | Render the named view |
+| Zero views, no `--auto` | Informational message; no output files written |
+| Multiple views, none specified | Render every declared view (one output file per view) |
+| Multiple views, `--view <name>` | Render only the named view |
+| `--view <name>` names a view that does not exist | Error: lists available view names, exits non-zero |
 
 ## Depth Limiting
 
@@ -113,7 +115,7 @@ with an ellipsis footer (`+N more…`). Silent omission is never used — trunca
 visible in the output.
 
 ```bash
-sysml2tools render model.sysml --output diagram.svg --depth 3
+sysml2tools render model.sysml --output out --depth 3
 ```
 
 ## Output Formats

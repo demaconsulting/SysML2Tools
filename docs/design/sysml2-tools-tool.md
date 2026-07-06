@@ -3,8 +3,8 @@
 ## Architecture
 
 The `DemaConsulting.SysML2Tools.Tool` is a command-line application built on .NET. It is structured as one
-system containing one top-level unit (`Program`) and three subsystems (`Cli`, `SelfTest`,
-`Utilities`):
+system containing one top-level unit (`Program`) and seven subsystems (`Cli`, `Lint`, `Render`,
+`Help`, `Query`, `SelfTest`, `Utilities`):
 
 ```mermaid
 flowchart TD
@@ -14,6 +14,12 @@ flowchart TD
     end
     subgraph Lint
         LintCommand
+    end
+    subgraph Render
+        RenderCommand
+    end
+    subgraph Help
+        HelpCommand
     end
     subgraph Query
         QueryCommand
@@ -26,6 +32,8 @@ flowchart TD
     end
     Program --> Context
     Program --> LintCommand
+    Program --> RenderCommand
+    Program --> HelpCommand
     Program --> QueryCommand
     Program --> Validation
     Validation --> Program
@@ -33,11 +41,12 @@ flowchart TD
 ```
 
 `Program` is the entry point. It creates a `Context` from the `Cli` subsystem, dispatches to
-`LintCommand` when the `lint` subcommand is passed, dispatches to `QueryCommand` when the
-`query` subcommand is passed, dispatches to `Validation` when `--validate` is passed, and
-returns the exit code from `Context`. `Validation` calls `Program.Run` recursively
-to exercise the tool during self-testing, and uses `PathHelpers` to construct safe temporary file
-paths.
+`LintCommand` when the `lint` subcommand is passed, dispatches to `RenderCommand` when the
+`render` subcommand is passed, dispatches to `HelpCommand` when the `help` subcommand (or
+`--help`) is passed, dispatches to `QueryCommand` when the `query` subcommand is passed,
+dispatches to `Validation` when `--validate` is passed, and returns the exit code from
+`Context`. `Validation` calls `Program.Run` recursively to exercise the tool during
+self-testing, and uses `PathHelpers` to construct safe temporary file paths.
 
 ## External Interfaces
 

@@ -159,7 +159,9 @@ reviewers an explicit navigation aid from design to code:
   - **DemaConsulting.SysML2Tools.Tool/** — dotnet tool CLI wrapper
     - **Cli/** — command-line interface subsystem
     - **Lint/** — lint command subsystem
+    - **Render/** — render command subsystem
     - **Help/** — help command subsystem
+    - **Query/** — query command subsystem
     - **SelfTest/** — self-validation subsystem
     - **Utilities/** — shared utilities subsystem
   - **Tools/StdlibGen/** — build-time stdlib pre-compiler tool
@@ -172,6 +174,7 @@ reviewers an explicit navigation aid from design to code:
     - **lint/** — Lint subsystem design
     - **render/** — Render subsystem design (render.md)
     - **help.md** — Help subsystem design
+    - **query.md** — Query subsystem design
     - **self-test/** — SelfTest subsystem design
     - **utilities/** — Utilities subsystem design
 
