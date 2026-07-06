@@ -30,3 +30,17 @@ sections:
         tests:
           - ForCrossings_One_ReturnsSingularWarning
           - ForCrossings_Many_ReturnsPluralWarning
+
+      - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedFilter
+        title: >-
+          When a view's filter expression text is non-null, LayoutWarnings shall produce a
+          warning naming the view and stating that its filter expression is parsed but not yet
+          evaluated; when null, LayoutWarnings shall produce no warning.
+        justification: |
+          Full `filter [<expr>];` expression evaluation is deferred future work (see
+          ROADMAP.md). Silently ignoring a declared filter would mislead a user into believing
+          their diagram is filtered when every element in the resolved scope actually renders
+          unfiltered; this warning makes the limitation visible.
+        tests:
+          - ForUnevaluatedFilter_NullText_ReturnsEmpty
+          - ForUnevaluatedFilter_NonNullText_ReturnsNotYetEvaluatedWarning

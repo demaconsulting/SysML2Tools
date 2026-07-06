@@ -4,12 +4,12 @@
 
 `SysmlEdge` and `SysmlEdgeKind` model a single resolved directed reference between two
 qualified names in the semantic model. Edges are produced by `ReferenceResolver` while
-walking supertype, feature-typing, import, satisfy, verify, allocate, connect, and transition
-references, and are the raw material indexed by `SemanticIndex`.
+walking supertype, feature-typing, import, satisfy, verify, allocate, connect, transition,
+and expose references, and are the raw material indexed by `SemanticIndex`.
 
 ##### Types
 
-`SysmlEdgeKind` is an enum with eight members:
+`SysmlEdgeKind` is an enum with nine members:
 
 - `Supertype` — a specialization reference (`SupertypeNames` / `specializes` / `:>`).
 - `Typing` — a feature typing reference (`SysmlFeatureNode.FeatureTyping`, the type after `:`).
@@ -33,6 +33,14 @@ references, and are the raw material indexed by `SemanticIndex`.
   from the source state and targeting the target state (`SysmlTransitionNode`). Either side may
   be a dotted feature chain, resolved the same way as `Connect`; recorded only when both the
   source and target resolve — an implied/omitted source produces no edge.
+- `Expose` — a view usage's resolved exposed-name reference (`expose <name>;`, valid only inside
+  a `view` usage's body), sourced from the view's qualified name and targeting each resolvable
+  entry in `SysmlViewNode.ExposedNames`, one `Expose` edge per entry. `Expose` is the sole
+  view-scoping edge kind: `GeneralViewLayoutStrategy` scopes its diagram to the union of every
+  `Expose` edge's target containment subtree; a view with no `Expose` edges renders the full
+  workspace, unchanged from the pre-scoping baseline. `SysmlViewNode.RenderTargetName` (a
+  rendering-style/format selector, e.g. `asTreeDiagram`) is captured but never resolved into an
+  edge and has no effect on scope.
 
 `SysmlEdge` is a sealed positional record with three properties:
 

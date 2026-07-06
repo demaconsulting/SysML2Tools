@@ -26,3 +26,50 @@ sections:
           The cycle detection uses depth-first search with a traversal stack.
         tests:
           - WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewExposeResolution
+        title: >-
+          ReferenceResolver.ResolveAll shall resolve each of a view's ExposedNames entries into
+          an Expose-kind edge.
+        justification: |
+          `expose <name>;` is the only reference a view's body statements resolve into model
+          content; resolving each ExposedNames entry into an Expose-kind edge is the
+          prerequisite for GeneralViewLayoutStrategy to scope a rendered diagram to that content.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
+          - WorkspaceLoader_LoadAsync_ViewUsageWithBracketedFilterExpose_RecordsExposeEdge
+          - WorkspaceLoader_LoadAsync_ViewUsageWithPlainWildcardExpose_RecordsExposeEdge
+          - WorkspaceLoader_LoadAsync_OmgSafetyFeatureViewsFixture_ResolvesBracketedExpose
+          - RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewExposeUnresolvedWarning
+        title: >-
+          ReferenceResolver.ResolveAll shall produce an unresolved-reference Warning diagnostic
+          (with no corresponding edge) when a view's ExposedNames entry cannot resolve —
+          mirroring the existing SubjectName/EndpointA unresolved-reference diagnostic pattern.
+        justification: |
+          A bogus `expose <name>;` entry must be surfaced to the caller as model incompleteness,
+          the same way an unresolved supertype or import name is surfaced, so the diagnostic
+          signal for the render subsystem is genuinely useful.
+        tests:
+          - RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewRenderFilterNeverResolved
+        title: >-
+          ReferenceResolver.ResolveAll shall never inspect or resolve a view's RenderTargetName
+          or FilterExpressionText: no edge is produced and no diagnostic is emitted for either,
+          regardless of content.
+        justification: |
+          RenderTargetName names a rendering style/format per the SysML v2 grammar (e.g.
+          `asTreeDiagram`, `asElementTable`), never model content — attempting to resolve it as a
+          reference could only ever produce a false "Unresolved reference" diagnostic or
+          coincidentally match an unrelated stdlib symbol of the same name (confirmed against the
+          OMG test corpus, where every `render` member names a rendering-style identifier).
+          FilterExpressionText is likewise raw source text, not a reference, and full filter
+          expression evaluation is deferred future work. Excluding both from resolution removes
+          that false-diagnostic risk while preserving the genuine unresolved-reference signal for
+          a bogus `expose` entry.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic
+          - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
+          - RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages

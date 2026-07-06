@@ -797,12 +797,153 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var supertypeNames = GetSubclassificationSupertypes(
             context.definitionDeclaration()?.subclassificationPart());
 
+        var (renderTargetName, filterExpressionText) =
+            ExtractViewRenderAndFilter(context.viewDefinitionBody()?.viewDefinitionBodyItem() ?? []);
+
         return new SysmlViewNode
         {
             Name = name,
             QualifiedName = qualifiedName,
             SupertypeNames = supertypeNames,
+            RenderTargetName = renderTargetName,
+            FilterExpressionText = filterExpressionText,
         };
+    }
+
+    /// <summary>
+    ///     Builds a <see cref="SysmlViewNode"/> from a <c>view</c> usage (as opposed to a
+    ///     <c>view def</c> definition), capturing the same render/filter members as
+    ///     <see cref="VisitViewDefinition"/> plus <c>expose</c> members — the usage form's only
+    ///     grammar addition over the definition form's body.
+    /// </summary>
+    /// <remarks>
+    ///     Unnamed view usages (no declared name) are not registered as symbols and are skipped,
+    ///     mirroring the existing anonymous-element convention used by
+    ///     <see cref="VisitStateUsage"/> and other usage visitors.
+    /// </remarks>
+    public override SysmlNode? VisitViewUsage(SysMLv2Parser.ViewUsageContext context)
+    {
+        var name = GetDeclaredName(context.usageDeclaration()?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var qualifiedName = QualifyName(name);
+        var bodyItems = context.viewBody()?.viewBodyItem() ?? [];
+
+        var (renderTargetName, filterExpressionText) = ExtractViewRenderAndFilter(bodyItems);
+        var exposedNames = ExtractExposedNames(bodyItems);
+
+        return new SysmlViewNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            RenderTargetName = renderTargetName,
+            ExposedNames = exposedNames,
+            FilterExpressionText = filterExpressionText,
+        };
+    }
+
+    /// <summary>
+    ///     Scans a view's body items for a <c>render &lt;target&gt;;</c> member and a
+    ///     <c>filter [&lt;expression&gt;];</c> member, returning the raw reference text and raw
+    ///     expression source text respectively (or <see langword="null"/> for either when absent).
+    ///     Shared by <see cref="VisitViewDefinition"/> (<c>viewDefinitionBodyItem</c>) and
+    ///     <see cref="VisitViewUsage"/> (<c>viewBodyItem</c>) since both context types expose
+    ///     identically-shaped <c>viewRenderingMember()</c>/<c>elementFilterMember()</c> accessors.
+    ///     The first <c>render</c> member wins if more than one appears — SysML disallows more
+    ///     than one render subject per view, so this is a defensive tie-break, not a validated
+    ///     constraint enforced by this tool.
+    /// </summary>
+    private static (string? RenderTargetName, string? FilterExpressionText) ExtractViewRenderAndFilter<TItem>(
+        IEnumerable<TItem> bodyItems)
+        where TItem : Antlr4.Runtime.ParserRuleContext
+    {
+        string? renderTargetName = null;
+        string? filterExpressionText = null;
+
+        foreach (var item in bodyItems)
+        {
+            if (renderTargetName is null &&
+                GetViewRenderingMember(item) is { } renderingMember)
+            {
+                renderTargetName = ExtractRenderTargetName(renderingMember.viewRenderingUsage());
+            }
+
+            if (filterExpressionText is null &&
+                GetElementFilterMember(item) is { } filterMember)
+            {
+                filterExpressionText = filterMember.ownedExpression()?.GetText();
+            }
+        }
+
+        return (renderTargetName, filterExpressionText);
+    }
+
+    /// <summary>Extracts the <c>viewRenderingMember()</c> accessor common to both view body item types.</summary>
+    private static SysMLv2Parser.ViewRenderingMemberContext? GetViewRenderingMember(Antlr4.Runtime.ParserRuleContext item) =>
+        item switch
+        {
+            SysMLv2Parser.ViewDefinitionBodyItemContext defItem => defItem.viewRenderingMember(),
+            SysMLv2Parser.ViewBodyItemContext usageItem => usageItem.viewRenderingMember(),
+            _ => null,
+        };
+
+    /// <summary>Extracts the <c>elementFilterMember()</c> accessor common to both view body item types.</summary>
+    private static SysMLv2Parser.ElementFilterMemberContext? GetElementFilterMember(Antlr4.Runtime.ParserRuleContext item) =>
+        item switch
+        {
+            SysMLv2Parser.ViewDefinitionBodyItemContext defItem => defItem.elementFilterMember(),
+            SysMLv2Parser.ViewBodyItemContext usageItem => usageItem.elementFilterMember(),
+            _ => null,
+        };
+
+    /// <summary>
+    ///     Extracts the raw reference text of a <c>render &lt;target&gt;;</c> statement, preferring
+    ///     the direct-reference form (<c>ownedReferenceSubsetting</c>) and falling back to the
+    ///     typed-placeholder form's feature typing — the same two-form fallback pattern
+    ///     <see cref="VisitSatisfyRequirementUsage"/> uses for <c>satisfy</c>'s two grammar forms.
+    /// </summary>
+    private static string? ExtractRenderTargetName(SysMLv2Parser.ViewRenderingUsageContext? usage)
+    {
+        if (usage is null)
+        {
+            return null;
+        }
+
+        return usage.ownedReferenceSubsetting()?.GetText()
+            ?? ExtractFeatureTyping(usage.featureSpecializationPart())
+            ?? usage.usage()?.GetText();
+    }
+
+    /// <summary>
+    ///     Collects the raw reference text of every <c>expose &lt;name&gt;;</c> member in a
+    ///     <c>view</c> usage's body, in source order, reusing <see cref="ExtractImportTarget"/> —
+    ///     the same namespace/membership-import shape <c>import</c> statements use.
+    /// </summary>
+    private static IReadOnlyList<string> ExtractExposedNames(
+        IEnumerable<SysMLv2Parser.ViewBodyItemContext> bodyItems)
+    {
+        var names = new List<string>();
+        foreach (var item in bodyItems)
+        {
+            var expose = item.expose();
+            if (expose is null)
+            {
+                continue;
+            }
+
+            var (qn, _) = ExtractImportTarget(
+                expose.namespaceExpose()?.namespaceImport(),
+                expose.membershipExpose()?.membershipImport());
+            if (qn is { Length: > 0 })
+            {
+                names.Add(qn);
+            }
+        }
+
+        return names;
     }
 
     /// <inheritdoc/>
@@ -835,40 +976,91 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             return null;
         }
 
-        // Namespace import: qualifiedName::* — wildcard, all members of the namespace are in scope
-        var nsImport = decl.namespaceImport();
-        if (nsImport is not null)
+        var (qn, isWildcard) = ExtractImportTarget(decl.namespaceImport(), decl.membershipImport());
+        if (qn is null)
         {
-            var qn = nsImport.qualifiedName()?.GetText();
+            return null;
+        }
+
+        return new SysmlImportNode
+        {
+            ImportedNamespace = qn,
+            ImportedNames = [qn],
+            IsWildcard = isWildcard,
+        };
+    }
+
+    /// <summary>
+    ///     Extracts the qualified/dotted name text and wildcard flag from either an import's
+    ///     namespace form (<c>qualifiedName::*</c>, a wildcard by definition) or membership form
+    ///     (<c>qualifiedName</c>, optionally <c>::**</c> for a recursive wildcard). Shared by
+    ///     <see cref="VisitImportRule"/>'s <c>import</c> handling and <see cref="ExtractExposedNames"/>'s
+    ///     <c>expose</c> handling, since both grammar constructs wrap the identical
+    ///     <c>namespaceImport</c>/<c>membershipImport</c> shapes — extracted here per the
+    ///     Copy-Paste Programming anti-pattern in coding-principles.md rather than duplicating the
+    ///     extraction logic at both call sites.
+    /// </summary>
+    /// <param name="namespaceImport">The wildcard-import alternative, or null when not this form.</param>
+    /// <param name="membershipImport">The membership-import alternative, or null when not this form.</param>
+    /// <returns>
+    ///     The extracted qualified/dotted name text (or null when neither alternative yielded
+    ///     text) and whether the import/expose is a wildcard.
+    /// </returns>
+    private static (string? QualifiedName, bool IsWildcard) ExtractImportTarget(
+        SysMLv2Parser.NamespaceImportContext? namespaceImport,
+        SysMLv2Parser.MembershipImportContext? membershipImport)
+    {
+        // Namespace import: qualifiedName::* — wildcard, all members of the namespace are in scope
+        if (namespaceImport is not null)
+        {
+            var qn = namespaceImport.qualifiedName()?.GetText();
             if (qn is { Length: > 0 })
             {
-                return new SysmlImportNode
+                return (qn, true);
+            }
+
+            // Bracketed-filter form: qualifiedName::**[filterExpr] — the dominant expose form in
+            // the real OMG corpus. The grammar nests the qualified name two levels deeper here:
+            // namespaceImport -> filterPackage -> filterPackageImportDeclaration -> (membershipImport
+            // | namespaceImportDirect). Descend through that chain rather than only checking the
+            // direct qualifiedName() child (which is null for this alternative).
+            var filterDecl = namespaceImport.filterPackage()?.filterPackageImportDeclaration();
+            if (filterDecl is not null)
+            {
+                var filterMembershipImport = filterDecl.membershipImport();
+                if (filterMembershipImport is not null)
                 {
-                    ImportedNamespace = qn,
-                    ImportedNames = [qn],
-                    IsWildcard = true,
-                };
+                    var filterQn = filterMembershipImport.qualifiedName()?.GetText();
+                    if (filterQn is { Length: > 0 })
+                    {
+                        return (filterQn, filterMembershipImport.STAR_STAR() is not null);
+                    }
+                }
+
+                var namespaceImportDirect = filterDecl.namespaceImportDirect();
+                if (namespaceImportDirect is not null)
+                {
+                    var directQn = namespaceImportDirect.qualifiedName()?.GetText();
+                    if (directQn is { Length: > 0 })
+                    {
+                        return (directQn, true);
+                    }
+                }
             }
         }
 
         // Membership import: qualifiedName (optional ::**)
         // The ** form is a recursive wildcard; either way it enables lookup under the namespace
-        var memImport = decl.membershipImport();
-        if (memImport is not null)
+        if (membershipImport is not null)
         {
-            var qn = memImport.qualifiedName()?.GetText();
+            var qn = membershipImport.qualifiedName()?.GetText();
             if (qn is { Length: > 0 })
             {
-                return new SysmlImportNode
-                {
-                    ImportedNamespace = qn,
-                    ImportedNames = [qn],
-                    IsWildcard = memImport.STAR_STAR() is not null,
-                };
+                return (qn, membershipImport.STAR_STAR() is not null);
             }
         }
 
-        return null;
+        return (null, false);
     }
 
     /// <inheritdoc/>

@@ -32,6 +32,8 @@ All test inputs are constructed inline. No external network access or services a
 - `Themes.Print` is non-null and has `DepthFillColors.Count >= 1` and non-empty `StrokeColor`.
 - `new RenderOptions(Themes.Light)` has `Scale == 1.0`, `Dpi == 96.0`, `DepthLimit == 0`.
 - `RenderOutput` stores `SuggestedFileName`, `MediaType`, and `Data` as supplied.
+- `ViewContext` constructed with only the required `ViewName`/`Workspace` arguments has a
+  `null` `ViewNode`; constructed with an explicit `SysmlViewNode` stores it unchanged.
 
 ### Test Scenarios
 
@@ -96,3 +98,13 @@ all three properties are asserted to equal the supplied values.
 when a concrete `ILayoutStrategy` implementation is available. The scenario will construct
 a `ViewContext` with a minimal `SysmlWorkspace` and assert that `BuildLayout` returns a
 non-null `LayoutTree` with non-negative `Width` and `Height`.
+
+**ViewContext_Construction_StoresAllFields**: A `ViewContext` is constructed with only
+`ViewName` and `Workspace`; both properties are asserted to equal the supplied values and
+`ViewNode` is asserted to be `null`.
+
+**ViewContext_Construction_WithViewNode_StoresViewNode**: A `ViewContext` is constructed
+with an explicit `SysmlViewNode` as the third argument; `ViewNode` is asserted to be the
+same instance supplied. This confirms a layout strategy that reads `ViewContext.ViewNode`
+(currently only `GeneralViewLayoutStrategy`) receives the view's resolved render/expose/
+filter data.

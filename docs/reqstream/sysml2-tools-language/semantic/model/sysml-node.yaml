@@ -28,3 +28,39 @@ sections:
           on element type without string comparisons.
         tests:
           - WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewRenderTarget
+        title: >-
+          SysmlViewNode shall expose RenderTargetName: the raw reference text of its `render
+          <target>;` member, or null when absent.
+        justification: |
+          RenderTargetName is exposed as raw metadata only: per the SysML v2 grammar it names a
+          rendering style/format (e.g. `asTreeDiagram`, `asElementTable`), never content, so it
+          is captured but never resolved into an edge and has no effect on scope.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic
+          - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewExposedNames
+        title: >-
+          SysmlViewNode shall expose ExposedNames: the raw reference text of each `expose
+          <name>;` member, empty when absent.
+        justification: |
+          Making a view's `expose` statements user-observable data is the prerequisite for
+          ReferenceResolver, which resolves ExposedNames into `Expose`-kind edges that
+          GeneralViewLayoutStrategy uses for scoping.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
+          - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewFilterExpression
+        title: >-
+          SysmlViewNode shall expose FilterExpressionText: the raw source text of its `filter
+          [<expr>];` member, or null when absent.
+        justification: |
+          Making a view's declared filter expression user-observable data is required so
+          callers can observe it as raw source text; full filter expression evaluation is
+          deferred future work and is out of scope for this field.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
+          - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty

@@ -38,3 +38,65 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewRenderTarget
+        title: >-
+          AstBuilder shall capture a view's render target reference text (from its
+          `render <target>;` member) as raw, unevaluated data on the corresponding
+          SysmlViewNode's RenderTargetName property.
+        justification: |
+          `RenderTargetName` names a rendering style/format, not content, so it is captured
+          verbatim only and never drives scoping or resolution.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic
+          - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewFilterExpression
+        title: >-
+          AstBuilder shall capture a view's filter expression source text (from its
+          `filter [<expr>];` member) as raw, unevaluated data on the corresponding
+          SysmlViewNode's FilterExpressionText property.
+        justification: |
+          Full filter expression evaluation is deferred future work; capturing the raw source
+          text during AST construction preserves the information for a future capability
+          without requiring premature expression-evaluation logic in this unit.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
+          - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewExposedNames
+        title: >-
+          AstBuilder shall capture the raw reference text of each `expose <name>;` member
+          (`view` usages only, in source order) on the corresponding SysmlViewNode's
+          ExposedNames property.
+        justification: |
+          Capturing this data during AST construction is the prerequisite for ReferenceResolver
+          to resolve the `expose` references into edges that GeneralViewLayoutStrategy uses for
+          scoping. `expose` is only valid grammar inside a `view` usage's body, not a `view def`
+          definition's body.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
+          - WorkspaceLoader_LoadAsync_ViewUsageWithBracketedFilterExpose_RecordsExposeEdge
+          - WorkspaceLoader_LoadAsync_ViewUsageWithPlainWildcardExpose_RecordsExposeEdge
+          - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewUsageExpose
+        title: >-
+          AstBuilder shall build a SysmlViewNode from a named `view` usage (in addition to a
+          `view def` definition), capturing the same render/filter members plus its `expose`
+          members.
+        justification: |
+          `expose <name>;` is only valid grammar inside a `view` usage's body, not a `view def`
+          definition's body; without a dedicated VisitViewUsage override, named view usages
+          (including every `expose` statement) were never visited at all, so a view's exposed
+          names could never be captured, resolved, or scoped. This is also an intentional
+          capability addition beyond `expose` support alone: `VisitViewUsage` causes every named
+          `view` usage — whether or not it declares `expose` — to become its own renderable
+          top-level `SysmlViewNode` declaration, whereas previously only `view def` declarations
+          were ever visible to the render subsystem. For example, the OMG corpus fixture
+          `11b-SafetyAndSecurityFeatureViews.sysml` declares 2 `view def`s plus 3 named `view`
+          usages, so rendering it with no `--view` filter now produces 5 output files instead
+          of 2.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
+          - RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages

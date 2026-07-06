@@ -99,7 +99,8 @@ N/A — not a safety-classified software item.
 
 1. `DiagramRenderer.RenderWorkspace` receives a `SysmlWorkspace`, an `IRenderer`, and
    `RenderOptions`. For each view declared in the workspace it constructs a `ViewContext`
-   containing the view name and workspace reference.
+   containing the view name, workspace reference, and (when available) the view's resolved
+   AST node.
 2. `ILayoutStrategy.BuildLayout` is called with the `ViewContext` and `RenderOptions`. The
    Layout subsystem produces a fully resolved `LayoutTree` by delegating geometric placement and
    routing to the off-the-shelf `DemaConsulting.Rendering.Layout` layered algorithm (through the

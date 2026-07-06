@@ -57,8 +57,9 @@ optionally seeded with a pre-populated symbol table.
 - *Role*: Data container.
 - *Contract*: Exposes `IReadOnlyList<string> Files`, `IReadOnlySet<string> StdlibNames`,
   `IReadOnlyDictionary<string, SysmlNode> Declarations` mapping qualified names to declaration
-  nodes, and `SemanticIndex Index` — a reverse-lookup index over resolved supertype, typing,
-  and import edges (see Semantic Model Subsystem).
+  nodes, and `SemanticIndex Index` — a reverse-lookup index over all resolved edge kinds
+  (supertype, typing, import, satisfy, verify, allocate, connect, transition, and expose; see
+  Semantic Model Subsystem).
 
 ### Design
 

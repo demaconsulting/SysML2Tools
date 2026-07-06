@@ -22,6 +22,7 @@ stack with `::` to form the fully-qualified name.
 | `VisitAttributeDefinition` | `AttributeDefinitionContext` | `SysmlDefinitionNode` |
 | `VisitItemDefinition` | `ItemDefinitionContext` | `SysmlDefinitionNode` |
 | `VisitViewDefinition` | `ViewDefinitionContext` | `SysmlViewNode` |
+| `VisitViewUsage` | `ViewUsageContext` | `SysmlViewNode` |
 | `VisitViewpointDefinition` | `ViewpointDefinitionContext` | `SysmlViewpointNode` |
 | `VisitAllocationUsage` | `AllocationUsageContext` | `SysmlConnectionNode` (`ConnectionKeyword = "allocation"`) |
 | `VisitSatisfyRequirementUsage` | `SatisfyRequirementUsageContext` | `SysmlSatisfyNode` |
@@ -87,6 +88,60 @@ satisfied requirement's raw reference text is taken from `ownedReferenceSubsetti
 `satisfy requirement <usageDeclaration>` form. The optional satisfying subject's raw reference
 text comes from `satisfactionSubjectMember()` (the `by <subject>` clause), or is `null` when
 absent.
+
+`VisitViewDefinition` builds a `SysmlViewNode` for `view def` definitions, additionally scanning
+`context.viewDefinitionBody()?.viewDefinitionBodyItem()` via the shared
+`ExtractViewRenderAndFilter<TItem>` helper (see below) to populate `RenderTargetName` and
+`FilterExpressionText`. `VisitViewUsage` builds a `SysmlViewNode` for named `view` usages (the
+only body form that may additionally contain `expose` members) the same way, plus
+`ExtractExposedNames` to populate `ExposedNames`. Unnamed view usages are skipped (no declared
+name), mirroring the existing anonymous-element convention.
+
+**`VisitViewUsage` is an intentional capability addition, not merely an `expose`-capture
+prerequisite.** Before this override existed, named `view Name { ... }` usages were silently
+dropped by the default `VisitChildren` aggregation — only `view def` declarations were ever
+visible as renderable top-level declarations. Adding `VisitViewUsage` means every named `view`
+usage in a workspace (whether or not it declares `expose`) now becomes its own `SysmlViewNode`
+declaration that the render subsystem discovers and renders. This is a deliberate, documented
+increase in output surface area: for example, the OMG corpus fixture
+`test/SysMLModels/OMG/validation/11-ViewAndViewpoint/11b-SafetyAndSecurityFeatureViews.sysml`
+declares 2 `view def`s plus 3 named `view` usages, so rendering it with no `--view` filter now
+produces 5 output files instead of 2 (see
+`RenderSubsystemTests.RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages`).
+
+`ExtractViewRenderAndFilter<TItem>(IEnumerable<TItem> bodyItems)` is a single generic helper
+shared by both `VisitViewDefinition` (`ViewDefinitionBodyItemContext`) and `VisitViewUsage`
+(`ViewBodyItemContext`) — the two context types are unrelated in the generated parser's type
+hierarchy but expose identically-shaped `viewRenderingMember()`/`elementFilterMember()`
+accessors, so a type-switch pattern inside two small private helpers
+(`GetViewRenderingMember`/`GetElementFilterMember`) lets one generic method serve both body-item
+types without duplicating the scan loop. The first `render` member wins if more than one
+appears (a defensive tie-break, not a validated SysML constraint). `ExtractRenderTargetName`
+follows the same two-form fallback pattern `VisitSatisfyRequirementUsage` uses: the direct
+reference form (`ownedReferenceSubsetting()`), falling back to the typed-placeholder form's
+feature typing (`ExtractFeatureTyping`), falling back to the raw usage text. The filter
+expression's raw source text is taken verbatim from
+`elementFilterMember().ownedExpression()?.GetText()` — never evaluated.
+
+`ExtractExposedNames(IEnumerable<ViewBodyItemContext> bodyItems)` collects the raw reference
+text of every `expose <name>;` member in source order, reusing the shared `ExtractImportTarget`
+helper (see below) against each `expose` member's wrapped `namespaceImport()`/
+`membershipImport()` — the identical grammar shape `import` uses.
+
+`ExtractImportTarget(NamespaceImportContext?, MembershipImportContext?)` is a shared helper
+extracted from `VisitImportRule`'s previously inline logic, returning the extracted
+qualified/dotted name text and whether the reference is a wildcard, for either the
+namespace-import form (`qualifiedName::*`, always a wildcard), the membership-import form
+(`qualifiedName`, optionally `::**`), or the bracketed-filter form nested inside a
+namespace-import (`qualifiedName::**[<filterExpr>]`) — the dominant `expose` shape in the real
+OMG corpus (e.g. `expose vehicle::**[@Safety];`). The grammar nests the qualified name two levels
+deeper for that third form: `namespaceImport -> filterPackage -> filterPackageImportDeclaration ->
+(membershipImport | namespaceImportDirect)`. `ExtractImportTarget` descends into
+`filterPackage().filterPackageImportDeclaration()` and extracts the qualified name from whichever
+of `membershipImport()`/`namespaceImportDirect()` is present there, rather than only checking the
+direct `qualifiedName()` child (which is null for this alternative). `VisitImportRule` and
+`ExtractExposedNames` both call this one helper rather than duplicating the extraction logic, per
+the Copy-Paste Programming anti-pattern guidance in coding-principles.md.
 
 `VisitRequirementUsage` performs a minimal capture (name/qualified-name only, so named
 requirement usages become resolvable symbols) and additionally invokes `FindVerificationMembers`

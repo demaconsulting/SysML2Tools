@@ -34,24 +34,53 @@ from the structural relationships.
 
 ###### `BuildLayout(ViewContext context, RenderOptions options)`
 
-Entry point. Calls `CollectDefinitions` to gather user definitions; returns a minimal 200×100 empty
-`LayoutTree` when none are found. Otherwise groups the definitions by package with `GroupByPackage`,
-resolves the specialization/membership/attribute-typing relationships into qualified-name edges with
+Entry point. First resolves the view's exposed-name scope via `ResolveExposedScope`,
+then calls `CollectDefinitions` to gather user definitions restricted to that scope (or every
+definition when no scope applies); returns a minimal 200×100 empty `LayoutTree` when none are
+found. Otherwise groups the definitions by package with `GroupByPackage`, resolves the
+specialization/membership/attribute-typing relationships into qualified-name edges with
 `BuildModelEdges`, builds the single input `LayoutGraph` with `BuildGraph`, and places the whole
 graph with one `HierarchicalLayoutAlgorithm().Apply(graph, LayoutOptions.ForAlgorithm("containment"))`
 call — passing the desired root-scope leaf algorithm through the options parameter (not
 `graph.Set(CoreOptions.Algorithm, …)`) so a caller going through `LayoutEngine.Layout(graph)` later
 is never misled into skipping the hierarchical engine. When any package folder was depth-truncated,
 `DecorateTruncatedFolders` stamps each truncated folder's "+N more…" ellipsis label onto its placed
-box before returning.
+box. Finally, when `context.ViewNode?.FilterExpressionText` is non-null, attaches the
+"parsed but not yet evaluated" warning (from `LayoutWarnings.ForUnevaluatedFilter`) to the returned
+tree's `Warnings` via the `LayoutTree with { Warnings = … }` record-copy idiom, leaving the
+resolved (unfiltered) scope's content unchanged.
 
-###### `CollectDefinitions(workspace, theme)`
+###### `ResolveExposedScope(SysmlWorkspace workspace, SysmlViewNode? viewNode)`
+
+Resolves the qualified-name containment-subtree scope a view's `expose` statements restrict the
+diagram to — the only content-scoping mechanism a view has (`render <target>;` names a
+rendering style/format, e.g. `asTreeDiagram`/`asElementTable`, per the SysML v2 grammar, never
+content, so `RenderTargetName` never affects this decision). Returns `null` — meaning "render
+everything", byte-identical to the pre-scoping behavior — whenever the view has no resolved
+`Expose`-kind `ResolvedEdges` entries: covering a `null` `viewNode` (the `--auto` synthesized
+view, which never carries expose/render/filter data), a view with no `expose` statement, and a
+view whose every `expose` entry failed to resolve, uniformly. Otherwise, for each resolved
+`Expose` edge's target qualified name, adds that name to the scope; when
+`workspace.Declarations` resolves the target to a `SysmlFeatureNode` (a usage, e.g.
+`part myVehicle : Vehicle;`) rather than a `SysmlDefinitionNode`, additionally resolves the
+usage's own `Typing`-kind `ResolvedEdges` entry (if any) and adds *that* type's qualified name to
+the scope too — the usage-to-type resolution fix for the containment gap where a usage's own
+(typically empty) subtree would otherwise silently produce zero content.
+
+###### `IsInSubjectScope(qualifiedName, subjects)`
+
+Returns `true` when `qualifiedName` equals one of `subjects` or lies within one of their
+containment subtrees (a `"{subject}::"` prefix match) — the same qualified-name-prefix idiom
+`StdlibFilter.IsStdlibElement` already uses for stdlib-prefix matching. Generic over any subject
+list; unchanged by this fix.
+
+###### `CollectDefinitions(workspace, theme, scope)`
 
 Iterates `workspace.Declarations`, keeping each `SysmlDefinitionNode` that is not a
-standard-library element (per `StdlibFilter.IsStdlibElement`). For each kept definition it builds
-the compartments from the owned usage features (grouped by keyword, each formatted as a
-`name : Type [n]` row), collects the typed memberships, and computes the box size from the title and
-the longest compartment row.
+standard-library element (per `StdlibFilter.IsStdlibElement`) and, when `scope` is non-null, is
+within `scope` per `IsInSubjectScope`. For each kept definition it builds the compartments from
+the owned usage features (grouped by keyword, each formatted as a `name : Type [n]` row), collects
+the typed memberships, and computes the box size from the title and the longest compartment row.
 
 ###### `GroupByPackage(defs)`
 
@@ -128,6 +157,10 @@ produces valid geometry, so no crossing warnings are emitted.
 - `BoxMetrics` (`DemaConsulting.Rendering.Abstractions`) — box title-area and folder-tab geometry.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode` (Semantic subsystem) — model input.
+- `SysmlViewNode`, `SysmlEdge`, `SysmlEdgeKind` (Semantic subsystem) — a view's resolved
+  `expose` data, read by `ResolveExposedScope`.
+- `LayoutWarnings` (Layout Internal subsystem) — `ForUnevaluatedFilter` supplies the
+  "parsed but not yet evaluated" filter-expression warning text.
 - The `LayoutTree`, `LayoutBox`, `LayoutCompartment`, `LayoutLine`, `LayoutLabel`, and `Point2D` data
   types (`DemaConsulting.Rendering`).
 - `FeatureMembership` (private record) — carries the keyword and type reference of one owned feature.

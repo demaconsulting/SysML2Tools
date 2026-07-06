@@ -2395,6 +2395,300 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A <c>view def</c> with a <c>render &lt;target&gt;;</c> member naming a rendering-style
+    ///     identifier that is not declared anywhere in the file (which would have failed
+    ///     resolution under the old, incorrect content-scoping semantics) produces zero
+    ///     diagnostics and zero edges sourced from the view — <c>ReferenceResolver</c> never
+    ///     inspects <c>RenderTargetName</c> — while <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.RenderTargetName"/>
+    ///     is still captured verbatim.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    view def V {
+                        render asTreeDiagram;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
+                result.Workspace!.Declarations["P::V"]);
+            Assert.Equal("asTreeDiagram", view.RenderTargetName);
+            Assert.Empty(result.Diagnostics);
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.SourceQualifiedName == "P::V");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>view def</c> with a <c>filter [&lt;expr&gt;];</c> member should capture the raw
+    ///     expression source text verbatim on <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.FilterExpressionText"/>
+    ///     without evaluating it, producing no diagnostic and no edge (per binding decision: filter
+    ///     expression evaluation is explicitly deferred future work).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    view def V {
+                        filter @SysML::PartUsage;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
+                result.Workspace!.Declarations["P::V"]);
+            Assert.Equal("@SysML::PartUsage", view.FilterExpressionText);
+            Assert.Empty(result.Diagnostics);
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.SourceQualifiedName == "P::V");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A named <c>view</c> usage (not a <c>view def</c>) with an <c>expose &lt;ns&gt;;</c>
+    ///     member should build a <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode"/>
+    ///     via <c>AstBuilder.VisitViewUsage</c> (the first test to exercise that visitor) and
+    ///     resolve the exposed name into an <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose"/>
+    ///     edge.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Exposed {}
+                    view V {
+                        expose Exposed;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
+                result.Workspace!.Declarations["P::V"]);
+            Assert.Contains("Exposed", view.ExposedNames);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose &&
+                     e.SourceQualifiedName == "P::V" &&
+                     e.TargetQualifiedName == "P::Exposed");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A view with the bracketed-filter <c>expose &lt;ns&gt;::**[&lt;filterExpr&gt;];</c> form —
+    ///     the dominant <c>expose</c> shape in the real OMG corpus (e.g.
+    ///     <c>expose vehicle::**[@Safety];</c> in <c>11b-SafetyAndSecurityFeatureViews.sysml</c>) —
+    ///     must resolve the exposed name into an
+    ///     <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose"/> edge. This
+    ///     grammar form nests the qualified name two levels deeper than the plain form
+    ///     (<c>namespaceImport -&gt; filterPackage -&gt; filterPackageImportDeclaration -&gt;
+    ///     membershipImport</c>), which <c>AstBuilder.ExtractImportTarget</c> previously did not
+    ///     descend into, silently dropping the exposed name with no diagnostic.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ViewUsageWithBracketedFilterExpose_RecordsExposeEdge()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    metadata def Safety;
+                    part def Exposed {}
+                    view V {
+                        expose Exposed::**[@Safety];
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
+                result.Workspace!.Declarations["P::V"]);
+            Assert.Contains("Exposed", view.ExposedNames);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose &&
+                     e.SourceQualifiedName == "P::V" &&
+                     e.TargetQualifiedName == "P::Exposed");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Regression guard for the plain (non-bracketed) wildcard <c>expose &lt;ns&gt;::*::**;</c>
+    ///     form — the sibling grammar shape to the bracketed-filter form above — confirming it
+    ///     still resolves correctly after the <c>ExtractImportTarget</c> fix that added support for
+    ///     descending into <c>filterPackage()</c>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ViewUsageWithPlainWildcardExpose_RecordsExposeEdge()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Exposed {}
+                    view V {
+                        expose Exposed::*::**;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
+                result.Workspace!.Declarations["P::V"]);
+            Assert.Contains("Exposed", view.ExposedNames);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose &&
+                     e.SourceQualifiedName == "P::V" &&
+                     e.TargetQualifiedName == "P::Exposed");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Loading the real OMG corpus fixture
+    ///     <c>11b-SafetyAndSecurityFeatureViews.sysml</c> must resolve
+    ///     <c>vehicleMandatorySafetyFeatureViewStandalone</c>'s bracketed-filter
+    ///     <c>expose vehicle::**[@Safety and (as Safety).isMandatory];</c> member into a non-empty
+    ///     <c>ExposedNames</c> list and a resolved <c>Expose</c> edge to <c>vehicle</c> — the exact
+    ///     scenario confirmed broken (empty <c>ExposedNames</c>, zero edges, no diagnostic) before
+    ///     the <c>ExtractImportTarget</c> fix.
+    /// </summary>
+    // cspell:ignore Feaure -- typo present verbatim in the real OMG corpus fixture's package name
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_OmgSafetyFeatureViewsFixture_ResolvesBracketedExpose()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var fixturePath = Path.Combine(
+            modelsRoot, "OMG", "validation", "11-ViewAndViewpoint", "11b-SafetyAndSecurityFeatureViews.sysml");
+        if (!File.Exists(fixturePath))
+        {
+            return;
+        }
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([fixturePath], stdlibTable);
+
+        // Assert
+        Assert.NotNull(result.Workspace);
+        var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
+            result.Workspace!.Declarations["'11b-Safety and Security Feaure Views'::Views::vehicleMandatorySafetyFeatureViewStandalone"]);
+        Assert.NotEmpty(view.ExposedNames);
+        Assert.Contains(result.Workspace!.Index.AllEdges,
+            e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose &&
+                 e.SourceQualifiedName == "'11b-Safety and Security Feaure Views'::Views::vehicleMandatorySafetyFeatureViewStandalone" &&
+                 e.TargetQualifiedName == "'11b-Safety and Security Feaure Views'::PartsTree::vehicle");
+    }
+
+    /// <summary>
+    ///     A <c>view def</c> with an empty body should leave <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.RenderTargetName"/>
+    ///     and <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.FilterExpressionText"/>
+    ///     null and <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.ExposedNames"/>
+    ///     empty — a regression guard for the "no render statement → render everything" fallback.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    view def V {}
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
+                result.Workspace!.Declarations["P::V"]);
+            Assert.Null(view.RenderTargetName);
+            Assert.Null(view.FilterExpressionText);
+            Assert.Empty(view.ExposedNames);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     Finds the test/SysMLModels directory relative to the test assembly.
     /// </summary>
     private static string? FindSysMLModelsRoot()

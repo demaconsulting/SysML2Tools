@@ -102,6 +102,21 @@ sections:
           - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsSvgOutput
           - DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames
 
+      - id: SysML2Tools-Core-Rendering-ViewContextViewNode
+        title: >-
+          The view context passed to a layout strategy shall optionally carry the view's
+          resolved AST node, so that a layout strategy can access the view's declared
+          render target, exposed names, and filter expression when computing its layout.
+        justification: |
+          A layout strategy needs access to a view's declared `render`/`expose`/`filter` body
+          statements — not just its name and the whole workspace — to scope its diagram.
+          Threading the view's AST node through DiagramRenderer to each ILayoutStrategy is the
+          plumbing prerequisite for GeneralViewLayoutStrategy's `expose`-scoped rendering.
+        tests:
+          - ViewContext_Construction_WithViewNode_StoresViewNode
+          - GeneralViewLayoutStrategy_BuildLayout_ExposedName_UnionsAdditionalSubtree
+          - GeneralViewLayoutStrategy_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged
+
       - id: SysML2Tools-Core-Rendering-DiagramRenderer
         title: >-
           For each view in a workspace, the Rendering subsystem shall lay the view out and

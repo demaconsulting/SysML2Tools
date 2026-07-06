@@ -533,6 +533,162 @@ public class RenderSubsystemTests
     }
 
     /// <summary>
+    ///     End-to-end regression test: a workspace with two views — one with an
+    ///     <c>expose &lt;target&gt;;</c> body statement naming a resolvable target, and one with a
+    ///     bogus <c>expose thisIdentifierDoesNotExistAnywhere;</c> — must produce two visibly
+    ///     DIFFERENT rendered outputs (a view with no <c>expose</c> edges renders the full
+    ///     workspace, while a view whose sole <c>expose</c> entry resolves scopes to that target's
+    ///     subtree), and the bogus view's unresolved exposed name must surface a diagnostic in the
+    ///     captured log output. <c>render &lt;target&gt;;</c> plays no role in scoping — only
+    ///     <c>expose</c> does, per the corrected semantics.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic()
+    {
+        // Arrange: a workspace with two named expose targets in disjoint subtrees, one view
+        // whose expose statement resolves to "TargetA", and one whose expose statement names a
+        // nonexistent identifier.
+        const string sysmlWithExposeTargets = """
+            package ExposeScopeTest {
+                part def TargetA {
+                    part childA1 : TargetA {}
+                }
+                part def TargetB {
+                    part childB1 : TargetB {}
+                }
+                view ViewValid {
+                    expose TargetA;
+                }
+                view ViewBogus {
+                    expose thisIdentifierDoesNotExistAnywhere;
+                }
+            }
+            """;
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"expose_scope_bug_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        await File.WriteAllTextAsync(tempFile, sysmlWithExposeTargets, TestContext.Current.CancellationToken);
+
+        var outputDir = Path.Combine(tempDir, "out");
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: render without --view so both views are rendered; capture output via --log
+            var logFile = Path.Combine(tempDir, "output.log");
+            using (var context = Context.Create(
+                       ["render", "--log", logFile, "--output", outputDir, tempFile]))
+            {
+                await Program.RunAsync(context);
+
+                // Assert: exit code indicates success
+                Assert.Equal(0, context.ExitCode);
+            }
+            var validSvg = Path.Combine(outputDir, "ViewValid.svg");
+            var bogusSvg = Path.Combine(outputDir, "ViewBogus.svg");
+            Assert.True(File.Exists(validSvg), "Expected ViewValid.svg to be produced");
+            Assert.True(File.Exists(bogusSvg), "Expected ViewBogus.svg to be produced");
+            var validContent = await File.ReadAllTextAsync(validSvg, TestContext.Current.CancellationToken);
+            var bogusContent = await File.ReadAllTextAsync(bogusSvg, TestContext.Current.CancellationToken);
+            Assert.NotEqual(validContent, bogusContent);
+
+            // Assert: the bogus exposed name surfaces a visible diagnostic naming the unresolved
+            // identifier, rather than silently rendering everything with no signal.
+            var logContent = await File.ReadAllTextAsync(logFile, TestContext.Current.CancellationToken);
+            Assert.Contains("thisIdentifierDoesNotExistAnywhere", logContent);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     Regression guard for the <c>AstBuilder.VisitViewUsage</c> capability addition: rendering
+    ///     the real OMG corpus fixture
+    ///     <c>test/SysMLModels/OMG/validation/11-ViewAndViewpoint/11b-SafetyAndSecurityFeatureViews.sysml</c>
+    ///     with no <c>--view</c> filter must produce exactly 5 output files — the 2 <c>view def</c>
+    ///     declarations (<c>SafetyFeatureView</c>, <c>SafetyOrSecurityFeatureView</c>) plus the 3
+    ///     named <c>view</c> usages (<c>vehicleSafetyFeatureView</c>,
+    ///     <c>vehicleMandatorySafetyFeatureView</c>,
+    ///     <c>vehicleMandatorySafetyFeatureViewStandalone</c>) — not just the 2 <c>view def</c>s
+    ///     that were the only renderable declarations before <c>VisitViewUsage</c> was added. This
+    ///     also confirms rendering this file produces no false unresolved-reference diagnostics for
+    ///     its <c>render asTreeDiagram;</c>/<c>render asElementTable;</c> rendering-style members.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages()
+    {
+        // Arrange: locate the real OMG corpus fixture relative to the test assembly's repo root.
+        var fixturePath = Path.Combine(
+            FindOmgModelsRoot(),
+            "validation", "11-ViewAndViewpoint", "11b-SafetyAndSecurityFeatureViews.sysml");
+        Assert.True(File.Exists(fixturePath), $"Expected OMG corpus fixture at {fixturePath}");
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"omg_11b_views_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var outputDir = Path.Combine(tempDir, "out");
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: render without --view so every declared view is rendered.
+            var logFile = Path.Combine(tempDir, "output.log");
+            using (var context = Context.Create(
+                       ["render", "--log", logFile, "--output", outputDir, fixturePath]))
+            {
+                await Program.RunAsync(context);
+
+                // Assert: exit code indicates success
+                Assert.Equal(0, context.ExitCode);
+            }
+
+            // Assert: exactly 5 output files were produced — the 2 view defs plus the 3 named
+            // view usages, once VisitViewUsage surfaces them as renderable declarations.
+            var outputFiles = Directory.GetFiles(outputDir, "*.svg");
+            Assert.Equal(5, outputFiles.Length);
+
+            // Assert: no false "Unresolved reference" diagnostic for the rendering-style names.
+            var logContent = await File.ReadAllTextAsync(logFile, TestContext.Current.CancellationToken);
+            Assert.DoesNotContain("asTreeDiagram", logContent);
+            Assert.DoesNotContain("asElementTable", logContent);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     Walks upward from the test assembly's base directory to find the repository's
+    ///     <c>test/SysMLModels/OMG</c> directory (mirroring the same idiom used by
+    ///     <c>OmgModelsTests.FindOmgModelsRoot</c>), so the OMG corpus fixture can be located
+    ///     regardless of the test runner's working directory.
+    /// </summary>
+    private static string FindOmgModelsRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !Directory.Exists(Path.Combine(dir.FullName, "test", "SysMLModels", "OMG")))
+        {
+            dir = dir.Parent;
+        }
+
+        if (dir == null)
+        {
+            throw new DirectoryNotFoundException("Cannot locate test/SysMLModels/OMG from test assembly location.");
+        }
+
+        return Path.Combine(dir.FullName, "test", "SysMLModels", "OMG");
+    }
+
+    /// <summary>
     ///     'render --help' now prints render-specific usage (a regression-proofing test for the
     ///     command-aware help dispatch added alongside the 'help' command).
     /// </summary>

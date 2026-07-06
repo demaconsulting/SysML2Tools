@@ -30,6 +30,20 @@ SVG: [`svg/DroneGeneralView.svg`](svg/DroneGeneralView.svg)
 
 ![Drone General View](png/DroneGeneralView.png)
 
+### 1b. View-scoped rendering — `expose` narrows the same model to one subsystem
+
+The same `01-drone-general.sysml` model also declares a second, named `view` usage
+that adds an `expose Battery;` statement. Instead of the full workspace, the diagram
+is scoped to just the `Battery` definition's containment subtree — demonstrating
+that `expose` (not `render`) is what controls diagram content scope. See the user
+guide's [Expose vs. Render](../user_guide/introduction.md#expose-vs-render-worked-examples)
+section for the full explanation and more worked examples.
+
+Model: [`models/01-drone-general.sysml`](models/01-drone-general.sysml) (`BatterySubsystemView`) ·
+SVG: [`svg/BatterySubsystemView.svg`](svg/BatterySubsystemView.svg)
+
+![Battery Subsystem View](png/BatterySubsystemView.png)
+
 ---
 
 ## 2. Interconnection View — Desktop Workstation

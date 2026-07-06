@@ -534,6 +534,32 @@ internal sealed class ReferenceResolver
             }
         }
 
+        // Views resolve only ExposedNames (a view's expose members) into Expose edges; each entry
+        // is resolved independently, and an unresolved entry produces the Warning diagnostic below
+        // with no edge. RenderTargetName (a view's render member) names a rendering style or
+        // format, not a content-scoping subject -- per the SysML v2 grammar it never refers to
+        // model content, so ReferenceResolver never inspects it: no edge is produced and no
+        // diagnostic is emitted for it, mirroring how FilterExpressionText (raw source text, not a
+        // reference) is also intentionally never touched here.
+        if (node is SysmlViewNode view)
+        {
+            foreach (var exposedName in view.ExposedNames)
+            {
+                if (TryResolve(exposedName, namespaceStack, imports, out var resolvedExposed))
+                {
+                    nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedExposed, SysmlEdgeKind.Expose));
+                }
+                else if (resolvedInFile.Add(exposedName))
+                {
+                    _diagnostics.Add(new SysmlDiagnostic(
+                        filePath,
+                        0, 0,
+                        DiagnosticSeverity.Warning,
+                        $"Unresolved reference: '{exposedName}'"));
+                }
+            }
+        }
+
         if (nodeEdges.Count > 0)
         {
             node.ResolvedEdges = nodeEdges;

@@ -35,4 +35,29 @@ internal static class LayoutWarnings
             "the diagram may be cluttered.",
         ];
     }
+
+    /// <summary>
+    /// Returns a single-element warning list stating that a view's <c>filter [&lt;expr&gt;];</c>
+    /// statement was parsed but not evaluated, or an empty list when the view declares no filter
+    /// expression.
+    /// </summary>
+    /// <param name="viewName">Name of the view being laid out.</param>
+    /// <param name="filterExpressionText">
+    /// The view's raw filter expression source text, or <see langword="null"/> when the view
+    /// declares no <c>filter</c> member.
+    /// </param>
+    /// <returns>The warning messages for the view.</returns>
+    public static IReadOnlyList<string> ForUnevaluatedFilter(string viewName, string? filterExpressionText)
+    {
+        if (filterExpressionText is null)
+        {
+            return [];
+        }
+
+        return
+        [
+            $"View '{viewName}' declares a filter expression, which is parsed but not yet " +
+            "evaluated; all elements in the resolved scope are rendered unfiltered.",
+        ];
+    }
 }

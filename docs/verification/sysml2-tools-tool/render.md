@@ -39,6 +39,15 @@ on context output and exit code. File-writing scenarios use a temporary director
 - `render --help` prints render-specific usage and options (not the generic top-level command
   list), and is identical to `help render`'s output (see the Help subsystem verification
   document).
+- A workspace with two views — one with an `expose <target>;` statement naming a resolvable
+  target, one with a bogus `expose thisIdentifierDoesNotExistAnywhere;` statement — produces
+  two output files whose content DIFFERS, and the bogus view's unresolved exposed name is
+  visible as a diagnostic in the captured log output.
+- Rendering the real OMG corpus fixture `11b-SafetyAndSecurityFeatureViews.sysml` with no
+  `--view` filter produces exactly 5 output files (2 `view def`s plus 3 named `view` usages),
+  regression-guarding the `VisitViewUsage` capability addition, with no false
+  "Unresolved reference" diagnostic for its `render asTreeDiagram;`/`render asElementTable;`
+  rendering-style members.
 
 ### Test Scenarios
 
@@ -114,6 +123,31 @@ Verifies that `render --help` prints the render-specific usage line and its `--o
 `--auto` flags, and does not print the generic top-level `"Commands:"` section — a
 regression-proofing test added alongside the `help` command's command-aware `--help` dispatch
 (see `docs/design/sysml2-tools-tool/help.md`).
+
+#### RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic
+
+End-to-end regression test: a workspace declares two `view` usages — one with `expose TargetA;`
+(resolving to a `part def` with a nested child), one with `expose
+thisIdentifierDoesNotExistAnywhere;` (an unresolvable target). Verifies that rendering both
+without `--view` produces `ViewValid.svg` and `ViewBogus.svg` whose content DIFFERS (a view with
+no resolved `Expose` edges renders the full workspace, while the valid view's sole `Expose` entry
+scopes to that target's subtree), and that the captured `--log` output contains
+`"thisIdentifierDoesNotExistAnywhere"` — the unresolved-reference diagnostic surfaced by
+`ReferenceResolver` for the bogus exposed name. `render <target>;` plays no role in scoping —
+only `expose` does, per the corrected semantics.
+
+#### RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages
+
+Regression guard for the `AstBuilder.VisitViewUsage` capability addition: loads and renders the
+real OMG corpus fixture
+`test/SysMLModels/OMG/validation/11-ViewAndViewpoint/11b-SafetyAndSecurityFeatureViews.sysml`
+with no `--view` filter, asserting exactly 5 output files are produced — the 2 `view def`
+declarations (`SafetyFeatureView`, `SafetyOrSecurityFeatureView`) plus the 3 named `view` usages
+(`vehicleSafetyFeatureView`, `vehicleMandatorySafetyFeatureView`,
+`vehicleMandatorySafetyFeatureViewStandalone`), not just the 2 `view def`s that were the only
+renderable declarations before `VisitViewUsage` was added. Also asserts the captured `--log`
+output contains no `"asTreeDiagram"`/`"asElementTable"` text, confirming those rendering-style
+`render` members never surface a false unresolved-reference diagnostic.
 
 #### ResxResource_EveryKey_ResolvesToNonEmptyText / ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity (ResxResourceTests.cs)
 

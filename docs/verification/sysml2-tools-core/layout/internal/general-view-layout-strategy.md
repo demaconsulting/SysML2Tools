@@ -39,6 +39,22 @@ configuration are required beyond a standard .NET SDK installation.
   delegated layout does not over-pad sparse diagrams.
 - Standard-library-only input (by prefix or by seed set) yields a minimal empty canvas.
 - An empty workspace yields a 200×100 canvas with no nodes.
+- A view whose `ViewContext.ViewNode` carries a resolved `Expose` edge scopes the diagram to that
+  target's containment subtree, excluding unrelated sibling definitions and producing fewer boxes
+  than an unscoped (no-`ViewNode`) rendering of the same workspace.
+- A view whose `ViewContext.ViewNode` carries a `RenderTargetName` but no resolved `Expose` edges
+  renders the full workspace, byte-identical to a view with a `null` `ViewNode` — proving
+  `RenderTargetName` never affects scope, regardless of `FilterExpressionText`.
+- A view whose resolved `Expose` edge names a feature usage (not a definition) still renders that
+  usage's type's containment subtree, by additionally resolving the usage's own `Typing` edge —
+  the fix for the usage-vs-definition containment gap.
+- A view whose `ViewContext.ViewNode` carries a non-null `FilterExpressionText` emits the "parsed
+  but not yet evaluated" warning through `LayoutTree.Warnings`, while still rendering the resolved
+  (unfiltered) scope.
+- A view with a `null` `ViewContext.ViewNode` (the `--auto` synthesized-view path, and the
+  pre-scoping-change 2-argument `ViewContext` construction used throughout the rest of this test
+  file) renders every non-stdlib definition in the workspace, unchanged from before this feature —
+  the critical regression guard confirming full backward compatibility.
 
 ##### Test Scenarios
 
@@ -78,3 +94,15 @@ configuration are required beyond a standard .NET SDK installation.
   Connected cross-referencing model keeps every definition box non-overlapping
 - `GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelProducesCompactCanvas`:
   Sparse canvas stays compact with no warnings (no over-padding)
+- `GeneralViewLayoutStrategy_BuildLayout_ExposedName_UnionsAdditionalSubtree`:
+  A resolved `Expose` edge scopes the diagram to the target's containment subtree, fewer boxes
+  than the full workspace
+- `GeneralViewLayoutStrategy_BuildLayout_RenderTargetNameOnly_NoExposeEdges_RendersFullWorkspace`:
+  A `RenderTargetName` with no resolved `Expose` edges renders the full workspace unchanged
+- `GeneralViewLayoutStrategy_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree`:
+  A resolved `Expose` edge naming a feature usage resolves through the usage's `Typing` edge to
+  include its type's containment subtree
+- `GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning`:
+  A non-null `FilterExpressionText` emits the "parsed but not yet evaluated" warning
+- `GeneralViewLayoutStrategy_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged`:
+  A `null` `ViewNode` (`--auto`/default) renders every definition, unchanged (regression guard)

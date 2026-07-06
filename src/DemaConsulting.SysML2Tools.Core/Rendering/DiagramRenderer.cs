@@ -197,7 +197,7 @@ public sealed class DiagramRenderer
                 continue;
             }
 
-            var context = new ViewContext(viewName, workspace);
+            var context = new ViewContext(viewName, workspace, viewNode);
 
             // Build the layout tree for this view
             var layout = strategy.BuildLayout(context, options);

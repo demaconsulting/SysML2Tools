@@ -8,6 +8,7 @@ using DemaConsulting.SysML2Tools.Layout.Internal;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
+using DemaConsulting.SysML2Tools.Stdlib;
 
 namespace DemaConsulting.SysML2Tools.Tests.Layout;
 
@@ -754,6 +755,297 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Empty(layout.Warnings);
         Assert.True(layout.Height < 500.0,
             $"Sparse canvas height {layout.Height} should be below 500px (no over-padding)");
+    }
+
+    /// <summary>
+    ///     Builds the fixed three-definition workspace shared by the expose-scoping tests:
+    ///     <c>Root::A</c> (an expose target), <c>Root::A::Child</c> (inside <c>A</c>'s containment
+    ///     subtree, qualified name prefixed <c>"Root::A::"</c>), and <c>Root::B</c> (an unrelated
+    ///     sibling definition, outside <c>A</c>'s subtree).
+    /// </summary>
+    private static SysmlWorkspace BuildScopingWorkspace() => new()
+    {
+        Declarations = new Dictionary<string, SysmlNode>
+        {
+            ["Root::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Root::A", DefinitionKeyword = "part def" },
+            ["Root::A::Child"] = new SysmlDefinitionNode { Name = "Child", QualifiedName = "Root::A::Child", DefinitionKeyword = "part def" },
+            ["Root::B"] = new SysmlDefinitionNode { Name = "B", QualifiedName = "Root::B", DefinitionKeyword = "part def" }
+        }
+    };
+
+    /// <summary>
+    ///     Builds a workspace modeling the usage-vs-definition containment gap fix: a
+    ///     <c>Root::Vehicle</c> definition with an owned child <c>Root::Vehicle::Engine</c>, and a
+    ///     <c>Root::myVehicle</c> feature usage typed by <c>Vehicle</c> (a resolved <c>Typing</c>
+    ///     edge to <c>Root::Vehicle</c>) plus an unrelated sibling <c>Root::Other</c>.
+    /// </summary>
+    private static SysmlWorkspace BuildUsageTypingWorkspace() => new()
+    {
+        Declarations = new Dictionary<string, SysmlNode>
+        {
+            ["Root::Vehicle"] = new SysmlDefinitionNode { Name = "Vehicle", QualifiedName = "Root::Vehicle", DefinitionKeyword = "part def" },
+            ["Root::Vehicle::Engine"] = new SysmlDefinitionNode { Name = "Engine", QualifiedName = "Root::Vehicle::Engine", DefinitionKeyword = "part def" },
+            ["Root::myVehicle"] = new SysmlFeatureNode
+            {
+                Name = "myVehicle",
+                QualifiedName = "Root::myVehicle",
+                FeatureTyping = "Vehicle",
+                ResolvedEdges = [new SysmlEdge("Root::myVehicle", "Root::Vehicle", SysmlEdgeKind.Typing)]
+            },
+            ["Root::Other"] = new SysmlDefinitionNode { Name = "Other", QualifiedName = "Root::Other", DefinitionKeyword = "part def" }
+        }
+    };
+
+    /// <summary>
+    ///     A view with a resolved <c>Expose</c> edge to <c>Root::A</c> scopes the diagram to
+    ///     <c>Root::A</c> plus its containment subtree (<c>Root::A::Child</c>), excluding the
+    ///     unrelated sibling <c>Root::B</c> — producing fewer boxes than rendering the full
+    ///     workspace.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_ExposedName_UnionsAdditionalSubtree()
+    {
+        // Arrange: a view exposing only Root::A
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildScopingWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposedNames = ["A"],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var scoped = strategy.BuildLayout(context, options);
+        var full = strategy.BuildLayout(new ViewContext("full", workspace), options);
+
+        // Assert: the scoped view contains A and A::Child but not B, and has fewer boxes than
+        // the unscoped full-workspace rendering.
+        var labels = CollectBoxes(scoped.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("A", labels);
+        Assert.Contains("Child", labels);
+        Assert.DoesNotContain("B", labels);
+        Assert.True(CollectBoxes(scoped.Nodes).Count < CollectBoxes(full.Nodes).Count);
+    }
+
+    /// <summary>
+    ///     A view whose <c>RenderTargetName</c> is present but has no <c>Expose</c> edges renders
+    ///     the full workspace, byte-identical (same box count/labels) to the null-<c>ViewNode</c>
+    ///     case — proving <c>RenderTargetName</c> never affects scope, since it names a rendering
+    ///     style/format, not content.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_RenderTargetNameOnly_NoExposeEdges_RendersFullWorkspace()
+    {
+        // Arrange: a view with a RenderTargetName but no resolved Expose edges
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildScopingWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            RenderTargetName = "asTreeDiagram",
+            ResolvedEdges = []
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var inert = strategy.BuildLayout(context, options);
+        var full = strategy.BuildLayout(new ViewContext("full", workspace), options);
+
+        // Assert: identical box count/labels to the full-workspace (no-ViewNode) rendering.
+        var inertLabels = CollectBoxes(inert.Nodes).Select(b => b.Label).OrderBy(l => l).ToList();
+        var fullLabels = CollectBoxes(full.Nodes).Select(b => b.Label).OrderBy(l => l).ToList();
+        Assert.Equal(fullLabels, inertLabels);
+    }
+
+    /// <summary>
+    ///     A view whose <c>Expose</c> edge resolves to a feature usage (not a definition) still
+    ///     renders that usage's type's containment subtree, by additionally resolving the usage's
+    ///     own <c>Typing</c> edge — the fix for the usage-vs-definition containment gap. Excludes
+    ///     the unrelated sibling <c>Root::Other</c>.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree()
+    {
+        // Arrange: a view exposing Root::myVehicle, a usage typed by Root::Vehicle
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildUsageTypingWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposedNames = ["myVehicle"],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: Vehicle and its Engine child are present (resolved through the usage's typing
+        // edge), but the unrelated Other definition is excluded.
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("Vehicle", labels);
+        Assert.Contains("Engine", labels);
+        Assert.DoesNotContain("Other", labels);
+    }
+
+    /// <summary>
+    ///     A view whose <c>FilterExpressionText</c> is non-null emits the "parsed but not yet
+    ///     evaluated" diagnostic through <see cref="LayoutTree.Warnings"/>, while still rendering
+    ///     the (unfiltered) resolved scope — per the binding decision to defer filter expression
+    ///     evaluation to a future roadmap item.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning()
+    {
+        // Arrange: a view declaring a filter expression
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildScopingWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            FilterExpressionText = "@SysML::PartUsage"
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a warning about the unevaluated filter is present, and the resolved (unfiltered)
+        // scope — here, the full workspace, since no expose statement was declared — still renders.
+        Assert.Contains(layout.Warnings, w => w.Contains("filter expression") && w.Contains("not yet evaluated"));
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("A", labels);
+        Assert.Contains("B", labels);
+    }
+
+    /// <summary>
+    ///     A view with no <c>expose</c> statement (a null <see cref="ViewContext.ViewNode"/>, e.g.
+    ///     the <c>--auto</c> synthesized view) renders identically to the pre-scoping-change
+    ///     baseline: every non-stdlib definition in the workspace. This is the critical regression
+    ///     guard confirming the scoping feature is fully backward-compatible when unused.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged()
+    {
+        // Arrange: no ViewNode at all — the pre-existing 2-arg ViewContext construction.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildScopingWorkspace();
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: all three definitions are present and no warnings are emitted.
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("A", labels);
+        Assert.Contains("B", labels);
+        Assert.Contains("Child", labels);
+        Assert.Empty(layout.Warnings);
+    }
+
+    /// <summary>
+    ///     Regression guard for the bracketed-filter <c>expose</c> parsing bug:
+    ///     <c>vehicleMandatorySafetyFeatureViewStandalone</c> in the real OMG corpus fixture
+    ///     <c>11b-SafetyAndSecurityFeatureViews.sysml</c> declares
+    ///     <c>expose vehicle::**[@Safety and (as Safety).isMandatory];</c> — the bracketed-filter
+    ///     grammar form that <c>AstBuilder.ExtractImportTarget</c> previously failed to descend
+    ///     into, leaving the view with zero <c>Expose</c> edges and causing
+    ///     <see cref="GeneralViewLayoutStrategy"/> to silently fall back to rendering the entire
+    ///     workspace. After the fix, this view's layout must be scoped to the <c>vehicle</c>
+    ///     subtree — which, in this fixture, contains no <c>part def</c> declarations (only
+    ///     usages), so the correctly-scoped rendering drops to zero boxes, strictly fewer than the
+    ///     unscoped full-workspace rendering (which still includes the unrelated
+    ///     <c>AnnotationDefinitions::Safety</c>/<c>Security</c> metadata definitions). Before the
+    ///     fix, scoped and full box counts were identical (both rendered everything).
+    /// </summary>
+    // cspell:ignore Feaure -- typo present verbatim in the real OMG corpus fixture's package name
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_OmgSafetyFeatureViewsFixture_ScopesToExposedVehicleSubtree()
+    {
+        // Arrange: load the real OMG corpus fixture.
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var fixturePath = Path.Combine(
+            modelsRoot, "OMG", "validation", "11-ViewAndViewpoint", "11b-SafetyAndSecurityFeatureViews.sysml");
+        if (!File.Exists(fixturePath))
+        {
+            return;
+        }
+
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([fixturePath], stdlibTable);
+        Assert.NotNull(result.Workspace);
+        var workspace = result.Workspace!;
+
+        const string viewQualifiedName =
+            "'11b-Safety and Security Feaure Views'::Views::vehicleMandatorySafetyFeatureViewStandalone";
+        var viewNode = Assert.IsType<SysmlViewNode>(workspace.Declarations[viewQualifiedName]);
+
+        // Confirm the fix actually resolved an Expose edge before asserting on layout scoping —
+        // otherwise this test would pass vacuously by comparing full-workspace to full-workspace.
+        Assert.NotEmpty(viewNode.ExposedNames);
+        Assert.Contains(workspace.Index.AllEdges,
+            e => e.Kind == SysmlEdgeKind.Expose && e.SourceQualifiedName == viewQualifiedName);
+
+        var strategy = new GeneralViewLayoutStrategy();
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var scoped = strategy.BuildLayout(new ViewContext("scoped", workspace, viewNode), options);
+        var full = strategy.BuildLayout(new ViewContext("full", workspace), options);
+
+        // Assert: the scoped view renders strictly fewer boxes than the full workspace. In this
+        // fixture the `vehicle` subtree is built entirely from part *usages* (not `part def`
+        // declarations), which `GeneralViewLayoutStrategy.CollectDefinitions` does not render as
+        // boxes — so the correctly-scoped view renders zero boxes here, while the unscoped full
+        // workspace still renders the two unrelated `AnnotationDefinitions` metadata definitions
+        // (`Safety`, `Security`). That drop from 2 boxes to 0 is itself the regression signal:
+        // before the fix, `ResolveExposedScope` saw no `Expose` edges and fell back to rendering
+        // the entire workspace (i.e. scoped would equal full, not be strictly smaller).
+        var scopedBoxes = CollectBoxes(scoped.Nodes);
+        var fullBoxes = CollectBoxes(full.Nodes);
+        Assert.True(scopedBoxes.Count < fullBoxes.Count,
+            $"expected scoped box count ({scopedBoxes.Count}) < full box count ({fullBoxes.Count})");
+        var fullLabels = fullBoxes.Select(b => b.Label).ToList();
+        Assert.Contains("Safety", fullLabels);
+        Assert.Contains("Security", fullLabels);
+        var scopedLabels = scopedBoxes.Select(b => b.Label).ToList();
+        Assert.DoesNotContain("Safety", scopedLabels);
+        Assert.DoesNotContain("Security", scopedLabels);
+    }
+
+    /// <summary>
+    ///     Finds the test/SysMLModels directory relative to the test assembly.
+    /// </summary>
+    private static string? FindSysMLModelsRoot()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null)
+        {
+            var candidate = Path.Combine(dir, "test", "SysMLModels");
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        return null;
     }
 
     /// <summary>

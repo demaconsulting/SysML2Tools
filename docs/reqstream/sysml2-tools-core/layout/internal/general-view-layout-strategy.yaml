@@ -150,3 +150,56 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelProducesNonOverlappingBoxes
           - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_ConnectedModelKeepsBoxesSeparated
           - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelProducesCompactCanvas
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposeScoping
+        title: >-
+          When a view's ViewContext carries one or more resolved Expose edges,
+          GeneralViewLayoutStrategy shall scope the diagram to the union of each edge's target
+          containment subtree, resolved through the target's own type reference when the target
+          is a usage rather than a definition.
+        justification: |
+          `expose <name>;` is the only real content-scoping mechanism a view has in SysML v2 —
+          `render <target>;` names a rendering style/format (e.g. `asTreeDiagram`,
+          `asElementTable`), never content, so it plays no role in scoping. Scoping the diagram
+          to the union of every resolved `expose` target's containment subtree makes `expose`
+          statements finally have an observable effect, matching the SysML v2 view mechanism's
+          subject-scoping intent. When an exposed target resolves to a feature usage rather than
+          a definition, its own containment subtree is typically empty — the real content lives
+          under its type's subtree — so the target's own resolved type reference is additionally
+          followed to include that type's subtree, fixing the usage-vs-definition containment gap.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ExposedName_UnionsAdditionalSubtree
+          - GeneralViewLayoutStrategy_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NoExposeFallback
+        title: >-
+          When a view's ViewContext carries no resolved Expose edge — because the view has no
+          `expose` statement, its ViewNode is null (e.g. the `--auto` synthesized view), or its
+          every declared `expose` entry failed to resolve — GeneralViewLayoutStrategy shall
+          render the full workspace, unchanged from its pre-scoping behavior, regardless of
+          whether `RenderTargetName`/`FilterExpressionText` are present.
+        justification: |
+          Nearly every real-world view declares no `expose` statement at all, so rendering the
+          full workspace must remain the default. This also guards against a bogus `expose <name>;`
+          silently rendering nothing: an unresolvable exposed name (e.g. a typo) falls back to
+          full-workspace rendering (with the unresolved-reference diagnostic already surfaced by
+          `ReferenceResolver`) rather than producing a broken or empty diagram. `RenderTargetName`
+          (a rendering-style/format selector, not content) never affects this decision.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_RenderTargetNameOnly_NoExposeEdges_RendersFullWorkspace
+          - GeneralViewLayoutStrategy_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UnevaluatedFilterWarning
+        title: >-
+          When a view's FilterExpressionText is non-null, GeneralViewLayoutStrategy shall emit a
+          diagnostic through the layout's Warnings channel stating that the view declares a
+          filter expression which is parsed but not yet evaluated, and shall continue rendering
+          the (unfiltered) resolved scope.
+        justification: |
+          Full `filter [<expr>];` expression evaluation is deferred future work (see ROADMAP.md).
+          Silently ignoring a declared filter would mislead a user into believing their diagram is
+          filtered when every element in the resolved scope is actually shown unfiltered;
+          surfacing an explicit warning through the existing layout-warnings channel makes this
+          limitation visible rather than a silent gap.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning
