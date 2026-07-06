@@ -12,7 +12,7 @@ namespace DemaConsulting.SysML2Tools.Semantic;
 /// </summary>
 /// <remarks>
 ///     Infrastructure for the standard-library pre-compilation pipeline (used by the build-time
-///     <c>StdlibGen</c> tool to produce the embedded <c>stdlib.bin</c> resource). Application code
+///     <c>StdlibGen</c> tool to produce the embedded <c>stdlib.json.gz</c> resource). Application code
 ///     does not normally call this directly — consume the pre-compiled stdlib symbol table via
 ///     <c>StdlibProvider.GetSymbolTable()</c> (the Stdlib project's <c>StdlibProvider</c> class) instead.
 /// </remarks>

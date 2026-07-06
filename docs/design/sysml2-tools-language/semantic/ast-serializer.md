@@ -40,4 +40,5 @@ subtype so that `AstDeserializer` can reconstruct the correct types.
 
 #### Callers
 
-The `StdlibGen` build-time tool calls `Serialize` to produce the embedded `stdlib.bin` resource.
+The `StdlibGen` tool calls `Serialize`, then gzip-compresses the result, to produce the
+committed, embedded `stdlib.json.gz` resource.

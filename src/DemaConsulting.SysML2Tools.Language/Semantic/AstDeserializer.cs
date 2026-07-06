@@ -13,7 +13,7 @@ namespace DemaConsulting.SysML2Tools.Semantic;
 /// <remarks>
 ///     Infrastructure used internally by <c>StdlibProvider.GetSymbolTable()</c> (the Stdlib
 ///     project's <c>StdlibProvider</c> class) to reconstruct the symbol table from the embedded
-///     <c>stdlib.bin</c> resource. Application code does not normally call this directly.
+///     <c>stdlib.json.gz</c> resource. Application code does not normally call this directly.
 /// </remarks>
 public static class AstDeserializer
 {

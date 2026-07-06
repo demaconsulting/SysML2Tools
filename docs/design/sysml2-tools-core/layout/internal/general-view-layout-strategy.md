@@ -6,27 +6,29 @@
 renders every user-defined definition (part, port, interface, requirement, action, and so on) as
 a keyword-labeled box, groups the boxes that belong to a package inside a folder-shaped
 container, lists each definition's owned usages in compartments, and draws specialization,
-membership, and attribute-typing edges orthogonally between the boxes. Within each package folder,
-box placement and intra-package edge routing are delegated through `LayeredPlacement` to the
-off-the-shelf `DemaConsulting.Rendering.Layout` layered algorithm; the folders themselves are packed
-across the canvas with `ContainmentLayout.Pack`, and the rare cross-package edge is routed with
-`ConnectorRouter.Route`, both from `DemaConsulting.Rendering.Layout`. Box title and folder-tab
-geometry come from `BoxMetrics` in `DemaConsulting.Rendering.Abstractions`.
+membership, and attribute-typing edges orthogonally between the boxes. The whole diagram — package
+folders and definitions alike — is expressed as a single `DemaConsulting.Rendering` `LayoutGraph`
+and placed with one `HierarchicalLayoutAlgorithm.Apply` call: the root scope packs package folders
+and top-level definitions by reading order (`ContainmentLayoutAlgorithm`), while each folder's own
+contents are ordered by their intra-package edges with the bundled layered algorithm
+(`LayeredLayoutAlgorithm`). All box sizing (title bands, compartment rows) remains this strategy's
+responsibility, since the layout stage in `DemaConsulting.Rendering.Layout` is theme-agnostic;
+box title and folder-tab geometry come from `BoxMetrics` in `DemaConsulting.Rendering.Abstractions`.
 
 ##### Data Model
 
 `GeneralViewLayoutStrategy` has no instance state; all input arrives through the `BuildLayout`
-parameters. Layout constants (`MinBoxWidth`, `CharWidthFactor`, `EdgeClearance`) are declared as
-`private const` fields. Private records carry intermediate data: `DefBox` (a user definition with its
-computed size, keyword, supertype names, memberships, and compartments), `PlacedBox` (a definition
-with absolute coordinates, used as a cross-package edge anchor), `IntraEdge` (a package-local edge in
-local node indices plus its target end marker and edge kind), `CrossEdge` (an edge between definitions
-in different packages, with its target end marker and edge kind), `GroupLayout` (the package-local
-placement of one group's definitions and routed edges), and `BlockPlan` (the plan for one top-level
-block — a package folder or the frameless top-level block). The private `EdgeKind` enumeration
-classifies each edge as `Specialization`, `Membership`, or `Typing`; the `LineStyleForKind` helper
-maps this kind to a rendered line style (dashed for `Typing`, solid for the others), so an
-attribute-typing dependency is visually distinct from the structural relationships.
+parameters. Layout constants (`MinBoxWidth`, `CharWidthFactor`) are declared as `private const`
+fields. Private records carry intermediate data: `DefBox` (a user definition with its computed
+size, keyword, supertype names, memberships, and compartments), `ModelEdge` (a resolved
+specialization/membership/attribute-typing relationship expressed by qualified name, together with
+its target end marker and edge kind), `Location` (a located definition's graph node and owning
+package, used to resolve and scope edges), and `TruncatedFolder` (a depth-truncated package folder's
+leaf graph node and hidden-definition count, used to stamp its ellipsis label onto the placed box
+after layout). The private `EdgeKind` enumeration classifies each edge as `Specialization`,
+`Membership`, or `Typing`; the `LineStyleForKind` helper maps this kind to a rendered line style
+(dashed for `Typing`, solid for the others), so an attribute-typing dependency is visually distinct
+from the structural relationships.
 
 ##### Key Methods
 
@@ -34,10 +36,14 @@ attribute-typing dependency is visually distinct from the structural relationshi
 
 Entry point. Calls `CollectDefinitions` to gather user definitions; returns a minimal 200×100 empty
 `LayoutTree` when none are found. Otherwise groups the definitions by package with `GroupByPackage`,
-resolves the edge set into intra-package and cross-package edges with `BuildEdges`, places the
-package folders (and the frameless top-level block) across the canvas with `PlaceGroups`, then
-appends the routed intra-package and cross-package edge lines. The assembled `LayoutTree` carries no
-warnings; delegated placement always produces valid geometry.
+resolves the specialization/membership/attribute-typing relationships into qualified-name edges with
+`BuildModelEdges`, builds the single input `LayoutGraph` with `BuildGraph`, and places the whole
+graph with one `HierarchicalLayoutAlgorithm().Apply(graph, LayoutOptions.ForAlgorithm("containment"))`
+call — passing the desired root-scope leaf algorithm through the options parameter (not
+`graph.Set(CoreOptions.Algorithm, …)`) so a caller going through `LayoutEngine.Layout(graph)` later
+is never misled into skipping the hierarchical engine. When any package folder was depth-truncated,
+`DecorateTruncatedFolders` stamps each truncated folder's "+N more…" ellipsis label onto its placed
+box before returning.
 
 ###### `CollectDefinitions(workspace, theme)`
 
@@ -50,54 +56,58 @@ the longest compartment row.
 ###### `GroupByPackage(defs)`
 
 Groups definitions by the qualified-name prefix before the last `::`, preserving first-seen order.
-Top-level definitions (no package prefix) form a single frameless block laid out together.
+Top-level definitions (no package prefix) become plain leaves directly on the root graph.
 
-###### `BuildEdges(groups)`
+###### `BuildModelEdges(defs)`
 
 Resolves every specialization (subtype → supertype), structural membership (member-type → owner), and
-attribute-typing (owner → attribute-type) relationship into either an `IntraEdge` (both endpoints in
-the same package group, laid out together through `LayeredPlacement`) or a `CrossEdge` (endpoints
-in different groups, routed between the placed folders).
-Specialization edges carry an open triangular end marker at the supertype; `part`/`port` memberships
-carry a filled diamond and `ref` memberships a hollow diamond at the owner; other memberships are not
-drawn. In addition, each `attribute` (or `enum`-typed attribute) feature whose type resolves to a
-definition in the view contributes a **typing** edge from the owner to the attribute-type definition,
-carrying an open chevron at the type end and rendered as a dashed line. Attribute typing is a
-usage-type dependency, not composition, so it uses the OMG dependency notation (dashed line with an
-open arrowhead) rather than a membership diamond, and it connects otherwise-disconnected attribute and
-enumeration definitions into the cluster near the definitions that reference them. Unresolved types and
-self-references are skipped, exactly as for specialization and membership edges. Feature-less
-definitions (such as standalone interface, requirement, or unreferenced attribute defs) legitimately
-contribute no edges.
+attribute-typing (owner → attribute-type) relationship — across every definition, regardless of
+package — into a flat list of qualified-name `ModelEdge`s. Specialization edges carry an open
+triangular end marker at the supertype; `part`/`port` memberships carry a filled diamond and `ref`
+memberships a hollow diamond at the owner; other memberships are not drawn. In addition, each
+`attribute` (or `enum`-typed attribute) feature whose type resolves to a definition in the view
+contributes a **typing** edge from the owner to the attribute-type definition, carrying an open
+chevron at the type end and rendered as a dashed line. Attribute typing is a usage-type dependency,
+not composition, so it uses the OMG dependency notation (dashed line with an open arrowhead) rather
+than a membership diamond, and it connects otherwise-disconnected attribute and enumeration
+definitions into the cluster near the definitions that reference them. Unresolved types and
+self-references are skipped. Whether an edge's endpoints actually receive a graph node — i.e.,
+were not depth-truncated — is decided later, in `BuildGraph`.
 
-###### `PlaceGroups(groups, intraByGroup, theme, depthLimit, hGap, vGap)`
+###### `BuildGraph(groups, modelEdges, theme, depthLimit)`
 
-For each package group, calls `LayoutGroup` to lay out the group's definitions and intra-group edges,
-sizes the folder to the content bounding box plus its title area, and records a `BlockPlan`. When the
-depth limit forbids the nested level, a folder's contents are replaced with a single ellipsis
-indicator. The blocks are then positioned across the canvas so that folders never overlap, and
-`PlaceBlock` emits each block's nodes and edge lines at the placed offset.
+Builds the single input `LayoutGraph`. Each package becomes a folder container node
+(`Shape = Folder`, `Keyword = "package"`, `Label` the simple package name, `TitleHeight` set from
+`BoxMetrics.TitleAreaHeight` so the hierarchical engine reserves the exact title band the renderer
+will draw) holding its definitions as leaf nodes under `folder.Children`; the folder's own
+`CoreOptions.Algorithm` is set to `LayeredLayoutAlgorithm.AlgorithmId` per the established
+per-container-algorithm convention (the algorithm override lives on the container node itself, while
+every other `CoreOptions` property would live on its `Children` graph). Top-level (unpackaged)
+definitions become plain leaves directly on the root graph. When the depth limit forbids a folder's
+nested level, its definitions are never added as individual boxes at all — the folder becomes a
+single leaf node (its `Children` graph is never touched, so the hierarchical engine keeps this
+caller-computed ellipsis size rather than auto-sizing it as a container) sized like the previous
+ellipsis-indicator formula, and recorded as a `TruncatedFolder` for later decoration. Every located
+definition's node and owning package is recorded in a `located` map so model edges can be resolved
+and scoped: an edge whose endpoints share a non-empty package is added to that folder's own
+`Children` scope (an intra-package edge the layered algorithm can use to order the folder's
+contents); every other edge — including any crossing packages — is added at the root, referencing
+the (possibly nested) endpoint nodes directly, per the graph's lowest-common-ancestor edge
+convention. An edge touching a depth-truncated (unrendered) definition has no node in the `located`
+map to reference and is silently dropped, exactly as before.
 
-###### `LayoutGroup(items, intraEdges)`
+###### `MakeDefNode(scope, def)`
 
-Passes the group's definition sizes and intra-group edge pairs to `LayeredPlacement.Place` with a
-left-to-right flow direction. The returned placed rectangles and edge polylines are normalized against
-the group's content bounding box, with disconnected definitions packed beside the connected core by
-the off-the-shelf layered algorithm.
+Adds one definition as a leaf node to the given scope (the root graph or a folder's `Children`),
+carrying its `Label`, `Shape = Rectangle`, `Keyword`, and `Compartments`.
 
-###### `PlaceBlock(block, rect, …)`
+###### `DecorateTruncatedFolders(tree, graph, truncated, theme)`
 
-Emits the layout nodes for one placed block: a package folder with its child definition boxes, the
-frameless top-level definitions, or a truncated folder with an ellipsis indicator. Translates the
-`LayeredPlacement` intra-group edge polylines into absolute canvas coordinates — preserving each edge's
-recorded end marker and line style (dashed for typing dependencies, solid otherwise) — and records
-each rendered definition's absolute placement for cross-package routing.
-
-###### `RouteCrossEdges(crossEdges, placed)`
-
-Emits the rare cross-package edges between the placed folders, placing the recorded end marker at
-the target end with the recorded line style (dashed for typing dependencies, solid otherwise). Edges
-touching a truncated (unrendered) definition are skipped.
+Replaces each truncated folder's placed box with one carrying its "+N more…" ellipsis label,
+positioned within the box's now-known absolute placement. Because the leaf algorithm at a
+compound-graph scope emits one box per node in `graph.Nodes` order, the boxes portion of the root
+`LayoutTree.Nodes` aligns with `graph.Nodes` by index, so each truncated folder's placed box can be
+found by index without any auxiliary identifier lookup (`LayoutBox` carries no `Id`).
 
 ##### Error Handling
 
@@ -110,15 +120,16 @@ produces valid geometry, so no crossing warnings are emitted.
 - `ILayoutStrategy` and `ViewContext` (Rendering subsystem) — the strategy contract and view input.
 - `RenderOptions` and `Theme` (`DemaConsulting.Rendering.Abstractions`) — render options and sizing
   inputs.
-- `LayeredPlacement` (Layout Internal subsystem) — per-package box placement and orthogonal routing
-  through `DemaConsulting.Rendering.Layout`.
-- `ContainmentLayout` and `ConnectorRouter` (`DemaConsulting.Rendering.Layout`) — folder packing
-  across the canvas and cross-package connector routing.
+- `LayoutGraph`, `LayoutGraphNode`, `LayoutGraphEdge`, and `CoreOptions` (`DemaConsulting.Rendering`) —
+  the input graph model and its well-known cascading options.
+- `HierarchicalLayoutAlgorithm`, `ContainmentLayoutAlgorithm`, `LayeredLayoutAlgorithm`, and
+  `LayoutOptions` (`DemaConsulting.Rendering.Layout`) — the layout engine and the bundled leaf
+  algorithms it delegates to per scope.
 - `BoxMetrics` (`DemaConsulting.Rendering.Abstractions`) — box title-area and folder-tab geometry.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode` (Semantic subsystem) — model input.
-- The `LayoutTree`, `LayoutBox`, `LayoutCompartment`, `LayoutLine`, and `Point2D` data types
-  (`DemaConsulting.Rendering`).
+- The `LayoutTree`, `LayoutBox`, `LayoutCompartment`, `LayoutLine`, `LayoutLabel`, and `Point2D` data
+  types (`DemaConsulting.Rendering`).
 - `FeatureMembership` (private record) — carries the keyword and type reference of one owned feature.
 
 ##### Callers

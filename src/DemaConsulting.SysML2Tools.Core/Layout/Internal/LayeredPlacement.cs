@@ -26,20 +26,27 @@ internal sealed record PlacedLayout(
     double Height);
 
 /// <summary>
-/// Adapts the DemaConsulting.Rendering bundled "layered" layout algorithm to the SysML view
-/// strategies. It builds a <see cref="LayoutGraph"/> from sized nodes and directed edges, runs the
-/// <see cref="LayeredLayoutAlgorithm"/>, and returns the placed box rectangles (in input-node order)
-/// together with the routed connector polylines (one per input edge, in input-edge order).
+/// Adapts the DemaConsulting.Rendering layout engine to the SysML view strategies for flat,
+/// flow-chart-like diagrams. It builds a <see cref="LayoutGraph"/> from sized nodes and directed
+/// edges, lays it out through the public <see cref="LayoutEngine.Layout(LayoutGraph)"/> facade, and
+/// returns the placed box rectangles (in input-node order) together with the routed connector
+/// polylines (one per input edge, in input-edge order).
 /// </summary>
 /// <remarks>
-/// The algorithm emits exactly one placed box per input node and exactly one routed connector per
+/// The graphs built here are always flat (no container nodes), so <see cref="LayoutEngine"/>'s
+/// default algorithm — <c>hierarchical</c> — is guaranteed byte-for-byte identical to the bundled
+/// <c>layered</c> algorithm applied directly. The primary flow direction is set on the
+/// <see cref="LayoutGraph"/> itself via <see cref="IPropertyHolder.Set{TValue}"/>, since
+/// <see cref="LayoutEngine.Layout(LayoutGraph)"/> seeds its internal cascade with an empty
+/// <see cref="LayoutOptions"/> and only honors settings declared directly on the graph. The
+/// algorithm emits exactly one placed box per input node and exactly one routed connector per
 /// input edge, preserving the caller's ordering, so callers map results back to their own model by
 /// index. Back edges are reversed internally, so every returned polyline runs source-to-target.
 /// </remarks>
 internal static class LayeredPlacement
 {
     /// <summary>
-    /// Places sized nodes and directed edges with the bundled layered algorithm.
+    /// Places sized nodes and directed edges with <see cref="LayoutEngine.Layout(LayoutGraph)"/>.
     /// </summary>
     /// <param name="nodes">Sized nodes to place, in caller order.</param>
     /// <param name="edges">Directed edges between nodes (by index), in caller order.</param>
@@ -70,10 +77,9 @@ internal static class LayeredPlacement
             graph.AddEdge(e.ToString(CultureInfo.InvariantCulture), graphNodes[from], graphNodes[to]);
         }
 
-        var options = new LayoutOptions();
-        options.Set(CoreOptions.Direction, direction);
+        graph.Set(CoreOptions.Direction, direction);
 
-        var tree = new LayeredLayoutAlgorithm().Apply(graph, options);
+        var tree = LayoutEngine.Layout(graph);
 
         var boxes = tree.Nodes.OfType<LayoutBox>().ToList();
         var lines = tree.Nodes.OfType<LayoutLine>().ToList();

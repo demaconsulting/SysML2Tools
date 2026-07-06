@@ -35,5 +35,5 @@ The `$type` discriminator written during serialization drives the reconstruction
 
 #### Callers
 
-`StdlibProvider` in `DemaConsulting.SysML2Tools.Stdlib` calls `Deserialize` to load the embedded
-`stdlib.bin` resource into a cached `SymbolTable`.
+`StdlibProvider` in `DemaConsulting.SysML2Tools.Stdlib` calls `Deserialize` to load the
+decompressed bytes of the embedded `stdlib.json.gz` resource into a cached `SymbolTable`.

@@ -1,6 +1,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
+using System.IO.Compression;
 using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
@@ -34,16 +35,17 @@ public static class StdlibProvider
         => _cached.Value;
 
     /// <summary>
-    ///     Loads and deserializes the embedded stdlib.bin resource.
+    ///     Loads, decompresses, and deserializes the embedded gzip-compressed stdlib.json.gz resource.
     /// </summary>
     private static (SymbolTable, IReadOnlyList<SysmlDiagnostic>) LoadFromResource()
     {
         using var stream = typeof(StdlibProvider).Assembly
-            .GetManifestResourceStream("DemaConsulting.SysML2Tools.Stdlib.stdlib.bin")
+            .GetManifestResourceStream("DemaConsulting.SysML2Tools.Stdlib.stdlib.json.gz")
             ?? throw new InvalidOperationException(
-                "Embedded resource 'DemaConsulting.SysML2Tools.Stdlib.stdlib.bin' not found.");
+                "Embedded resource 'DemaConsulting.SysML2Tools.Stdlib.stdlib.json.gz' not found.");
+        using var gzip = new GZipStream(stream, CompressionMode.Decompress);
         using var ms = new MemoryStream();
-        stream.CopyTo(ms);
+        gzip.CopyTo(ms);
         return AstDeserializer.Deserialize(ms.ToArray());
     }
 }

@@ -3,8 +3,8 @@
 #
 # PURPOSE:
 # - Define requirements for the LayeredPlacement helper unit
-# - LayeredPlacement adapts the DemaConsulting.Rendering.Layout OTS layered algorithm to the
-#   SysML view layout strategies, returning placed rectangles and routed connector polylines
+# - LayeredPlacement adapts the DemaConsulting.Rendering.Layout OTS public LayoutEngine facade to
+#   the SysML view layout strategies, returning placed rectangles and routed connector polylines
 # - Requirements describe the observable placement contract the strategies rely on
 # - LayeredPlacement is exercised indirectly through the view layout strategy tests, which are
 #   the closest passing evidence for each requirement
@@ -19,10 +19,11 @@ sections:
           each node and a routed orthogonal polyline for each edge.
         justification: |
           The SysML view layout strategies no longer own a geometric layout engine; they depend
-          on LayeredPlacement to run the reusable off-the-shelf layered algorithm and hand back
-          plain rectangles and connector polylines they can map onto their own model. Strategy
-          layouts that emit placed boxes together with routed connector lines are the observable
-          evidence that the adapter drove the algorithm correctly.
+          on LayeredPlacement to delegate to the DemaConsulting.Rendering.Layout package's public
+          LayoutEngine.Layout(LayoutGraph) facade and hand back plain rectangles and connector
+          polylines they can map onto their own model. Strategy layouts that emit placed boxes
+          together with routed connector lines are the observable evidence that the adapter drove
+          the algorithm correctly.
         tests:
           - ActionFlowView_BuildLayout_ActionsAndSuccessions_ProducesBoxesMarkersAndFlows
           - StateTransitionView_BuildLayout_StatesAndTransitions_ProducesBoxesBadgeAndLines
@@ -75,10 +76,10 @@ sections:
           of a directed edge downstream of its source along that direction.
         justification: |
           The action-flow and state-transition strategies request a top-to-bottom direction so
-          the diagram reads downward, while the general and interconnection strategies request a
-          left-to-right direction. Honoring the requested direction is what makes the strategies'
-          reading order come out correct, so a forward chain that flows top-to-bottom is the
-          observable evidence.
+          the diagram reads downward, while the interconnection strategy requests a left-to-right
+          direction. Honoring the requested direction is what makes the strategies' reading order
+          come out correct, so a forward chain that flows top-to-bottom is the observable
+          evidence.
         tests:
           - ActionFlowView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally
           - StateTransitionView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally

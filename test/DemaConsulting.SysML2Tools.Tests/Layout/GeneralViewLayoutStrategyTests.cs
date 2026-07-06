@@ -196,7 +196,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: at least one orthogonal line with an open arrowhead at the supertype end
-        var line = layout.Nodes.OfType<LayoutLine>().FirstOrDefault();
+        var line = CollectLines(layout.Nodes).FirstOrDefault();
         Assert.NotNull(line);
         Assert.Equal(EndMarkerStyle.HollowTriangle, line!.TargetEnd);
         Assert.True(line.Waypoints.Count >= 2);
@@ -288,6 +288,35 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    /// Recursively collects all <see cref="LayoutLine"/> nodes from a node list, including those
+    /// nested inside a package folder's own routed edges (an intra-package edge is routed within its
+    /// folder's own coordinate space by the hierarchical layout engine, so it appears in that folder
+    /// box's <see cref="LayoutBox.Children"/> rather than at the top level).
+    /// </summary>
+    private static IReadOnlyList<LayoutLine> CollectLines(IReadOnlyList<LayoutNode> nodes)
+    {
+        var result = new List<LayoutLine>();
+        void Walk(IReadOnlyList<LayoutNode> ns)
+        {
+            foreach (var n in ns)
+            {
+                switch (n)
+                {
+                    case LayoutLine line:
+                        result.Add(line);
+                        break;
+                    case LayoutBox box:
+                        Walk(box.Children);
+                        break;
+                }
+            }
+        }
+
+        Walk(nodes);
+        return result;
+    }
+
+    /// <summary>
     ///     A part def that owns a typed feature emits a filled-diamond line from the feature's type
     ///     box to the owning definition box.
     /// </summary>
@@ -320,7 +349,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: a line with a filled-diamond arrowhead at the owner (Vehicle) end exists
-        var membershipEdge = layout.Nodes.OfType<LayoutLine>()
+        var membershipEdge = CollectLines(layout.Nodes)
             .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
         Assert.NotNull(membershipEdge);
     }
@@ -358,7 +387,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: a hollow-diamond arrowhead edge (EndMarkerStyle.HollowDiamond) is emitted for a ref feature
-        var membershipEdge = layout.Nodes.OfType<LayoutLine>()
+        var membershipEdge = CollectLines(layout.Nodes)
             .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowDiamond);
         Assert.NotNull(membershipEdge);
     }
@@ -396,7 +425,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: no diamond arrowhead edge is produced for an attribute feature
-        var membershipEdge = layout.Nodes.OfType<LayoutLine>()
+        var membershipEdge = CollectLines(layout.Nodes)
             .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowDiamond ||
                                  l.TargetEnd == EndMarkerStyle.FilledDiamond);
         Assert.Null(membershipEdge);
@@ -436,13 +465,13 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: a dashed dependency line with an open chevron at the attribute-type (Mass) end exists
-        var typingEdge = layout.Nodes.OfType<LayoutLine>()
+        var typingEdge = CollectLines(layout.Nodes)
             .FirstOrDefault(l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.OpenChevron);
         Assert.NotNull(typingEdge);
         Assert.True(typingEdge!.Waypoints.Count >= 2);
 
         // Assert: attribute typing is a dependency, not composition — no membership diamond is drawn.
-        var diamondEdge = layout.Nodes.OfType<LayoutLine>()
+        var diamondEdge = CollectLines(layout.Nodes)
             .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.FilledDiamond ||
                                  l.TargetEnd == EndMarkerStyle.HollowDiamond);
         Assert.Null(diamondEdge);
@@ -486,7 +515,7 @@ public sealed class GeneralViewLayoutStrategyTests
 
         // Assert: exactly two dashed open-chevron typing dependencies are drawn (one per attribute), and
         // each has a real polyline.
-        var typingEdges = layout.Nodes.OfType<LayoutLine>()
+        var typingEdges = CollectLines(layout.Nodes)
             .Where(l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.OpenChevron)
             .ToList();
         Assert.Equal(2, typingEdges.Count);
@@ -526,7 +555,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: a dashed dependency line with an open chevron at the enum-type (FlightMode) end exists
-        var typingEdge = layout.Nodes.OfType<LayoutLine>()
+        var typingEdge = CollectLines(layout.Nodes)
             .FirstOrDefault(l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.OpenChevron);
         Assert.NotNull(typingEdge);
     }
@@ -563,7 +592,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: no typing dependency edge is produced when the attribute type is unresolved
-        var typingEdge = layout.Nodes.OfType<LayoutLine>()
+        var typingEdge = CollectLines(layout.Nodes)
             .FirstOrDefault(l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.OpenChevron);
         Assert.Null(typingEdge);
     }
@@ -601,7 +630,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: a line with a filled-diamond arrowhead at the owner (Vehicle) end exists
-        var membershipEdge = layout.Nodes.OfType<LayoutLine>()
+        var membershipEdge = CollectLines(layout.Nodes)
             .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
         Assert.NotNull(membershipEdge);
     }

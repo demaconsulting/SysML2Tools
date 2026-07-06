@@ -25,8 +25,9 @@ The following topics are out of scope:
 
 - Design documents are not produced for the test projects or build pipeline CI configuration.
 - The internal design of OTS software items is excluded; only integration and usage design is documented.
-- **`src/Tools/StdlibGen`** is build-time tooling (a console pre-compiler that parses the stdlib
-  source files and writes `stdlib.bin`). Like the build pipeline, it is not part of the delivered
+- **`src/Tools/StdlibGen`** is a standalone pre-compiler tool that parses the stdlib source
+  files and writes `stdlib.json.gz` (invoked as a plain, sequential step by `build.ps1`, not
+  part of the MSBuild graph). Like the build pipeline, it is not part of the delivered
   software and is therefore excluded from the software-items requirements, design, and verification
   tree. It is listed under _Software Structure_ for navigation only; the absence of requirements,
   design, and verification artifacts for it is intentional, not a decomposition gap.
@@ -62,11 +63,13 @@ system, subsystem, and unit levels:
       - **SerializedStdlib** (Unit) — DTO for stdlib binary serialization
       - **AstSerializerContext** (Unit) — source-generated JSON context for AOT-safe serialization
 - **DemaConsulting.SysML2Tools.Stdlib** (System) — stdlib library: pre-compiled SysML v2 standard
-  library binary embedded as a managed resource
-  - **StdlibProvider** (Unit) — lazy-cached GetSymbolTable() deserialized from embedded stdlib.bin
-- **StdlibGen** (Build-time tool) — console tool that parses stdlib source files and writes stdlib.bin
-  (build-time tooling; excluded from the software-items requirements/design/verification tree — see _Scope_)
-  - **Program** (Unit) — entry point: parses stdlib, runs resolution, serializes to stdlib.bin
+  library JSON embedded as a gzip-compressed managed resource
+  - **StdlibProvider** (Unit) — lazy-cached GetSymbolTable() decompressed/deserialized from
+    embedded stdlib.json.gz
+- **StdlibGen** (Standalone tool) — console tool that parses stdlib source files and writes
+  stdlib.json.gz (invoked by build.ps1, not part of the MSBuild graph; excluded from the
+  software-items requirements/design/verification tree — see _Scope_)
+  - **Program** (Unit) — entry point: parses stdlib, runs resolution, serializes and compresses to stdlib.json.gz
 - **DemaConsulting.SysML2Tools.Core** (System) — core library: layout strategies, rendering
   orchestration, and the SysML-coupled rendering pipeline
   - **Layout** (Subsystem) — maps the SysML semantic model onto the off-the-shelf `LayoutTree`
