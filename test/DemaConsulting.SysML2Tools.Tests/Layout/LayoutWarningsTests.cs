@@ -38,4 +38,26 @@ public sealed class LayoutWarningsTests
         var message = Assert.Single(warnings);
         Assert.Contains("3 connectors", message);
     }
+
+    /// <summary>A null filter expression text produces no warnings.</summary>
+    [Fact]
+    public void ForUnevaluatedFilter_NullText_ReturnsEmpty()
+    {
+        Assert.Empty(LayoutWarnings.ForUnevaluatedFilter("View", null));
+    }
+
+    /// <summary>
+    ///     A non-null filter expression text produces a single warning naming the view and stating
+    ///     that the filter expression is parsed but not yet evaluated.
+    /// </summary>
+    [Fact]
+    public void ForUnevaluatedFilter_NonNullText_ReturnsNotYetEvaluatedWarning()
+    {
+        var warnings = LayoutWarnings.ForUnevaluatedFilter("MyView", "@SysML::PartUsage");
+
+        var message = Assert.Single(warnings);
+        Assert.Contains("MyView", message);
+        Assert.Contains("filter expression", message);
+        Assert.Contains("not yet evaluated", message);
+    }
 }

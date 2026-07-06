@@ -28,3 +28,21 @@ sections:
           on element type without string comparisons.
         tests:
           - WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewRenderExposeFilter
+        title: >-
+          SysmlViewNode shall expose RenderTargetName (the raw reference text of its `render
+          <target>;` member, or null when absent), ExposedNames (the raw reference text of
+          each `expose <name>;` member, empty when absent), and FilterExpressionText (the raw
+          source text of its `filter [<expr>];` member, or null when absent).
+        justification: |
+          Every declared view previously rendered the identical full-workspace diagram: none of
+          its `render`/`expose`/`filter` body statements were observable anywhere in the AST, so
+          no downstream component (ReferenceResolver, GeneralViewLayoutStrategy) could act on
+          them. These three fields make a view's declared rendering intent user-observable data,
+          not merely an internal implementation detail.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewRenderTargetResolves_RecordsRenderEdge
+          - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
+          - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
+          - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty

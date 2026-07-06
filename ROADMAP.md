@@ -69,6 +69,53 @@ primitives (bar, diamond, pentagon, note). `LayoutActivation`/`LayoutBand` alrea
 **Visual gate:** sequence shows activation bars + a fragment; action flow shows a fork/join and
 a decision/merge with correct shapes.
 
+### View `filter [<expr>];` expression evaluation
+
+`GeneralViewLayoutStrategy` now scopes a rendered diagram to a view's `render <target>;`/
+`expose <...>;` subject subtree, but a view's `filter [<expr>];` body statement is only parsed
+into `SysmlViewNode.FilterExpressionText` (raw source text) — it is never evaluated, and a
+layout warning ("parsed but not yet evaluated") is emitted in its place. SysML v2 view filtering
+is part of the standard's view/viewpoint mechanism for selectively including/excluding elements
+from a rendered diagram by predicate, beyond simple subject-subtree containment scoping (for
+example, "only elements satisfying a given requirement" or "only elements with a given
+stereotype"); without evaluation, a modeler's `filter` statement is silently ineffective beyond
+the warning.
+
+- Design and implement an expression evaluator for the bracketed filter expression grammar
+  (boolean/membership predicates over the resolved scope's elements), reusing/aligning with
+  existing expression-parsing infrastructure where practical.
+- Apply the evaluated predicate as an additional filter over the resolved (render/expose)
+  scope in `GeneralViewLayoutStrategy`, removing the "not yet evaluated" warning once a filter
+  expression is present and successfully evaluated.
+- Surface a diagnostic for filter expressions that fail to parse or evaluate, mirroring the
+  unresolved-render-target diagnostic pattern.
+
+**Scope:** `AstBuilder`/`SysmlViewNode` (expression AST capture, if warranted, beyond raw text);
+new expression-evaluation component; `GeneralViewLayoutStrategy` filter application.
+**Visual gate:** a view with a `filter [<predicate>];` statement renders only the elements
+satisfying the predicate, with no "not yet evaluated" warning.
+
+### Render-target scoping for the remaining layout strategies
+
+`GeneralViewLayoutStrategy` implements render-target subject-scoping (containment-subtree
+filtering driven by a view's `render`/`expose` body statements), but `InterconnectionView`,
+`StateTransitionView`, `ActionFlowView`, `SequenceView`, `GridView`, and `BrowserView` layout
+strategies do not yet honor `ViewContext.ViewNode`'s `Render`/`Expose` edges and continue to
+render their full applicable scope regardless of a view's declared render target.
+
+- Extend the same `ResolveSubjectScope`/`IsInSubjectScope` containment-subtree idiom (or a
+  shared helper extracted from `GeneralViewLayoutStrategy`) to each of the six remaining layout
+  strategies, respecting the "no `Render` edge → render everything unchanged" fallback used by
+  `GeneralViewLayoutStrategy`.
+- Add regression tests per strategy mirroring `GeneralViewLayoutStrategyTests`'s scoping,
+  expose-union, unresolved-fallback, and no-render-statement-regression scenarios.
+
+**Scope:** `InterconnectionViewLayoutStrategy`, `StateTransitionViewLayoutStrategy`,
+`ActionFlowViewLayoutStrategy`, `SequenceViewLayoutStrategy`, `GridViewLayoutStrategy`,
+`BrowserViewLayoutStrategy`; corresponding test files.
+**Visual gate:** each of the six views renders a scoped diagram when its view declares a
+`render <target>;` statement naming a resolvable target, unchanged when it does not.
+
 ---
 
 ## Release & packaging

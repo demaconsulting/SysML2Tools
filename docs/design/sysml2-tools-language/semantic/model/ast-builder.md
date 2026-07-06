@@ -22,6 +22,7 @@ stack with `::` to form the fully-qualified name.
 | `VisitAttributeDefinition` | `AttributeDefinitionContext` | `SysmlDefinitionNode` |
 | `VisitItemDefinition` | `ItemDefinitionContext` | `SysmlDefinitionNode` |
 | `VisitViewDefinition` | `ViewDefinitionContext` | `SysmlViewNode` |
+| `VisitViewUsage` | `ViewUsageContext` | `SysmlViewNode` |
 | `VisitViewpointDefinition` | `ViewpointDefinitionContext` | `SysmlViewpointNode` |
 | `VisitAllocationUsage` | `AllocationUsageContext` | `SysmlConnectionNode` (`ConnectionKeyword = "allocation"`) |
 | `VisitSatisfyRequirementUsage` | `SatisfyRequirementUsageContext` | `SysmlSatisfyNode` |
@@ -87,6 +88,41 @@ satisfied requirement's raw reference text is taken from `ownedReferenceSubsetti
 `satisfy requirement <usageDeclaration>` form. The optional satisfying subject's raw reference
 text comes from `satisfactionSubjectMember()` (the `by <subject>` clause), or is `null` when
 absent.
+
+`VisitViewDefinition` builds a `SysmlViewNode` for `view def` definitions, additionally scanning
+`context.viewDefinitionBody()?.viewDefinitionBodyItem()` via the shared
+`ExtractViewRenderAndFilter<TItem>` helper (see below) to populate `RenderTargetName` and
+`FilterExpressionText`. `VisitViewUsage` builds a `SysmlViewNode` for named `view` usages (the
+only body form that may additionally contain `expose` members) the same way, plus
+`ExtractExposedNames` to populate `ExposedNames`. Unnamed view usages are skipped (no declared
+name), mirroring the existing anonymous-element convention.
+
+`ExtractViewRenderAndFilter<TItem>(IEnumerable<TItem> bodyItems)` is a single generic helper
+shared by both `VisitViewDefinition` (`ViewDefinitionBodyItemContext`) and `VisitViewUsage`
+(`ViewBodyItemContext`) — the two context types are unrelated in the generated parser's type
+hierarchy but expose identically-shaped `viewRenderingMember()`/`elementFilterMember()`
+accessors, so a type-switch pattern inside two small private helpers
+(`GetViewRenderingMember`/`GetElementFilterMember`) lets one generic method serve both body-item
+types without duplicating the scan loop. The first `render` member wins if more than one
+appears (a defensive tie-break, not a validated SysML constraint). `ExtractRenderTargetName`
+follows the same two-form fallback pattern `VisitSatisfyRequirementUsage` uses: the direct
+reference form (`ownedReferenceSubsetting()`), falling back to the typed-placeholder form's
+feature typing (`ExtractFeatureTyping`), falling back to the raw usage text. The filter
+expression's raw source text is taken verbatim from
+`elementFilterMember().ownedExpression()?.GetText()` — never evaluated.
+
+`ExtractExposedNames(IEnumerable<ViewBodyItemContext> bodyItems)` collects the raw reference
+text of every `expose <name>;` member in source order, reusing the shared `ExtractImportTarget`
+helper (see below) against each `expose` member's wrapped `namespaceImport()`/
+`membershipImport()` — the identical grammar shape `import` uses.
+
+`ExtractImportTarget(NamespaceImportContext?, MembershipImportContext?)` is a shared helper
+extracted from `VisitImportRule`'s previously inline logic, returning the extracted
+qualified/dotted name text and whether the reference is a wildcard, for either the
+namespace-import form (`qualifiedName::*`, always a wildcard) or the membership-import form
+(`qualifiedName`, optionally `::**`). `VisitImportRule` and `ExtractExposedNames` both call this
+one helper rather than duplicating the extraction logic, per the Copy-Paste Programming
+anti-pattern guidance in coding-principles.md.
 
 `VisitRequirementUsage` performs a minimal capture (name/qualified-name only, so named
 requirement usages become resolvable symbols) and additionally invokes `FindVerificationMembers`

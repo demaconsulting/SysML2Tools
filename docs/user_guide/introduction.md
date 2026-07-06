@@ -108,6 +108,33 @@ sysml2tools render model.sysml --auto --output out --format svg
 | Multiple views, `--view <name>` | Render only the named view |
 | `--view <name>` names a view that does not exist | Error: lists available view names, exits non-zero |
 
+## View Body Statements
+
+A `view def`/`view` declaration's body may contain `render <target>;`, `expose <name>;`, and
+`filter [<expr>];` statements. For the General View strategy (the diagram produced when no
+more specialized view kind applies), these statements now scope the rendered diagram instead
+of always rendering the entire workspace:
+
+- `render <target>;` — scopes the diagram to `<target>` plus every declaration whose qualified
+  name is `<target>` or is contained within it (a containment-subtree match, not just the exact
+  element). If `<target>` does not resolve to any declaration in the workspace (for example, a
+  typo), the tool falls back to rendering the full workspace for that view — but now also
+  reports a diagnostic identifying the unresolved name, so the mistake is visible instead of
+  silently rendering everything with no signal.
+- `expose <name>;` — additively includes `<name>`'s containment subtree alongside the `render`
+  target's subtree. Like `render`, an unresolved `expose` name produces a diagnostic.
+- `filter [<expr>];` — the bracketed filter expression is parsed and captured, but **not yet
+  evaluated**: the resolved (render/expose) scope is rendered unfiltered, and a diagnostic
+  reports that the filter expression was parsed but not yet evaluated. Full filter-expression
+  evaluation is planned future work — see `ROADMAP.md`.
+- A view with **no** `render` statement (including the `--auto`-synthesized view) renders the
+  full workspace, exactly as before this scoping behavior was introduced.
+
+Only the General View layout strategy honors `render`/`expose` scoping in this release; the
+other view kinds (Interconnection, State Transition, Action Flow, Sequence, Grid, Browser)
+continue to render their full applicable scope regardless of a view's declared render target —
+see `ROADMAP.md` for the planned follow-up extending scoping to those view kinds.
+
 ## Depth Limiting
 
 Use `--depth <n>` to limit the nesting depth rendered. Parts beyond the limit are replaced

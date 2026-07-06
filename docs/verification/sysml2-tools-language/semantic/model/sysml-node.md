@@ -28,6 +28,9 @@ external services or additional configuration are required beyond a standard .NE
 - `SysmlNode.Annotations` is populated by `AstBuilder` with captured `comment`/`doc` text for
   a node whose body contains one or more annotating elements, and is empty (never null) for a
   node with none.
+- `SysmlViewNode.RenderTargetName`/`FilterExpressionText`/`ExposedNames` are populated verbatim
+  from a view's `render`/`filter`/`expose` body members (raw reference/expression text, never
+  evaluated), and are `null`/empty for a view with no such members.
 
 ##### Test Scenarios
 
@@ -38,3 +41,7 @@ external services or additional configuration are required beyond a standard .NE
 | `SupertypeNames` population | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
 | `ResolvedEdges` populated | `WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge` |
 | `Annotations` populated | `WorkspaceLoader_LoadAsync_CommentAndDocumentation_CapturesBothInSourceOrder` |
+| `SysmlViewNode.RenderTargetName` resolves | `WorkspaceLoader_LoadAsync_ViewRenderTargetResolves_RecordsRenderEdge` |
+| `FilterExpressionText` verbatim | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
+| `SysmlViewNode.ExposedNames` from a `view` usage | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
+| Empty view body leaves all fields null/empty | `WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty` |

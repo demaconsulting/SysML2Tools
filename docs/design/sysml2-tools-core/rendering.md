@@ -53,7 +53,11 @@ flowchart TD
 
 - *Type*: Sealed record.
 - *Role*: Data transfer object.
-- *Contract*: `string ViewName`, `SysmlWorkspace Workspace`.
+- *Contract*: `string ViewName`, `SysmlWorkspace Workspace`, `SysmlViewNode? ViewNode = null`.
+  `ViewNode` is the view's resolved AST node, giving a layout strategy access to the view's
+  declared `render`/`expose`/`filter` body statements (`RenderTargetName`, `ExposedNames`,
+  `FilterExpressionText`, and their `ResolvedEdges`); it is `null` for the `--auto` synthesized
+  view, which carries no AST node of its own.
 
 **Theme**: Visual configuration record.
 
@@ -127,9 +131,13 @@ flowchart TD
    that tree and the options to `IRenderer.Render`. Each rendered stream is wrapped in a
    `RenderOutput` and collected into the return list.
 
-2. `ILayoutStrategy.BuildLayout` receives a `ViewContext` containing the workspace and the view
-   name, plus `RenderOptions` for size and scale hints. It produces a fully resolved
-   `LayoutTree` with all waypoints in absolute canvas coordinates.
+2. `ILayoutStrategy.BuildLayout` receives a `ViewContext` containing the workspace, the view
+   name, and (when available) the view's resolved AST node, plus `RenderOptions` for size and
+   scale hints. It produces a fully resolved `LayoutTree` with all waypoints in absolute canvas
+   coordinates. `GeneralViewLayoutStrategy` is the only strategy that currently reads
+   `ViewContext.ViewNode` to scope its diagram to a declared render target's subtree; every
+   other strategy ignores it and renders as before (see the Layout subsystem's
+   `general-view-layout-strategy` design doc for the scoping algorithm).
 
 3. `IRenderer.Render` receives the `LayoutTree` and `RenderOptions` and writes all rendered
    bytes to the supplied `Stream`. It must not perform any layout computation; it only reads
@@ -160,6 +168,7 @@ flowchart TD
 | SysML2Tools-Core-Rendering-ThemeDepthWrap | `Theme.DepthFillColors` with modulo indexing documented in `Theme` |
 | SysML2Tools-Core-Rendering-RenderOptions | `RenderOptions` record with default values |
 | SysML2Tools-Core-Rendering-ILayoutStrategy | `ILayoutStrategy` interface and `ViewContext` record |
+| SysML2Tools-Core-Rendering-ViewContextViewNode | `ViewContext.ViewNode` flows to `DiagramRenderer.RenderWorkspace` |
 | SysML2Tools-Core-Rendering-DiagramRenderer | `DiagramRenderer.RenderWorkspace`; `DiagramTypeRouter`; `StdlibFilter` |
 | SysML2Tools-Core-Rendering-RenderOutput | `RenderOutput` record |
 | SysML2Tools-Core-Rendering-BuiltinThemes | `Themes.Light`, `Themes.Dark`, `Themes.Print` |

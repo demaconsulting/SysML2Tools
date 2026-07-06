@@ -26,3 +26,23 @@ sections:
           The cycle detection uses depth-first search with a traversal stack.
         tests:
           - WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewRenderExpose
+        title: >-
+          ReferenceResolver.ResolveAll shall independently resolve a view's RenderTargetName
+          into a Render-kind edge and each of its ExposedNames into an Expose-kind edge, and
+          shall produce an unresolved-reference Warning diagnostic (with no corresponding edge)
+          for either when it cannot resolve — mirroring the existing SubjectName/EndpointA
+          unresolved-reference diagnostic pattern. FilterExpressionText is raw source text, not
+          a reference, and is never inspected here.
+        justification: |
+          Before this change, an unresolved `render <target>;` (e.g. a typo) silently rendered
+          the full workspace with no diagnostic at all, indistinguishable from a view with no
+          `render` statement — the exact bug being fixed. Surfacing the same unresolved-reference
+          diagnostic already used for satisfy/allocate gives the user a visible signal instead of
+          silent full-workspace rendering.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewRenderTargetResolves_RecordsRenderEdge
+          - WorkspaceLoader_LoadAsync_ViewRenderTargetUnresolved_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
+          - RenderSubsystem_ViewsWithDistinctRenderTargets_ProduceDifferingOutputsAndDiagnostic

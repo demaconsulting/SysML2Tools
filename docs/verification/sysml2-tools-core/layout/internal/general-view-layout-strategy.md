@@ -39,6 +39,20 @@ configuration are required beyond a standard .NET SDK installation.
   delegated layout does not over-pad sparse diagrams.
 - Standard-library-only input (by prefix or by seed set) yields a minimal empty canvas.
 - An empty workspace yields a 200×100 canvas with no nodes.
+- A view whose `ViewContext.ViewNode` carries a resolved `Render` edge scopes the diagram to that
+  target's containment subtree, excluding unrelated sibling definitions and producing fewer boxes
+  than an unscoped (no-`ViewNode`) rendering of the same workspace.
+- A view whose `ViewContext.ViewNode` additionally carries a resolved `Expose` edge additively
+  includes that exposed name's containment subtree alongside the render target's subtree.
+- A view whose declared render target failed to resolve (no `Render` edge present) falls back to
+  rendering the full workspace, identical to a view with a `null` `ViewNode`.
+- A view whose `ViewContext.ViewNode` carries a non-null `FilterExpressionText` emits the "parsed
+  but not yet evaluated" warning through `LayoutTree.Warnings`, while still rendering the resolved
+  (unfiltered) scope.
+- A view with a `null` `ViewContext.ViewNode` (the `--auto` synthesized-view path, and the
+  pre-scoping-change 2-argument `ViewContext` construction used throughout the rest of this test
+  file) renders every non-stdlib definition in the workspace, unchanged from before this feature —
+  the critical regression guard confirming full backward compatibility.
 
 ##### Test Scenarios
 
@@ -78,3 +92,14 @@ configuration are required beyond a standard .NET SDK installation.
   Connected cross-referencing model keeps every definition box non-overlapping
 - `GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelProducesCompactCanvas`:
   Sparse canvas stays compact with no warnings (no over-padding)
+- `GeneralViewLayoutStrategy_BuildLayout_ResolvedRenderTarget_ScopesToSubtreeFewerBoxes`:
+  A resolved `Render` edge scopes the diagram to the target's containment subtree, fewer boxes
+  than the full workspace
+- `GeneralViewLayoutStrategy_BuildLayout_ExposedName_UnionsAdditionalSubtree`:
+  A resolved `Expose` edge additively includes its containment subtree
+- `GeneralViewLayoutStrategy_BuildLayout_UnresolvedRenderTarget_FallsBackToFullWorkspace`:
+  No `Render` edge (target failed to resolve) falls back to full-workspace rendering
+- `GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning`:
+  A non-null `FilterExpressionText` emits the "parsed but not yet evaluated" warning
+- `GeneralViewLayoutStrategy_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged`:
+  A `null` `ViewNode` (`--auto`/default) renders every definition, unchanged (regression guard)

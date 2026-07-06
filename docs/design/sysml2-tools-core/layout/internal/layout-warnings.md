@@ -23,6 +23,18 @@ Returns the warnings for a view:
    is rendered in singular form for a count of one and plural form otherwise, and the count is
    formatted with the invariant culture.
 
+###### `ForUnevaluatedFilter(viewName, filterExpressionText)`
+
+Returns the warnings for a view's declared filter expression:
+
+1. When `filterExpressionText` is `null` (the view has no `filter [<expr>];` member), an empty
+   list is returned.
+2. Otherwise a single warning string is produced naming the view: `"View '{viewName}' declares a
+   filter expression, which is parsed but not yet evaluated; all elements in the resolved scope
+   are rendered unfiltered."` The raw expression text itself is not interpolated into the message
+   (only its presence matters) — full filter expression evaluation is deferred future work (see
+   ROADMAP.md).
+
 ##### Error Handling
 
 N/A - the method performs no validation and does not throw; a non-positive count simply yields an
@@ -36,4 +48,6 @@ empty list and any string view name is accepted.
 ##### Callers
 
 View layout strategies that route connectors call `LayoutWarnings.ForCrossings` to attach
-crossing warnings to the `LayoutTree` they produce.
+crossing warnings to the `LayoutTree` they produce. `GeneralViewLayoutStrategy` calls
+`LayoutWarnings.ForUnevaluatedFilter` to attach the "not yet evaluated" filter warning when a
+view's `FilterExpressionText` is non-null.

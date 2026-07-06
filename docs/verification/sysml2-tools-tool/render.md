@@ -39,6 +39,10 @@ on context output and exit code. File-writing scenarios use a temporary director
 - `render --help` prints render-specific usage and options (not the generic top-level command
   list), and is identical to `help render`'s output (see the Help subsystem verification
   document).
+- A workspace with two views — one with a `render <target>;` statement naming a resolvable
+  target, one with a bogus `render thisIdentifierDoesNotExistAnywhere;` statement — produces
+  two output files whose content DIFFERS (the reported bug's exact fix), and the bogus view's
+  unresolved render target is visible as a diagnostic in the captured log output.
 
 ### Test Scenarios
 
@@ -114,6 +118,18 @@ Verifies that `render --help` prints the render-specific usage line and its `--o
 `--auto` flags, and does not print the generic top-level `"Commands:"` section — a
 regression-proofing test added alongside the `help` command's command-aware `--help` dispatch
 (see `docs/design/sysml2-tools-tool/help.md`).
+
+#### RenderSubsystem_ViewsWithDistinctRenderTargets_ProduceDifferingOutputsAndDiagnostic
+
+End-to-end regression test reproducing the reported bug: a workspace declares two views — one
+with `render TargetA;` (resolving to a `part def` with a nested child), one with `render
+thisIdentifierDoesNotExistAnywhere;` (an unresolvable target). Verifies that rendering both
+without `--view` produces `ViewValid.svg` and `ViewBogus.svg` whose content now DIFFERS (before
+this fix, every view rendered the identical full-workspace diagram, so the two files would have
+been byte-identical), and that the captured `--log` output contains
+`"thisIdentifierDoesNotExistAnywhere"` — the unresolved-reference diagnostic surfaced by
+`ReferenceResolver` for the bogus render target, closing the exact reported symptom (a typo'd
+render target previously produced no visible signal at all).
 
 #### ResxResource_EveryKey_ResolvesToNonEmptyText / ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity (ResxResourceTests.cs)
 

@@ -534,6 +534,52 @@ internal sealed class ReferenceResolver
             }
         }
 
+        // Views resolve two independent reference sets: RenderTargetName (a view's `render
+        // <target>;` subject) and each entry of ExposedNames (a view's `expose <name>;`
+        // members). Unlike Satisfy/Allocate, each is resolved and edged independently — a
+        // resolved RenderTargetName produces a Render edge even when an ExposedNames entry fails
+        // to resolve, and vice versa, since the two statements are functionally unrelated (unlike
+        // satisfy's two-sided subject/requirement pair). An unresolved RenderTargetName produces
+        // only the Warning diagnostic below; GeneralViewLayoutStrategy observes the resulting
+        // absence of a Render edge and falls back to rendering the full workspace for that view
+        // — the same observable state as a view with no `render` statement at all.
+        // FilterExpressionText is raw source text, not a reference, and is intentionally never
+        // touched here.
+        if (node is SysmlViewNode view)
+        {
+            if (view.RenderTargetName is { Length: > 0 } renderTargetName)
+            {
+                if (TryResolve(renderTargetName, namespaceStack, imports, out var resolvedTarget))
+                {
+                    nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedTarget, SysmlEdgeKind.Render));
+                }
+                else if (resolvedInFile.Add(renderTargetName))
+                {
+                    _diagnostics.Add(new SysmlDiagnostic(
+                        filePath,
+                        0, 0,
+                        DiagnosticSeverity.Warning,
+                        $"Unresolved reference: '{renderTargetName}'"));
+                }
+            }
+
+            foreach (var exposedName in view.ExposedNames)
+            {
+                if (TryResolve(exposedName, namespaceStack, imports, out var resolvedExposed))
+                {
+                    nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedExposed, SysmlEdgeKind.Expose));
+                }
+                else if (resolvedInFile.Add(exposedName))
+                {
+                    _diagnostics.Add(new SysmlDiagnostic(
+                        filePath,
+                        0, 0,
+                        DiagnosticSeverity.Warning,
+                        $"Unresolved reference: '{exposedName}'"));
+                }
+            }
+        }
+
         if (nodeEdges.Count > 0)
         {
             node.ResolvedEdges = nodeEdges;

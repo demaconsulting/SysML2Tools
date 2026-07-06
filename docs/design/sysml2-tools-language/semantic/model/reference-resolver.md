@@ -132,6 +132,17 @@ no edge):
   = resolved first end, `Target` = resolved second end) only when both ends resolve, using the
   identical both-sides-must-resolve contract as `Satisfy`. Regular `"connection"`/`"message"`
   keyword variants remain intentionally unresolved (out of scope for this unit).
+- **`SysmlViewNode` (Render/Expose)** — resolves `RenderTargetName` and each `ExposedNames`
+  entry **independently of one another** (unlike `Satisfy`/`Allocate`'s two-sided contract,
+  since `render`/`expose` are functionally unrelated statements): a resolved `RenderTargetName`
+  produces one `SysmlEdgeKind.Render` edge sourced from `node.QualifiedName`, and each resolved
+  `ExposedNames` entry produces its own `SysmlEdgeKind.Expose` edge, independently. An
+  unresolvable `RenderTargetName` (e.g. a typo) produces only the standard unresolved-reference
+  Warning and no `Render` edge — `GeneralViewLayoutStrategy` observes the resulting absence of a
+  `Render` edge and falls back to rendering the full workspace, the same observable state as a
+  view with no `render` statement at all. This is the fix for the reported bug: a bogus render
+  target now surfaces a visible diagnostic instead of silently rendering everything.
+  `FilterExpressionText` is raw source text, not a reference, and is never inspected here.
 
 ##### Deviations From Uniform Resolution (Behavior-Neutral Additive Fixes)
 
@@ -178,7 +189,8 @@ unresolved names are present.
   `VerifiedRequirementNames`; checks for `SysmlFeatureNode.FeatureTyping`, `SysmlSatisfyNode`
   (`SubjectName`/`RequirementName`), `SysmlConnectionNode` with `ConnectionKeyword ==
   "allocation"` (`EndpointA`/`EndpointB`), `SysmlConnectionNode` with `ConnectionKeyword ==
-  "connection"` or `"message"`, and `SysmlTransitionNode` (`Source`/`Target`); reads
+  "connection"` or `"message"`, `SysmlTransitionNode` (`Source`/`Target`), and `SysmlViewNode`
+  (`RenderTargetName`/`ExposedNames`; `FilterExpressionText` is never read); reads
   `ResolvedEdges` (`Typing`/`Supertype` kinds) during feature-chain resolution.
 - `SysmlEdge`, `SemanticIndex` — resolved references are recorded as `SysmlEdge` instances and
   aggregated into the returned `SemanticIndex`.

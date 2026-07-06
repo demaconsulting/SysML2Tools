@@ -167,7 +167,7 @@ public sealed class SysmlImportNode : SysmlNode
 }
 
 /// <summary>
-///     AST node representing a view definition.
+///     AST node representing a view definition or view usage.
 /// </summary>
 /// <remarks>
 ///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
@@ -175,6 +175,36 @@ public sealed class SysmlImportNode : SysmlNode
 /// </remarks>
 public sealed class SysmlViewNode : SysmlNode
 {
+    /// <summary>
+    ///     Gets the raw reference text of this view's <c>render &lt;target&gt;;</c> statement
+    ///     (from <c>viewRenderingMember().viewRenderingUsage()</c>), or <see langword="null"/>
+    ///     when the view declares no rendering member. Resolved by <see cref="ReferenceResolver"/>
+    ///     into a <see cref="SysmlEdgeKind.Render"/> edge when the name resolves, or an
+    ///     unresolved-reference diagnostic when it does not — an unresolved (or absent) render
+    ///     target causes <c>GeneralViewLayoutStrategy</c> to fall back to rendering the full
+    ///     workspace, unchanged from the pre-scoping behavior.
+    /// </summary>
+    public string? RenderTargetName { get; init; }
+
+    /// <summary>
+    ///     Gets the raw reference text of each <c>expose &lt;name&gt;;</c> member nested in this
+    ///     view's body, in source order. Empty when the view declares no <c>expose</c> members.
+    ///     Each entry is resolved by <see cref="ReferenceResolver"/> into a
+    ///     <see cref="SysmlEdgeKind.Expose"/> edge when it resolves, or an unresolved-reference
+    ///     diagnostic when it does not.
+    /// </summary>
+    public IReadOnlyList<string> ExposedNames { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    ///     Gets the raw source text of this view's <c>filter [&lt;expression&gt;];</c> statement
+    ///     (from <c>elementFilterMember().ownedExpression().GetText()</c>), or
+    ///     <see langword="null"/> when the view declares no filter member. Captured verbatim only
+    ///     — no expression tree is built and no evaluation is performed; a non-null value causes
+    ///     <c>GeneralViewLayoutStrategy</c> to emit a "not yet evaluated" warning while still
+    ///     rendering the (unfiltered) resolved scope. Full filter-expression evaluation is
+    ///     deferred future work — see the project ROADMAP.
+    /// </summary>
+    public string? FilterExpressionText { get; init; }
 }
 
 /// <summary>

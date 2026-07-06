@@ -38,3 +38,34 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewRenderFilter
+        title: >-
+          AstBuilder shall capture a view's render target reference text (from its
+          `render <target>;` member), its filter expression source text (from its
+          `filter [<expr>];` member), and its exposed name references (from its
+          `expose <name>;` members, `view` usages only) as raw, unevaluated data on the
+          corresponding SysmlViewNode.
+        justification: |
+          Every declared view previously rendered the identical full-workspace diagram because
+          none of its `render`/`expose`/`filter` body statements were captured at all. Capturing
+          this data during AST construction is the prerequisite for GeneralViewLayoutStrategy to
+          scope a view's diagram to its declared subject, and for ReferenceResolver to resolve
+          the render/expose references into edges.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewRenderTargetResolves_RecordsRenderEdge
+          - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
+          - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewUsageExpose
+        title: >-
+          AstBuilder shall build a SysmlViewNode from a named `view` usage (in addition to a
+          `view def` definition), capturing the same render/filter members plus its `expose`
+          members.
+        justification: |
+          `expose <name>;` is only valid grammar inside a `view` usage's body, not a `view def`
+          definition's body; without a dedicated VisitViewUsage override, named view usages
+          (including every `expose` statement) were never visited at all, so a view's exposed
+          names could never be captured, resolved, or scoped.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge

@@ -20,6 +20,11 @@ external services are required.
 - Rendering a workspace with views produces one output per view, containing the rendered elements.
 - The same workspace renders successfully with both the SVG and PNG renderers.
 - A workspace with no views produces an empty result.
+- `RenderWorkspace` threads each view's resolved `SysmlViewNode` into the `ViewContext` it
+  constructs, so `GeneralViewLayoutStrategy` can scope a rendered diagram to a view's declared
+  `render`/`expose` subject — verified end-to-end at the CLI level (see the `RenderCommand`
+  verification doc's `RenderSubsystem_ViewsWithDistinctRenderTargets_ProduceDifferingOutputsAndDiagnostic`)
+  and at the layout-strategy level (see the `GeneralViewLayoutStrategy` verification doc).
 
 #### Test Scenarios
 
@@ -30,3 +35,4 @@ external services are required.
 | `DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames` | The SVG output contains element names |
 | `DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput` | The PNG output carries the PNG signature |
 | `DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList` | A view-free workspace yields an empty result |
+| `RenderSubsystem_ViewsWithDistinctRenderTargets_ProduceDifferingOutputsAndDiagnostic` | Produces scoped output |

@@ -8,6 +8,7 @@ using DemaConsulting.Rendering.Skia;
 using DemaConsulting.Rendering.Svg;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 
 namespace DemaConsulting.SysML2Tools.Tests.Rendering;
 
@@ -262,5 +263,25 @@ public sealed class RenderingTests
         // Assert: both fields equal the supplied values
         Assert.Equal("myView", context.ViewName);
         Assert.Same(workspace, context.Workspace);
+        Assert.Null(context.ViewNode);
+    }
+
+    /// <summary>
+    ///     Constructing a <see cref="ViewContext"/> with an explicit <c>ViewNode</c> stores the
+    ///     supplied node, giving layout strategies access to the view's resolved render/expose/
+    ///     filter data.
+    /// </summary>
+    [Fact]
+    public void ViewContext_Construction_WithViewNode_StoresViewNode()
+    {
+        // Arrange: a minimal SysmlWorkspace and a SysmlViewNode
+        var workspace = new SysmlWorkspace();
+        var viewNode = new SysmlViewNode { Name = "V", QualifiedName = "P::V" };
+
+        // Act: construct a ViewContext with the view node supplied
+        var context = new ViewContext("myView", workspace, viewNode);
+
+        // Assert: the supplied view node is stored unchanged
+        Assert.Same(viewNode, context.ViewNode);
     }
 }

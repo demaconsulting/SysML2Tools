@@ -20,9 +20,11 @@ off-the-shelf `RenderOptions` and `RenderOutput` records from `DemaConsulting.Re
 
 For each declaration in the workspace it skips non-view nodes and standard-library views (via
 `StdlibFilter`), routes the view to an `ILayoutStrategy` (via `DiagramTypeRouter`), skips views with
-no supporting strategy or that do not match `viewFilter`, builds the `LayoutTree`, renders it to an
-in-memory stream, and collects a `RenderOutput` with a sanitized file name and the layout warnings.
-Returns an empty list when the workspace declares no renderable views.
+no supporting strategy or that do not match `viewFilter`, constructs a `ViewContext` carrying the
+view's own `SysmlViewNode` (so a strategy such as `GeneralViewLayoutStrategy` can read its resolved
+`render`/`expose`/`filter` data), builds the `LayoutTree`, renders it to an in-memory stream, and
+collects a `RenderOutput` with a sanitized file name and the layout warnings. Returns an empty list
+when the workspace declares no renderable views.
 
 ##### `GetViewNames(workspace)`
 

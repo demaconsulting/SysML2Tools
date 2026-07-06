@@ -5,6 +5,7 @@
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.SysML2Tools.Semantic;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 
 namespace DemaConsulting.SysML2Tools.Rendering;
 
@@ -21,9 +22,17 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 /// resolve the view's target element(s) and traverse related declarations while building the
 /// layout tree.
 /// </param>
+/// <param name="ViewNode">
+/// The resolved <see cref="SysmlViewNode"/> the view was declared from, carrying its resolved
+/// <c>Render</c>/<c>Expose</c> edges and raw <c>FilterExpressionText</c> so a strategy can scope
+/// its diagram accordingly. Nullable to preserve the <c>--auto</c> synthetic-view path, whose
+/// synthesized <see cref="SysmlViewNode"/> carries no render/expose/filter data; defaults to
+/// <see langword="null"/> so existing two-argument construction call sites remain unchanged.
+/// </param>
 public sealed record ViewContext(
     string ViewName,
-    SysmlWorkspace Workspace);
+    SysmlWorkspace Workspace,
+    SysmlViewNode? ViewNode = null);
 
 /// <summary>
 /// Computes a <see cref="LayoutTree"/> from a <see cref="ViewContext"/>.

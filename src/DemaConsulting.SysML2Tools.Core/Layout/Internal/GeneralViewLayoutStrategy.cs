@@ -108,8 +108,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         var theme = options.Theme;
 
-        // Collect all user-defined definitions, sized for rendering.
-        var defs = CollectDefinitions(context.Workspace, theme);
+        // Resolve the view's render-target subject scope (render target plus exposed names'
+        // containment subtrees), or null when the view has no resolved Render edge — including a
+        // null ViewNode (the --auto synthetic-view path) and an unresolved render target, both of
+        // which leave no Render edge on ResolvedEdges. A null scope means "render everything",
+        // byte-identical to the pre-scoping behavior.
+        var scope = ResolveSubjectScope(context.ViewNode);
+
+        // Collect all user-defined definitions, sized for rendering, restricted to the resolved
+        // scope when one applies.
+        var defs = CollectDefinitions(context.Workspace, theme, scope);
         if (defs.Count == 0)
         {
             return new LayoutTree(200.0, 100.0, []);
@@ -136,14 +144,69 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Stamp the "+N more…" ellipsis label onto each truncated folder's placed box. The leaf
         // algorithm emits one box per root node in Nodes order, so the boxes portion of the placed
         // tree aligns with graph.Nodes by index.
-        return truncated.Count == 0 ? tree : DecorateTruncatedFolders(tree, graph, truncated, theme);
+        var placed = truncated.Count == 0 ? tree : DecorateTruncatedFolders(tree, graph, truncated, theme);
+
+        // A `filter [<expr>];` statement is parsed (SysmlViewNode.FilterExpressionText) but not
+        // yet evaluated — full expression evaluation is deferred future work (see ROADMAP.md).
+        // Surface this to the caller through the standard layout-warnings channel rather than
+        // silently rendering a diagram the user may believe is filtered.
+        var warnings = LayoutWarnings.ForUnevaluatedFilter(context.ViewName, context.ViewNode?.FilterExpressionText);
+        return warnings.Count == 0 ? placed : placed with { Warnings = warnings };
     }
 
     /// <summary>
-    /// Collects every user-defined <see cref="SysmlDefinitionNode"/> from the workspace and computes
-    /// each box's intrinsic size from its keyword and name.
+    /// Resolves the qualified-name containment-subtree scope a view's <c>render</c>/<c>expose</c>
+    /// statements restrict the diagram to, or <see langword="null"/> when the view has no resolved
+    /// <see cref="SysmlEdgeKind.Render"/> edge — meaning every non-stdlib definition is included,
+    /// unchanged from the pre-scoping behavior. This covers three equivalent "no scoping" cases
+    /// uniformly: a null <paramref name="viewNode"/> (the <c>--auto</c> synthetic view, which never
+    /// carries render/expose/filter data), a view with no <c>render</c> statement, and a view whose
+    /// <c>render</c> target failed to resolve (per binding decision, an unresolved target falls
+    /// back to full-workspace rendering; the diagnostic that informs the user is emitted by
+    /// <c>ReferenceResolver</c>, not here).
     /// </summary>
-    private static IReadOnlyList<DefBox> CollectDefinitions(SysmlWorkspace workspace, Theme theme)
+    /// <param name="viewNode">The view's AST node, or null for the synthetic <c>--auto</c> view.</param>
+    /// <returns>
+    /// The list of subject qualified names (the render target plus any exposed names) whose
+    /// containment subtrees are in scope, or null when no scoping applies.
+    /// </returns>
+    private static IReadOnlyList<string>? ResolveSubjectScope(SysmlViewNode? viewNode)
+    {
+        var renderTarget = viewNode?.ResolvedEdges
+            .FirstOrDefault(edge => edge.Kind == SysmlEdgeKind.Render)
+            ?.TargetQualifiedName;
+        if (renderTarget is null)
+        {
+            return null;
+        }
+
+        var subjects = new List<string> { renderTarget };
+        subjects.AddRange(viewNode!.ResolvedEdges
+            .Where(edge => edge.Kind == SysmlEdgeKind.Expose)
+            .Select(edge => edge.TargetQualifiedName));
+        return subjects;
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="qualifiedName"/> is one of
+    /// <paramref name="subjects"/> or lies within one of their containment subtrees (a
+    /// <c>"{subject}::"</c> prefix match), reusing the same qualified-name-prefix idiom
+    /// <see cref="StdlibFilter.IsStdlibElement(string, IReadOnlySet{string})"/> already uses for
+    /// stdlib-prefix matching.
+    /// </summary>
+    private static bool IsInSubjectScope(string qualifiedName, IReadOnlyList<string> subjects) =>
+        subjects.Any(subject =>
+            qualifiedName == subject || qualifiedName.StartsWith(subject + "::", StringComparison.Ordinal));
+
+    /// <summary>
+    /// Collects every user-defined <see cref="SysmlDefinitionNode"/> from the workspace and computes
+    /// each box's intrinsic size from its keyword and name, restricted to <paramref name="scope"/>
+    /// when non-null (the view's resolved <c>render</c>/<c>expose</c> containment subtrees).
+    /// </summary>
+    private static IReadOnlyList<DefBox> CollectDefinitions(
+        SysmlWorkspace workspace,
+        Theme theme,
+        IReadOnlyList<string>? scope)
     {
         var result = new List<DefBox>();
 
@@ -155,6 +218,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             }
 
             if (StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
+            {
+                continue;
+            }
+
+            if (scope is not null && !IsInSubjectScope(qualifiedName, scope))
             {
                 continue;
             }

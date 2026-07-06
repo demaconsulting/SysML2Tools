@@ -2395,6 +2395,203 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A <c>view def</c> with a <c>render &lt;target&gt;;</c> member whose target resolves
+    ///     should be recorded as a <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Render"/>
+    ///     edge from the view to the resolved qualified name.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ViewRenderTargetResolves_RecordsRenderEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Target {}
+                    view def V {
+                        render Target;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Render &&
+                     e.SourceQualifiedName == "P::V" &&
+                     e.TargetQualifiedName == "P::Target");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>view def</c> with a <c>render &lt;target&gt;;</c> member whose target does NOT
+    ///     resolve (e.g. a typo) must produce an unresolved-reference Warning diagnostic and must
+    ///     not produce a <c>Render</c> edge — the exact fix for the reported bug (a bogus render
+    ///     target previously rendered everything silently, with no signal to the user).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ViewRenderTargetUnresolved_ProducesWarningNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    view def V {
+                        render thisIdentifierDoesNotExistAnywhere;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("thisIdentifierDoesNotExistAnywhere"));
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Render);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>view def</c> with a <c>filter [&lt;expr&gt;];</c> member should capture the raw
+    ///     expression source text verbatim on <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.FilterExpressionText"/>
+    ///     without evaluating it, producing no diagnostic and no edge (per binding decision: filter
+    ///     expression evaluation is explicitly deferred future work).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    view def V {
+                        filter @SysML::PartUsage;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
+                result.Workspace!.Declarations["P::V"]);
+            Assert.Equal("@SysML::PartUsage", view.FilterExpressionText);
+            Assert.Empty(result.Diagnostics);
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.SourceQualifiedName == "P::V");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A named <c>view</c> usage (not a <c>view def</c>) with an <c>expose &lt;ns&gt;;</c>
+    ///     member should build a <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode"/>
+    ///     via <c>AstBuilder.VisitViewUsage</c> (the first test to exercise that visitor) and
+    ///     resolve the exposed name into an <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose"/>
+    ///     edge.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Exposed {}
+                    view V {
+                        expose Exposed;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
+                result.Workspace!.Declarations["P::V"]);
+            Assert.Contains("Exposed", view.ExposedNames);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose &&
+                     e.SourceQualifiedName == "P::V" &&
+                     e.TargetQualifiedName == "P::Exposed");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>view def</c> with an empty body should leave <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.RenderTargetName"/>
+    ///     and <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.FilterExpressionText"/>
+    ///     null and <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.ExposedNames"/>
+    ///     empty — a regression guard for the "no render statement → render everything" fallback.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    view def V {}
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
+                result.Workspace!.Declarations["P::V"]);
+            Assert.Null(view.RenderTargetName);
+            Assert.Null(view.FilterExpressionText);
+            Assert.Empty(view.ExposedNames);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     Finds the test/SysMLModels directory relative to the test assembly.
     /// </summary>
     private static string? FindSysMLModelsRoot()

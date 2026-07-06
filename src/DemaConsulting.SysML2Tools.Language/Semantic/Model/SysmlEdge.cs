@@ -65,6 +65,25 @@ public enum SysmlEdgeKind
     ///     state to walk from) produces no edge, a documented limitation of this unit.
     /// </summary>
     Transition,
+
+    /// <summary>
+    ///     A view render-target reference (<c>render &lt;target&gt;;</c> nested in a view's
+    ///     body), from the view to the resolved element the view is scoped to. Recorded only
+    ///     when the target resolves; an unresolved target produces an unresolved-reference
+    ///     diagnostic instead (see <see cref="SysmlViewNode.RenderTargetName"/>), and
+    ///     <c>GeneralViewLayoutStrategy</c> falls back to rendering the full workspace for that
+    ///     view — identical to a view with no <c>render</c> statement at all.
+    /// </summary>
+    Render,
+
+    /// <summary>
+    ///     A view expose reference (<c>expose &lt;name&gt;;</c> nested in a view's body), from
+    ///     the view to a resolved element whose containment subtree is additionally included in
+    ///     the rendered scope alongside the <see cref="Render"/> subject. One edge is recorded
+    ///     per resolvable entry in <see cref="SysmlViewNode.ExposedNames"/>; an unresolved entry
+    ///     produces an unresolved-reference diagnostic instead.
+    /// </summary>
+    Expose,
 }
 
 /// <summary>

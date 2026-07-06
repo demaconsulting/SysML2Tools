@@ -150,3 +150,53 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelProducesNonOverlappingBoxes
           - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_ConnectedModelKeepsBoxesSeparated
           - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelProducesCompactCanvas
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-RenderTargetScoping
+        title: >-
+          When a view's ViewContext carries a resolved Render edge to a qualified name Q,
+          GeneralViewLayoutStrategy shall scope the diagram to Q and every declaration whose
+          qualified name is Q or has "Q::" as a prefix (Q's containment subtree), additionally
+          merging in the containment subtree of every resolved Expose edge target, combined
+          with Q's subtree.
+        justification: |
+          Every declared view previously rendered the identical full-workspace "GeneralView"
+          diagram regardless of its `render <target>;`/`expose <...>;` body statements — the
+          reported bug. Scoping the diagram to the render target's (and any exposed names')
+          containment subtree makes those statements finally have an observable effect, matching
+          the SysML v2 view/viewpoint mechanism's subject-scoping intent.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ResolvedRenderTarget_ScopesToSubtreeFewerBoxes
+          - GeneralViewLayoutStrategy_BuildLayout_ExposedName_UnionsAdditionalSubtree
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UnresolvedRenderFallback
+        title: >-
+          When a view's ViewContext carries no resolved Render edge — because the view has no
+          `render` statement, its ViewNode is null (e.g. the `--auto` synthesized view), or its
+          declared render target failed to resolve — GeneralViewLayoutStrategy shall render the
+          full workspace, unchanged from its pre-scoping behavior.
+        justification: |
+          An unresolved `render <target>;` (e.g. a typo) must not produce a broken or empty
+          diagram; falling back to full-workspace rendering (with the unresolved-reference
+          diagnostic already surfaced by ReferenceResolver) preserves today's behavior as a safe
+          default while still giving the user a visible signal elsewhere in the diagnostics
+          output. Views with no `render` statement at all — including the `--auto` synthesized
+          view, which never carries render/expose/filter data — must continue to render
+          everything exactly as before this change, with zero regression risk.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_UnresolvedRenderTarget_FallsBackToFullWorkspace
+          - GeneralViewLayoutStrategy_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UnevaluatedFilterWarning
+        title: >-
+          When a view's FilterExpressionText is non-null, GeneralViewLayoutStrategy shall emit a
+          diagnostic through the layout's Warnings channel stating that the view declares a
+          filter expression which is parsed but not yet evaluated, and shall continue rendering
+          the (unfiltered) resolved scope.
+        justification: |
+          Full `filter [<expr>];` expression evaluation is deferred future work (see ROADMAP.md).
+          Silently ignoring a declared filter would mislead a user into believing their diagram is
+          filtered when every element in the resolved scope is actually shown unfiltered;
+          surfacing an explicit warning through the existing layout-warnings channel makes this
+          limitation visible rather than a silent gap.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning

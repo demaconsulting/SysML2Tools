@@ -15,7 +15,7 @@ requirement-satisfaction usages.
 | `SysmlDefinitionNode` | Definition element (part def, attribute def, etc.); adds DefinitionKeyword |
 | `SysmlFeatureNode` | Feature/usage element |
 | `SysmlImportNode` | Import declaration; adds ImportedNamespace, IsWildcard |
-| `SysmlViewNode` | View definition |
+| `SysmlViewNode` | View definition; adds RenderTargetName, ExposedNames, FilterExpressionText |
 | `SysmlViewpointNode` | Viewpoint definition |
 | `SysmlConnectionNode` | Connection/binding/allocation usage; adds ConnectionKeyword, EndpointA, EndpointB |
 | `SysmlTransitionNode` | State transition; adds Source, Target, Guard |
@@ -94,6 +94,27 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
 - `SubjectName` — the raw reference text of the satisfying subject (from the `by <subject>`
   clause), or null when no `by` clause is present.
 
+`SysmlViewNode` adds:
+
+- `RenderTargetName` — the raw reference text of the view's `render <target>;` member (the
+  first one found if more than one appears), or null when the view has no `render` member.
+  Extracted by the shared `AstBuilder.ExtractRenderTargetName` helper, which follows the same
+  two-form fallback pattern (direct reference, then typed placeholder) `VisitSatisfyRequirementUsage`
+  already uses. Resolved by `ReferenceResolver` into a `SysmlEdgeKind.Render` edge, or an
+  unresolved-reference diagnostic (and no edge) when the target does not resolve.
+- `ExposedNames` — the raw reference text of each `expose <name>;` member in a `view` usage's
+  body, in source order, or empty when none are present (and always empty for a `view def`
+  definition — `expose` is only valid grammar inside a `view` usage's body). Extracted by
+  `AstBuilder.ExtractExposedNames`, sharing the same `ExtractImportTarget` helper `VisitImportRule`
+  uses for plain `import`. Each entry is independently resolved by `ReferenceResolver` into a
+  `SysmlEdgeKind.Expose` edge, or an unresolved-reference diagnostic (and no edge) for that entry.
+- `FilterExpressionText` — the raw source text of the view's `filter [<expr>];` member's
+  bracketed expression, or null when absent. Captured verbatim by `AstBuilder`
+  (`elementFilterMember().ownedExpression().GetText()`) and never evaluated or inspected by
+  `ReferenceResolver` — full filter expression evaluation is deferred future work (see
+  ROADMAP.md). `GeneralViewLayoutStrategy` emits a "parsed but not yet evaluated" warning
+  whenever this is non-null.
+
 ##### Error Handling
 
 N/A — node types are pure data containers with no logic or validation. Invalid or anonymous
@@ -111,12 +132,16 @@ elements are filtered out by `AstBuilder` before a node is constructed.
   captured `comment`/`doc` annotating elements nested in the node's body; sets
   `VerifiedRequirementNames` via the recursive verification-member finder; builds `SysmlSatisfyNode`
   instances from `satisfyRequirementUsage` via `VisitSatisfyRequirementUsage`, and the
-  `"allocation"` `SysmlConnectionNode` variant via `VisitAllocationUsage`.
+  `"allocation"` `SysmlConnectionNode` variant via `VisitAllocationUsage`; builds `SysmlViewNode`
+  instances (setting `RenderTargetName`/`FilterExpressionText`, and additionally `ExposedNames`
+  for usages) from both `VisitViewDefinition` (`view def`) and `VisitViewUsage` (`view`, the
+  only form that can carry `expose`).
 - `SymbolTable` — traverses the node hierarchy via `Children`; reads `QualifiedName`.
 - `ReferenceResolver` — reads `SupertypeNames`, `FeatureTyping`, `ImportedNames`,
   `VerifiedRequirementNames`, `Children`; checks for `SysmlImportNode`, `SysmlSatisfyNode`, the
   `"allocation"` `SysmlConnectionNode` variant, the `"connection"`/`"message"`
-  `SysmlConnectionNode` variants, and `SysmlTransitionNode`; writes `ResolvedEdges` after
-  resolving references (in two passes — supertype/typing/import/satisfy/verify/allocate, then
-  feature-chain connect/transition).
+  `SysmlConnectionNode` variants, `SysmlTransitionNode`, and `SysmlViewNode` (reading
+  `RenderTargetName`/`ExposedNames`, never `FilterExpressionText`); writes `ResolvedEdges` after
+  resolving references (in two passes — supertype/typing/import/satisfy/verify/allocate/render/
+  expose, then feature-chain connect/transition).
 - `SupertypeWalker` — reads `SupertypeNames` on each node retrieved from `SymbolTable`.

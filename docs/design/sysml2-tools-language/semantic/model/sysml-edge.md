@@ -4,12 +4,12 @@
 
 `SysmlEdge` and `SysmlEdgeKind` model a single resolved directed reference between two
 qualified names in the semantic model. Edges are produced by `ReferenceResolver` while
-walking supertype, feature-typing, import, satisfy, verify, allocate, connect, and transition
-references, and are the raw material indexed by `SemanticIndex`.
+walking supertype, feature-typing, import, satisfy, verify, allocate, connect, transition,
+render, and expose references, and are the raw material indexed by `SemanticIndex`.
 
 ##### Types
 
-`SysmlEdgeKind` is an enum with eight members:
+`SysmlEdgeKind` is an enum with ten members:
 
 - `Supertype` — a specialization reference (`SupertypeNames` / `specializes` / `:>`).
 - `Typing` — a feature typing reference (`SysmlFeatureNode.FeatureTyping`, the type after `:`).
@@ -33,6 +33,17 @@ references, and are the raw material indexed by `SemanticIndex`.
   from the source state and targeting the target state (`SysmlTransitionNode`). Either side may
   be a dotted feature chain, resolved the same way as `Connect`; recorded only when both the
   source and target resolve — an implied/omitted source produces no edge.
+- `Render` — a view's resolved render-target reference (`render <target>;`), sourced from the
+  view's qualified name and targeting the resolved `SysmlViewNode.RenderTargetName`.
+  `GeneralViewLayoutStrategy` scopes its diagram to this target's containment subtree when
+  present; an unresolvable render target produces no `Render` edge (only the standard
+  unresolved-reference diagnostic), and the layout strategy falls back to rendering the full
+  workspace for that view.
+- `Expose` — a view usage's resolved exposed-name reference (`expose <name>;`, valid only inside
+  a `view` usage's body), sourced from the view's qualified name and targeting each resolvable
+  entry in `SysmlViewNode.ExposedNames`, one `Expose` edge per entry. `GeneralViewLayoutStrategy`
+  additively unions each exposed name's containment subtree on top of the `Render` subject's
+  subtree.
 
 `SysmlEdge` is a sealed positional record with three properties:
 

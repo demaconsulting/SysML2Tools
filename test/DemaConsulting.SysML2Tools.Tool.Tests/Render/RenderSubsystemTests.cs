@@ -533,6 +533,79 @@ public class RenderSubsystemTests
     }
 
     /// <summary>
+    ///     End-to-end regression test for the reported bug: a workspace with two views — one
+    ///     with a <c>render &lt;target&gt;;</c> body statement naming a resolvable target, and one
+    ///     with a bogus <c>render thisIdentifierDoesNotExistAnywhere;</c> — must now produce two
+    ///     visibly DIFFERENT rendered outputs (before this fix, every view rendered the identical
+    ///     full-workspace diagram regardless of its <c>render</c> statement), and the bogus view's
+    ///     unresolved render target must surface a diagnostic in the captured log output.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_ViewsWithDistinctRenderTargets_ProduceDifferingOutputsAndDiagnostic()
+    {
+        // Arrange: a workspace with two named render targets in disjoint subtrees, one view
+        // whose render statement resolves to "TargetA", and one whose render statement names a
+        // nonexistent identifier.
+        const string sysmlWithRenderTargets = """
+            package RenderScopeTest {
+                part def TargetA {
+                    part childA1 : TargetA {}
+                }
+                part def TargetB {
+                    part childB1 : TargetB {}
+                }
+                view def ViewValid {
+                    render TargetA;
+                }
+                view def ViewBogus {
+                    render thisIdentifierDoesNotExistAnywhere;
+                }
+            }
+            """;
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_scope_bug_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        await File.WriteAllTextAsync(tempFile, sysmlWithRenderTargets, TestContext.Current.CancellationToken);
+
+        var outputDir = Path.Combine(tempDir, "out");
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: render without --view so both views are rendered; capture output via --log
+            var logFile = Path.Combine(tempDir, "output.log");
+            using (var context = Context.Create(
+                       ["render", "--log", logFile, "--output", outputDir, tempFile]))
+            {
+                await Program.RunAsync(context);
+
+                // Assert: exit code indicates success
+                Assert.Equal(0, context.ExitCode);
+            }
+            var validSvg = Path.Combine(outputDir, "ViewValid.svg");
+            var bogusSvg = Path.Combine(outputDir, "ViewBogus.svg");
+            Assert.True(File.Exists(validSvg), "Expected ViewValid.svg to be produced");
+            Assert.True(File.Exists(bogusSvg), "Expected ViewBogus.svg to be produced");
+            var validContent = await File.ReadAllTextAsync(validSvg, TestContext.Current.CancellationToken);
+            var bogusContent = await File.ReadAllTextAsync(bogusSvg, TestContext.Current.CancellationToken);
+            Assert.NotEqual(validContent, bogusContent);
+
+            // Assert: the bogus render target surfaces a visible diagnostic naming the unresolved
+            // identifier, rather than silently rendering everything with no signal.
+            var logContent = await File.ReadAllTextAsync(logFile, TestContext.Current.CancellationToken);
+            Assert.Contains("thisIdentifierDoesNotExistAnywhere", logContent);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
     ///     'render --help' now prints render-specific usage (a regression-proofing test for the
     ///     command-aware help dispatch added alongside the 'help' command).
     /// </summary>

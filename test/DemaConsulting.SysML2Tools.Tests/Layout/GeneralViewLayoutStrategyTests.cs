@@ -757,6 +757,184 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Builds the fixed three-definition workspace shared by the render/expose scoping tests:
+    ///     <c>Root::A</c> (the render target), <c>Root::A::Child</c> (inside <c>A</c>'s containment
+    ///     subtree, qualified name prefixed <c>"Root::A::"</c>), and <c>Root::B</c> (an unrelated
+    ///     sibling definition, outside <c>A</c>'s subtree).
+    /// </summary>
+    private static SysmlWorkspace BuildScopingWorkspace() => new()
+    {
+        Declarations = new Dictionary<string, SysmlNode>
+        {
+            ["Root::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Root::A", DefinitionKeyword = "part def" },
+            ["Root::A::Child"] = new SysmlDefinitionNode { Name = "Child", QualifiedName = "Root::A::Child", DefinitionKeyword = "part def" },
+            ["Root::B"] = new SysmlDefinitionNode { Name = "B", QualifiedName = "Root::B", DefinitionKeyword = "part def" }
+        }
+    };
+
+    /// <summary>
+    ///     A view with a resolved <c>Render</c> edge to <c>Root::A</c> scopes the diagram to
+    ///     <c>Root::A</c> plus its containment subtree (<c>Root::A::Child</c>), excluding the
+    ///     unrelated sibling <c>Root::B</c> — producing fewer boxes than rendering the full
+    ///     workspace.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_ResolvedRenderTarget_ScopesToSubtreeFewerBoxes()
+    {
+        // Arrange: a view whose render target resolves to Root::A
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildScopingWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            RenderTargetName = "A",
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Render)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var scoped = strategy.BuildLayout(context, options);
+        var full = strategy.BuildLayout(new ViewContext("full", workspace), options);
+
+        // Assert: the scoped view contains A and A::Child but not B, and has fewer boxes than
+        // the unscoped full-workspace rendering.
+        var labels = CollectBoxes(scoped.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("A", labels);
+        Assert.Contains("Child", labels);
+        Assert.DoesNotContain("B", labels);
+        Assert.True(CollectBoxes(scoped.Nodes).Count < CollectBoxes(full.Nodes).Count);
+    }
+
+    /// <summary>
+    ///     A view with a resolved <c>Render</c> edge to <c>Root::A</c> plus a resolved
+    ///     <c>Expose</c> edge to <c>Root::B</c> additively includes <c>Root::B</c>'s containment
+    ///     subtree alongside the render subject's subtree.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_ExposedName_UnionsAdditionalSubtree()
+    {
+        // Arrange: a view rendering Root::A and additionally exposing Root::B
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildScopingWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            RenderTargetName = "A",
+            ExposedNames = ["B"],
+            ResolvedEdges =
+            [
+                new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Render),
+                new SysmlEdge("Root::V", "Root::B", SysmlEdgeKind.Expose)
+            ]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: A, A::Child, and B (the exposed subtree) are all present.
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("A", labels);
+        Assert.Contains("Child", labels);
+        Assert.Contains("B", labels);
+    }
+
+    /// <summary>
+    ///     A view whose <c>RenderTargetName</c> failed to resolve (no <c>Render</c> edge on
+    ///     <see cref="SysmlNode.ResolvedEdges"/>, since <c>ReferenceResolver</c> never adds one
+    ///     for an unresolved target) falls back to rendering the full workspace — the same
+    ///     byte/box-count-identical result as a view with no <c>render</c> statement at all. This
+    ///     is the regression-safe fallback required by the bug-fix binding decision.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_UnresolvedRenderTarget_FallsBackToFullWorkspace()
+    {
+        // Arrange: a view whose render target never resolved (no Render edge present)
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildScopingWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            RenderTargetName = "thisIdentifierDoesNotExistAnywhere",
+            ResolvedEdges = []
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var fallback = strategy.BuildLayout(context, options);
+        var full = strategy.BuildLayout(new ViewContext("full", workspace), options);
+
+        // Assert: identical box count/labels to the full-workspace (no-ViewNode) rendering.
+        var fallbackLabels = CollectBoxes(fallback.Nodes).Select(b => b.Label).OrderBy(l => l).ToList();
+        var fullLabels = CollectBoxes(full.Nodes).Select(b => b.Label).OrderBy(l => l).ToList();
+        Assert.Equal(fullLabels, fallbackLabels);
+    }
+
+    /// <summary>
+    ///     A view whose <c>FilterExpressionText</c> is non-null emits the "parsed but not yet
+    ///     evaluated" diagnostic through <see cref="LayoutTree.Warnings"/>, while still rendering
+    ///     the (unfiltered) resolved scope — per the binding decision to defer filter expression
+    ///     evaluation to a future roadmap item.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning()
+    {
+        // Arrange: a view declaring a filter expression
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildScopingWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            FilterExpressionText = "@SysML::PartUsage"
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a warning about the unevaluated filter is present, and the resolved (unfiltered)
+        // scope — here, the full workspace, since no render target was declared — still renders.
+        Assert.Contains(layout.Warnings, w => w.Contains("filter expression") && w.Contains("not yet evaluated"));
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("A", labels);
+        Assert.Contains("B", labels);
+    }
+
+    /// <summary>
+    ///     A view with no <c>render</c> statement (a null <see cref="ViewContext.ViewNode"/>, e.g.
+    ///     the <c>--auto</c> synthesized view) renders identically to the pre-scoping-change
+    ///     baseline: every non-stdlib definition in the workspace. This is the critical regression
+    ///     guard confirming the scoping feature is fully backward-compatible when unused.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged()
+    {
+        // Arrange: no ViewNode at all — the pre-existing 2-arg ViewContext construction.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildScopingWorkspace();
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: all three definitions are present and no warnings are emitted.
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("A", labels);
+        Assert.Contains("B", labels);
+        Assert.Contains("Child", labels);
+        Assert.Empty(layout.Warnings);
+    }
+
+    /// <summary>
     ///     Asserts that no two rendered definition (rectangle-shaped) boxes overlap in the layout.
     /// </summary>
     /// <param name="nodes">The layout's top-level nodes.</param>
