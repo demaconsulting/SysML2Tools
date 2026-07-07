@@ -116,4 +116,33 @@ public class QueryErrorPathTests
             Console.SetError(originalError);
         }
     }
+
+    /// <summary>
+    ///     Querying with a file pattern that matches no file on disk reports a distinct "no files
+    ///     matched" error and a non-zero exit code.
+    /// </summary>
+    [Fact]
+    public async Task Query_PatternMatchesNoFiles_ReportsErrorAndNonZeroExitCode()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"query_nomatch_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var originalError = Console.Error;
+        try
+        {
+            using var errWriter = new StringWriter();
+            Console.SetError(errWriter);
+
+            var pattern = Path.Combine(tempDir, "*.sysml");
+            using var context = Context.Create(["query", "list", pattern]);
+            await Program.RunAsync(context);
+
+            Assert.Equal(1, context.ExitCode);
+            Assert.Contains("no files matched", errWriter.ToString());
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }

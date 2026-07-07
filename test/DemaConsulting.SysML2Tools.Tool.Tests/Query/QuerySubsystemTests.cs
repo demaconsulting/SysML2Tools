@@ -220,6 +220,49 @@ public class QuerySubsystemTests
     }
 
     /// <summary>
+    ///     Regression test for the glob-expansion bug fix: a glob pattern such as '*.sysml'
+    ///     (previously treated as a literal, never-matching file name) now resolves to every
+    ///     matching file in the target directory via the shared GlobFileCollector, and 'query'
+    ///     dispatches successfully against the resulting multi-file workspace.
+    /// </summary>
+    [Fact]
+    public async Task QuerySubsystem_GlobPattern_ResolvesMultipleFiles()
+    {
+        // Arrange: a temp directory containing two SysML files
+        var tempDir = Path.Combine(Path.GetTempPath(), $"query_glob_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        await File.WriteAllTextAsync(
+            Path.Combine(tempDir, "a.sysml"), "package A { part def BlockA {} }",
+            TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(
+            Path.Combine(tempDir, "b.sysml"), "package B { part def BlockB {} }",
+            TestContext.Current.CancellationToken);
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: query 'list' with a glob pattern matching both files
+            var pattern = Path.Combine(tempDir, "*.sysml");
+            using var context = Context.Create(["query", "list", pattern]);
+            await Program.RunAsync(context);
+
+            // Assert: both files resolved from the single pattern, and both parts listed
+            Assert.Contains("Resolved 2 file(s) from 1 pattern(s)", outWriter.ToString());
+            Assert.Equal(0, context.ExitCode);
+            Assert.Contains("BlockA", outWriter.ToString());
+            Assert.Contains("BlockB", outWriter.ToString());
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
     ///     An unrecognized verb token throws ArgumentException naming the bad token, when
     ///     parsed via Context.Create.
     /// </summary>

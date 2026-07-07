@@ -1,0 +1,29 @@
+---
+# Io Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the SysML2Tools Io subsystem
+# - The Io subsystem provides shared file glob pattern resolution for the Tool project's
+#   lint/render/query commands via the GlobFileCollector unit
+# - Requirements describe observable file-discovery behavior, not the underlying glob-matching
+#   algorithm (provided off-the-shelf by Microsoft.Extensions.FileSystemGlobbing)
+
+sections:
+  - title: Io Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Core-Io-GlobFileCollector
+        title: >-
+          The Io subsystem shall resolve an ordered list of file glob patterns — supporting
+          recursive directory matching, exclusion patterns, and extension filtering — into a
+          stable, sorted, deduplicated list of absolute file paths, so that every consumer of
+          this resolution behaves identically.
+        justification: |
+          lint, render, and query each need to resolve user-supplied file glob patterns to
+          concrete files before loading a workspace. A single shared resolution unit ensures
+          all three commands support the same pattern semantics and prevents behavioral drift
+          between hand-rolled, per-command implementations.
+        tests:
+          - GlobFileCollector_Collect_LiteralPath_ReturnsSingleFile
+          - GlobFileCollector_Collect_BasicGlob_ReturnsMatchingFiles
+          - GlobFileCollector_Collect_RecursiveGlob_ReturnsNestedFiles
+          - GlobFileCollector_Collect_ExclusionPattern_RemovesPreviouslyIncludedFile

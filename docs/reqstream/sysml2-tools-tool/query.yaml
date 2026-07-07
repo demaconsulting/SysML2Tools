@@ -66,6 +66,21 @@ sections:
           - QuerySubsystem_FormatMarkdown_DispatchesWithoutError
           - QuerySubsystem_FormatJson_DispatchesWithoutError
 
+      - id: SysML2Tools-Tool-Query-NoFilesMatched
+        title: >-
+          The query command shall report a clear error naming the verb when one or more
+          file patterns are supplied but none of them match any file on disk, and shall
+          delegate pattern resolution to the shared GlobFileCollector.
+        justification: |
+          Delegating resolution to the shared GlobFileCollector (see the Core Io
+          subsystem's own requirements for pattern-resolution semantics) fixes a
+          pre-existing defect where query passed raw glob tokens straight to the workspace
+          loader, which treats every entry as a literal file path. A dedicated "no files
+          matched" error distinguishes a typo'd pattern from "no patterns supplied at all".
+        tests:
+          - QuerySubsystem_GlobPattern_ResolvesMultipleFiles
+          - QuerySubsystem_PatternMatchesNoFiles_ReportsError
+
       - id: SysML2Tools-Tool-Query-OutputFormat
         title: >-
           Markdown and JSON output for the same query shall contain the same set of

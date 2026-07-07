@@ -6,6 +6,7 @@ using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.Rendering.Skia;
 using DemaConsulting.Rendering.Svg;
 using DemaConsulting.SysML2Tools.Cli;
+using DemaConsulting.SysML2Tools.Io;
 using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -43,10 +44,21 @@ internal static class RenderCommand
             return;
         }
 
-        // Load the workspace from the supplied file patterns
+        // Resolve the supplied file glob patterns to concrete file paths via the shared
+        // GlobFileCollector, supporting recursive '**' patterns and '!' exclusions.
         context.WriteLine($"Loading {options.Files.Count} file pattern(s)...");
+        var files = GlobFileCollector.Collect(options.Files, [".sysml", ".kerml"], Directory.GetCurrentDirectory());
+        if (files.Count == 0)
+        {
+            context.WriteError("render: no files matched the given pattern(s).");
+            return;
+        }
+
+        context.WriteLine($"Resolved {files.Count} file(s) from {options.Files.Count} pattern(s).");
+
+        // Load the workspace from the resolved file paths
         var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
-        var loadResult = await WorkspaceLoader.LoadAsync(options.Files, stdlibTable).ConfigureAwait(false);
+        var loadResult = await WorkspaceLoader.LoadAsync(files, stdlibTable).ConfigureAwait(false);
 
         // Report any diagnostics from the load phase
         foreach (var diagnostic in loadResult.Diagnostics)

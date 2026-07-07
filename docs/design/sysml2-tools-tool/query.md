@@ -209,17 +209,22 @@ exposes `PrintGeneralHelp`/`PrintVerbHelp` for `Program`'s help handling.
    (case-insensitive).
 5. `WriteError`s "no input files" and returns (exit code 1) when `options.Files` is empty —
    matching `lint`/`render`'s convention.
-6. Loads the workspace via `StdlibProvider.GetSymbolTable()` +
-   `WorkspaceLoader.LoadAsync(options.Files, stdlibTable)`, reporting diagnostics via
+6. Resolves `options.Files` to concrete file paths via `GlobFileCollector.Collect(options.Files,
+   [".sysml", ".kerml"], Directory.GetCurrentDirectory())` (`DemaConsulting.SysML2Tools.Io`, Core
+   `Io` subsystem) — the same shared resolver used by `lint`/`render`. `WriteError`s
+   `"query {token}: no files matched the given pattern(s)."` and returns when the pattern list
+   resolved to zero files.
+7. Loads the workspace via `StdlibProvider.GetSymbolTable()` +
+   `WorkspaceLoader.LoadAsync(files, stdlibTable)`, reporting diagnostics via
    `WriteLine`/`WriteError` exactly like `RenderCommand`; `WriteError`s "workspace loading
    failed" and returns if `Workspace` is `null`.
-7. For verbs requiring an element, looks up `workspace.Declarations.TryGetValue(element,
+8. For verbs requiring an element, looks up `workspace.Declarations.TryGetValue(element,
    out node)`; `WriteError`s `"query {token}: element '{element}' not found in the
    workspace."` and returns (exit code 1) when missing.
-8. Dispatches via an explicit 11-arm `switch` on `options.Verb` — one arm per verb, not a
+9. Dispatches via an explicit 11-arm `switch` on `options.Verb` — one arm per verb, not a
    loop or dictionary — to the matching `QueryEngine` method.
-9. Renders the resulting `QueryResult` via `QueryResultRenderer.RenderMarkdown`/`RenderJson`
-   and writes each line/the JSON string via `context.WriteLine`.
+10. Renders the resulting `QueryResult` via `QueryResultRenderer.RenderMarkdown`/`RenderJson`
+    and writes each line/the JSON string via `context.WriteLine`.
 
 **`PrintGeneralHelp(Context context)`**: Lists all 11 verbs with a one-line description and
 the shared option set; used for `query --help` with no verb. Also prints a "typical
@@ -257,6 +262,8 @@ one call site instead of an 11-arm switch of its own.
 - Unrecognized verb token: `ArgumentException` (thrown by `QueryVerbParsing.Parse`, called
   from `Cli.QueryArgumentParser`) listing all valid tokens.
 - No input files: `context.WriteError`; `Context.ExitCode` becomes 1.
+- Patterns given but none matched any files: `context.WriteError` reports
+  `"query {token}: no files matched the given pattern(s)."`; `Context.ExitCode` becomes 1.
 - Workspace failed to load: `context.WriteError`; `Context.ExitCode` becomes 1.
 - Target element not found in the workspace: `context.WriteError` naming the element;
   `Context.ExitCode` becomes 1.
@@ -265,6 +272,8 @@ one call site instead of an 11-arm switch of its own.
 
 - `Context`, `SysmlCommand` (in `DemaConsulting.SysML2Tools.Cli`) — reads `Query` options;
   writes output.
+- `GlobFileCollector` (in `DemaConsulting.SysML2Tools.Io`) — resolves `options.Files` glob
+  patterns to concrete file paths before loading the workspace.
 - `WorkspaceLoader`, `StdlibProvider`, `SysmlWorkspace`, `SemanticIndex`, `SysmlNode` and
   derived types (in `DemaConsulting.SysML2Tools.Semantic`/`.Internal`) — workspace loading
   and the model read by `QueryEngine`.
@@ -285,6 +294,7 @@ one call site instead of an 11-arm switch of its own.
 | SysML2Tools-Tool-Query-UnknownVerb | `QueryVerbParsing.Parse`'s `ArgumentException` path |
 | SysML2Tools-Tool-Query-ElementRequired | Element-required check at the start of `QueryCommand.RunAsync` |
 | SysML2Tools-Tool-Query-Format | `QueryOptions.Format`; `QueryResultRenderer.RenderMarkdown`/`RenderJson` |
+| SysML2Tools-Tool-Query-NoFilesMatched | Zero-resolved-files guard in `QueryCommand.RunAsync` |
 | SysML2Tools-Tool-Query-Help | `QueryCommand.PrintGeneralHelp`/`PrintVerbHelp`, called from `Program.RunAsync` |
 | SysML2Tools-Tool-Query-Uses | `QueryEngine.Uses` |
 | SysML2Tools-Tool-Query-UsedBy | `QueryEngine.UsedBy` |

@@ -1,0 +1,99 @@
+---
+# GlobFileCollector Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the GlobFileCollector unit
+# - GlobFileCollector is the sole unit of the Io subsystem
+# - Requirements decompose the Io subsystem's file-discovery responsibility into atomic,
+#   independently testable behaviors
+# - Unit requirements decompose the Io subsystem GlobFileCollector responsibility into this unit
+
+sections:
+  - title: GlobFileCollector Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Io-GlobFileCollector-PatternResolution
+        title: >-
+          GlobFileCollector shall resolve inclusion glob patterns — including recursive `**`
+          directory segments — against the filesystem, relative patterns resolving against the
+          supplied working directory and absolute patterns resolving against their own static
+          root.
+        justification: |
+          Users need to target file sets both narrowly (a single directory) and broadly (an
+          entire directory tree) using familiar glob syntax; recursive matching is the
+          capability the prior lint-only hand-rolled resolver lacked entirely.
+        tests:
+          - GlobFileCollector_Collect_BasicGlob_ReturnsMatchingFiles
+          - GlobFileCollector_Collect_RecursiveGlob_ReturnsNestedFiles
+
+      - id: SysML2Tools-Core-Io-GlobFileCollector-ExclusionOrder
+        title: >-
+          GlobFileCollector shall treat a pattern prefixed with `!` as an exclusion, removing
+          its matches from the accumulated result set, with patterns processed strictly in the
+          order supplied so a later inclusion can re-add a file removed by an earlier exclusion.
+        justification: |
+          Exclusion patterns let users narrow a broad inclusion pattern (e.g., excluding a
+          generated-output subdirectory) without needing to enumerate every wanted file
+          individually; processing order must be well-defined so results are predictable.
+        tests:
+          - GlobFileCollector_Collect_ExclusionPattern_RemovesPreviouslyIncludedFile
+
+      - id: SysML2Tools-Core-Io-GlobFileCollector-ExtensionFiltering
+        title: >-
+          GlobFileCollector shall filter results to the caller-supplied extensions only when a
+          pattern's final path segment is a bare `*`, taking results as-is when the final
+          segment specifies an explicit extension.
+        justification: |
+          A bare `*` pattern is ambiguous about which file types are wanted, so filtering to
+          the caller's known extensions (.sysml/.kerml) avoids accidentally picking up
+          unrelated files; a pattern with an explicit extension already states its intent and
+          must not be filtered further.
+        tests:
+          - GlobFileCollector_Collect_BareStarPattern_FiltersToSuppliedExtensions
+          - GlobFileCollector_Collect_ExplicitExtensionPattern_ReturnsAllMatches
+
+      - id: SysML2Tools-Core-Io-GlobFileCollector-LiteralPath
+        title: >-
+          GlobFileCollector shall resolve a pattern containing no glob metacharacters as a
+          literal file path via a direct existence check, without any directory traversal.
+        justification: |
+          Directory traversal is unnecessary overhead for a fully-specified file path; a direct
+          existence check is both faster and avoids any surprising glob-matching side effects
+          for what the user intended as an exact path.
+        tests:
+          - GlobFileCollector_Collect_LiteralPath_ReturnsSingleFile
+
+      - id: SysML2Tools-Core-Io-GlobFileCollector-CasingNormalization
+        title: >-
+          GlobFileCollector shall normalize every result — glob-matched or literal — to its
+          actual on-disk casing before deduplication, so that two patterns referring to the same
+          physical file via different casing collapse to a single ordinal-deduplicated entry.
+        justification: |
+          On case-insensitive filesystems (Windows, macOS) a caller-supplied path's casing may
+          not match the on-disk entry; normalizing casing before an ordinal-comparison dedup
+          guarantees exact, case-sensitivity-independent duplicate collapsing on every platform.
+        tests:
+          - GlobFileCollector_Collect_CaseInsensitiveFilesystem_DeduplicatesSameFile
+
+      - id: SysML2Tools-Core-Io-GlobFileCollector-SilentSkip
+        title: >-
+          GlobFileCollector shall silently skip patterns whose root directory or literal target
+          file does not exist, never throwing for a missing filesystem entry.
+        justification: |
+          A missing directory or file is a common, non-exceptional occurrence when resolving
+          user-supplied patterns (e.g., an optional overlay directory); throwing would force
+          every caller to guard every pattern individually.
+        tests:
+          - GlobFileCollector_Collect_NonExistentDirectory_SilentlySkipped
+          - GlobFileCollector_Collect_NonExistentLiteralFile_SilentlySkipped
+
+      - id: SysML2Tools-Core-Io-GlobFileCollector-StableOutput
+        title: >-
+          GlobFileCollector shall return a sorted (ordinal), deduplicated list of absolute file
+          paths, and an empty pattern list shall return an empty result.
+        justification: |
+          A deterministic, stable ordering makes output reproducible across runs and platforms,
+          which is required for stable diffs, logging, and deterministic downstream processing
+          (e.g., render's per-view output ordering).
+        tests:
+          - GlobFileCollector_Collect_MultiplePatterns_ReturnsStableSortedOrder
+          - GlobFileCollector_Collect_EmptyPatternList_ReturnsEmptyResult

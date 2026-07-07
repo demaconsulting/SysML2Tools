@@ -4,8 +4,12 @@
 
 The `Lint` subsystem is verified through integration tests that exercise `LintCommand.Run` with
 controlled `Context` instances. Tests supply synthetic glob patterns pointing to real or
-temporary SysML files and assert on captured diagnostic output and exit codes. The
-`WorkspaceParser` is exercised with its real implementation; no mocking is applied.
+temporary SysML files and assert on captured diagnostic output and exit codes. Pattern
+resolution is delegated to the shared `GlobFileCollector` (see
+`docs/verification/sysml2-tools-core/io.md` for the underlying glob-semantics verification);
+these tests confirm only the CLI-level contract — that `lint` accepts glob patterns (including
+recursive `**` and `!` exclusions) and resolves them before parsing. The `WorkspaceLoader` is
+exercised with its real implementation; no mocking is applied.
 
 ### Test Environment
 
@@ -36,6 +40,18 @@ integration tests alongside other subcommands. Parser-level behavior is verified
 Verifies that `lint --help` prints the lint-specific usage line and does not print the
 generic top-level `"Commands:"` section — a regression-proofing test added alongside the
 `help` command's command-aware `--help` dispatch (see `docs/design/sysml2-tools-tool/help.md`).
+
+#### LintSubsystem_Patterns_RecursiveGlob_ResolvesNestedFiles (LintSubsystemTests.cs)
+
+Verifies that a recursive `**/*.sysml` pattern resolves `.sysml` files nested in subdirectories
+— a capability the prior hand-rolled, single-directory-only resolver lacked — confirming
+`lint`'s delegation to the shared `GlobFileCollector`.
+
+#### LintSubsystem_Patterns_ExclusionPattern_ExcludesMatchedFile (LintSubsystemTests.cs)
+
+Verifies that an inclusion pattern followed by a `!`-prefixed exclusion pattern resolves every
+included file except the excluded one, confirming `lint` supports exclusion patterns via the
+shared `GlobFileCollector`.
 
 #### ResxResource_EveryKey_ResolvesToNonEmptyText / ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity (ResxResourceTests.cs)
 

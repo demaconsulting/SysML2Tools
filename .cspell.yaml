@@ -182,6 +182,9 @@ words:
   - visualisation
   - VLSI
   - Δlevel
+  - metacharacters
+  - ordinally
+  - dedup
 
 # Exclude common build artifacts, dependencies, and vendored third-party code
 ignorePaths:

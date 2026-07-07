@@ -7,14 +7,16 @@ for SysML v2 diagram generation. It depends on `DemaConsulting.SysML2Tools.Langu
 parsing and semantic analysis, and on `DemaConsulting.SysML2Tools.Stdlib` for the pre-compiled
 standard library.
 
-The core library provides two subsystems: **Layout** and **Rendering**. The Layout subsystem
-maps the SysML semantic model onto the `LayoutTree` intermediate representation — nine immutable
-node record types covering all SysML diagram elements — which is provided off-the-shelf by the
-`DemaConsulting.Rendering` package, and delegates geometric placement and routing to the
+The core library provides three subsystems: **Layout**, **Rendering**, and **Io**. The Layout
+subsystem maps the SysML semantic model onto the `LayoutTree` intermediate representation — nine
+immutable node record types covering all SysML diagram elements — which is provided off-the-shelf
+by the `DemaConsulting.Rendering` package, and delegates geometric placement and routing to the
 off-the-shelf `DemaConsulting.Rendering.Layout` layered algorithm. The Rendering subsystem
 consumes the off-the-shelf rendering contracts (`IRenderer`, `Theme`, `RenderOptions`,
 `RenderOutput`) from the `DemaConsulting.Rendering.Abstractions` package and retains the
-SysML-coupled `ILayoutStrategy` and `DiagramRenderer` that drive the pipeline.
+SysML-coupled `ILayoutStrategy` and `DiagramRenderer` that drive the pipeline. The Io subsystem
+provides `GlobFileCollector`, a shared file glob pattern resolver used by the Tool project's
+`lint`, `render`, and `query` commands; it has no dependency on the SysML semantic model.
 
 ```mermaid
 flowchart TD
@@ -124,4 +126,4 @@ N/A — not a safety-classified software item.
 
 - Platform: multi-targets net8.0, net9.0, and net10.0 on Windows, Linux, and macOS.
 - SysML v2 parsing, semantic analysis, and standard library are provided by the Language and
-  Stdlib assemblies; the Core assembly contains only Layout and Rendering concerns.
+  Stdlib assemblies; the Core assembly contains only Layout, Rendering, and Io concerns.

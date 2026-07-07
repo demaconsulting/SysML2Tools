@@ -101,15 +101,22 @@ system, subsystem, and unit levels:
       `LayoutTree` via an `ILayoutStrategy` and renders it via an `IRenderer`
     - **Internal** (Subsystem) — internal rendering implementation
       - **DiagramTypeRouter** (Unit) — selects a layout strategy from a view's resolved kind
+  - **Io** (Subsystem) — shared file glob pattern resolution used by the Tool project's
+    lint/render/query commands
+    - **GlobFileCollector** (Unit) — resolves ordered glob patterns (with `!` exclusions,
+      recursive `**` matching, and bare-`*` extension filtering) to a sorted, deduplicated
+      list of absolute file paths
 - **DemaConsulting.SysML2Tools.Tool** (System) — dotnet tool: thin CLI wrapper and
   orchestration
   - **Program** (Unit) — entry point and execution orchestrator
   - **Cli** (Subsystem) — command-line argument parsing and I/O
     - **Context** (Unit) — argument parser and I/O owner
   - **Lint** (Subsystem) — lint command implementation
-    - **LintCommand** (Unit) — resolves glob patterns, invokes WorkspaceLoader with stdlib seed, reports diagnostics
+    - **LintCommand** (Unit) — delegates glob pattern resolution to `GlobFileCollector`,
+      invokes WorkspaceLoader with stdlib seed, reports diagnostics
   - **Render** (Subsystem) — render command implementation
-    - **RenderCommand** (Unit) — loads workspace with stdlib seed, selects renderer, writes diagram output files
+    - **RenderCommand** (Unit) — delegates glob pattern resolution to `GlobFileCollector`,
+      loads workspace with stdlib seed, selects renderer, writes diagram output files
   - **Help** (Subsystem) — help command implementation; pure dispatch to the single source of
     truth for each command's help text (`Program.PrintTopLevelHelp`, `LintCommand.PrintHelp`,
     `RenderCommand.PrintHelp`, `QueryCommand.PrintGeneralHelp`/`PrintVerbHelp`)

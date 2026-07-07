@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 using DemaConsulting.SysML2Tools.Cli;
+using DemaConsulting.SysML2Tools.Io;
 using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Stdlib;
@@ -38,7 +39,7 @@ internal static class LintCommand
     {
         var options = context.Lint
                       ?? throw new ArgumentException("lint: no lint options were parsed.", nameof(context));
-        var files = ResolveFiles(options.Files);
+        var files = GlobFileCollector.Collect(options.Files, [".sysml", ".kerml"], Directory.GetCurrentDirectory());
 
         if (files.Count == 0)
         {
@@ -90,34 +91,5 @@ internal static class LintCommand
         context.WriteLine(LintStrings.Lint_Description1);
         context.WriteLine(LintStrings.Lint_Description2);
         context.WriteLine(LintStrings.Lint_Description3);
-    }
-
-    /// <summary>
-    ///     Resolves file glob patterns to concrete file paths.
-    /// </summary>
-    private static IReadOnlyList<string> ResolveFiles(IReadOnlyList<string> patterns)
-    {
-        var resolved = new List<string>();
-        foreach (var pattern in patterns)
-        {
-            var dir = Path.GetDirectoryName(pattern) ?? ".";
-            var glob = Path.GetFileName(pattern);
-
-            if (string.IsNullOrEmpty(glob))
-            {
-                continue;
-            }
-
-            if (Directory.Exists(dir))
-            {
-                resolved.AddRange(Directory.GetFiles(dir, glob, SearchOption.TopDirectoryOnly));
-            }
-            else if (File.Exists(pattern))
-            {
-                resolved.Add(pattern);
-            }
-        }
-
-        return resolved;
     }
 }

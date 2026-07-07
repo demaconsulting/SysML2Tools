@@ -12,13 +12,18 @@ sections:
       - id: SysML2Tools-Tool-Lint-Patterns
         title: >-
           The LintCommand shall accept one or more file glob patterns as positional
-          arguments.
+          arguments and delegate their resolution to the shared GlobFileCollector.
         justification: |
           Users specify which SysML files to lint using file glob patterns (e.g.,
           src/**/*.sysml). Accepting multiple patterns in a single invocation allows
-          flexible targeting of file sets without requiring shell expansion.
+          flexible targeting of file sets without requiring shell expansion. Delegating
+          resolution to the shared GlobFileCollector (see the Core Io subsystem's own
+          requirements for pattern-resolution semantics) ensures lint supports the same
+          recursive/exclusion behavior as render and query.
         tests:
           - LintSubsystem_Patterns_AcceptsGlobPatterns_ResolvesFiles
+          - LintSubsystem_Patterns_RecursiveGlob_ResolvesNestedFiles
+          - LintSubsystem_Patterns_ExclusionPattern_ExcludesMatchedFile
 
       - id: SysML2Tools-Tool-Lint-Parse
         title: >-
