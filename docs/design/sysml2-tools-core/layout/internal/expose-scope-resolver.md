@@ -59,12 +59,13 @@ scope. Disambiguating among multiple relevant candidates is delegated to
 
 Decides, for the scoped case, whether `candidateQualifiedName` should replace the current best
 scope-relevant root candidate (`currentBestQualifiedName`, or `null` when no candidate has been
-selected yet). Specificity (containment depth) is compared first: because SysML v2 qualified names
-are built by `parent::child` concatenation, any genuine descendant's qualified name is strictly
-longer than its ancestors', so a longer qualified name is a safe, cheap proxy for "more deeply
-nested" and always wins over a shorter one regardless of score. Each strategy's own score heuristic
+selected yet). Specificity (containment depth) is compared first, via a private `CountSegments`
+helper that counts the `"::"`-separated segments of a qualified name (a bare simple name with no
+`"::"` separator has depth 1, not 0): because SysML v2 qualified names are built by `parent::child`
+concatenation, any genuine descendant has strictly more segments than its ancestors, so the deeper
+candidate always wins over a shallower one regardless of score. Each strategy's own score heuristic
 (transition/connection+part/succession+action/message count) is used only as a fallback to break
-ties between candidates of equal qualified-name length (e.g. unrelated siblings), via
+ties between candidates of equal containment depth (e.g. unrelated siblings), via
 `currentScoreIsBetter`. Used only by the four single-root strategies, in place of a plain score
 comparison, whenever `scope` is non-null.
 
@@ -86,8 +87,10 @@ non-existent `subjects`/workspace-declaration lookup are all treated as ordinary
 
 ##### Callers
 
-- `GeneralViewLayoutStrategy` calls all three scope-membership methods (moved here verbatim from
-  its own former private copies of `ResolveExposedScope` and `IsInSubjectScope`).
+- `GeneralViewLayoutStrategy` calls two of the four methods — `ResolveExposedScope` and
+  `IsInSubjectScope` (moved here verbatim from its own former private copies) — to filter its
+  workspace-wide model-edge collection directly; it has no single-root heuristic, so
+  `IsRootRelevantToScope`/`IsMoreSpecificCandidate` do not apply to it.
 - `GridViewLayoutStrategy` and `BrowserViewLayoutStrategy` call `ResolveExposedScope` and
   `IsInSubjectScope` to filter their workspace-wide definition/tree-node collections directly (no
   single-root heuristic, so `IsRootRelevantToScope`/`IsMoreSpecificCandidate` do not apply).

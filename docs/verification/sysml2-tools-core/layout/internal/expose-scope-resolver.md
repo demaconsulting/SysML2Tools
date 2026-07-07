@@ -22,6 +22,8 @@ configuration are required beyond a standard .NET SDK installation.
   definition's qualified name.
 - A resolved `Expose` edge targeting a feature usage additionally includes that usage's own
   resolved `Typing` edge target qualified name in the scope.
+- Two resolved `Expose` edges on the same view — one targeting a plain definition, one targeting a
+  feature usage — union both targets plus the usage's resolved type into the returned scope.
 - `IsInSubjectScope` returns `true` for an exact qualified-name match.
 - `IsInSubjectScope` returns `true` for a qualified name nested under a subject (a `"{subject}::"`
   prefix match).
@@ -38,7 +40,8 @@ configuration are required beyond a standard .NET SDK installation.
 - `IsMoreSpecificCandidate` returns `false` for a candidate with a shorter qualified name than the
   current best, regardless of score.
 - `IsMoreSpecificCandidate` falls back to the caller-supplied score comparison when the candidate
-  and current best have equal-length qualified names.
+  and current best are equally deeply nested (whether their qualified names are equal in length or
+  merely equal in containment depth).
 
 ##### Test Scenarios
 
@@ -50,6 +53,8 @@ configuration are required beyond a standard .NET SDK installation.
   Exposed definition resolves to a scope of exactly that qualified name
 - `ResolveExposedScope_ExposedUsage_AlsoIncludesResolvedTypeTarget`:
   Exposed usage resolves to a scope including both the usage and its resolved type
+- `ResolveExposedScope_TwoExposeEdges_DefinitionAndUsageTarget_UnionsBothPlusResolvedType`:
+  Two `Expose` edges (a definition and a usage) union both targets plus the usage's resolved type
 - `IsInSubjectScope_ExactMatch_ReturnsTrue`:
   Exact qualified-name match is in scope
 - `IsInSubjectScope_SubtreeMatch_ReturnsTrue`:
@@ -76,3 +81,9 @@ configuration are required beyond a standard .NET SDK installation.
   Equal-length qualified names fall back to the score comparison — true case
 - `IsMoreSpecificCandidate_EqualLength_FallsBackToScore_False`:
   Equal-length qualified names fall back to the score comparison — false case
+- `IsMoreSpecificCandidate_SameDepthSiblingsDifferentLength_ShorterWithBetterScoreWins`:
+  Same-depth siblings with different qualified-name lengths fall back to score — shorter
+  candidate with a better score wins
+- `IsMoreSpecificCandidate_SameDepthSiblingsDifferentLength_ShorterWithWorseScoreLoses`:
+  Same-depth siblings with different qualified-name lengths fall back to score — shorter
+  candidate with a worse score loses

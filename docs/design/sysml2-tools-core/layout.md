@@ -191,7 +191,8 @@ chapter:
 
 - **Internal** — the per-view layout strategies that map the semantic model to a
   `LayoutTree` (general, interconnection, state transition, action flow, sequence, grid, and
-  browser views), plus `LayoutWarnings`. See the *Layout Internal Subsystem* chapter.
+  browser views), plus `LayoutWarnings`, plus the shared `ExposeScopeResolver` helper. See the
+  *Layout Internal Subsystem* chapter.
 - **LayeredPlacement** — a thin helper that adapts the off-the-shelf
   `DemaConsulting.Rendering.Layout` layered algorithm, returning placed rectangles and routed
   polylines to the strategies. See its own unit chapter.

@@ -561,6 +561,82 @@ public sealed class InterconnectionViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Builds a workspace with two same-depth sibling candidate roots whose qualified names
+    ///     have very different lengths: <c>M::AB</c> (short name, two connections/three parts — the
+    ///     better score) and <c>M::MuchLongerSiblingName</c> (long name, one connection/two parts —
+    ///     the worse score).
+    /// </summary>
+    private static SysmlWorkspace BuildSameDepthDifferentLengthWorkspace()
+    {
+        var shortName = new SysmlDefinitionNode
+        {
+            Name = "AB",
+            QualifiedName = "M::AB",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a1", QualifiedName = "M::AB::a1", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlFeatureNode { Name = "a2", QualifiedName = "M::AB::a2", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlFeatureNode { Name = "a3", QualifiedName = "M::AB::a3", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "a1", EndpointB = "a2" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "a2", EndpointB = "a3" }
+            ]
+        };
+        var longName = new SysmlDefinitionNode
+        {
+            Name = "MuchLongerSiblingName",
+            QualifiedName = "M::MuchLongerSiblingName",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "b1", QualifiedName = "M::MuchLongerSiblingName::b1", FeatureKeyword = "part", FeatureTyping = "B" },
+                new SysmlFeatureNode { Name = "b2", QualifiedName = "M::MuchLongerSiblingName::b2", FeatureKeyword = "part", FeatureTyping = "B" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "b1", EndpointB = "b2" }
+            ]
+        };
+        return new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["M::AB"] = shortName,
+                ["M::MuchLongerSiblingName"] = longName
+            }
+        };
+    }
+
+    /// <summary>
+    ///     When both same-depth sibling roots are made scope-relevant by their own <c>expose</c>
+    ///     edges, <c>FindRoot</c> falls back to the connections/parts score heuristic — proving the
+    ///     tie-break is depth-based, not a raw qualified-name-length comparison, since the shorter
+    ///     name (<c>M::AB</c>) wins purely because it has the better score, not because it happens
+    ///     to be shorter.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeBothSameDepthSiblings_ScoreBreaksTieNotLength()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildSameDepthDifferentLengthWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposedNames = ["AB", "MuchLongerSiblingName"],
+            ResolvedEdges =
+            [
+                new SysmlEdge("M::V", "M::AB", SysmlEdgeKind.Expose),
+                new SysmlEdge("M::V", "M::MuchLongerSiblingName", SysmlEdgeKind.Expose)
+            ]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var container = layout.Nodes.OfType<LayoutBox>().First(b => b.Keyword == "part def");
+        Assert.Equal("AB", container.Label);
+    }
+
+    /// <summary>
     ///     An <c>expose</c> edge pointing at an inner child of a non-heuristic root
     ///     (<c>M::SysB::b1</c>) still selects <c>SysB</c> as the root, since the exposed subject
     ///     lies within the candidate root's own containment subtree.

@@ -101,11 +101,15 @@ N/A — not a safety-classified software item.
    `RenderOptions`. For each view declared in the workspace it constructs a `ViewContext`
    containing the view name, workspace reference, and (when available) the view's resolved
    AST node.
-2. `ILayoutStrategy.BuildLayout` is called with the `ViewContext` and `RenderOptions`. The
-   Layout subsystem produces a fully resolved `LayoutTree` by delegating geometric placement and
-   routing to the off-the-shelf `DemaConsulting.Rendering.Layout` layered algorithm (through the
-   `LayeredPlacement` helper), placing every node at absolute coordinates and routing every
-   connector as an orthogonal polyline. The Rendering subsystem then renders that tree.
+2. `ILayoutStrategy.BuildLayout` is called with the `ViewContext` and `RenderOptions`. Before
+   building its placement input, every strategy resolves the view's `expose` scope via the shared
+   `ExposeScopeResolver` helper (`ResolveExposedScope`/`IsInSubjectScope`/`IsRootRelevantToScope`/
+   `IsMoreSpecificCandidate`), which scopes the returned `LayoutTree`'s content and, for the
+   single-root strategies, restricts root selection as well. The Layout subsystem then produces a
+   fully resolved `LayoutTree` by delegating geometric placement and routing to the off-the-shelf
+   `DemaConsulting.Rendering.Layout` layered algorithm (through the `LayeredPlacement` helper),
+   placing every node at absolute coordinates and routing every connector as an orthogonal
+   polyline. The Rendering subsystem then renders that tree.
 3. `IRenderer.Render` is called with the `LayoutTree`, `RenderOptions`, and a fresh output
    `Stream`. The renderer reads each `LayoutNode` in the tree, translates it to output-format
    primitives, and writes bytes to the stream.

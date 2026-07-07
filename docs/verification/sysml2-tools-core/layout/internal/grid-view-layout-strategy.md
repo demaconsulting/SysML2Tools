@@ -28,6 +28,10 @@ configuration are required beyond a standard .NET SDK installation.
   usage's type's containment subtree, via the shared usage-to-type fallback.
 - A view with an `expose` statement naming two separate definitions unions both their containment
   subtrees into the matrix.
+- A view whose `expose` statement targets only the specific side of a specialization relationship
+  still keeps both the specific and general side visible as header rows/columns, with the
+  specialization mark between them, while an unrelated sibling definition remains excluded — the
+  "at least one dimension in scope" relation-preserving rule.
 
 ##### Test Scenarios
 
@@ -39,3 +43,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `GridView_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged` | Null `ViewNode` renders all defs unchanged |
 | `GridView_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree` | Usage resolves via `Typing` |
 | `GridView_BuildLayout_ExposeMultipleTargets_UnionsBothSubtrees` | Two `expose` targets union both subtrees |
+| `GridView_BuildLayout_ExposeOneSideOfSpecialization_KeepsBothRowAndColumn` | Keeps `A` and `Sub`, excludes `B` |

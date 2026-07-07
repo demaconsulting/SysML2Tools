@@ -35,16 +35,25 @@ sections:
         title: >-
           When a view's ViewContext carries one or more resolved Expose edges,
           GridViewLayoutStrategy shall scope the matrix to the union of each edge's target
-          containment subtree, resolved through the target's own type reference when the target
-          is a usage rather than a definition.
+          containment subtree (resolved through the target's own type reference when the target is
+          a usage rather than a definition), while keeping any definition that participates in a
+          specialization relationship with an in-scope definition even when that definition is
+          itself outside every exposed containment subtree.
         justification: |
           The Grid View has no single-root heuristic to restrict, so it applies the shared
           `expose` scope directly as a workspace-wide definition filter, giving it the same
-          observable scoping behavior as every other view kind.
+          observable scoping behavior as every other view kind. Because the matrix exists to show
+          specialization relationships, a definition is relevant to the exposed scope along either
+          of two dimensions — direct containment, or participating in a specialization
+          relationship with an in-scope definition — so at least one dimension being in scope is
+          sufficient to keep a definition visible; otherwise exposing only one side of a
+          specialization would silently render a relationship mark against a missing row or
+          column.
         tests:
           - GridView_BuildLayout_ExposedName_UnionsAdditionalSubtree
           - GridView_BuildLayout_ExposeMultipleTargets_UnionsBothSubtrees
           - GridView_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree
+          - GridView_BuildLayout_ExposeOneSideOfSpecialization_KeepsBothRowAndColumn
 
       - id: SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-NoExposeFallback
         title: >-

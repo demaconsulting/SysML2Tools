@@ -224,4 +224,69 @@ public sealed class ExposeScopeResolverTests
     {
         Assert.False(ExposeScopeResolver.IsMoreSpecificCandidate("Root::SysB", "Root::SysA", currentScoreIsBetter: false));
     }
+
+    /// <summary>
+    ///     Same-depth sibling candidates with different qualified-name *lengths* fall back to the
+    ///     caller-supplied score comparison — depth, not raw string length, drives the decision — true
+    ///     case (the shorter, better-scoring candidate wins).
+    /// </summary>
+    [Fact]
+    public void IsMoreSpecificCandidate_SameDepthSiblingsDifferentLength_ShorterWithBetterScoreWins()
+    {
+        Assert.True(ExposeScopeResolver.IsMoreSpecificCandidate("Pkg::AB", "Pkg::MuchLongerSiblingName", currentScoreIsBetter: true));
+    }
+
+    /// <summary>
+    ///     Same-depth sibling candidates with different qualified-name lengths fall back to the
+    ///     caller-supplied score comparison — false case (the shorter candidate loses when its score
+    ///     is not better).
+    /// </summary>
+    [Fact]
+    public void IsMoreSpecificCandidate_SameDepthSiblingsDifferentLength_ShorterWithWorseScoreLoses()
+    {
+        Assert.False(ExposeScopeResolver.IsMoreSpecificCandidate("Pkg::AB", "Pkg::MuchLongerSiblingName", currentScoreIsBetter: false));
+    }
+
+    /// <summary>
+    ///     Two resolved <c>Expose</c> edges on the same view — one targeting a plain definition, one
+    ///     targeting a feature usage — union both targets plus the usage's resolved type, proving the
+    ///     usage-to-type fallback fires per-target within a multi-expose view rather than only when a
+    ///     single usage is exposed alone.
+    /// </summary>
+    [Fact]
+    public void ResolveExposedScope_TwoExposeEdges_DefinitionAndUsageTarget_UnionsBothPlusResolvedType()
+    {
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Root::A", DefinitionKeyword = "part def" },
+                ["Root::Vehicle"] = new SysmlDefinitionNode { Name = "Vehicle", QualifiedName = "Root::Vehicle", DefinitionKeyword = "part def" },
+                ["Root::myVehicle"] = new SysmlFeatureNode
+                {
+                    Name = "myVehicle",
+                    QualifiedName = "Root::myVehicle",
+                    FeatureTyping = "Vehicle",
+                    ResolvedEdges = [new SysmlEdge("Root::myVehicle", "Root::Vehicle", SysmlEdgeKind.Typing)]
+                }
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ResolvedEdges =
+            [
+                new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose),
+                new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)
+            ]
+        };
+
+        var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
+
+        Assert.NotNull(scope);
+        Assert.Contains("Root::A", scope);
+        Assert.Contains("Root::myVehicle", scope);
+        Assert.Contains("Root::Vehicle", scope);
+    }
 }

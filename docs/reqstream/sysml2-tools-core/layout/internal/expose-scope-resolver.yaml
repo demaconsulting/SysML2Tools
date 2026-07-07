@@ -29,9 +29,12 @@ sections:
         justification: |
           A usage's own containment subtree is typically empty — the real content lives under its
           type's subtree. Without this fallback, exposing a usage would silently scope the diagram
-          to nothing; following the usage's own type reference fixes this containment gap.
+          to nothing; following the usage's own type reference fixes this containment gap. This
+          fallback applies per-target, so a view with multiple `expose` edges gets the union of
+          every target's own resolved scope, whether that target is a definition or a usage.
         tests:
           - ResolveExposedScope_ExposedUsage_AlsoIncludesResolvedTypeTarget
+          - ResolveExposedScope_TwoExposeEdges_DefinitionAndUsageTarget_UnionsBothPlusResolvedType
 
       - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-NoScopeFallback
         title: >-
@@ -81,22 +84,22 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-SpecificityTieBreak
         title: >-
-          ExposeScopeResolver.IsMoreSpecificCandidate shall prefer the candidate with the longer
-          (more deeply nested) qualified name over one with a shorter qualified name regardless
-          of score, and shall fall back to the caller-supplied score comparison only when the two
-          qualified names are equal in length.
+          ExposeScopeResolver.IsMoreSpecificCandidate shall prefer the more deeply nested
+          candidate over a less deeply nested one regardless of score, and shall fall back to the
+          caller-supplied score comparison only when two candidates are equally deeply nested.
         justification: |
           Because SysML v2 definitions may nest, an ancestor definition and one of its nested
           descendant definitions can both pass IsRootRelevantToScope for the same resolved
-          `expose` scope. Qualified-name length is a safe, cheap proxy for containment depth (a
-          descendant's qualified name is always strictly longer than its ancestors'), so
-          preferring the longer qualified name lets the four single-root strategies correctly
-          select the more specific (deeper) scope-relevant candidate the user's `expose`
-          statement was meant to reach, instead of silently falling back to an ancestor with a
-          higher raw heuristic score.
+          `expose` scope. Preferring the more deeply nested candidate lets the four single-root
+          strategies correctly select the more specific (deeper) scope-relevant candidate the
+          user's `expose` statement was meant to reach, instead of silently falling back to an
+          ancestor with a higher raw heuristic score, while unrelated same-depth siblings (with no
+          containment relationship) still fall back to the caller's own score comparison.
         tests:
           - IsMoreSpecificCandidate_NoCurrentBest_ReturnsTrue
           - IsMoreSpecificCandidate_LongerQualifiedName_ReturnsTrueRegardlessOfScore
           - IsMoreSpecificCandidate_ShorterQualifiedName_ReturnsFalseRegardlessOfScore
           - IsMoreSpecificCandidate_EqualLength_FallsBackToScore_True
           - IsMoreSpecificCandidate_EqualLength_FallsBackToScore_False
+          - IsMoreSpecificCandidate_SameDepthSiblingsDifferentLength_ShorterWithBetterScoreWins
+          - IsMoreSpecificCandidate_SameDepthSiblingsDifferentLength_ShorterWithWorseScoreLoses

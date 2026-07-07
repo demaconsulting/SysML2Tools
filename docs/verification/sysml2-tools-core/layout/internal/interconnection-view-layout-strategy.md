@@ -46,6 +46,10 @@ configuration are required beyond a standard .NET SDK installation.
 - A view whose resolved `Expose` edge names an inner part of a definition genuinely nested inside
   another eligible root candidate selects the nested definition, not the ancestor, even though the
   ancestor has more connections/parts and would win the old pure-score tie-break.
+- When two same-depth sibling root candidates are both made scope-relevant by their own `expose`
+  edges, the connections/parts score heuristic breaks the tie, selecting the candidate with the
+  better score even when its qualified name is shorter — proving the tie-break is depth-based, not
+  a raw qualified-name-length comparison.
 
 ##### Test Scenarios
 
@@ -67,3 +71,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_ExposeMultipleParts_UnionsBothSubtrees` | Two exposed parts union both subtrees |
 | `InterconnectionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
 | `InterconnectionView_BuildLayout_ExposeInnerPartOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested wins |
+| `InterconnectionView_BuildLayout_ExposeBothSameDepthSiblings_ScoreBreaksTieNotLength` | Score breaks the tie |

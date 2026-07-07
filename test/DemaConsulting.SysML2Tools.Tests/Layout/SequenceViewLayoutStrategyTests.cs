@@ -444,6 +444,13 @@ public sealed class SequenceViewLayoutStrategyTests
         Assert.DoesNotContain("client", scopedLifelines);
         Assert.True(scopedLifelines.Count < fullLifelines.Count,
             $"expected scoped ({scopedLifelines.Count}) < full ({fullLifelines.Count})");
+
+        // Messages referencing the excluded client lifeline are dropped; the server-only self
+        // message survives.
+        var scopedLines = scoped.Nodes.OfType<LayoutLine>().Select(l => l.MidpointLabel).ToList();
+        Assert.DoesNotContain("req", scopedLines);
+        Assert.DoesNotContain("resp", scopedLines);
+        Assert.Contains("self", scopedLines);
     }
 
     /// <summary>

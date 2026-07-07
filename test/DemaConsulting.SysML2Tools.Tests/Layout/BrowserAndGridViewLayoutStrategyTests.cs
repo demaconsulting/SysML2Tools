@@ -243,6 +243,50 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A Grid View <c>expose</c> statement naming only the specific side of a specialization
+    ///     relationship (<c>Root::A::Sub</c>, which specializes <c>Root::A</c>) still keeps both
+    ///     sides visible in the matrix: the general side (<c>A</c>) is not in <c>Sub</c>'s
+    ///     containment subtree, but the two participate in the same specialization relationship, so
+    ///     both remain as header rows/columns and the <c>Sub</c>-&gt;<c>A</c> mark is present, while
+    ///     the unrelated <c>Root::B</c> is excluded.
+    /// </summary>
+    [Fact]
+    public void GridView_BuildLayout_ExposeOneSideOfSpecialization_KeepsBothRowAndColumn()
+    {
+        var strategy = new GridViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Root::A", DefinitionKeyword = "part def" },
+                ["Root::A::Sub"] = new SysmlDefinitionNode { Name = "Sub", QualifiedName = "Root::A::Sub", DefinitionKeyword = "part def", SupertypeNames = ["A"] },
+                ["Root::B"] = new SysmlDefinitionNode { Name = "B", QualifiedName = "Root::B", DefinitionKeyword = "part def" }
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposedNames = ["Sub"],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::A::Sub", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var grid = Assert.Single(layout.Nodes.OfType<LayoutGrid>());
+        var labels = grid.Rows[0].Cells.Select(c => c.Text).ToList();
+        Assert.Contains("A", labels);
+        Assert.Contains("Sub", labels);
+        Assert.DoesNotContain("B", labels);
+
+        var subRow = grid.Rows.Single(r => !r.IsHeader && r.Cells[0].Text == "Sub");
+        var aColumnIndex = grid.Rows[0].Cells.Select((c, i) => (c, i)).Single(x => x.c.Text == "A").i;
+        Assert.Equal("X", subRow.Cells[aColumnIndex].Text);
+    }
+
+    /// <summary>
     ///     A Browser View with a resolved <c>Expose</c> edge to <c>Root::A</c> scopes the tree to
     ///     <c>Root::A</c>'s containment subtree, excluding the unrelated sibling <c>Root::B</c> —
     ///     <c>Root::A</c> itself is promoted to a forest root since its own parent (<c>Root</c>) has

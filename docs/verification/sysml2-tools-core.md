@@ -4,8 +4,10 @@
 
 System-level verification for the `DemaConsulting.SysML2Tools` core library uses unit tests
 in `DemaConsulting.SysML2Tools.Tests`. Tests exercise the Layout and Rendering pipeline via
-`DiagramRenderer` and `GeneralViewLayoutStrategy`. The xUnit v3 framework discovers and runs all
-test methods; results are captured in TRX files consumed by ReqStream.
+`DiagramRenderer` and `GeneralViewLayoutStrategy`, along with the shared
+`ExposeScopeResolver`-based expose-scoping path exercised by all seven layout strategies. The
+xUnit v3 framework discovers and runs all test methods; results are captured in TRX files
+consumed by ReqStream.
 
 ## Test Environment
 
@@ -18,6 +20,9 @@ SDK installation.
 - All unit tests pass with zero failures across all three target frameworks.
 - `DiagramRenderer.RenderWorkspace` correctly renders views declared in a `SysmlWorkspace`.
 - `GeneralViewLayoutStrategy` produces a valid `LayoutTree` for a given `ViewContext`.
+- Every layout strategy honors a view's resolved `expose` scope via the shared
+  `ExposeScopeResolver` helper, including the no-`expose` fallback (rendering everything
+  unchanged) and a multi-target `expose` union.
 
 ## Test Scenarios
 

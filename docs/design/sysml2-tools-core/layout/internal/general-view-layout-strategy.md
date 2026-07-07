@@ -35,13 +35,12 @@ from the structural relationships.
 ###### `BuildLayout(ViewContext context, RenderOptions options)`
 
 Entry point. First resolves the view's exposed-name scope via the shared
-`ExposeScopeResolver.ResolveExposedScope` (see
-[ExposeScopeResolver](expose-scope-resolver.md)), then calls `CollectDefinitions` to gather user
-definitions restricted to that scope (or every definition when no scope applies); returns a
-minimal 200×100 empty `LayoutTree` when none are found. Otherwise groups the definitions by
-package with `GroupByPackage`, resolves the specialization/membership/attribute-typing
-relationships into qualified-name edges with `BuildModelEdges`, builds the single input
-`LayoutGraph` with `BuildGraph`, and places the whole graph with one
+`ExposeScopeResolver.ResolveExposedScope` (see the *ExposeScopeResolver* unit chapter), then calls
+`CollectDefinitions` to gather user definitions restricted to that scope (or every definition when
+no scope applies); returns a minimal 200×100 empty `LayoutTree` when none are found. Otherwise
+groups the definitions by package with `GroupByPackage`, resolves the specialization/membership/
+attribute-typing relationships into qualified-name edges with `BuildModelEdges`, builds the single
+input `LayoutGraph` with `BuildGraph`, and places the whole graph with one
 `HierarchicalLayoutAlgorithm().Apply(graph, LayoutOptions.ForAlgorithm("containment"))`
 call — passing the desired root-scope leaf algorithm through the options parameter (not
 `graph.Set(CoreOptions.Algorithm, …)`) so a caller going through `LayoutEngine.Layout(graph)` later

@@ -11,8 +11,8 @@ definitions and their supertype references into a positioned `LayoutTree`.
 
 The strategy is a stateless `ILayoutStrategy`. Inputs are a `ViewContext` (carrying the
 `SysmlWorkspace`) and `RenderOptions` (carrying the `Theme`). It uses a private `DefRow` record
-holding a definition's name and its supertype references. Output is a `LayoutTree` containing a
-single `LayoutGrid` of `LayoutGridRow` and `LayoutGridCell` values.
+holding a definition's qualified name, its simple name, and its supertype references. Output is a
+`LayoutTree` containing a single `LayoutGrid` of `LayoutGridRow` and `LayoutGridCell` values.
 
 ##### Key Methods
 
@@ -23,10 +23,9 @@ Builds the matrix:
 1. **Scope resolution.** `ExposeScopeResolver.ResolveExposedScope` resolves the view's `expose`
    scope once (or `null` when none applies).
 2. **Definition collection.** `CollectDefinitions` gathers the non-stdlib definitions in
-   deterministic (ordinal qualified-name) order, additionally excluding — when a scope was
-   resolved — any definition whose qualified name is not within it per
-   `ExposeScopeResolver.IsInSubjectScope`. An index map from simple name to column is built from
-   the (possibly narrowed) set.
+   deterministic (ordinal qualified-name) order, narrowed by the relation-preserving rule
+   described in *Expose Scoping* below when a scope was resolved. An index map from simple name to
+   column is built from the (possibly narrowed) set.
 3. **Sizing.** Row height derives from the body font size and label padding; the header column width
    and the data column width derive from `MaxLabelWidth`, the widest definition label.
 4. **Header row.** An empty corner cell is followed by one centered header cell per definition.
@@ -42,14 +41,34 @@ scoping excludes every definition), a minimal empty `LayoutTree` with no nodes i
 
 ##### Expose Scoping
 
-`CollectDefinitions` is the only place scoping applies: it is a direct, workspace-wide filter with
-no single-root heuristic to restrict, so a resolved `expose` scope simply narrows the matrix to the
-definitions within the exposed targets' containment subtrees (plus, via
-`ExposeScopeResolver.ResolveExposedScope`'s usage-to-type fallback, an exposed feature usage's own
-type). Multiple `expose` targets union their subtrees, since `IsInSubjectScope` matches against
-every resolved subject. A view with no `expose` statement (including the synthesized `--auto`
-view, whose `ViewNode` is `null`) resolves no scope and renders every non-stdlib definition,
-unchanged from the pre-scoping behavior.
+`CollectDefinitions` is the only place scoping applies. Unlike the four single-root strategies, the
+Grid View has no root to restrict, so the resolved `expose` scope is applied directly as a
+workspace-wide definition filter — but because the matrix's entire purpose is to show
+specialization relationships between rows and columns, membership is decided along **two
+dimensions**, and a definition is kept when **at least one** of them is in scope:
+
+1. **Direct containment** — the definition's own qualified name is within a resolved `expose`
+   target's containment subtree (`ExposeScopeResolver.IsInSubjectScope`), including, via
+   `ExposeScopeResolver.ResolveExposedScope`'s usage-to-type fallback, an exposed feature usage's
+   own type. Multiple `expose` targets union their subtrees, since `IsInSubjectScope` matches
+   against every resolved subject.
+2. **Specialization relationship** — the definition is a supertype of an in-scope definition, or
+   an in-scope definition is one of its own supertypes (resolved by the same simple-name matching
+   `ResolveSupertypeIndices` uses for the marked cells).
+
+This relation-preserving rule means exposing only the specific side of a specialization (e.g. a
+`Sub` that specializes an out-of-subtree `A`) still renders both `A` and `Sub` as header rows and
+columns with the specialization mark between them, rather than silently dropping one side of the
+relationship the matrix exists to show.
+
+Implementation-wise, `CollectDefinitions` runs in two phases so the `scope is null` case (no
+`expose` statement, including the synthesized `--auto` view whose `ViewNode` is `null`) remains a
+byte-identical "return everything" fast path: it first collects every non-stdlib definition
+unfiltered and builds a full simple-name index across all of them, then — only when a scope is
+resolved — computes which definitions are directly in scope, resolves every definition's
+supertype indices against the full index, and keeps the union of the directly-in-scope set with
+any definition connected to it by a specialization edge in either direction, before returning the
+kept definitions in their original deterministic order.
 
 ##### Error Handling
 

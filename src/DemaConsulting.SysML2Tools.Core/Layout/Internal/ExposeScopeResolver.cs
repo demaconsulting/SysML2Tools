@@ -120,12 +120,11 @@ internal static class ExposeScopeResolver
     /// Decides, for the scoped case, whether <paramref name="candidateQualifiedName"/> should replace
     /// the current best scope-relevant root candidate. Specificity (containment depth) is compared
     /// first: because SysML v2 qualified names are built by <c>parent::child</c> concatenation, any
-    /// genuine descendant's qualified name is strictly longer than its ancestors', so a longer
-    /// qualified name is a safe, cheap proxy for "more deeply nested" and always wins over a shorter
-    /// one regardless of score. Each strategy's own score heuristic (transition/connection+part/
-    /// succession+action/message count) is used only as a fallback to break ties between candidates
-    /// of equal qualified-name length (e.g. unrelated siblings), via
-    /// <paramref name="currentScoreIsBetter"/>.
+    /// genuine descendant has strictly more <c>"::"</c>-separated segments than its ancestors, so the
+    /// candidate with the greater containment depth always wins over a shallower one regardless of
+    /// score. Each strategy's own score heuristic (transition/connection+part/succession+action/
+    /// message count) is used only as a fallback to break ties between candidates of equal
+    /// containment depth (e.g. unrelated siblings), via <paramref name="currentScoreIsBetter"/>.
     /// </summary>
     /// <param name="candidateQualifiedName">The candidate root definition's qualified name.</param>
     /// <param name="currentBestQualifiedName">
@@ -134,7 +133,7 @@ internal static class ExposeScopeResolver
     /// </param>
     /// <param name="currentScoreIsBetter">
     /// Whether the candidate's own per-strategy score is better than the current best's, used only
-    /// when the two qualified names are equal in length.
+    /// when the two qualified names are equally deeply nested.
     /// </param>
     /// <returns>
     /// <see langword="true"/> when the candidate should become the new best root; otherwise
@@ -150,8 +149,20 @@ internal static class ExposeScopeResolver
             return true;
         }
 
-        return candidateQualifiedName.Length != currentBestQualifiedName.Length
-            ? candidateQualifiedName.Length > currentBestQualifiedName.Length
+        var candidateDepth = CountSegments(candidateQualifiedName);
+        var currentBestDepth = CountSegments(currentBestQualifiedName);
+
+        return candidateDepth != currentBestDepth
+            ? candidateDepth > currentBestDepth
             : currentScoreIsBetter;
     }
+
+    /// <summary>
+    /// Counts the containment depth of a qualified name: the number of <c>"::"</c>-separated
+    /// segments. A bare simple name with no <c>"::"</c> separator has depth 1, not 0.
+    /// </summary>
+    /// <param name="qualifiedName">The qualified name to measure.</param>
+    /// <returns>The number of segments in <paramref name="qualifiedName"/>.</returns>
+    private static int CountSegments(string qualifiedName) =>
+        qualifiedName.Split("::", StringSplitOptions.None).Length;
 }

@@ -119,26 +119,48 @@ sections:
         tests:
           - InterconnectionView_BuildLayout_SelfReferentialType_TreatedAsLeaf
 
-      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposeScoping
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposeScopingRootSelection
         title: >-
           When a view's ViewContext carries one or more resolved Expose edges,
           InterconnectionViewLayoutStrategy shall restrict its heuristic root selection to a
-          candidate relevant to the resolved scope and narrow the selected root's nested parts to
-          those within that scope, dropping any connection whose endpoint was excluded.
+          candidate relevant to the resolved scope.
         justification: |
           The Interconnection View renders exactly one selected root's interior, so `expose`
           scoping cannot narrow a workspace-wide collection directly; instead it restricts which
-          root is selected — accepting the current heuristic root itself, an inner part of it, or
-          a definition containing the heuristic default — and then narrows the selected root's
-          own nested parts to the resolved scope, relying on the existing connection endpoint
-          lookup to drop any connection that references an excluded part.
+          root is selected — accepting the current heuristic root itself, an inner part of it, a
+          definition containing the heuristic default, or the resolved type of an exposed usage —
+          and selecting no root at all when nothing in the workspace is relevant to the scope.
         tests:
           - InterconnectionView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot
           - InterconnectionView_BuildLayout_ExposeInnerChildOfNonHeuristicRoot_SelectsItsRoot
           - InterconnectionView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas
+          - InterconnectionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposeScopingPartFiltering
+        title: >-
+          When a view's ViewContext carries one or more resolved Expose edges,
+          InterconnectionViewLayoutStrategy shall narrow the selected root's nested parts to those
+          within the resolved scope.
+        justification: |
+          Once a root is selected, `expose` scoping must also narrow what is drawn inside it —
+          otherwise every nested part of the selected root would still be rendered regardless of
+          which parts the view actually exposed, defeating the purpose of scoping the interior
+          content.
+        tests:
           - InterconnectionView_BuildLayout_ExposeSinglePart_NarrowsToThatPart
           - InterconnectionView_BuildLayout_ExposeMultipleParts_UnionsBothSubtrees
-          - InterconnectionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposeScopingConnectionRetention
+        title: >-
+          InterconnectionViewLayoutStrategy shall drop any connection whose endpoint was excluded
+          by part filtering, while keeping a connection whose endpoints are both still in scope.
+        justification: |
+          A connector line referencing a part that scoping has removed would point at nothing;
+          dropping such dangling connections keeps the diagram consistent, while a connection
+          between two parts that both remain in scope must still be drawn.
+        tests:
+          - InterconnectionView_BuildLayout_ExposeSinglePart_NarrowsToThatPart
+          - InterconnectionView_BuildLayout_ExposeMultipleParts_UnionsBothSubtrees
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NoExposeFallback
         title: >-
@@ -166,3 +188,4 @@ sections:
           defeating the intended scoping.
         tests:
           - InterconnectionView_BuildLayout_ExposeInnerPartOfNestedDefinition_SelectsNestedDefinitionNotAncestor
+          - InterconnectionView_BuildLayout_ExposeBothSameDepthSiblings_ScoreBreaksTieNotLength

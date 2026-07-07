@@ -53,40 +53,60 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-LifelineQualifiedNameReconstruction
         title: >-
-          SequenceViewLayoutStrategy shall reconstruct a candidate lifeline's absolute qualified
-          name as "{root.QualifiedName}::{lifelineName}" and this reconstruction shall match the
-          declared feature's own QualifiedName for a directly-nested part feature referenced by a
-          message endpoint.
+          SequenceViewLayoutStrategy shall filter lifelines by their own effective qualified name
+          so that `expose`-scoped lifeline filtering matches the declared feature's actual
+          qualified name.
         justification: |
           Filtering lifelines by expose scope requires each lifeline's own qualified name, which
-          is never stored directly on the lightweight lifeline record; this reconstruction was
-          confirmed reliable for realistic models — mirroring the real client-server-sequence.sysml
-          fixture — before being relied upon for scope filtering, avoiding a silently incorrect
-          filter.
+          is never stored directly on the lightweight lifeline record; using the lifeline's own
+          effective qualified name (rather than, for example, its bare local name) was confirmed
+          reliable for realistic models — mirroring the real client-server-sequence.sysml fixture
+          — before being relied upon for scope filtering, avoiding a silently incorrect filter.
         tests:
           - SequenceView_LifelineQualifiedNameReconstruction_MatchesDeclaredFeature
 
-      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-ExposeScoping
+      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-ExposeScopingRootSelection
         title: >-
           When a view's ViewContext carries one or more resolved Expose edges,
           SequenceViewLayoutStrategy shall restrict its heuristic root selection to a candidate
-          relevant to the resolved scope and narrow the selected root's lifelines to those within
-          that scope, dropping any message whose endpoint was excluded.
+          relevant to the resolved scope.
         justification: |
           The Sequence View renders exactly one selected root's lifelines, so `expose` scoping
           cannot narrow a workspace-wide collection directly; instead it restricts which root is
-          selected — accepting the current heuristic root itself, an inner lifeline of it, or a
-          definition containing the heuristic default — and then narrows the selected root's own
-          lifelines to the resolved scope using the reconstructed qualified name, relying on the
-          existing message endpoint lookup to drop any message that references an excluded
-          lifeline.
+          selected — accepting the current heuristic root itself, an inner lifeline of it, a
+          definition containing the heuristic default, or the resolved type of an exposed usage —
+          and selecting no root at all when nothing in the workspace is relevant to the scope.
         tests:
           - SequenceView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot
           - SequenceView_BuildLayout_ExposeInnerChildOfNonHeuristicRoot_SelectsItsRoot
           - SequenceView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas
+          - SequenceView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot
+
+      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-ExposeScopingLifelineFiltering
+        title: >-
+          When a view's ViewContext carries one or more resolved Expose edges,
+          SequenceViewLayoutStrategy shall narrow the selected root's lifelines to those within the
+          resolved scope.
+        justification: |
+          Once a root is selected, `expose` scoping must also narrow what is drawn inside it —
+          otherwise every lifeline of the selected root would still be rendered regardless of which
+          lifelines the view actually exposed, defeating the purpose of scoping the interaction's
+          content.
+        tests:
           - SequenceView_BuildLayout_ExposeSingleLifeline_NarrowsLifelines
           - SequenceView_BuildLayout_ExposeBothLifelines_UnionsSubtreesKeepsMessages
-          - SequenceView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot
+
+      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-ExposeScopingMessageDropping
+        title: >-
+          SequenceViewLayoutStrategy shall drop any message whose endpoint was excluded by
+          lifeline filtering, while keeping a message whose endpoints are both still in scope.
+        justification: |
+          A message line referencing a lifeline that scoping has removed would point at nothing;
+          dropping such dangling messages keeps the diagram consistent, while a message between two
+          lifelines that both remain in scope must still be drawn.
+        tests:
+          - SequenceView_BuildLayout_ExposeSingleLifeline_NarrowsLifelines
+          - SequenceView_BuildLayout_ExposeBothLifelines_UnionsSubtreesKeepsMessages
 
       - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-NoExposeFallback
         title: >-

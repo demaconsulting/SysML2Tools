@@ -32,8 +32,10 @@ configuration are required beyond a standard .NET SDK installation.
 - A view whose resolved `Expose` edge names a definition unrelated to any candidate root selects
   no root, producing the minimal empty canvas.
 - A view whose resolved `Expose` edge names a single lifeline narrows the diagram to that lifeline
-  (plus any lifeline still reachable via a surviving message), dropping messages whose other
-  endpoint was excluded.
+  (plus any lifeline still reachable via a surviving message), dropping any message that
+  references the excluded lifeline (both endpoints excluded, or one excluded endpoint) while a
+  message between two lifelines that remain in scope — including a self-message on the retained
+  lifeline — is still drawn.
 - A view with an `expose` statement naming two separate lifelines unions both, keeping every
   message between them.
 - A view whose resolved `Expose` edge names a feature usage (not a definition) still resolves to
@@ -55,7 +57,7 @@ configuration are required beyond a standard .NET SDK installation.
 | `SequenceView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot` | Non-heuristic root is selected |
 | `SequenceView_BuildLayout_ExposeInnerChildOfNonHeuristicRoot_SelectsItsRoot` | Inner lifeline selects root |
 | `SequenceView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas` | Unrelated def |
-| `SequenceView_BuildLayout_ExposeSingleLifeline_NarrowsLifelines` | Single exposed lifeline narrows the diagram |
-| `SequenceView_BuildLayout_ExposeBothLifelines_UnionsSubtreesKeepsMessages` | Two lifelines union, keeping messages |
+| `SequenceView_BuildLayout_ExposeSingleLifeline_NarrowsLifelines` | Drops `req`/`resp`; keeps `self` message |
+| `SequenceView_BuildLayout_ExposeBothLifelines_UnionsSubtreesKeepsMessages` | Two lifelines union, keep messages |
 | `SequenceView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
 | `SequenceView_BuildLayout_ExposeInnerLifelineOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested wins |
