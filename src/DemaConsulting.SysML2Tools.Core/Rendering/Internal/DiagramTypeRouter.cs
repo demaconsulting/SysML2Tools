@@ -13,9 +13,17 @@ namespace DemaConsulting.SysML2Tools.Rendering.Internal;
 /// based on the view type.
 /// </summary>
 /// <remarks>
-/// Dispatch inspects the view's declared supertype names (and its own name) for a recognized view
-/// kind. A view that specializes a name containing <c>Interconnection</c> routes to the
-/// interconnection strategy; everything else falls back to the general view strategy.
+/// Dispatch first checks the view's declared <c>render</c> target (<see
+/// cref="SysmlViewNode.RenderTargetName"/>) for an exact, case-sensitive (<see
+/// cref="StringComparison.Ordinal"/>) match against a recognized rendering-kind name:
+/// <c>asTreeDiagram</c> routes to the browser (tree) strategy and <c>asInterconnectionDiagram</c>
+/// routes to the interconnection strategy, regardless of the view's name or supertypes. Any other
+/// value — including <see langword="null"/>, <c>asElementTable</c>, <c>asTextualNotation</c>, or
+/// an unrecognized name — has no effect and falls through unchanged, with no diagnostic, to the
+/// existing name/supertype heuristic: the view's declared supertype names (and its own name) are
+/// inspected for a recognized view kind. A view that specializes a name containing
+/// <c>Interconnection</c> routes to the interconnection strategy; everything else falls back to
+/// the general view strategy.
 /// </remarks>
 internal static class DiagramTypeRouter
 {
@@ -42,6 +50,15 @@ internal static class DiagramTypeRouter
 
         if (viewNode is SysmlViewNode view)
         {
+            switch (view.RenderTargetName)
+            {
+                case "asTreeDiagram":
+                    return new BrowserViewLayoutStrategy();
+
+                case "asInterconnectionDiagram":
+                    return new InterconnectionViewLayoutStrategy();
+            }
+
             if (Matches(view, "Interconnection"))
             {
                 return new InterconnectionViewLayoutStrategy();

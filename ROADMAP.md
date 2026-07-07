@@ -95,29 +95,6 @@ new expression-evaluation component; `GeneralViewLayoutStrategy` filter applicat
 **Visual gate:** a view with a `filter [<predicate>];` statement renders only the elements
 satisfying the predicate, with no "not yet evaluated" warning.
 
-### Support selecting rendering style via `render <renderingKind>;`
-
-A view's `render <target>;` member names a rendering style/format usage per the SysML v2
-grammar (e.g. `asTreeDiagram`, `asElementTable`, `asTextualNotation`, `asTextualNotationTable` —
-`rendering` usages, a distinct usage/definition kind) — it is captured verbatim on
-`SysmlViewNode.RenderTargetName` but currently has no effect on rendering; every view renders
-through the single `DiagramTypeRouter` → `ILayoutStrategy` selection regardless of its declared
-`render` member. This is a distinct future capability from content scoping, which is `expose`'s
-exclusive role.
-
-- Design a mapping from recognized rendering-style names (`asTreeDiagram`, `asElementTable`,
-  and so on, once corresponding layout/rendering strategies exist) to an `ILayoutStrategy`/
-  renderer selection, honored when a view declares a `render` member naming one.
-- Leave `RenderTargetName` un-honored (as today) for rendering-style names with no corresponding
-  strategy, with no diagnostic — an unrecognized rendering-style name is not an error, since
-  `render` selects presentation, not content.
-
-**Scope:** `DiagramTypeRouter`/`RenderCommand` (rendering-style selection); new layout/rendering
-strategies for tree-diagram/element-table/textual-notation styles, if not already covered by an
-existing strategy.
-**Visual gate:** a view declaring `render asTreeDiagram;` (once a tree-diagram strategy exists)
-renders using that style instead of the default `GeneralView` layout.
-
 ---
 
 ## Release & packaging

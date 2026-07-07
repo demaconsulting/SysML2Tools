@@ -56,11 +56,14 @@ flowchart TD
 - *Contract*: `string ViewName`, `SysmlWorkspace Workspace`, `SysmlViewNode? ViewNode = null`.
   `ViewNode` is the view's resolved AST node, giving a layout strategy access to the view's
   declared `render`/`expose`/`filter` body statements. Of these, only `ExposedNames` (and its
-  resolved `Expose` edges) drives content scoping; `RenderTargetName` names a rendering
-  style/format per the SysML v2 grammar and is captured as inert metadata only (it never
-  affects scope or resolution); `FilterExpressionText` is captured as raw text and not yet
-  evaluated. `ViewNode` is `null` for the `--auto` synthesized view, which carries no AST node
-  of its own.
+  resolved `Expose` edges) drives content scoping — `RenderTargetName` never affects which
+  elements are included in the diagram. `RenderTargetName` does, however, drive **strategy
+  selection**: `DiagramTypeRouter` recognizes `asTreeDiagram` and `asInterconnectionDiagram` and
+  routes to the browser and interconnection strategies respectively ahead of the name/supertype
+  heuristic; any other value (including `null`, `asElementTable`, or `asTextualNotation`) remains
+  inert, with no corresponding strategy selection or diagnostic. `FilterExpressionText` is
+  captured as raw text and not yet evaluated. `ViewNode` is `null` for the `--auto` synthesized
+  view, which carries no AST node of its own.
 
 **Theme**: Visual configuration record.
 
@@ -111,12 +114,17 @@ flowchart TD
 - *Type*: Internal static class.
 - *Role*: Router.
 - *Contract*: `static ILayoutStrategy GetStrategy(object viewNode, SysmlWorkspace workspace, out string? unsupportedMessage)`.
-  Inspects the view node's name and declared supertype names (case-insensitively) for a recognized
-  view-kind marker, in priority order — Interconnection, StateTransition/State, ActionFlow/Action,
-  Grid/Matrix/Tabular, Browser/Tree, then Sequence — and returns the matching concrete
-  `ILayoutStrategy`, falling back to `GeneralViewLayoutStrategy` for unrecognized views or non-view
-  nodes. The `unsupportedMessage` out-parameter is reserved for future unsupported view kinds and is
-  currently always null because every view resolves to a strategy.
+  First checks the view's declared `render` target for an exact, case-sensitive match against
+  `asTreeDiagram` (routes to `BrowserViewLayoutStrategy`) or `asInterconnectionDiagram` (routes to
+  `InterconnectionViewLayoutStrategy`), taking precedence over the heuristic below; any other
+  render target value (including none, `asElementTable`, or `asTextualNotation`) falls through
+  unchanged. Absent a recognized render target, inspects the view node's name and declared
+  supertype names (case-insensitively) for a recognized view-kind marker, in priority order —
+  Interconnection, StateTransition/State, ActionFlow/Action, Grid/Matrix/Tabular, Browser/Tree,
+  then Sequence — and returns the matching concrete `ILayoutStrategy`, falling back to
+  `GeneralViewLayoutStrategy` for unrecognized views or non-view nodes. The `unsupportedMessage`
+  out-parameter is reserved for future unsupported view kinds and is currently always null
+  because every view resolves to a strategy.
 
 **StdlibFilter**: Standard-library element filter.
 

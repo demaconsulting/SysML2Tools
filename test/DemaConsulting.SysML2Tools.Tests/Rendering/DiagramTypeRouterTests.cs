@@ -116,4 +116,113 @@ public sealed class DiagramTypeRouterTests
 
         Assert.IsType<SequenceViewLayoutStrategy>(strategy);
     }
+
+    /// <summary>A view declaring <c>render asTreeDiagram;</c> routes to the browser strategy.</summary>
+    [Fact]
+    public void GetStrategy_RenderAsTreeDiagram_ReturnsBrowserStrategy()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "MyView",
+            QualifiedName = "M::MyView",
+            RenderTargetName = "asTreeDiagram"
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType<BrowserViewLayoutStrategy>(strategy);
+    }
+
+    /// <summary>A view declaring <c>render asInterconnectionDiagram;</c> routes to the interconnection strategy.</summary>
+    [Fact]
+    public void GetStrategy_RenderAsInterconnectionDiagram_ReturnsInterconnectionStrategy()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "MyView",
+            QualifiedName = "M::MyView",
+            RenderTargetName = "asInterconnectionDiagram"
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType<InterconnectionViewLayoutStrategy>(strategy);
+    }
+
+    /// <summary>
+    /// A declared <c>render</c> target takes precedence over a conflicting name/supertype heuristic match.
+    /// </summary>
+    [Fact]
+    public void GetStrategy_RenderTargetPrecedenceOverridesNameHeuristic()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "TrafficStateTransitionView",
+            QualifiedName = "M::TrafficStateTransitionView",
+            RenderTargetName = "asTreeDiagram"
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out _);
+
+        Assert.IsType<BrowserViewLayoutStrategy>(strategy);
+    }
+
+    /// <summary>A view declaring <c>render asElementTable;</c> falls through unchanged to the existing heuristic.</summary>
+    [Fact]
+    public void GetStrategy_RenderAsElementTable_FallsThroughUnchanged()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "GeneralView",
+            QualifiedName = "M::GeneralView",
+            RenderTargetName = "asElementTable"
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType<GeneralViewLayoutStrategy>(strategy);
+    }
+
+    /// <summary>A view declaring <c>render asTextualNotation;</c> falls through unchanged to the existing heuristic.</summary>
+    [Fact]
+    public void GetStrategy_RenderAsTextualNotation_FallsThroughUnchanged()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "GeneralView",
+            QualifiedName = "M::GeneralView",
+            RenderTargetName = "asTextualNotation"
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType<GeneralViewLayoutStrategy>(strategy);
+    }
+
+    /// <summary>An unrecognized <c>render</c> target falls through unchanged to the existing heuristic.</summary>
+    [Fact]
+    public void GetStrategy_UnrecognizedRenderTarget_FallsThroughUnchanged()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "GeneralView",
+            QualifiedName = "M::GeneralView",
+            RenderTargetName = "asSomethingUnrecognized"
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType<GeneralViewLayoutStrategy>(strategy);
+    }
 }

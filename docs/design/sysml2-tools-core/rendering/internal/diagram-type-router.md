@@ -16,9 +16,22 @@ diagnostic message when no strategy can be determined.
 
 ###### `GetStrategy(viewNode, workspace, out unsupportedMessage)`
 
-Returns the strategy for the view. When the node is a view, the router tests the view's name
-and its declared supertype names (case-insensitively) for a recognized view-kind marker, in a
-fixed priority order: Interconnection, then StateTransition/State, then ActionFlow/Action, then
+Returns the strategy for the view. Dispatch first checks the view's declared `render` target
+(`SysmlViewNode.RenderTargetName`) for an exact, case-sensitive (`StringComparison.Ordinal`)
+match against a recognized rendering-kind name: `asTreeDiagram` selects the browser (tree)
+strategy and `asInterconnectionDiagram` selects the interconnection strategy, taking precedence
+over the name/supertype heuristic below regardless of the view's own name or declared
+supertypes. `asElementTable`, `asTextualNotation`, any other unrecognized rendering-kind name,
+and a `null` (absent) render target are deliberately left unmapped: they have no effect and fall
+through unchanged, with no diagnostic, to the name/supertype heuristic. `asElementTable` is left
+unmapped because its `TabularRendering` semantics (a per-row/per-column table composition) are
+fundamentally different from `GridViewLayoutStrategy`'s matrix layout, not merely a naming
+variant of it; `asTextualNotation` is left unmapped because it is a non-graphical rendering
+style with no corresponding `ILayoutStrategy` implementation.
+
+When no render target matches, the router falls back to testing the view's name and its
+declared supertype names (case-insensitively) for a recognized view-kind marker, in a fixed
+priority order: Interconnection, then StateTransition/State, then ActionFlow/Action, then
 Grid/Matrix/Tabular, then Browser/Tree, then Sequence. The first marker that matches selects the
 corresponding strategy. When no marker matches — or the node is not a view — the router returns
 the general view strategy. The fixed order resolves views that carry more than one marker

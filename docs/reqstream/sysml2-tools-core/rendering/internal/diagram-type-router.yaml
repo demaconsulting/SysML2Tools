@@ -36,3 +36,35 @@ sections:
           broadly applicable layout and is the natural fallback for an unspecified view kind.
         tests:
           - GetStrategy_PlainView_ReturnsGeneralViewStrategy
+
+      - id: SysML2Tools-Core-Rendering-Internal-DiagramTypeRouter-RenderTargetOverride
+        title: >-
+          When a view declares a render target of asTreeDiagram or asInterconnectionDiagram,
+          DiagramTypeRouter shall select the corresponding browser or interconnection layout
+          strategy, taking precedence over the name/supertype heuristic.
+        justification: |
+          A view's declared render target is an explicit, author-specified rendering-style
+          selection per the SysML v2 grammar. Honoring it ahead of the name/supertype heuristic
+          lets an author pick a diagram type directly, without relying on naming conventions,
+          and resolves any conflict between the two in the author's favor.
+        tests:
+          - GetStrategy_RenderAsTreeDiagram_ReturnsBrowserStrategy
+          - GetStrategy_RenderAsInterconnectionDiagram_ReturnsInterconnectionStrategy
+          - GetStrategy_RenderTargetPrecedenceOverridesNameHeuristic
+
+      - id: SysML2Tools-Core-Rendering-Internal-DiagramTypeRouter-RenderTargetUnrecognizedFallthrough
+        title: >-
+          When a view declares a render target other than asTreeDiagram or
+          asInterconnectionDiagram — including asElementTable, asTextualNotation, an unrecognized
+          name, or none at all — DiagramTypeRouter shall fall through unchanged to the
+          name/supertype heuristic, with no diagnostic.
+        justification: |
+          Rendering-style names with no corresponding layout strategy (asElementTable is a
+          fundamentally tabular composition distinct from the Grid View; asTextualNotation is
+          non-graphical) are not errors — render selects presentation, not content — so dispatch
+          must continue to resolve via the existing heuristic without regressing or emitting a
+          spurious diagnostic.
+        tests:
+          - GetStrategy_RenderAsElementTable_FallsThroughUnchanged
+          - GetStrategy_RenderAsTextualNotation_FallsThroughUnchanged
+          - GetStrategy_UnrecognizedRenderTarget_FallsThroughUnchanged
