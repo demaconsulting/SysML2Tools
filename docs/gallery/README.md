@@ -5,9 +5,13 @@ generated from an interesting example system. Every model is rendered to both
 **PNG** (raster, in [`png/`](png/)) and **SVG** (vector, in [`svg/`](svg/)).
 
 All diagrams are produced by the `sysml2tools render` command directly from the
-SysML v2 textual models in [`models/`](models/) — no manual layout. The view kind
-is selected automatically from each view's name (see the
-[rendering roadmap](../../ROADMAP.md) for the dispatch rules).
+SysML v2 textual models in [`models/`](models/) — no manual layout. Where a
+model declares an explicit `render asTreeDiagram;` or `render
+asInterconnectionDiagram;` statement (the two rendering kinds SysML2Tools
+currently implements), that takes precedence; otherwise the view kind is
+inferred from each view's name (see the
+[DiagramTypeRouter design](../design/sysml2-tools-core/rendering/internal/diagram-type-router.md)
+for the full dispatch rules).
 
 To regenerate the gallery, run for each model:
 
@@ -51,7 +55,9 @@ SVG: [`svg/BatterySubsystemView.svg`](svg/BatterySubsystemView.svg)
 Shows the internal structure of a part: nested part usages placed by the
 interconnection layout engine (a façade over the layered pipeline), ports on box
 boundaries, and connectors routed between them.
-The motherboard sits at the hub of the component connections.
+The motherboard sits at the hub of the component connections. The view declares an
+explicit `render asInterconnectionDiagram;` statement, so the interconnection
+strategy is selected directly rather than inferred from the view's name.
 
 Model: [`models/02-computer-interconnection.sysml`](models/02-computer-interconnection.sysml) ·
 SVG: [`svg/WorkstationInterconnectionView.svg`](svg/WorkstationInterconnectionView.svg)
@@ -153,7 +159,9 @@ SVG: [`svg/CarLineageGridView.svg`](svg/CarLineageGridView.svg)
 ## 7. Browser View — Avionics System
 
 Shows the membership hierarchy of nested packages and definitions as an indented
-tree with parent-to-child connectors.
+tree with parent-to-child connectors. The view declares an explicit `render
+asTreeDiagram;` statement, so the browser strategy is selected directly rather
+than inferred from the view's name.
 
 Model: [`models/07-avionics-browser.sysml`](models/07-avionics-browser.sysml) ·
 SVG: [`svg/AvionicsBrowserView.svg`](svg/AvionicsBrowserView.svg)
@@ -168,7 +176,9 @@ Shows a two-level nested Interconnection View. The `Computer` part contains a `b
 typed by `Motherboard`, which has its own internal `cpu`, `chipset`, and `ram` parts and
 connections. The motherboard's interior is laid out recursively (bottom-up) and nested
 inside the `board` container box, while the outer power and storage connections route
-between the top-level parts.
+between the top-level parts. The view declares an explicit `render
+asInterconnectionDiagram;` statement, so the interconnection strategy is
+selected directly rather than inferred from the view's name.
 
 Model: [`models/08-nested-interconnection.sysml`](models/08-nested-interconnection.sysml) ·
 SVG: [`svg/ComputerSystemInterconnectionView.svg`](svg/ComputerSystemInterconnectionView.svg)
