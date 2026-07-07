@@ -29,6 +29,10 @@ requirement) grouped in a package folder, with typed compartments (attributes,
 ports, parts) and specialization edges. Definitions are placed by a layered
 (ELK-style) engine with orthogonal edge routing.
 
+`RacingMotor` also redefines `Motor`'s inherited `maxThrust` attribute
+(`attribute :>> maxThrust : Mass;`), demonstrating the hollow-triangle-crossbar
+marker used for `redefines`/`:>>` relationships.
+
 Model: [`models/01-drone-general.sysml`](models/01-drone-general.sysml) ·
 SVG: [`svg/DroneGeneralView.svg`](svg/DroneGeneralView.svg)
 
