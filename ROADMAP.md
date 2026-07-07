@@ -14,30 +14,12 @@ The work falls into three themes:
 
 ## Notation & view conformance
 
-### Connector-end & line-style conformance
-
-Bring routed connectors into line with the SysML v2 notation — the highest-value, broadest-impact
-change.
-
-- Wire the already-defined end markers to relationships: **filled/hollow diamonds** for
-  composite/reference membership; **redefinition** crossbar variant.
-- Switch succession/transition/message end markers to the spec style (**open V**, stroke-only)
-  and make **successions dashed** — pending confirmation against the training PDF; keep a theme
-  switch if the training material differs from `clause-8.2.3`.
-- Add `LineStyle.Dashed` usage where required; ensure end markers render correctly at clearance
-  stubs.
-
-**Scope:** `LayoutLine` end-marker/line-style assignments in the view strategies; renderer
-marker defs (already present). No new engines.
-**Visual gate:** state/action/sequence/general galleries match the spec end shapes; membership
-diamonds appear where membership is shown.
-
 ### Additional relationship edges (General View)
 
 Render the relationships currently omitted from the General View, each routed via
 `ChannelRouter` and carrying the correct spec end shape:
 
-- Redefinition, subsetting (where shown as edges), feature typing, dependency, containment,
+- Subsetting (where shown as edges), feature typing, dependency, containment,
   connection/binding, allocation.
 - Shared-bus generalization (multiple subtypes merging into one line to a supertype) as an
   optional readability refinement.

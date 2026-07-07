@@ -29,6 +29,10 @@ external services or additional configuration are required beyond a standard .NE
   populated `ExposedNames`. This also makes every named `view` usage its own renderable
   declaration, an intentional capability addition beyond `expose` capture alone (see the
   ast-builder design doc).
+- `BuildUsageNode` captures a feature's redefinition reference on `RedefinedFeatureName` for both
+  the `redefines` keyword form and the `:>>` operator form, for both a bare simple name and a
+  qualified `Owner::feature` form (captured verbatim, unresolved), and leaves it null for a
+  feature that declares no redefinition.
 
 ##### Test Scenarios
 
@@ -43,3 +47,7 @@ external services or additional configuration are required beyond a standard .NE
 | `VisitViewUsage` expose capture | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | `VisitViewUsage` renderable declaration | `RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages` |
 | Empty view body regression guard | `WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty` |
+| Redefinition, `redefines` keyword | `WorkspaceLoader_LoadAsync_RedefinesKeyword_CapturesRedefinedFeatureName` |
+| Redefinition capture, `:>>` operator | `WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName` |
+| Redefinition capture, qualified form | `WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText` |
+| No redefinition leaves field null | `WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull` |

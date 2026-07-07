@@ -4,12 +4,12 @@
 
 `SysmlEdge` and `SysmlEdgeKind` model a single resolved directed reference between two
 qualified names in the semantic model. Edges are produced by `ReferenceResolver` while
-walking supertype, feature-typing, import, satisfy, verify, allocate, connect, transition,
-and expose references, and are the raw material indexed by `SemanticIndex`.
+walking supertype, feature-typing, redefinition, import, satisfy, verify, allocate, connect,
+transition, and expose references, and are the raw material indexed by `SemanticIndex`.
 
 ##### Types
 
-`SysmlEdgeKind` is an enum with nine members:
+`SysmlEdgeKind` is an enum with ten members:
 
 - `Supertype` — a specialization reference (`SupertypeNames` / `specializes` / `:>`).
 - `Typing` — a feature typing reference (`SysmlFeatureNode.FeatureTyping`, the type after `:`).
@@ -41,6 +41,11 @@ and expose references, and are the raw material indexed by `SemanticIndex`.
   workspace, unchanged from the pre-scoping baseline. `SysmlViewNode.RenderTargetName` (a
   rendering-style/format selector, e.g. `asTreeDiagram`) is captured but never resolved into an
   edge and has no effect on scope.
+- `Redefinition` — a feature redefinition reference (`redefines X;` / `:>> X`), sourced from the
+  redefining feature's own qualified name (`SysmlFeatureNode.RedefinedFeatureName`) and
+  targeting the resolved redefined-feature reference. Rendered by `GeneralViewLayoutStrategy` as
+  a solid line with a hollow-triangle-crossbar end marker at the owning definition of the
+  redefined feature.
 
 `SysmlEdge` is a sealed positional record with three properties:
 

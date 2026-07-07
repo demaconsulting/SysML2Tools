@@ -24,6 +24,8 @@ external services or additional configuration are required beyond a standard .NE
   `Kind == SysmlEdgeKind.Expose`; `SysmlEdgeKind.Render` no longer exists, since a view's
   `render <target>;` member is never resolved into an edge (it names a rendering style/format,
   not content).
+- A resolved feature redefinition reference produces a `SysmlEdge` with
+  `Kind == SysmlEdgeKind.Redefinition`.
 
 ##### Test Scenarios
 
@@ -35,3 +37,4 @@ external services or additional configuration are required beyond a standard .NE
 | Import edge recorded (named) | `WorkspaceLoader_LoadAsync_NamedImport_RecordsImportEdge` |
 | RenderTargetName never resolved | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | Expose edge recorded | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
+| Redefinition edge recorded | `WorkspaceLoader_LoadAsync_ResolvedRedefinition_RecordsRedefinitionEdge` |

@@ -203,3 +203,27 @@ sections:
           limitation visible rather than a silent gap.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition
+        title: >-
+          GeneralViewLayoutStrategy shall connect a subtype feature that declares a
+          `redefines`/`:>>` reference to the owning definition of the redefined feature with a
+          solid line ending in a hollow-triangle-with-crossbar end marker at the owner. A
+          qualified reference (`Owner::feature`) resolves the owner directly; a bare-name
+          reference resolves by walking the subtype's own supertype chain (transitively) for a
+          matching member name. An unresolvable or self-referential redefinition produces no
+          edge and no diagnostic, consistent with the existing TryResolveQualified-failure-is-
+          silent convention used elsewhere in this unit.
+        justification: |
+          `redefines`/`:>>` feature redefinition is core SysML v2 model structure completing the
+          ROADMAP's "Connector-end & line-style conformance" item: the already-existing
+          `HollowTriangleCrossbar` end-marker style needed a producing model edge to ever appear
+          in a rendered General View. Resolving both the qualified and bare-name reference shapes
+          matches the two forms observed in the OMG corpus (e.g.
+          `test/SysMLModels/OMG/training/05.Redefinition/RedefinitionExample.sysml`'s bare-name
+          `redefines eng`, and `test/SysMLModels/OMG/validation/01-PartsTree/1a-PartsTree.sysml`'s
+          qualified `redefines Vehicle::mass`).
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_BareNameRedefinition_ProducesHollowTriangleCrossbarEdge
+          - GeneralViewLayoutStrategy_BuildLayout_QualifiedRedefinition_ProducesHollowTriangleCrossbarEdgeToOwner
+          - GeneralViewLayoutStrategy_BuildLayout_UnresolvableRedefinition_ProducesNoEdge

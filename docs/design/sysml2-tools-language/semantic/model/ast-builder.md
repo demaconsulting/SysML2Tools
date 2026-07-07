@@ -47,6 +47,35 @@ alongside the existing `ImportedNamespace` property — letting `ReferenceResolv
 references uniformly with `SupertypeNames` and `FeatureTyping` without any node-type
 special-casing.
 
+`BuildUsageNode` additionally calls `ExtractRedefinedFeature(decl?.featureSpecializationPart())`
+alongside `ExtractFeatureTyping`, setting the result on the constructed `SysmlFeatureNode`'s
+`RedefinedFeatureName` property. `ExtractRedefinedFeature` mirrors `ExtractFeatureTyping`'s exact
+structure: it loops `featureSpecializationPart().featureSpecialization()`, and for each entry
+whose `redefinitions()` is non-null, first checks `redefinitions().redefines()?.ownedRedefinition()`
+(the first redefined feature, held by the `redefines`/`:>>` clause) and returns its `.GetText()`;
+if that clause is absent, it falls back to the first non-null entry of
+`redefinitions().ownedRedefinition()` (the `redefines (COMMA ownedRedefinition)*` list's
+additional entries). It returns `null` when no `redefinitions()` is present anywhere in the
+part — i.e. the feature declares no redefinition. Both the `redefines` keyword form and the
+`:>>` operator form parse into the same `RedefinesContext` (they differ only in which terminal —
+`REDEFINES` or `COLON_GT_GT` — the grammar matched), so `ExtractRedefinedFeature` handles both
+forms identically without needing to branch on which token was used. The raw reference text is
+captured verbatim — including qualified `Owner::feature` forms — with no resolution attempted;
+resolution happens later, in `ReferenceResolver`.
+
+`BuildUsageNode` also calls `ExtractSubsettingTargetNames(decl?.featureSpecializationPart())`,
+setting the result on the constructed `SysmlFeatureNode`'s inherited `SupertypeNames` property —
+mirroring `ExtractRedefinedFeature`'s structure (first checking
+`subsettings().subsets()?.ownedSubsetting()`, the target held by the `subsets`/`:>` clause, then
+falling back to `subsettings().ownedSubsetting()`'s remaining comma-separated entries) but
+collecting *every* match into a list rather than returning only the first. Before this, a
+usage-level `subsets`/`:>` clause (as opposed to a definition-level `:>` specialization, already
+handled by `GetSubclassificationSupertypes`) was never extracted at all, so it produced no
+`Supertype` edge and was invisible to `ReferenceResolver` — silently breaking its bare-name
+redefinition ancestor-chain walk whenever the redefining feature's owner was itself a
+usage-level subsetting rather than a `part def` specialization (the exact shape used by the OMG
+corpus fixture `1c-PartsTreeRedefinition.sysml`'s `part vehicle1_c1 :> vehicle1 { ... }`).
+
 `VisitAnnotatingElement(AnnotatingElementContext)` intercepts the `comment` and `documentation`
 grammar alternatives of `annotatingElement` (`comment | documentation | textualRepresentation |
 metadataFeature`) and returns a private `AnnotationCapture` sentinel node wrapping a

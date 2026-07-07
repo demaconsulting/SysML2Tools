@@ -683,6 +683,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var decl = usage.usageDeclaration();
         var name = GetDeclaredName(decl?.identification());
         var typing = ExtractFeatureTyping(decl?.featureSpecializationPart());
+        var redefined = ExtractRedefinedFeature(decl?.featureSpecializationPart());
+        var supertypeNames = ExtractSubsettingTargetNames(decl?.featureSpecializationPart());
         var multiplicity = ExtractMultiplicity(decl?.featureSpecializationPart());
 
         // Named usages contribute a namespace segment for any nested usages they own.
@@ -711,6 +713,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             QualifiedName = qualifiedName,
             FeatureKeyword = keyword,
             FeatureTyping = typing,
+            RedefinedFeatureName = redefined,
+            SupertypeNames = supertypeNames,
             Multiplicity = multiplicity,
             Children = children,
             Annotations = annotations,
@@ -771,6 +775,91 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         }
 
         return ft.qualifiedName()?.GetText();
+    }
+
+    /// <summary>
+    ///     Extracts the first redefined-feature raw reference text from a feature specialization
+    ///     part (the target that follows <c>redefines</c>/<c>:&gt;&gt;</c>), or null when the
+    ///     feature declares no redefinition.
+    /// </summary>
+    private static string? ExtractRedefinedFeature(SysMLv2Parser.FeatureSpecializationPartContext? fsp)
+    {
+        if (fsp is null)
+        {
+            return null;
+        }
+
+        foreach (var fs in fsp.featureSpecialization())
+        {
+            var redefinitions = fs.redefinitions();
+            if (redefinitions is null)
+            {
+                continue;
+            }
+
+            // The first redefined feature is held by the redefines clause; additional
+            // redefinitions follow as a list.
+            var fromRedefines = redefinitions.redefines()?.ownedRedefinition();
+            if (fromRedefines is not null)
+            {
+                return fromRedefines.GetText();
+            }
+
+            var fromList = redefinitions.ownedRedefinition().FirstOrDefault(owned => owned is not null);
+            if (fromList is not null)
+            {
+                return fromList.GetText();
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Extracts the raw reference text of every <c>subsets &lt;target&gt;;</c>/<c>:&gt;
+    ///     &lt;target&gt;</c> clause on a usage/feature — a subsetting reference, grammatically
+    ///     distinct from a redefinition (<see cref="ExtractRedefinedFeature"/>) even though both
+    ///     share the same <c>featureSpecialization</c> alternative structure. Mirrors
+    ///     <see cref="ExtractRedefinedFeature"/>'s structure for pulling both the first (held by
+    ///     the <c>subsets</c> clause) and any subsequent comma-separated targets. Populates
+    ///     <c>SysmlFeatureNode.SupertypeNames</c> so that a usage-level <c>:&gt;</c> (e.g.
+    ///     <c>part vehicle1_c1 :&gt; vehicle1</c>) is resolved into a <see
+    ///     cref="SysmlEdgeKind.Supertype"/> edge the same uniform way a definition-level <c>:&gt;</c>
+    ///     already is, which <see cref="ReferenceResolver"/>'s bare-name redefinition
+    ///     ancestor-chain walk depends on to reach an inherited member through a usage's own
+    ///     subsetting ancestor.
+    /// </summary>
+    private static IReadOnlyList<string> ExtractSubsettingTargetNames(SysMLv2Parser.FeatureSpecializationPartContext? fsp)
+    {
+        if (fsp is null)
+        {
+            return Array.Empty<string>();
+        }
+
+        var names = new List<string>();
+        foreach (var fs in fsp.featureSpecialization())
+        {
+            var subsettingPart = fs.subsettings();
+            if (subsettingPart is null)
+            {
+                continue;
+            }
+
+            // The first subsetting target is held by the `subsets`/`:>` clause; additional
+            // targets follow as a comma-separated list.
+            var fromSubsets = subsettingPart.subsets()?.ownedSubsetting();
+            if (fromSubsets is not null)
+            {
+                names.Add(fromSubsets.GetText());
+            }
+
+            foreach (var owned in subsettingPart.ownedSubsetting())
+            {
+                names.Add(owned.GetText());
+            }
+        }
+
+        return names;
     }
 
     /// <summary>

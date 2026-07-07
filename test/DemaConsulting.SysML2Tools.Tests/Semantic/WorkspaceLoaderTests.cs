@@ -848,6 +848,371 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A feature using the <c>redefines</c> keyword form should capture the raw redefined-feature
+    ///     reference text in <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode.RedefinedFeatureName"/>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RedefinesKeyword_CapturesRedefinedFeatureName()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                part def Vehicle {
+                    attribute eng : Real;
+                }
+                part def SmallVehicle :> Vehicle {
+                    attribute smallEng : Real redefines eng;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var smallVehicle = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["SmallVehicle"]);
+            var smallEng = smallVehicle.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
+                .First(f => f.Name == "smallEng");
+
+            Assert.Equal("eng", smallEng.RedefinedFeatureName);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A feature using the <c>:&gt;&gt;</c> operator form should capture the same raw
+    ///     redefined-feature reference text as the <c>redefines</c> keyword form.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                part def Vehicle {
+                    attribute eng : Real;
+                }
+                part def SmallVehicle :> Vehicle {
+                    attribute smallEng : Real :>> eng;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var smallVehicle = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["SmallVehicle"]);
+            var smallEng = smallVehicle.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
+                .First(f => f.Name == "smallEng");
+
+            Assert.Equal("eng", smallEng.RedefinedFeatureName);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A qualified redefinition reference (<c>Owner::feature</c>) should capture the raw
+    ///     qualified text verbatim, without any resolution applied at the AST-building stage.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                part def Vehicle {
+                    attribute mass : Real;
+                }
+                part def Car :> Vehicle {
+                    attribute carMass : Real redefines Vehicle::mass;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var car = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["Car"]);
+            var carMass = car.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
+                .First(f => f.Name == "carMass");
+
+            Assert.Equal("Vehicle::mass", carMass.RedefinedFeatureName);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A feature declaring no redefinition should leave
+    ///     <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode.RedefinedFeatureName"/>
+    ///     null.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                part def Vehicle {
+                    attribute mass : Real;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var vehicle = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["Vehicle"]);
+            var mass = vehicle.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
+                .First(f => f.Name == "mass");
+
+            Assert.Null(mass.RedefinedFeatureName);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A resolved redefined-feature reference should be recorded as a <c>Redefinition</c> edge
+    ///     in the workspace's <see cref="SysmlWorkspace.Index"/>, queryable from both directions.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ResolvedRedefinition_RecordsRedefinitionEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                attribute eng : Real;
+                part def SmallVehicle {
+                    attribute smallEng : Real redefines eng;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var outgoing = result.Workspace!.Index.GetOutgoingEdges("SmallVehicle::smallEng");
+            Assert.Contains(outgoing,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Redefinition &&
+                     e.TargetQualifiedName == "eng");
+
+            var incoming = result.Workspace.Index.GetIncomingEdges("eng");
+            Assert.Contains(incoming,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Redefinition &&
+                     e.SourceQualifiedName == "SmallVehicle::smallEng");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A feature redefining a non-existent feature should produce a Warning diagnostic (same
+    ///     message format as unresolved supertype/typing references) and must not produce a
+    ///     <c>Redefinition</c> edge for that reference.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnresolvedRedefinition_ProducesWarningNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def X {
+                        attribute y : Real redefines NonExistentFeature;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("NonExistentFeature"));
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Redefinition &&
+                     e.TargetQualifiedName == "NonExistentFeature");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A bare-name <c>redefines eng</c> where <c>eng</c> is a member declared only on the
+    ///     redefining feature's owner's <em>supertype</em> (not on the owner itself, and not
+    ///     imported) — the dominant real-world shape per the SysML v2 spec — should still
+    ///     resolve to a <c>Redefinition</c> edge, and must not produce a false
+    ///     "Unresolved reference" Warning diagnostic. Mirrors
+    ///     <c>05.Redefinition/RedefinitionExample.sysml</c>'s <c>SmallVehicle::smallEng
+    ///     redefines eng</c> shape exactly.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_BareRedefinitionOfInheritedFeature_RecordsRedefinitionEdgeNoWarning()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                part def Engine;
+                part def SmallEngine :> Engine;
+
+                part def Vehicle {
+                    part eng : Engine;
+                }
+
+                part def SmallVehicle :> Vehicle {
+                    part smallEng : SmallEngine redefines eng;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Redefinition &&
+                     e.SourceQualifiedName == "SmallVehicle::smallEng" &&
+                     e.TargetQualifiedName == "Vehicle::eng");
+            Assert.DoesNotContain(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("eng"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Loading the OMG <c>05.Redefinition/RedefinitionExample.sysml</c> training fixture
+    ///     should not produce any false "Unresolved reference" Warning diagnostics — regression
+    ///     coverage for the bare-name <c>redefines eng</c>/<c>redefines cyl</c> inherited-member
+    ///     forms that previously failed to resolve.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RedefinitionExampleFixture_NoUnresolvedReferenceWarnings()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var fixturePath = Path.Combine(modelsRoot, "OMG", "training", "05.Redefinition", "RedefinitionExample.sysml");
+        if (!File.Exists(fixturePath))
+        {
+            return;
+        }
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([fixturePath], stdlibTable);
+
+        // Assert
+        Assert.NotNull(result.Workspace);
+        Assert.DoesNotContain(result.Diagnostics,
+            d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                 d.Message.StartsWith("Unresolved reference:", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     Loading the OMG <c>1c-PartsTreeRedefinition.sysml</c> validation fixture should not
+    ///     produce any false "Unresolved reference" Warning diagnostics for the redefined/
+    ///     subsetting feature names in this fixture — regression coverage for the nested
+    ///     bare-name <c>redefines frontAxleAssembly</c>/<c>redefines frontAxle</c>/<c>redefines
+    ///     rearAxleAssembly</c>/<c>redefines rearAxle</c> forms (where the innermost owner, e.g.
+    ///     <c>frontAxleAssembly_c1</c>, has no supertype of its own and the inherited member is
+    ///     only reachable via the owner's own <c>Redefinition</c> edge), plus the sibling
+    ///     bare-name <c>subsets frontWheel</c>/<c>subsets rearWheel</c> forms. Pre-existing,
+    ///     unrelated stdlib-coverage gaps in this fixture (<c>SI::kg</c>, <c>ISQ::mass</c>) are
+    ///     intentionally excluded from this assertion — this test targets only the
+    ///     redefinition-resolution regression, not full-fixture zero-warning coverage.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings()
+    {
+        // Arrange
+        var modelsRoot = FindSysMLModelsRoot();
+        if (modelsRoot is null)
+        {
+            return;
+        }
+
+        var fixturePath = Path.Combine(
+            modelsRoot, "OMG", "validation", "01-PartsTree", "1c-PartsTreeRedefinition.sysml");
+        if (!File.Exists(fixturePath))
+        {
+            return;
+        }
+
+        // Act
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([fixturePath], stdlibTable);
+
+        // Assert
+        Assert.NotNull(result.Workspace);
+        string[] previouslyFalseUnresolvedNames =
+        [
+            "frontAxleAssembly", "frontAxle", "rearAxleAssembly", "rearAxle", "frontWheel", "rearWheel",
+        ];
+        Assert.DoesNotContain(result.Diagnostics,
+            d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                 d.Message.StartsWith("Unresolved reference:", StringComparison.Ordinal) &&
+                 previouslyFalseUnresolvedNames.Any(name => d.Message.Contains($"'{name}'", StringComparison.Ordinal)));
+    }
+
+    /// <summary>
     ///     A wildcard import (<c>import Other::*;</c>) should be recorded as an <c>Import</c>
     ///     edge whose target is the imported namespace, queryable via
     ///     <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SemanticIndex"/>'s

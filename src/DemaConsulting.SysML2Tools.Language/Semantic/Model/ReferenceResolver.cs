@@ -371,10 +371,19 @@ internal sealed class ReferenceResolver
     {
         var nodeEdges = new List<SysmlEdge>();
 
-        // Resolve each supertype name using the current namespace context and file imports
+        // Resolve each supertype name using the current namespace context and file imports. For
+        // a usage/feature node (SysmlFeatureNode), a SupertypeNames entry may come from a usage-
+        // level `subsets`/`:>` clause — which, like a bare `redefines` reference, commonly names
+        // a member the owner *inherits* (declared on a supertype/redefinition ancestor) rather
+        // than one declared/imported into the same lexical scope — so the same
+        // TryResolveBareRedefinition ancestor-chain fallback applies here too. Definition-level
+        // SupertypeNames (from `part def X :> Y`) name the supertype itself directly, not an
+        // inherited member, so no fallback is needed or applied for non-feature nodes.
         foreach (var supertypeName in node.SupertypeNames)
         {
-            if (TryResolve(supertypeName, namespaceStack, imports, out var resolvedSupertype))
+            if (TryResolve(supertypeName, namespaceStack, imports, out var resolvedSupertype)
+                || (node is SysmlFeatureNode &&
+                    TryResolveBareRedefinition(supertypeName, namespaceStack, out resolvedSupertype)))
             {
                 nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedSupertype, SysmlEdgeKind.Supertype));
             }
@@ -402,6 +411,29 @@ internal sealed class ReferenceResolver
                     0, 0,
                     DiagnosticSeverity.Warning,
                     $"Unresolved reference: '{typing}'"));
+            }
+        }
+
+        // Feature redefinition — the target referenced after 'redefines'/':>>' on a usage/feature
+        // element. The standard namespace/import-scoped TryResolve is tried first (handles
+        // qualified forms like "Vehicle::eng" and same-scope bare names), then — since the
+        // dominant real-world shape for `redefines` is a bare name referencing a member the
+        // owner *inherits* rather than declares/imports itself — TryResolveBareRedefinition
+        // walks the owner's supertype/redefinition chain as an additive fallback.
+        if (node is SysmlFeatureNode { RedefinedFeatureName: { } redefined })
+        {
+            if (TryResolve(redefined, namespaceStack, imports, out var resolvedRedefined)
+                || TryResolveBareRedefinition(redefined, namespaceStack, out resolvedRedefined))
+            {
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedRedefined, SysmlEdgeKind.Redefinition));
+            }
+            else if (resolvedInFile.Add(redefined))
+            {
+                _diagnostics.Add(new SysmlDiagnostic(
+                    filePath,
+                    0, 0,
+                    DiagnosticSeverity.Warning,
+                    $"Unresolved reference: '{redefined}'"));
             }
         }
 
@@ -837,6 +869,95 @@ internal sealed class ReferenceResolver
             }
 
             var found = FindMemberInTypeHierarchy(supertypeNode, name, visited);
+            if (found is not null)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Attempts to resolve a bare-name <c>redefines</c>/<c>:&gt;&gt;</c> target that
+    ///     <see cref="TryResolve"/> could not resolve because the redefined feature is inherited
+    ///     from an ancestor (declared on a supertype, or reachable only by following the owner's
+    ///     own already-resolved <see cref="SysmlEdgeKind.Redefinition"/> edge) rather than
+    ///     declared or imported into the same lexical scope as the redefining feature. This is
+    ///     the dominant real-world shape for <c>redefines</c> per the SysML v2 spec — its entire
+    ///     purpose is referencing an inherited member — so this fallback is tried whenever the
+    ///     standard namespace/import-scoped <see cref="TryResolve"/> lookup fails.
+    /// </summary>
+    /// <param name="name">The bare (unqualified) redefined-feature name to resolve.</param>
+    /// <param name="namespaceStack">
+    ///     Simple name segments of the current enclosing namespace path, outermost first; joining
+    ///     these with <c>"::"</c> yields the immediate owner's qualified name, since the owner
+    ///     always pushes its own name before its children (including the redefining feature) are
+    ///     visited.
+    /// </param>
+    /// <param name="resolvedName">
+    ///     When this method returns <see langword="true"/>, the fully-qualified name of the
+    ///     matched ancestor member. When it returns <see langword="false"/>, set to
+    ///     <see cref="string.Empty"/>.
+    /// </param>
+    /// <returns>
+    ///     <see langword="true"/> if an ancestor member named <paramref name="name"/> was found;
+    ///     <see langword="false"/> otherwise.
+    /// </returns>
+    private bool TryResolveBareRedefinition(
+        string name,
+        IReadOnlyList<string> namespaceStack,
+        out string resolvedName)
+    {
+        var ownerNode = _symbolTable.Lookup(string.Join("::", namespaceStack));
+        var found = ownerNode is null ? null : FindMemberInAncestorChain(ownerNode, name, new HashSet<string>());
+
+        if (found?.QualifiedName is not { Length: > 0 } foundQualifiedName)
+        {
+            resolvedName = string.Empty;
+            return false;
+        }
+
+        resolvedName = foundQualifiedName;
+        return true;
+    }
+
+    /// <summary>
+    ///     Finds a member named <paramref name="name"/> in <paramref name="node"/>'s own direct
+    ///     children, or — recursively — in any ancestor reachable by following its
+    ///     <see cref="SysmlEdgeKind.Supertype"/> <em>and</em> <see cref="SysmlEdgeKind.Redefinition"/>
+    ///     resolved edges. Both edge kinds must be followed (not supertype-only) because a nested
+    ///     redefining feature's owner sometimes has no <c>SupertypeNames</c> of its own at all —
+    ///     the only path to the inherited member is via the owner's own already-resolved
+    ///     <c>Redefinition</c> edge (see <c>1c-PartsTreeRedefinition.sysml</c>'s nested
+    ///     <c>frontAxle_c1 redefines frontAxle</c>, whose owner <c>frontAxleAssembly_c1</c> only
+    ///     redefines <c>frontAxleAssembly</c> and has no supertype of its own).
+    ///     <paramref name="visited"/> guards against cycles, keyed on qualified name, mirroring
+    ///     <see cref="FindMemberInTypeHierarchy"/>'s guard pattern.
+    /// </summary>
+    private SysmlNode? FindMemberInAncestorChain(SysmlNode node, string name, HashSet<string> visited)
+    {
+        if (node.QualifiedName is { Length: > 0 } qualifiedName && !visited.Add(qualifiedName))
+        {
+            return null;
+        }
+
+        var direct = node.Children.FirstOrDefault(c => c.Name == name);
+        if (direct is not null)
+        {
+            return direct;
+        }
+
+        foreach (var edge in node.ResolvedEdges.Where(
+                     e => e.Kind is SysmlEdgeKind.Supertype or SysmlEdgeKind.Redefinition))
+        {
+            var ancestorNode = _symbolTable.Lookup(edge.TargetQualifiedName);
+            if (ancestorNode is null)
+            {
+                continue;
+            }
+
+            var found = FindMemberInAncestorChain(ancestorNode, name, visited);
             if (found is not null)
             {
                 return found;

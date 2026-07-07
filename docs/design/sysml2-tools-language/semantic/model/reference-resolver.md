@@ -7,8 +7,9 @@
 1. **Import graph cycle detection** — builds a directed graph of import relationships between
    files and uses depth-first search to detect cycles.
 2. **Reference resolution (pass 1)** — checks each `SupertypeName`, `SysmlFeatureNode.FeatureTyping`,
-   `ImportedName`, `VerifiedRequirementNames` entry, `SysmlSatisfyNode` subject/requirement, and
-   `SysmlConnectionNode` (`ConnectionKeyword == "allocation"`) endpoint in all AST nodes against
+   `SysmlFeatureNode.RedefinedFeatureName`, `ImportedName`, `VerifiedRequirementNames` entry,
+   `SysmlSatisfyNode` subject/requirement, and `SysmlConnectionNode`
+   (`ConnectionKeyword == "allocation"`) endpoint in all AST nodes against
    the symbol table, emitting a Warning for any name not found and recording a `SysmlEdge` for
    any name (or pair of names) that resolves.
 3. **Feature-chain resolution (pass 2)** — after pass 1 has completed for every file root,
@@ -34,13 +35,19 @@ outputs the exact qualified name that matched (`resolvedName`). Steps 3–4 reso
 namespace name itself via `ResolveNamespaceName` before building the `"{ns}::{name}"` candidate
 (see the "Nested-Namespace Import Resolution" deviation below).
 
-`ResolveNode` traverses each AST node's `SupertypeNames`, the node's `FeatureTyping` (when the
-node is a `SysmlFeatureNode`), and `ImportedNames` uniformly. For each name that resolves via
+`ResolveNode` traverses each AST node's `SupertypeNames`, the node's `FeatureTyping` and
+`RedefinedFeatureName` (both only when the node is a `SysmlFeatureNode`), and `ImportedNames`
+uniformly. For each name that resolves via
 `TryResolve`, a `SysmlEdge` is appended to a per-node list, tagged with `SysmlEdgeKind.Supertype`,
-`SysmlEdgeKind.Typing`, or `SysmlEdgeKind.Import` respectively; `Source` is the current node's
+`SysmlEdgeKind.Typing`, `SysmlEdgeKind.Redefinition`, or `SysmlEdgeKind.Import` respectively;
+`Source` is the current node's
 `QualifiedName` (`null` for anonymous nodes such as import statements) and `Target` is
 `resolvedName`. Any non-empty per-node edge list is attached to `node.ResolvedEdges` and
-appended to the aggregate edge list returned by `ResolveAll`.
+appended to the aggregate edge list returned by `ResolveAll`. The `RedefinedFeatureName` block
+is a line-for-line mirror of the `FeatureTyping` block immediately preceding it — same
+`TryResolve` call, same `resolvedInFile` deduplication, same Warning diagnostic message format —
+since both are a single raw reference captured on a `SysmlFeatureNode` with identical resolution
+semantics.
 
 For each name that does not resolve (and is not already reported in this file), a Warning
 diagnostic is emitted. The `resolvedInFile` set prevents duplicate warnings for the same name
@@ -168,6 +175,33 @@ paths:
   `TryResolve`'s own Step 2), falling back to the raw name unchanged if nothing matches — so
   already-qualified or genuinely-unresolvable namespaces behave exactly as before; only
   previously-failing nested-namespace import cases gain resolution.
+- **`TryResolveBareRedefinition`/`FindMemberInAncestorChain` (bare-name inherited-redefinition
+  fallback).** The `RedefinedFeatureName` block previously called only `TryResolve`, which is
+  namespace/import-scoped and never walks a supertype chain — but per the SysML v2 spec, a
+  `redefines`/`:>>` target's entire purpose is referencing a member the redefining feature
+  *inherits*, not one declared or imported into the same lexical scope. This is the dominant
+  real-world shape (e.g. `RedefinitionExample.sysml`'s bare `smallEng redefines eng`, where `eng`
+  is a member of `SmallVehicle`'s supertype `Vehicle`), so the original code produced a false
+  unresolved-reference Warning and no edge for the standard case. `TryResolveBareRedefinition`
+  looks up the immediate owner node via `_symbolTable.Lookup` on the joined `namespaceStack`
+  (the owner's qualified name, since the owner always pushes its own name before its children
+  are visited), then delegates to `FindMemberInAncestorChain`, which walks the owner's own
+  direct children and — recursively, cycle-guarded — any ancestor reachable via its
+  `SysmlEdgeKind.Supertype` **and** `SysmlEdgeKind.Redefinition` resolved edges. Both edge kinds
+  must be followed, not supertype-only: `1c-PartsTreeRedefinition.sysml`'s nested `frontAxle_c1
+  redefines frontAxle` has an owner (`frontAxleAssembly_c1`) with no `SupertypeNames` at all —
+  the only path to the inherited `frontAxle` member is via the owner's own already-resolved
+  `Redefinition` edge to `frontAxleAssembly`. This fallback is tried only after `TryResolve`
+  fails, so it is additive and cannot regress a previously-successful qualified/scoped
+  resolution. The same fallback is also tried for a `SysmlFeatureNode`'s own `SupertypeNames`
+  entries (but not a definition's): a usage-level `subsets`/`:>` clause (captured into
+  `SupertypeNames` by `AstBuilder.ExtractSubsettingTargetNames`) is, like `redefines`, commonly a
+  bare reference to a member the owner inherits — e.g. `1c-PartsTreeRedefinition.sysml`'s `part
+  frontWheel_1 subsets frontWheel = frontWheel#(1);`, where `frontWheel` is a member of
+  `frontAxleAssembly_c1`'s redefined ancestor `frontAxleAssembly`, not of `frontAxleAssembly_c1`
+  itself. A definition's own `SupertypeNames` (from `part def X :> Y`) name the supertype
+  directly rather than an inherited member, so the fallback is intentionally skipped for
+  non-feature nodes.
 
 ##### Error Handling
 
@@ -177,16 +211,20 @@ unresolved names are present.
 
 ##### Dependencies
 
-- `SymbolTable` — `Contains` method used to check whether a supertype, typing, or import name
-  is registered; `Lookup` used by feature-chain resolution to walk from a resolved segment's
-  qualified name back to its node.
+- `SymbolTable` — `Contains` method used to check whether a supertype, typing, redefinition, or
+  import name is registered; `Lookup` used by feature-chain resolution and
+  `TryResolveBareRedefinition`/`FindMemberInAncestorChain` to walk from a resolved qualified name
+  back to its node.
 - `SysmlNode` hierarchy — traversed to collect `SupertypeNames`, `ImportedNames`, and
-  `VerifiedRequirementNames`; checks for `SysmlFeatureNode.FeatureTyping`, `SysmlSatisfyNode`
+  `VerifiedRequirementNames`; checks for `SysmlFeatureNode.FeatureTyping` and
+  `SysmlFeatureNode.RedefinedFeatureName`, `SysmlSatisfyNode`
   (`SubjectName`/`RequirementName`), `SysmlConnectionNode` with `ConnectionKeyword ==
   "allocation"` (`EndpointA`/`EndpointB`), `SysmlConnectionNode` with `ConnectionKeyword ==
   "connection"` or `"message"`, `SysmlTransitionNode` (`Source`/`Target`), and `SysmlViewNode`
   (`ExposedNames`; `RenderTargetName`/`FilterExpressionText` are never read); reads
-  `ResolvedEdges` (`Typing`/`Supertype` kinds) during feature-chain resolution.
+  `ResolvedEdges` (`Typing`/`Supertype` kinds during feature-chain resolution; `Supertype`
+  **and** `Redefinition` kinds during `FindMemberInAncestorChain`'s bare-redefinition ancestor
+  walk).
 - `SysmlEdge`, `SemanticIndex` — resolved references are recorded as `SysmlEdge` instances and
   aggregated into the returned `SemanticIndex`.
 - `SysmlDiagnostic`, `DiagnosticSeverity` — used to construct and emit Warning diagnostics.

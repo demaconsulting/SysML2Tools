@@ -33,6 +33,10 @@ external services or additional configuration are required beyond a standard .NE
   evaluated), and are `null`/empty for a view with no such members. `RenderTargetName` is
   captured but never resolved into an edge or diagnostic (it names a rendering style/format, not
   content); `ExposedNames` is the only field independently resolved by `ReferenceResolver`.
+- `SysmlFeatureNode.RedefinedFeatureName` is populated verbatim from a feature's
+  `redefines`/`:>>` clause (bare-name and qualified `Owner::feature` forms, both keyword and
+  operator syntax), and is `null` for a feature with no redefinition. It is resolved by
+  `ReferenceResolver` into a `Redefinition`-kind edge, mirroring `FeatureTyping`.
 
 ##### Test Scenarios
 
@@ -47,3 +51,7 @@ external services or additional configuration are required beyond a standard .NE
 | `FilterExpressionText` verbatim | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | `SysmlViewNode.ExposedNames` from a `view` usage | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | Empty view body leaves all fields null/empty | `WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty` |
+| `RedefinedFeatureName` — `redefines` | `WorkspaceLoader_LoadAsync_RedefinesKeyword_CapturesRedefinedFeatureName` |
+| `RedefinedFeatureName` — `:>>` operator | `WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName` |
+| `RedefinedFeatureName` — qualified | `WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText` |
+| `RedefinedFeatureName` — null when absent | `WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull` |

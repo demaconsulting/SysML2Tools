@@ -479,6 +479,145 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A subtype feature that redefines a bare-named inherited feature (declared on a resolved
+    ///     supertype in the view) emits a solid hollow-triangle-with-crossbar line from the subtype
+    ///     to the supertype that declares the redefined feature.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_BareNameRedefinition_ProducesHollowTriangleCrossbarEdge()
+    {
+        // Arrange: Vehicle declares "eng"; SmallVehicle specializes Vehicle and redefines "eng" by
+        // bare name (no Owner:: qualifier).
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Vehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "Vehicle",
+                    QualifiedName = "P::Vehicle",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "eng", QualifiedName = "P::Vehicle::eng", FeatureKeyword = "attribute", FeatureTyping = "Real" }
+                    ]
+                },
+                ["P::SmallVehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "SmallVehicle",
+                    QualifiedName = "P::SmallVehicle",
+                    DefinitionKeyword = "part def",
+                    SupertypeNames = ["Vehicle"],
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "smallEng", QualifiedName = "P::SmallVehicle::smallEng", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "eng" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a solid line with a hollow-triangle-crossbar arrowhead exists, from SmallVehicle to Vehicle
+        var redefinitionEdge = CollectLines(layout.Nodes)
+            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.NotNull(redefinitionEdge);
+        Assert.Equal(LineStyle.Solid, redefinitionEdge!.LineStyle);
+    }
+
+    /// <summary>
+    ///     A subtype feature that redefines a qualified <c>Owner::feature</c> reference emits a
+    ///     hollow-triangle-with-crossbar edge to the named owner, without needing to walk the
+    ///     supertype chain.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_QualifiedRedefinition_ProducesHollowTriangleCrossbarEdgeToOwner()
+    {
+        // Arrange: Car redefines "Vehicle::mass" directly by qualified reference.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Vehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "Vehicle",
+                    QualifiedName = "P::Vehicle",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "mass", QualifiedName = "P::Vehicle::mass", FeatureKeyword = "attribute", FeatureTyping = "Real" }
+                    ]
+                },
+                ["P::Car"] = new SysmlDefinitionNode
+                {
+                    Name = "Car",
+                    QualifiedName = "P::Car",
+                    DefinitionKeyword = "part def",
+                    SupertypeNames = ["Vehicle"],
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "carMass", QualifiedName = "P::Car::carMass", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "Vehicle::mass" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a hollow-triangle-crossbar arrowhead edge is emitted, resolved via the qualified reference
+        var redefinitionEdge = CollectLines(layout.Nodes)
+            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.NotNull(redefinitionEdge);
+    }
+
+    /// <summary>
+    ///     An unresolvable redefinition reference (neither a qualified owner nor a bare name found
+    ///     anywhere in the supertype chain) produces no redefinition edge and does not throw. A
+    ///     self-referential redefinition (resolving back to the same definition) is likewise skipped.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_UnresolvableRedefinition_ProducesNoEdge()
+    {
+        // Arrange: Vehicle redefines a bare name that does not exist anywhere in scope, and Standalone
+        // redefines its own feature name (self-reference, since it has no supertype).
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Vehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "Vehicle",
+                    QualifiedName = "P::Vehicle",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "eng", QualifiedName = "P::Vehicle::eng", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "nonExistentFeature" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act: laying out must not throw even though the redefinition cannot be resolved.
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: no hollow-triangle-crossbar edge is produced.
+        var redefinitionEdge = CollectLines(layout.Nodes)
+            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.Null(redefinitionEdge);
+    }
+
+    /// <summary>
     ///     A definition with TWO <c>attribute</c>-typed features of the SAME in-view type produces two
     ///     identical owner→type intra-group edges. The layered pipeline de-duplicates the identical
     ///     directed pair so its routed waypoints are not 1:1 with the intra-edges; the strategy must

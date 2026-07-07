@@ -31,13 +31,22 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-Supertypes
         title: >-
           AstBuilder shall extract supertype qualified names from subclassification and
-          specialization parts and attach them to the corresponding AST node.
+          specialization parts and attach them to the corresponding AST node, including a
+          usage/feature's own `subsets`/`:>` clause (as distinct from its `redefines`/`:>>`
+          clause), not just a definition's `:>` specialization.
         justification: |
           Supertype names are required for reference resolution and supertype walking.
           They must be extracted during AST construction before symbol table operations.
+          A usage-level `subsets`/`:>` clause (e.g. `part vehicle1_c1 :> vehicle1`) was
+          previously never extracted at all, so it produced no Supertype edge and was silently
+          invisible to reference resolution — this broke ReferenceResolver's bare-name
+          redefinition ancestor-chain walk whenever the redefining feature's owner was itself a
+          usage-level subsetting (not a `part def` specialization), the exact shape used by the
+          OMG corpus fixture `1c-PartsTreeRedefinition.sysml`.
         tests:
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
+          - WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewRenderTarget
         title: >-
@@ -100,3 +109,23 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
           - RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-RedefinedFeature
+        title: >-
+          AstBuilder shall extract a feature's redefined-feature reference text (from its
+          `redefines <target>;`/`:>> <target>` clause) as raw, unresolved data on the
+          corresponding SysmlFeatureNode's RedefinedFeatureName property, mirroring how
+          FeatureTyping is extracted.
+        justification: |
+          Capturing the raw redefinition reference during AST construction is the
+          prerequisite for ReferenceResolver to resolve it into a Redefinition edge, and for
+          GeneralViewLayoutStrategy to render the hollow-triangle-crossbar marker. The
+          extraction mirrors ExtractFeatureTyping's structure exactly (walking
+          featureSpecialization()'s redefinitions() instead of typings()), supporting both the
+          `redefines` keyword form and the `:>>` operator form, and both bare-name and
+          qualified `Owner::feature` reference shapes.
+        tests:
+          - WorkspaceLoader_LoadAsync_RedefinesKeyword_CapturesRedefinedFeatureName
+          - WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName
+          - WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText
+          - WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull

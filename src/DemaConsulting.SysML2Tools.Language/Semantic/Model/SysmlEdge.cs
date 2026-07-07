@@ -77,6 +77,13 @@ public enum SysmlEdgeKind
     ///     the pre-scoping baseline.
     /// </summary>
     Expose,
+
+    /// <summary>
+    ///     A feature redefinition reference (<see cref="SysmlFeatureNode.RedefinedFeatureName"/> /
+    ///     <c>redefines X</c> / <c>:&gt;&gt; X</c>), from the redefining feature's owner to the
+    ///     resolved redefined-feature reference.
+    /// </summary>
+    Redefinition,
 }
 
 /// <summary>

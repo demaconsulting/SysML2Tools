@@ -6,7 +6,7 @@
 renders every user-defined definition (part, port, interface, requirement, action, and so on) as
 a keyword-labeled box, groups the boxes that belong to a package inside a folder-shaped
 container, lists each definition's owned usages in compartments, and draws specialization,
-membership, and attribute-typing edges orthogonally between the boxes. The whole diagram — package
+membership, attribute-typing, and redefinition edges orthogonally between the boxes. The whole diagram — package
 folders and definitions alike — is expressed as a single `DemaConsulting.Rendering` `LayoutGraph`
 and placed with one `HierarchicalLayoutAlgorithm.Apply` call: the root scope packs package folders
 and top-level definitions by reading order (`ContainmentLayoutAlgorithm`), while each folder's own
@@ -21,14 +21,19 @@ box title and folder-tab geometry come from `BoxMetrics` in `DemaConsulting.Rend
 parameters. Layout constants (`MinBoxWidth`, `CharWidthFactor`) are declared as `private const`
 fields. Private records carry intermediate data: `DefBox` (a user definition with its computed
 size, keyword, supertype names, memberships, and compartments), `ModelEdge` (a resolved
-specialization/membership/attribute-typing relationship expressed by qualified name, together with
-its target end marker and edge kind), `Location` (a located definition's graph node and owning
-package, used to resolve and scope edges), and `TruncatedFolder` (a depth-truncated package folder's
-leaf graph node and hidden-definition count, used to stamp its ellipsis label onto the placed box
-after layout). The private `EdgeKind` enumeration classifies each edge as `Specialization`,
-`Membership`, or `Typing`; the `LineStyleForKind` helper maps this kind to a rendered line style
-(dashed for `Typing`, solid for the others), so an attribute-typing dependency is visually distinct
-from the structural relationships.
+specialization/membership/attribute-typing/redefinition relationship expressed by qualified
+name, together with its target end marker and edge kind), `Location` (a located definition's
+graph node and owning package, used to resolve and scope edges), and `TruncatedFolder` (a
+depth-truncated package folder's leaf graph node and hidden-definition count, used to stamp its
+ellipsis label onto the placed box after layout). `FeatureMembership` (a private record) carries
+each owned feature's keyword, raw type reference (`TypeName`, nullable — a feature may declare a
+redefinition with no explicit type annotation), simple `Name`, and raw
+`RedefinedFeatureName` reference; `CollectMemberships` includes a feature when either `TypeName`
+or `RedefinedFeatureName` is present. The private `EdgeKind` enumeration classifies each edge as
+`Specialization`, `Membership`, `Typing`, or `Redefinition`; the `LineStyleForKind` helper maps
+this kind to a rendered line style (dashed for `Typing`, solid for the others — including
+`Redefinition`), so an attribute-typing dependency is visually distinct from the structural
+relationships.
 
 ##### Key Methods
 
@@ -67,8 +72,9 @@ Top-level definitions (no package prefix) become plain leaves directly on the ro
 
 ###### `BuildModelEdges(defs)`
 
-Resolves every specialization (subtype → supertype), structural membership (member-type → owner), and
-attribute-typing (owner → attribute-type) relationship — across every definition, regardless of
+Resolves every specialization (subtype → supertype), structural membership (member-type → owner),
+attribute-typing (owner → attribute-type), and redefinition (subtype → the owning definition of
+the redefined feature) relationship — across every definition, regardless of
 package — into a flat list of qualified-name `ModelEdge`s. Specialization edges carry an open
 triangular end marker at the supertype; `part`/`port` memberships carry a filled diamond and `ref`
 memberships a hollow diamond at the owner; other memberships are not drawn. In addition, each
@@ -78,7 +84,19 @@ chevron at the type end and rendered as a dashed line. Attribute typing is a usa
 not composition, so it uses the OMG dependency notation (dashed line with an open arrowhead) rather
 than a membership diamond, and it connects otherwise-disconnected attribute and enumeration
 definitions into the cluster near the definitions that reference them. Unresolved types and
-self-references are skipped. Whether an edge's endpoints actually receive a graph node — i.e.,
+self-references are skipped. Finally, each feature with a non-null `RedefinedFeatureName`
+contributes a **redefinition** edge from the subtype to the owning definition of the redefined
+feature, carrying a hollow-triangle-crossbar end marker at the owner and rendered as a solid line
+via `ResolveRedefinitionOwner`: a qualified reference (containing `::`) strips the text before the
+*last* `::` segment and resolves it directly via `TryResolveQualified`; a bare-name reference
+instead walks the redefining definition's own `SupertypeNames` (resolved the same way), checking
+each resolved supertype's own `Memberships` for a matching simple `Name`, and recurses
+transitively up the chain (guarded by a `HashSet<string>` of visited qualified names to prevent an
+infinite loop on a malformed cyclic supertype graph) when the immediate supertype does not declare
+it. Neither resolving nor a self-referential result (`owner == def.QualifiedName`) produces an
+edge or a diagnostic — consistent with the existing `TryResolveQualified`-failure-is-silent
+convention used by the other three edge kinds in this method. Whether an edge's endpoints actually
+receive a graph node — i.e.,
 were not depth-truncated — is decided later, in `BuildGraph`.
 
 ###### `BuildGraph(groups, modelEdges, theme, depthLimit)`
@@ -142,7 +160,8 @@ produces valid geometry, so no crossing warnings are emitted.
   "parsed but not yet evaluated" filter-expression warning text.
 - The `LayoutTree`, `LayoutBox`, `LayoutCompartment`, `LayoutLine`, `LayoutLabel`, and `Point2D` data
   types (`DemaConsulting.Rendering`).
-- `FeatureMembership` (private record) — carries the keyword and type reference of one owned feature.
+- `FeatureMembership` (private record) — carries the keyword, nullable type reference, simple
+  name, and nullable redefined-feature reference of one owned feature.
 
 ##### Callers
 
