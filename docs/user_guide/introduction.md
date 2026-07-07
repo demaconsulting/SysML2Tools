@@ -126,9 +126,13 @@ entire workspace:
   unresolved name, so the mistake is visible instead of silently rendering everything with no
   signal.
 - `render <target>;` — per the SysML v2 grammar, this names a rendering style/format (e.g.
-  `asTreeDiagram`, `asElementTable`) rather than content. It is captured but currently has **no
-  effect** on the rendered scope — see `ROADMAP.md` for the planned future capability to honor
-  it as a rendering-style selector.
+  `asTreeDiagram`, `asElementTable`). `render asTreeDiagram;` and
+  `render asInterconnectionDiagram;` now select the Browser View and Interconnection View layout
+  strategies respectively, taking precedence over the name/supertype heuristic `DiagramTypeRouter`
+  otherwise applies. Every other rendering-style name (`asElementTable`, `asTextualNotation`, or
+  an unrecognized name) — and a view declaring no `render` member at all — has **no effect** on
+  which strategy renders the view; see `ROADMAP.md` for further rendering-style selectors that
+  may be added in future.
 - `filter [<expr>];` — the bracketed filter expression is parsed and captured, but **not yet
   evaluated**: the resolved (`expose`) scope is rendered unfiltered, and a diagnostic reports
   that the filter expression was parsed but not yet evaluated. Full filter-expression
@@ -162,7 +166,7 @@ of confusion, so it is worth stating plainly:
 | Statement | What it actually does |
 | --- | --- |
 | `expose <name>;` | The **only** mechanism scoping which model content appears in the diagram (see above). |
-| `render <renderingKind>;` | Selects a rendering *style/format* (e.g. `asTreeDiagram`). Metadata only, no scoping. |
+| `render <renderingKind>;` | Selects a rendering style — see "View Body Statements" above. Never scopes content. |
 | `filter [<expr>];` | Captured as raw text only; not yet evaluated (see ROADMAP.md's filter-evaluation entry). |
 
 ### Example A: exposing a definition to scope down to a subsystem
@@ -185,10 +189,13 @@ package Vehicle {
 }
 ```
 
-`EngineOnlyView` renders **only** the `Engine` definition's containment subtree (`Engine` and
-its `cylinder` part) — `Vehicle`, `myVehicle`, and `wheel` are excluded entirely. Removing the
-`expose Engine;` statement (leaving only `render asTreeDiagram;`, or an empty view body) renders
-the **full workspace** instead: `render` never narrows the scope, only `expose` does.
+`EngineOnlyView` declares `render asTreeDiagram;`, so it renders via `BrowserViewLayoutStrategy`
+as an indented tree of rows rather than the General View's nested boxes. It renders **only** the
+`Engine` definition's containment subtree (`Engine` and its `cylinder` part) — `Vehicle`,
+`myVehicle`, and `wheel` are excluded entirely. Removing the `expose Engine;` statement (leaving
+only `render asTreeDiagram;`, or an empty view body) renders the **full workspace** instead:
+`render` never narrows the scope, only `expose` does — `BrowserViewLayoutStrategy` honors
+`expose` scoping identically to every other layout strategy.
 
 > **Note:** `expose` targets are qualified names (`::`-separated), not dotted member-access
 > chains. `expose myVehicle.engine;` is a **syntax error**, not merely an unresolved reference —
@@ -217,9 +224,11 @@ package Vehicle {
 
 Here `expose myVehicle;` names a **usage** (`myVehicle : Vehicle`), not a `def`. The tool
 resolves `myVehicle`'s own `Typing` edge to find the definition it is typed by (`Vehicle`), and
-scopes the diagram to the union of `myVehicle`'s and `Vehicle`'s containment subtrees. The
-rendered diagram therefore includes `Vehicle` (with its `engine` and `wheel` parts) and, because
-`engine` is typed by `Engine`, the `Engine` definition (with its `cylinder` part) as well.
+scopes the diagram to the union of `myVehicle`'s and `Vehicle`'s containment subtrees. This view
+also declares `render asTreeDiagram;`, so — like Example A — it renders via
+`BrowserViewLayoutStrategy` as an indented tree of rows. The rendered tree therefore includes
+`Vehicle` (with its `engine` and `wheel` parts) and, because `engine` is typed by `Engine`, the
+`Engine` definition (with its `cylinder` part) as well.
 
 Contrast this with `expose Vehicle;` (exposing the **definition** directly, as in Example A):
 that scopes straight to `Vehicle`'s own containment subtree without needing to resolve any

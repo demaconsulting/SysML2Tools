@@ -33,5 +33,7 @@ package AvionicsSystem {
         part def NavigationDisplay;
     }
 
-    view def AvionicsBrowserView {}
+    view def AvionicsBrowserView {
+        render asTreeDiagram;
+    }
 }

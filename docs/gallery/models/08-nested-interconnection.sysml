@@ -28,5 +28,7 @@ package ComputerSystem {
         connection c3 connect board to storage;
     }
 
-    view def ComputerSystemInterconnectionView {}
+    view def ComputerSystemInterconnectionView {
+        render asInterconnectionDiagram;
+    }
 }

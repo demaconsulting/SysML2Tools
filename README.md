@@ -225,12 +225,15 @@ section above).
 | Multiple views, `--view <name>` | Render only the named view |
 | `--view <name>` names a view that does not exist | Error: lists available view names and exits non-zero |
 
-For the General View diagram strategy (the diagram produced when no more specialized view kind
-applies), a view's body `expose <...>;` statements now scope the rendered diagram to the union of
-the exposed names' containment subtrees, instead of always rendering the full workspace; a view
-with no `expose` statement continues to render the full workspace. `render <target>;` names a
-rendering style (not yet honored) and has no effect on scope. This scoping is not yet extended to
-the other layout strategies — see the *Introduction* user guide for details.
+For every layout strategy (not just the General View), a view's body `expose <...>;` statements
+now scope the rendered diagram to the union of the exposed names' containment subtrees, instead
+of always rendering the full workspace; a view with no `expose` statement continues to render
+the full workspace. `render asTreeDiagram;` and `render asInterconnectionDiagram;` now select
+the Browser View and Interconnection View layout strategies respectively, taking precedence over
+the name/supertype heuristic; other `render` targets (`asElementTable`, `asTextualNotation`, an
+unrecognized name, or none) leave strategy selection unchanged. `render` never affects content
+scope — `expose` remains the sole scoping mechanism regardless of which strategy is selected —
+see the *Introduction* user guide for details.
 
 ## NuGet Packages
 

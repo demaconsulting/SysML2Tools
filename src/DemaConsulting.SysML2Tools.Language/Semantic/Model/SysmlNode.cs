@@ -181,10 +181,11 @@ public sealed class SysmlViewNode : SysmlNode
     ///     when the view declares no rendering member. Per the SysML v2 grammar, this names a
     ///     rendering style/format usage (e.g. <c>asTreeDiagram</c>, <c>asElementTable</c>) — never
     ///     a content-scoping subject. Captured verbatim only: <see cref="ReferenceResolver"/> never
-    ///     inspects or resolves this value (no edge is produced, no diagnostic is emitted), and it
-    ///     has no effect on <c>GeneralViewLayoutStrategy</c>'s rendered scope. Reserved for a
-    ///     possible future capability that selects among rendering-style strategies — see the
-    ///     project ROADMAP.
+    ///     inspects or resolves this value (no edge is produced, no diagnostic is emitted). This
+    ///     value is used by <c>DiagramTypeRouter</c> to select a rendering strategy — an exact
+    ///     match against <c>asTreeDiagram</c> or <c>asInterconnectionDiagram</c> takes precedence
+    ///     over the name/supertype heuristic; any other value (including <c>asElementTable</c> and
+    ///     <c>asTextualNotation</c>, which have no corresponding strategy) falls through unchanged.
     /// </summary>
     public string? RenderTargetName { get; init; }
 

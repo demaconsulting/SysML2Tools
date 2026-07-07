@@ -17,6 +17,12 @@ configuration are required beyond a standard .NET SDK installation.
 - Each recognized view kind, whether identified by name or by a specialized supertype, routes to
   its corresponding strategy.
 - A view matching no recognized kind routes to the general view strategy.
+- A view declaring `render asTreeDiagram;` or `render asInterconnectionDiagram;` routes to the
+  browser or interconnection strategy respectively, taking precedence over a conflicting
+  name/supertype heuristic match.
+- A view declaring any other render target — `asElementTable`, `asTextualNotation`, an
+  unrecognized name, or none — falls through unchanged to the name/supertype heuristic, with no
+  diagnostic.
 
 ##### Test Scenarios
 
@@ -30,3 +36,9 @@ configuration are required beyond a standard .NET SDK installation.
 | `GetStrategy_BrowserNamedView_ReturnsBrowserStrategy` | Browser/tree view |
 | `GetStrategy_SequenceNamedView_ReturnsSequenceStrategy` | Sequence view |
 | `GetStrategy_PlainView_ReturnsGeneralViewStrategy` | Unrecognized view falls back to general |
+| `GetStrategy_RenderAsTreeDiagram_ReturnsBrowserStrategy` | `render asTreeDiagram;` selects browser strategy |
+| `GetStrategy_RenderAsInterconnectionDiagram_ReturnsInterconnectionStrategy` | render picks interconnection |
+| `GetStrategy_RenderTargetPrecedenceOverridesNameHeuristic` | Render target wins over a conflicting name heuristic |
+| `GetStrategy_RenderAsElementTable_FallsThroughUnchanged` | `render asElementTable;` has no effect |
+| `GetStrategy_RenderAsTextualNotation_FallsThroughUnchanged` | `render asTextualNotation;` has no effect |
+| `GetStrategy_UnrecognizedRenderTarget_FallsThroughUnchanged` | Unrecognized render target has no effect |

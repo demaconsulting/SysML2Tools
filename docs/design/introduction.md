@@ -265,7 +265,10 @@ renderer packages have no concept of workspaces or view iteration.
 stdlib-resolved qualified name of a view's viewpoint type (e.g.,
 `SystemsModelingLibrary::Views::GeneralView`), not the raw token. User aliases and
 local imports therefore do not break dispatch. The router walks the supertype chain
-to handle custom viewpoints that specialize stdlib viewpoints.
+to handle custom viewpoints that specialize stdlib viewpoints. Dispatch first checks
+the view's declared `render` target for an exact match against `asTreeDiagram` or
+`asInterconnectionDiagram`, which takes precedence over the qualified-name/supertype
+heuristic entirely.
 
 **Diagnostic model mirrors ReviewMark.** `SysmlDiagnostic` mirrors ReviewMark's
 `LintIssue` in structure and philosophy: file/line/col location, severity enum,
