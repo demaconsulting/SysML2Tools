@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="493.20" height="144.00" viewBox="0 0 493.20 144.00">
+  <defs>
+    <marker id="line-end-open-chevron" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polyline points="0 0, 10 3.5, 0 7" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-hollow-triangle" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-filled-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-hollow-triangle-crossbar" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+      <line x1="7" y1="0" x2="7" y2="7" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-hollow-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-filled-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-circle" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <circle cx="5" cy="5" r="4" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-bar" markerWidth="4" markerHeight="12" refX="2" refY="6" orient="auto">
+      <line x1="2" y1="0" x2="2" y2="12" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <filter id="label-bg" x="-0.05" y="-0.05" width="1.1" height="1.1">
+      <feFlood flood-color="#FFFFFF"/>
+      <feComposite in="SourceGraphic" operator="over"/>
+    </filter>
+  </defs>
+  <rect x="12.00" y="12.00" width="93.84" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="58.92" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="105.84" y="12.00" width="93.84" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="152.76" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Car</text>
+  <rect x="199.68" y="12.00" width="93.84" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="246.60" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">LandVehicle</text>
+  <rect x="293.52" y="12.00" width="93.84" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="340.44" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Sedan</text>
+  <rect x="387.36" y="12.00" width="93.84" height="24.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="434.28" y="24.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">SportsCar</text>
+  <rect x="12.00" y="36.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Car</text>
+  <rect x="105.84" y="36.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="152.76" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="199.68" y="36.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="246.60" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="293.52" y="36.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="340.44" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="387.36" y="36.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="434.28" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="12.00" y="60.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">LandVehicle</text>
+  <rect x="105.84" y="60.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="152.76" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="199.68" y="60.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="246.60" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="293.52" y="60.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="340.44" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="387.36" y="60.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="434.28" y="72.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="12.00" y="84.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Sedan</text>
+  <rect x="105.84" y="84.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="152.76" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="199.68" y="84.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="246.60" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="293.52" y="84.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="340.44" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="387.36" y="84.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="434.28" y="96.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="12.00" y="108.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="18.00" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">SportsCar</text>
+  <rect x="105.84" y="108.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="152.76" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">X</text>
+  <rect x="199.68" y="108.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="246.60" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="293.52" y="108.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="340.44" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+  <rect x="387.36" y="108.00" width="93.84" height="24.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="434.28" y="120.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle"></text>
+</svg>
