@@ -25,7 +25,12 @@ Builds the diagram:
 2. **Root selection.** `FindRoot` scans the non-stdlib declarations and chooses the definition that
    declares the most `message` connections, so the most message-rich definition drives the view —
    restricted, when a scope was resolved, to candidates for which
-   `ExposeScopeResolver.IsRootRelevantToScope` returns `true`.
+   `ExposeScopeResolver.IsRootRelevantToScope` returns `true`. When multiple candidates are
+   relevant to a non-null scope (possible because a nested definition and its ancestor can both be
+   relevant), the most specific (deepest/longest qualified name) relevant candidate is preferred via
+   `ExposeScopeResolver.IsMoreSpecificCandidate`, with the message-count tie-break used only to
+   break ties among equally specific candidates; this ordering does not apply when `scope` is
+   `null`.
 3. **Lifeline collection.** `CollectLifelines` walks the root's messages and records the distinct
    participants in first-appearance order, where a participant is the first dot-separated segment of
    a message endpoint reference (for example `client` from `client.a`) — excluding, when a scope was
@@ -57,11 +62,16 @@ other single-root strategies' approach. `FindRoot` only considers candidates
 `ExposeScopeResolver.IsRootRelevantToScope` accepts, so exposing the current heuristic root
 itself, an inner lifeline of it, or a definition that itself contains the heuristic default all
 correctly select a root, while exposing an unrelated definition yields no root and thus the
-minimal empty canvas. `CollectLifelines` then narrows the selected root's lifelines by
-reconstructing each candidate participant's qualified name as `"{root.QualifiedName}::{name}"` and
-testing it with `ExposeScopeResolver.IsInSubjectScope`; this reconstruction was confirmed reliable
-for realistic models — a directly-nested `part` feature under a root part definition, referenced by
-a message endpoint's first dotted segment, has exactly this `QualifiedName` — by a dedicated test
+minimal empty canvas. When more than one candidate is relevant (a nested definition and an
+ancestor definition can both be relevant to the same exposed subject),
+`ExposeScopeResolver.IsMoreSpecificCandidate` prefers the most deeply nested candidate, so
+exposing an inner lifeline participant of a nested definition correctly selects that nested
+definition rather than its ancestor, even when the ancestor has more messages. `CollectLifelines`
+then narrows the selected root's lifelines by reconstructing each candidate participant's
+qualified name as `"{root.QualifiedName}::{name}"` and testing it with
+`ExposeScopeResolver.IsInSubjectScope`; this reconstruction was confirmed reliable for realistic
+models — a directly-nested `part` feature under a root part definition, referenced by a message
+endpoint's first dotted segment, has exactly this `QualifiedName` — by a dedicated test
 (`SequenceView_LifelineQualifiedNameReconstruction_MatchesDeclaredFeature`) mirroring the real
 `client-server-sequence.sysml` fixture, so no conservative fallback (restricting only root
 selection) was needed. `ResolveMessages`'s existing "skip a message whose endpoint did not resolve"

@@ -498,6 +498,81 @@ public sealed class ActionFlowViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Builds a workspace where <c>M::ProcessA</c> (higher succession/action score) genuinely
+    ///     nests <c>M::ProcessA::ProcessC</c> (lower score) as one of its own <c>Children</c>, while
+    ///     both are also independently registered in <c>Declarations</c> under their own qualified
+    ///     names — the shape needed to make both candidates scope-relevant for a subject exposed only
+    ///     inside <c>ProcessC</c>.
+    /// </summary>
+    private static SysmlWorkspace BuildNestedCandidateWorkspace()
+    {
+        var processC = new SysmlDefinitionNode
+        {
+            Name = "ProcessC",
+            QualifiedName = "M::ProcessA::ProcessC",
+            DefinitionKeyword = "action def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "c1", QualifiedName = "M::ProcessA::ProcessC::c1", FeatureKeyword = "action" },
+                new SysmlFeatureNode { Name = "c2", QualifiedName = "M::ProcessA::ProcessC::c2", FeatureKeyword = "action" },
+                new SysmlTransitionNode { Source = "c1", Target = "c2" }
+            ]
+        };
+        var processA = new SysmlDefinitionNode
+        {
+            Name = "ProcessA",
+            QualifiedName = "M::ProcessA",
+            DefinitionKeyword = "action def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a1", QualifiedName = "M::ProcessA::a1", FeatureKeyword = "action" },
+                new SysmlFeatureNode { Name = "a2", QualifiedName = "M::ProcessA::a2", FeatureKeyword = "action" },
+                new SysmlFeatureNode { Name = "a3", QualifiedName = "M::ProcessA::a3", FeatureKeyword = "action" },
+                new SysmlFeatureNode { Name = "a4", QualifiedName = "M::ProcessA::a4", FeatureKeyword = "action" },
+                new SysmlTransitionNode { Source = "a1", Target = "a2" },
+                new SysmlTransitionNode { Source = "a2", Target = "a3" },
+                processC
+            ]
+        };
+        return new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["M::ProcessA"] = processA,
+                ["M::ProcessA::ProcessC"] = processC
+            }
+        };
+    }
+
+    /// <summary>
+    ///     Exposing an inner action of the nested definition <c>ProcessC</c> selects <c>ProcessC</c>
+    ///     as the root even though its ancestor <c>ProcessA</c> has a higher succession/action score
+    ///     and would win the old pure-score tie-break, proving <c>FindRoot</c> now prefers the most
+    ///     specific (deepest-qualified-name) scope-relevant candidate over a less specific ancestor.
+    /// </summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_ExposeInnerActionOfNestedDefinition_SelectsNestedDefinitionNotAncestor()
+    {
+        var strategy = new ActionFlowViewLayoutStrategy();
+        var workspace = BuildNestedCandidateWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposedNames = ["c1"],
+            ResolvedEdges = [new SysmlEdge("M::V", "M::ProcessA::ProcessC::c1", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var boxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "action").ToList();
+        Assert.Contains(boxes, b => b.Label == "c1");
+        Assert.DoesNotContain(boxes, b => b.Label is "a1" or "a2" or "a3" or "a4");
+    }
+
+    /// <summary>
     ///     An <c>expose</c> edge pointing at a definition unrelated to every candidate root makes no
     ///     root scope-relevant, so no root is chosen and an empty canvas results.
     /// </summary>

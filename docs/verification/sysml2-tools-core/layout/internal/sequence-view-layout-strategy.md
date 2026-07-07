@@ -38,6 +38,9 @@ configuration are required beyond a standard .NET SDK installation.
   message between them.
 - A view whose resolved `Expose` edge names a feature usage (not a definition) still resolves to
   the usage's type as the root, via the shared usage-to-type fallback.
+- A view whose resolved `Expose` edge names an inner lifeline participant of a definition
+  genuinely nested inside another eligible root candidate selects the nested definition, not the
+  ancestor, even though the ancestor has more messages and would win the old pure-score tie-break.
 
 ##### Test Scenarios
 
@@ -55,3 +58,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `SequenceView_BuildLayout_ExposeSingleLifeline_NarrowsLifelines` | Single exposed lifeline narrows the diagram |
 | `SequenceView_BuildLayout_ExposeBothLifelines_UnionsSubtreesKeepsMessages` | Two lifelines union, keeping messages |
 | `SequenceView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
+| `SequenceView_BuildLayout_ExposeInnerLifelineOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested wins |

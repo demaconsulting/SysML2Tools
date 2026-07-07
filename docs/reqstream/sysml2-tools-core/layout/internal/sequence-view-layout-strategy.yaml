@@ -99,3 +99,18 @@ sections:
           lifeline rendering must remain the default in both cases.
         tests:
           - SequenceView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged
+
+      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-ScopedSpecificityTieBreak
+        title: >-
+          When more than one candidate root is relevant to the resolved expose scope,
+          SequenceViewLayoutStrategy shall select the most specific (deepest-qualified-name)
+          relevant candidate, using its message-count heuristic only to break ties among equally
+          specific candidates.
+        justification: |
+          Because SysML v2 definitions may nest, an ancestor definition and a nested descendant
+          definition can both be relevant to the same resolved `expose` scope. Without a
+          specificity-first tie-break, the ancestor could win by raw message-count score even
+          though the user's `expose` statement was scoped to the nested descendant, silently
+          defeating the intended scoping.
+        tests:
+          - SequenceView_BuildLayout_ExposeInnerLifelineOfNestedDefinition_SelectsNestedDefinitionNotAncestor

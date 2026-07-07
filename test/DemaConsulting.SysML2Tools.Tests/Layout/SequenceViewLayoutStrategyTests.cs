@@ -311,6 +311,82 @@ public sealed class SequenceViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Builds a workspace where <c>M::ProtocolA</c> (more messages) genuinely nests
+    ///     <c>M::ProtocolA::ProtocolC</c> (fewer messages) as one of its own <c>Children</c>, while
+    ///     both are also independently registered in <c>Declarations</c> under their own qualified
+    ///     names — the shape needed to make both candidates scope-relevant for a subject exposed only
+    ///     inside <c>ProtocolC</c>.
+    /// </summary>
+    private static SysmlWorkspace BuildNestedCandidateWorkspace()
+    {
+        var protocolC = new SysmlDefinitionNode
+        {
+            Name = "ProtocolC",
+            QualifiedName = "M::ProtocolA::ProtocolC",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "x", QualifiedName = "M::ProtocolA::ProtocolC::x", FeatureKeyword = "part" },
+                new SysmlFeatureNode { Name = "y", QualifiedName = "M::ProtocolA::ProtocolC::y", FeatureKeyword = "part" },
+                new SysmlConnectionNode { Name = "m", ConnectionKeyword = "message", EndpointA = "x.p", EndpointB = "y.q" },
+                new SysmlConnectionNode { Name = "self", ConnectionKeyword = "message", EndpointA = "x.s", EndpointB = "x.t" }
+            ]
+        };
+        var protocolA = new SysmlDefinitionNode
+        {
+            Name = "ProtocolA",
+            QualifiedName = "M::ProtocolA",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "client", QualifiedName = "M::ProtocolA::client", FeatureKeyword = "part" },
+                new SysmlFeatureNode { Name = "server", QualifiedName = "M::ProtocolA::server", FeatureKeyword = "part" },
+                new SysmlConnectionNode { Name = "req", ConnectionKeyword = "message", EndpointA = "client.a", EndpointB = "server.b" },
+                new SysmlConnectionNode { Name = "resp", ConnectionKeyword = "message", EndpointA = "server.c", EndpointB = "client.d" },
+                new SysmlConnectionNode { Name = "self", ConnectionKeyword = "message", EndpointA = "server.e", EndpointB = "server.f" },
+                protocolC
+            ]
+        };
+        return new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["M::ProtocolA"] = protocolA,
+                ["M::ProtocolA::ProtocolC"] = protocolC
+            }
+        };
+    }
+
+    /// <summary>
+    ///     Exposing an inner lifeline participant of the nested definition <c>ProtocolC</c> selects
+    ///     <c>ProtocolC</c> as the root even though its ancestor <c>ProtocolA</c> has more messages
+    ///     and would win the old pure-score tie-break, proving <c>FindRoot</c> now prefers the most
+    ///     specific (deepest-qualified-name) scope-relevant candidate over a less specific ancestor.
+    /// </summary>
+    [Fact]
+    public void SequenceView_BuildLayout_ExposeInnerLifelineOfNestedDefinition_SelectsNestedDefinitionNotAncestor()
+    {
+        var strategy = new SequenceViewLayoutStrategy();
+        var workspace = BuildNestedCandidateWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposedNames = ["x"],
+            ResolvedEdges = [new SysmlEdge("M::V", "M::ProtocolA::ProtocolC::x", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var lifelines = layout.Nodes.OfType<LayoutLifeline>().Select(l => l.Label).ToList();
+        Assert.Contains("x", lifelines);
+        Assert.DoesNotContain("client", lifelines);
+        Assert.DoesNotContain("server", lifelines);
+    }
+
+    /// <summary>
     ///     An <c>expose</c> edge pointing at a definition unrelated to every candidate root makes no
     ///     root scope-relevant, so no root is chosen and an empty canvas results.
     /// </summary>

@@ -29,10 +29,14 @@ initial marker and the transition edges, and assembles the tree. Returns a minim
 
 `FindRoot` chooses the non-standard-library definition with the most transitions, restricted —
 when a scope is resolved — to candidates for which `ExposeScopeResolver.IsRootRelevantToScope`
-returns `true`. `CollectStates` gathers the declared `state` usages first (preserving declaration
-order so the first declared state becomes the initial state), excluding — when a scope is
-resolved — any declared state feature whose qualified name fails
-`ExposeScopeResolver.IsInSubjectScope`; it then adds any additional state named only by a
+returns `true`. When multiple candidates are relevant to a non-null scope (possible because a
+nested definition and its ancestor can both be relevant), the most specific (deepest/longest
+qualified name) relevant candidate is preferred via `ExposeScopeResolver.IsMoreSpecificCandidate`,
+with the transition-count tie-break used only to break ties among equally specific candidates;
+this ordering does not apply when `scope` is `null`. `CollectStates` gathers the declared `state`
+usages first (preserving declaration order so the first declared state becomes the initial
+state), excluding — when a scope is resolved — any declared state feature whose qualified name
+fails `ExposeScopeResolver.IsInSubjectScope`; it then adds any additional state named only by a
 transition endpoint **unconditionally** (this second pass has no independent qualified name of its
 own to scope against, since it exists solely because a transition names it), building a name →
 index lookup.
@@ -79,16 +83,20 @@ is selected** and then narrows **which of that root's states are shown**, mirror
 `ExposeScopeResolver.IsRootRelevantToScope` accepts, so exposing the current heuristic root
 itself, an inner state of it, or a definition that itself contains the heuristic default all
 correctly select a root, while exposing an unrelated definition yields no root and thus the
-minimal empty canvas. `CollectStates` then narrows the selected root's own **declared** state
-features to those within the resolved scope; however, any declared-but-excluded state that is
-still referenced by an in-scope transition is transparently re-added by the unconditional
-transition-endpoint pass, since that pass has no independent qualified name to filter against — so
-expose-scoping only reliably drops a state that is genuinely isolated (never referenced by any
-transition of the selected root). `ResolveTransitions`'s existing name-lookup approach naturally
-omits any transition whose endpoint state was never added — no new edge-side logic was required.
-A view with no `expose` statement (including the synthesized `--auto` view, whose `ViewNode` is
-`null`) resolves no scope, so `FindRoot` considers every candidate and `CollectStates` keeps every
-state, unchanged from the pre-scoping behavior.
+minimal empty canvas. When more than one candidate is relevant (a nested definition and an
+ancestor definition can both be relevant to the same exposed subject),
+`ExposeScopeResolver.IsMoreSpecificCandidate` prefers the most deeply nested candidate, so
+exposing an inner state of a nested definition correctly selects that nested definition rather
+than its ancestor, even when the ancestor has more transitions. `CollectStates` then narrows the
+selected root's own **declared** state features to those within the resolved scope; however, any
+declared-but-excluded state that is still referenced by an in-scope transition is transparently
+re-added by the unconditional transition-endpoint pass, since that pass has no independent
+qualified name to filter against — so expose-scoping only reliably drops a state that is genuinely
+isolated (never referenced by any transition of the selected root). `ResolveTransitions`'s
+existing name-lookup approach naturally omits any transition whose endpoint state was never added
+— no new edge-side logic was required. A view with no `expose` statement (including the
+synthesized `--auto` view, whose `ViewNode` is `null`) resolves no scope, so `FindRoot` considers
+every candidate and `CollectStates` keeps every state, unchanged from the pre-scoping behavior.
 
 ##### Error Handling
 

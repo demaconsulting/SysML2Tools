@@ -119,13 +119,18 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
     /// Finds the definition with the most successions to use as the diagram root. When
     /// <paramref name="scope"/> is non-null (the view's resolved <c>expose</c> containment-subtree
     /// scope), candidates are first restricted to those relevant to the scope via
-    /// <see cref="ExposeScopeResolver.IsRootRelevantToScope"/> before the succession/action-count
-    /// tie-break applies; when no candidate is scope-relevant, no root is chosen (an empty canvas
-    /// results).
+    /// <see cref="ExposeScopeResolver.IsRootRelevantToScope"/>; because a nested definition and its
+    /// ancestor can both be scope-relevant, ties among relevant candidates are then broken by
+    /// specificity (deepest/longest qualified name wins) via
+    /// <see cref="ExposeScopeResolver.IsMoreSpecificCandidate"/>, with the succession/action score
+    /// used only to break ties between equally specific candidates. When no candidate is
+    /// scope-relevant, no root is chosen (an empty canvas results). When <paramref name="scope"/> is
+    /// <see langword="null"/>, selection is the plain succession/action-count heuristic, unchanged.
     /// </summary>
     private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
     {
         SysmlDefinitionNode? best = null;
+        string? bestQualifiedName = null;
         var bestScore = -1;
 
         foreach (var (qualifiedName, node) in workspace.Declarations)
@@ -148,9 +153,15 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             var successions = def.Children.OfType<SysmlTransitionNode>().Count();
             var actions = def.Children.OfType<SysmlFeatureNode>().Count(f => f.FeatureKeyword == "action");
             var score = (successions * 100) + actions;
-            if (score > bestScore && (successions > 0 || actions > 0))
+            var scoreBetter = score > bestScore;
+            var isBetter = scope is not null
+                ? ExposeScopeResolver.IsMoreSpecificCandidate(qualifiedName, bestQualifiedName, scoreBetter)
+                : scoreBetter;
+
+            if (isBetter && (successions > 0 || actions > 0))
             {
                 best = def;
+                bestQualifiedName = qualifiedName;
                 bestScore = score;
             }
         }

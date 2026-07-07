@@ -3,9 +3,10 @@
 ##### Verification Approach
 
 `ExposeScopeResolver` is verified through direct unit tests in `ExposeScopeResolverTests` that
-call `ResolveExposedScope`, `IsInSubjectScope`, and `IsRootRelevantToScope` directly with
-synthetic `SysmlWorkspace`/`SysmlViewNode` inputs and assert on the returned scope or boolean
-result. No mocking is required; every method is a pure function over its parameters.
+call `ResolveExposedScope`, `IsInSubjectScope`, `IsRootRelevantToScope`, and
+`IsMoreSpecificCandidate` directly with synthetic `SysmlWorkspace`/`SysmlViewNode` inputs and
+assert on the returned scope or boolean result. No mocking is required; every method is a pure
+function over its parameters.
 
 ##### Test Environment
 
@@ -31,6 +32,13 @@ configuration are required beyond a standard .NET SDK installation.
 - `IsRootRelevantToScope` returns `true` when the candidate is nested within a subject.
 - `IsRootRelevantToScope` returns `true` when a subject is nested within the candidate.
 - `IsRootRelevantToScope` returns `false` for an unrelated candidate.
+- With no current best candidate, `IsMoreSpecificCandidate` returns `true` for any candidate.
+- `IsMoreSpecificCandidate` returns `true` for a candidate with a longer qualified name than the
+  current best, regardless of score.
+- `IsMoreSpecificCandidate` returns `false` for a candidate with a shorter qualified name than the
+  current best, regardless of score.
+- `IsMoreSpecificCandidate` falls back to the caller-supplied score comparison when the candidate
+  and current best have equal-length qualified names.
 
 ##### Test Scenarios
 
@@ -58,3 +66,13 @@ configuration are required beyond a standard .NET SDK installation.
   Subject nested within the candidate is relevant
 - `IsRootRelevantToScope_UnrelatedCandidate_ReturnsFalse`:
   Unrelated candidate is not relevant
+- `IsMoreSpecificCandidate_NoCurrentBest_ReturnsTrue`:
+  No current best candidate: any candidate becomes the new best
+- `IsMoreSpecificCandidate_LongerQualifiedName_ReturnsTrueRegardlessOfScore`:
+  Longer (more deeply nested) qualified name wins even with a worse score
+- `IsMoreSpecificCandidate_ShorterQualifiedName_ReturnsFalseRegardlessOfScore`:
+  Shorter qualified name loses even with a better score
+- `IsMoreSpecificCandidate_EqualLength_FallsBackToScore_True`:
+  Equal-length qualified names fall back to the score comparison — true case
+- `IsMoreSpecificCandidate_EqualLength_FallsBackToScore_False`:
+  Equal-length qualified names fall back to the score comparison — false case

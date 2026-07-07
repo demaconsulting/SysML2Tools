@@ -43,6 +43,9 @@ configuration are required beyond a standard .NET SDK installation.
   subtrees, keeping the connection between them.
 - A view whose resolved `Expose` edge names a feature usage (not a definition) still resolves to
   the usage's type as the root, via the shared usage-to-type fallback.
+- A view whose resolved `Expose` edge names an inner part of a definition genuinely nested inside
+  another eligible root candidate selects the nested definition, not the ancestor, even though the
+  ancestor has more connections/parts and would win the old pure-score tie-break.
 
 ##### Test Scenarios
 
@@ -63,3 +66,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_ExposeSinglePart_NarrowsToThatPart` | Single exposed part narrows the container |
 | `InterconnectionView_BuildLayout_ExposeMultipleParts_UnionsBothSubtrees` | Two exposed parts union both subtrees |
 | `InterconnectionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
+| `InterconnectionView_BuildLayout_ExposeInnerPartOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested wins |

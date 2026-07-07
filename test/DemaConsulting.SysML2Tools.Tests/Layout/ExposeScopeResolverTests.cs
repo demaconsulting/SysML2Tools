@@ -177,4 +177,51 @@ public sealed class ExposeScopeResolverTests
     {
         Assert.False(ExposeScopeResolver.IsRootRelevantToScope("Root::B", ["Root::A"]));
     }
+
+    /// <summary>With no current best candidate, any candidate becomes the new best.</summary>
+    [Fact]
+    public void IsMoreSpecificCandidate_NoCurrentBest_ReturnsTrue()
+    {
+        Assert.True(ExposeScopeResolver.IsMoreSpecificCandidate("Root::A", null, currentScoreIsBetter: false));
+    }
+
+    /// <summary>
+    ///     A candidate with a longer (more deeply nested) qualified name always wins over the
+    ///     current best, even when its own score is worse.
+    /// </summary>
+    [Fact]
+    public void IsMoreSpecificCandidate_LongerQualifiedName_ReturnsTrueRegardlessOfScore()
+    {
+        Assert.True(ExposeScopeResolver.IsMoreSpecificCandidate("Root::A::Child", "Root::A", currentScoreIsBetter: false));
+    }
+
+    /// <summary>
+    ///     A candidate with a shorter qualified name than the current best always loses, even when
+    ///     its own score is better.
+    /// </summary>
+    [Fact]
+    public void IsMoreSpecificCandidate_ShorterQualifiedName_ReturnsFalseRegardlessOfScore()
+    {
+        Assert.False(ExposeScopeResolver.IsMoreSpecificCandidate("Root::A", "Root::A::Child", currentScoreIsBetter: true));
+    }
+
+    /// <summary>
+    ///     When the candidate and current best have equal-length qualified names (e.g. unrelated
+    ///     siblings), the decision falls back to the caller-supplied score comparison — true case.
+    /// </summary>
+    [Fact]
+    public void IsMoreSpecificCandidate_EqualLength_FallsBackToScore_True()
+    {
+        Assert.True(ExposeScopeResolver.IsMoreSpecificCandidate("Root::SysB", "Root::SysA", currentScoreIsBetter: true));
+    }
+
+    /// <summary>
+    ///     When the candidate and current best have equal-length qualified names (e.g. unrelated
+    ///     siblings), the decision falls back to the caller-supplied score comparison — false case.
+    /// </summary>
+    [Fact]
+    public void IsMoreSpecificCandidate_EqualLength_FallsBackToScore_False()
+    {
+        Assert.False(ExposeScopeResolver.IsMoreSpecificCandidate("Root::SysB", "Root::SysA", currentScoreIsBetter: false));
+    }
 }

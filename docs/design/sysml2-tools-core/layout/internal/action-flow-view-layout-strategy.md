@@ -28,7 +28,13 @@ adds the succession edges and the start/done markers, and assembles the tree. Re
 
 `FindRoot` chooses the non-standard-library definition that scores highest on successions (then
 actions), restricted — when a scope is resolved — to candidates for which
-`ExposeScopeResolver.IsRootRelevantToScope` returns `true`. `CollectActions` gathers the declared
+`ExposeScopeResolver.IsRootRelevantToScope` returns `true`. When multiple candidates are relevant
+to a non-null scope (possible because a nested definition and its ancestor can both be relevant),
+the most specific (deepest/longest qualified name) relevant candidate is preferred via
+`ExposeScopeResolver.IsMoreSpecificCandidate`, with the succession/action score used only to break
+ties among equally specific candidates; this ordering does not apply when `scope` is `null`. The
+zero-successions-and-zero-actions exclusion guard (`successions > 0 || actions > 0`) is unaffected
+by this change — it is applied regardless of specificity. `CollectActions` gathers the declared
 `action` usages, excluding — when a scope is resolved — any declared action feature whose
 qualified name fails `ExposeScopeResolver.IsInSubjectScope`; it then adds any additional action
 named only by a succession endpoint **unconditionally** (this second pass has no independent
@@ -72,16 +78,21 @@ root is selected** and then narrows **which of that root's actions are shown**, 
 `ExposeScopeResolver.IsRootRelevantToScope` accepts, so exposing the current heuristic root
 itself, an inner action of it, or a definition that itself contains the heuristic default all
 correctly select a root, while exposing an unrelated definition yields no root and thus the
-minimal empty canvas. `CollectActions` then narrows the selected root's own **declared** action
-features to those within the resolved scope; however, any declared-but-excluded action that is
-still referenced by an in-scope succession is transparently re-added by the unconditional
-succession-endpoint pass, since that pass has no independent qualified name to filter against — so
-expose-scoping only reliably drops an action that is genuinely isolated (never referenced by any
-succession of the selected root). `ResolveSuccessions`'s existing name-lookup approach naturally
-omits any succession whose endpoint action was never added — no new edge-side logic was required.
-A view with no `expose` statement (including the synthesized `--auto` view, whose `ViewNode` is
-`null`) resolves no scope, so `FindRoot` considers every candidate and `CollectActions` keeps
-every action, unchanged from the pre-scoping behavior.
+minimal empty canvas. When more than one candidate is relevant (a nested definition and an
+ancestor definition can both be relevant to the same exposed subject),
+`ExposeScopeResolver.IsMoreSpecificCandidate` prefers the most deeply nested candidate, so
+exposing an inner action of a nested definition correctly selects that nested definition rather
+than its ancestor, even when the ancestor has a higher succession/action score. `CollectActions`
+then narrows the selected root's own **declared** action features to those within the resolved
+scope; however, any declared-but-excluded action that is still referenced by an in-scope
+succession is transparently re-added by the unconditional succession-endpoint pass, since that
+pass has no independent qualified name to filter against — so expose-scoping only reliably drops
+an action that is genuinely isolated (never referenced by any succession of the selected root).
+`ResolveSuccessions`'s existing name-lookup approach naturally omits any succession whose endpoint
+action was never added — no new edge-side logic was required. A view with no `expose` statement
+(including the synthesized `--auto` view, whose `ViewNode` is `null`) resolves no scope, so
+`FindRoot` considers every candidate and `CollectActions` keeps every action, unchanged from the
+pre-scoping behavior.
 
 ##### Error Handling
 

@@ -39,6 +39,9 @@ configuration are required beyond a standard .NET SDK installation.
   transition.
 - A view whose resolved `Expose` edge names a feature usage (not a definition) still resolves to
   the usage's type as the root, via the shared usage-to-type fallback.
+- A view whose resolved `Expose` edge names an inner state of a definition genuinely nested
+  inside another eligible root candidate selects the nested definition, not the ancestor, even
+  though the ancestor has more transitions and would win the old pure-score tie-break.
 
 ##### Test Scenarios
 
@@ -56,3 +59,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `StateTransitionView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas` | Unrelated def |
 | `StateTransitionView_BuildLayout_ExposeSingleState_DropsIsolatedOutOfScopeState` | Isolated state dropped |
 | `StateTransitionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
+| `StateTransitionView_BuildLayout_ExposeInnerStateOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested |

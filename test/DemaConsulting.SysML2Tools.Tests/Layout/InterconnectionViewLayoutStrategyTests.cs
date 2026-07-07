@@ -370,6 +370,88 @@ public sealed class InterconnectionViewLayoutStrategyTests
         };
     }
 
+    /// <summary>
+    ///     Builds a workspace where <c>M::SysA</c> (more connections/parts) genuinely nests
+    ///     <c>M::SysA::SysC</c> (fewer connections/parts) as one of its own <c>Children</c>, while
+    ///     both are also independently registered in <c>Declarations</c> under their own qualified
+    ///     names — the shape needed to make both candidates scope-relevant for a subject exposed
+    ///     only inside <c>SysC</c>.
+    /// </summary>
+    private static SysmlWorkspace BuildNestedCandidateWorkspace()
+    {
+        var sysC = new SysmlDefinitionNode
+        {
+            Name = "SysC",
+            QualifiedName = "M::SysA::SysC",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "c1", QualifiedName = "M::SysA::SysC::c1", FeatureKeyword = "part", FeatureTyping = "C" },
+                new SysmlFeatureNode { Name = "c2", QualifiedName = "M::SysA::SysC::c2", FeatureKeyword = "part", FeatureTyping = "C" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "c1", EndpointB = "c2" }
+            ]
+        };
+        var sysA = new SysmlDefinitionNode
+        {
+            Name = "SysA",
+            QualifiedName = "M::SysA",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a1", QualifiedName = "M::SysA::a1", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlFeatureNode { Name = "a2", QualifiedName = "M::SysA::a2", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlFeatureNode { Name = "a3", QualifiedName = "M::SysA::a3", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "a1", EndpointB = "a2" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "a2", EndpointB = "a3" },
+                sysC
+            ]
+        };
+        return new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["M::SysA"] = sysA,
+                ["M::SysA::SysC"] = sysC
+            }
+        };
+    }
+
+    /// <summary>
+    ///     Exposing an inner part of the nested definition <c>SysC</c> selects <c>SysC</c> as the
+    ///     root even though its ancestor <c>SysA</c> has more connections/parts and would win the
+    ///     old pure-score tie-break, proving <c>FindRoot</c> now prefers the most specific
+    ///     (deepest-qualified-name) scope-relevant candidate over a less specific ancestor.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeInnerPartOfNestedDefinition_SelectsNestedDefinitionNotAncestor()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildNestedCandidateWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposedNames = ["c1"],
+            ResolvedEdges = [new SysmlEdge("M::V", "M::SysA::SysC::c1", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var container = layout.Nodes.OfType<LayoutBox>().First(b => b.Keyword == "part def");
+        Assert.Equal("SysC", container.Label);
+
+        // Only c1 (SysC's part) is rendered, none of SysA's own parts (a1/a2/a3).
+        var partLabels = layout.Nodes.OfType<LayoutBox>()
+            .Where(b => b.Shape == BoxShape.RoundedRectangle)
+            .Select(b => b.Label)
+            .ToList();
+        Assert.Contains(partLabels, l => l is not null && l.Contains("c1", StringComparison.Ordinal));
+        Assert.DoesNotContain(partLabels, l => l is not null &&
+            (l.Contains("a1", StringComparison.Ordinal) || l.Contains("a2", StringComparison.Ordinal) || l.Contains("a3", StringComparison.Ordinal)));
+    }
+
     /// <summary>Finds the rounded part box with the given label across the whole layout tree.</summary>
     private static LayoutBox FindPartBox(LayoutTree layout, string label)
     {

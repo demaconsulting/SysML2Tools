@@ -354,6 +354,80 @@ public sealed class StateTransitionViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Builds a workspace where <c>SM::MachineA</c> (more transitions) genuinely nests
+    ///     <c>SM::MachineA::MachineB</c> (fewer transitions) as one of its own <c>Children</c>, while
+    ///     both are also independently registered in <c>Declarations</c> under their own qualified
+    ///     names — the shape needed to make both candidates scope-relevant for a subject exposed only
+    ///     inside <c>MachineB</c>.
+    /// </summary>
+    private static SysmlWorkspace BuildNestedCandidateWorkspace()
+    {
+        var machineB = new SysmlDefinitionNode
+        {
+            Name = "MachineB",
+            QualifiedName = "SM::MachineA::MachineB",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "b1", QualifiedName = "SM::MachineA::MachineB::b1", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "b2", QualifiedName = "SM::MachineA::MachineB::b2", FeatureKeyword = "state" },
+                new SysmlTransitionNode { Source = "b1", Target = "b2", Guard = "g" }
+            ]
+        };
+        var machineA = new SysmlDefinitionNode
+        {
+            Name = "MachineA",
+            QualifiedName = "SM::MachineA",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "s1", QualifiedName = "SM::MachineA::s1", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "s2", QualifiedName = "SM::MachineA::s2", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "s3", QualifiedName = "SM::MachineA::s3", FeatureKeyword = "state" },
+                new SysmlTransitionNode { Source = "s1", Target = "s2", Guard = "g1" },
+                new SysmlTransitionNode { Source = "s2", Target = "s1", Guard = "g2" },
+                machineB
+            ]
+        };
+        return new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["SM::MachineA"] = machineA,
+                ["SM::MachineA::MachineB"] = machineB
+            }
+        };
+    }
+
+    /// <summary>
+    ///     Exposing an inner state of the nested definition <c>MachineB</c> selects <c>MachineB</c>
+    ///     as the root even though its ancestor <c>MachineA</c> has more transitions and would win the
+    ///     old pure-score tie-break, proving <c>FindRoot</c> now prefers the most specific
+    ///     (deepest-qualified-name) scope-relevant candidate over a less specific ancestor.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_ExposeInnerStateOfNestedDefinition_SelectsNestedDefinitionNotAncestor()
+    {
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var workspace = BuildNestedCandidateWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "SM::V",
+            ExposedNames = ["b1"],
+            ResolvedEdges = [new SysmlEdge("SM::V", "SM::MachineA::MachineB::b1", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var boxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        Assert.Contains(boxes, b => b.Label == "b1");
+        Assert.DoesNotContain(boxes, b => b.Label is "s1" or "s2" or "s3");
+    }
+
+    /// <summary>
     ///     An <c>expose</c> edge pointing at a definition unrelated to every candidate root makes no
     ///     root scope-relevant, so no root is chosen and an empty canvas results.
     /// </summary>

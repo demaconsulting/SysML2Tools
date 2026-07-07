@@ -78,7 +78,11 @@ Chooses the non-standard-library `part def` with the most connection usages (bre
 most part usages) as the definition whose interior to render, restricted — when a scope is
 resolved — to candidates for which `ExposeScopeResolver.IsRootRelevantToScope` returns `true`;
 returns `null` when no candidate is relevant to a non-null scope (an empty canvas results), and
-falls back to considering every candidate when `scope` is `null`.
+falls back to considering every candidate when `scope` is `null`. When multiple candidates are
+relevant to a non-null scope (possible because a nested definition and its ancestor can both be
+relevant), the most specific (deepest/longest qualified name) relevant candidate is preferred via
+`ExposeScopeResolver.IsMoreSpecificCandidate`, with the connections/parts tie-break used only to
+break ties among equally specific candidates; this ordering does not apply when `scope` is `null`.
 
 ###### `CollectParts(root, theme)` and `ResolveConnections(root, partIndex)`
 
@@ -98,8 +102,12 @@ instead it restricts **which root is selected** and then narrows **which of that
 shown**. `FindRoot` only considers candidates `ExposeScopeResolver.IsRootRelevantToScope` accepts,
 so exposing the current heuristic root itself, an inner part of it, or a definition that itself
 contains the heuristic default all correctly select a root, while exposing an unrelated
-definition yields no root and thus the minimal empty canvas. `CollectParts` then narrows the
-selected root's own part features to those within the resolved scope (via
+definition yields no root and thus the minimal empty canvas. When more than one candidate is
+relevant (a nested definition and an ancestor definition can both be relevant to the same exposed
+subject), `ExposeScopeResolver.IsMoreSpecificCandidate` prefers the most deeply nested candidate,
+so exposing an inner part of a nested definition correctly selects that nested definition rather
+than its ancestor, even when the ancestor has more connections/parts. `CollectParts` then narrows
+the selected root's own part features to those within the resolved scope (via
 `ExposeScopeResolver.IsInSubjectScope`), and `ResolveConnections`'s existing "skip connections
 whose endpoint did not resolve" behavior transparently drops any connection touching an excluded
 part — no new edge-side logic was required. A view with no `expose` statement (including the

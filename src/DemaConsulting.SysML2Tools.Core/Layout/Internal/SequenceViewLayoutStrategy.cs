@@ -112,12 +112,18 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
     /// Finds the definition with the most messages to use as the diagram root. When
     /// <paramref name="scope"/> is non-null (the view's resolved <c>expose</c> containment-subtree
     /// scope), candidates are first restricted to those relevant to the scope via
-    /// <see cref="ExposeScopeResolver.IsRootRelevantToScope"/> before the message-count tie-break
-    /// applies; when no candidate is scope-relevant, no root is chosen (an empty canvas results).
+    /// <see cref="ExposeScopeResolver.IsRootRelevantToScope"/>; because a nested definition and its
+    /// ancestor can both be scope-relevant, ties among relevant candidates are then broken by
+    /// specificity (deepest/longest qualified name wins) via
+    /// <see cref="ExposeScopeResolver.IsMoreSpecificCandidate"/>, with the message-count heuristic
+    /// used only to break ties between equally specific candidates. When no candidate is
+    /// scope-relevant, no root is chosen (an empty canvas results). When <paramref name="scope"/> is
+    /// <see langword="null"/>, selection is the plain message-count heuristic, unchanged.
     /// </summary>
     private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
     {
         SysmlDefinitionNode? best = null;
+        string? bestQualifiedName = null;
         var bestMessages = 0;
 
         foreach (var (qualifiedName, node) in workspace.Declarations)
@@ -138,9 +144,15 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
             }
 
             var messages = def.Children.OfType<SysmlConnectionNode>().Count(c => c.ConnectionKeyword == "message");
-            if (messages > bestMessages)
+            var scoreBetter = messages > bestMessages;
+            var isBetter = scope is not null
+                ? ExposeScopeResolver.IsMoreSpecificCandidate(qualifiedName, bestQualifiedName, scoreBetter)
+                : scoreBetter;
+
+            if (isBetter)
             {
                 best = def;
+                bestQualifiedName = qualifiedName;
                 bestMessages = messages;
             }
         }

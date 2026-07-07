@@ -254,13 +254,18 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// scope), candidates are first restricted to those relevant to the scope via
     /// <see cref="ExposeScopeResolver.IsRootRelevantToScope"/> — the candidate itself is an exposed
     /// subject, lies within an exposed subject's subtree, or an exposed subject lies within the
-    /// candidate's own subtree — before the same connections/parts tie-break applies; when no
-    /// candidate is scope-relevant, no root is chosen (an empty canvas results, matching the
-    /// existing null-root path).
+    /// candidate's own subtree; because a nested definition and its ancestor can both be
+    /// scope-relevant, ties among relevant candidates are then broken by specificity (deepest/longest
+    /// qualified name wins) via <see cref="ExposeScopeResolver.IsMoreSpecificCandidate"/>, with the
+    /// connections/parts heuristic used only to break ties between equally specific candidates. When
+    /// no candidate is scope-relevant, no root is chosen (an empty canvas results, matching the
+    /// existing null-root path). When <paramref name="scope"/> is <see langword="null"/>, selection is
+    /// the plain connections/parts heuristic, unchanged.
     /// </summary>
     private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
     {
         SysmlDefinitionNode? best = null;
+        string? bestQualifiedName = null;
         var bestConnections = -1;
         var bestParts = -1;
 
@@ -283,10 +288,15 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
             var connections = def.Children.OfType<SysmlConnectionNode>().Count();
             var partCount = def.Children.OfType<SysmlFeatureNode>().Count(f => f.FeatureKeyword == "part");
+            var scoreBetter = connections > bestConnections || (connections == bestConnections && partCount > bestParts);
+            var isBetter = scope is not null
+                ? ExposeScopeResolver.IsMoreSpecificCandidate(qualifiedName, bestQualifiedName, scoreBetter)
+                : scoreBetter;
 
-            if (connections > bestConnections || (connections == bestConnections && partCount > bestParts))
+            if (isBetter)
             {
                 best = def;
+                bestQualifiedName = qualifiedName;
                 bestConnections = connections;
                 bestParts = partCount;
             }

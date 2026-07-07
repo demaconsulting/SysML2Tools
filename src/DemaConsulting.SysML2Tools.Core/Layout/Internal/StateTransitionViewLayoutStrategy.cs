@@ -209,12 +209,18 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     /// definition with the most <see cref="SysmlTransitionNode"/> children. When
     /// <paramref name="scope"/> is non-null (the view's resolved <c>expose</c> containment-subtree
     /// scope), candidates are first restricted to those relevant to the scope via
-    /// <see cref="ExposeScopeResolver.IsRootRelevantToScope"/> before the transition-count tie-break
-    /// applies; when no candidate is scope-relevant, no root is chosen (an empty canvas results).
+    /// <see cref="ExposeScopeResolver.IsRootRelevantToScope"/>; because a nested definition and its
+    /// ancestor can both be scope-relevant, ties among relevant candidates are then broken by
+    /// specificity (deepest/longest qualified name wins) via
+    /// <see cref="ExposeScopeResolver.IsMoreSpecificCandidate"/>, with the transition-count heuristic
+    /// used only to break ties between equally specific candidates. When no candidate is
+    /// scope-relevant, no root is chosen (an empty canvas results). When <paramref name="scope"/> is
+    /// <see langword="null"/>, selection is the plain transition-count heuristic, unchanged.
     /// </summary>
     private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
     {
         SysmlDefinitionNode? best = null;
+        string? bestQualifiedName = null;
         var bestTransitions = -1;
 
         foreach (var (qualifiedName, node) in workspace.Declarations)
@@ -235,9 +241,15 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             }
 
             var transitions = def.Children.OfType<SysmlTransitionNode>().Count();
-            if (transitions > bestTransitions)
+            var scoreBetter = transitions > bestTransitions;
+            var isBetter = scope is not null
+                ? ExposeScopeResolver.IsMoreSpecificCandidate(qualifiedName, bestQualifiedName, scoreBetter)
+                : scoreBetter;
+
+            if (isBetter)
             {
                 best = def;
+                bestQualifiedName = qualifiedName;
                 bestTransitions = transitions;
             }
         }

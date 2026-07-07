@@ -41,6 +41,10 @@ configuration are required beyond a standard .NET SDK installation.
   succession.
 - A view whose resolved `Expose` edge names a feature usage (not a definition) still resolves to
   the usage's type as the root, via the shared usage-to-type fallback.
+- A view whose resolved `Expose` edge names an inner action of a definition genuinely nested
+  inside another eligible root candidate selects the nested definition, not the ancestor, even
+  though the ancestor has a higher succession/action score and would win the old pure-score
+  tie-break.
 
 ##### Test Scenarios
 
@@ -60,3 +64,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `ActionFlowView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas` | Unrelated def, no root |
 | `ActionFlowView_BuildLayout_ExposeSingleAction_DropsOutOfScopeAction` | Isolated action dropped; referenced kept |
 | `ActionFlowView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
+| `ActionFlowView_BuildLayout_ExposeInnerActionOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested wins |
