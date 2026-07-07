@@ -2,10 +2,10 @@
 
 ## Architecture
 
-The `DemaConsulting.SysML2Tools` core library provides the Layout and Rendering subsystems
-for SysML v2 diagram generation. It depends on `DemaConsulting.SysML2Tools.Language` for
-parsing and semantic analysis, and on `DemaConsulting.SysML2Tools.Stdlib` for the pre-compiled
-standard library.
+The `DemaConsulting.SysML2Tools` core library provides the Layout, Rendering, and Io subsystems
+for SysML v2 diagram generation and shared file-discovery. It depends on
+`DemaConsulting.SysML2Tools.Language` for parsing and semantic analysis, and on
+`DemaConsulting.SysML2Tools.Stdlib` for the pre-compiled standard library.
 
 The core library provides three subsystems: **Layout**, **Rendering**, and **Io**. The Layout
 subsystem maps the SysML semantic model onto the `LayoutTree` intermediate representation — nine
@@ -34,6 +34,9 @@ flowchart TD
         IRenderer
         Theme
         RenderOptions
+    end
+    subgraph Io
+        GlobFileCollector
     end
     Language --> DiagramRenderer
     Stdlib --> DiagramRenderer

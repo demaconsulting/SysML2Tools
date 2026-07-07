@@ -70,13 +70,12 @@ sections:
         title: >-
           The query command shall report a clear error naming the verb when one or more
           file patterns are supplied but none of them match any file on disk, and shall
-          delegate pattern resolution to the shared GlobFileCollector.
+          exit with a non-zero status.
         justification: |
-          Delegating resolution to the shared GlobFileCollector (see the Core Io
-          subsystem's own requirements for pattern-resolution semantics) fixes a
-          pre-existing defect where query passed raw glob tokens straight to the workspace
-          loader, which treats every entry as a literal file path. A dedicated "no files
-          matched" error distinguishes a typo'd pattern from "no patterns supplied at all".
+          A pattern that matches nothing (e.g., a typo in a directory name) previously
+          proceeded silently to workspace loading with an empty file list. A dedicated "no
+          files matched" error distinguishes a typo'd pattern from "no patterns supplied at
+          all" and gives the user an actionable message.
         tests:
           - QuerySubsystem_GlobPattern_ResolvesMultipleFiles
           - Query_PatternMatchesNoFiles_ReportsErrorAndNonZeroExitCode

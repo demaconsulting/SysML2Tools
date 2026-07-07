@@ -21,8 +21,10 @@ subsystem contains one unit: `LintCommand`.
   paths via `GlobFileCollector.Collect`, awaits `WorkspaceLoader.LoadAsync`, writes each
   diagnostic, and calls `context.WriteError` if any error-severity diagnostics were found
   (which sets exit code 1).
-- *Constraints*: If no files are resolved from the provided patterns, writes an error message
-  and returns immediately without invoking the loader.
+- *Constraints*: If no file patterns were supplied at all, writes a "no input files specified"
+  error message and returns immediately without invoking the loader. If one or more patterns
+  were supplied but none resolve to any file, writes a distinct "no files matched" error
+  message and returns immediately without invoking the loader.
 
 ### Design
 
@@ -35,14 +37,19 @@ pattern, and `LintArgumentParser` rejects any `-`-prefixed token (e.g., `lint --
 with `ArgumentException($"Unsupported argument '{arg}' for the 'lint' command.")` — flags that
 belong to `render` or `query` are never silently accepted by `lint`.
 
-`RunAsync` resolves `options.Files` by calling `GlobFileCollector.Collect(options.Files,
-[".sysml", ".kerml"], Directory.GetCurrentDirectory())` — the same call every other command uses
-(see `docs/design/sysml2-tools-core/io.md`). This single delegation replaces the subsystem's
-former hand-rolled, single-directory-only resolver, and adds recursive `**` matching and `!`
-exclusion support that the prior implementation lacked.
+`RunAsync` first checks `options.Files` for emptiness, writing `"lint: no input files
+specified. Provide one or more .sysml or .kerml file paths."` and returning immediately when no
+patterns at all were supplied. It then resolves `options.Files` by calling
+`GlobFileCollector.Collect(options.Files, [".sysml", ".kerml"], Directory.GetCurrentDirectory())`
+— the same call every other command uses (see `docs/design/sysml2-tools-core/io.md`). This
+single delegation replaces the subsystem's former hand-rolled, single-directory-only resolver,
+and adds recursive `**` matching and `!` exclusion support that the prior implementation
+lacked. When one or more patterns were supplied but resolve to zero files, `RunAsync` writes a
+distinct `"lint: no files matched the given pattern(s)."` error and returns — mirroring
+`RenderCommand`/`QueryCommand`'s two-branch distinction between "no patterns supplied at all"
+and "patterns supplied but none matched".
 
-`RunAsync` checks for an empty resolved file list and emits an error if no input files were
-found. Otherwise it logs a `"Linting N file(s)..."` status line, awaits
+Otherwise it logs a `"Linting N file(s)..."` status line, awaits
 `WorkspaceLoader.LoadAsync(files, stdlibTable)`, then iterates over `result.Diagnostics`.
 Error-severity diagnostics are written via `context.WriteError`; all others via
 `context.WriteLine`. After reporting all diagnostics it writes either a summary error count

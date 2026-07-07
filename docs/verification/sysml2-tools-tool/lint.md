@@ -18,7 +18,10 @@ temporary directory and clean them up after each test.
 
 ### Acceptance Criteria
 
-- `LintCommand.RunAsync` with no resolved input files writes an error message and sets exit code 1.
+- `LintCommand.RunAsync` with no file patterns supplied at all writes a "no input files
+  specified" error message and sets exit code 1.
+- `LintCommand.RunAsync` with one or more file patterns that resolve to zero files writes a
+  distinct "no files matched" error message and sets exit code 1.
 - `LintCommand.RunAsync` with valid SysML input writes a `"lint: no errors found."` message and
   returns exit code 0.
 - `LintCommand.RunAsync` with invalid SysML input writes at least one diagnostic in the
@@ -30,10 +33,12 @@ temporary directory and clean them up after each test.
 
 ### Test Scenarios
 
-N/A — integration tests for the Lint subsystem are deferred pending end-to-end CLI test
-infrastructure. System-level acceptance evidence for the `lint` subcommand will be captured in
-integration tests alongside other subcommands. Parser-level behavior is verified by the
-`WorkspaceParser` unit tests documented in the *Parser Verification Design*.
+#### LintSubsystem_PatternMatchesNoFiles_ReportsError (LintSubsystemTests.cs)
+
+Verifies that invoking the lint command with a file pattern that matches no file on disk
+results in an error message written to the context containing "no files matched", and a
+failing exit code — distinguishing this case from "no patterns supplied at all". Satisfies
+`SysML2Tools-Tool-Lint-NoFilesMatched`.
 
 #### LintSubsystem_Help_PrintsLintSpecificUsage (LintSubsystemTests.cs)
 

@@ -39,11 +39,20 @@ internal static class LintCommand
     {
         var options = context.Lint
                       ?? throw new ArgumentException("lint: no lint options were parsed.", nameof(context));
-        var files = GlobFileCollector.Collect(options.Files, [".sysml", ".kerml"], Directory.GetCurrentDirectory());
 
-        if (files.Count == 0)
+        // Validate that at least one file pattern was supplied
+        if (options.Files.Count == 0)
         {
             context.WriteError("lint: no input files specified. Provide one or more .sysml or .kerml file paths.");
+            return;
+        }
+
+        // Resolve the supplied file glob patterns to concrete file paths via the shared
+        // GlobFileCollector, supporting recursive '**' patterns and '!' exclusions.
+        var files = GlobFileCollector.Collect(options.Files, [".sysml", ".kerml"], Directory.GetCurrentDirectory());
+        if (files.Count == 0)
+        {
+            context.WriteError("lint: no files matched the given pattern(s).");
             return;
         }
 

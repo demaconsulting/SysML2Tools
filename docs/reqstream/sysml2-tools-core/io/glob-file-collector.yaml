@@ -24,6 +24,8 @@ sections:
         tests:
           - GlobFileCollector_Collect_BasicGlob_ReturnsMatchingFiles
           - GlobFileCollector_Collect_RecursiveGlob_ReturnsNestedFiles
+          - GlobFileCollector_Collect_RelativeGlob_ResolvesAgainstWorkingDirectory
+          - GlobFileCollector_Collect_RelativeLiteralPath_ResolvesAgainstWorkingDirectory
 
       - id: SysML2Tools-Core-Io-GlobFileCollector-ExclusionOrder
         title: >-
@@ -36,6 +38,7 @@ sections:
           individually; processing order must be well-defined so results are predictable.
         tests:
           - GlobFileCollector_Collect_ExclusionPattern_RemovesPreviouslyIncludedFile
+          - GlobFileCollector_Collect_LaterInclusionAfterExclusion_ReAddsFile
 
       - id: SysML2Tools-Core-Io-GlobFileCollector-ExtensionFiltering
         title: >-

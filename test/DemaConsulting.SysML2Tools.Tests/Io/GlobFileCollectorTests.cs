@@ -64,6 +64,47 @@ public sealed class GlobFileCollectorTests : IDisposable
     }
 
     /// <summary>
+    ///     A relative glob pattern (no directory prefix) resolves against the supplied working
+    ///     directory, confirming <see cref="GlobFileCollector.Collect"/> supports relative
+    ///     patterns and not just absolute ones.
+    /// </summary>
+    [Fact]
+    public void GlobFileCollector_Collect_RelativeGlob_ResolvesAgainstWorkingDirectory()
+    {
+        // Arrange
+        WriteFile("a.sysml");
+        WriteFile("b.sysml");
+        WriteFile("c.txt");
+
+        // Act: a bare relative pattern with no directory prefix, resolved against _root
+        var result = GlobFileCollector.Collect(["*.sysml"], [".sysml", ".kerml"], _root);
+
+        // Assert
+        Assert.Equal(2, result.Count);
+        Assert.All(result, f => Assert.EndsWith(".sysml", f, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     A relative literal path (no glob metacharacters, no directory prefix) resolves
+    ///     against the supplied working directory — unlike an absolute literal path, this does
+    ///     not take the fast literal-existence-check path; it still resolves correctly via
+    ///     <c>Matcher</c>.
+    /// </summary>
+    [Fact]
+    public void GlobFileCollector_Collect_RelativeLiteralPath_ResolvesAgainstWorkingDirectory()
+    {
+        // Arrange
+        var file = WriteFile("model.sysml");
+
+        // Act: a bare relative literal filename, resolved against _root
+        var result = GlobFileCollector.Collect(["model.sysml"], [".sysml", ".kerml"], _root);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal(Path.GetFullPath(file), result[0]);
+    }
+
+    /// <summary>
     ///     A basic single-segment glob pattern resolves every matching file in the directory.
     /// </summary>
     [Fact]
@@ -161,9 +202,37 @@ public sealed class GlobFileCollectorTests : IDisposable
     }
 
     /// <summary>
+    ///     A later inclusion pattern re-adds a file previously removed by an earlier exclusion
+    ///     pattern, confirming patterns are processed strictly in supplied order — accumulating
+    ///     into a single mutable result set rather than each pattern being evaluated against an
+    ///     independent snapshot.
+    /// </summary>
+    [Fact]
+    public void GlobFileCollector_Collect_LaterInclusionAfterExclusion_ReAddsFile()
+    {
+        // Arrange
+        var file = WriteFile("foo.sysml");
+
+        // Act: include, then exclude, then include again — the final inclusion should win
+        var result = GlobFileCollector.Collect(
+            [Path.Combine(_root, "*.sysml"), $"!{file}", file], [".sysml", ".kerml"], _root);
+
+        // Assert: the file is present in the final result, confirming re-add semantics
+        Assert.Single(result);
+        Assert.Equal(Path.GetFullPath(file), result[0]);
+    }
+
+    /// <summary>
     ///     Two patterns referring to the same physical file via different casing collapse
     ///     to a single entry, confirming on-disk casing normalization before ordinal dedup.
     /// </summary>
+    /// <remarks>
+    ///     Dynamically skipped (via <c>Assert.Skip</c>, not a silent early-return) on
+    ///     case-sensitive filesystems (e.g. Linux CI) where a differently-cased literal path
+    ///     genuinely does not refer to the same on-disk file, so there is nothing to normalize.
+    ///     A dynamic skip surfaces as "Skipped" in test reporting rather than a false pass with
+    ///     no assertions executed.
+    /// </remarks>
     [Fact]
     public void GlobFileCollector_Collect_CaseInsensitiveFilesystem_DeduplicatesSameFile()
     {
@@ -171,11 +240,13 @@ public sealed class GlobFileCollectorTests : IDisposable
         var file = WriteFile("Model.sysml");
         var upperCased = Path.Combine(_root, "MODEL.SYSML");
 
-        // Skip on case-sensitive filesystems where the differently-cased literal path
-        // would not actually resolve to the same on-disk file.
+        // Dynamically skip on case-sensitive filesystems where the differently-cased literal
+        // path would not actually resolve to the same on-disk file — this requirement only
+        // applies to case-insensitive filesystems (Windows, macOS).
         if (!File.Exists(upperCased))
         {
-            return;
+            Assert.Skip(
+                "Filesystem is case-sensitive; casing normalization is not applicable here.");
         }
 
         // Act: one pattern in original casing, one in a different casing

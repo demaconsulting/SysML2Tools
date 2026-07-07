@@ -173,6 +173,38 @@ public class LintSubsystemTests
     }
 
     /// <summary>
+    ///     LintCommand reports a distinct error when one or more file patterns are supplied
+    ///     but none of them match any file on disk, rather than the "no input files" message.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_PatternMatchesNoFiles_ReportsError()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), $"lint_nomatch_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var originalError = Console.Error;
+        try
+        {
+            using var errWriter = new StringWriter();
+            Console.SetError(errWriter);
+
+            // Act: lint with a pattern that matches no files
+            var pattern = Path.Combine(tempDir, "*.sysml");
+            using var context = Context.Create(["lint", pattern]);
+            await Program.RunAsync(context);
+
+            // Assert: distinct "no files matched" diagnostic and failing exit code
+            Assert.Contains("no files matched", errWriter.ToString());
+            Assert.Equal(1, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
     ///     'lint --help' now prints lint-specific usage (a regression-proofing test for the
     ///     command-aware help dispatch added alongside the 'help' command).
     /// </summary>

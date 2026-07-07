@@ -40,8 +40,11 @@ flowchart TD
 3. When a pattern's final path segment is a bare `*` (no extension), results are filtered to
    files whose extension (case-insensitive) is in the caller-supplied extension set. When the
    final segment specifies an explicit extension (e.g. `*.sysml`), results are taken as-is.
-4. Literal paths containing no glob metacharacters are resolved directly via a file-existence
-   check, without any directory traversal.
+4. Fully-qualified absolute patterns containing no glob metacharacters are resolved directly as
+   literal paths via a file-existence check, without any directory traversal. Relative patterns
+   — whether or not they contain glob metacharacters — always resolve via `Matcher` against the
+   working directory; only a fully-qualified absolute pattern with no glob metacharacters takes
+   the literal-path fast path.
 5. Every result — whether glob-matched or a literal path — is resolved to its actual on-disk
    casing before being added to the result set, so deduplication (using ordinal, case-sensitive
    comparison) correctly collapses duplicate references to the same physical file regardless of

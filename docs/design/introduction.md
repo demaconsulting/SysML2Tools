@@ -166,6 +166,8 @@ reviewers an explicit navigation aid from design to code:
     - **Layout/** — layout strategies mapping the model to the off-the-shelf `LayoutTree`
       - **Internal/** — per-view layout strategies and the `LayeredPlacement` helper
     - **Rendering/** — SysML-coupled rendering pipeline (`ILayoutStrategy`, `DiagramRenderer`)
+    - **Io/** — shared file glob pattern resolution used by the Tool project's
+      lint/render/query commands (`GlobFileCollector`)
   - **DemaConsulting.SysML2Tools.Tool/** — dotnet tool CLI wrapper
     - **Cli/** — command-line interface subsystem
     - **Lint/** — lint command subsystem

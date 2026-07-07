@@ -12,7 +12,8 @@ sections:
       - id: SysML2Tools-Tool-Lint-Patterns
         title: >-
           The LintCommand shall accept one or more file glob patterns as positional
-          arguments and delegate their resolution to the shared GlobFileCollector.
+          arguments, report an error when no patterns are supplied, and delegate their
+          resolution to the shared GlobFileCollector.
         justification: |
           Users specify which SysML files to lint using file glob patterns (e.g.,
           src/**/*.sysml). Accepting multiple patterns in a single invocation allows
@@ -24,6 +25,19 @@ sections:
           - LintSubsystem_Patterns_AcceptsGlobPatterns_ResolvesFiles
           - LintSubsystem_Patterns_RecursiveGlob_ResolvesNestedFiles
           - LintSubsystem_Patterns_ExclusionPattern_ExcludesMatchedFile
+
+      - id: SysML2Tools-Tool-Lint-NoFilesMatched
+        title: >-
+          The LintCommand shall report a clear error when one or more file patterns are
+          supplied but none of them match any file on disk, distinguishing this case from
+          "no patterns supplied at all".
+        justification: |
+          A pattern that matches nothing (e.g., a typo in a directory name) previously
+          proceeded silently to workspace loading with an empty file list, indistinguishable
+          from "no patterns supplied at all". Reporting a dedicated "no files matched" error
+          mirrors render/query's equivalent behavior and gives the user an actionable message.
+        tests:
+          - LintSubsystem_PatternMatchesNoFiles_ReportsError
 
       - id: SysML2Tools-Tool-Lint-Parse
         title: >-
