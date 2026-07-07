@@ -28,6 +28,23 @@ configuration are required beyond a standard .NET SDK installation.
   the done marker only to sink actions, and a cyclic flow still emits each succession with an open
   marker at its true target.
 - An empty workspace yields a canvas with no nodes.
+- A `null` `ViewContext.ViewNode` selects the pre-scoping heuristic root and renders every action,
+  unchanged from before this feature — the critical `--auto`/no-expose regression guard.
+- A view whose resolved `Expose` edge names a definition other than the heuristic root selects
+  that definition as the root instead.
+- A view whose resolved `Expose` edge names an inner action of a non-heuristic-root definition
+  selects that definition's own root.
+- A view whose resolved `Expose` edge names a definition unrelated to any candidate root selects
+  no root, producing the minimal empty canvas.
+- A view whose resolved `Expose` edge names a single action drops a genuinely isolated
+  out-of-scope action while still rendering any excluded action re-referenced by an in-scope
+  succession.
+- A view whose resolved `Expose` edge names a feature usage (not a definition) still resolves to
+  the usage's type as the root, via the shared usage-to-type fallback.
+- A view whose resolved `Expose` edge names an inner action of a definition genuinely nested
+  inside another eligible root candidate selects the nested definition, not the ancestor, even
+  though the ancestor has a higher succession/action score and would win the old pure-score
+  tie-break.
 
 ##### Test Scenarios
 
@@ -41,3 +58,10 @@ configuration are required beyond a standard .NET SDK installation.
 | `ActionFlowView_BuildLayout_NoOverlap` | Action boxes do not overlap |
 | `ActionFlowView_BuildLayout_BranchAndJoin` | Branch/join renders all boxes, markers, and successions |
 | `ActionFlowView_BuildLayout_Cycle_IsBroken` | Cyclic flow successions keep open markers at true targets |
+| `ActionFlowView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged` | Null `ViewNode` renders unchanged |
+| `ActionFlowView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot` | Non-heuristic root is selected |
+| `ActionFlowView_BuildLayout_ExposeInnerChildOfNonHeuristicRoot_SelectsItsRoot` | Inner action selects root |
+| `ActionFlowView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas` | Unrelated def, no root |
+| `ActionFlowView_BuildLayout_ExposeSingleAction_DropsOutOfScopeAction` | Isolated action dropped; referenced kept |
+| `ActionFlowView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
+| `ActionFlowView_BuildLayout_ExposeInnerActionOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested wins |

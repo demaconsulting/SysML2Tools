@@ -36,7 +36,7 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
 
         var theme = options.Theme;
 
-        var defs = CollectDefinitions(context.Workspace);
+        var defs = CollectDefinitions(context.Workspace, ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode));
         if (defs.Count == 0)
         {
             return new LayoutTree(200.0, 100.0, []);
@@ -86,12 +86,25 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>A user-defined definition with its supertype references.</summary>
-    private sealed record DefRow(string Name, IReadOnlyList<string> SupertypeNames);
+    private sealed record DefRow(string QualifiedName, string Name, IReadOnlyList<string> SupertypeNames);
 
-    /// <summary>Collects the non-stdlib definitions of the workspace in deterministic order.</summary>
-    private static IReadOnlyList<DefRow> CollectDefinitions(SysmlWorkspace workspace)
+    /// <summary>
+    /// Collects the non-stdlib definitions of the workspace in deterministic order, restricted to
+    /// <paramref name="scope"/> when non-null (the view's resolved <c>expose</c> containment
+    /// subtrees).
+    /// </summary>
+    /// <remarks>
+    /// A definition is kept when it is directly within <paramref name="scope"/> <em>or</em> it
+    /// participates in a specialization relationship with another definition that is in scope
+    /// (i.e. it is a supertype of an in-scope definition, or an in-scope definition is one of its
+    /// own supertypes). This "at least one dimension in scope" rule keeps both sides of a
+    /// specialization relationship visible in the matrix even when only one side was directly
+    /// exposed, so the relationship mark is never rendered against a missing row or column.
+    /// </remarks>
+    private static IReadOnlyList<DefRow> CollectDefinitions(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
     {
-        var result = new List<DefRow>();
+        // Phase 1: collect every non-stdlib definition, unfiltered, building a full simple-name index.
+        var all = new List<DefRow>();
         foreach (var qn in workspace.Declarations.Keys.OrderBy(k => k, StringComparer.Ordinal))
         {
             if (StdlibFilter.IsStdlibElement(qn, workspace.StdlibNames))
@@ -101,7 +114,72 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
 
             if (workspace.Declarations[qn] is SysmlDefinitionNode def)
             {
-                result.Add(new DefRow(def.Name ?? qn, def.SupertypeNames));
+                all.Add(new DefRow(qn, def.Name ?? qn, def.SupertypeNames));
+            }
+        }
+
+        // No expose scope: everything is kept (fast path, byte-identical to prior behavior).
+        if (scope is null)
+        {
+            return all;
+        }
+
+        var fullIndexByName = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < all.Count; i++)
+        {
+            fullIndexByName.TryAdd(all[i].Name, i);
+        }
+
+        // Phase 2: determine which indices are directly in the resolved scope.
+        var inScope = new HashSet<int>();
+        for (var i = 0; i < all.Count; i++)
+        {
+            if (ExposeScopeResolver.IsInSubjectScope(all[i].QualifiedName, scope))
+            {
+                inScope.Add(i);
+            }
+        }
+
+        // Phase 3: build the specialization adjacency (each definition's resolved supertype indices).
+        var adjacency = new List<HashSet<int>>(all.Count);
+        foreach (var def in all)
+        {
+            adjacency.Add(ResolveSupertypeIndices(def, fullIndexByName));
+        }
+
+        // Phase 4: keep in-scope definitions, plus any definition sharing a specialization
+        // relationship with an in-scope definition (as either the general or specific side).
+        var kept = new HashSet<int>(inScope);
+        for (var j = 0; j < all.Count; j++)
+        {
+            if (!inScope.Contains(j))
+            {
+                continue;
+            }
+
+            // j is in scope: its supertypes (general side) are kept too.
+            foreach (var i in adjacency[j])
+            {
+                kept.Add(i);
+            }
+        }
+
+        for (var i = 0; i < all.Count; i++)
+        {
+            // i's own supertypes intersect the in-scope set: i (the specific side) is kept too.
+            if (adjacency[i].Overlaps(inScope))
+            {
+                kept.Add(i);
+            }
+        }
+
+        // Phase 5: return the kept definitions in the original deterministic order.
+        var result = new List<DefRow>(kept.Count);
+        for (var i = 0; i < all.Count; i++)
+        {
+            if (kept.Contains(i))
+            {
+                result.Add(all[i]);
             }
         }
 

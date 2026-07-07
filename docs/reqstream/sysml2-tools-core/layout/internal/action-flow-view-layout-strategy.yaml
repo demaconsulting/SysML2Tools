@@ -77,3 +77,74 @@ sections:
         tests:
           - ActionFlowView_BuildLayout_BranchAndJoin
           - ActionFlowView_BuildLayout_Cycle_IsBroken
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExposeScopingRootSelection
+        title: >-
+          When a view's ViewContext carries one or more resolved Expose edges,
+          ActionFlowViewLayoutStrategy shall restrict its heuristic root selection to a candidate
+          relevant to the resolved scope.
+        justification: |
+          The Action Flow View renders exactly one selected root's actions, so `expose` scoping
+          cannot narrow a workspace-wide collection directly; instead it restricts which root is
+          selected — accepting the current heuristic root itself, an inner action of it, a
+          definition containing the heuristic default, or the resolved type of an exposed usage —
+          and selecting no root at all when nothing in the workspace is relevant to the scope.
+        tests:
+          - ActionFlowView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot
+          - ActionFlowView_BuildLayout_ExposeInnerChildOfNonHeuristicRoot_SelectsItsRoot
+          - ActionFlowView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas
+          - ActionFlowView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExposeScopingActionFiltering
+        title: >-
+          When a view's ViewContext carries one or more resolved Expose edges,
+          ActionFlowViewLayoutStrategy shall narrow the selected root's declared actions to those
+          within the resolved scope.
+        justification: |
+          Once a root is selected, `expose` scoping must also narrow what is drawn inside it —
+          otherwise every declared action of the selected root would still be rendered regardless
+          of which actions the view actually exposed, defeating the purpose of scoping the flow's
+          content.
+        tests:
+          - ActionFlowView_BuildLayout_ExposeSingleAction_DropsOutOfScopeAction
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExposeScopingSuccessionEndpointRetention
+        title: >-
+          ActionFlowViewLayoutStrategy shall conservatively re-include any action excluded by
+          action filtering that is still referenced by an in-scope succession, so only genuinely
+          isolated out-of-scope actions are dropped.
+        justification: |
+          A succession whose endpoint action was excluded by filtering would otherwise point at
+          nothing; the existing succession-endpoint pass (which has no independent qualified name
+          to filter against) reintroduces any action still referenced by an in-scope succession,
+          keeping the flow's control edges readable while still dropping actions with no remaining
+          reference.
+        tests:
+          - ActionFlowView_BuildLayout_ExposeSingleAction_DropsOutOfScopeAction
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-NoExposeFallback
+        title: >-
+          When a view's ViewContext carries no resolved Expose edge — including a null ViewNode
+          — ActionFlowViewLayoutStrategy shall select its root by the pre-scoping heuristic and
+          render every action, unchanged from its pre-scoping behavior.
+        justification: |
+          Nearly every real-world view declares no `expose` statement, and the synthetic `--auto`
+          view never carries a ViewNode at all; the pre-scoping heuristic root selection and full
+          action rendering must remain the default in both cases.
+        tests:
+          - ActionFlowView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ScopedSpecificityTieBreak
+        title: >-
+          When more than one candidate root is relevant to the resolved expose scope,
+          ActionFlowViewLayoutStrategy shall select the most specific (deepest-qualified-name)
+          relevant candidate, using its succession/action score only to break ties among equally
+          specific candidates.
+        justification: |
+          Because SysML v2 definitions may nest, an ancestor definition and a nested descendant
+          definition can both be relevant to the same resolved `expose` scope. Without a
+          specificity-first tie-break, the ancestor could win by raw succession/action score even
+          though the user's `expose` statement was scoped to the nested descendant, silently
+          defeating the intended scoping.
+        tests:
+          - ActionFlowView_BuildLayout_ExposeInnerActionOfNestedDefinition_SelectsNestedDefinitionNotAncestor

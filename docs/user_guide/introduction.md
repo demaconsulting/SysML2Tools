@@ -136,10 +136,16 @@ entire workspace:
 - A view with **no** `expose` statement (including the `--auto`-synthesized view) renders the
   full workspace, exactly as before this scoping behavior was introduced.
 
-Only the General View layout strategy honors `expose` scoping in this release; the other view
-kinds (Interconnection, State Transition, Action Flow, Sequence, Grid, Browser) continue to
-render their full applicable scope regardless of a view's declared `expose` statements — see
-`ROADMAP.md` for the planned follow-up extending scoping to those view kinds.
+Every view kind honors `expose` scoping: General, Grid, and Browser Views apply the resolved
+scope directly as a filter over their full applicable content. Interconnection, State
+Transition, Action Flow, and Sequence Views each render exactly one selected root's contents, so
+they instead use the resolved scope in two steps: first, restricting which root the view's own
+heuristic selects to one relevant to the scope (the current heuristic root itself, an inner
+element of it, or a definition that contains it) — an `expose` statement naming an unrelated
+definition yields no root and an empty diagram; second, narrowing that selected root's own
+children (parts, states, actions, or lifelines) to those within the resolved scope. A view with
+no `expose` statement (including the `--auto`-synthesized view) renders unchanged, exactly as
+before this scoping behavior was introduced, for every view kind.
 
 Named `view Name { ... }` usages (not just `view def` declarations) are also now recognized as
 their own renderable declarations: a workspace containing both `view def` declarations and named

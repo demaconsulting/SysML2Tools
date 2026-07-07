@@ -95,28 +95,6 @@ new expression-evaluation component; `GeneralViewLayoutStrategy` filter applicat
 **Visual gate:** a view with a `filter [<predicate>];` statement renders only the elements
 satisfying the predicate, with no "not yet evaluated" warning.
 
-### Expose-based scoping for the remaining layout strategies
-
-`GeneralViewLayoutStrategy` implements `expose`-based subject-scoping (containment-subtree
-filtering driven by a view's `expose` body statements — the only content-scoping mechanism a
-view has), but `InterconnectionView`, `StateTransitionView`, `ActionFlowView`, `SequenceView`,
-`GridView`, and `BrowserView` layout strategies do not yet honor `ViewContext.ViewNode`'s
-`Expose` edges and continue to render their full applicable scope regardless of a view's
-declared `expose` statements.
-
-- Extend the same `ResolveExposedScope`/`IsInSubjectScope` containment-subtree idiom (or a
-  shared helper extracted from `GeneralViewLayoutStrategy`) to each of the six remaining layout
-  strategies, respecting the "no `Expose` edge → render everything unchanged" fallback used by
-  `GeneralViewLayoutStrategy`.
-- Add regression tests per strategy mirroring `GeneralViewLayoutStrategyTests`'s expose-scoping,
-  expose-union, and no-expose-statement-regression scenarios.
-
-**Scope:** `InterconnectionViewLayoutStrategy`, `StateTransitionViewLayoutStrategy`,
-`ActionFlowViewLayoutStrategy`, `SequenceViewLayoutStrategy`, `GridViewLayoutStrategy`,
-`BrowserViewLayoutStrategy`; corresponding test files.
-**Visual gate:** each of the six views renders a scoped diagram when its view declares an
-`expose <...>;` statement naming a resolvable target, unchanged when it does not.
-
 ### Support selecting rendering style via `render <renderingKind>;`
 
 A view's `render <target>;` member names a rendering style/format usage per the SysML v2

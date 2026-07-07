@@ -35,4 +35,13 @@ package OAuthLogin {
     }
 
     view def OAuthSequenceView {}
+
+    // View-scoped rendering: exposing browser and authServer narrows the sequence to the
+    // token-exchange leg of the flow, dropping every message with an endpoint on user or
+    // resourceServer (openApp, promptCredentials, submitCredentials, fetchResource,
+    // resourceData) while keeping the four messages exchanged between the two lifelines.
+    view TokenExchangeSequenceView {
+        expose AuthorizationFlow::browser;
+        expose AuthorizationFlow::authServer;
+    }
 }

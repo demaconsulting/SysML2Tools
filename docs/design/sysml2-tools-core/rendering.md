@@ -137,14 +137,20 @@ flowchart TD
 2. `ILayoutStrategy.BuildLayout` receives a `ViewContext` containing the workspace, the view
    name, and (when available) the view's resolved AST node, plus `RenderOptions` for size and
    scale hints. It produces a fully resolved `LayoutTree` with all waypoints in absolute canvas
-   coordinates. `GeneralViewLayoutStrategy` is the only strategy that currently reads
-   `ViewContext.ViewNode` to scope its diagram: when the view has one or more resolved `Expose`
-   edges, the diagram is scoped to the union of the exposed targets' containment subtrees
-   (resolving through a usage's type to its definition's subtree where needed); a view with no
-   `Expose` edges renders the full workspace, unchanged from prior behavior. The view's
-   `render`/`filter` statements never affect this scope. Every other strategy ignores
-   `ViewContext.ViewNode` and renders as before (see the Layout subsystem's
-   `general-view-layout-strategy` design doc for the scoping algorithm).
+   coordinates. All seven layout strategies (`GeneralViewLayoutStrategy`,
+   `GridViewLayoutStrategy`, `BrowserViewLayoutStrategy`, `InterconnectionViewLayoutStrategy`,
+   `StateTransitionViewLayoutStrategy`, `ActionFlowViewLayoutStrategy`, and
+   `SequenceViewLayoutStrategy`) now read `ViewContext.ViewNode` to scope their diagrams, via the
+   shared `ExposeScopeResolver` helper: when the view has one or more resolved `Expose` edges,
+   each strategy's diagram is scoped to the union of the exposed targets' containment subtrees
+   (resolving through a usage's type to its definition's subtree where needed). `GeneralView`,
+   `GridView`, and `BrowserView` apply this scope directly as a workspace-wide filter; the four
+   single-root strategies (`InterconnectionView`, `StateTransitionView`, `ActionFlowView`, and
+   `SequenceView`) additionally use the resolved scope to restrict which single root each one
+   selects before narrowing that root's own content. A view with no `Expose` edges renders the
+   full workspace (or full root content), unchanged from prior behavior. The view's
+   `render`/`filter` statements never affect this scope (see the Layout subsystem's
+   *ExposeScopeResolver* unit chapter for the shared scoping algorithm).
 
 3. `IRenderer.Render` receives the `LayoutTree` and `RenderOptions` and writes all rendered
    bytes to the supplied `Stream`. It must not perform any layout computation; it only reads

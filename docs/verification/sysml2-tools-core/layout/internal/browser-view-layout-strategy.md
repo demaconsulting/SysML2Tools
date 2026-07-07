@@ -18,6 +18,15 @@ configuration are required beyond a standard .NET SDK installation.
   all target frameworks.
 - A nested element's box is indented further than its ancestor's box.
 - A workspace with no user-defined elements yields an empty diagram.
+- A view whose `ViewContext.ViewNode` carries a resolved `Expose` edge scopes the tree to that
+  target's containment subtree, excluding unrelated sibling elements and producing fewer boxes than
+  an unscoped (no-`ViewNode`) rendering of the same workspace.
+- A view with a `null` `ViewContext.ViewNode` renders the full membership forest, unchanged from
+  before this feature — the critical `--auto`/no-expose regression guard.
+- A view whose resolved `Expose` edge names a feature usage (not a definition) still renders that
+  usage's type's containment subtree, via the shared usage-to-type fallback.
+- A view with an `expose` statement naming two separate definitions unions both their containment
+  subtrees into the forest.
 
 ##### Test Scenarios
 
@@ -25,3 +34,7 @@ configuration are required beyond a standard .NET SDK installation.
 | --- | --- |
 | `BrowserView_BuildLayout_NestedElements_AreIndentedByDepth` | Nested element box has larger X than its ancestor box |
 | `BrowserAndGrid_BuildLayout_EmptyWorkspace_ReturnMinimalCanvas` | Empty workspace yields no nodes |
+| `BrowserView_BuildLayout_ExposedName_UnionsAdditionalSubtree` | Resolved `Expose` scopes to fewer boxes |
+| `BrowserView_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged` | Null `ViewNode` renders full forest unchanged |
+| `BrowserView_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree` | Usage resolves via `Typing` |
+| `BrowserView_BuildLayout_ExposeMultipleTargets_UnionsBothSubtrees` | Two `expose` targets union both subtrees |

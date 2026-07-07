@@ -21,6 +21,7 @@ includes:
   - docs/reqstream/sysml2-tools-core/layout.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/general-view-layout-strategy.yaml
+  - docs/reqstream/sysml2-tools-core/layout/internal/expose-scope-resolver.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/interconnection-view-layout-strategy.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/state-transition-view-layout-strategy.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/action-flow-view-layout-strategy.yaml

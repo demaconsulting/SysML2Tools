@@ -22,6 +22,10 @@ configuration are required beyond a standard .NET SDK installation.
 - Boxes within a diagram do not overlap one another.
 - A layout-quality problem such as a connector crossing a box surfaces a non-fatal warning
   naming the affected view, while a clean layout produces no warning.
+- Every strategy honors a view's resolved `expose` scope via the shared `ExposeScopeResolver`
+  helper: a view with no resolved `Expose` edge renders unchanged (the no-`expose` fallback), and
+  a view with multiple resolved `Expose` edges unions every target's scope (the multi-target
+  union case).
 
 #### Test Scenarios
 
@@ -38,3 +42,4 @@ configuration are required beyond a standard .NET SDK installation.
 | Indented membership tree | `BrowserViewLayoutStrategy` | Nested elements indented beyond their parents |
 | Layout-quality warning | `LayoutWarnings` | Crossing connectors surface a view-named warning; none when clean |
 | Empty workspace | All strategies | A minimal empty canvas with no nodes |
+| Shared expose scoping | All strategies, `ExposeScopeResolver` | No-expose fallback; multi-target union |

@@ -1,0 +1,105 @@
+---
+# ExposeScopeResolver Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the ExposeScopeResolver unit
+# - ExposeScopeResolver resolves the expose-statement containment-subtree scope shared by every
+#   layout strategy
+# - Requirements describe observable scope-resolution behavior, not internal implementation detail
+
+sections:
+  - title: ExposeScopeResolver Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ResolveExposedTargets
+        title: >-
+          ExposeScopeResolver.ResolveExposedScope shall return the qualified names of every
+          resolved Expose-kind edge on a view as the resolved scope.
+        justification: |
+          `expose <name>;` is the only real content-scoping mechanism a view has in SysML v2.
+          Collecting every resolved Expose edge's target qualified name is the first step every
+          layout strategy needs to restrict its diagram to the exposed subject(s).
+        tests:
+          - ResolveExposedScope_ExposedDefinition_ReturnsThatQualifiedName
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-UsageToTypeFallback
+        title: >-
+          When a resolved Expose edge's target resolves to a feature usage rather than a
+          definition, ExposeScopeResolver.ResolveExposedScope shall additionally include that
+          usage's own resolved Typing-edge target qualified name in the returned scope.
+        justification: |
+          A usage's own containment subtree is typically empty — the real content lives under its
+          type's subtree. Without this fallback, exposing a usage would silently scope the diagram
+          to nothing; following the usage's own type reference fixes this containment gap. This
+          fallback applies per-target, so a view with multiple `expose` edges gets the union of
+          every target's own resolved scope, whether that target is a definition or a usage.
+        tests:
+          - ResolveExposedScope_ExposedUsage_AlsoIncludesResolvedTypeTarget
+          - ResolveExposedScope_TwoExposeEdges_DefinitionAndUsageTarget_UnionsBothPlusResolvedType
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-NoScopeFallback
+        title: >-
+          When a view has no resolved Expose-kind edge — including a null ViewNode, a view with
+          no expose statement, or a view whose every expose entry failed to resolve —
+          ExposeScopeResolver.ResolveExposedScope shall return null, meaning no scoping applies.
+        justification: |
+          Nearly every real-world view declares no `expose` statement, and the synthetic `--auto`
+          view never carries a ViewNode at all. A null return lets every caller uniformly treat
+          "no scope" as "render everything", the pre-scoping default.
+        tests:
+          - ResolveExposedScope_NullViewNode_ReturnsNull
+          - ResolveExposedScope_NoResolvedExposeEdges_ReturnsNull
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-SubjectScopeMembership
+        title: >-
+          ExposeScopeResolver.IsInSubjectScope shall return true for a qualified name that
+          exactly matches a subject or lies within a subject's containment subtree (a
+          "{subject}::" prefix match), and false otherwise.
+        justification: |
+          Every strategy needs a single, consistent rule for "is this element within the exposed
+          scope" that treats an exposed target's entire containment subtree — not just the target
+          itself — as included, matching how SysML v2 namespaces nest qualified names.
+        tests:
+          - IsInSubjectScope_ExactMatch_ReturnsTrue
+          - IsInSubjectScope_SubtreeMatch_ReturnsTrue
+          - IsInSubjectScope_PrefixWithoutSeparator_ReturnsFalse
+          - IsInSubjectScope_UnrelatedName_ReturnsFalse
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-RootRelevance
+        title: >-
+          ExposeScopeResolver.IsRootRelevantToScope shall return true for a candidate root
+          qualified name that equals a scope subject, lies within a subject's containment
+          subtree, or contains a subject within its own containment subtree, and false otherwise.
+        justification: |
+          The four single-root layout strategies (Interconnection, State Transition, Action
+          Flow, Sequence View) each pick one root definition by an internal heuristic before
+          collecting its children. Restricting that heuristic to a root relevant to the resolved
+          `expose` scope — in either containment direction — lets exposing an inner element of a
+          root, or the root itself, correctly select that root, while an unrelated `expose` target
+          correctly yields no root.
+        tests:
+          - IsRootRelevantToScope_CandidateEqualsSubject_ReturnsTrue
+          - IsRootRelevantToScope_CandidateNestedInSubject_ReturnsTrue
+          - IsRootRelevantToScope_SubjectNestedInCandidate_ReturnsTrue
+          - IsRootRelevantToScope_UnrelatedCandidate_ReturnsFalse
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-SpecificityTieBreak
+        title: >-
+          ExposeScopeResolver.IsMoreSpecificCandidate shall prefer the more deeply nested
+          candidate over a less deeply nested one regardless of score, and shall fall back to the
+          caller-supplied score comparison only when two candidates are equally deeply nested.
+        justification: |
+          Because SysML v2 definitions may nest, an ancestor definition and one of its nested
+          descendant definitions can both pass IsRootRelevantToScope for the same resolved
+          `expose` scope. Preferring the more deeply nested candidate lets the four single-root
+          strategies correctly select the more specific (deeper) scope-relevant candidate the
+          user's `expose` statement was meant to reach, instead of silently falling back to an
+          ancestor with a higher raw heuristic score, while unrelated same-depth siblings (with no
+          containment relationship) still fall back to the caller's own score comparison.
+        tests:
+          - IsMoreSpecificCandidate_NoCurrentBest_ReturnsTrue
+          - IsMoreSpecificCandidate_LongerQualifiedName_ReturnsTrueRegardlessOfScore
+          - IsMoreSpecificCandidate_ShorterQualifiedName_ReturnsFalseRegardlessOfScore
+          - IsMoreSpecificCandidate_EqualLength_FallsBackToScore_True
+          - IsMoreSpecificCandidate_EqualLength_FallsBackToScore_False
+          - IsMoreSpecificCandidate_SameDepthSiblingsDifferentLength_ShorterWithBetterScoreWins
+          - IsMoreSpecificCandidate_SameDepthSiblingsDifferentLength_ShorterWithWorseScoreLoses

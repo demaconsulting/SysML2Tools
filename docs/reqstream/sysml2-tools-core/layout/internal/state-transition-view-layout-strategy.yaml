@@ -72,3 +72,74 @@ sections:
           clear and matches the block-diagram visual style used across the tool.
         tests:
           - StateTransitionView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ExposeScopingRootSelection
+        title: >-
+          When a view's ViewContext carries one or more resolved Expose edges,
+          StateTransitionViewLayoutStrategy shall restrict its heuristic root selection to a
+          candidate relevant to the resolved scope.
+        justification: |
+          The State Transition View renders exactly one selected root's states, so `expose`
+          scoping cannot narrow a workspace-wide collection directly; instead it restricts which
+          root is selected — accepting the current heuristic root itself, an inner state of it, a
+          definition containing the heuristic default, or the resolved type of an exposed usage —
+          and selecting no root at all when nothing in the workspace is relevant to the scope.
+        tests:
+          - StateTransitionView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot
+          - StateTransitionView_BuildLayout_ExposeInnerChildOfNonHeuristicRoot_SelectsItsRoot
+          - StateTransitionView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas
+          - StateTransitionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ExposeScopingStateFiltering
+        title: >-
+          When a view's ViewContext carries one or more resolved Expose edges,
+          StateTransitionViewLayoutStrategy shall narrow the selected root's declared states to
+          those within the resolved scope.
+        justification: |
+          Once a root is selected, `expose` scoping must also narrow what is drawn inside it —
+          otherwise every declared state of the selected root would still be rendered regardless
+          of which states the view actually exposed, defeating the purpose of scoping the state
+          machine's content.
+        tests:
+          - StateTransitionView_BuildLayout_ExposeSingleState_DropsIsolatedOutOfScopeState
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ExposeScopingTransitionEndpointRetention
+        title: >-
+          StateTransitionViewLayoutStrategy shall conservatively re-include any state excluded by
+          state filtering that is still referenced by an in-scope transition, so only genuinely
+          isolated out-of-scope states are dropped.
+        justification: |
+          A transition whose endpoint state was excluded by filtering would otherwise point at
+          nothing; the existing transition-endpoint pass (which has no independent qualified name
+          to filter against) reintroduces any state still referenced by an in-scope transition,
+          keeping the state machine's transitions readable while still dropping states with no
+          remaining reference.
+        tests:
+          - StateTransitionView_BuildLayout_ExposeSingleState_DropsIsolatedOutOfScopeState
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-NoExposeFallback
+        title: >-
+          When a view's ViewContext carries no resolved Expose edge — including a null ViewNode
+          — StateTransitionViewLayoutStrategy shall select its root by the pre-scoping heuristic
+          and render every state, unchanged from its pre-scoping behavior.
+        justification: |
+          Nearly every real-world view declares no `expose` statement, and the synthetic `--auto`
+          view never carries a ViewNode at all; the pre-scoping heuristic root selection and full
+          state rendering must remain the default in both cases.
+        tests:
+          - StateTransitionView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ScopedSpecificityTieBreak
+        title: >-
+          When more than one candidate root is relevant to the resolved expose scope,
+          StateTransitionViewLayoutStrategy shall select the most specific (deepest-qualified-name)
+          relevant candidate, using its transition-count heuristic only to break ties among
+          equally specific candidates.
+        justification: |
+          Because SysML v2 definitions may nest, an ancestor definition and a nested descendant
+          definition can both be relevant to the same resolved `expose` scope. Without a
+          specificity-first tie-break, the ancestor could win by raw transition-count score even
+          though the user's `expose` statement was scoped to the nested descendant, silently
+          defeating the intended scoping.
+        tests:
+          - StateTransitionView_BuildLayout_ExposeInnerStateOfNestedDefinition_SelectsNestedDefinitionNotAncestor

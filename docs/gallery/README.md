@@ -58,6 +58,20 @@ SVG: [`svg/WorkstationInterconnectionView.svg`](svg/WorkstationInterconnectionVi
 
 ![Workstation Interconnection View](png/WorkstationInterconnectionView.png)
 
+### 2b. View-scoped rendering — `expose` narrows the diagram to two parts
+
+The same model also declares `CoreLinkInterconnectionView`, which exposes only
+`Workstation::cpu` and `Workstation::memory`. The root part (`Workstation`) is kept,
+but every other part usage — and every connector with an endpoint outside the exposed
+scope (to `board`, `graphics`, `storage`, `psu`, `network`) — is dropped, leaving just
+the two exposed parts and the connection directly between them (`c8`).
+
+Model: [`models/02-computer-interconnection.sysml`](models/02-computer-interconnection.sysml)
+(`CoreLinkInterconnectionView`) ·
+SVG: [`svg/CoreLinkInterconnectionView.svg`](svg/CoreLinkInterconnectionView.svg)
+
+![Core Link Interconnection View](png/CoreLinkInterconnectionView.png)
+
 ---
 
 ## 3. State Transition View — Elevator Controller
@@ -94,6 +108,20 @@ SVG: [`svg/OAuthSequenceView.svg`](svg/OAuthSequenceView.svg)
 
 ![OAuth Sequence View](png/OAuthSequenceView.png)
 
+### 5b. View-scoped rendering — `expose` narrows the diagram to two lifelines
+
+The same model also declares `TokenExchangeSequenceView`, which exposes
+`AuthorizationFlow::browser` and `AuthorizationFlow::authServer`. Only those two
+lifelines remain, and every message with an endpoint on `user` or `resourceServer`
+(`openApp`, `promptCredentials`, `submitCredentials`, `fetchResource`, `resourceData`)
+is dropped as dangling, leaving just the token-exchange leg of the flow (`redirect`,
+`authCode`, `exchangeCode`, `accessToken`).
+
+Model: [`models/05-oauth-sequence.sysml`](models/05-oauth-sequence.sysml) (`TokenExchangeSequenceView`) ·
+SVG: [`svg/TokenExchangeSequenceView.svg`](svg/TokenExchangeSequenceView.svg)
+
+![Token Exchange Sequence View](png/TokenExchangeSequenceView.png)
+
 ---
 
 ## 6. Grid View — Vehicle Taxonomy
@@ -105,6 +133,20 @@ Model: [`models/06-vehicle-grid.sysml`](models/06-vehicle-grid.sysml) ·
 SVG: [`svg/TaxonomyMatrixView.svg`](svg/TaxonomyMatrixView.svg)
 
 ![Vehicle Taxonomy Matrix View](png/TaxonomyMatrixView.png)
+
+### 6b. View-scoped rendering — `expose` narrows the matrix along specialization
+
+The same model also declares `CarLineageGridView`, which exposes only `Car`. Because
+a matrix cell inherently relates two definitions, Grid View keeps a row/column when
+either dimension is in scope: `Car` itself, its supertype `LandVehicle`, and its
+subtypes `Sedan` and `SportsCar` all remain, while every unrelated definition
+(`Vehicle`, `WaterVehicle`, `AirVehicle`, `Truck`, `PickupTruck`, `Motorcycle`,
+`Boat`, `Submarine`, `Airplane`, `Helicopter`) is dropped.
+
+Model: [`models/06-vehicle-grid.sysml`](models/06-vehicle-grid.sysml) (`CarLineageGridView`) ·
+SVG: [`svg/CarLineageGridView.svg`](svg/CarLineageGridView.svg)
+
+![Car Lineage Grid View](png/CarLineageGridView.png)
 
 ---
 

@@ -29,4 +29,12 @@ package DesktopComputer {
     }
 
     view def WorkstationInterconnectionView {}
+
+    // View-scoped rendering: exposing just cpu and memory narrows the diagram to those
+    // two parts and the connection between them (c8), dropping every connection with an
+    // endpoint outside the exposed scope (board, graphics, storage, psu, network).
+    view CoreLinkInterconnectionView {
+        expose Workstation::cpu;
+        expose Workstation::memory;
+    }
 }

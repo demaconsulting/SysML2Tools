@@ -370,6 +370,88 @@ public sealed class InterconnectionViewLayoutStrategyTests
         };
     }
 
+    /// <summary>
+    ///     Builds a workspace where <c>M::SysA</c> (more connections/parts) genuinely nests
+    ///     <c>M::SysA::SysC</c> (fewer connections/parts) as one of its own <c>Children</c>, while
+    ///     both are also independently registered in <c>Declarations</c> under their own qualified
+    ///     names — the shape needed to make both candidates scope-relevant for a subject exposed
+    ///     only inside <c>SysC</c>.
+    /// </summary>
+    private static SysmlWorkspace BuildNestedCandidateWorkspace()
+    {
+        var sysC = new SysmlDefinitionNode
+        {
+            Name = "SysC",
+            QualifiedName = "M::SysA::SysC",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "c1", QualifiedName = "M::SysA::SysC::c1", FeatureKeyword = "part", FeatureTyping = "C" },
+                new SysmlFeatureNode { Name = "c2", QualifiedName = "M::SysA::SysC::c2", FeatureKeyword = "part", FeatureTyping = "C" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "c1", EndpointB = "c2" }
+            ]
+        };
+        var sysA = new SysmlDefinitionNode
+        {
+            Name = "SysA",
+            QualifiedName = "M::SysA",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a1", QualifiedName = "M::SysA::a1", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlFeatureNode { Name = "a2", QualifiedName = "M::SysA::a2", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlFeatureNode { Name = "a3", QualifiedName = "M::SysA::a3", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "a1", EndpointB = "a2" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "a2", EndpointB = "a3" },
+                sysC
+            ]
+        };
+        return new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["M::SysA"] = sysA,
+                ["M::SysA::SysC"] = sysC
+            }
+        };
+    }
+
+    /// <summary>
+    ///     Exposing an inner part of the nested definition <c>SysC</c> selects <c>SysC</c> as the
+    ///     root even though its ancestor <c>SysA</c> has more connections/parts and would win the
+    ///     old pure-score tie-break, proving <c>FindRoot</c> now prefers the most specific
+    ///     (deepest-qualified-name) scope-relevant candidate over a less specific ancestor.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeInnerPartOfNestedDefinition_SelectsNestedDefinitionNotAncestor()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildNestedCandidateWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposedNames = ["c1"],
+            ResolvedEdges = [new SysmlEdge("M::V", "M::SysA::SysC::c1", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var container = layout.Nodes.OfType<LayoutBox>().First(b => b.Keyword == "part def");
+        Assert.Equal("SysC", container.Label);
+
+        // Only c1 (SysC's part) is rendered, none of SysA's own parts (a1/a2/a3).
+        var partLabels = layout.Nodes.OfType<LayoutBox>()
+            .Where(b => b.Shape == BoxShape.RoundedRectangle)
+            .Select(b => b.Label)
+            .ToList();
+        Assert.Contains(partLabels, l => l is not null && l.Contains("c1", StringComparison.Ordinal));
+        Assert.DoesNotContain(partLabels, l => l is not null &&
+            (l.Contains("a1", StringComparison.Ordinal) || l.Contains("a2", StringComparison.Ordinal) || l.Contains("a3", StringComparison.Ordinal)));
+    }
+
     /// <summary>Finds the rounded part box with the given label across the whole layout tree.</summary>
     private static LayoutBox FindPartBox(LayoutTree layout, string label)
     {
@@ -386,4 +468,321 @@ public sealed class InterconnectionViewLayoutStrategyTests
         b.X < a.X + a.Width &&
         a.Y < b.Y + b.Height &&
         b.Y < a.Y + a.Height;
+
+    /// <summary>
+    ///     Builds a workspace with two candidate roots: <c>M::SysA</c> (two connections, three
+    ///     parts — the heuristic's default pick) and <c>M::SysB</c> (one connection, two parts),
+    ///     plus an unrelated sibling definition <c>M::Unrelated</c> with no parts/connections.
+    /// </summary>
+    private static SysmlWorkspace BuildTwoRootWorkspace()
+    {
+        var sysA = new SysmlDefinitionNode
+        {
+            Name = "SysA",
+            QualifiedName = "M::SysA",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a1", QualifiedName = "M::SysA::a1", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlFeatureNode { Name = "a2", QualifiedName = "M::SysA::a2", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlFeatureNode { Name = "a3", QualifiedName = "M::SysA::a3", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "a1", EndpointB = "a2" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "a2", EndpointB = "a3" }
+            ]
+        };
+        var sysB = new SysmlDefinitionNode
+        {
+            Name = "SysB",
+            QualifiedName = "M::SysB",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "b1", QualifiedName = "M::SysB::b1", FeatureKeyword = "part", FeatureTyping = "B" },
+                new SysmlFeatureNode { Name = "b2", QualifiedName = "M::SysB::b2", FeatureKeyword = "part", FeatureTyping = "B" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "b1", EndpointB = "b2" }
+            ]
+        };
+        var unrelated = new SysmlDefinitionNode { Name = "Unrelated", QualifiedName = "M::Unrelated", DefinitionKeyword = "part def" };
+        return new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["M::SysA"] = sysA,
+                ["M::SysB"] = sysB,
+                ["M::Unrelated"] = unrelated
+            }
+        };
+    }
+
+    /// <summary>
+    ///     With no <c>expose</c> statement (null <c>ViewNode</c>), the heuristic picks the
+    ///     definition with the most connections (<c>SysA</c>), unchanged from pre-scoping behavior
+    ///     — the critical --auto/no-expose regression guard.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildTwoRootWorkspace();
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var container = layout.Nodes.OfType<LayoutBox>().First(b => b.Keyword == "part def");
+        Assert.Equal("SysA", container.Label);
+    }
+
+    /// <summary>
+    ///     An <c>expose</c> edge pointing at a definition other than the heuristic's default root
+    ///     (<c>SysB</c>, which has fewer connections than <c>SysA</c>) selects <c>SysB</c> as the
+    ///     root instead, proving <c>FindRoot</c> restricts candidates to scope-relevant ones before
+    ///     the connections/parts tie-break applies.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildTwoRootWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposedNames = ["SysB"],
+            ResolvedEdges = [new SysmlEdge("M::V", "M::SysB", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var container = layout.Nodes.OfType<LayoutBox>().First(b => b.Keyword == "part def");
+        Assert.Equal("SysB", container.Label);
+    }
+
+    /// <summary>
+    ///     Builds a workspace with two same-depth sibling candidate roots whose qualified names
+    ///     have very different lengths: <c>M::AB</c> (short name, two connections/three parts — the
+    ///     better score) and <c>M::MuchLongerSiblingName</c> (long name, one connection/two parts —
+    ///     the worse score).
+    /// </summary>
+    private static SysmlWorkspace BuildSameDepthDifferentLengthWorkspace()
+    {
+        var shortName = new SysmlDefinitionNode
+        {
+            Name = "AB",
+            QualifiedName = "M::AB",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a1", QualifiedName = "M::AB::a1", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlFeatureNode { Name = "a2", QualifiedName = "M::AB::a2", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlFeatureNode { Name = "a3", QualifiedName = "M::AB::a3", FeatureKeyword = "part", FeatureTyping = "A" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "a1", EndpointB = "a2" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "a2", EndpointB = "a3" }
+            ]
+        };
+        var longName = new SysmlDefinitionNode
+        {
+            Name = "MuchLongerSiblingName",
+            QualifiedName = "M::MuchLongerSiblingName",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "b1", QualifiedName = "M::MuchLongerSiblingName::b1", FeatureKeyword = "part", FeatureTyping = "B" },
+                new SysmlFeatureNode { Name = "b2", QualifiedName = "M::MuchLongerSiblingName::b2", FeatureKeyword = "part", FeatureTyping = "B" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "b1", EndpointB = "b2" }
+            ]
+        };
+        return new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["M::AB"] = shortName,
+                ["M::MuchLongerSiblingName"] = longName
+            }
+        };
+    }
+
+    /// <summary>
+    ///     When both same-depth sibling roots are made scope-relevant by their own <c>expose</c>
+    ///     edges, <c>FindRoot</c> falls back to the connections/parts score heuristic — proving the
+    ///     tie-break is depth-based, not a raw qualified-name-length comparison, since the shorter
+    ///     name (<c>M::AB</c>) wins purely because it has the better score, not because it happens
+    ///     to be shorter.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeBothSameDepthSiblings_ScoreBreaksTieNotLength()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildSameDepthDifferentLengthWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposedNames = ["AB", "MuchLongerSiblingName"],
+            ResolvedEdges =
+            [
+                new SysmlEdge("M::V", "M::AB", SysmlEdgeKind.Expose),
+                new SysmlEdge("M::V", "M::MuchLongerSiblingName", SysmlEdgeKind.Expose)
+            ]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var container = layout.Nodes.OfType<LayoutBox>().First(b => b.Keyword == "part def");
+        Assert.Equal("AB", container.Label);
+    }
+
+    /// <summary>
+    ///     An <c>expose</c> edge pointing at an inner child of a non-heuristic root
+    ///     (<c>M::SysB::b1</c>) still selects <c>SysB</c> as the root, since the exposed subject
+    ///     lies within the candidate root's own containment subtree.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeInnerChildOfNonHeuristicRoot_SelectsItsRoot()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildTwoRootWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposedNames = ["b1"],
+            ResolvedEdges = [new SysmlEdge("M::V", "M::SysB::b1", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var container = layout.Nodes.OfType<LayoutBox>().First(b => b.Keyword == "part def");
+        Assert.Equal("SysB", container.Label);
+
+        // And the part collection is narrowed to just b1 (b2 dropped, connection dropped with it).
+        var partBoxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
+        Assert.Single(partBoxes);
+        Assert.Empty(layout.Nodes.OfType<LayoutLine>());
+    }
+
+    /// <summary>
+    ///     An <c>expose</c> edge pointing at a definition unrelated to every candidate root (no
+    ///     containment relationship in either direction) makes no root scope-relevant, so no root
+    ///     is chosen and an empty canvas results.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildTwoRootWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposedNames = ["Unrelated"],
+            ResolvedEdges = [new SysmlEdge("M::V", "M::Unrelated", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        Assert.Empty(layout.Nodes);
+    }
+
+    /// <summary>
+    ///     Exposing a single part narrows the interconnection to just that part (and drops any
+    ///     connection referencing an excluded endpoint), producing strictly fewer part boxes than
+    ///     the unscoped rendering of the same root.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeSinglePart_NarrowsToThatPart()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildTwoRootWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposedNames = ["a1"],
+            ResolvedEdges = [new SysmlEdge("M::V", "M::SysA::a1", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var scoped = strategy.BuildLayout(context, options);
+        var full = strategy.BuildLayout(new ViewContext("full", workspace), options);
+
+        var scopedParts = scoped.Nodes.OfType<LayoutBox>().Count(b => b.Shape == BoxShape.RoundedRectangle);
+        var fullParts = full.Nodes.OfType<LayoutBox>().Count(b => b.Shape == BoxShape.RoundedRectangle);
+        Assert.True(scopedParts < fullParts, $"expected scoped ({scopedParts}) < full ({fullParts})");
+        Assert.Single(scoped.Nodes.OfType<LayoutBox>(), b => b.Shape == BoxShape.RoundedRectangle);
+    }
+
+    /// <summary>
+    ///     An <c>expose</c> statement naming two separate parts of the same root includes both
+    ///     (the union of every exposed target's containment subtree), and their connection is kept
+    ///     since both endpoints remain in scope.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeMultipleParts_UnionsBothSubtrees()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildTwoRootWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposedNames = ["a1", "a2"],
+            ResolvedEdges =
+            [
+                new SysmlEdge("M::V", "M::SysA::a1", SysmlEdgeKind.Expose),
+                new SysmlEdge("M::V", "M::SysA::a2", SysmlEdgeKind.Expose)
+            ]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var partBoxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
+        Assert.Equal(2, partBoxes.Count);
+        Assert.Single(layout.Nodes.OfType<LayoutLine>());
+    }
+
+    /// <summary>
+    ///     An <c>expose</c> edge that resolves to a feature usage (not a definition) still narrows
+    ///     the interconnection to that usage's containment subtree via the shared usage-to-type
+    ///     fallback in <c>ExposeScopeResolver.ResolveExposedScope</c>: exposing a usage
+    ///     <c>myPart</c> typed by <c>SysA</c> selects <c>SysA</c> as the root.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildTwoRootWorkspace();
+        workspace.AddDeclaration("M::myPart", new SysmlFeatureNode
+        {
+            Name = "myPart",
+            QualifiedName = "M::myPart",
+            FeatureTyping = "SysB",
+            ResolvedEdges = [new SysmlEdge("M::myPart", "M::SysB", SysmlEdgeKind.Typing)]
+        });
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposedNames = ["myPart"],
+            ResolvedEdges = [new SysmlEdge("M::V", "M::myPart", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var container = layout.Nodes.OfType<LayoutBox>().First(b => b.Keyword == "part def");
+        Assert.Equal("SysB", container.Label);
+    }
 }

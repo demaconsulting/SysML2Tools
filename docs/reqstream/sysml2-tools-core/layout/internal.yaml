@@ -64,6 +64,36 @@ sections:
         tests:
           - InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap
 
+      - id: SysML2Tools-Core-Layout-Internal-SharedExposeScoping
+        title: >-
+          Each view layout strategy shall honor a view's resolved expose scope via the shared
+          ExposeScopeResolver helper, rendering every non-stdlib element (or the pre-scoping
+          heuristic root) unchanged when the view has no resolved Expose edge, and scoping to the
+          union of every exposed target's containment subtree (including any usage's resolved
+          type) when it does.
+        justification: |
+          Every view kind must apply `expose` scoping identically so a user's `expose` statement
+          behaves predictably regardless of which diagram kind renders it; sharing one resolver
+          across all seven strategies is what makes that consistency observable rather than
+          coincidental, including the critical "no expose statement renders everything unchanged"
+          fallback and the "multiple expose targets union" case.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ExposedName_UnionsAdditionalSubtree
+          - GeneralViewLayoutStrategy_BuildLayout_RenderTargetNameOnly_NoExposeEdges_RendersFullWorkspace
+          - GridView_BuildLayout_ExposeMultipleTargets_UnionsBothSubtrees
+          - GridView_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged
+          - BrowserView_BuildLayout_ExposeMultipleTargets_UnionsBothSubtrees
+          - BrowserView_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged
+          - InterconnectionView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot
+          - InterconnectionView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged
+          - StateTransitionView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot
+          - StateTransitionView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged
+          - ActionFlowView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot
+          - ActionFlowView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged
+          - SequenceView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot
+          - SequenceView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged
+          - ResolveExposedScope_TwoExposeEdges_DefinitionAndUsageTarget_UnionsBothPlusResolvedType
+
       - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings
         title: >-
           When a view layout cannot avoid a layout-quality problem such as a connector

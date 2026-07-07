@@ -22,4 +22,12 @@ package VehicleTaxonomy {
     part def PickupTruck :> Truck;
 
     view def TaxonomyMatrixView {}
+
+    // View-scoped rendering: exposing Car narrows the matrix to Car itself plus every
+    // definition directly related to it by specialization in either direction (its
+    // supertype LandVehicle, and its subtypes SportsCar and Sedan) — demonstrating Grid
+    // View's "at least one dimension in scope" relation-preserving expose rule.
+    view CarLineageGridView {
+        expose Car;
+    }
 }

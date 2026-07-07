@@ -29,6 +29,27 @@ configuration are required beyond a standard .NET SDK installation.
 - Nested children are emitted at absolute coordinates offset from the container origin.
 - A flat model (no nested internal structure) produces only leaf part boxes with no children.
 - A self-referential part type terminates (cycle guard) and is rendered as a leaf box.
+- A `null` `ViewContext.ViewNode` selects the pre-scoping heuristic root and renders every nested
+  part, unchanged from before this feature — the critical `--auto`/no-expose regression guard.
+- A view whose resolved `Expose` edge names a definition other than the heuristic root selects
+  that definition as the root instead.
+- A view whose resolved `Expose` edge names an inner part of a non-heuristic-root definition
+  selects that definition's own root, narrowing its parts and dropping the connection to the
+  excluded part.
+- A view whose resolved `Expose` edge names a definition unrelated to any candidate root selects
+  no root, producing the minimal empty canvas.
+- A view whose resolved `Expose` edge names a single part narrows the container to that part.
+- A view with an `expose` statement naming two separate parts unions both their containment
+  subtrees, keeping the connection between them.
+- A view whose resolved `Expose` edge names a feature usage (not a definition) still resolves to
+  the usage's type as the root, via the shared usage-to-type fallback.
+- A view whose resolved `Expose` edge names an inner part of a definition genuinely nested inside
+  another eligible root candidate selects the nested definition, not the ancestor, even though the
+  ancestor has more connections/parts and would win the old pure-score tie-break.
+- When two same-depth sibling root candidates are both made scope-relevant by their own `expose`
+  edges, the connections/parts score heuristic breaks the tie, selecting the candidate with the
+  better score even when its qualified name is shorter — proving the tie-break is depth-based, not
+  a raw qualified-name-length comparison.
 
 ##### Test Scenarios
 
@@ -42,3 +63,12 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_NestedChildren_RenderedAtAbsoluteCoordinates` | Children at absolute coordinates |
 | `InterconnectionView_BuildLayout_NoNesting_ProducesFlatLeafBoxes` | Flat model yields only leaf boxes (no children) |
 | `InterconnectionView_BuildLayout_SelfReferentialType_TreatedAsLeaf` | Self-referential type renders as leaf |
+| `InterconnectionView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged` | Null `ViewNode` renders unchanged |
+| `InterconnectionView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot` | Non-heuristic root is selected |
+| `InterconnectionView_BuildLayout_ExposeInnerChildOfNonHeuristicRoot_SelectsItsRoot` | Inner child selects root |
+| `InterconnectionView_BuildLayout_ExposeUnrelatedDefinition_NoRootSelected_ReturnsMinimalCanvas` | Unrelated def |
+| `InterconnectionView_BuildLayout_ExposeSinglePart_NarrowsToThatPart` | Single exposed part narrows the container |
+| `InterconnectionView_BuildLayout_ExposeMultipleParts_UnionsBothSubtrees` | Two exposed parts union both subtrees |
+| `InterconnectionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
+| `InterconnectionView_BuildLayout_ExposeInnerPartOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested wins |
+| `InterconnectionView_BuildLayout_ExposeBothSameDepthSiblings_ScoreBreaksTieNotLength` | Score breaks the tie |

@@ -39,7 +39,7 @@ internal sealed class BrowserViewLayoutStrategy : ILayoutStrategy
 
         var theme = options.Theme;
 
-        var roots = BuildForest(context.Workspace);
+        var roots = BuildForest(context.Workspace, ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode));
         if (roots.Count == 0)
         {
             return new LayoutTree(200.0, 100.0, []);
@@ -62,9 +62,15 @@ internal sealed class BrowserViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Builds the membership forest from the non-stdlib declarations using their qualified-name
-    /// nesting (parent = prefix before the last <c>::</c>).
+    /// nesting (parent = prefix before the last <c>::</c>), restricted to <paramref name="scope"/>
+    /// when non-null (the view's resolved <c>expose</c> containment subtrees). Filtering the
+    /// deterministic <c>names</c> list to only scope-matching qualified names is sufficient: the
+    /// existing parent-lookup already promotes an element to a forest root whenever its parent is
+    /// absent from <c>byName</c>, so an exposed target (or its nearest in-scope ancestor) becomes a
+    /// forest root automatically, yielding "only the subtree(s) rooted at exposed targets" with no
+    /// additional tree-building logic.
     /// </summary>
-    private static IReadOnlyList<TreeNode> BuildForest(SysmlWorkspace workspace)
+    private static IReadOnlyList<TreeNode> BuildForest(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
     {
         var byName = new Dictionary<string, TreeNode>(StringComparer.Ordinal);
         var roots = new List<TreeNode>();
@@ -72,6 +78,7 @@ internal sealed class BrowserViewLayoutStrategy : ILayoutStrategy
         // Deterministic order: sort qualified names so parents precede children.
         var names = workspace.Declarations.Keys
             .Where(qn => !StdlibFilter.IsStdlibElement(qn, workspace.StdlibNames))
+            .Where(qn => scope is null || ExposeScopeResolver.IsInSubjectScope(qn, scope))
             .OrderBy(qn => qn, StringComparer.Ordinal)
             .ToList();
 

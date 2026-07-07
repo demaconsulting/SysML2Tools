@@ -87,6 +87,8 @@ system, subsystem, and unit levels:
       - **GridViewLayoutStrategy** (Unit) — specialization/relationship matrix
       - **BrowserViewLayoutStrategy** (Unit) — indented membership tree
       - **LayoutWarnings** (Unit) — builder for layout diagnostic warning messages
+      - **ExposeScopeResolver** (Unit) — shared helper resolving a view's `expose`-statement
+        qualified-name containment-subtree scope, used by every strategy above
       - **LayeredPlacement** (Unit) — thin helper that adapts the off-the-shelf
         `DemaConsulting.Rendering.Layout` layered algorithm, returning placed rectangles and routed
         polylines to the strategies
