@@ -6,7 +6,7 @@
 that construct a synthetic `SysmlWorkspace` of definitions, invoke `BuildLayout`, and assert on
 the returned `LayoutTree`. A recursive helper collects boxes from the (possibly nested) node tree
 so assertions can confirm box keywords, folder shapes, compartments, and specialization, membership,
-and attribute-typing lines. No
+attribute-typing, and redefinition lines. No
 mocking is required; the strategy depends only on the in-memory model, `LayeredPlacement`, and
 render options, all constructed directly by the tests.
 
@@ -55,6 +55,20 @@ configuration are required beyond a standard .NET SDK installation.
   pre-scoping-change 2-argument `ViewContext` construction used throughout the rest of this test
   file) renders every non-stdlib definition in the workspace, unchanged from before this feature —
   the critical regression guard confirming full backward compatibility.
+- A subtype feature that redefines a bare-named inherited feature (declared on a resolved
+  supertype in the view) yields a solid line with a hollow-triangle-crossbar end marker at the
+  supertype that declares the redefined feature.
+- A subtype feature that redefines a bare-named feature declared two or more supertype hops away
+  yields a hollow-triangle-crossbar edge targeting the actual declaring ancestor, not the
+  immediate supertype, proving the bare-name walk is transitive.
+- A subtype feature that redefines a qualified `Owner::feature` reference yields a
+  hollow-triangle-crossbar edge directly to the named owner, without needing the owner to be an
+  immediate or transitive supertype.
+- An unresolvable redefinition reference (neither a qualified owner nor a bare name found
+  anywhere in the supertype chain) produces no edge, and layout completes without throwing.
+- A genuinely self-referential redefinition (a feature's `redefines` target resolves back to its
+  own owning definition, via a self-referential supertype cycle) produces no edge, and layout
+  completes without throwing.
 
 ##### Test Scenarios
 
@@ -106,3 +120,17 @@ configuration are required beyond a standard .NET SDK installation.
   A non-null `FilterExpressionText` emits the "parsed but not yet evaluated" warning
 - `GeneralViewLayoutStrategy_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged`:
   A `null` `ViewNode` (`--auto`/default) renders every definition, unchanged (regression guard)
+- `GeneralViewLayoutStrategy_BuildLayout_BareNameRedefinition_ProducesHollowTriangleCrossbarEdge`:
+  A bare-name redefinition produces a solid hollow-triangle-crossbar edge to the supertype that
+  declares the redefined feature
+- `GeneralViewLayoutStrategy_BuildLayout_TransitiveBareNameRedefinition_ProducesHollowTriangleCrossbarEdgeToDeclaringAncestor`:
+  A bare-name redefinition whose declaring ancestor is two supertype hops away produces a
+  hollow-triangle-crossbar edge to that ancestor, not the immediate supertype
+- `GeneralViewLayoutStrategy_BuildLayout_QualifiedRedefinition_ProducesHollowTriangleCrossbarEdgeToOwner`:
+  A qualified `Owner::feature` redefinition produces a hollow-triangle-crossbar edge to the
+  named owner
+- `GeneralViewLayoutStrategy_BuildLayout_UnresolvableRedefinition_ProducesNoEdge`:
+  An unresolvable redefinition produces no edge and does not throw
+- `GeneralViewLayoutStrategy_BuildLayout_SelfReferentialRedefinition_ProducesNoEdge`:
+  A genuinely self-referential redefinition (resolving back to its own owning definition via a
+  self-referential supertype cycle) produces no edge and does not throw

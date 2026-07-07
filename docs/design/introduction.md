@@ -51,8 +51,8 @@ system, subsystem, and unit levels:
       - **SysmlNode** (Unit) — public AST node hierarchy: nine types with JSON polymorphism
       - **AstBuilder** (Unit) — builds AST from ANTLR4 CST with qualified names and supertype lists
       - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes
-      - **ReferenceResolver** (Unit) — resolves supertype, typing, import, satisfy, verify,
-        allocate, and (in a second pass) dotted feature-chain connect/transition references;
+      - **ReferenceResolver** (Unit) — resolves supertype, typing, redefinition, import, satisfy,
+        verify, allocate, and (in a second pass) dotted feature-chain connect/transition references;
         detects circular imports; returns a `SemanticIndex` of resolved edges
       - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
       - **SysmlEdge** (Unit) — public resolved-reference record (Supertype/Typing/Import/
@@ -77,7 +77,8 @@ system, subsystem, and unit levels:
     `DemaConsulting.Rendering.Layout` layered algorithm
     - **Internal** (Subsystem) — per-view layout strategies
       - **GeneralViewLayoutStrategy** (Unit) — general view: package-grouped definitions placed by
-        the layered algorithm with orthogonal specialization and membership edges
+        the layered algorithm with orthogonal specialization, membership, attribute-typing, and
+        redefinition edges
       - **InterconnectionViewLayoutStrategy** (Unit) — internal structure: nested parts, ports, connectors
       - **StateTransitionViewLayoutStrategy** (Unit) — state machine: states and guarded transitions
         placed top-to-bottom by the layered algorithm (DOWN direction) with orthogonal transitions

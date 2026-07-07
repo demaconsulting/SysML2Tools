@@ -141,6 +141,13 @@ public sealed class SysmlFeatureNode : SysmlNode
     public string? FeatureTyping { get; init; }
 
     /// <summary>
+    ///     Gets the raw reference text of this feature's <c>redefines &lt;target&gt;;</c>/
+    ///     <c>:&gt;&gt; &lt;target&gt;</c> clause, or null when the feature declares no
+    ///     redefinition.
+    /// </summary>
+    public string? RedefinedFeatureName { get; init; }
+
+    /// <summary>
     ///     Gets the multiplicity text (e.g., "[4]", "[0..*]"), or null when unspecified.
     /// </summary>
     public string? Multiplicity { get; init; }

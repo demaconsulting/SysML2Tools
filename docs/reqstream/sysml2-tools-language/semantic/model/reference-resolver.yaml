@@ -10,12 +10,22 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-Resolve
         title: >-
           ReferenceResolver.ResolveAll shall check each supertype name referenced by
-          AST nodes against the symbol table and produce a Warning for any unresolved name.
+          AST nodes against the symbol table and produce a Warning for any unresolved name —
+          for a usage/feature node, falling back to the same bare-name supertype/redefinition
+          ancestor-chain walk used for RedefinedFeatureName when the standard lookup fails,
+          since a usage-level `subsets`/`:>` clause commonly names an inherited member.
         justification: |
           Unresolved references indicate model incompleteness. Reporting as Warnings allows
-          the caller to continue analysis and provide partial results.
+          the caller to continue analysis and provide partial results. A usage-level
+          `subsets`/`:>` clause (e.g. `part frontWheel_1 subsets frontWheel = ...;`) is, per the
+          SysML v2 spec, commonly a bare reference to a member the owner inherits rather than
+          declares itself — the same dominant shape as a bare `redefines` reference — so
+          omitting the ancestor-chain fallback here would reintroduce the same false-warning
+          defect this fix addresses for RedefinedFeatureName. The fallback is skipped for
+          definition-level SupertypeNames (`part def X :> Y`), which name the supertype directly.
         tests:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
+          - WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-CircularImport
         title: >-
@@ -73,3 +83,33 @@ sections:
           - WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic
           - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
           - RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-RedefinitionResolution
+        title: >-
+          ReferenceResolver.ResolveAll shall resolve a feature's RedefinedFeatureName against
+          the symbol table into a Redefinition-kind edge — trying the standard
+          namespace/import-scoped lookup first, then falling back to a supertype/redefinition
+          ancestor-chain walk for the dominant bare-name-referencing-an-inherited-member case —
+          and produce an unresolved-reference Warning diagnostic (with no corresponding edge)
+          only when neither strategy resolves it.
+        justification: |
+          Resolving RedefinedFeatureName into a Redefinition edge is the prerequisite for
+          GeneralViewLayoutStrategy to render the hollow-triangle-crossbar marker, and the
+          unresolved-reference diagnostic surfaces a bogus `redefines`/`:>>` target the same way
+          an unresolved supertype or typing reference is surfaced. The plain namespace/import
+          lookup used for FeatureTyping is not sufficient here: per the SysML v2 spec, a
+          `redefines`/`:>>` target's entire purpose is referencing a member the redefining
+          feature *inherits* (typically declared on a supertype, or reachable only via the
+          owner's own already-resolved Redefinition edge), not one declared or imported into the
+          same lexical scope — the dominant shape across the OMG corpus (e.g.
+          `RedefinitionExample.sysml`'s `smallEng redefines eng`,
+          `1c-PartsTreeRedefinition.sysml`'s nested `frontAxle_c1 redefines frontAxle`). The
+          ancestor-chain fallback (`TryResolveBareRedefinition`/`FindMemberInAncestorChain`) is
+          additive and only activates once the standard lookup fails, so previously-successful
+          qualified/scoped resolutions are unaffected.
+        tests:
+          - WorkspaceLoader_LoadAsync_ResolvedRedefinition_RecordsRedefinitionEdge
+          - WorkspaceLoader_LoadAsync_UnresolvedRedefinition_ProducesWarningNoEdge
+          - WorkspaceLoader_LoadAsync_BareRedefinitionOfInheritedFeature_RecordsRedefinitionEdgeNoWarning
+          - WorkspaceLoader_LoadAsync_RedefinitionExampleFixture_NoUnresolvedReferenceWarnings
+          - WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings

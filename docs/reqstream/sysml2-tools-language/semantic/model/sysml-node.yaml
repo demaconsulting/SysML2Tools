@@ -64,3 +64,19 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
           - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-RedefinedFeatureName
+        title: >-
+          SysmlFeatureNode shall expose RedefinedFeatureName: the raw reference text of its
+          `redefines <target>;`/`:>> <target>` clause, or null when the feature declares no
+          redefinition.
+        justification: |
+          Making a feature's redefinition reference user-observable data, mirroring how
+          FeatureTyping is exposed, is the prerequisite for ReferenceResolver to resolve it into
+          a `Redefinition`-kind edge that GeneralViewLayoutStrategy renders as a
+          hollow-triangle-crossbar marker.
+        tests:
+          - WorkspaceLoader_LoadAsync_RedefinesKeyword_CapturesRedefinedFeatureName
+          - WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName
+          - WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText
+          - WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull

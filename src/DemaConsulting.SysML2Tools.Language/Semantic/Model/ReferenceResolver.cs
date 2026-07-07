@@ -39,6 +39,43 @@ internal sealed class ReferenceResolver
     ///     A <see cref="SemanticIndex"/> over all resolved edges discovered while walking
     ///     <paramref name="fileRoots"/>.
     /// </returns>
+    /// <remarks>
+    ///     Resolution runs in three passes over <paramref name="fileRoots"/>:
+    ///     <list type="number">
+    ///         <item>
+    ///             <b>Pass 1</b> (<see cref="ResolveNode"/>) resolves every ordinary
+    ///             namespace/import-scoped reference (supertype, typing, redefinition, import,
+    ///             verify, satisfy, allocate, expose) for every file root. Any bare-name
+    ///             <c>redefines</c>/<c>:&gt;&gt;</c> target or usage-level <c>subsets</c>/<c>:&gt;</c>
+    ///             supertype name that the plain namespace/import lookup cannot resolve is
+    ///             <em>not</em> warned about yet — it is instead recorded as a pending candidate,
+    ///             because resolving it requires walking an ancestor's
+    ///             <see cref="SysmlNode.ResolvedEdges"/>, which may not yet be populated if that
+    ///             ancestor has not been visited yet by this same single top-to-bottom,
+    ///             document-order DFS (declared later in the same file, or in a file processed
+    ///             later in <paramref name="fileRoots"/>).
+    ///         </item>
+    ///         <item>
+    ///             <b>Pass 2</b> (<see cref="ResolveBareRedefinitions"/>) resolves every pending
+    ///             candidate collected by pass 1, once, after pass 1 has completed for
+    ///             <em>every</em> file root — so every ancestor's <c>Supertype</c>/
+    ///             <c>Redefinition</c> edges from ordinary pass 1 resolution are already attached,
+    ///             regardless of declaration order. This mirrors the existing feature-chain
+    ///             precedent below exactly: a single extra pass after pass 1 is sufficient because
+    ///             the only edges this walk depends on are the ones pass 1 always attaches via
+    ///             plain <see cref="TryResolve"/>. Diagnostics for names that still cannot be
+    ///             resolved are emitted here instead.
+    ///         </item>
+    ///         <item>
+    ///             <b>Pass 3</b> (<see cref="ResolveFeatureChains"/>) resolves dotted feature
+    ///             chains (connection/message endpoints, transition source/target) into
+    ///             Connect/Transition edges — see that method's remarks for why it, too, must run
+    ///             after pass 1 completes for all file roots. Passes 2 and 3 resolve disjoint edge
+    ///             kinds and neither depends on the other's output, so their relative order does
+    ///             not matter.
+    ///         </item>
+    ///     </list>
+    /// </remarks>
     public SemanticIndex ResolveAll(IEnumerable<(string FilePath, SysmlNode? Root)> fileRoots)
     {
         // Build import graph first
@@ -48,20 +85,36 @@ internal sealed class ReferenceResolver
         // Detect circular imports
         DetectCircularImports(importGraph);
 
-        // Resolve references in each file using the per-file import context, accumulating edges
+        // Shared per-file "already warned about this name" deduplication sets, keyed by file
+        // path. Promoted out of the pass-1 loop below so pass 2 (ResolveBareRedefinitions)
+        // reuses the *same* set for a given file, avoiding duplicate warnings for a name that
+        // pass 1 could not resolve immediately and pass 2 also fails to resolve.
+        var resolvedInFileByPath = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+
+        // Pass 1: resolve every ordinary namespace/import-scoped reference for all file roots,
+        // accumulating edges. Bare-name redefinition/usage-subsetting candidates that cannot be
+        // resolved immediately are collected into pendingBareRedefinitions instead of being
+        // warned about right away (see the ResolveAll remarks above).
         var edges = new List<SysmlEdge>();
+        var pendingBareRedefinitions = new List<PendingBareRedefinition>();
         foreach (var (filePath, root) in fileRootsList.Where(r => r.Root is not null))
         {
             var imports = CollectImportNodes(root!);
-            ResolveNode(root!, filePath, new HashSet<string>(), new List<string>(), imports, edges);
+            var resolvedInFile = GetOrAddResolvedInFileSet(resolvedInFileByPath, filePath);
+            ResolveNode(root!, filePath, resolvedInFile, new List<string>(), imports, edges, pendingBareRedefinitions);
         }
 
-        // Pass 2: resolve dotted feature chains (connection/message endpoints, transition
-        // source/target) into Connect/Transition edges. This must run as a second pass, after
-        // pass 1 has resolved Typing/Supertype edges for ALL file roots, because a chain walk
-        // may depend on a Typing/Supertype edge belonging to a node visited later in document
-        // order within the same file, or to a node in a different file entirely (see
-        // "Feature-Chain Resolution" in the design doc for the full rationale).
+        // Pass 2: resolve the bare-name redefinition/usage-subsetting candidates collected by
+        // pass 1, now that every file root's ordinary Supertype/Redefinition edges are attached
+        // (see the ResolveAll remarks above for the full rationale).
+        ResolveBareRedefinitions(pendingBareRedefinitions, resolvedInFileByPath, edges);
+
+        // Pass 3: resolve dotted feature chains (connection/message endpoints, transition
+        // source/target) into Connect/Transition edges. This must run after pass 1 has resolved
+        // Typing/Supertype edges for ALL file roots, because a chain walk may depend on a
+        // Typing/Supertype edge belonging to a node visited later in document order within the
+        // same file, or to a node in a different file entirely (see "Feature-Chain Resolution" in
+        // the design doc for the full rationale).
         foreach (var (filePath, root) in fileRootsList.Where(r => r.Root is not null))
         {
             var imports = CollectImportNodes(root!);
@@ -69,6 +122,110 @@ internal sealed class ReferenceResolver
         }
 
         return new SemanticIndex(edges);
+    }
+
+    /// <summary>
+    ///     Gets the existing per-file "already warned about this name" deduplication set for
+    ///     <paramref name="filePath"/>, or creates and registers a new empty one if none exists
+    ///     yet. Shared by <see cref="ResolveNode"/> (pass 1) and
+    ///     <see cref="ResolveBareRedefinitions"/> (pass 2) so a name that pass 1 could not resolve
+    ///     immediately, and that pass 2 also fails to resolve, is warned about exactly once.
+    /// </summary>
+    private static HashSet<string> GetOrAddResolvedInFileSet(
+        Dictionary<string, HashSet<string>> resolvedInFileByPath,
+        string filePath)
+    {
+        if (!resolvedInFileByPath.TryGetValue(filePath, out var resolvedInFile))
+        {
+            resolvedInFile = new HashSet<string>(StringComparer.Ordinal);
+            resolvedInFileByPath[filePath] = resolvedInFile;
+        }
+
+        return resolvedInFile;
+    }
+
+    /// <summary>
+    ///     A bare-name <c>redefines</c>/<c>:&gt;&gt;</c> target, or usage-level
+    ///     <c>subsets</c>/<c>:&gt;</c> supertype name, that pass 1's plain namespace/import-scoped
+    ///     <see cref="TryResolve"/> lookup could not resolve. Recorded by <see cref="ResolveNode"/>
+    ///     and resolved later by <see cref="ResolveBareRedefinitions"/>, once every file root's
+    ///     ordinary edges have been attached.
+    /// </summary>
+    /// <param name="OwnerQualifiedName">
+    ///     The qualified name of the node that owns/declares the redefining or subsetting
+    ///     feature — i.e. the enclosing namespace scope in effect when the candidate was
+    ///     recorded — whose ancestor chain must be walked to find <paramref name="Name"/>.
+    /// </param>
+    /// <param name="Name">The bare (unqualified) name to resolve.</param>
+    /// <param name="Kind">The edge kind (<see cref="SysmlEdgeKind.Supertype"/> for usage-level
+    ///     subsetting, <see cref="SysmlEdgeKind.Redefinition"/> for <c>redefines</c>) to record on
+    ///     success.</param>
+    /// <param name="SubjectQualifiedName">
+    ///     The qualified name of the redefining/subsetting feature itself, used as the edge's
+    ///     subject on success.
+    /// </param>
+    /// <param name="FilePath">Source file path used when constructing a diagnostic on failure.</param>
+    private sealed record PendingBareRedefinition(
+        string OwnerQualifiedName,
+        string Name,
+        SysmlEdgeKind Kind,
+        string SubjectQualifiedName,
+        string FilePath);
+
+    /// <summary>
+    ///     Resolves every bare-name redefinition/usage-subsetting candidate collected by pass 1
+    ///     (<see cref="ResolveNode"/>) via the ancestor-chain walk in
+    ///     <see cref="FindMemberInAncestorChain"/>. Must run once, after pass 1 has completed for
+    ///     every file root, so every ancestor's own <see cref="SysmlEdgeKind.Supertype"/>/
+    ///     <see cref="SysmlEdgeKind.Redefinition"/> edges — attached by pass 1's ordinary
+    ///     <see cref="TryResolve"/> resolution — are populated regardless of the declaration order
+    ///     of the ancestor relative to the descendant doing the walking (see the
+    ///     <see cref="ResolveAll"/> remarks for the full rationale). A candidate that still cannot
+    ///     be resolved here produces the "Unresolved reference" Warning diagnostic that pass 1
+    ///     deferred.
+    /// </summary>
+    /// <param name="pending">The candidates collected by pass 1.</param>
+    /// <param name="resolvedInFileByPath">
+    ///     Shared per-file "already warned about this name" deduplication sets, keyed by file
+    ///     path (see <see cref="GetOrAddResolvedInFileSet"/>).
+    /// </param>
+    /// <param name="edges">
+    ///     Aggregate list of all edges resolved so far across the whole file-root traversal;
+    ///     appended to by this method on success.
+    /// </param>
+    private void ResolveBareRedefinitions(
+        List<PendingBareRedefinition> pending,
+        Dictionary<string, HashSet<string>> resolvedInFileByPath,
+        List<SysmlEdge> edges)
+    {
+        foreach (var candidate in pending)
+        {
+            if (TryResolveBareRedefinition(candidate.OwnerQualifiedName, candidate.Name, out var resolvedName))
+            {
+                var edge = new SysmlEdge(candidate.SubjectQualifiedName, resolvedName, candidate.Kind);
+                edges.Add(edge);
+
+                var subjectNode = _symbolTable.Lookup(candidate.SubjectQualifiedName);
+                if (subjectNode is not null)
+                {
+                    subjectNode.ResolvedEdges = subjectNode.ResolvedEdges.Count > 0
+                        ? [.. subjectNode.ResolvedEdges, edge]
+                        : [edge];
+                }
+
+                continue;
+            }
+
+            var resolvedInFile = GetOrAddResolvedInFileSet(resolvedInFileByPath, candidate.FilePath);
+            if (resolvedInFile.Add(candidate.Name))
+            {
+                _diagnostics.Add(new SysmlDiagnostic(
+                    candidate.FilePath,
+                    0, 0,
+                    DiagnosticSeverity.Warning,
+                    $"Unresolved reference: '{candidate.Name}'"));
+            }
+        }
     }
 
     /// <summary>
@@ -342,7 +499,13 @@ internal sealed class ReferenceResolver
     ///     Resolves supertype, feature-typing, and import references in the given AST node and
     ///     its descendants, emitting a Warning diagnostic for each name that cannot be resolved
     ///     through the four-step lookup and recording a <see cref="SysmlEdge"/> for each name
-    ///     that does resolve.
+    ///     that does resolve. A bare-name <c>redefines</c>/<c>:&gt;&gt;</c> target or usage-level
+    ///     <c>subsets</c>/<c>:&gt;</c> supertype name that this method's plain
+    ///     namespace/import-scoped lookup cannot resolve is neither warned about nor dropped here
+    ///     — it is instead appended to <paramref name="pendingBareRedefinitions"/> for
+    ///     <see cref="ResolveBareRedefinitions"/> to resolve in a later pass, once every file
+    ///     root's ordinary edges are attached (see the <see cref="ResolveAll"/> remarks for the
+    ///     full rationale).
     /// </summary>
     /// <param name="node">The AST node to process.</param>
     /// <param name="filePath">Source file path used when constructing diagnostics.</param>
@@ -361,22 +524,45 @@ internal sealed class ReferenceResolver
     ///     appended to by this method, mirroring <paramref name="namespaceStack"/> and
     ///     <paramref name="resolvedInFile"/>.
     /// </param>
+    /// <param name="pendingBareRedefinitions">
+    ///     Aggregate list of bare-name redefinition/usage-subsetting candidates that could not be
+    ///     resolved immediately; appended to by this method, resolved later by
+    ///     <see cref="ResolveBareRedefinitions"/>.
+    /// </param>
     private void ResolveNode(
         SysmlNode node,
         string filePath,
         HashSet<string> resolvedInFile,
         List<string> namespaceStack,
         IReadOnlyList<SysmlImportNode> imports,
-        List<SysmlEdge> edges)
+        List<SysmlEdge> edges,
+        List<PendingBareRedefinition> pendingBareRedefinitions)
     {
         var nodeEdges = new List<SysmlEdge>();
 
-        // Resolve each supertype name using the current namespace context and file imports
+        // Resolve each supertype name using the current namespace context and file imports. For
+        // a usage/feature node (SysmlFeatureNode), a SupertypeNames entry may come from a usage-
+        // level `subsets`/`:>` clause — which, like a bare `redefines` reference, commonly names
+        // a member the owner *inherits* (declared on a supertype/redefinition ancestor) rather
+        // than one declared/imported into the same lexical scope — so such a name is deferred to
+        // the bare-redefinition ancestor-chain fallback (see ResolveBareRedefinitions) rather than
+        // warned about immediately here. Definition-level SupertypeNames (from `part def X :> Y`)
+        // name the supertype itself directly, not an inherited member, so no fallback applies and
+        // an immediate warning is correct for non-feature nodes.
         foreach (var supertypeName in node.SupertypeNames)
         {
             if (TryResolve(supertypeName, namespaceStack, imports, out var resolvedSupertype))
             {
                 nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedSupertype, SysmlEdgeKind.Supertype));
+            }
+            else if (node is SysmlFeatureNode)
+            {
+                pendingBareRedefinitions.Add(new PendingBareRedefinition(
+                    string.Join("::", namespaceStack),
+                    supertypeName,
+                    SysmlEdgeKind.Supertype,
+                    node.QualifiedName ?? string.Empty,
+                    filePath));
             }
             else if (resolvedInFile.Add(supertypeName))
             {
@@ -402,6 +588,30 @@ internal sealed class ReferenceResolver
                     0, 0,
                     DiagnosticSeverity.Warning,
                     $"Unresolved reference: '{typing}'"));
+            }
+        }
+
+        // Feature redefinition — the target referenced after 'redefines'/':>>' on a usage/feature
+        // element. The standard namespace/import-scoped TryResolve is tried first (handles
+        // qualified forms like "Vehicle::eng" and same-scope bare names); since the dominant
+        // real-world shape for `redefines` is a bare name referencing a member the owner
+        // *inherits* rather than declares/imports itself, a failure here is deferred to the
+        // bare-redefinition ancestor-chain fallback (see ResolveBareRedefinitions) rather than
+        // warned about immediately.
+        if (node is SysmlFeatureNode { RedefinedFeatureName: { } redefined })
+        {
+            if (TryResolve(redefined, namespaceStack, imports, out var resolvedRedefined))
+            {
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedRedefined, SysmlEdgeKind.Redefinition));
+            }
+            else
+            {
+                pendingBareRedefinitions.Add(new PendingBareRedefinition(
+                    string.Join("::", namespaceStack),
+                    redefined,
+                    SysmlEdgeKind.Redefinition,
+                    node.QualifiedName ?? string.Empty,
+                    filePath));
             }
         }
 
@@ -582,7 +792,7 @@ internal sealed class ReferenceResolver
 
         foreach (var child in node.Children)
         {
-            ResolveNode(child, filePath, resolvedInFile, namespaceStack, imports, edges);
+            ResolveNode(child, filePath, resolvedInFile, namespaceStack, imports, edges, pendingBareRedefinitions);
         }
 
         if (pushed)
@@ -837,6 +1047,100 @@ internal sealed class ReferenceResolver
             }
 
             var found = FindMemberInTypeHierarchy(supertypeNode, name, visited);
+            if (found is not null)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Attempts to resolve a bare-name <c>redefines</c>/<c>:&gt;&gt;</c> target (or
+    ///     usage-level <c>subsets</c>/<c>:&gt;</c> supertype name) that <see cref="TryResolve"/>
+    ///     could not resolve because the referenced member is inherited from an ancestor
+    ///     (declared on a supertype, or reachable only by following the owner's own
+    ///     already-resolved <see cref="SysmlEdgeKind.Redefinition"/> edge) rather than declared
+    ///     or imported into the same lexical scope as the redefining/subsetting feature. This is
+    ///     the dominant real-world shape for <c>redefines</c> per the SysML v2 spec — its entire
+    ///     purpose is referencing an inherited member — so this fallback is tried by
+    ///     <see cref="ResolveBareRedefinitions"/> whenever the standard namespace/import-scoped
+    ///     <see cref="TryResolve"/> lookup fails in pass 1. Called only from pass 2, after every
+    ///     file root's ordinary <see cref="SysmlEdgeKind.Supertype"/>/
+    ///     <see cref="SysmlEdgeKind.Redefinition"/> edges have been attached, so the ancestor
+    ///     chain walk below sees a fully-populated <see cref="SysmlNode.ResolvedEdges"/> for
+    ///     every ancestor regardless of that ancestor's declaration order relative to
+    ///     <paramref name="ownerQualifiedName"/>.
+    /// </summary>
+    /// <param name="ownerQualifiedName">
+    ///     The fully-qualified name of the node that owns/declares the redefining or subsetting
+    ///     feature, whose ancestor chain is walked to find <paramref name="name"/>.
+    /// </param>
+    /// <param name="name">The bare (unqualified) name to resolve.</param>
+    /// <param name="resolvedName">
+    ///     When this method returns <see langword="true"/>, the fully-qualified name of the
+    ///     matched ancestor member. When it returns <see langword="false"/>, set to
+    ///     <see cref="string.Empty"/>.
+    /// </param>
+    /// <returns>
+    ///     <see langword="true"/> if an ancestor member named <paramref name="name"/> was found;
+    ///     <see langword="false"/> otherwise.
+    /// </returns>
+    private bool TryResolveBareRedefinition(
+        string ownerQualifiedName,
+        string name,
+        out string resolvedName)
+    {
+        var ownerNode = _symbolTable.Lookup(ownerQualifiedName);
+        var found = ownerNode is null ? null : FindMemberInAncestorChain(ownerNode, name, new HashSet<string>());
+
+        if (found?.QualifiedName is not { Length: > 0 } foundQualifiedName)
+        {
+            resolvedName = string.Empty;
+            return false;
+        }
+
+        resolvedName = foundQualifiedName;
+        return true;
+    }
+
+    /// <summary>
+    ///     Finds a member named <paramref name="name"/> in <paramref name="node"/>'s own direct
+    ///     children, or — recursively — in any ancestor reachable by following its
+    ///     <see cref="SysmlEdgeKind.Supertype"/> <em>and</em> <see cref="SysmlEdgeKind.Redefinition"/>
+    ///     resolved edges. Both edge kinds must be followed (not supertype-only) because a nested
+    ///     redefining feature's owner sometimes has no <c>SupertypeNames</c> of its own at all —
+    ///     the only path to the inherited member is via the owner's own already-resolved
+    ///     <c>Redefinition</c> edge (see <c>1c-PartsTreeRedefinition.sysml</c>'s nested
+    ///     <c>frontAxle_c1 redefines frontAxle</c>, whose owner <c>frontAxleAssembly_c1</c> only
+    ///     redefines <c>frontAxleAssembly</c> and has no supertype of its own).
+    ///     <paramref name="visited"/> guards against cycles, keyed on qualified name, mirroring
+    ///     <see cref="FindMemberInTypeHierarchy"/>'s guard pattern.
+    /// </summary>
+    private SysmlNode? FindMemberInAncestorChain(SysmlNode node, string name, HashSet<string> visited)
+    {
+        if (node.QualifiedName is { Length: > 0 } qualifiedName && !visited.Add(qualifiedName))
+        {
+            return null;
+        }
+
+        var direct = node.Children.FirstOrDefault(c => c.Name == name);
+        if (direct is not null)
+        {
+            return direct;
+        }
+
+        foreach (var edge in node.ResolvedEdges.Where(
+                     e => e.Kind is SysmlEdgeKind.Supertype or SysmlEdgeKind.Redefinition))
+        {
+            var ancestorNode = _symbolTable.Lookup(edge.TargetQualifiedName);
+            if (ancestorNode is null)
+            {
+                continue;
+            }
+
+            var found = FindMemberInAncestorChain(ancestorNode, name, visited);
             if (found is not null)
             {
                 return found;

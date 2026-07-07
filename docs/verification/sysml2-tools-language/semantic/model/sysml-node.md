@@ -20,7 +20,9 @@ external services or additional configuration are required beyond a standard .NE
 - `SysmlDefinitionNode` is constructed with the correct `QualifiedName` and `DefinitionKeyword`
   for a `part def` declaration; its qualified name appears in `Declarations`.
 - `SysmlNode.SupertypeNames` is populated correctly for a definition with a `specializes`
-  clause; the name is checked by `ReferenceResolver`.
+  clause; the name is checked by `ReferenceResolver`. It is likewise populated for a
+  usage/feature's own usage-level `subsets`/`:>` clause, distinct from a definition-level
+  supertype.
 - `SysmlImportNode.ImportedNamespace` is extracted and used by `ReferenceResolver` to build
   the import graph.
 - `SysmlNode.ResolvedEdges` is populated by `ReferenceResolver` with the resolved outgoing
@@ -33,6 +35,10 @@ external services or additional configuration are required beyond a standard .NE
   evaluated), and are `null`/empty for a view with no such members. `RenderTargetName` is
   captured but never resolved into an edge or diagnostic (it names a rendering style/format, not
   content); `ExposedNames` is the only field independently resolved by `ReferenceResolver`.
+- `SysmlFeatureNode.RedefinedFeatureName` is populated verbatim from a feature's
+  `redefines`/`:>>` clause (bare-name and qualified `Owner::feature` forms, both keyword and
+  operator syntax), and is `null` for a feature with no redefinition. It is resolved by
+  `ReferenceResolver` into a `Redefinition`-kind edge, mirroring `FeatureTyping`.
 
 ##### Test Scenarios
 
@@ -41,9 +47,14 @@ external services or additional configuration are required beyond a standard .NE
 | `SysmlPackageNode` construction | `WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration` |
 | `SysmlDefinitionNode` construction | `WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition` |
 | `SupertypeNames` population | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
+| `SupertypeNames` usage-level population | `WorkspaceLoader_LoadAsync_UsageLevelSubsetting_PopulatesSupertypeNames` |
 | `ResolvedEdges` populated | `WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge` |
 | `Annotations` populated | `WorkspaceLoader_LoadAsync_CommentAndDocumentation_CapturesBothInSourceOrder` |
 | `RenderTargetName` unresolved | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | `FilterExpressionText` verbatim | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | `SysmlViewNode.ExposedNames` from a `view` usage | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | Empty view body leaves all fields null/empty | `WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty` |
+| `RedefinedFeatureName` — `redefines` | `WorkspaceLoader_LoadAsync_RedefinesKeyword_CapturesRedefinedFeatureName` |
+| `RedefinedFeatureName` — `:>>` operator | `WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName` |
+| `RedefinedFeatureName` — qualified | `WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText` |
+| `RedefinedFeatureName` — null when absent | `WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull` |

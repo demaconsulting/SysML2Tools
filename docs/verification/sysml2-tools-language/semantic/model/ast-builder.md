@@ -22,6 +22,9 @@ external services or additional configuration are required beyond a standard .NE
 - An element with only a short name `< shortName >` (no declared name) is not registered.
 - A definition with `specializes KnownType` produces a `SupertypeNames` entry that resolves
   without a Warning when `KnownType` is registered.
+- A usage/feature's own usage-level `subsets`/`:>` clause (distinct from a definition's
+  `specializes`/`:>` supertype clause) directly populates that feature node's `SupertypeNames`
+  with the expected target name.
 - `VisitViewDefinition` captures `render <target>;` and `filter [<expr>];` members' raw text on
   the corresponding `SysmlViewNode`, and leaves both null for a view with an empty body.
 - `VisitViewUsage` (a named `view` usage, not a `view def` definition) captures the same
@@ -29,6 +32,10 @@ external services or additional configuration are required beyond a standard .NE
   populated `ExposedNames`. This also makes every named `view` usage its own renderable
   declaration, an intentional capability addition beyond `expose` capture alone (see the
   ast-builder design doc).
+- `BuildUsageNode` captures a feature's redefinition reference on `RedefinedFeatureName` for both
+  the `redefines` keyword form and the `:>>` operator form, for both a bare simple name and a
+  qualified `Owner::feature` form (captured verbatim, unresolved), and leaves it null for a
+  feature that declares no redefinition.
 
 ##### Test Scenarios
 
@@ -38,8 +45,13 @@ external services or additional configuration are required beyond a standard .NE
 | Qualified name from namespace stack | `WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames` |
 | Definition registration | `WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition` |
 | Supertype extraction | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
+| Usage-level `subsets`/`:>` capture | `WorkspaceLoader_LoadAsync_UsageLevelSubsetting_PopulatesSupertypeNames` |
 | `VisitViewDefinition` render | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | `VisitViewDefinition` filter capture | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | `VisitViewUsage` expose capture | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | `VisitViewUsage` renderable declaration | `RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages` |
 | Empty view body regression guard | `WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty` |
+| Redefinition, `redefines` keyword | `WorkspaceLoader_LoadAsync_RedefinesKeyword_CapturesRedefinedFeatureName` |
+| Redefinition capture, `:>>` operator | `WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName` |
+| Redefinition capture, qualified form | `WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText` |
+| No redefinition leaves field null | `WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull` |

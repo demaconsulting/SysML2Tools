@@ -33,6 +33,9 @@ external services or additional configuration are required beyond a standard .NE
   per the SysML v2 grammar, never content) is captured on `SysmlViewNode.RenderTargetName` but
   never inspected by `ReferenceResolver` — no edge is produced and no diagnostic is emitted for
   it, even when the named identifier is not declared anywhere in the file.
+- A resolved feature redefinition reference (`redefines X;` / `:>> X`) is recorded as a
+  `Redefinition`-kind `SysmlEdge`; an unresolved one produces a Warning diagnostic naming the
+  unresolved identifier and no edge, mirroring `FeatureTyping`'s resolution behavior exactly.
 
 ##### Test Scenarios
 
@@ -50,3 +53,10 @@ external services or additional configuration are required beyond a standard .NE
 | RenderTargetName captured raw | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | Resolved expose name records edge | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | E2E diagnostic visibility | `RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic` |
+| Resolved redefinition records edge | `WorkspaceLoader_LoadAsync_ResolvedRedefinition_RecordsRedefinitionEdge` |
+| Unresolved redefinition — no edge | `WorkspaceLoader_LoadAsync_UnresolvedRedefinition_ProducesWarningNoEdge` |
+| Bare-name feature | `WorkspaceLoader_LoadAsync_BareRedefinitionOfInheritedFeature_RecordsRedefinitionEdgeNoWarning` |
+| Out-of-order | `WorkspaceLoader_LoadAsync_OutOfOrderRedefinitionChain_RecordsRedefinitionEdgeNoWarning` |
+| Cross-file | `WorkspaceLoader_LoadAsync_CrossFileOutOfOrderRedefinitionChain_RecordsRedefinitionEdgeNoWarning` |
+| OMG `RedefinitionExample` | `WorkspaceLoader_LoadAsync_RedefinitionExampleFixture_NoUnresolvedReferenceWarnings` |
+| OMG PartsTree fixture | `WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings` |

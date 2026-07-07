@@ -479,6 +479,251 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A subtype feature that redefines a bare-named inherited feature (declared on a resolved
+    ///     supertype in the view) emits a solid hollow-triangle-with-crossbar line from the subtype
+    ///     to the supertype that declares the redefined feature.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_BareNameRedefinition_ProducesHollowTriangleCrossbarEdge()
+    {
+        // Arrange: Vehicle declares "eng"; SmallVehicle specializes Vehicle and redefines "eng" by
+        // bare name (no Owner:: qualifier).
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Vehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "Vehicle",
+                    QualifiedName = "P::Vehicle",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "eng", QualifiedName = "P::Vehicle::eng", FeatureKeyword = "attribute", FeatureTyping = "Real" }
+                    ]
+                },
+                ["P::SmallVehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "SmallVehicle",
+                    QualifiedName = "P::SmallVehicle",
+                    DefinitionKeyword = "part def",
+                    SupertypeNames = ["Vehicle"],
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "smallEng", QualifiedName = "P::SmallVehicle::smallEng", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "eng" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a solid line with a hollow-triangle-crossbar arrowhead exists, from SmallVehicle to Vehicle
+        var redefinitionEdge = CollectLines(layout.Nodes)
+            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.NotNull(redefinitionEdge);
+        Assert.Equal(LineStyle.Solid, redefinitionEdge!.LineStyle);
+    }
+
+    /// <summary>
+    ///     A subtype feature that redefines a qualified <c>Owner::feature</c> reference emits a
+    ///     hollow-triangle-with-crossbar edge to the named owner, without needing to walk the
+    ///     supertype chain.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_QualifiedRedefinition_ProducesHollowTriangleCrossbarEdgeToOwner()
+    {
+        // Arrange: Car redefines "Vehicle::mass" directly by qualified reference.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Vehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "Vehicle",
+                    QualifiedName = "P::Vehicle",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "mass", QualifiedName = "P::Vehicle::mass", FeatureKeyword = "attribute", FeatureTyping = "Real" }
+                    ]
+                },
+                ["P::Car"] = new SysmlDefinitionNode
+                {
+                    Name = "Car",
+                    QualifiedName = "P::Car",
+                    DefinitionKeyword = "part def",
+                    SupertypeNames = ["Vehicle"],
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "carMass", QualifiedName = "P::Car::carMass", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "Vehicle::mass" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a hollow-triangle-crossbar arrowhead edge is emitted, resolved via the qualified reference
+        var redefinitionEdge = CollectLines(layout.Nodes)
+            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.NotNull(redefinitionEdge);
+    }
+
+    /// <summary>
+    ///     An unresolvable redefinition reference (neither a qualified owner nor a bare name found
+    ///     anywhere in the supertype chain) produces no redefinition edge and does not throw.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_UnresolvableRedefinition_ProducesNoEdge()
+    {
+        // Arrange: Vehicle redefines a bare name that does not exist anywhere in scope.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Vehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "Vehicle",
+                    QualifiedName = "P::Vehicle",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "eng", QualifiedName = "P::Vehicle::eng", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "nonExistentFeature" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act: laying out must not throw even though the redefinition cannot be resolved.
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: no hollow-triangle-crossbar edge is produced.
+        var redefinitionEdge = CollectLines(layout.Nodes)
+            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.Null(redefinitionEdge);
+    }
+
+    /// <summary>
+    ///     A bare-name redefinition whose declaring ancestor is two supertype hops away
+    ///     (<c>Mid :> Parent :> GrandParent</c>, with <c>GrandParent</c> declaring the redefined
+    ///     member) produces a hollow-triangle-crossbar edge targeting the actual declaring
+    ///     ancestor (<c>GrandParent</c>), not the immediate supertype (<c>Parent</c>) — proving the
+    ///     bare-name walk is transitive, not limited to a single hop.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_TransitiveBareNameRedefinition_ProducesHollowTriangleCrossbarEdgeToDeclaringAncestor()
+    {
+        // Arrange: GrandParent declares "feat"; Parent specializes GrandParent with no members of
+        // its own; Mid specializes Parent and redefines "feat" by bare name.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::GrandParent"] = new SysmlDefinitionNode
+                {
+                    Name = "GrandParent",
+                    QualifiedName = "P::GrandParent",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "feat", QualifiedName = "P::GrandParent::feat", FeatureKeyword = "attribute", FeatureTyping = "Real" }
+                    ]
+                },
+                ["P::Parent"] = new SysmlDefinitionNode
+                {
+                    Name = "Parent",
+                    QualifiedName = "P::Parent",
+                    DefinitionKeyword = "part def",
+                    SupertypeNames = ["GrandParent"],
+                },
+                ["P::Mid"] = new SysmlDefinitionNode
+                {
+                    Name = "Mid",
+                    QualifiedName = "P::Mid",
+                    DefinitionKeyword = "part def",
+                    SupertypeNames = ["Parent"],
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "subFeat", QualifiedName = "P::Mid::subFeat", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "feat" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the crossbar edge targets GrandParent (the actual declaring ancestor), and there
+        // is exactly one such edge (not one for each hop of the chain).
+        var redefinitionEdges = CollectLines(layout.Nodes)
+            .Where(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar)
+            .ToList();
+        Assert.Single(redefinitionEdges);
+        Assert.Equal(LineStyle.Solid, redefinitionEdges[0].LineStyle);
+    }
+
+    /// <summary>
+    ///     A genuinely self-referential redefinition — a definition whose own supertype chain
+    ///     cycles back to itself, such that the bare-name walk resolves the redefined member's
+    ///     owner back to the very definition doing the redefining — produces no redefinition edge
+    ///     and does not throw. This is distinct from
+    ///     <see cref="GeneralViewLayoutStrategy_BuildLayout_UnresolvableRedefinition_ProducesNoEdge"/>,
+    ///     which covers a name that cannot be found anywhere, not a name that resolves back to the
+    ///     definition itself.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_SelfReferentialRedefinition_ProducesNoEdge()
+    {
+        // Arrange: Standalone lists itself as its own supertype (a self-cycle), and redefines its
+        // own "otherFeat" member by bare name — so the walk resolves the owner back to Standalone.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Standalone"] = new SysmlDefinitionNode
+                {
+                    Name = "Standalone",
+                    QualifiedName = "P::Standalone",
+                    DefinitionKeyword = "part def",
+                    SupertypeNames = ["Standalone"],
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "selfFeat", QualifiedName = "P::Standalone::selfFeat", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "otherFeat" },
+                        new SysmlFeatureNode { Name = "otherFeat", QualifiedName = "P::Standalone::otherFeat", FeatureKeyword = "attribute", FeatureTyping = "Real" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act: laying out must not throw despite the self-referential supertype cycle.
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: no hollow-triangle-crossbar edge is produced, since the resolved owner is
+        // Standalone itself.
+        var redefinitionEdge = CollectLines(layout.Nodes)
+            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.Null(redefinitionEdge);
+    }
+
+    /// <summary>
     ///     A definition with TWO <c>attribute</c>-typed features of the SAME in-view type produces two
     ///     identical owner→type intra-group edges. The layered pipeline de-duplicates the identical
     ///     directed pair so its routed waypoints are not 1:1 with the intra-edges; the strategy must

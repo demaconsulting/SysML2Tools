@@ -45,7 +45,12 @@ package QuadcopterDrone {
     part def Frame;
 
     // ===== Specializations =====
-    part def RacingMotor :> Motor;
+    // RacingMotor redefines the inherited maxThrust attribute to demonstrate
+    // the redefinition crossbar marker (hollow-triangle-crossbar) rendered
+    // for `:>>`/`redefines` relationships in the General View.
+    part def RacingMotor :> Motor {
+        attribute :>> maxThrust : Mass;
+    }
     part def EnduranceBattery :> Battery;
 
     // ===== The integrated drone =====

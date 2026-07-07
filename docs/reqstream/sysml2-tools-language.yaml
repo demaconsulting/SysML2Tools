@@ -52,9 +52,9 @@ sections:
 
       - id: SysML2Tools-Language-ReverseIndex
         title: >-
-          The Language library shall persist resolved supertype, feature-typing, and import
-          references as edges on each AST node and expose a reverse-lookup index over all
-          resolved edges via the loaded workspace.
+          The Language library shall persist resolved supertype, feature-typing, redefinition,
+          and import references as edges on each AST node and expose a reverse-lookup index over
+          all resolved edges via the loaded workspace.
         justification: |
           A persisted, queryable reverse index over resolved qualified-name references is the
           foundational data structure required by the `query` command's uses/used-by/impact/
@@ -68,6 +68,8 @@ sections:
           - WorkspaceLoader_LoadAsync_SupertypeAcrossEnclosingNamespace_RecordsResolvedTargetName
           - WorkspaceLoader_LoadAsync_UnresolvedImport_ProducesWarningNoCrash
           - WorkspaceLoader_LoadAsync_MultiKindFixtureModel_IndexAnswersIncomingAndOutgoingQueries
+          - WorkspaceLoader_LoadAsync_BareRedefinitionOfInheritedFeature_RecordsRedefinitionEdgeNoWarning
+          - WorkspaceLoader_LoadAsync_UnresolvedRedefinition_ProducesWarningNoEdge
 
       - id: SysML2Tools-Language-AnnotationCapture
         title: >-

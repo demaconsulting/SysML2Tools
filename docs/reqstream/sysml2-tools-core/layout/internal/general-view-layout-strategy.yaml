@@ -203,3 +203,51 @@ sections:
           limitation visible rather than a silent gap.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-QualifiedForm
+        title: >-
+          GeneralViewLayoutStrategy shall connect a subtype feature that declares a qualified
+          `Owner::feature` `redefines`/`:>>` reference to the named owner with a solid line
+          ending in a hollow-triangle-with-crossbar end marker at the owner.
+        justification: |
+          `redefines`/`:>>` feature redefinition is core SysML v2 model structure completing the
+          ROADMAP's "Connector-end & line-style conformance" item: the already-existing
+          `HollowTriangleCrossbar` end-marker style needed a producing model edge to ever appear
+          in a rendered General View. A qualified reference names its owner directly, matching
+          the shape observed in the OMG corpus (e.g.
+          `test/SysMLModels/OMG/validation/01-PartsTree/1a-PartsTree.sysml`'s qualified
+          `redefines Vehicle::mass`).
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_QualifiedRedefinition_ProducesHollowTriangleCrossbarEdgeToOwner
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-BareNameForm
+        title: >-
+          GeneralViewLayoutStrategy shall connect a subtype feature that declares a bare-name
+          `redefines`/`:>>` reference to the ancestor definition that declares a matching member,
+          found by walking the subtype's own supertype chain transitively, with a solid line
+          ending in a hollow-triangle-with-crossbar end marker at that ancestor.
+        justification: |
+          The dominant real-world shape for `redefines` per the SysML v2 spec is a bare name
+          referencing a member the subtype inherits, matching the shape observed in the OMG
+          corpus (e.g.
+          `test/SysMLModels/OMG/training/05.Redefinition/RedefinitionExample.sysml`'s bare-name
+          `redefines eng`). Resolving transitively (not just one supertype hop) is required
+          because the declaring ancestor is frequently two or more hops away from the redefining
+          subtype.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_BareNameRedefinition_ProducesHollowTriangleCrossbarEdge
+          - GeneralViewLayoutStrategy_BuildLayout_TransitiveBareNameRedefinition_ProducesHollowTriangleCrossbarEdgeToDeclaringAncestor
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-NoEdgeOnFailure
+        title: >-
+          GeneralViewLayoutStrategy shall produce no redefinition edge and no diagnostic when a
+          `redefines`/`:>>` reference cannot be resolved to any ancestor member, or when it
+          resolves back to the redefining feature's own owning definition.
+        justification: |
+          Graceful degradation for an unresolvable or self-referential redefinition reference is
+          consistent with how every other reference kind in this unit behaves on failure: false
+          edge is drawn, and diagram layout must never throw for a reference that cannot be
+          resolved.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_UnresolvableRedefinition_ProducesNoEdge
+          - GeneralViewLayoutStrategy_BuildLayout_SelfReferentialRedefinition_ProducesNoEdge

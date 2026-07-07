@@ -41,8 +41,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <summary>Approximate width-per-character factor relative to font size.</summary>
     private const double CharWidthFactor = 0.62;
 
-    /// <summary>A feature membership: the keyword and the raw typing reference of one owned feature.</summary>
-    private sealed record FeatureMembership(string Keyword, string TypeName);
+    /// <summary>
+    /// A feature membership: the keyword, raw typing reference (if any), simple name, and raw
+    /// redefined-feature reference (if any) of one owned feature. <see cref="TypeName"/> is
+    /// nullable because a feature may declare a redefinition without an explicit type annotation.
+    /// </summary>
+    private sealed record FeatureMembership(string Keyword, string? TypeName, string? Name, string? RedefinedFeatureName);
 
     /// <summary>
     /// The classification of an edge, which selects its line style so the renderer can distinguish
@@ -62,6 +66,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         /// notation (dashed + open arrowhead) rather than a membership diamond.
         /// </summary>
         Typing,
+
+        /// <summary>
+        /// Subtype feature redefinition → the owning definition of the redefined feature: solid
+        /// line, hollow-triangle-with-crossbar at the owner.
+        /// </summary>
+        Redefinition,
     }
 
     /// <summary>
@@ -247,8 +257,9 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     };
 
     /// <summary>
-    /// Collects the feature memberships of a definition: the keyword and type reference of each
-    /// owned feature that carries a type annotation.
+    /// Collects the feature memberships of a definition: the keyword, type reference (if any), simple
+    /// name, and redefined-feature reference (if any) of each owned feature that carries a type
+    /// annotation and/or a redefinition.
     /// </summary>
     private static IReadOnlyList<FeatureMembership> CollectMemberships(SysmlDefinitionNode def)
     {
@@ -260,10 +271,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            if (feature.FeatureTyping is { Length: > 0 } typing)
+            var typing = feature.FeatureTyping is { Length: > 0 } ft ? ft : null;
+            if (typing is not null || feature.RedefinedFeatureName is not null)
             {
                 var keyword = string.IsNullOrEmpty(feature.FeatureKeyword) ? "feature" : feature.FeatureKeyword;
-                result.Add(new FeatureMembership(keyword, typing));
+                result.Add(new FeatureMembership(keyword, typing, feature.Name, feature.RedefinedFeatureName));
             }
         }
 
@@ -368,6 +380,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             bySimple.TryAdd(def.SimpleName, def.QualifiedName);
         }
 
+        var defByQualified = defs.ToDictionary(d => d.QualifiedName, StringComparer.Ordinal);
+
         var edges = new List<ModelEdge>();
         foreach (var def in defs)
         {
@@ -393,7 +407,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 };
 
                 if (arrowhead != EndMarkerStyle.None &&
-                    TryResolveQualified(membership.TypeName, byQualified, bySimple, out var memberType) &&
+                    membership.TypeName is { Length: > 0 } memberTypeName &&
+                    TryResolveQualified(memberTypeName, byQualified, bySimple, out var memberType) &&
                     memberType != def.QualifiedName)
                 {
                     edges.Add(new ModelEdge(memberType, def.QualifiedName, arrowhead, EdgeKind.Membership));
@@ -411,15 +426,97 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     continue;
                 }
 
-                if (TryResolveQualified(membership.TypeName, byQualified, bySimple, out var attrType) &&
+                if (membership.TypeName is { Length: > 0 } attrTypeName &&
+                    TryResolveQualified(attrTypeName, byQualified, bySimple, out var attrType) &&
                     attrType != def.QualifiedName)
                 {
                     edges.Add(new ModelEdge(def.QualifiedName, attrType, EndMarkerStyle.OpenChevron, EdgeKind.Typing));
                 }
             }
+
+            // Redefinition: subtype → the owning definition of the redefined feature, hollow
+            // triangle with crossbar at the owner (target) end. A qualified reference
+            // (Owner::feature) resolves the owner directly; a bare reference is looked up by
+            // walking the definition's own supertype chain for a matching member name.
+            foreach (var membership in def.Memberships)
+            {
+                if (membership.RedefinedFeatureName is not { Length: > 0 } redefinedRef)
+                {
+                    continue;
+                }
+
+                var owner = ResolveRedefinitionOwner(def, redefinedRef, byQualified, bySimple, defByQualified);
+                if (owner is not null && owner != def.QualifiedName)
+                {
+                    edges.Add(new ModelEdge(def.QualifiedName, owner, EndMarkerStyle.HollowTriangleCrossbar, EdgeKind.Redefinition));
+                }
+            }
         }
 
         return edges;
+    }
+
+    /// <summary>
+    /// Resolves the owning definition of a redefined feature reference. A qualified reference
+    /// (containing <c>::</c>) resolves the owner directly by stripping the trailing feature-name
+    /// segment; a bare reference is resolved by walking the redefining definition's own supertype
+    /// chain (transitively, with a cycle guard) for a matching member name.
+    /// </summary>
+    private static string? ResolveRedefinitionOwner(
+        DefBox def,
+        string redefinedRef,
+        HashSet<string> byQualified,
+        Dictionary<string, string> bySimple,
+        IReadOnlyDictionary<string, DefBox> defByQualified)
+    {
+        var sep = redefinedRef.LastIndexOf("::", StringComparison.Ordinal);
+        if (sep >= 0)
+        {
+            var ownerRef = redefinedRef[..sep];
+            return TryResolveQualified(ownerRef, byQualified, bySimple, out var owner) ? owner : null;
+        }
+
+        return ResolveBareRedefinitionOwner(def, redefinedRef, byQualified, bySimple, defByQualified, new HashSet<string>(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// Walks a definition's supertype chain (transitively, with a cycle guard) looking for a
+    /// definition that declares a member feature with the given simple name.
+    /// </summary>
+    private static string? ResolveBareRedefinitionOwner(
+        DefBox def,
+        string bareName,
+        HashSet<string> byQualified,
+        Dictionary<string, string> bySimple,
+        IReadOnlyDictionary<string, DefBox> defByQualified,
+        HashSet<string> visited)
+    {
+        if (!visited.Add(def.QualifiedName))
+        {
+            return null;
+        }
+
+        foreach (var supertype in def.SupertypeNames)
+        {
+            if (!TryResolveQualified(supertype, byQualified, bySimple, out var superQualified) ||
+                !defByQualified.TryGetValue(superQualified, out var superDef))
+            {
+                continue;
+            }
+
+            if (superDef.Memberships.Any(m => m.Name == bareName))
+            {
+                return superDef.QualifiedName;
+            }
+
+            var found = ResolveBareRedefinitionOwner(superDef, bareName, byQualified, bySimple, defByQualified, visited);
+            if (found is not null)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Resolves a supertype/type reference to a definition's qualified name, by qualified then simple name.</summary>

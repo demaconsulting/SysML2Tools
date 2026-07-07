@@ -41,8 +41,8 @@ All nodes carry:
   (mirroring the `SupertypeNames`/`ImportedNames` loops) into `SysmlEdgeKind.Verify` edges
   sourced from this node — there is no standalone verify-usage node type; this list is the sole
   producer of `Verify` edges.
-- `ResolvedEdges` — resolved outgoing `SysmlEdge` entries (supertype, typing, import, satisfy,
-  verify, allocate, connect, transition, expose), populated post-construction by
+- `ResolvedEdges` — resolved outgoing `SysmlEdge` entries (supertype, typing, redefinition,
+  import, satisfy, verify, allocate, connect, transition, expose), populated post-construction by
   `ReferenceResolver`; a settable (not `init`)
   property since resolution runs after the AST is built and the symbol table is fully populated.
   Empty for stdlib-only nodes, which are registered but never passed through
@@ -63,6 +63,20 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
 `SysmlDefinitionNode` adds:
 
 - `DefinitionKeyword` — the grammar keyword string (e.g., `"part def"`, `"attribute def"`).
+
+`SysmlFeatureNode` adds:
+
+- `FeatureKeyword` — the usage keyword string (e.g., `"part"`, `"port"`, `"attribute"`, `"ref"`).
+- `FeatureTyping` — the raw reference text of the type after `:` (or `typed by`), or null when
+  untyped. Resolved by `ReferenceResolver` into a `SysmlEdgeKind.Typing` edge.
+- `RedefinedFeatureName` — the raw reference text of the feature's `redefines <target>;`/
+  `:>> <target>` clause, or null when the feature declares no redefinition. Extracted by
+  `AstBuilder.ExtractRedefinedFeature`, mirroring `ExtractFeatureTyping`'s structure exactly
+  (walking `redefinitions()` instead of `typings()`). Captured verbatim only — including
+  qualified `Owner::feature` forms — with no resolution attempted at this stage. Resolved by
+  `ReferenceResolver` into a `SysmlEdgeKind.Redefinition` edge, and rendered by
+  `GeneralViewLayoutStrategy` as a hollow-triangle-crossbar marker.
+- `Multiplicity` — the multiplicity text (e.g., `"[4]"`, `"[0..*]"`), or null when unspecified.
 
 `SysmlConnectionNode` adds:
 
@@ -143,12 +157,13 @@ elements are filtered out by `AstBuilder` before a node is constructed.
   for usages) from both `VisitViewDefinition` (`view def`) and `VisitViewUsage` (`view`, the
   only form that can carry `expose`).
 - `SymbolTable` — traverses the node hierarchy via `Children`; reads `QualifiedName`.
-- `ReferenceResolver` — reads `SupertypeNames`, `FeatureTyping`, `ImportedNames`,
+- `ReferenceResolver` — reads `SupertypeNames`, `FeatureTyping`, `RedefinedFeatureName`,
+  `ImportedNames`,
   `VerifiedRequirementNames`, `Children`; checks for `SysmlImportNode`, `SysmlSatisfyNode`, the
   `"allocation"` `SysmlConnectionNode` variant, the `"connection"`/`"message"`
   `SysmlConnectionNode` variants, `SysmlTransitionNode`, and `SysmlViewNode` (reading
   `ExposedNames`; `RenderTargetName`/`FilterExpressionText` are never read); writes
   `ResolvedEdges` after resolving references (in two passes —
-  supertype/typing/import/satisfy/verify/allocate/expose, then feature-chain
+  supertype/typing/redefinition/import/satisfy/verify/allocate/expose, then feature-chain
   connect/transition).
 - `SupertypeWalker` — reads `SupertypeNames` on each node retrieved from `SymbolTable`.
