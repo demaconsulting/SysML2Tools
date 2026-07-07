@@ -173,6 +173,38 @@ public class LintSubsystemTests
     }
 
     /// <summary>
+    ///     LintCommand reports a distinct error when one or more file patterns are supplied
+    ///     but none of them match any file on disk, rather than the "no input files" message.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_PatternMatchesNoFiles_ReportsError()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), $"lint_nomatch_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var originalError = Console.Error;
+        try
+        {
+            using var errWriter = new StringWriter();
+            Console.SetError(errWriter);
+
+            // Act: lint with a pattern that matches no files
+            var pattern = Path.Combine(tempDir, "*.sysml");
+            using var context = Context.Create(["lint", pattern]);
+            await Program.RunAsync(context);
+
+            // Assert: distinct "no files matched" diagnostic and failing exit code
+            Assert.Contains("no files matched", errWriter.ToString());
+            Assert.Equal(1, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
     ///     'lint --help' now prints lint-specific usage (a regression-proofing test for the
     ///     command-aware help dispatch added alongside the 'help' command).
     /// </summary>
@@ -201,5 +233,83 @@ public class LintSubsystemTests
             Console.SetOut(originalOut);
         }
     }
+
+    /// <summary>
+    ///     LintCommand resolves a recursive '**' glob pattern into files nested in subdirectories,
+    ///     confirming delegation to the shared GlobFileCollector (the prior hand-rolled resolver
+    ///     only supported a single directory segment).
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_Patterns_RecursiveGlob_ResolvesNestedFiles()
+    {
+        // Arrange: a temp directory tree with SysML files nested two levels deep
+        var tempDir = Path.Combine(Path.GetTempPath(), $"lint_test_{Guid.NewGuid():N}");
+        var nestedDir = Path.Combine(tempDir, "nested", "deeper");
+        Directory.CreateDirectory(nestedDir);
+        await File.WriteAllTextAsync(
+            Path.Combine(tempDir, "top.sysml"), "package Top {}", TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(
+            Path.Combine(nestedDir, "child.sysml"), "package Child {}", TestContext.Current.CancellationToken);
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: lint with a recursive glob pattern
+            var pattern = Path.Combine(tempDir, "**", "*.sysml");
+            using var context = Context.Create(["lint", pattern]);
+            await Program.RunAsync(context);
+
+            // Assert: both the top-level and the nested file were resolved and linted
+            Assert.Contains("Linting 2 file(s)", outWriter.ToString());
+            Assert.Equal(0, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     LintCommand supports '!'-prefixed exclusion patterns, excluding a previously-matched
+    ///     file from the resolved file set.
+    /// </summary>
+    [Fact]
+    public async Task LintSubsystem_Patterns_ExclusionPattern_ExcludesMatchedFile()
+    {
+        // Arrange: a temp directory containing two SysML files
+        var tempDir = Path.Combine(Path.GetTempPath(), $"lint_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var keepFile = Path.Combine(tempDir, "keep.sysml");
+        var excludeFile = Path.Combine(tempDir, "exclude.sysml");
+        await File.WriteAllTextAsync(keepFile, "package Keep {}", TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(excludeFile, "package Exclude {}", TestContext.Current.CancellationToken);
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: lint with an inclusion pattern followed by a '!'-prefixed exclusion pattern
+            var includePattern = Path.Combine(tempDir, "*.sysml");
+            var excludePattern = $"!{excludeFile}";
+            using var context = Context.Create(["lint", includePattern, excludePattern]);
+            await Program.RunAsync(context);
+
+            // Assert: only the non-excluded file was resolved and linted
+            Assert.Contains("Linting 1 file(s)", outWriter.ToString());
+            Assert.Equal(0, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }
+
 

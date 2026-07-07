@@ -66,6 +66,20 @@ sections:
           - QuerySubsystem_FormatMarkdown_DispatchesWithoutError
           - QuerySubsystem_FormatJson_DispatchesWithoutError
 
+      - id: SysML2Tools-Tool-Query-NoFilesMatched
+        title: >-
+          The query command shall report a clear error naming the verb when one or more
+          file patterns are supplied but none of them match any file on disk, and shall
+          exit with a non-zero status.
+        justification: |
+          A pattern that matches nothing (e.g., a typo in a directory name) previously
+          proceeded silently to workspace loading with an empty file list. A dedicated "no
+          files matched" error distinguishes a typo'd pattern from "no patterns supplied at
+          all" and gives the user an actionable message.
+        tests:
+          - QuerySubsystem_GlobPattern_ResolvesMultipleFiles
+          - Query_PatternMatchesNoFiles_ReportsErrorAndNonZeroExitCode
+
       - id: SysML2Tools-Tool-Query-OutputFormat
         title: >-
           Markdown and JSON output for the same query shall contain the same set of

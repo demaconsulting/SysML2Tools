@@ -19,6 +19,12 @@ on context output and exit code. File-writing scenarios use a temporary director
 
 - No files supplied: `context.WriteError` is called with a message containing "no input files
   specified", and the method returns without loading
+- One or more file patterns supplied but none resolve to any file on disk: `context.WriteError`
+  is called with a message containing "no files matched", and the method returns without
+  loading
+- A glob pattern (e.g. `*.sysml`) resolves to every matching file in the target directory via
+  the shared `GlobFileCollector` (see `docs/verification/sysml2-tools-core/io.md` for the
+  underlying glob-semantics verification) and the workspace loads all of them
 - Workspace loads without errors for a valid SysML model file
 - SVG output produced for `--format svg` (or default)
 - PNG output produced for `--format png`
@@ -56,6 +62,20 @@ on context output and exit code. File-writing scenarios use a temporary director
 Verifies that invoking the render command with zero file patterns results in an error message
 written to the context containing the "no input files specified" diagnostic text, and no
 workspace loading.
+
+#### RenderSubsystem_PatternMatchesNoFiles_ReportsError
+
+Verifies that invoking the render command with a file pattern that matches no file on disk
+results in an error message written to the context containing "no files matched", and no
+workspace loading.
+
+#### RenderSubsystem_GlobPattern_ResolvesMultipleFiles
+
+Regression test for the glob-expansion bug fix: verifies that a glob pattern such as
+`*.sysml` (previously treated as a literal, never-matching file name, causing a "Failed to
+read file" diagnostic and zero rendered views) now resolves to every matching `.sysml` file
+in the target directory via the shared `GlobFileCollector`, and that the workspace loads and
+renders successfully from all of them.
 
 #### RenderSubsystem_WithFiles_LoadsWorkspace
 

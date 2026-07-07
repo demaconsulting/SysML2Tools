@@ -46,7 +46,10 @@ frameworks.
 - `--include-stdlib` toggles whether stdlib-seeded elements appear in results.
 - Error paths are covered: element not found, a file that fails to parse
   (best-effort/graceful degradation), `find` without a filter, unsupported `--format`, no
-  input files.
+  input files, one or more patterns supplied but none matching any file on disk.
+- A glob pattern (e.g. `*.sysml`) resolves to every matching file in the target directory via
+  the shared `GlobFileCollector` (see `docs/verification/sysml2-tools-core/io.md` for the
+  underlying glob-semantics verification) and the workspace loads all of them.
 - A representative sample of real-world OMG training/example fixtures
   (`RequirementSatisfaction.sysml`, `ConnectionsExample.sysml`, `StateDecomposition-1.sysml`,
   `GeneralizationExample.sysml`, `Comments.sysml`) produce non-empty, sensible results for
@@ -82,6 +85,13 @@ next validation step) produces the "no input files" error and exit code 1.
 ##### QuerySubsystem_FormatMarkdown_DispatchesWithoutError / QuerySubsystem_FormatJson_DispatchesWithoutError
 
 Verifies that both accepted `--format` values parse and render successfully end-to-end.
+
+##### QuerySubsystem_GlobPattern_ResolvesMultipleFiles
+
+Regression test for the glob-expansion bug fix: verifies that a glob pattern such as
+`*.sysml` (previously treated as a literal, never-matching file name) now resolves to every
+matching `.sysml` file in the target directory via the shared `GlobFileCollector`, and that
+the query dispatches successfully against the resulting multi-file workspace.
 
 ##### QuerySubsystem_UnknownVerb_ThrowsArgumentException
 
@@ -160,7 +170,12 @@ kinds together and is unaffected by the gap.
 Covers: element not found (`context.WriteError` message contains "not found in the
 workspace", exit code 1); `find` without `--kind`/`--name` (`ArgumentException`);
 unsupported `--format` value (`ArgumentException`); a file with parse errors (diagnostics
-reported, command completes best-effort); no input files supplied (exit code 1).
+reported, command completes best-effort); no input files supplied (exit code 1); a file
+pattern that matches no file on disk (`context.WriteError` message contains "no files
+matched", exit code 1, regression test for the glob-expansion bug fix — see
+`QuerySubsystem_GlobPattern_ResolvesMultipleFiles` in `QuerySubsystemTests.cs` for the
+corresponding success-path regression proving a glob pattern such as `*.sysml` now resolves
+multiple files instead of being treated as a literal, never-matching file name).
 
 ##### Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb (ContextTests.cs)
 

@@ -480,6 +480,40 @@ reviews:
       - "docs/verification/sysml2-tools-core.md"
       - "docs/verification/sysml2-tools-core/rendering.md"
 
+  - id: SysML2Tools-Core-Io-Design
+    title: Review that DemaConsulting.SysML2Tools Io Design is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/reqstream/sysml2-tools-core/io.yaml
+    paths:
+      - "docs/design/introduction.md"
+      - "docs/design/sysml2-tools-core.md"
+      - "docs/design/sysml2-tools-core/io.md"
+
+  - id: SysML2Tools-Core-Io-Verification
+    title: Review that DemaConsulting.SysML2Tools Io Verification is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/reqstream/sysml2-tools-core/io.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-core.md"
+      - "docs/verification/sysml2-tools-core/io.md"
+
+  - id: SysML2Tools-Core-Io-GlobFileCollector
+    title: Review that DemaConsulting.SysML2Tools Io GlobFileCollector Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/io.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/io/glob-file-collector.yaml"
+      - "docs/design/sysml2-tools-core/io/glob-file-collector.md"
+      - "docs/verification/sysml2-tools-core/io/glob-file-collector.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Io/GlobFileCollector.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Io/NamespaceDoc.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Io/GlobFileCollectorTests.cs"
+
   # === Layout Internal subsystem and view-strategy units ===
   - id: SysML2Tools-Core-Layout-Internal
     title: Review that DemaConsulting.SysML2Tools Layout Internal Subsystem is Consistent and Complete

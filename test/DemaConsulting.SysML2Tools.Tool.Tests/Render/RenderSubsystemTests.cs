@@ -719,4 +719,92 @@ public class RenderSubsystemTests
             Console.SetOut(originalOut);
         }
     }
+
+    /// <summary>
+    ///     Regression test for the glob-expansion bug fix: a glob pattern such as '*.sysml'
+    ///     (previously treated as a literal, never-matching file name) now resolves to every
+    ///     matching file in the target directory via the shared GlobFileCollector, and the
+    ///     workspace loads and renders successfully from all of them.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_GlobPattern_ResolvesMultipleFiles()
+    {
+        // Arrange: a temp directory containing two SysML files, each with a view definition
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_glob_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var outputDir = Path.Combine(tempDir, "out");
+        await File.WriteAllTextAsync(
+            Path.Combine(tempDir, "a.sysml"),
+            """
+            package A {
+                part def BlockA {}
+                view def ViewA {}
+            }
+            """,
+            TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(
+            Path.Combine(tempDir, "b.sysml"),
+            """
+            package B {
+                part def BlockB {}
+                view def ViewB {}
+            }
+            """,
+            TestContext.Current.CancellationToken);
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: render with a glob pattern matching both files
+            var pattern = Path.Combine(tempDir, "*.sysml");
+            using var context = Context.Create(["render", pattern, "--output", outputDir]);
+            await Program.RunAsync(context);
+
+            // Assert: both files were resolved from the single pattern, and both views rendered
+            Assert.Contains("Resolved 2 file(s) from 1 pattern(s)", outWriter.ToString());
+            Assert.Equal(0, context.ExitCode);
+            Assert.Equal(2, Directory.GetFiles(outputDir, "*.svg").Length);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     RenderCommand reports a distinct error when one or more file patterns are supplied
+    ///     but none of them match any file on disk.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_PatternMatchesNoFiles_ReportsError()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_nomatch_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var originalError = Console.Error;
+        try
+        {
+            using var errWriter = new StringWriter();
+            Console.SetError(errWriter);
+
+            // Act: render with a pattern that matches no files
+            var pattern = Path.Combine(tempDir, "*.sysml");
+            using var context = Context.Create(["render", pattern]);
+            await Program.RunAsync(context);
+
+            // Assert: distinct "no files matched" diagnostic and failing exit code
+            Assert.Contains("no files matched", errWriter.ToString());
+            Assert.Equal(1, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }
+

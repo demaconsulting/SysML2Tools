@@ -54,6 +54,9 @@ sysml2tools lint "src/**/*.sysml"
 
 # Multiple patterns
 sysml2tools render "common/**/*.sysml" "system/**/*.sysml" --output out
+
+# Recursive match with an exclusion (files under src/generated are skipped)
+sysml2tools lint "src/**/*.sysml" "!src/generated/**"
 ```
 
 # Linting

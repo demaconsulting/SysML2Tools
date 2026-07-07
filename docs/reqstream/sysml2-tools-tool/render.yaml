@@ -12,12 +12,30 @@ sections:
       - id: SysML2Tools-Tool-Render-Patterns
         title: >-
           The render command shall accept one or more file glob patterns as positional
-          arguments and report an error when no patterns are supplied.
+          arguments, report an error when no patterns are supplied, and delegate pattern
+          resolution to the shared GlobFileCollector.
         justification: |
           File glob patterns are the primary input mechanism for the CLI tool. An error
           on missing patterns gives users an actionable message instead of silent failure.
+          Delegating resolution to the shared GlobFileCollector (see the Core Io
+          subsystem's own requirements for pattern-resolution semantics) fixes a
+          pre-existing defect where render passed raw glob tokens straight to the
+          workspace loader, which treats every entry as a literal file path.
         tests:
           - RenderSubsystem_NoFiles_ReportsError
+          - RenderSubsystem_GlobPattern_ResolvesMultipleFiles
+
+      - id: SysML2Tools-Tool-Render-NoFilesMatched
+        title: >-
+          The render command shall report a clear error when one or more file patterns are
+          supplied but none of them match any file on disk.
+        justification: |
+          A pattern that matches nothing (e.g., a typo in a directory name) previously
+          proceeded silently to workspace loading with an empty file list. Reporting a
+          dedicated "no files matched" error distinguishes this case from "no patterns
+          supplied at all" and gives the user an actionable message.
+        tests:
+          - RenderSubsystem_PatternMatchesNoFiles_ReportsError
 
       - id: SysML2Tools-Tool-Render-Load
         title: >-

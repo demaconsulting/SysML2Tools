@@ -3,10 +3,11 @@
 ### Overview
 
 The `Lint` subsystem implements the `lint` subcommand of the `DemaConsulting.SysML2Tools.Tool`
-CLI application. It accepts one or more file glob patterns, resolves them to concrete file paths,
-invokes `WorkspaceParser.Parse` from the `DemaConsulting.SysML2Tools` core library, and reports
-each diagnostic to the context output in a standard `path(line,col): severity: message` format.
-The subsystem contains one unit: `LintCommand`.
+CLI application. It accepts one or more file glob patterns, delegates their resolution to the
+shared `GlobFileCollector` (`DemaConsulting.SysML2Tools.Io`, Core `Io` subsystem), invokes
+`WorkspaceLoader.LoadAsync` from the `DemaConsulting.SysML2Tools` core library, and reports each
+diagnostic to the context output in a standard `path(line,col): severity: message` format. The
+subsystem contains one unit: `LintCommand`.
 
 ### Interfaces
 
@@ -17,15 +18,17 @@ The subsystem contains one unit: `LintCommand`.
 - *Contract*: `internal static async Task RunAsync(Context context)` — reads
   `context.Lint!.Files` (the list of glob patterns supplied as positional CLI arguments,
   parsed by `LintArgumentParser` and exposed via `context.Lint`), resolves them to file
-  paths, awaits `WorkspaceParser.ParseAsync`, writes each diagnostic, and calls
-  `context.WriteError` if any error-severity diagnostics were found (which sets exit code 1).
-- *Constraints*: If no files are resolved from the provided patterns, writes an error message
-  and returns immediately without invoking the parser.
+  paths via `GlobFileCollector.Collect`, awaits `WorkspaceLoader.LoadAsync`, writes each
+  diagnostic, and calls `context.WriteError` if any error-severity diagnostics were found
+  (which sets exit code 1).
+- *Constraints*: If no file patterns were supplied at all, writes a "no input files specified"
+  error message and returns immediately without invoking the loader. If one or more patterns
+  were supplied but none resolve to any file, writes a distinct "no files matched" error
+  message and returns immediately without invoking the loader.
 
 ### Design
 
-`LintCommand` is a static class containing the public `RunAsync` method and a private
-`ResolveFiles` helper.
+`LintCommand` is a static class containing the public `RunAsync` method.
 
 `RunAsync` reads its options from `context.Lint`, a `LintOptions` instance populated by
 `Cli.LintArgumentParser` when `Context.Create` dispatches to the `lint` command. `lint`
@@ -34,18 +37,23 @@ pattern, and `LintArgumentParser` rejects any `-`-prefixed token (e.g., `lint --
 with `ArgumentException($"Unsupported argument '{arg}' for the 'lint' command.")` — flags that
 belong to `render` or `query` are never silently accepted by `lint`.
 
-`ResolveFiles` iterates over the provided pattern list. For each pattern it splits the path into
-a directory component and a filename glob component using `Path.GetDirectoryName` and
-`Path.GetFileName`. If the directory exists it calls `Directory.GetFiles(dir, glob,
-TopDirectoryOnly)` to enumerate matching files. If the directory does not exist but the pattern
-itself is an existing file path, it is added directly.
+`RunAsync` first checks `options.Files` for emptiness, writing `"lint: no input files
+specified. Provide one or more .sysml or .kerml file paths."` and returning immediately when no
+patterns at all were supplied. It then resolves `options.Files` by calling
+`GlobFileCollector.Collect(options.Files, [".sysml", ".kerml"], Directory.GetCurrentDirectory())`
+— the same call every other command uses (see `docs/design/sysml2-tools-core/io.md`). This
+single delegation replaces the subsystem's former hand-rolled, single-directory-only resolver,
+and adds recursive `**` matching and `!` exclusion support that the prior implementation
+lacked. When one or more patterns were supplied but resolve to zero files, `RunAsync` writes a
+distinct `"lint: no files matched the given pattern(s)."` error and returns — mirroring
+`RenderCommand`/`QueryCommand`'s two-branch distinction between "no patterns supplied at all"
+and "patterns supplied but none matched".
 
-`RunAsync` checks for an empty resolved file list and emits an error if no input files were
-found. Otherwise it logs a `"Linting N file(s)..."` status line, awaits
-`WorkspaceParser.ParseAsync(files)`, then iterates over `result.Diagnostics`. Error-severity diagnostics are written via
-`context.WriteError`; all others via `context.WriteLine`. After reporting all diagnostics it
-writes either a summary error count (via `context.WriteError`) or a `"lint: no errors found."`
-message (via `context.WriteLine`).
+Otherwise it logs a `"Linting N file(s)..."` status line, awaits
+`WorkspaceLoader.LoadAsync(files, stdlibTable)`, then iterates over `result.Diagnostics`.
+Error-severity diagnostics are written via `context.WriteError`; all others via
+`context.WriteLine`. After reporting all diagnostics it writes either a summary error count
+(via `context.WriteError`) or a `"lint: no errors found."` message (via `context.WriteLine`).
 
 The diagnostic output format is:
 `{FilePath}({Line},{Column}): {severity}: {Message}`
@@ -62,6 +70,6 @@ accessor over `Lint/LintStrings.resx` — see `docs/design/sysml2-tools-tool/pro
 Studio-generated accessor) and the zero-code-change future-locale story, which applies
 identically here.
 
-The `Lint` subsystem depends on `DemaConsulting.SysML2Tools.Parser.WorkspaceParser` from the
-core library and on `Context`/`LintOptions`/`LintArgumentParser` from the `Cli`/`Lint`
-subsystems.
+The `Lint` subsystem depends on `DemaConsulting.SysML2Tools.Semantic.WorkspaceLoader` and
+`DemaConsulting.SysML2Tools.Io.GlobFileCollector` from the core library and on
+`Context`/`LintOptions`/`LintArgumentParser` from the `Cli`/`Lint` subsystems.

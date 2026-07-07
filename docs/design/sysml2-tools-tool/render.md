@@ -37,30 +37,35 @@ Entry point for the render command. Steps:
    `Program` only reaches here when `Context.Create` has already populated it) and validates
    that `options.Files` is non-empty; calls `context.WriteError` and returns when no patterns
    are supplied.
-2. Calls `StdlibProvider.GetSymbolTable()` to obtain the pre-resolved OMG stdlib symbol table,
-   then calls `WorkspaceLoader.LoadAsync(options.Files, stdlibTable)` to load the workspace,
-   seeded with the stdlib symbol table so stdlib elements resolve without re-parsing them.
-3. Reports all diagnostics from `loadResult.Diagnostics`, writing errors via
+2. Resolves `options.Files` to concrete file paths via `GlobFileCollector.Collect(options.Files,
+   [".sysml", ".kerml"], Directory.GetCurrentDirectory())` (`DemaConsulting.SysML2Tools.Io`, Core
+   `Io` subsystem) — the same shared resolver used by `lint`/`query`. Calls `context.WriteError`
+   and returns when the pattern list resolved to zero files (e.g., every pattern matched nothing).
+3. Calls `StdlibProvider.GetSymbolTable()` to obtain the pre-resolved OMG stdlib symbol table,
+   then calls `WorkspaceLoader.LoadAsync(files, stdlibTable)` to load the workspace from the
+   resolved file paths, seeded with the stdlib symbol table so stdlib elements resolve without
+   re-parsing them.
+4. Reports all diagnostics from `loadResult.Diagnostics`, writing errors via
    `context.WriteError` and other messages via `context.WriteLine`.
-4. Calls `DiagramRenderer.GetViewNames(workspace)` to enumerate renderable views.
-5. Calls `DiagramRenderer.GetViewNames(loadResult.Workspace)` again (via the same call at step
-   4) to validate `options.ViewName` when supplied: when `options.ViewName` is not null and does
+5. Calls `DiagramRenderer.GetViewNames(workspace)` to enumerate renderable views.
+6. Calls `DiagramRenderer.GetViewNames(loadResult.Workspace)` again (via the same call at step
+   5) to validate `options.ViewName` when supplied: when `options.ViewName` is not null and does
    not match any declared view name, calls `context.WriteError` with a message listing the
    available view names and returns early. When `options.ViewName` is null, no validation is
-   performed here — every declared view will be rendered in step 7.
-6. Resolves `format = options.Format ?? "svg"` and eagerly rejects any value other than
+   performed here — every declared view will be rendered in step 8.
+7. Resolves `format = options.Format ?? "svg"` and eagerly rejects any value other than
    `"svg"`/`"png"` (case-insensitive) with `ArgumentException` naming the bad value — mirroring
    the `query` command's `--format` validation style. This is validated here, in `RunAsync`, not
    inside `RenderArgumentParser`, so an invalid `--format` value (e.g., `render --format xml`)
    throws only once the command actually runs. Selects `PngRenderer` when `format` equals
    `"png"`; `SvgRenderer` otherwise.
-7. Calls `DiagramRenderer.RenderWorkspace` passing
+8. Calls `DiagramRenderer.RenderWorkspace` passing
    `new RenderOptions(Themes.Light, DepthLimit: context.MaxRenderDepth ?? 0)` and
    `viewFilter: options.ViewName`.
-8. Writes a "No views found" message and returns when `outputs` is empty.
-9. Resolves the output directory (defaults to `Directory.GetCurrentDirectory()`), creates
-   it via `Directory.CreateDirectory`, and writes each `RenderOutput.Data` stream to a
-   file named `RenderOutput.SuggestedFileName`.
+9. Writes a "No views found" message and returns when `outputs` is empty.
+10. Resolves the output directory (defaults to `Directory.GetCurrentDirectory()`), creates
+    it via `Directory.CreateDirectory`, and writes each `RenderOutput.Data` stream to a
+    file named `RenderOutput.SuggestedFileName`.
 
 **`PrintHelp(Context context)`**: Prints `render`'s usage line and its four flags (`--output`,
 `--format`, `--view`, `--auto`), plus a note about the shared global `--depth` option. This is
@@ -75,6 +80,9 @@ future-locale story, which applies identically here.
 ##### Error Handling
 
 - Missing file patterns: `context.WriteError` is called and the method returns early.
+- Patterns given but none matched any files: `context.WriteError` reports
+  `"render: no files matched the given pattern(s)."` and the method returns before loading a
+  workspace.
 - Load diagnostics: reported to the context; non-fatal; rendering proceeds regardless.
 - Multiple views without `--view`: no error; every declared view is rendered (one output file
   per view), supporting bulk "render everything" exports.
@@ -94,6 +102,8 @@ future-locale story, which applies identically here.
 
 - `StdlibProvider` (in `DemaConsulting.SysML2Tools.Stdlib`) — supplies the pre-resolved OMG
   stdlib symbol table used to seed `WorkspaceLoader.LoadAsync`
+- `GlobFileCollector` (in `DemaConsulting.SysML2Tools.Io`) — resolves `options.Files` glob
+  patterns to concrete file paths before loading the workspace
 - `WorkspaceLoader` (in `DemaConsulting.SysML2Tools.Semantic`) — loads workspace
 - `DiagramRenderer` (in `DemaConsulting.SysML2Tools.Rendering`) — renders views; also exposes
   `GetViewIdentities` used to attribute colliding output file names back to their originating
@@ -114,6 +124,7 @@ future-locale story, which applies identically here.
 | Requirement ID | Satisfied by |
 | --- | --- |
 | SysML2Tools-Tool-Render-Patterns | Input validation at start of `RunAsync` |
+| SysML2Tools-Tool-Render-NoFilesMatched | Zero-resolved-files guard after `GlobFileCollector.Collect` in `RunAsync` |
 | SysML2Tools-Tool-Render-Load | `WorkspaceLoader.LoadAsync` call in `RunAsync` |
 | SysML2Tools-Tool-Render-Format | Renderer selection switch in `RunAsync` |
 | SysML2Tools-Tool-Render-Output | Output directory resolution in `RunAsync` |
