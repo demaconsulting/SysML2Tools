@@ -79,7 +79,7 @@ sections:
           matched" error distinguishes a typo'd pattern from "no patterns supplied at all".
         tests:
           - QuerySubsystem_GlobPattern_ResolvesMultipleFiles
-          - QuerySubsystem_PatternMatchesNoFiles_ReportsError
+          - Query_PatternMatchesNoFiles_ReportsErrorAndNonZeroExitCode
 
       - id: SysML2Tools-Tool-Query-OutputFormat
         title: >-
