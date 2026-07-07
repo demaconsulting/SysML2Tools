@@ -24,6 +24,9 @@ Temporary files are created in `Path.GetTempPath()` and cleaned up after each te
 - Part definitions register their qualified names.
 - Unresolved supertype references produce Warning diagnostics.
 - Circular imports produce Warning diagnostics without infinite loops.
+- Resolved `redefines`/`:>>` references — including a bare-name reference to a member inherited
+  from an ancestor declared anywhere in the ancestor chain, regardless of declaration order — are
+  recorded as `Redefinition`-kind edges; unresolvable references produce Warning diagnostics.
 
 ### Test Scenarios
 

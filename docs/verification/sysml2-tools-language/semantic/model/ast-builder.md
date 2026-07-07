@@ -22,6 +22,9 @@ external services or additional configuration are required beyond a standard .NE
 - An element with only a short name `< shortName >` (no declared name) is not registered.
 - A definition with `specializes KnownType` produces a `SupertypeNames` entry that resolves
   without a Warning when `KnownType` is registered.
+- A usage/feature's own usage-level `subsets`/`:>` clause (distinct from a definition's
+  `specializes`/`:>` supertype clause) directly populates that feature node's `SupertypeNames`
+  with the expected target name.
 - `VisitViewDefinition` captures `render <target>;` and `filter [<expr>];` members' raw text on
   the corresponding `SysmlViewNode`, and leaves both null for a view with an empty body.
 - `VisitViewUsage` (a named `view` usage, not a `view def` definition) captures the same
@@ -42,6 +45,7 @@ external services or additional configuration are required beyond a standard .NE
 | Qualified name from namespace stack | `WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames` |
 | Definition registration | `WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition` |
 | Supertype extraction | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
+| Usage-level `subsets`/`:>` capture | `WorkspaceLoader_LoadAsync_UsageLevelSubsetting_PopulatesSupertypeNames` |
 | `VisitViewDefinition` render | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | `VisitViewDefinition` filter capture | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | `VisitViewUsage` expose capture | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |

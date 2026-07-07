@@ -580,14 +580,12 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     An unresolvable redefinition reference (neither a qualified owner nor a bare name found
-    ///     anywhere in the supertype chain) produces no redefinition edge and does not throw. A
-    ///     self-referential redefinition (resolving back to the same definition) is likewise skipped.
+    ///     anywhere in the supertype chain) produces no redefinition edge and does not throw.
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_UnresolvableRedefinition_ProducesNoEdge()
     {
-        // Arrange: Vehicle redefines a bare name that does not exist anywhere in scope, and Standalone
-        // redefines its own feature name (self-reference, since it has no supertype).
+        // Arrange: Vehicle redefines a bare name that does not exist anywhere in scope.
         var strategy = new GeneralViewLayoutStrategy();
         var workspace = new SysmlWorkspace
         {
@@ -612,6 +610,114 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: no hollow-triangle-crossbar edge is produced.
+        var redefinitionEdge = CollectLines(layout.Nodes)
+            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.Null(redefinitionEdge);
+    }
+
+    /// <summary>
+    ///     A bare-name redefinition whose declaring ancestor is two supertype hops away
+    ///     (<c>Mid :> Parent :> GrandParent</c>, with <c>GrandParent</c> declaring the redefined
+    ///     member) produces a hollow-triangle-crossbar edge targeting the actual declaring
+    ///     ancestor (<c>GrandParent</c>), not the immediate supertype (<c>Parent</c>) — proving the
+    ///     bare-name walk is transitive, not limited to a single hop.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_TransitiveBareNameRedefinition_ProducesHollowTriangleCrossbarEdgeToDeclaringAncestor()
+    {
+        // Arrange: GrandParent declares "feat"; Parent specializes GrandParent with no members of
+        // its own; Mid specializes Parent and redefines "feat" by bare name.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::GrandParent"] = new SysmlDefinitionNode
+                {
+                    Name = "GrandParent",
+                    QualifiedName = "P::GrandParent",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "feat", QualifiedName = "P::GrandParent::feat", FeatureKeyword = "attribute", FeatureTyping = "Real" }
+                    ]
+                },
+                ["P::Parent"] = new SysmlDefinitionNode
+                {
+                    Name = "Parent",
+                    QualifiedName = "P::Parent",
+                    DefinitionKeyword = "part def",
+                    SupertypeNames = ["GrandParent"],
+                },
+                ["P::Mid"] = new SysmlDefinitionNode
+                {
+                    Name = "Mid",
+                    QualifiedName = "P::Mid",
+                    DefinitionKeyword = "part def",
+                    SupertypeNames = ["Parent"],
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "subFeat", QualifiedName = "P::Mid::subFeat", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "feat" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the crossbar edge targets GrandParent (the actual declaring ancestor), and there
+        // is exactly one such edge (not one for each hop of the chain).
+        var redefinitionEdges = CollectLines(layout.Nodes)
+            .Where(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar)
+            .ToList();
+        Assert.Single(redefinitionEdges);
+        Assert.Equal(LineStyle.Solid, redefinitionEdges[0].LineStyle);
+    }
+
+    /// <summary>
+    ///     A genuinely self-referential redefinition — a definition whose own supertype chain
+    ///     cycles back to itself, such that the bare-name walk resolves the redefined member's
+    ///     owner back to the very definition doing the redefining — produces no redefinition edge
+    ///     and does not throw. This is distinct from
+    ///     <see cref="GeneralViewLayoutStrategy_BuildLayout_UnresolvableRedefinition_ProducesNoEdge"/>,
+    ///     which covers a name that cannot be found anywhere, not a name that resolves back to the
+    ///     definition itself.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_SelfReferentialRedefinition_ProducesNoEdge()
+    {
+        // Arrange: Standalone lists itself as its own supertype (a self-cycle), and redefines its
+        // own "otherFeat" member by bare name — so the walk resolves the owner back to Standalone.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Standalone"] = new SysmlDefinitionNode
+                {
+                    Name = "Standalone",
+                    QualifiedName = "P::Standalone",
+                    DefinitionKeyword = "part def",
+                    SupertypeNames = ["Standalone"],
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "selfFeat", QualifiedName = "P::Standalone::selfFeat", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "otherFeat" },
+                        new SysmlFeatureNode { Name = "otherFeat", QualifiedName = "P::Standalone::otherFeat", FeatureKeyword = "attribute", FeatureTyping = "Real" }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act: laying out must not throw despite the self-referential supertype cycle.
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: no hollow-triangle-crossbar edge is produced, since the resolved owner is
+        // Standalone itself.
         var redefinitionEdge = CollectLines(layout.Nodes)
             .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
         Assert.Null(redefinitionEdge);

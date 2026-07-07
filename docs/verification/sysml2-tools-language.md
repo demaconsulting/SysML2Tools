@@ -21,9 +21,11 @@ SDK installation.
 - `WorkspaceLoader` correctly registers qualified names from SysML packages and definitions.
 - Unresolved supertype references produce `Warning`-severity diagnostics.
 - Circular imports between two files produce at least one `Warning`-severity diagnostic.
-- Resolved supertype, feature-typing, and import references are recorded as `SysmlEdge`
-  entries queryable via `SysmlWorkspace.Index.GetOutgoingEdges`/`GetIncomingEdges` in both
-  directions.
+- Resolved supertype, feature-typing, redefinition, and import references are recorded as
+  `SysmlEdge` entries queryable via `SysmlWorkspace.Index.GetOutgoingEdges`/`GetIncomingEdges`
+  in both directions. A bare-name `redefines`/`:>>` target inherited from an ancestor resolves
+  correctly regardless of the ancestor's declaration order relative to the redefining feature,
+  whether within one file or split across files.
 - Comment (`comment`) and documentation (`doc`) annotating-element text is captured verbatim
   onto the owning node's `SysmlNode.Annotations` list, in source order, and is empty (never
   null) for nodes with none.
@@ -58,6 +60,18 @@ Primary acceptance evidence is provided by:
   is queryable from both directions via `SysmlWorkspace.Index`.
 - `WorkspaceLoader_LoadAsync_ResolvedFeatureTyping_RecordsTypingEdge` — resolved feature typing
   is recorded as a `Typing`-kind edge.
+- `WorkspaceLoader_LoadAsync_BareRedefinitionOfInheritedFeature_RecordsRedefinitionEdgeNoWarning`
+  / `WorkspaceLoader_LoadAsync_UnresolvedRedefinition_ProducesWarningNoEdge` — a resolvable
+  bare-name inherited-feature `redefines` reference is recorded as a `Redefinition`-kind edge,
+  and an unresolvable one produces a Warning diagnostic and no edge.
+- `WorkspaceLoader_LoadAsync_OutOfOrderRedefinitionChain_RecordsRedefinitionEdgeNoWarning`
+  / `WorkspaceLoader_LoadAsync_CrossFileOutOfOrderRedefinitionChain_RecordsRedefinitionEdgeNoWarning`
+  — regression coverage proving a bare-name redefinition resolves correctly through a
+  multi-hop ancestor chain regardless of declaration order, within one file and split across
+  two files.
+- `WorkspaceLoader_LoadAsync_RedefinitionExampleFixture_NoUnresolvedReferenceWarnings` /
+  `WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings` —
+  real OMG fixture files exercise bare-name redefinition resolution end-to-end.
 - `WorkspaceLoader_LoadAsync_WildcardImport_RecordsImportEdge` /
   `WorkspaceLoader_LoadAsync_NamedImport_RecordsImportEdge` — resolved imports are recorded as
   `Import`-kind edges.

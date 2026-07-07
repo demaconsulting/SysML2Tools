@@ -1213,6 +1213,147 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A bare-name <c>redefines feat</c> where the ancestor declaring <c>feat</c> is two
+    ///     supertype hops away (<c>Mid :> Parent :> GrandParent</c>), and the whole chain is
+    ///     declared <em>out of document order</em> (<c>Mid</c> first, then <c>Parent</c>, then
+    ///     <c>GrandParent</c>) — reproducing the reported single-pass hazard exactly: under the
+    ///     old inline-fallback implementation, <c>Mid</c>'s bare-name walk ran before
+    ///     <c>Parent</c>/<c>GrandParent</c> had been visited by the same DFS pass, so their
+    ///     <c>ResolvedEdges</c> were still empty and the walk silently failed, producing a false
+    ///     "Unresolved reference" warning even though the reference is semantically valid. The
+    ///     corrected two-pass resolution must still produce the <c>Redefinition</c> edge and no
+    ///     warning regardless of this declaration order.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_OutOfOrderRedefinitionChain_RecordsRedefinitionEdgeNoWarning()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                part def Mid :> Parent {
+                    attribute value : Real redefines feat;
+                }
+                part def Parent :> GrandParent;
+                part def GrandParent {
+                    attribute feat : Real;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Redefinition &&
+                     e.SourceQualifiedName == "Mid::value" &&
+                     e.TargetQualifiedName == "GrandParent::feat");
+            Assert.DoesNotContain(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("feat"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     The same out-of-order ancestor-chain shape as
+    ///     <see cref="WorkspaceLoader_LoadAsync_OutOfOrderRedefinitionChain_RecordsRedefinitionEdgeNoWarning"/>,
+    ///     but split across two files, with the file containing the redefining feature listed
+    ///     <em>before</em> the file containing its ancestors in <see cref="WorkspaceLoader.LoadAsync"/>'s
+    ///     file-path array — exercising the cross-file variant of the same document-order hazard,
+    ///     since pass 1 iterates file roots in call order.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_CrossFileOutOfOrderRedefinitionChain_RecordsRedefinitionEdgeNoWarning()
+    {
+        // Arrange
+        var descendantFile = Path.GetTempFileName() + ".sysml";
+        var ancestorsFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(descendantFile, """
+                part def Mid :> Parent {
+                    attribute value : Real redefines feat;
+                }
+                """, TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(ancestorsFile, """
+                part def Parent :> GrandParent;
+                part def GrandParent {
+                    attribute feat : Real;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act — descendant file listed first, ancestors file listed second
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([descendantFile, ancestorsFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Redefinition &&
+                     e.SourceQualifiedName == "Mid::value" &&
+                     e.TargetQualifiedName == "GrandParent::feat");
+            Assert.DoesNotContain(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("feat"));
+        }
+        finally
+        {
+            File.Delete(descendantFile);
+            File.Delete(ancestorsFile);
+        }
+    }
+
+    /// <summary>
+    ///     A usage/feature node's usage-level <c>subsets</c>/<c>:&gt;</c> specialization (as
+    ///     opposed to a definition-level <c>part def X :> Y</c> supertype) should directly
+    ///     populate that feature node's <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlNode.SupertypeNames"/>
+    ///     with the expected target name, and produce a resolved <c>Supertype</c> edge — a direct
+    ///     assertion of the usage-level capture behavior, independent of any redefinition context
+    ///     (previously only indirectly covered via the absence of a false warning in the OMG
+    ///     fixture regression tests above).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UsageLevelSubsetting_PopulatesSupertypeNames()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                part def Thing {
+                    part y : Thing;
+                    part x : Thing subsets y;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var thingNode = result.Workspace!.Declarations["Thing"];
+            var xNode = Assert.Single(thingNode.Children, c => c.Name == "x");
+            Assert.Contains("y", xNode.SupertypeNames);
+            Assert.Contains(result.Workspace.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Supertype &&
+                     e.SourceQualifiedName == "Thing::x" &&
+                     e.TargetQualifiedName == "Thing::y");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     A wildcard import (<c>import Other::*;</c>) should be recorded as an <c>Import</c>
     ///     edge whose target is the imported namespace, queryable via
     ///     <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SemanticIndex"/>'s

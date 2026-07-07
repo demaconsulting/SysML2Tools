@@ -30,13 +30,22 @@ sections:
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-Supertypes
         title: >-
-          AstBuilder shall extract supertype qualified names from subclassification and
-          specialization parts and attach them to the corresponding AST node, including a
-          usage/feature's own `subsets`/`:>` clause (as distinct from its `redefines`/`:>>`
-          clause), not just a definition's `:>` specialization.
+          AstBuilder shall extract supertype qualified names from a definition's
+          subclassification and specialization parts and attach them to the corresponding
+          AST node.
         justification: |
           Supertype names are required for reference resolution and supertype walking.
           They must be extracted during AST construction before symbol table operations.
+        tests:
+          - WorkspaceLoader_LoadAsync_SpecializesChain_Registered
+          - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-UsageSubsetting
+        title: >-
+          AstBuilder shall extract a usage/feature's own `subsets`/`:>` clause (as distinct
+          from its `redefines`/`:>>` clause) into the same SupertypeNames property used for
+          definition-level supertypes.
+        justification: |
           A usage-level `subsets`/`:>` clause (e.g. `part vehicle1_c1 :> vehicle1`) was
           previously never extracted at all, so it produced no Supertype edge and was silently
           invisible to reference resolution — this broke ReferenceResolver's bare-name
@@ -44,8 +53,7 @@ sections:
           usage-level subsetting (not a `part def` specialization), the exact shape used by the
           OMG corpus fixture `1c-PartsTreeRedefinition.sysml`.
         tests:
-          - WorkspaceLoader_LoadAsync_SpecializesChain_Registered
-          - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
+          - WorkspaceLoader_LoadAsync_UsageLevelSubsetting_PopulatesSupertypeNames
           - WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewRenderTarget

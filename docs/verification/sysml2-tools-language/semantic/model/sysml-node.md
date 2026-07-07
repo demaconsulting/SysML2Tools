@@ -20,7 +20,9 @@ external services or additional configuration are required beyond a standard .NE
 - `SysmlDefinitionNode` is constructed with the correct `QualifiedName` and `DefinitionKeyword`
   for a `part def` declaration; its qualified name appears in `Declarations`.
 - `SysmlNode.SupertypeNames` is populated correctly for a definition with a `specializes`
-  clause; the name is checked by `ReferenceResolver`.
+  clause; the name is checked by `ReferenceResolver`. It is likewise populated for a
+  usage/feature's own usage-level `subsets`/`:>` clause, distinct from a definition-level
+  supertype.
 - `SysmlImportNode.ImportedNamespace` is extracted and used by `ReferenceResolver` to build
   the import graph.
 - `SysmlNode.ResolvedEdges` is populated by `ReferenceResolver` with the resolved outgoing
@@ -45,6 +47,7 @@ external services or additional configuration are required beyond a standard .NE
 | `SysmlPackageNode` construction | `WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration` |
 | `SysmlDefinitionNode` construction | `WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition` |
 | `SupertypeNames` population | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
+| `SupertypeNames` usage-level population | `WorkspaceLoader_LoadAsync_UsageLevelSubsetting_PopulatesSupertypeNames` |
 | `ResolvedEdges` populated | `WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge` |
 | `Annotations` populated | `WorkspaceLoader_LoadAsync_CommentAndDocumentation_CapturesBothInSourceOrder` |
 | `RenderTargetName` unresolved | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
