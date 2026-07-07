@@ -225,4 +225,48 @@ public sealed class DiagramTypeRouterTests
         Assert.Null(unsupported);
         Assert.IsType<GeneralViewLayoutStrategy>(strategy);
     }
+
+    /// <summary>
+    /// A render target that is a near-miss of <c>asTreeDiagram</c> (wrong case) does not match: the
+    /// comparison is exact and case-sensitive, so the view falls through unchanged to the existing
+    /// heuristic instead of routing to the browser strategy.
+    /// </summary>
+    [Fact]
+    public void GetStrategy_RenderTargetWrongCase_DoesNotMatchAndFallsThroughUnchanged()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "GeneralView",
+            QualifiedName = "M::GeneralView",
+            RenderTargetName = "ASTreeDiagram"
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType<GeneralViewLayoutStrategy>(strategy);
+    }
+
+    /// <summary>
+    /// A render target with trailing whitespace after <c>asTreeDiagram</c> does not match: the
+    /// comparison is exact, so the view falls through unchanged to the existing heuristic instead
+    /// of routing to the browser strategy.
+    /// </summary>
+    [Fact]
+    public void GetStrategy_RenderTargetTrailingWhitespace_DoesNotMatchAndFallsThroughUnchanged()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "GeneralView",
+            QualifiedName = "M::GeneralView",
+            RenderTargetName = "asTreeDiagram "
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType<GeneralViewLayoutStrategy>(strategy);
+    }
 }

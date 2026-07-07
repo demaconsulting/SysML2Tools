@@ -22,8 +22,10 @@ namespace DemaConsulting.SysML2Tools.Rendering.Internal;
 /// an unrecognized name — has no effect and falls through unchanged, with no diagnostic, to the
 /// existing name/supertype heuristic: the view's declared supertype names (and its own name) are
 /// inspected for a recognized view kind. A view that specializes a name containing
-/// <c>Interconnection</c> routes to the interconnection strategy; everything else falls back to
-/// the general view strategy.
+/// <c>Interconnection</c> routes to the interconnection strategy; <c>StateTransition</c>/<c>State</c>,
+/// <c>ActionFlow</c>/<c>Action</c>, <c>Grid</c>/<c>Matrix</c>/<c>Tabular</c>,
+/// <c>Browser</c>/<c>Tree</c>, and <c>Sequence</c> route to their corresponding strategies;
+/// everything else falls back to the general view strategy.
 /// </remarks>
 internal static class DiagramTypeRouter
 {
