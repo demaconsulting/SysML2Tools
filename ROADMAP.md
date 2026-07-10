@@ -71,29 +71,49 @@ the inner `cpu` box, not the `board` container's boundary.
 
 ### View `filter [<expr>];` expression evaluation
 
-`GeneralViewLayoutStrategy` now scopes a rendered diagram to a view's `expose <...>;` subject
-subtree, but a view's `filter [<expr>];` body statement is only parsed into
-`SysmlViewNode.FilterExpressionText` (raw source text) — it is never evaluated, and a
-layout warning ("parsed but not yet evaluated") is emitted in its place. SysML v2 view filtering
-is part of the standard's view/viewpoint mechanism for selectively including/excluding elements
-from a rendered diagram by predicate, beyond simple subject-subtree containment scoping (for
-example, "only elements satisfying a given requirement" or "only elements with a given
-stereotype"); without evaluation, a modeler's `filter` statement is silently ineffective beyond
-the warning.
+**Phase 1 — done.** `GeneralViewLayoutStrategy` scopes a rendered diagram to a view's
+`expose <...>;` subject subtree, and now also evaluates a standalone view `filter <expr>;` body
+statement (via the new `DemaConsulting.SysML2Tools.Core.Filtering` subsystem —
+`FilterExpression`/`FilterExpressionParser`/`FilterExpressionEvaluator`) for a defined Phase 1
+construct subset, narrowing the rendered scope by the resulting predicate:
 
-- Design and implement an expression evaluator for the bracketed filter expression grammar
-  (boolean/membership predicates over the resolved scope's elements), reusing/aligning with
-  existing expression-parsing infrastructure where practical.
-- Apply the evaluated predicate as an additional filter over the resolved (expose) scope in
-  `GeneralViewLayoutStrategy`, removing the "not yet evaluated" warning once a filter
-  expression is present and successfully evaluated.
-- Surface a diagnostic for filter expressions that fail to parse or evaluate, mirroring the
-  unresolved-reference diagnostic pattern already used for `expose`.
+- Metadata classification-test atoms (`@Type`, `@Pkg::Type`), matched against a new
+  `SysmlMetadataNode` semantic-model type capturing each definition's applied metadata
+  annotations (`{@Type{attr = value;}}`/`@Type;`/`@Type{}`), resolved via `ReferenceResolver`.
+- Boolean connectives: `and`, `or`, `not`, `xor`, `&`, `|`, and parenthesization.
+- `(as Type).attribute` reads, bare or compared with `==`/`!=` against a scalar (boolean, number,
+  or string) literal.
 
-**Scope:** `AstBuilder`/`SysmlViewNode` (expression AST capture, if warranted, beyond raw text);
-new expression-evaluation component; `GeneralViewLayoutStrategy` filter application.
-**Visual gate:** a view with a `filter [<predicate>];` statement renders only the elements
-satisfying the predicate, with no "not yet evaluated" warning.
+Any construct outside this subset — `istype`/`hastype`/`all`, arithmetic, conditional
+expressions, general feature-chain navigation, or a syntax error — produces an explicit
+"unsupported filter construct" (or syntax-error) diagnostic and falls back to rendering the
+resolved (`expose`) scope unfiltered, exactly as Phase 0 did for every filter expression.
+
+**Phase 2 — deferred:**
+
+- The bracketed `expose <path>::**[<expr>]` filter form: Phase 1 only captures its raw
+  expression text (mirroring the pre-Phase-1 standalone-`filter` behavior) and emits an
+  "unevaluated" warning; it is never evaluated. Phase 2 should extend the Phase 1 evaluator (or a
+  successor) to cover this form too.
+- The Phase 1-excluded construct list above: `istype`/`hastype`/`all`, arithmetic operators,
+  conditional (`if`/`else`) expressions, and general feature-chain navigation (attribute/feature
+  reads not anchored by an `(as Type)` cast). Each currently produces a clear, non-crashing
+  "unsupported filter construct" diagnostic rather than silently doing nothing — full evaluation
+  of these constructs is future work.
+- Metadata annotations on **usages** (as opposed to definitions) are captured in the semantic
+  model (`SysmlMetadataNode` is attached wherever `metadataFeature` appears), but
+  `GeneralViewLayoutStrategy`'s Phase 1 filter narrowing only evaluates classification
+  tests/attribute reads against rendered `SysmlDefinitionNode` candidates (matching
+  `CollectDefinitions`'s existing scope) — extending filter evaluation to usage-level candidates
+  is future work if a future view kind renders usages directly.
+
+**Scope:** `SysmlNode.cs`/`AstBuilder.cs`/`ReferenceResolver.cs`/`SysmlEdge.cs` (metadata
+capture); `DemaConsulting.SysML2Tools.Core.Filtering` (new subsystem); `GeneralViewLayoutStrategy`/
+`LayoutWarnings` (filter application, dual unevaluated-bracket-filter warning).
+**Visual gate:** a view with a standalone `filter @Type;`-style Phase 1 statement renders only
+the elements satisfying the predicate, with no "not yet evaluated" warning for that statement;
+an unsupported construct or a bracket-form filter still falls back to the resolved scope with an
+explicit diagnostic.
 
 ---
 
