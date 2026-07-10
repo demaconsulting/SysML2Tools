@@ -15,8 +15,9 @@ container box for the host definition.
 `ConnectorClearance`) are declared as `private const double` fields. Three private records carry
 intermediate data: `PartItem` (a nested part usage with its computed box size, typing, and — when
 the part is a container — its pre-laid-out `InnerContent`), `ConnPair` (a resolved binary
-connection between two nested-part indices), and `InteriorLayout` (the full container size and
-content produced by laying out one definition's interior).
+connection between two nested-part indices, together with the optional port-name label for each
+end), and `InteriorLayout` (the full container size and content produced by laying out one
+definition's interior).
 
 ##### Key Methods
 
@@ -66,11 +67,40 @@ node by its parent, which is laid out with the **same** flat placement.
   `MakePartBox` emits exactly the non-recursive leaf box with empty `Children`, and the placement
   call, offsets, ports, and lines are identical to the single-level layout — single-level output is
   byte-identical.
-- **Cross-boundary limitation.** Connection endpoints resolve to **parent-level** part indices via
-  the head segment of the dotted reference, so a reference such as `connect psu to board.cpu`
-  terminates on the `board` container boundary rather than routing to the inner `cpu` box. This is
-  the known `SEPARATE_CHILDREN` limitation (no true cross-boundary routing); gallery models avoid
-  relying on cross-boundary endpoints.
+- **Cross-boundary resolution.** `ResolveEndpoint` resolves the **full** dotted endpoint reference,
+  not just its head segment: the head segment still identifies the parent-level part index, and any
+  remaining dotted segment(s) (e.g. `cpu` in `board.cpu`, or `encoder` in `StepperMotorX.encoder`) is
+  captured as that endpoint's port-name label and flows through `ConnPair.LabelA`/`LabelB` into the
+  emitted `LayoutPort.ExternalLabel`. This means a reference into a nested part (`connect psu to
+  board.cpu`) now shows the true target name (`cpu`) on the port, rather than the pre-fix behavior of
+  silently discarding it. The connector itself is still **routed only to the container's own
+  boundary** — it does not continue into the container's interior to physically terminate on the
+  inner `cpu` box. Achieving that (a genuine boundary/delegation-port anchor shared between the
+  outer connector and an inner one, via the companion library's `HierarchyHandling.Recursive`
+  support) would require restructuring `LayOutInterior`'s per-level independent `LayeredPlacement.Place`
+  calls into one connected nested `LayoutGraph`/`LayoutGraphNode.Children` for the affected subtree,
+  which is a materially larger architectural change than this feature makes; it remains a known,
+  documented limitation. `ResolveEndpoint` captures **everything** after the first dotted segment as
+  the label, however many levels deep (e.g. `board.sub.cpu` yields the label `sub.cpu`, not just
+  `sub`); only the _routing_ — never the label text — stops at the container's boundary regardless
+  of path depth.
+
+##### Port Labeling
+
+Each emitted `LayoutPort` carries the real SysML port-name segment as its `ExternalLabel`, sourced
+from `ConnPair.LabelA`/`LabelB` (see _Cross-boundary resolution_ above and `ResolveEndpoint` below).
+A bare endpoint reference with no dotted port segment (e.g. `connect psu to board`) yields a `null`
+label, preserving the pre-fix rendering (no label shown) for that connector end.
+
+##### Parallel Connection Preservation
+
+`LayOutInterior` calls `LayeredPlacement.Place(..., mergeParallelEdges: false)`, so multiple distinct
+SysML connections between the same two parts (e.g. separate `power`/`encoder`/`sensor`
+connections wired between the same controller and motor, as seen in a real 3-axis-gantry wiring
+model) are never collapsed onto one shared routed polyline: each connection keeps its own
+independently-routed connector with distinct waypoints (a separate parallel lane), and its own pair
+of labeled ports. See `docs/design/sysml2-tools-core/layout/internal/layered-placement.md` for the
+underlying `mergeParallelEdges` parameter this relies on.
 
 ###### `FindRoot(workspace, scope)`
 
@@ -89,10 +119,12 @@ break ties among equally specific candidates; this ordering does not apply when 
 `CollectParts` gathers the root's nested `part` usages, sizing each box from its `name : Type`
 label, additionally excluding — when a scope is resolved — any part feature whose qualified name
 fails `ExposeScopeResolver.IsInSubjectScope`. `ResolveConnections` maps each binary connection's
-dotted endpoint references to nested-part indices by matching the first segment against the
-(possibly narrowed) part names, keeping only distinct, resolvable pairs; a connection whose
-endpoint was excluded by scoping simply fails to resolve and is dropped by this existing
-endpoint-lookup logic — no separate edge-side scoping is needed.
+dotted endpoint references to nested-part indices and port-name labels via `ResolveEndpoint`
+(matching the first dotted segment against the (possibly narrowed) part names and capturing any
+remaining segment as the port label — see _Cross-boundary resolution_ above), keeping only
+distinct, resolvable pairs; a connection whose endpoint was excluded by scoping simply fails to
+resolve and is dropped by this existing endpoint-lookup logic — no separate edge-side scoping is
+needed.
 
 ##### Expose Scoping
 
@@ -116,10 +148,11 @@ every candidate and `CollectParts` keeps every part, unchanged from the pre-scop
 
 ###### Placement and routing
 
-Placement and routing are delegated to `LayeredPlacement.Place` with a left-to-right flow direction.
-Nested-container recursion is driven at the strategy level (see _Recursive nested layout_ above);
-each level calls the same flat placement helper. The strategy passes the collected part boxes and
-resolved connection pairs as plain geometric input. `LayeredPlacement` delegates to the off-the-shelf
+Placement and routing are delegated to `LayeredPlacement.Place` with a left-to-right flow direction
+and `mergeParallelEdges: false` (see _Parallel Connection Preservation_ above). Nested-container
+recursion is driven at the strategy level (see _Recursive nested layout_ above); each level calls
+the same flat placement helper. The strategy passes the collected part boxes and resolved
+connection pairs as plain geometric input. `LayeredPlacement` delegates to the off-the-shelf
 `DemaConsulting.Rendering.Layout` layered algorithm and returns placed rectangles and connector
 waypoints, with disconnected components packed without overlap. The total canvas extent is derived
 from the placed box and waypoint geometry.

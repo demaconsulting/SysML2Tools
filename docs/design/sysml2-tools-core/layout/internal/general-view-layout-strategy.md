@@ -101,7 +101,15 @@ were not depth-truncated — is decided later, in `BuildGraph`.
 
 ###### `BuildGraph(groups, modelEdges, theme, depthLimit)`
 
-Builds the single input `LayoutGraph`. Each package becomes a folder container node
+Builds the single input `LayoutGraph`, setting `CoreOptions.MergeParallelEdges` to `false` on the
+root graph so multiple distinct model relationship edges that happen to share the same source and
+target (for example two attributes of the same type, or a redefinition edge that coincides with
+another edge between the same two definitions) are never collapsed by the bundled layered
+algorithm's default parallel-edge merging — every distinct model relationship this strategy adds
+remains its own visible, independently-routed edge, unlike `LayeredPlacement`'s helper (used by the
+flat view strategies), which defaults to the algorithm's own merge-by-default behavior unless a
+caller opts out (see `LayeredPlacement`'s design documentation). Each package becomes a folder
+container node
 (`Shape = Folder`, `Keyword = "package"`, `Label` the simple package name, `TitleHeight` set from
 `BoxMetrics.TitleAreaHeight` so the hierarchical engine reserves the exact title band the renderer
 will draw) holding its definitions as leaf nodes under `folder.Children`; the folder's own

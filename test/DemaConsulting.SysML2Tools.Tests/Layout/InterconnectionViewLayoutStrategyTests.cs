@@ -57,10 +57,10 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
     /// <summary>
     ///     Two connection usages between the SAME two parts (both <c>EndpointA=a, EndpointB=b</c>) form
-    ///     an identical directed pair. The interconnection engine de-duplicates the pair so its routed
-    ///     connector waypoints are not 1:1 with the connections; the strategy must resolve each
-    ///     connection by its endpoints (not by input position) and lay out without throwing, emitting a
-    ///     connector polyline for each of the two connections.
+    ///     an identical directed pair. With parallel-edge merging disabled for interconnection views,
+    ///     every distinct SysML connection is preserved as its own independently-routed connector: the
+    ///     two connections must resolve to two connector polylines with genuinely distinct waypoints
+    ///     (separate parallel lanes), not one shared route that happens to be emitted twice.
     /// </summary>
     [Fact]
     public void InterconnectionView_BuildLayout_TwoConnectionsSamePair_ProducesTwoConnectorsWithoutException()
@@ -87,17 +87,176 @@ public sealed class InterconnectionViewLayoutStrategyTests
         var context = new ViewContext("BoardInterconnectionView", workspace);
         var options = new RenderOptions(Themes.Light);
 
-        // Act: laying out must not throw even though the two connections share one routed polyline.
+        // Act: laying out must not throw, and each parallel connection gets its own routed lane.
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: two connector polylines (one per connection), each with at least two waypoints.
+        // Assert: two connector polylines (one per connection), each with at least two waypoints,
+        // and the two polylines are NOT identical — each is routed as its own distinct parallel lane.
         var lines = layout.Nodes.OfType<LayoutLine>().ToList();
         Assert.Equal(2, lines.Count);
         Assert.All(lines, l => Assert.True(l.Waypoints.Count >= 2));
+        Assert.NotEqual(lines[0].Waypoints, lines[1].Waypoints);
 
         // Assert: two part boxes and one port pair per connection (four ports total).
         Assert.Equal(2, layout.Nodes.OfType<LayoutBox>().Count(b => b.Shape == BoxShape.RoundedRectangle));
         Assert.Equal(4, layout.Nodes.OfType<LayoutPort>().Count());
+    }
+
+    /// <summary>
+    ///     Three distinct connections between the same two parts (mirroring the 3-axis-gantry
+    ///     wiring model that revealed the collapsing bug) each render as their own independently
+    ///     routed connector with pairwise-distinct waypoints, and each connector's ports carry the
+    ///     real SysML port name from the endpoint reference.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors()
+    {
+        // Arrange: a Gantry part def with a controller and a motor wired by three separate connections.
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var gantry = new SysmlDefinitionNode
+        {
+            Name = "Gantry",
+            QualifiedName = "M::Gantry",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "controller", QualifiedName = "M::Gantry::controller", FeatureKeyword = "part", FeatureTyping = "Controller" },
+                new SysmlFeatureNode { Name = "motor", QualifiedName = "M::Gantry::motor", FeatureKeyword = "part", FeatureTyping = "Motor" },
+                new SysmlConnectionNode { Name = "power", QualifiedName = "M::Gantry::power", ConnectionKeyword = "connection", EndpointA = "controller.power", EndpointB = "motor.power" },
+                new SysmlConnectionNode { Name = "encoder", QualifiedName = "M::Gantry::encoder", ConnectionKeyword = "connection", EndpointA = "controller.J40", EndpointB = "motor.encoder" },
+                new SysmlConnectionNode { Name = "sensor", QualifiedName = "M::Gantry::sensor", ConnectionKeyword = "connection", EndpointA = "controller.sensor", EndpointB = "motor.SensorPort" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["M::Gantry"] = gantry }
+        };
+        var context = new ViewContext("GantryInterconnectionView", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: three distinct connectors, pairwise-different waypoints, six ports total.
+        var lines = layout.Nodes.OfType<LayoutLine>().ToList();
+        Assert.Equal(3, lines.Count);
+        Assert.NotEqual(lines[0].Waypoints, lines[1].Waypoints);
+        Assert.NotEqual(lines[1].Waypoints, lines[2].Waypoints);
+        Assert.NotEqual(lines[0].Waypoints, lines[2].Waypoints);
+
+        var ports = layout.Nodes.OfType<LayoutPort>().ToList();
+        Assert.Equal(6, ports.Count);
+        Assert.Contains(ports, p => p.ExternalLabel == "power");
+        Assert.Contains(ports, p => p.ExternalLabel == "J40");
+        Assert.Contains(ports, p => p.ExternalLabel == "encoder");
+        Assert.Contains(ports, p => p.ExternalLabel == "sensor");
+        Assert.Contains(ports, p => p.ExternalLabel == "SensorPort");
+    }
+
+    /// <summary>
+    ///     A connection endpoint referencing a dotted port segment (e.g. <c>StepperMotorX.encoder</c>)
+    ///     produces a <see cref="LayoutPort"/> whose <see cref="LayoutPort.ExternalLabel"/> is the real
+    ///     SysML port name, not <see langword="null"/> (the pre-fix behavior).
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ConnectionEndpointWithPortSegment_PortLabelReflectsSysmlPortName()
+    {
+        // Arrange
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var root = new SysmlDefinitionNode
+        {
+            Name = "LBO3AxisGantry",
+            QualifiedName = "M::LBO3AxisGantry",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "StepperMotorX", QualifiedName = "M::LBO3AxisGantry::StepperMotorX", FeatureKeyword = "part", FeatureTyping = "StepperMotor" },
+                new SysmlFeatureNode { Name = "LBO3AxisGantry", QualifiedName = "M::LBO3AxisGantry::LBO3AxisGantry", FeatureKeyword = "part", FeatureTyping = "Controller" },
+                new SysmlConnectionNode
+                {
+                    Name = "encoderConn",
+                    QualifiedName = "M::LBO3AxisGantry::encoderConn",
+                    ConnectionKeyword = "connection",
+                    EndpointA = "StepperMotorX.encoder",
+                    EndpointB = "LBO3AxisGantry.J40"
+                }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["M::LBO3AxisGantry"] = root }
+        };
+        var context = new ViewContext("GantryInterconnectionView", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: both ends carry their real SysML port-name label.
+        var ports = layout.Nodes.OfType<LayoutPort>().ToList();
+        Assert.Equal(2, ports.Count);
+        Assert.Contains(ports, p => p.ExternalLabel == "encoder");
+        Assert.Contains(ports, p => p.ExternalLabel == "J40");
+    }
+
+    /// <summary>
+    ///     A connection endpoint referencing a nested/cross-boundary path (e.g. <c>board.cpu</c>, into
+    ///     a part inside a container) still resolves the connector to the containing part's own
+    ///     boundary (the documented cross-boundary limitation is not fully lifted by this feature — see
+    ///     the design documentation), but the port label now reflects the true, full dotted reference
+    ///     rather than discarding everything after the container's name.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_CrossBoundaryEndpoint_LabelReflectsNestedTarget()
+    {
+        // Arrange: Computer { board : Motherboard{cpu, chipset, ...}, psu, connect psu to board.cpu }
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var motherboard = new SysmlDefinitionNode
+        {
+            Name = "Motherboard",
+            QualifiedName = "M::Motherboard",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "cpu", QualifiedName = "M::Motherboard::cpu", FeatureKeyword = "part", FeatureTyping = "Cpu" },
+                new SysmlFeatureNode { Name = "chipset", QualifiedName = "M::Motherboard::chipset", FeatureKeyword = "part", FeatureTyping = "Chipset" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "cpu", EndpointB = "chipset" }
+            ]
+        };
+        var computer = new SysmlDefinitionNode
+        {
+            Name = "Computer",
+            QualifiedName = "M::Computer",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "board", QualifiedName = "M::Computer::board", FeatureKeyword = "part", FeatureTyping = "Motherboard" },
+                new SysmlFeatureNode { Name = "psu", QualifiedName = "M::Computer::psu", FeatureKeyword = "part", FeatureTyping = "PowerSupply" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "psu", EndpointB = "board.cpu" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["M::Computer"] = computer,
+                ["M::Motherboard"] = motherboard
+            }
+        };
+        var context = new ViewContext("ComputerInterconnectionView", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the connector still terminates at the "board" container box (one line, no
+        // exception), but the target-side port label is the true nested target "cpu", not discarded.
+        var lines = layout.Nodes.OfType<LayoutLine>().ToList();
+        Assert.Single(lines);
+
+        var ports = layout.Nodes.OfType<LayoutPort>().ToList();
+        Assert.Equal(2, ports.Count);
+        Assert.Contains(ports, p => p.ExternalLabel == "cpu");
     }
 
     /// <summary>

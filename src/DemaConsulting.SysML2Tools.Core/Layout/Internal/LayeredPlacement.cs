@@ -51,6 +51,16 @@ internal static class LayeredPlacement
     /// <param name="nodes">Sized nodes to place, in caller order.</param>
     /// <param name="edges">Directed edges between nodes (by index), in caller order.</param>
     /// <param name="direction">Primary flow direction for the layered layout.</param>
+    /// <param name="mergeParallelEdges">
+    /// Whether multiple edges between the same pair of nodes are merged into a single routed
+    /// connector. Defaults to <see langword="true"/> (the library's own default and this method's
+    /// original, unconditional behavior), which keeps every pre-existing call site — including
+    /// <c>ActionFlowViewLayoutStrategy</c> and <c>StateTransitionViewLayoutStrategy</c> — byte-for-byte
+    /// unchanged. Pass <see langword="false"/> to have every parallel edge preserved as its own
+    /// independently-routed connector (see <see cref="CoreOptions.MergeParallelEdges"/>), which
+    /// <c>InterconnectionViewLayoutStrategy</c> requests so distinct SysML connections between the same
+    /// two parts never collapse onto one shared route.
+    /// </param>
     /// <returns>The placed rectangles, routed polylines, and overall content size.</returns>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="nodes"/> or <paramref name="edges"/> is <see langword="null"/>.
@@ -58,7 +68,8 @@ internal static class LayeredPlacement
     public static PlacedLayout Place(
         IReadOnlyList<(double Width, double Height)> nodes,
         IReadOnlyList<(int From, int To)> edges,
-        LayoutFlowDirection direction)
+        LayoutFlowDirection direction,
+        bool mergeParallelEdges = true)
     {
         ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(edges);
@@ -78,6 +89,10 @@ internal static class LayeredPlacement
         }
 
         graph.Set(CoreOptions.Direction, direction);
+        if (!mergeParallelEdges)
+        {
+            graph.Set(CoreOptions.MergeParallelEdges, false);
+        }
 
         var tree = LayoutEngine.Layout(graph);
 

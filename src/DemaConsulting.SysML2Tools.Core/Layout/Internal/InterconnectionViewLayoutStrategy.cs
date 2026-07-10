@@ -71,8 +71,13 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         double Height,
         IReadOnlyList<LayoutNode>? InnerContent);
 
-    /// <summary>A resolved binary connection between two nested-part indices.</summary>
-    private sealed record ConnPair(int A, int B);
+    /// <summary>
+    /// A resolved binary connection between two nested-part indices, together with the port-name
+    /// label for each end (the dotted-reference remainder after the resolved part, e.g.
+    /// <c>"encoder"</c> for <c>StepperMotorX.encoder</c>), or <see langword="null"/> when the
+    /// endpoint reference names the part directly with no port segment.
+    /// </summary>
+    private sealed record ConnPair(int A, int B, string? LabelA, string? LabelB);
 
     /// <summary>The laid-out interior of one definition: its full container size and content.</summary>
     /// <param name="Width">Full container width including title area and insets.</param>
@@ -182,8 +187,11 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
         var edgePairs = pairs.Select(p => (p.A, p.B)).ToList();
 
-        // Delegate all placement and routing to the layered algorithm.
-        var placed = LayeredPlacement.Place(nodeSizes, edgePairs, LayoutFlowDirection.Right);
+        // Delegate all placement and routing to the layered algorithm. Parallel-edge merging is
+        // disabled so distinct SysML connections between the same two parts (e.g. a "power" and an
+        // "encoder" connection both wired between the same two nested parts) are each preserved as
+        // their own independently-routed connector instead of collapsing onto one shared route.
+        var placed = LayeredPlacement.Place(nodeSizes, edgePairs, LayoutFlowDirection.Right, mergeParallelEdges: false);
 
         // Shift placed content down/right to sit inside the container box.
         var titleArea = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true);
@@ -230,11 +238,14 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             // Shift all waypoints by the container offset.
             var shifted = wp.Select(p => new Point2D(p.X + offsetX, p.Y + offsetY)).ToList();
 
-            // Source port: first waypoint on the source box's right face.
-            content.Add(new LayoutPort(shifted[0].X, shifted[0].Y, PortSide.Right, null));
+            var pair = pairs[k];
 
-            // Target port: last waypoint on the target box's left face.
-            content.Add(new LayoutPort(shifted[^1].X, shifted[^1].Y, PortSide.Left, null));
+            // Source port: first waypoint on the source box's right face, labeled with the SysML
+            // port-name segment from the connection's endpoint reference, if any.
+            content.Add(new LayoutPort(shifted[0].X, shifted[0].Y, PortSide.Right, pair.LabelA));
+
+            // Target port: last waypoint on the target box's left face, likewise labeled.
+            content.Add(new LayoutPort(shifted[^1].X, shifted[^1].Y, PortSide.Left, pair.LabelB));
 
             content.Add(new LayoutLine(
                 Waypoints: shifted,
@@ -444,7 +455,8 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Resolves each binary connection's endpoints to nested-part indices by matching the
-    /// first segment of the dotted endpoint reference against the part names.
+    /// first segment of the dotted endpoint reference against the part names, capturing any
+    /// remaining dotted segment(s) as the port-name label for that end.
     /// </summary>
     private static IReadOnlyList<ConnPair> ResolveConnections(
         SysmlDefinitionNode root,
@@ -453,28 +465,41 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var pairs = new List<ConnPair>();
         foreach (var conn in root.Children.OfType<SysmlConnectionNode>())
         {
-            var a = ResolveEndpoint(conn.EndpointA, partIndex);
-            var b = ResolveEndpoint(conn.EndpointB, partIndex);
+            var (a, labelA) = ResolveEndpoint(conn.EndpointA, partIndex);
+            var (b, labelB) = ResolveEndpoint(conn.EndpointB, partIndex);
             if (a >= 0 && b >= 0 && a != b)
             {
-                pairs.Add(new ConnPair(a, b));
+                pairs.Add(new ConnPair(a, b, labelA, labelB));
             }
         }
 
         return pairs;
     }
 
-    /// <summary>Resolves a dotted endpoint reference to a part index via its first segment.</summary>
-    private static int ResolveEndpoint(string? reference, Dictionary<string, int> partIndex)
+    /// <summary>
+    /// Resolves a dotted endpoint reference (e.g. <c>"StepperMotorX.encoder"</c>) to a part index by
+    /// its first segment, and returns the remaining dotted segment(s) — the SysML port-name portion
+    /// of the reference — as the port label. A reference with no further segments (a bare part name)
+    /// resolves with a <see langword="null"/> label.
+    /// </summary>
+    /// <remarks>
+    /// This resolves the <em>full</em> dotted path for labeling purposes, so a deeper reference such
+    /// as <c>"board.cpu"</c> (into a nested part inside a container) yields the label <c>"cpu"</c>
+    /// rather than discarding it. The connector itself still terminates at the container box's own
+    /// port — see the "Cross-boundary limitation" note in the design documentation for what one-level
+    /// cross-boundary routing this strategy does and does not perform.
+    /// </remarks>
+    private static (int Index, string? Label) ResolveEndpoint(string? reference, Dictionary<string, int> partIndex)
     {
         if (string.IsNullOrEmpty(reference))
         {
-            return -1;
+            return (-1, null);
         }
 
         var dot = reference.IndexOf('.', StringComparison.Ordinal);
         var head = dot >= 0 ? reference[..dot] : reference;
-        return partIndex.TryGetValue(head, out var i) ? i : -1;
+        var label = dot >= 0 ? reference[(dot + 1)..] : null;
+        return partIndex.TryGetValue(head, out var i) ? (i, label) : (-1, null);
     }
 
     /// <summary>Computes the intrinsic size of a nested part box.</summary>

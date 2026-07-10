@@ -50,9 +50,9 @@
   <!-- Runtime Dependencies -->
   <ItemGroup>
     <PackageReference Include="DemaConsulting.TestResults" Version="1.9.0" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.9" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
-    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="2.88.9" Condition="$([MSBuild]::IsOSPlatform('macOS'))" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.148.0" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.148.0" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="4.148.0" Condition="$([MSBuild]::IsOSPlatform('macOS'))" />
   </ItemGroup>
 
   <!-- Build Tool Dependencies -->
@@ -90,8 +90,8 @@
 
   <!-- Rendering output packages: the SVG renderer and the SkiaSharp raster renderers -->
   <ItemGroup>
-    <PackageReference Include="DemaConsulting.Rendering.Svg" Version="0.1.0-beta.4" />
-    <PackageReference Include="DemaConsulting.Rendering.Skia" Version="0.1.0-beta.4" />
+    <PackageReference Include="DemaConsulting.Rendering.Svg" Version="0.1.0-beta.5" />
+    <PackageReference Include="DemaConsulting.Rendering.Skia" Version="0.1.0-beta.5" />
   </ItemGroup>
 
   <ItemGroup>

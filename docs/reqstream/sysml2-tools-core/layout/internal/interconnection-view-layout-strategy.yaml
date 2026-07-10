@@ -174,6 +174,50 @@ sections:
         tests:
           - InterconnectionView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged
 
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ParallelConnectorPreservation
+        title: >-
+          When two or more distinct connections exist between the same pair of nested parts,
+          InterconnectionViewLayoutStrategy shall preserve every connection as its own
+          independently-routed connector rather than collapsing them onto one shared route.
+        justification: |
+          A real-world wiring model may have several separate connections (for example a power
+          connection and an encoder connection) between the same two physical parts; visually
+          merging them into what looks like a single connector loses information the diagram exists
+          to communicate. Every parallel connection must remain visually distinct.
+        tests:
+          - InterconnectionView_BuildLayout_TwoConnectionsSamePair_ProducesTwoConnectorsWithoutException
+          - InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PortLabeling
+        title: >-
+          InterconnectionViewLayoutStrategy shall label each connector's ports with the SysML
+          port-name segment of the connection's endpoint reference, when present.
+        justification: |
+          A connection endpoint such as `StepperMotorX.encoder` names a specific port on the part,
+          not just the part itself; omitting that name (as the pre-fix rendering did) discards
+          information the diagram exists to show. Labeling the port with the real port name lets a
+          reader identify which physical connector a line represents.
+        tests:
+          - InterconnectionView_BuildLayout_ConnectionEndpointWithPortSegment_PortLabelReflectsSysmlPortName
+          - InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-CrossBoundaryLabelResolution
+        title: >-
+          When a connection endpoint references a part nested inside a container part (a
+          cross-boundary reference such as `board.cpu`), InterconnectionViewLayoutStrategy shall
+          resolve the full dotted reference for the port's label, reflecting the true nested
+          target name, even though the connector itself still terminates at the container's own
+          boundary.
+        justification: |
+          Discarding everything after the first dotted segment (the pre-fix behavior) silently
+          mislabeled or unlabeled a cross-boundary connector, hiding which inner part it actually
+          targets. Resolving the full path for the label is achievable without the larger
+          architectural change genuine cross-boundary connector routing would require, and honestly
+          documents the remaining limitation (the connector still terminates at the container
+          boundary, not the inner part) rather than silently under-delivering.
+        tests:
+          - InterconnectionView_BuildLayout_CrossBoundaryEndpoint_LabelReflectsNestedTarget
+
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedSpecificityTieBreak
         title: >-
           When more than one candidate root is relevant to the resolved expose scope,

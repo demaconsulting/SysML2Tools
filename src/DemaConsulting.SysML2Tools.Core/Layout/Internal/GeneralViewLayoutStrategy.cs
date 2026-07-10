@@ -555,6 +555,15 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         int depthLimit)
     {
         var graph = new LayoutGraph();
+
+        // The General View intentionally draws one edge per source model relationship even when
+        // several distinct edges share the same source and target node (for example two attributes
+        // of the same type, or a redefinition edge that happens to coincide with another edge
+        // between the same two definitions) — unlike InterconnectionViewLayoutStrategy, this graph
+        // has never relied on the bundled algorithm's parallel-edge merging, so it opts out
+        // explicitly to keep every distinct model relationship visible regardless of the layered
+        // algorithm's own default.
+        graph.Set(CoreOptions.MergeParallelEdges, false);
         var truncated = new List<TruncatedFolder>();
 
         // Reserve the full title area (package keyword + name) above a folder's contents so the

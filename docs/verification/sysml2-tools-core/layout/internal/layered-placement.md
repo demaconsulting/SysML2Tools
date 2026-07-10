@@ -25,6 +25,12 @@ configuration are required beyond a standard .NET SDK installation and the refer
 - Routing returns one polyline per input edge in input-edge order, oriented source-to-target even
   when the input contains cycles.
 - The requested flow direction is honored so a forward chain reads top-to-bottom.
+- The additive `mergeParallelEdges` parameter (default `true`, unchanged for
+  `ActionFlowViewLayoutStrategy`/`StateTransitionViewLayoutStrategy`) is exercised transitively via
+  `InterconnectionViewLayoutStrategyTests`, whose parallel-connection tests assert distinct routed
+  waypoints per parallel edge when `mergeParallelEdges: false` is requested. No dedicated
+  `LayeredPlacementTests` file exists — consistent with the established pattern of covering this
+  adapter only through the strategies that call it.
 
 ##### Test Scenarios
 
@@ -33,6 +39,8 @@ configuration are required beyond a standard .NET SDK installation and the refer
 | `ActionFlowView_BuildLayout_ActionsAndSuccessions_ProducesBoxesMarkersAndFlows` | Boxes and flows produced |
 | `StateTransitionView_BuildLayout_StatesAndTransitions_ProducesBoxesBadgeAndLines` | State boxes and lines produced |
 | `InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines` | Part boxes and lines produced |
+| `InterconnectionView_BuildLayout_TwoConnectionsSamePair_ProducesTwoConnectorsWithoutException` | Distinct waypoints |
+| `InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors` | Distinct routes |
 | `InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap` | Placed rectangles do not overlap |
 | `ActionFlowView_BuildLayout_NoOverlap` | Placed action boxes do not overlap |
 | `ActionFlowView_BuildLayout_SuccessionEdge_IsDashedWithOpenArrowhead` | Polyline oriented to the target |

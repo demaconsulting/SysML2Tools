@@ -8,8 +8,12 @@ part definition with nested parts and connections, invoke `BuildLayout`, and ass
 returned `LayoutTree`. Assertions count the container box, rounded part boxes, port nodes, and
 connector lines, and a geometric helper confirms that no two part boxes overlap. Nested-layout
 tests build a two-level workspace (a part typed by a definition with its own internal parts) and
-assert on the container box's nested `Children`. No mocking is required; the strategy depends only
-on the in-memory model, `LayeredPlacement`, and render options.
+assert on the container box's nested `Children`. Parallel-connection tests assert that multiple
+connections between the same two parts produce pairwise-distinct routed waypoints (not a shared
+route), and port-labeling tests assert `LayoutPort.ExternalLabel` reflects the real SysML port-name
+segment from a dotted endpoint reference, including the cross-boundary (label-only) case. No
+mocking is required; the strategy depends only on the in-memory model, `LayeredPlacement`, and
+render options.
 
 ##### Test Environment
 
@@ -22,6 +26,15 @@ configuration are required beyond a standard .NET SDK installation.
 - A part definition with nested parts and connections yields a container box, one rounded box per
   part, one port per connection endpoint, and one connector line per connection.
 - No two part boxes overlap.
+- Two distinct connections between the same two parts render as two independently-routed
+  connectors with genuinely distinct waypoints (parallel-edge preservation), not one shared route.
+- Three distinct connections between the same two parts (mirroring a real 3-axis-gantry wiring
+  model) render as three pairwise-distinct connectors, each with its own labeled port pair.
+- A connection endpoint with a dotted port segment (e.g. `StepperMotorX.encoder`) produces a
+  `LayoutPort` whose `ExternalLabel` is the real SysML port name, not `null`.
+- A connection endpoint referencing a nested/cross-boundary path (e.g. `board.cpu`) still
+  terminates its connector at the containing part's own boundary (the documented remaining
+  limitation), but its port label reflects the true nested target name.
 - An empty workspace yields a canvas with no nodes.
 - A part typed by a definition with its own internal parts is rendered as a container box whose
   nested children lie inside its bounds, below its title area.
@@ -56,6 +69,10 @@ configuration are required beyond a standard .NET SDK installation.
 | Test | Assertion |
 | --- | --- |
 | `InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines` | Box, parts, ports, and lines |
+| `InterconnectionView_BuildLayout_TwoConnectionsSamePair_ProducesTwoConnectorsWithoutException` | Distinct waypoints |
+| `InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors` | Six labeled ports |
+| `InterconnectionView_BuildLayout_ConnectionEndpointWithPortSegment_PortLabelReflectsSysmlPortName` | Port label |
+| `InterconnectionView_BuildLayout_CrossBoundaryEndpoint_LabelReflectsNestedTarget` | Nested label, boundary connector |
 | `InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap` | No two rounded part boxes overlap |
 | `InterconnectionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas` | Canvas with no nodes |
 | `InterconnectionView_BuildLayout_NestedContainer_PlacesChildrenInsideContainerBox` | Children nested inside the box |
