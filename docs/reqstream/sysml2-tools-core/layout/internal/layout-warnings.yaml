@@ -34,13 +34,29 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedFilter
         title: >-
           When a view's filter expression text is non-null, LayoutWarnings shall produce a
-          warning naming the view and stating that its filter expression is parsed but not yet
-          evaluated; when null, LayoutWarnings shall produce no warning.
+          warning naming the view and stating that the filter expression could not be evaluated,
+          optionally appending the caller-supplied reason; when null, LayoutWarnings shall produce
+          no warning.
         justification: |
-          Full `filter [<expr>];` expression evaluation is deferred future work (see
-          ROADMAP.md). Silently ignoring a declared filter would mislead a user into believing
-          their diagram is filtered when every element in the resolved scope actually renders
-          unfiltered; this warning makes the limitation visible.
+          A standalone `filter [<expr>];` expression now attempts real evaluation, so the warning
+          path is reserved for parse failures and unsupported Phase 1 constructs. Surfacing the
+          reason string helps the user understand whether the fallback came from malformed syntax
+          or an intentionally unsupported construct.
         tests:
           - ForUnevaluatedFilter_NullText_ReturnsEmpty
           - ForUnevaluatedFilter_NonNullText_ReturnsNotYetEvaluatedWarning
+          - ForUnevaluatedFilter_WithReason_IncludesReason
+
+      - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedExposeBracketFilter
+        title: >-
+          When a view declares one or more bracketed `expose <path>::**[<expr>]` filters,
+          LayoutWarnings shall produce a warning naming the view and stating that the bracket
+          filter expressions are parsed but not yet evaluated; when none are present,
+          LayoutWarnings shall produce no warning.
+        justification: |
+          Phase 1 intentionally defers bracket-filter evaluation while still capturing the raw
+          expression text. A distinct warning prevents users from confusing that deferred capability
+          with the now-supported standalone `filter [<expr>];` statement.
+        tests:
+          - ForUnevaluatedExposeBracketFilter_Empty_ReturnsEmpty
+          - ForUnevaluatedExposeBracketFilter_NonEmpty_ReturnsWarning

@@ -1,5 +1,7 @@
 # Introduction
 
+<!-- cspell:ignore parenthesization istype hastype -->
+
 SysML2Tools is a free, open-source .NET CLI tool and library that parses SysML v2 textual
 model files and renders them as professional nested block diagrams. It is designed for .NET
 teams in regulated industries who author SysML v2 models as part of a Model-Based Systems
@@ -136,10 +138,20 @@ entire workspace:
   an unrecognized name) — and a view declaring no `render` member at all — has **no effect** on
   which strategy renders the view; see `ROADMAP.md` for further rendering-style selectors that
   may be added in future.
-- `filter [<expr>];` — the bracketed filter expression is parsed and captured, but **not yet
-  evaluated**: the resolved (`expose`) scope is rendered unfiltered, and a diagnostic reports
-  that the filter expression was parsed but not yet evaluated. Full filter-expression
-  evaluation is planned future work — see `ROADMAP.md`.
+- `filter <expr>;` — a standalone view-body filter statement is now **evaluated** for a
+  supported subset of SysML v2 filter-expression syntax (Phase 1): metadata classification
+  tests (`@Type`, `@Pkg::Type`), boolean connectives (`and`, `or`, `not`, `xor`, `&`, `|`),
+  parenthesization, and `(as Type).attribute` reads (bare, or compared with `==`/`!=` against a
+  scalar literal). When the expression parses and evaluates successfully, the rendered scope is
+  narrowed to the definitions the predicate matches. Any construct outside this subset
+  (`istype`/`hastype`/`all`, arithmetic, conditional expressions, general feature-chain
+  navigation, etc.) — or any syntax error — produces an explicit "unsupported filter construct"
+  (or syntax-error) diagnostic and falls back to rendering the resolved (`expose`) scope
+  unfiltered, exactly as before. The bracketed `expose <path>::**[<expr>]` filter form remains
+  **parsed and captured only, not yet evaluated**, in Phase 1: it always renders its resolved
+  scope unfiltered, with a diagnostic reporting that its filter expression was captured but not
+  evaluated. Full bracket-form evaluation, and evaluation of the remaining Phase 1-excluded
+  constructs, are planned future work — see `ROADMAP.md`.
 - A view with **no** `expose` statement (including the `--auto`-synthesized view) renders the
   full workspace, exactly as before this scoping behavior was introduced.
 
@@ -184,7 +196,7 @@ of confusion, so it is worth stating plainly:
 | --- | --- |
 | `expose <name>;` | The **only** mechanism scoping which model content appears in the diagram (see above). |
 | `render <renderingKind>;` | Selects a rendering style — see "View Body Statements" above. Never scopes content. |
-| `filter [<expr>];` | Captured as raw text only; not yet evaluated (see ROADMAP.md's filter-evaluation entry). |
+| `filter <expr>;` | Narrows scope by Phase 1 metadata filtering; unsupported/bracket forms fall back unfiltered. |
 
 ### Example A: exposing a definition to scope down to a subsystem
 

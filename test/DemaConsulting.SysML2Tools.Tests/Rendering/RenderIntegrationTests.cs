@@ -184,6 +184,75 @@ public sealed class RenderIntegrationTests
     }
 
     /// <summary>
+    ///     Path to the safety-metadata-filter test fixture: a package with a <c>metadata def</c>,
+    ///     part definitions carrying <c>@Safety</c> annotations, and two views whose <c>filter</c>
+    ///     statements exercise Phase 1 filter-expression evaluation end-to-end.
+    /// </summary>
+    private static string SafetyMetadataFilterModel =>
+        Path.Combine(FindSysMLModelsRoot() ?? "SysMLModels", "Custom", "safety-metadata-filter.sysml");
+
+    /// <summary>
+    ///     Rendering the <c>SafetyPartsView</c> (<c>filter @Safety;</c>) from the safety-metadata-filter
+    ///     fixture produces SVG output that includes only the definitions carrying the <c>@Safety</c>
+    ///     metadata annotation (<c>Actuator</c>, <c>Gripper</c>) and excludes the unannotated
+    ///     <c>Bracket</c> definition — proving the evaluator actually narrows the rendered scope.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_SafetyPartsView_FiltersToAnnotatedParts()
+    {
+        // Arrange: load the safety-metadata-filter fixture workspace
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([SafetyMetadataFilterModel], stdlibTable);
+        Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
+        var diagramRenderer = new DiagramRenderer();
+        var svgRenderer = new SvgRenderer();
+        var options = new RenderOptions(Themes.Light);
+
+        // Act: render the workspace, and locate the SafetyPartsView output by name
+        var viewNames = DiagramRenderer.GetViewNames(result.Workspace);
+        var outputs = diagramRenderer.RenderWorkspace(result.Workspace, svgRenderer, options);
+        var index = viewNames.ToList().FindIndex(n => n.Contains("SafetyPartsView"));
+        Assert.True(index >= 0, "SafetyPartsView not found among rendered views");
+        var svgText = System.Text.Encoding.UTF8.GetString(((MemoryStream)outputs[index].Data).ToArray());
+
+        // Assert: only the @Safety-annotated definitions are rendered
+        Assert.Contains("Actuator", svgText);
+        Assert.Contains("Gripper", svgText);
+        Assert.DoesNotContain("Bracket", svgText);
+    }
+
+    /// <summary>
+    ///     Rendering the <c>MandatorySafetyPartsView</c> (<c>filter @Safety and (as Safety).isMandatory;</c>)
+    ///     from the safety-metadata-filter fixture produces SVG output that includes only the
+    ///     <c>Actuator</c> definition (the sole definition whose <c>@Safety</c> annotation has
+    ///     <c>isMandatory = true</c>) — proving boolean-connective and attribute-read evaluation
+    ///     compose correctly end-to-end through the rendering pipeline.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_MandatorySafetyPartsView_FiltersToMandatoryPart()
+    {
+        // Arrange: load the safety-metadata-filter fixture workspace
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([SafetyMetadataFilterModel], stdlibTable);
+        Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
+        var diagramRenderer = new DiagramRenderer();
+        var svgRenderer = new SvgRenderer();
+        var options = new RenderOptions(Themes.Light);
+
+        // Act: render the workspace, and locate the MandatorySafetyPartsView output by name
+        var viewNames = DiagramRenderer.GetViewNames(result.Workspace);
+        var outputs = diagramRenderer.RenderWorkspace(result.Workspace, svgRenderer, options);
+        var index = viewNames.ToList().FindIndex(n => n.Contains("MandatorySafetyPartsView"));
+        Assert.True(index >= 0, "MandatorySafetyPartsView not found among rendered views");
+        var svgText = System.Text.Encoding.UTF8.GetString(((MemoryStream)outputs[index].Data).ToArray());
+
+        // Assert: only the mandatory-Safety-annotated definition is rendered
+        Assert.Contains("Actuator", svgText);
+        Assert.DoesNotContain("Gripper", svgText);
+        Assert.DoesNotContain("Bracket", svgText);
+    }
+
+    /// <summary>
     ///     Loading a model that uses same-package short-name specialization produces no
     ///     unresolved-reference diagnostics originating from user-authored files, confirming
     ///     that the reference resolver handles unqualified names in the same package correctly.

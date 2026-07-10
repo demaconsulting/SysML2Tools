@@ -5,6 +5,7 @@
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.Rendering.Layout;
+using DemaConsulting.SysML2Tools.Filtering;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -134,6 +135,33 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             return new LayoutTree(200.0, 100.0, []);
         }
 
+        // Apply the view's standalone `filter [<expr>];` statement (SysmlViewNode.FilterExpressionText),
+        // narrowing `defs` to the subset the Phase 1 expression subset matches. A parse/evaluation
+        // failure (syntax error or a construct outside the Phase 1 subset — see
+        // FilterExpressionParser) falls back to rendering the unfiltered resolved scope, surfaced
+        // via a warning rather than silently dropping the filter or crashing.
+        string? filterFailureReason = null;
+        var filterExpressionText = context.ViewNode?.FilterExpressionText;
+        if (filterExpressionText is { Length: > 0 })
+        {
+            var parseResult = FilterExpressionParser.Parse(filterExpressionText);
+            if (parseResult.Expression is { } expression)
+            {
+                var matched = FilterExpressionEvaluator.Evaluate(
+                    context.Workspace, defs.Select(d => d.QualifiedName).ToList(), expression).MatchedQualifiedNames;
+                var matchedSet = new HashSet<string>(matched, StringComparer.Ordinal);
+                defs = defs.Where(d => matchedSet.Contains(d.QualifiedName)).ToList();
+                if (defs.Count == 0)
+                {
+                    return new LayoutTree(200.0, 100.0, []);
+                }
+            }
+            else
+            {
+                filterFailureReason = parseResult.Diagnostics.FirstOrDefault()?.Message;
+            }
+        }
+
         // Group definitions by their owning package (prefix before the last "::").
         var groups = GroupByPackage(defs);
 
@@ -157,11 +185,13 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // tree aligns with graph.Nodes by index.
         var placed = truncated.Count == 0 ? tree : DecorateTruncatedFolders(tree, graph, truncated, theme);
 
-        // A `filter [<expr>];` statement is parsed (SysmlViewNode.FilterExpressionText) but not
-        // yet evaluated — full expression evaluation is deferred future work (see ROADMAP.md).
-        // Surface this to the caller through the standard layout-warnings channel rather than
-        // silently rendering a diagram the user may believe is filtered.
-        var warnings = LayoutWarnings.ForUnevaluatedFilter(context.ViewName, context.ViewNode?.FilterExpressionText);
+        // Surface any filter-evaluation failure, plus a distinct warning for a still-unevaluated
+        // `expose <path>::**[<expr>]` bracket filter (Phase 1 captures its raw text only — see
+        // SysmlViewNode.ExposeBracketFilterTexts — full bracket-filter evaluation is deferred
+        // future work, see ROADMAP.md), through the standard layout-warnings channel.
+        var warnings = LayoutWarnings.ForUnevaluatedFilter(context.ViewName, filterFailureReason is null ? null : filterExpressionText, filterFailureReason)
+            .Concat(LayoutWarnings.ForUnevaluatedExposeBracketFilter(context.ViewName, context.ViewNode?.ExposeBracketFilterTexts ?? []))
+            .ToList();
         return warnings.Count == 0 ? placed : placed with { Warnings = warnings };
     }
 

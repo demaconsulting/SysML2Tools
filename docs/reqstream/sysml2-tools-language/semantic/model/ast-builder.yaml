@@ -137,3 +137,28 @@ sections:
           - WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName
           - WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText
           - WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-MetadataAnnotations
+        title: >-
+          AstBuilder shall capture each applied metadata annotation nested in an element body as a
+          SysmlMetadataNode child carrying the annotating type reference and any supported literal
+          attribute assignments in source order.
+        justification: |
+          Phase 1 filter evaluation operates over metadata annotations attached to definitions and
+          features. Capturing those annotations during AST construction is the prerequisite for
+          later reference resolution and metadata-based filtering.
+        tests:
+          - AstBuilder_BareMetadataAnnotation_CapturesMetadataNode
+          - AstBuilder_MetadataAnnotationWithBooleanAttribute_CapturesLiteralValue
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ExposeBracketFilterText
+        title: >-
+          AstBuilder shall capture the raw expression text of each bracketed
+          `expose <path>::**[<expr>]` member on the corresponding SysmlViewNode's
+          ExposeBracketFilterTexts property without evaluating the expression.
+        justification: |
+          Phase 1 defers bracket-filter evaluation but must preserve the expression text so layout
+          can surface a distinct "parsed but not yet evaluated" warning and Phase 2 can add real
+          evaluation without changing the AST capture path.
+        tests:
+          - AstBuilder_ExposeBracketFilter_CapturesRawText

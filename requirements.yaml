@@ -11,6 +11,7 @@ includes:
   - docs/reqstream/sysml2-tools-language/semantic/ast-deserializer.yaml
   - docs/reqstream/sysml2-tools-language/semantic/model.yaml
   - docs/reqstream/sysml2-tools-language/semantic/model/sysml-node.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/model/sysml-metadata-node.yaml
   - docs/reqstream/sysml2-tools-language/semantic/model/ast-builder.yaml
   - docs/reqstream/sysml2-tools-language/semantic/model/symbol-table.yaml
   - docs/reqstream/sysml2-tools-language/semantic/model/reference-resolver.yaml
@@ -18,6 +19,8 @@ includes:
   - docs/reqstream/sysml2-tools-stdlib.yaml
   - docs/reqstream/sysml2-tools-stdlib/stdlib-provider.yaml
   - docs/reqstream/sysml2-tools-core.yaml
+  - docs/reqstream/sysml2-tools-core/filtering.yaml
+  - docs/reqstream/sysml2-tools-core/filtering/filter-expression-evaluator.yaml
   - docs/reqstream/sysml2-tools-core/layout.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/general-view-layout-strategy.yaml

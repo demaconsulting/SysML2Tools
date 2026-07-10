@@ -2,12 +2,14 @@
 
 ## Architecture
 
-The `DemaConsulting.SysML2Tools` core library provides the Layout, Rendering, and Io subsystems
-for SysML v2 diagram generation and shared file-discovery. It depends on
+The `DemaConsulting.SysML2Tools` core library provides the Filtering, Layout, Rendering, and Io
+subsystems for SysML v2 diagram generation and shared file-discovery. It depends on
 `DemaConsulting.SysML2Tools.Language` for parsing and semantic analysis, and on
 `DemaConsulting.SysML2Tools.Stdlib` for the pre-compiled standard library.
 
-The core library provides three subsystems: **Layout**, **Rendering**, and **Io**. The Layout
+The core library provides four subsystems: **Filtering**, **Layout**, **Rendering**, and **Io**.
+The Filtering subsystem parses and evaluates the Phase 1 subset of standalone
+`filter [<expr>];` statements against metadata annotations captured by the semantic model. The Layout
 subsystem maps the SysML semantic model onto the `LayoutTree` intermediate representation — nine
 immutable node record types covering all SysML diagram elements — which is provided off-the-shelf
 by the `DemaConsulting.Rendering` package, and delegates geometric placement and routing to the
@@ -24,6 +26,10 @@ flowchart TD
         Language["DemaConsulting.SysML2Tools.Language"]
         Stdlib["DemaConsulting.SysML2Tools.Stdlib"]
     end
+    subgraph Filtering
+        FilterExpressionParser
+        FilterExpressionEvaluator
+    end
     subgraph Layout
         LayoutTree
         LayoutNode
@@ -38,8 +44,12 @@ flowchart TD
     subgraph Io
         GlobFileCollector
     end
+    Language --> FilterExpressionParser
+    Language --> FilterExpressionEvaluator
     Language --> DiagramRenderer
     Stdlib --> DiagramRenderer
+    DiagramRenderer --> FilterExpressionParser
+    DiagramRenderer --> FilterExpressionEvaluator
     DiagramRenderer --> ILayoutStrategy
     DiagramRenderer --> IRenderer
     ILayoutStrategy --> LayoutTree
@@ -125,8 +135,20 @@ N/A — not a safety-classified software item.
 6. Each rendered stream is wrapped in a `RenderOutput` with `SuggestedFileName` derived from
    the view name and `IRenderer.DefaultExtension`.
 
+### Filtering Data Flow
+
+1. `AstBuilder` captures a view's standalone `filter [<expr>];` statement as raw source text on
+   `SysmlViewNode.FilterExpressionText`.
+2. `GeneralViewLayoutStrategy` passes that raw text to `FilterExpressionParser.Parse`, which
+   adapts the generated SysML `ownedExpression()` parse tree into the supported Phase 1
+   `FilterExpression` AST.
+3. When parsing succeeds, `FilterExpressionEvaluator.Evaluate` applies the AST to the already
+   expose-scoped candidate definitions by reading their directly-owned `SysmlMetadataNode`
+   children; when parsing fails, layout falls back to the unfiltered scope with a warning.
+
 ## Design Constraints
 
 - Platform: multi-targets net8.0, net9.0, and net10.0 on Windows, Linux, and macOS.
 - SysML v2 parsing, semantic analysis, and standard library are provided by the Language and
-  Stdlib assemblies; the Core assembly contains only Layout, Rendering, and Io concerns.
+  Stdlib assemblies; the Core assembly contains only Filtering, Layout, Rendering, and Io
+  concerns.

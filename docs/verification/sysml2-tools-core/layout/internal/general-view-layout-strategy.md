@@ -48,9 +48,11 @@ configuration are required beyond a standard .NET SDK installation.
 - A view whose resolved `Expose` edge names a feature usage (not a definition) still renders that
   usage's type's containment subtree, by additionally resolving the usage's own `Typing` edge —
   the fix for the usage-vs-definition containment gap.
-- A view whose `ViewContext.ViewNode` carries a non-null `FilterExpressionText` emits the "parsed
-  but not yet evaluated" warning through `LayoutTree.Warnings`, while still rendering the resolved
-  (unfiltered) scope.
+- A view whose `ViewContext.ViewNode` carries a supported `FilterExpressionText` narrows the
+  already expose-scoped candidate definitions to the matched subset, including the empty-set case.
+- A view whose `ViewContext.ViewNode` carries an unsupported or malformed `FilterExpressionText`
+  emits a "could not be evaluated" warning through `LayoutTree.Warnings`, while still rendering
+  the resolved (unfiltered) scope.
 - A view with a `null` `ViewContext.ViewNode` (the `--auto` synthesized-view path, and the
   pre-scoping-change 2-argument `ViewContext` construction used throughout the rest of this test
   file) renders every non-stdlib definition in the workspace, unchanged from before this feature —
@@ -117,7 +119,10 @@ configuration are required beyond a standard .NET SDK installation.
   A resolved `Expose` edge naming a feature usage resolves through the usage's `Typing` edge to
   include its type's containment subtree
 - `GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning`:
-  A non-null `FilterExpressionText` emits the "parsed but not yet evaluated" warning
+  Unsupported filter text emits the "could not be evaluated" warning while the unfiltered scope
+  still renders
+- `GeneralViewLayoutStrategy_BuildLayout_FilterExpressionMatchesNothing_RendersEmpty`:
+  A supported filter expression that matches no candidates narrows the diagram to an empty canvas
 - `GeneralViewLayoutStrategy_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged`:
   A `null` `ViewNode` (`--auto`/default) renders every definition, unchanged (regression guard)
 - `GeneralViewLayoutStrategy_BuildLayout_BareNameRedefinition_ProducesHollowTriangleCrossbarEdge`:

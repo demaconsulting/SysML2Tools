@@ -38,26 +38,59 @@ internal static class LayoutWarnings
 
     /// <summary>
     /// Returns a single-element warning list stating that a view's <c>filter [&lt;expr&gt;];</c>
-    /// statement was parsed but not evaluated, or an empty list when the view declares no filter
-    /// expression.
+    /// statement could not be evaluated (a parse error or an unsupported Phase 1 construct), or an
+    /// empty list when the view declares no filter expression.
     /// </summary>
     /// <param name="viewName">Name of the view being laid out.</param>
     /// <param name="filterExpressionText">
     /// The view's raw filter expression source text, or <see langword="null"/> when the view
     /// declares no <c>filter</c> member.
     /// </param>
+    /// <param name="reason">
+    /// A short human-readable explanation of why evaluation could not proceed (e.g. the first
+    /// parse/evaluation diagnostic message), or <see langword="null"/> to omit the reason clause.
+    /// </param>
     /// <returns>The warning messages for the view.</returns>
-    public static IReadOnlyList<string> ForUnevaluatedFilter(string viewName, string? filterExpressionText)
+    public static IReadOnlyList<string> ForUnevaluatedFilter(
+        string viewName, string? filterExpressionText, string? reason = null)
     {
         if (filterExpressionText is null)
         {
             return [];
         }
 
+        var suffix = reason is { Length: > 0 } ? $" ({reason})" : string.Empty;
         return
         [
-            $"View '{viewName}' declares a filter expression, which is parsed but not yet " +
-            "evaluated; all elements in the resolved scope are rendered unfiltered.",
+            $"View '{viewName}' declares a filter expression that could not be evaluated{suffix}; " +
+            "all elements in the resolved scope are rendered unfiltered.",
+        ];
+    }
+
+    /// <summary>
+    /// Returns a single-element warning list stating that a view's <c>expose &lt;path&gt;::**[&lt;expr&gt;]</c>
+    /// bracket-filter expression(s) were parsed but not yet evaluated (Phase 1 captures raw text
+    /// only — see <c>SysmlViewNode.ExposeBracketFilterTexts</c>), or an empty list when the view
+    /// declares no bracket-filter expose members.
+    /// </summary>
+    /// <param name="viewName">Name of the view being laid out.</param>
+    /// <param name="bracketFilterTexts">The view's raw bracket-filter expression source texts.</param>
+    /// <returns>The warning messages for the view.</returns>
+    public static IReadOnlyList<string> ForUnevaluatedExposeBracketFilter(
+        string viewName, IReadOnlyList<string> bracketFilterTexts)
+    {
+        if (bracketFilterTexts.Count == 0)
+        {
+            return [];
+        }
+
+        var plural = bracketFilterTexts.Count == 1 ? "expression" : "expressions";
+        var verb = bracketFilterTexts.Count == 1 ? "is" : "are";
+        return
+        [
+            $"View '{viewName}' declares {bracketFilterTexts.Count} expose bracket-filter {plural} " +
+            $"('::**[...]'), which {verb} parsed but not yet evaluated; the bracket filter has no " +
+            "effect on the rendered scope.",
         ];
     }
 }

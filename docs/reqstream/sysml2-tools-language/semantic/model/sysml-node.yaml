@@ -20,8 +20,8 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-Types
         title: >-
           The SysmlNode hierarchy shall include SysmlPackageNode, SysmlDefinitionNode,
-          SysmlFeatureNode, SysmlImportNode, SysmlViewNode, SysmlViewpointNode,
-          SysmlConnectionNode, and SysmlTransitionNode.
+          SysmlFeatureNode, SysmlImportNode, SysmlMetadataNode, SysmlViewNode,
+          SysmlViewpointNode, SysmlConnectionNode, and SysmlTransitionNode.
         justification: |
           Separate node types for packages, definitions, features, imports, views,
           viewpoints, connections, and transitions allow future analysis passes to dispatch
@@ -59,11 +59,22 @@ sections:
           [<expr>];` member, or null when absent.
         justification: |
           Making a view's declared filter expression user-observable data is required so
-          callers can observe it as raw source text; full filter expression evaluation is
-          deferred future work and is out of scope for this field.
+          callers can observe it as raw source text and pass it to the Core Filtering subsystem;
+          this semantic-model field remains capture-only and does not itself perform evaluation.
         tests:
           - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
           - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewExposeBracketFilters
+        title: >-
+          SysmlViewNode shall expose ExposeBracketFilterTexts: the raw source text of each
+          bracketed `expose <path>::**[<expr>]` filter expression, empty when absent.
+        justification: |
+          Phase 1 defers bracket-filter evaluation but must preserve the captured expressions so
+          layout can surface a distinct warning and later phases can add real evaluation without
+          changing the semantic model.
+        tests:
+          - AstBuilder_ExposeBracketFilter_CapturesRawText
 
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-RedefinedFeatureName
         title: >-

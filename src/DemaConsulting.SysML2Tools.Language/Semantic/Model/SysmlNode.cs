@@ -31,6 +31,7 @@ namespace DemaConsulting.SysML2Tools.Semantic.Model;
 [JsonDerivedType(typeof(SysmlConnectionNode), "connection")]
 [JsonDerivedType(typeof(SysmlTransitionNode), "transition")]
 [JsonDerivedType(typeof(SysmlSatisfyNode), "satisfy")]
+[JsonDerivedType(typeof(SysmlMetadataNode), "metadata")]
 public abstract class SysmlNode
 {
     /// <summary>
@@ -171,7 +172,90 @@ public sealed class SysmlImportNode : SysmlNode
     ///     Gets a value indicating whether this is a wildcard import (::*).
     /// </summary>
     public bool IsWildcard { get; init; }
+
+    /// <summary>
+    ///     Gets the raw source text of this import's bracketed filter expression (from
+    ///     <c>expose &lt;path&gt;::**[&lt;expr&gt;]</c>'s <c>filterPackageMember().ownedExpression().GetText()</c>),
+    ///     or <see langword="null"/> when the import declares no bracket filter. Captured verbatim
+    ///     only — mirroring <see cref="SysmlViewNode.FilterExpressionText"/> — no expression tree is
+    ///     built and no evaluation is performed in Phase 1; a non-null value causes
+    ///     <c>GeneralViewLayoutStrategy</c> to emit an "unevaluated" warning. Full bracket-filter
+    ///     evaluation is deferred future work — see the project ROADMAP.
+    /// </summary>
+    public string? BracketFilterExpressionText { get; init; }
 }
+
+/// <summary>
+///     AST node representing an applied metadata annotation (<c>{@Type{attr = value;}}</c> or the
+///     bare <c>@Type;</c>/<c>@Type{}</c> forms), captured from a <c>metadataFeature</c> nested in
+///     an owning element's body.
+/// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations. This node is attached as a
+///     <see cref="SysmlNode.Children"/> entry of the element it annotates (its lexically enclosing
+///     definition/feature), not as an <see cref="SysmlNode.Annotations"/> entry — unlike
+///     comment/documentation, a metadata annotation is a first-class semantic reference (resolved
+///     by <see cref="ReferenceResolver"/>) rather than free-text documentation.
+/// </remarks>
+public sealed class SysmlMetadataNode : SysmlNode
+{
+    /// <summary>
+    ///     Gets the raw reference text of the annotating metadata type (e.g. <c>"Safety"</c> or
+    ///     <c>"Pkg::Safety"</c>), from <c>metadataFeatureDeclaration().ownedFeatureTyping()</c>.
+    ///     Resolved by <see cref="ReferenceResolver"/> into a <see cref="SysmlEdgeKind.MetadataType"/>
+    ///     edge, or an unresolved-reference diagnostic when it does not resolve.
+    /// </summary>
+    public string TypeReference { get; init; } = string.Empty;
+
+    /// <summary>
+    ///     Gets the literal attribute values assigned in this annotation's body (e.g.
+    ///     <c>isMandatory = true;</c>), in source order. Only scalar boolean/number/string literal
+    ///     values are captured in Phase 1 (see <see cref="MetadataAttributeValue"/>); non-literal
+    ///     value expressions are recorded with <see cref="MetadataAttributeValueKind.Unsupported"/>
+    ///     and their raw text preserved, never evaluated.
+    /// </summary>
+    public IReadOnlyList<MetadataAttributeValue> Attributes { get; init; } = Array.Empty<MetadataAttributeValue>();
+}
+
+/// <summary>
+///     Classifies the kind of literal value captured for a <see cref="MetadataAttributeValue"/>.
+/// </summary>
+public enum MetadataAttributeValueKind
+{
+    /// <summary>A boolean literal (<c>true</c>/<c>false</c>).</summary>
+    Boolean,
+
+    /// <summary>A numeric literal (integer or real).</summary>
+    Number,
+
+    /// <summary>A double-quoted string literal.</summary>
+    String,
+
+    /// <summary>
+    ///     A value expression that is not a scalar literal (e.g. a feature reference, arithmetic
+    ///     expression, or constructor call) — captured as raw text only, never evaluated.
+    /// </summary>
+    Unsupported,
+}
+
+/// <summary>
+///     A single literal attribute value assigned within a <see cref="SysmlMetadataNode"/>'s body
+///     (e.g. <c>isMandatory = true;</c>).
+/// </summary>
+/// <param name="Name">The attribute's simple name (e.g. <c>"isMandatory"</c>).</param>
+/// <param name="Kind">The kind of literal value captured.</param>
+/// <param name="RawText">The raw source text of the value expression (e.g. <c>"true"</c>).</param>
+/// <param name="BooleanValue">The parsed boolean value when <paramref name="Kind"/> is <see cref="MetadataAttributeValueKind.Boolean"/>.</param>
+/// <param name="NumberValue">The parsed numeric value when <paramref name="Kind"/> is <see cref="MetadataAttributeValueKind.Number"/>.</param>
+/// <param name="StringValue">The parsed (unquoted) string value when <paramref name="Kind"/> is <see cref="MetadataAttributeValueKind.String"/>.</param>
+public sealed record MetadataAttributeValue(
+    string Name,
+    MetadataAttributeValueKind Kind,
+    string RawText,
+    bool? BooleanValue = null,
+    double? NumberValue = null,
+    string? StringValue = null);
 
 /// <summary>
 ///     AST node representing a view definition or view usage.
@@ -215,6 +299,17 @@ public sealed class SysmlViewNode : SysmlNode
     ///     deferred future work — see the project ROADMAP.
     /// </summary>
     public string? FilterExpressionText { get; init; }
+
+    /// <summary>
+    ///     Gets the raw source text of every bracketed <c>expose &lt;path&gt;::**[&lt;expr&gt;]</c>
+    ///     filter expression found among this view's <c>expose</c> members, in source order.
+    ///     Captured verbatim only (from <c>filterPackageMember().ownedExpression().GetText()</c>) —
+    ///     no expression tree is built and no evaluation is performed in Phase 1; a non-empty list
+    ///     causes <c>GeneralViewLayoutStrategy</c> to emit an "unevaluated" warning distinct from
+    ///     <see cref="FilterExpressionText"/>'s. Full bracket-filter evaluation is deferred future
+    ///     work — see the project ROADMAP.
+    /// </summary>
+    public IReadOnlyList<string> ExposeBracketFilterTexts { get; init; } = Array.Empty<string>();
 }
 
 /// <summary>

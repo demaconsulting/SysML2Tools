@@ -440,6 +440,25 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/AstDeserializer.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstSerializerTests.cs"
 
+  - id: SysML2Tools-Language-Semantic-Model-SysmlMetadataNode
+    title: Review that DemaConsulting.SysML2Tools Language Semantic Model SysmlMetadataNode Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-language.md
+      - docs/reqstream/sysml2-tools-language.yaml
+      - docs/design/sysml2-tools-language/semantic.md
+      - docs/reqstream/sysml2-tools-language/semantic.yaml
+      - docs/design/sysml2-tools-language/semantic/model.md
+      - docs/reqstream/sysml2-tools-language/semantic/model.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-language/semantic/model/sysml-metadata-node.yaml"
+      - "docs/design/sysml2-tools-language/semantic/model.md"
+      - "docs/verification/sysml2-tools-language/semantic/model.md"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SysmlNode.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/AstBuilder.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/ReferenceResolver.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SysmlEdge.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstBuilderMetadataTests.cs"
+
   - id: SysML2Tools-Core-Layout-Design
     title: Review that DemaConsulting.SysML2Tools Layout Design is Consistent and Complete
     context:
@@ -513,6 +532,54 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Core/Io/GlobFileCollector.cs"
       - "src/DemaConsulting.SysML2Tools.Core/Io/NamespaceDoc.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Io/GlobFileCollectorTests.cs"
+
+  - id: SysML2Tools-Core-Filtering-Design
+    title: Review that DemaConsulting.SysML2Tools Filtering Design is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/reqstream/sysml2-tools-core/filtering.yaml
+    paths:
+      - "docs/design/introduction.md"
+      - "docs/design/sysml2-tools-core.md"
+      - "docs/design/sysml2-tools-core/filtering.md"
+      - "docs/design/sysml2-tools-core/filtering/**/*.md"
+
+  - id: SysML2Tools-Core-Filtering-Verification
+    title: Review that DemaConsulting.SysML2Tools Filtering Verification is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/reqstream/sysml2-tools-core/filtering.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-core.md"
+      - "docs/verification/sysml2-tools-core/filtering.md"
+      - "docs/verification/sysml2-tools-core/filtering/**/*.md"
+
+  - id: SysML2Tools-Core-Filtering-AllRequirements
+    title: Review that All DemaConsulting.SysML2Tools Filtering Requirements are Complete
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-core/filtering.yaml"
+      - "docs/reqstream/sysml2-tools-core/filtering/**/*.yaml"
+
+  - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator
+    title: Review that DemaConsulting.SysML2Tools Filtering FilterExpressionEvaluator Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/filtering.md
+      - docs/reqstream/sysml2-tools-core/filtering.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-core/filtering/filter-expression-evaluator.yaml"
+      - "docs/design/sysml2-tools-core/filtering/filter-expression-evaluator.md"
+      - "docs/verification/sysml2-tools-core/filtering/filter-expression-evaluator.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Filtering/FilterExpression.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Filtering/FilterExpressionParser.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Filtering/FilterExpressionEvaluator.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Filtering/FilterExpressionParserTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Filtering/FilterExpressionEvaluatorTests.cs"
 
   # === Layout Internal subsystem and view-strategy units ===
   - id: SysML2Tools-Core-Layout-Internal

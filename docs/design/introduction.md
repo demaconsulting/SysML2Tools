@@ -48,15 +48,19 @@ system, subsystem, and unit levels:
     - **AstSerializer** (Unit) — serializes SymbolTable + diagnostics to UTF-8 JSON bytes
     - **AstDeserializer** (Unit) — deserializes bytes back to SymbolTable + diagnostics
     - **Model** (Subsystem) — semantic model: public model types plus internal build/resolve implementation
-      - **SysmlNode** (Unit) — public AST node hierarchy: nine types with JSON polymorphism
-      - **AstBuilder** (Unit) — builds AST from ANTLR4 CST with qualified names and supertype lists
+      - **SysmlNode** (Unit) — public AST node hierarchy: named-element and view/import node types
+      - **SysmlMetadataNode** (Unit) — applied metadata annotation node with raw type reference and
+        captured scalar attribute values
+      - **AstBuilder** (Unit) — builds AST from ANTLR4 CST with qualified names, metadata
+        annotations, and raw view filter text
       - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes
-      - **ReferenceResolver** (Unit) — resolves supertype, typing, redefinition, import, satisfy,
-        verify, allocate, and (in a second pass) dotted feature-chain connect/transition references;
-        detects circular imports; returns a `SemanticIndex` of resolved edges
+      - **ReferenceResolver** (Unit) — resolves supertype, typing, metadata-type,
+        redefinition, import, satisfy, verify, allocate, expose, and (in a second pass) dotted
+        feature-chain connect/transition references; detects circular imports; returns a
+        `SemanticIndex` of resolved edges
       - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
-      - **SysmlEdge** (Unit) — public resolved-reference record (Supertype/Typing/Import/
-        Satisfy/Verify/Allocate/Connect/Transition)
+      - **SysmlEdge** (Unit) — public resolved-reference record (Supertype/Typing/MetadataType/
+        Import/Expose/Redefinition/Satisfy/Verify/Allocate/Connect/Transition)
       - **SemanticIndex** (Unit) — public reverse-lookup index over resolved `SysmlEdge` instances
       - **SysmlAnnotation** (Unit) — public captured-comment/documentation record
         (Comment/Documentation)
@@ -70,8 +74,12 @@ system, subsystem, and unit levels:
   stdlib.json.gz (invoked by build.ps1, not part of the MSBuild graph; excluded from the
   software-items requirements/design/verification tree — see _Scope_)
   - **Program** (Unit) — entry point: parses stdlib, runs resolution, serializes and compresses to stdlib.json.gz
-- **DemaConsulting.SysML2Tools.Core** (System) — core library: layout strategies, rendering
-  orchestration, and the SysML-coupled rendering pipeline
+- **DemaConsulting.SysML2Tools.Core** (System) — core library: layout strategies,
+  filter-expression evaluation, rendering orchestration, and the SysML-coupled rendering pipeline
+  - **Filtering** (Subsystem) — parses and evaluates the Phase 1 subset of standalone view
+    `filter [<expr>];` expressions over metadata annotations
+    - **FilterExpressionEvaluator** (Unit) — filter-expression AST, parser adaptation, and
+      evaluator for metadata classification tests, boolean connectives, and metadata-attribute reads
   - **Layout** (Subsystem) — maps the SysML semantic model onto the off-the-shelf `LayoutTree`
     intermediate representation and delegates geometric placement and routing to the off-the-shelf
     `DemaConsulting.Rendering.Layout` layered algorithm
@@ -157,12 +165,13 @@ reviewers an explicit navigation aid from design to code:
       - **Antlr/** — ANTLR4-generated C# (committed; not hand-written)
       - **Internal/** — internal implementation (SysmlDiagnosticListener)
     - **Semantic/** — semantic model subsystem
-      - **Model/** — public semantic model types (SysmlNode, AstBuilder, SymbolTable,
-        ReferenceResolver, SupertypeWalker, SysmlEdge, SemanticIndex, SysmlAnnotation,
-        SerializedStdlib, AstSerializerContext)
+      - **Model/** — public semantic model types (SysmlNode, SysmlMetadataNode, AstBuilder,
+        SymbolTable, ReferenceResolver, SupertypeWalker, SysmlEdge, SemanticIndex,
+        SysmlAnnotation, SerializedStdlib, AstSerializerContext)
   - **DemaConsulting.SysML2Tools.Stdlib/** — stdlib library
     - **Stdlib/** — SysML v2 standard library source files (EPL-2.0; see Stdlib/README.md)
   - **DemaConsulting.SysML2Tools.Core/** — core library
+    - **Filtering/** — standalone view-filter expression AST, parser, and evaluator
     - **Layout/** — layout strategies mapping the model to the off-the-shelf `LayoutTree`
       - **Internal/** — per-view layout strategies and the `LayeredPlacement` helper
     - **Rendering/** — SysML-coupled rendering pipeline (`ILayoutStrategy`, `DiagramRenderer`)

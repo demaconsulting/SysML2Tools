@@ -1142,22 +1142,23 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A view whose <c>FilterExpressionText</c> is non-null emits the "parsed but not yet
-    ///     evaluated" diagnostic through <see cref="LayoutTree.Warnings"/>, while still rendering
-    ///     the (unfiltered) resolved scope — per the binding decision to defer filter expression
-    ///     evaluation to a future roadmap item.
+    ///     A view whose <c>FilterExpressionText</c> uses a construct outside the Phase 1 subset
+    ///     emits a "could not be evaluated" diagnostic through <see cref="LayoutTree.Warnings"/>,
+    ///     while still rendering the (unfiltered) resolved scope — the documented fallback
+    ///     behavior for a filter expression that fails to parse/evaluate (see ROADMAP.md).
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning()
     {
-        // Arrange: a view declaring a filter expression
+        // Arrange: a view declaring a filter expression outside the Phase 1 construct subset
+        // (arithmetic addition, which has no corresponding FilterExpression node).
         var strategy = new GeneralViewLayoutStrategy();
         var workspace = BuildScopingWorkspace();
         var viewNode = new SysmlViewNode
         {
             Name = "V",
             QualifiedName = "Root::V",
-            FilterExpressionText = "@SysML::PartUsage"
+            FilterExpressionText = "1 + 2"
         };
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
@@ -1167,10 +1168,36 @@ public sealed class GeneralViewLayoutStrategyTests
 
         // Assert: a warning about the unevaluated filter is present, and the resolved (unfiltered)
         // scope — here, the full workspace, since no expose statement was declared — still renders.
-        Assert.Contains(layout.Warnings, w => w.Contains("filter expression") && w.Contains("not yet evaluated"));
+        Assert.Contains(layout.Warnings, w => w.Contains("filter expression") && w.Contains("could not be evaluated"));
         var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
         Assert.Contains("A", labels);
         Assert.Contains("B", labels);
+    }
+
+    /// <summary>
+    ///     A view whose <c>FilterExpressionText</c> is a Phase 1 classification-test expression
+    ///     that matches no candidate's metadata annotations narrows the rendered scope to nothing,
+    ///     confirming standalone <c>filter</c> evaluation actually applies (as opposed to the
+    ///     legacy "parsed but not evaluated" behavior).
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_FilterExpressionMatchesNothing_RendersEmpty()
+    {
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildScopingWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            FilterExpressionText = "@NoSuchMetadataType"
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        Assert.Empty(layout.Warnings);
+        Assert.Empty(CollectBoxes(layout.Nodes));
     }
 
     /// <summary>

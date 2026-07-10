@@ -2,6 +2,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+// cspell:ignore istype
+
 using DemaConsulting.SysML2Tools.Layout.Internal;
 
 namespace DemaConsulting.SysML2Tools.Tests.Layout;
@@ -48,7 +50,7 @@ public sealed class LayoutWarningsTests
 
     /// <summary>
     ///     A non-null filter expression text produces a single warning naming the view and stating
-    ///     that the filter expression is parsed but not yet evaluated.
+    ///     that the filter expression could not be evaluated.
     /// </summary>
     [Fact]
     public void ForUnevaluatedFilter_NonNullText_ReturnsNotYetEvaluatedWarning()
@@ -58,6 +60,35 @@ public sealed class LayoutWarningsTests
         var message = Assert.Single(warnings);
         Assert.Contains("MyView", message);
         Assert.Contains("filter expression", message);
+        Assert.Contains("could not be evaluated", message);
+    }
+
+    /// <summary>A reason, when supplied, is included in the warning message.</summary>
+    [Fact]
+    public void ForUnevaluatedFilter_WithReason_IncludesReason()
+    {
+        var warnings = LayoutWarnings.ForUnevaluatedFilter("MyView", "istype Foo", "unsupported construct");
+
+        var message = Assert.Single(warnings);
+        Assert.Contains("unsupported construct", message);
+    }
+
+    /// <summary>An empty bracket-filter list produces no warnings.</summary>
+    [Fact]
+    public void ForUnevaluatedExposeBracketFilter_Empty_ReturnsEmpty()
+    {
+        Assert.Empty(LayoutWarnings.ForUnevaluatedExposeBracketFilter("View", []));
+    }
+
+    /// <summary>A non-empty bracket-filter list produces a single warning naming the view.</summary>
+    [Fact]
+    public void ForUnevaluatedExposeBracketFilter_NonEmpty_ReturnsWarning()
+    {
+        var warnings = LayoutWarnings.ForUnevaluatedExposeBracketFilter("MyView", ["@Safety"]);
+
+        var message = Assert.Single(warnings);
+        Assert.Contains("MyView", message);
+        Assert.Contains("bracket-filter", message);
         Assert.Contains("not yet evaluated", message);
     }
 }

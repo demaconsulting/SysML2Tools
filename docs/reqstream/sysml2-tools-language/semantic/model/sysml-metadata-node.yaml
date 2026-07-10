@@ -1,0 +1,60 @@
+---
+# SysmlMetadataNode Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the SysmlMetadataNode unit
+# - SysmlMetadataNode captures an applied metadata annotation on a semantic-model element
+# - Requirements describe the observable captured data and resolution behavior, not parser internals
+
+sections:
+  - title: SysmlMetadataNode Unit Requirements
+    requirements:
+      - id: SysML2Tools-Language-Semantic-Model-SysmlMetadataNode-CaptureForms
+        title: >-
+          SysmlMetadataNode shall capture an applied metadata annotation's raw type reference and
+          shall represent bare and body-bearing annotation forms as a child of the annotated
+          element, with an empty Attributes list when the annotation assigns no attribute values.
+        justification: |
+          Metadata annotations are first-class semantic content, not free-text documentation.
+          Capturing them as child nodes preserves both the annotating type reference and the fact
+          that the owning element was annotated at all, which Phase 1 filter-expression
+          evaluation depends on.
+        tests:
+          - AstBuilder_BareMetadataAnnotation_CapturesMetadataNode
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlMetadataNode-LiteralAttributes
+        title: >-
+          SysmlMetadataNode shall capture scalar literal attribute assignments on a metadata
+          annotation as ordered MetadataAttributeValue entries, preserving the attribute name,
+          raw value text, literal kind, and parsed scalar value for supported boolean, number,
+          and string literals.
+        justification: |
+          Phase 1 filter evaluation reads metadata attributes by name and compares them against
+          scalar literals. The semantic model therefore needs the assigned values preserved as
+          structured data rather than only as raw annotation text.
+        tests:
+          - AstBuilder_MetadataAnnotationWithBooleanAttribute_CapturesLiteralValue
+          - Evaluate_ComparisonEqual_MatchesEqualValue
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlMetadataNode-MetadataTypeResolution
+        title: >-
+          ReferenceResolver shall resolve a SysmlMetadataNode's TypeReference against an in-scope
+          metadata definition and record the result as a MetadataType-kind edge on the metadata
+          node.
+        justification: |
+          Filter classification tests match by metadata type. Resolving the raw type reference to a
+          concrete metadata definition makes metadata annotations comparable across files,
+          namespaces, and imported scopes.
+        tests:
+          - AstBuilder_MetadataAnnotation_ResolvesTypeReference
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlMetadataNode-UnresolvedTypeWarning
+        title: >-
+          When a SysmlMetadataNode's TypeReference cannot be resolved, ReferenceResolver shall
+          emit an "Unresolved reference" Warning diagnostic and shall record no MetadataType edge.
+        justification: |
+          An unresolved metadata annotation type is model incompleteness that callers need to see,
+          but it must not prevent semantic loading from completing. The warning mirrors every
+          other reference-resolution failure path in the semantic model.
+        tests:
+          - AstBuilder_MetadataAnnotation_UnresolvedType_ProducesWarning

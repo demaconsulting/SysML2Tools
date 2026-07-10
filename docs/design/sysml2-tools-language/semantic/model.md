@@ -3,11 +3,11 @@
 #### Overview
 
 The Semantic Model subsystem provides the public semantic model types (`SysmlNode` and its
-subtypes, `SysmlEdge`, `SysmlAnnotation`, `SemanticIndex`) alongside the internal build/resolve
-implementation of the semantic loading pipeline (`AstBuilder`, `SymbolTable`,
-`ReferenceResolver`, `SupertypeWalker`). It contains eight units: `AstBuilder`, `SymbolTable`,
-`ReferenceResolver`, `SupertypeWalker`, `SysmlNode`, `SysmlEdge`, `SemanticIndex`, and
-`SysmlAnnotation`.
+subtypes, `SysmlMetadataNode`, `SysmlEdge`, `SysmlAnnotation`, `SemanticIndex`) alongside the
+internal build/resolve implementation of the semantic loading pipeline (`AstBuilder`,
+`SymbolTable`, `ReferenceResolver`, `SupertypeWalker`). It contains nine units: `AstBuilder`,
+`SymbolTable`, `ReferenceResolver`, `SupertypeWalker`, `SysmlNode`, `SysmlMetadataNode`,
+`SysmlEdge`, `SemanticIndex`, and `SysmlAnnotation`.
 
 #### Interfaces
 
@@ -26,14 +26,14 @@ implementation of the semantic loading pipeline (`AstBuilder`, `SymbolTable`,
   the symbol dictionary. Duplicate names are silently ignored.
 
 **`ReferenceResolver.ResolveAll(IEnumerable<(string, SysmlNode?)>)`**: Runs import-cycle detection
-and supertype/typing/import reference resolution over all loaded file roots.
+and supertype/typing/metadata-type/import reference resolution over all loaded file roots.
 
 - *Type*: In-process .NET internal method.
 - *Role*: Provider.
 - *Contract*: Accepts a list of `(FilePath, Root)` pairs; emits Warning diagnostics for
-  unresolved supertype, typing, and import references and for circular import chains; attaches
-  resolved `SysmlEdge` entries to each node's `ResolvedEdges`; returns a `SemanticIndex` over
-  all resolved edges.
+  unresolved supertype, typing, metadata-type, and import references and for circular import
+  chains; attaches resolved `SysmlEdge` entries to each node's `ResolvedEdges`; returns a
+  `SemanticIndex` over all resolved edges.
 
 **`SupertypeWalker.WalkAll()`**: Traverses all specialization chains to detect cyclic specialization.
 
@@ -55,12 +55,13 @@ over resolved edges.
 
 | Unit | Responsibility |
 | --- | --- |
-| `AstBuilder` | Visits ANTLR4 CST; builds typed AST nodes with qualified names and supertype lists |
+| `AstBuilder` | Visits ANTLR4 CST; builds typed AST nodes, metadata children, and raw view-filter text |
 | `SymbolTable` | Registry mapping fully-qualified names to their AST nodes |
-| `ReferenceResolver` | Resolves supertype/typing/redefinition/import/satisfy/verify/allocate/connect/transition |
+| `ReferenceResolver` | Resolves supertype, typing, redefinition, metadata-type, import, and other references |
 | `SupertypeWalker` | Walks specialization chains; detects cyclic specialization |
-| `SysmlNode` | Public abstract base record (and subtypes) modeling one parsed AST element |
-| `SysmlEdge` | Public record modeling one resolved reference (Supertype/Typing/Import/Satisfy/Verify/Allocate/etc.) |
+| `SysmlNode` | Public abstract base record (and core subtypes) modeling one parsed AST element |
+| `SysmlMetadataNode` | Public node type modeling one applied metadata annotation and its captured values |
+| `SysmlEdge` | Public record modeling one resolved reference (Supertype, Typing, MetadataType, etc.) |
 | `SemanticIndex` | Public reverse-lookup index over resolved `SysmlEdge` instances |
 | `SysmlAnnotation` | Public record modeling one captured `comment`/`doc` annotation (Comment/Documentation) |
 
@@ -69,6 +70,6 @@ Interaction sequence:
 1. `WorkspaceLoader` creates one `AstBuilder` per file and calls `Build(rootNamespaceContext)`.
 2. The returned `SysmlPackageNode` root is passed to `SymbolTable.RegisterAll`.
 3. After all files are registered, `ReferenceResolver.ResolveAll` traverses all user-file AST
-   roots, attaches `SysmlEdge` entries to each node's `ResolvedEdges`, and returns a
-   `SemanticIndex` over all resolved edges.
+   roots, attaches `SysmlEdge` entries to each node's `ResolvedEdges` (including metadata-type
+   edges on `SysmlMetadataNode` children), and returns a `SemanticIndex` over all resolved edges.
 4. Finally, `SupertypeWalker.WalkAll` iterates over all symbols in the table.

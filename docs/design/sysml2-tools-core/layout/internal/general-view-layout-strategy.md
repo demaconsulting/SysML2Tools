@@ -42,19 +42,26 @@ relationships.
 Entry point. First resolves the view's exposed-name scope via the shared
 `ExposeScopeResolver.ResolveExposedScope` (see the *ExposeScopeResolver* unit chapter), then calls
 `CollectDefinitions` to gather user definitions restricted to that scope (or every definition when
-no scope applies); returns a minimal 200×100 empty `LayoutTree` when none are found. Otherwise
-groups the definitions by package with `GroupByPackage`, resolves the specialization/membership/
-attribute-typing/redefinition relationships into qualified-name edges with `BuildModelEdges`,
-builds the single input `LayoutGraph` with `BuildGraph`, and places the whole graph with one
-`HierarchicalLayoutAlgorithm().Apply(graph, LayoutOptions.ForAlgorithm("containment"))`
-call — passing the desired root-scope leaf algorithm through the options parameter (not
+no scope applies); returns a minimal 200×100 empty `LayoutTree` when none are found. If the view
+carries standalone `FilterExpressionText`, the method next parses it with
+`FilterExpressionParser.Parse`; a successful parse is evaluated with
+`FilterExpressionEvaluator.Evaluate` over the already expose-scoped candidate definitions, narrowing
+`defs` to the matched subset and returning the same minimal empty canvas when that subset is empty.
+A parse failure or unsupported Phase 1 construct does not abort layout: the first parser
+diagnostic message is remembered as the warning reason and the method continues rendering the
+unfiltered resolved scope. The remaining pipeline is unchanged: definitions are grouped by package
+with `GroupByPackage`, the specialization/membership/attribute-typing/redefinition relationships are
+resolved into qualified-name edges with `BuildModelEdges`, the single input `LayoutGraph` is built
+with `BuildGraph`, and the whole graph is placed with one
+`HierarchicalLayoutAlgorithm().Apply(graph, LayoutOptions.ForAlgorithm("containment"))` call —
+passing the desired root-scope leaf algorithm through the options parameter (not
 `graph.Set(CoreOptions.Algorithm, …)`) so a caller going through `LayoutEngine.Layout(graph)` later
 is never misled into skipping the hierarchical engine. When any package folder was depth-truncated,
 `DecorateTruncatedFolders` stamps each truncated folder's "+N more…" ellipsis label onto its placed
-box. Finally, when `context.ViewNode?.FilterExpressionText` is non-null, attaches the
-"parsed but not yet evaluated" warning (from `LayoutWarnings.ForUnevaluatedFilter`) to the returned
-tree's `Warnings` via the `LayoutTree with { Warnings = … }` record-copy idiom, leaving the
-resolved (unfiltered) scope's content unchanged.
+box. Finally, the returned tree's `Warnings` concatenates
+`LayoutWarnings.ForUnevaluatedFilter` (only when standalone filter parsing/evaluation failed) with
+`LayoutWarnings.ForUnevaluatedExposeBracketFilter` (for the still-capture-only
+`expose <path>::**[<expr>]` form) via the `LayoutTree with { Warnings = … }` record-copy idiom.
 
 ###### `CollectDefinitions(workspace, theme, scope)`
 
@@ -164,8 +171,11 @@ produces valid geometry, so no crossing warnings are emitted.
 - `ExposeScopeResolver` (Layout Internal subsystem) — `ResolveExposedScope` and
   `IsInSubjectScope` supply the shared `expose`-scoping used by `BuildLayout` and
   `CollectDefinitions`.
-- `LayoutWarnings` (Layout Internal subsystem) — `ForUnevaluatedFilter` supplies the
-  "parsed but not yet evaluated" filter-expression warning text.
+- `FilterExpressionParser` and `FilterExpressionEvaluator` (Filtering subsystem) — parse and
+  evaluate standalone `filter [<expr>];` statements over the already expose-scoped definition set.
+- `LayoutWarnings` (Layout Internal subsystem) — `ForUnevaluatedFilter` and
+  `ForUnevaluatedExposeBracketFilter` supply the warning text for standalone-filter fallback and
+  still-unevaluated expose bracket filters.
 - The `LayoutTree`, `LayoutBox`, `LayoutCompartment`, `LayoutLine`, `LayoutLabel`, and `Point2D` data
   types (`DemaConsulting.Rendering`).
 - `FeatureMembership` (private record) — carries the keyword, nullable type reference, simple
