@@ -80,8 +80,10 @@ corpus fixture `1c-PartsTreeRedefinition.sysml`'s `part vehicle1_c1 :> vehicle1 
 grammar alternatives of `annotatingElement` (`comment | documentation | textualRepresentation |
 metadataFeature`) and returns a private `AnnotationCapture` sentinel node wrapping a
 `SysmlAnnotation` built from `ExtractCommentText(REGULAR_COMMENT())`. `textualRepresentation`
-and `metadataFeature` are unhandled (falls through to `base.VisitAnnotatingElement`, returning
-`null`, unchanged from prior behavior).
+remains unhandled, but `metadataFeature` is now captured as a first-class `SysmlMetadataNode`
+child via `BuildMetadataNode`: it records the annotation type reference and any directly-assigned
+scalar literal attributes (Boolean/Number/String), preserving unsupported value expressions as raw
+text with `MetadataAttributeValueKind.Unsupported`.
 
 `ExtractCommentText(ITerminalNode?)` strips the `/*`/`//*` opening delimiter and trailing `*/`
 closing delimiter from a `REGULAR_COMMENT` token's raw text, preserving all interior
@@ -123,8 +125,8 @@ absent.
 `ExtractViewRenderAndFilter<TItem>` helper (see below) to populate `RenderTargetName` and
 `FilterExpressionText`. `VisitViewUsage` builds a `SysmlViewNode` for named `view` usages (the
 only body form that may additionally contain `expose` members) the same way, plus
-`ExtractExposedNames` to populate `ExposedNames`. Unnamed view usages are skipped (no declared
-name), mirroring the existing anonymous-element convention.
+`ExtractExposedNames` to populate `ExposedNames` and `ExposeBracketFilterTexts`. Unnamed view
+usages are skipped (no declared name), mirroring the existing anonymous-element convention.
 
 **`VisitViewUsage` is an intentional capability addition, not merely an `expose`-capture
 prerequisite.** Before this override existed, named `view Name { ... }` usages were silently
@@ -149,13 +151,17 @@ appears (a defensive tie-break, not a validated SysML constraint). `ExtractRende
 follows the same two-form fallback pattern `VisitSatisfyRequirementUsage` uses: the direct
 reference form (`ownedReferenceSubsetting()`), falling back to the typed-placeholder form's
 feature typing (`ExtractFeatureTyping`), falling back to the raw usage text. The filter
-expression's raw source text is taken verbatim from
-`elementFilterMember().ownedExpression()?.GetText()` — never evaluated.
+expression's raw source text is reconstructed with `GetOriginalText(...)`, preserving inter-token
+whitespace so the Filtering subsystem can re-lex it faithfully rather than receiving
+`RuleContext.GetText()`'s concatenated token stream.
 
 `ExtractExposedNames(IEnumerable<ViewBodyItemContext> bodyItems)` collects the raw reference
 text of every `expose <name>;` member in source order, reusing the shared `ExtractImportTarget`
 helper (see below) against each `expose` member's wrapped `namespaceImport()`/
-`membershipImport()` — the identical grammar shape `import` uses.
+`membershipImport()` — the identical grammar shape `import` uses. When an `expose` member uses the
+dominant corpus form `qualifiedName::**[<expr>]`, the same helper also returns the bracketed
+filter expression's original source text so `SysmlViewNode.ExposeBracketFilterTexts` can preserve
+it as Phase 1 capture-only data.
 
 `ExtractImportTarget(NamespaceImportContext?, MembershipImportContext?)` is a shared helper
 extracted from `VisitImportRule`'s previously inline logic, returning the extracted

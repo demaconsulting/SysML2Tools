@@ -4,6 +4,8 @@
 using System.Globalization;
 using DemaConsulting.SysML2Tools.Parser.Antlr;
 
+// cspell:ignore unlexable
+
 namespace DemaConsulting.SysML2Tools.Semantic.Model;
 
 /// <summary>
@@ -1059,8 +1061,9 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     token's text with no separators. Required whenever the captured text will later be
     ///     re-lexed on its own (e.g. <c>FilterExpressionParser.Parse</c>) — without the original
     ///     inter-token spacing, adjacent keyword/identifier tokens can merge into a single token
-    ///     (e.g. <c>"@Safety and (as Safety)"</c> would otherwise round-trip as
-    ///     <c>"@Safetyand(asSafety)"</c>, losing the <c>and</c>/<c>as</c> keyword boundaries).
+    ///     (e.g. <c>"@Safety and (as Safety)"</c> would otherwise round-trip as the unlexable
+    ///     <c>"@Safety" + "and" + "(as" + "Safety)"</c> run together with no separators, losing the
+    ///     <c>and</c>/<c>as</c> keyword boundaries).
     /// </summary>
     private static string GetOriginalText(Antlr4.Runtime.ParserRuleContext context) =>
         context.Start.InputStream.GetText(

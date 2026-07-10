@@ -3,10 +3,10 @@
 ##### Verification Approach
 
 `AstBuilder` is an internal class with no public surface and is verified indirectly through
-`WorkspaceLoaderTests`. Tests call `WorkspaceLoader.LoadAsync` with controlled `.sysml` source
-files and assert that the returned `SysmlLoadResult.Workspace.Declarations` contains the
-expected qualified names, confirming that `AstBuilder` correctly extracted names, built
-qualified names from the namespace stack, and extracted supertype names from the CST.
+`WorkspaceLoaderTests` plus the focused `AstBuilderMetadataTests`. Tests call
+`WorkspaceLoader.LoadAsync` with controlled `.sysml` source files and assert that the returned
+`SysmlLoadResult.Workspace.Declarations` and nested node data contain the expected names,
+metadata annotations, and raw filter text.
 
 ##### Test Environment
 
@@ -25,13 +25,15 @@ external services or additional configuration are required beyond a standard .NE
 - A usage/feature's own usage-level `subsets`/`:>` clause (distinct from a definition's
   `specializes`/`:>` supertype clause) directly populates that feature node's `SupertypeNames`
   with the expected target name.
+- A metadata annotation in an element body is captured as a `SysmlMetadataNode` child with its
+  raw type reference and any supported literal attribute values.
 - `VisitViewDefinition` captures `render <target>;` and `filter [<expr>];` members' raw text on
   the corresponding `SysmlViewNode`, and leaves both null for a view with an empty body.
 - `VisitViewUsage` (a named `view` usage, not a `view def` definition) captures the same
   render/filter members plus `expose <name>;` members, producing a `SysmlViewNode` with
-  populated `ExposedNames`. This also makes every named `view` usage its own renderable
-  declaration, an intentional capability addition beyond `expose` capture alone (see the
-  ast-builder design doc).
+  populated `ExposedNames` and `ExposeBracketFilterTexts`. This also makes every named `view`
+  usage its own renderable declaration, an intentional capability addition beyond `expose`
+  capture alone (see the ast-builder design doc).
 - `BuildUsageNode` captures a feature's redefinition reference on `RedefinedFeatureName` for both
   the `redefines` keyword form and the `:>>` operator form, for both a bare simple name and a
   qualified `Owner::feature` form (captured verbatim, unresolved), and leaves it null for a
@@ -46,9 +48,12 @@ external services or additional configuration are required beyond a standard .NE
 | Definition registration | `WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition` |
 | Supertype extraction | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
 | Usage-level `subsets`/`:>` capture | `WorkspaceLoader_LoadAsync_UsageLevelSubsetting_PopulatesSupertypeNames` |
+| Metadata annotation capture | `AstBuilder_BareMetadataAnnotation_CapturesMetadataNode` |
+| Metadata literal attribute capture | `AstBuilder_MetadataAnnotationWithBooleanAttribute_CapturesLiteralValue` |
 | `VisitViewDefinition` render | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | `VisitViewDefinition` filter capture | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | `VisitViewUsage` expose capture | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
+| `VisitViewUsage` bracket-filter capture | `AstBuilder_ExposeBracketFilter_CapturesRawText` |
 | `VisitViewUsage` renderable declaration | `RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages` |
 | Empty view body regression guard | `WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty` |
 | Redefinition, `redefines` keyword | `WorkspaceLoader_LoadAsync_RedefinesKeyword_CapturesRedefinedFeatureName` |

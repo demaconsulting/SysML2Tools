@@ -2,10 +2,10 @@
 
 ##### Verification Approach
 
-`LayoutWarnings` is verified through unit tests in `LayoutWarningsTests` that call `ForCrossings`
-with a view name and a crossing count, and `ForUnevaluatedFilter` with a view name and a filter
-expression text, asserting on the returned lists in each case. The unit is a pure function, so no
-mocking is required.
+`LayoutWarnings` is verified through unit tests in `LayoutWarningsTests` that call
+`ForCrossings`, `ForUnevaluatedFilter`, and `ForUnevaluatedExposeBracketFilter` with controlled
+inputs, asserting on the returned lists in each case. The unit is a pure function, so no mocking
+is required.
 
 ##### Test Environment
 
@@ -20,7 +20,11 @@ configuration are required beyond a standard .NET SDK installation.
 - A count greater than one yields a single plural-form warning reporting the count.
 - A null filter expression text yields no warning.
 - A non-null filter expression text yields a single warning naming the view and stating the
-  filter expression is parsed but not yet evaluated.
+  filter expression could not be evaluated.
+- A supplied reason string is included in the standalone-filter warning.
+- An empty bracket-filter list yields no warning.
+- A non-empty bracket-filter list yields a single warning naming the view and reporting that the
+  bracket filters are parsed but not yet evaluated.
 
 ##### Test Scenarios
 
@@ -31,3 +35,6 @@ configuration are required beyond a standard .NET SDK installation.
 | `ForCrossings_Many_ReturnsPluralWarning` | Multiple crossings yield a plural warning with the count |
 | `ForUnevaluatedFilter_NullText_ReturnsEmpty` | A null filter expression text yields an empty list |
 | `ForUnevaluatedFilter_NonNullText_ReturnsNotYetEvaluatedWarning` | Non-null filter yields a warning naming the view |
+| `ForUnevaluatedFilter_WithReason_IncludesReason` | Supplied reason text is appended to the warning |
+| `ForUnevaluatedExposeBracketFilter_Empty_ReturnsEmpty` | No bracket filters yields an empty list |
+| `ForUnevaluatedExposeBracketFilter_NonEmpty_ReturnsWarning` | Bracket filters yield a single warning naming the view |

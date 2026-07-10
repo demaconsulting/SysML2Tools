@@ -3,8 +3,8 @@
 ##### Overview
 
 `SysmlNode` is the abstract base class for all SysML/KerML AST nodes. Concrete subtypes represent
-packages, definitions, features, imports, views, viewpoints, connections, transitions, and
-requirement-satisfaction usages.
+packages, definitions, features, imports, applied metadata annotations, views, viewpoints,
+connections, transitions, and requirement-satisfaction usages.
 
 ##### Class Hierarchy
 
@@ -15,7 +15,8 @@ requirement-satisfaction usages.
 | `SysmlDefinitionNode` | Definition element (part def, attribute def, etc.); adds DefinitionKeyword |
 | `SysmlFeatureNode` | Feature/usage element |
 | `SysmlImportNode` | Import declaration; adds ImportedNamespace, IsWildcard |
-| `SysmlViewNode` | View definition; adds RenderTargetName, ExposedNames, FilterExpressionText |
+| `SysmlMetadataNode` | Applied metadata annotation; adds TypeReference and Attributes |
+| `SysmlViewNode` | View definition; adds RenderTargetName, ExposedNames, and filter-expression fields |
 | `SysmlViewpointNode` | Viewpoint definition |
 | `SysmlConnectionNode` | Connection/binding/allocation usage; adds ConnectionKeyword, EndpointA, EndpointB |
 | `SysmlTransitionNode` | State transition; adds Source, Target, Guard |
@@ -59,6 +60,8 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
 
 - `ImportedNamespace` — the target namespace string extracted by `ReferenceResolver`.
 - `IsWildcard` — `true` if the import ends with `::*`.
+- `BracketFilterExpressionText` — the raw source text of an `import`/`expose` bracket filter
+  (`::**[<expr>]`), or null when absent. Preserved as capture-only Phase 1 data.
 
 `SysmlDefinitionNode` adds:
 
@@ -109,6 +112,14 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
 - `SubjectName` — the raw reference text of the satisfying subject (from the `by <subject>`
   clause), or null when no `by` clause is present.
 
+`SysmlMetadataNode` adds:
+
+- `TypeReference` — the raw reference text of the annotating metadata type. Resolved by
+  `ReferenceResolver` into a `SysmlEdgeKind.MetadataType` edge.
+- `Attributes` — the ordered list of captured `MetadataAttributeValue` entries assigned within the
+  annotation body. Supported Phase 1 scalar literals are preserved as typed values; unsupported
+  value-expression shapes remain raw text only.
+
 `SysmlViewNode` adds:
 
 - `RenderTargetName` — the raw reference text of the view's `render <target>;` member (the
@@ -129,11 +140,14 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   `SysmlEdgeKind.Expose` edge, or an unresolved-reference diagnostic (and no edge) for that
   entry. This is the sole field `GeneralViewLayoutStrategy` uses to scope a rendered diagram.
 - `FilterExpressionText` — the raw source text of the view's `filter [<expr>];` member's
-  bracketed expression, or null when absent. Captured verbatim by `AstBuilder`
-  (`elementFilterMember().ownedExpression().GetText()`) and never evaluated or inspected by
-  `ReferenceResolver` — full filter expression evaluation is deferred future work (see
-  ROADMAP.md). `GeneralViewLayoutStrategy` emits a "parsed but not yet evaluated" warning
-  whenever this is non-null.
+  bracketed expression, or null when absent. Captured verbatim by `AstBuilder` (using the
+  original token spacing, not `RuleContext.GetText()`'s whitespace-stripped form) and never
+  inspected by `ReferenceResolver`. The Core Filtering subsystem parses and evaluates this raw
+  text later when `GeneralViewLayoutStrategy` renders the view.
+- `ExposeBracketFilterTexts` — the raw source text of each bracketed
+  `expose <path>::**[<expr>]` filter expression, in source order. Phase 1 captures these
+  expressions but does not evaluate them; `GeneralViewLayoutStrategy` surfaces a dedicated
+  warning when this list is non-empty.
 
 ##### Error Handling
 
@@ -154,16 +168,17 @@ elements are filtered out by `AstBuilder` before a node is constructed.
   instances from `satisfyRequirementUsage` via `VisitSatisfyRequirementUsage`, and the
   `"allocation"` `SysmlConnectionNode` variant via `VisitAllocationUsage`; builds `SysmlViewNode`
   instances (setting `RenderTargetName`/`FilterExpressionText`, and additionally `ExposedNames`
-  for usages) from both `VisitViewDefinition` (`view def`) and `VisitViewUsage` (`view`, the
-  only form that can carry `expose`).
+  and `ExposeBracketFilterTexts` for usages) from both `VisitViewDefinition` (`view def`) and
+  `VisitViewUsage` (`view`, the only form that can carry `expose`); builds `SysmlMetadataNode`
+  children from `metadataFeature` annotations.
 - `SymbolTable` — traverses the node hierarchy via `Children`; reads `QualifiedName`.
 - `ReferenceResolver` — reads `SupertypeNames`, `FeatureTyping`, `RedefinedFeatureName`,
   `ImportedNames`,
   `VerifiedRequirementNames`, `Children`; checks for `SysmlImportNode`, `SysmlSatisfyNode`, the
   `"allocation"` `SysmlConnectionNode` variant, the `"connection"`/`"message"`
   `SysmlConnectionNode` variants, `SysmlTransitionNode`, and `SysmlViewNode` (reading
-  `ExposedNames`; `RenderTargetName`/`FilterExpressionText` are never read); writes
-  `ResolvedEdges` after resolving references (in two passes —
-  supertype/typing/redefinition/import/satisfy/verify/allocate/expose, then feature-chain
-  connect/transition).
+  `ExposedNames`; `RenderTargetName`/`FilterExpressionText`/`ExposeBracketFilterTexts` are never
+  read), and `SysmlMetadataNode` (reading `TypeReference`); writes `ResolvedEdges` after
+  resolving references (in two passes — supertype/typing/redefinition/metadata-type/import/
+  satisfy/verify/allocate/expose, then feature-chain connect/transition).
 - `SupertypeWalker` — reads `SupertypeNames` on each node retrieved from `SymbolTable`.

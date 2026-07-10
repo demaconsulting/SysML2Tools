@@ -2,6 +2,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+// cspell:ignore parenthesization istype hastype
+
 namespace DemaConsulting.SysML2Tools.Filtering;
 
 /// <summary>

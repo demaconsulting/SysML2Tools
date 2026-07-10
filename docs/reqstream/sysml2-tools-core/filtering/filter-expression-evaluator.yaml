@@ -1,0 +1,99 @@
+---
+# cspell:ignore istype hastype reparses
+# FilterExpressionEvaluator Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the FilterExpressionEvaluator unit
+# - This unit's implementation spans the filter-expression AST, parser adaptation, and evaluator
+#   used by standalone view `filter [<expr>];` statements
+# - Requirements describe observable parse/evaluate behavior, not CST-walking internals
+
+sections:
+  - title: FilterExpressionEvaluator Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-ClassificationTests
+        title: >-
+          FilterExpressionEvaluator shall parse and evaluate metadata classification tests
+          (`@Type`, `@Pkg::Type`) by matching candidates that carry the referenced metadata
+          annotation type.
+        justification: |
+          Classification tests are the simplest and most common filter predicate in Phase 1. They
+          let a view select elements based on the presence of a metadata annotation regardless of
+          whether the filter author spelled the type reference as a simple or qualified name.
+        tests:
+          - Parse_ClassificationTest_ReturnsClassificationTestExpression
+          - Parse_QualifiedClassificationTest_PreservesQualifiedName
+          - Evaluate_ClassificationTest_MatchesOnlyAnnotatedCandidates
+          - Evaluate_QualifiedClassificationTest_Matches
+          - Evaluate_ClassificationTestNoMatch_ReturnsEmpty
+
+      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-BooleanConnectives
+        title: >-
+          FilterExpressionEvaluator shall support boolean composition of Phase 1 predicates via
+          `and`, `or`, `xor`, `not`, `&`, and `|`, preserving the author's operator spelling in the
+          canonical pretty-printed form.
+        justification: |
+          Real SysML view filters combine multiple metadata conditions. Supporting both keyword and
+          symbol spellings keeps the accepted syntax aligned with the grammar and preserves the
+          source author's chosen spelling when the expression is re-rendered.
+        tests:
+          - Parse_AndConnective_ReturnsBooleanExpression
+          - Parse_OrConnective_ReturnsBooleanExpression
+          - Parse_XorConnective_ReturnsBooleanExpression
+          - Parse_AmpSymbol_ReturnsAndWithSymbolSpelling
+          - Parse_PipeSymbol_ReturnsOrWithSymbolSpelling
+          - Parse_Not_ReturnsNotExpression
+          - Parse_Parenthesized_ReturnsInnerExpression
+          - Evaluate_Not_InvertsMatchSet
+          - Evaluate_And_MatchesIntersection
+          - Evaluate_Or_MatchesUnion
+
+      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-AttributeReads
+        title: >-
+          FilterExpressionEvaluator shall support `(as Type).attribute` reads both as bare boolean
+          predicates and as `==`/`!=` comparisons against scalar literals, treating an absent
+          matching annotation or attribute value as a non-match rather than an error.
+        justification: |
+          Metadata filtering needs to distinguish between the mere presence of an annotation and
+          the values assigned within it. Conservative false semantics for absent reads keep Phase 1
+          evaluation deterministic and safe without inventing implicit default values.
+        tests:
+          - Parse_AttributeRead_ReturnsAttributeReadExpression
+          - Parse_AttributeReadEqualsBoolean_ReturnsComparisonExpression
+          - Parse_ClassificationTestAndAttributeRead_ReAssociatesDotOntoRightOperand
+          - Parse_AttributeReadNotEqualsString_ReturnsComparisonExpression
+          - Parse_AttributeReadEqualsNumber_ReturnsComparisonExpression
+          - Evaluate_BareAttributeRead_TrueOnlyWhenBooleanValueTrue
+          - Evaluate_ComparisonEqual_MatchesEqualValue
+          - Evaluate_ComparisonNotEqual_MatchesDifferingValue
+          - Evaluate_AttributeReadAbsent_NeverMatchesComparison
+
+      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-UnsupportedConstructDiagnostics
+        title: >-
+          FilterExpressionEvaluator shall report malformed syntax and every construct outside the
+          Phase 1 subset as explicit diagnostics and shall never throw while parsing or evaluating
+          them.
+        justification: |
+          Unsupported constructs are an expected Phase 1 boundary, not an exceptional condition.
+          Reporting them as diagnostics allows layout to fall back to the unfiltered scope with a
+          visible warning instead of crashing or silently dropping the filter.
+        tests:
+          - Parse_Istype_ReturnsUnsupportedConstructDiagnostic
+          - Parse_Hastype_ReturnsUnsupportedConstructDiagnostic
+          - Parse_All_ReturnsUnsupportedConstructDiagnostic
+          - Parse_Arithmetic_ReturnsUnsupportedConstructDiagnostic
+          - Parse_Conditional_ReturnsUnsupportedConstructDiagnostic
+          - Parse_GeneralFeatureChainNavigation_ReturnsUnsupportedConstructDiagnostic
+          - Parse_MalformedSyntax_NeverThrows_ReturnsDiagnostic
+          - Evaluate_UnknownCandidate_SkipsGracefully
+
+      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-RoundTripPrettyPrinting
+        title: >-
+          Every supported Phase 1 filter-expression tree shall pretty-print to canonical SysML v2
+          filter syntax whose re-parse yields a semantically-equivalent tree.
+        justification: |
+          Canonical pretty-printing keeps diagnostics, debugging output, and future persisted
+          filter-expression scenarios stable. Re-parsing the printed form proves the AST shape and
+          printer stay aligned with the accepted grammar subset.
+        tests:
+          - Parse_RoundTrip_PrettyPrintedTextReparsesToEquivalentTree

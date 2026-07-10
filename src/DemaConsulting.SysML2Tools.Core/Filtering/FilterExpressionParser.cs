@@ -2,6 +2,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+// cspell:ignore parenthesization istype hastype ISTYPE HASTYPE LPAREN RPAREN
+
 using Antlr4.Runtime;
 using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Parser.Antlr;

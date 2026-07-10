@@ -2,6 +2,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+// cspell:ignore istype
+
 using DemaConsulting.SysML2Tools.Layout.Internal;
 
 namespace DemaConsulting.SysML2Tools.Tests.Layout;

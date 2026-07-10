@@ -25,6 +25,9 @@ external services or additional configuration are required beyond a standard .NE
   supertype.
 - `SysmlImportNode.ImportedNamespace` is extracted and used by `ReferenceResolver` to build
   the import graph.
+- `SysmlMetadataNode` is captured as a child of the annotated element, carries its raw metadata
+  type reference plus any literal attribute values, and resolves that type reference into a
+  `MetadataType` edge when possible.
 - `SysmlNode.ResolvedEdges` is populated by `ReferenceResolver` with the resolved outgoing
   edges for a node that has at least one resolved supertype, typing, or import reference.
 - `SysmlNode.Annotations` is populated by `AstBuilder` with captured `comment`/`doc` text for
@@ -35,6 +38,8 @@ external services or additional configuration are required beyond a standard .NE
   evaluated), and are `null`/empty for a view with no such members. `RenderTargetName` is
   captured but never resolved into an edge or diagnostic (it names a rendering style/format, not
   content); `ExposedNames` is the only field independently resolved by `ReferenceResolver`.
+- `SysmlViewNode.ExposeBracketFilterTexts` is populated verbatim from bracketed
+  `expose <path>::**[<expr>]` members and remains capture-only Phase 1 data.
 - `SysmlFeatureNode.RedefinedFeatureName` is populated verbatim from a feature's
   `redefines`/`:>>` clause (bare-name and qualified `Owner::feature` forms, both keyword and
   operator syntax), and is `null` for a feature with no redefinition. It is resolved by
@@ -48,11 +53,14 @@ external services or additional configuration are required beyond a standard .NE
 | `SysmlDefinitionNode` construction | `WorkspaceLoader_LoadAsync_PartDef_RegistersDefinition` |
 | `SupertypeNames` population | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
 | `SupertypeNames` usage-level population | `WorkspaceLoader_LoadAsync_UsageLevelSubsetting_PopulatesSupertypeNames` |
+| `SysmlMetadataNode` capture | `AstBuilder_BareMetadataAnnotation_CapturesMetadataNode` |
+| `SysmlMetadataNode` type resolution | `AstBuilder_MetadataAnnotation_ResolvesTypeReference` |
 | `ResolvedEdges` populated | `WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge` |
 | `Annotations` populated | `WorkspaceLoader_LoadAsync_CommentAndDocumentation_CapturesBothInSourceOrder` |
 | `RenderTargetName` unresolved | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | `FilterExpressionText` verbatim | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | `SysmlViewNode.ExposedNames` from a `view` usage | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
+| `SysmlViewNode.ExposeBracketFilterTexts` verbatim | `AstBuilder_ExposeBracketFilter_CapturesRawText` |
 | Empty view body leaves all fields null/empty | `WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty` |
 | `RedefinedFeatureName` — `redefines` | `WorkspaceLoader_LoadAsync_RedefinesKeyword_CapturesRedefinedFeatureName` |
 | `RedefinedFeatureName` — `:>>` operator | `WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName` |

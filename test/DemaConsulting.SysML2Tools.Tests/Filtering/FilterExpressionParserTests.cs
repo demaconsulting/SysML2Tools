@@ -1,6 +1,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
+// cspell:ignore Parenthesization istype Istype hastype Hastype Reparses
+
 using DemaConsulting.SysML2Tools.Filtering;
 
 namespace DemaConsulting.SysML2Tools.Tests.Filtering;

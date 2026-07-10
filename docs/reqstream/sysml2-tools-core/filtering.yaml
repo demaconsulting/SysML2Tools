@@ -1,0 +1,35 @@
+---
+# Filtering Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the SysML2Tools Filtering subsystem
+# - The Filtering subsystem parses and evaluates the Phase 1 subset of standalone view
+#   `filter [<expr>];` expressions over semantic-model candidate elements
+# - Requirements describe observable filtering behavior, not parser internals
+
+sections:
+  - title: Filtering Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Core-Filtering-StandaloneViewFilterEvaluation
+        title: >-
+          The Filtering subsystem shall parse and evaluate a standalone view `filter [<expr>];`
+          expression over a caller-supplied candidate set, matching candidates by metadata
+          classification tests, boolean composition, and metadata-attribute reads for the Phase 1
+          construct subset while surfacing explicit diagnostics for malformed or unsupported
+          expressions without throwing.
+        justification: |
+          Standalone view filters are the user-visible mechanism for narrowing a rendered scope by
+          metadata. The subsystem exists to turn the raw expression text captured by AstBuilder
+          into a matched subset of candidate elements while degrading safely when the expression is
+          outside the supported Phase 1 boundary.
+        children:
+          - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-ClassificationTests
+          - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-BooleanConnectives
+          - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-AttributeReads
+          - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-UnsupportedConstructDiagnostics
+          - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-RoundTripPrettyPrinting
+        tests:
+          - DiagramRenderer_RenderWorkspace_SafetyPartsView_FiltersToAnnotatedParts
+          - DiagramRenderer_RenderWorkspace_MandatorySafetyPartsView_FiltersToMandatoryPart
+          - GeneralViewLayoutStrategy_BuildLayout_FilterExpressionMatchesNothing_RendersEmpty
+          - GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning

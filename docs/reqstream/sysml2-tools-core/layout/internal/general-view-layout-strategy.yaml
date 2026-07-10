@@ -189,18 +189,31 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_RenderTargetNameOnly_NoExposeEdges_RendersFullWorkspace
           - GeneralViewLayoutStrategy_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged
 
-      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UnevaluatedFilterWarning
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-FilterEvaluation
         title: >-
-          When a view's FilterExpressionText is non-null, GeneralViewLayoutStrategy shall emit a
-          diagnostic through the layout's Warnings channel stating that the view declares a
-          filter expression which is parsed but not yet evaluated, and shall continue rendering
-          the (unfiltered) resolved scope.
+          When a view's FilterExpressionText parses as a supported Phase 1 filter expression,
+          GeneralViewLayoutStrategy shall evaluate it against the already expose-scoped candidate
+          definitions and shall render only the matched subset, including an empty canvas when no
+          candidate matches.
         justification: |
-          Full `filter [<expr>];` expression evaluation is deferred future work (see ROADMAP.md).
-          Silently ignoring a declared filter would mislead a user into believing their diagram is
-          filtered when every element in the resolved scope is actually shown unfiltered;
-          surfacing an explicit warning through the existing layout-warnings channel makes this
-          limitation visible rather than a silent gap.
+          Standalone `filter [<expr>];` is the user-visible mechanism for narrowing a view by
+          metadata once the expose scope has been resolved. Applying the predicate after expose
+          scoping preserves the meaning of both statements: `expose` chooses the candidate scope,
+          then `filter` further narrows it.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_FilterExpressionMatchesNothing_RendersEmpty
+          - DiagramRenderer_RenderWorkspace_SafetyPartsView_FiltersToAnnotatedParts
+          - DiagramRenderer_RenderWorkspace_MandatorySafetyPartsView_FiltersToMandatoryPart
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-FilterFallbackWarning
+        title: >-
+          When a view's FilterExpressionText fails to parse or uses a construct outside the Phase 1
+          subset, GeneralViewLayoutStrategy shall emit a warning stating that the filter expression
+          could not be evaluated and shall continue rendering the unfiltered resolved scope.
+        justification: |
+          Unsupported filter constructs are an expected Phase 1 boundary, not a crash condition.
+          Falling back to the unfiltered scope while surfacing a visible warning preserves a usable
+          diagram and makes the limitation explicit.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning
 
