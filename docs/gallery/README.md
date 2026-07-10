@@ -201,7 +201,7 @@ the same two boxes visually and structurally distinct — rather than collapsing
 onto one shared route — and labels each end with its own SysML port name, with the
 boxes auto-sized to keep every port label clear of the box's own title.
 
-Model: [`models/09-motor-controller-multiport.sysml`](models/09-motor-controller-multiport.sysml) ·
+Model: [`models/09-motor-controller-multi-port.sysml`](models/09-motor-controller-multi-port.sysml) ·
 SVG: [`svg/MotorRigInterconnectionView.svg`](svg/MotorRigInterconnectionView.svg)
 
 ![Motor Rig Interconnection View](png/MotorRigInterconnectionView.png)
