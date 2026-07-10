@@ -100,3 +100,43 @@ sections:
         tests:
           - InterconnectionView_BuildLayout_TwoConnectionsSamePair_ProducesTwoConnectorsWithoutException
           - InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors
+
+      - id: SysML2Tools-Core-Layout-Internal-LayeredPlacement-NamedPorts
+        title: >-
+          LayeredPlacement shall support placing edges through a named port on either endpoint via
+          a second `PlaceWithPorts` entry point, returning each requested port as a correctly
+          correlated placed port carrying the requested label, with parallel-edge merging always
+          disabled.
+        justification: |
+          InterconnectionViewLayoutStrategy needs the layout engine itself to resolve each part's
+          port sides, spacing, and any resulting box growth from named, labeled connection points,
+          rather than computing box heights and port positions by hand. A second, additive entry
+          point that models ports as first-class `LayoutGraphPort`s on the input graph — and
+          correlates the engine's placed ports back to the caller's requested endpoints by
+          reference identity — lets this strategy adopt the companion package's port model without
+          altering `Place`'s existing, unconditional behavior for its own callers. A strategy
+          rendering non-overlapping boxes with a correctly labeled port for every incident
+          connection, even under a high connection count, is the observable evidence.
+        tests:
+          - InterconnectionView_BuildLayout_ConnectionEndpointWithPortSegment_PortLabelReflectsSysmlPortName
+          - InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors
+          - InterconnectionView_BuildLayout_HighConnectionDegreePart_BoxesDoNotOverlapAndPortsAreLabeled
+
+      - id: SysML2Tools-Core-Layout-Internal-LayeredPlacement-TitleAwarePorts
+        title: >-
+          PlaceWithPorts shall mark each node's title presence (HasLabel/HasKeyword) so the
+          layout engine reserves a title band on any node carrying named ports, keeping port
+          anchors and labels clear of the box's own title row.
+        justification: |
+          The layered algorithm's automatic title-vs-side-port reservation is keyed solely on
+          whether a node's Label/Keyword are non-null; PlaceWithPorts previously left both null
+          for every node, so ports were freely placed across a box's own title band, colliding
+          with the "«keyword» / name : type" header text the renderer draws there. Flagging each
+          node's HasLabel/HasKeyword and setting a non-null sentinel on the created
+          LayoutGraphNode activates that reservation with no other observable effect (the
+          sentinel carries no SysML semantics, matching this unit's documented no-semantics
+          contract), so no left/right port ever overlaps the box's own title area is the
+          observable evidence.
+        tests:
+          - InterconnectionView_BuildLayout_PartWithPorts_PortsNeverOverlapBoxTitleArea
+          - InterconnectionView_BuildLayout_HighConnectionDegreePart_BoxesDoNotOverlapAndPortsAreLabeled

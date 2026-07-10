@@ -19,6 +19,7 @@ sections:
           observable content the view must provide.
         tests:
           - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
+          - InterconnectionView_BuildLayout_RootContent_IsNestedAsRootBoxChildren
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Ports
         title: >-
@@ -29,6 +30,7 @@ sections:
           observable anchor the connector lines are drawn between.
         tests:
           - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
+          - InterconnectionView_BuildLayout_HighConnectionDegreePart_BoxesDoNotOverlapAndPortsAreLabeled
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Connectors
         title: >-
@@ -49,6 +51,7 @@ sections:
           an observable property of the produced geometry the strategy must guarantee.
         tests:
           - InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap
+          - InterconnectionView_BuildLayout_HighConnectionDegreePart_BoxesDoNotOverlapAndPortsAreLabeled
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-EmptyCanvas
         title: >-
@@ -233,3 +236,18 @@ sections:
         tests:
           - InterconnectionView_BuildLayout_ExposeInnerPartOfNestedDefinition_SelectsNestedDefinitionNotAncestor
           - InterconnectionView_BuildLayout_ExposeBothSameDepthSiblings_ScoreBreaksTieNotLength
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PortTitleCollisionAvoidance
+        title: >-
+          InterconnectionViewLayoutStrategy shall ensure no part-box port anchor or label lands
+          within that box's own title area, even under a high incident-connection count.
+        justification: |
+          Each part box renders a two-line "«keyword» / name : type" title in its header row; a
+          port placed across that band visually collides with the title text, making both
+          unreadable. Flagging every part node as carrying a title when handed to the layered
+          algorithm (see LayeredPlacement's TitleAwarePorts requirement) activates the engine's
+          automatic title-vs-side-port reservation, so no port ever lands in the header row a
+          titled box renders — this holds regardless of how many connections are incident to a
+          part.
+        tests:
+          - InterconnectionView_BuildLayout_PartWithPorts_PortsNeverOverlapBoxTitleArea

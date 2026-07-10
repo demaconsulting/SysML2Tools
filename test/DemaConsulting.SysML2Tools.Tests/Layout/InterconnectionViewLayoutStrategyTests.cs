@@ -48,11 +48,177 @@ public sealed class InterconnectionViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: one container box, two part boxes, two ports (one per endpoint), one connector line
-        var boxes = layout.Nodes.OfType<LayoutBox>().ToList();
+        var boxes = CollectBoxes(layout.Nodes).ToList();
         Assert.Contains(boxes, b => b.Keyword == "part def" && b.Label == "PowerSystem");
         Assert.Equal(2, boxes.Count(b => b.Shape == BoxShape.RoundedRectangle));
-        Assert.Equal(2, layout.Nodes.OfType<LayoutPort>().Count());
-        Assert.Single(layout.Nodes.OfType<LayoutLine>());
+        Assert.Equal(2, CollectPorts(layout.Nodes).Count());
+        Assert.Single(CollectLines(layout.Nodes));
+    }
+
+    /// <summary>
+    ///     The root container box nests its interior content (part boxes, ports, and connector
+    ///     lines) as its own <see cref="LayoutBox.Children"/> rather than as flat top-level
+    ///     siblings: <see cref="LayoutTree.Nodes"/> contains exactly one element (the root box), and
+    ///     that box's <c>Children</c> contains the expected part boxes, ports, and connector line.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_RootContent_IsNestedAsRootBoxChildren()
+    {
+        // Arrange: a simple part def with two parts and one connection between them.
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var powerSystem = new SysmlDefinitionNode
+        {
+            Name = "PowerSystem",
+            QualifiedName = "M::PowerSystem",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "engine", QualifiedName = "M::PowerSystem::engine", FeatureKeyword = "part", FeatureTyping = "Engine" },
+                new SysmlFeatureNode { Name = "transmission", QualifiedName = "M::PowerSystem::transmission", FeatureKeyword = "part", FeatureTyping = "Transmission" },
+                new SysmlConnectionNode { Name = "c1", QualifiedName = "M::PowerSystem::c1", ConnectionKeyword = "connection", EndpointA = "engine", EndpointB = "transmission" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["M::PowerSystem"] = powerSystem }
+        };
+        var context = new ViewContext("PowerSystemInterconnectionView", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: exactly one top-level node (the root container box).
+        var root = Assert.Single(layout.Nodes);
+        var rootBox = Assert.IsType<LayoutBox>(root);
+        Assert.Equal("part def", rootBox.Keyword);
+        Assert.Equal("PowerSystem", rootBox.Label);
+
+        // Assert: the root box's own Children hold the interior content — two part boxes, two
+        // ports, and one connector line — none of it as flat top-level siblings.
+        Assert.NotEmpty(rootBox.Children);
+        Assert.Equal(2, rootBox.Children.OfType<LayoutBox>().Count(b => b.Shape == BoxShape.RoundedRectangle));
+        Assert.Equal(2, rootBox.Children.OfType<LayoutPort>().Count());
+        Assert.Single(rootBox.Children.OfType<LayoutLine>());
+    }
+
+    /// <summary>
+    ///     A part with a high connection degree (many incident connections) still produces
+    ///     non-overlapping boxes and a labeled port for every incident connection, now that box
+    ///     sizing/port spacing is fully delegated to the layered engine instead of the removed
+    ///     <c>MinPortSlot</c>/<c>ConnectorClearance</c> heuristic.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_HighConnectionDegreePart_BoxesDoNotOverlapAndPortsAreLabeled()
+    {
+        // Arrange: a Gantry part def with a controller wired to a motor by five separate connections
+        // (a higher connection degree than the ThreeParallelConnections test), exercising the
+        // engine's own port-spacing/box-height resolution.
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var gantry = new SysmlDefinitionNode
+        {
+            Name = "Gantry",
+            QualifiedName = "M::Gantry",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "controller", QualifiedName = "M::Gantry::controller", FeatureKeyword = "part", FeatureTyping = "Controller" },
+                new SysmlFeatureNode { Name = "motor", QualifiedName = "M::Gantry::motor", FeatureKeyword = "part", FeatureTyping = "Motor" },
+                new SysmlConnectionNode { Name = "power", QualifiedName = "M::Gantry::power", ConnectionKeyword = "connection", EndpointA = "controller.power", EndpointB = "motor.power" },
+                new SysmlConnectionNode { Name = "encoder", QualifiedName = "M::Gantry::encoder", ConnectionKeyword = "connection", EndpointA = "controller.J40", EndpointB = "motor.encoder" },
+                new SysmlConnectionNode { Name = "sensor", QualifiedName = "M::Gantry::sensor", ConnectionKeyword = "connection", EndpointA = "controller.sensor", EndpointB = "motor.SensorPort" },
+                new SysmlConnectionNode { Name = "opto", QualifiedName = "M::Gantry::opto", ConnectionKeyword = "connection", EndpointA = "controller.opto", EndpointB = "motor.OptoSensor" },
+                new SysmlConnectionNode { Name = "limit", QualifiedName = "M::Gantry::limit", ConnectionKeyword = "connection", EndpointA = "controller.limit", EndpointB = "motor.LimitSwitch" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["M::Gantry"] = gantry }
+        };
+        var context = new ViewContext("GantryInterconnectionView", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the two part boxes never overlap, regardless of how many ports the engine placed
+        // on either of them.
+        var partBoxes = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
+        Assert.Equal(2, partBoxes.Count);
+        Assert.False(Overlaps(partBoxes[0], partBoxes[1]));
+
+        // Assert: every incident connection produced a labeled port (ten ports total: five
+        // connections, two endpoints each).
+        var ports = CollectPorts(layout.Nodes).ToList();
+        Assert.Equal(10, ports.Count);
+        Assert.Contains(ports, p => p.ExternalLabel == "power");
+        Assert.Contains(ports, p => p.ExternalLabel == "J40");
+        Assert.Contains(ports, p => p.ExternalLabel == "encoder");
+        Assert.Contains(ports, p => p.ExternalLabel == "sensor");
+        Assert.Contains(ports, p => p.ExternalLabel == "SensorPort");
+        Assert.Contains(ports, p => p.ExternalLabel == "opto");
+        Assert.Contains(ports, p => p.ExternalLabel == "OptoSensor");
+        Assert.Contains(ports, p => p.ExternalLabel == "limit");
+        Assert.Contains(ports, p => p.ExternalLabel == "LimitSwitch");
+    }
+
+    /// <summary>
+    ///     No left/right port's centre falls within its owning part box's own title area. This
+    ///     guards the label-collision defect fixed by flagging every part node as carrying a title
+    ///     (<c>HasLabel</c>/<c>HasKeyword</c>) when handed to the layered algorithm (see
+    ///     <see cref="LayeredPlacement.PlaceWithPorts"/>), which activates the engine's automatic
+    ///     title-vs-side-port reservation so ports never land in the header row a titled box renders.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_PartWithPorts_PortsNeverOverlapBoxTitleArea()
+    {
+        // Arrange: reuse the high-connection-degree Gantry fixture, which already exercises many
+        // ports on one titled box.
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var gantry = new SysmlDefinitionNode
+        {
+            Name = "Gantry",
+            QualifiedName = "M::Gantry",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "controller", QualifiedName = "M::Gantry::controller", FeatureKeyword = "part", FeatureTyping = "Controller" },
+                new SysmlFeatureNode { Name = "motor", QualifiedName = "M::Gantry::motor", FeatureKeyword = "part", FeatureTyping = "Motor" },
+                new SysmlConnectionNode { Name = "power", QualifiedName = "M::Gantry::power", ConnectionKeyword = "connection", EndpointA = "controller.power", EndpointB = "motor.power" },
+                new SysmlConnectionNode { Name = "encoder", QualifiedName = "M::Gantry::encoder", ConnectionKeyword = "connection", EndpointA = "controller.J40", EndpointB = "motor.encoder" },
+                new SysmlConnectionNode { Name = "sensor", QualifiedName = "M::Gantry::sensor", ConnectionKeyword = "connection", EndpointA = "controller.sensor", EndpointB = "motor.SensorPort" },
+                new SysmlConnectionNode { Name = "opto", QualifiedName = "M::Gantry::opto", ConnectionKeyword = "connection", EndpointA = "controller.opto", EndpointB = "motor.OptoSensor" },
+                new SysmlConnectionNode { Name = "limit", QualifiedName = "M::Gantry::limit", ConnectionKeyword = "connection", EndpointA = "controller.limit", EndpointB = "motor.LimitSwitch" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["M::Gantry"] = gantry }
+        };
+        var context = new ViewContext("GantryInterconnectionView", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: every left/right port's centre sits at or below its owning box's title area, never
+        // inside the header row where the box's "«keyword» / name : type" title is drawn.
+        var partBoxes = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
+        var titleArea = BoxMetrics.TitleAreaHeight(options.Theme, hasLabel: true, hasKeyword: true);
+        var sidePorts = CollectPorts(layout.Nodes).Where(p => p.Side is PortSide.Left or PortSide.Right).ToList();
+        Assert.NotEmpty(sidePorts);
+
+        foreach (var port in sidePorts)
+        {
+            var owningBox = partBoxes.FirstOrDefault(b =>
+                port.CentreY >= b.Y - 0.01 && port.CentreY <= b.Y + b.Height + 0.01 &&
+                (Math.Abs(port.CentreX - b.X) < 0.5 || Math.Abs(port.CentreX - (b.X + b.Width)) < 0.5));
+
+            Assert.NotNull(owningBox);
+            Assert.True(
+                port.CentreY >= owningBox!.Y + titleArea,
+                $"port at ({port.CentreX}, {port.CentreY}) overlaps the title area of its box (Y={owningBox.Y}, titleArea={titleArea})");
+        }
     }
 
     /// <summary>
@@ -92,14 +258,14 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
         // Assert: two connector polylines (one per connection), each with at least two waypoints,
         // and the two polylines are NOT identical — each is routed as its own distinct parallel lane.
-        var lines = layout.Nodes.OfType<LayoutLine>().ToList();
+        var lines = CollectLines(layout.Nodes).ToList();
         Assert.Equal(2, lines.Count);
         Assert.All(lines, l => Assert.True(l.Waypoints.Count >= 2));
         Assert.NotEqual(lines[0].Waypoints, lines[1].Waypoints);
 
         // Assert: two part boxes and one port pair per connection (four ports total).
-        Assert.Equal(2, layout.Nodes.OfType<LayoutBox>().Count(b => b.Shape == BoxShape.RoundedRectangle));
-        Assert.Equal(4, layout.Nodes.OfType<LayoutPort>().Count());
+        Assert.Equal(2, CollectBoxes(layout.Nodes).Count(b => b.Shape == BoxShape.RoundedRectangle));
+        Assert.Equal(4, CollectPorts(layout.Nodes).Count());
     }
 
     /// <summary>
@@ -138,13 +304,13 @@ public sealed class InterconnectionViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: three distinct connectors, pairwise-different waypoints, six ports total.
-        var lines = layout.Nodes.OfType<LayoutLine>().ToList();
+        var lines = CollectLines(layout.Nodes).ToList();
         Assert.Equal(3, lines.Count);
         Assert.NotEqual(lines[0].Waypoints, lines[1].Waypoints);
         Assert.NotEqual(lines[1].Waypoints, lines[2].Waypoints);
         Assert.NotEqual(lines[0].Waypoints, lines[2].Waypoints);
 
-        var ports = layout.Nodes.OfType<LayoutPort>().ToList();
+        var ports = CollectPorts(layout.Nodes).ToList();
         Assert.Equal(6, ports.Count);
         Assert.Contains(ports, p => p.ExternalLabel == "power");
         Assert.Contains(ports, p => p.ExternalLabel == "J40");
@@ -193,7 +359,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: both ends carry their real SysML port-name label.
-        var ports = layout.Nodes.OfType<LayoutPort>().ToList();
+        var ports = CollectPorts(layout.Nodes).ToList();
         Assert.Equal(2, ports.Count);
         Assert.Contains(ports, p => p.ExternalLabel == "encoder");
         Assert.Contains(ports, p => p.ExternalLabel == "J40");
@@ -249,12 +415,16 @@ public sealed class InterconnectionViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: the connector still terminates at the "board" container box (one line, no
-        // exception), but the target-side port label is the true nested target "cpu", not discarded.
-        var lines = layout.Nodes.OfType<LayoutLine>().ToList();
+        // Assert: the connector still terminates at the "board" container box (one line at the root
+        // level, no exception), but the target-side port label is the true nested target "cpu", not
+        // discarded. Only the root box's own (non-recursive) Children are inspected here, since the
+        // nested Motherboard's own internal cpu-chipset connector is a separate, deeper connector
+        // that CollectLines/CollectPorts would otherwise also surface via recursion.
+        var rootBox = Assert.IsType<LayoutBox>(Assert.Single(layout.Nodes));
+        var lines = rootBox.Children.OfType<LayoutLine>().ToList();
         Assert.Single(lines);
 
-        var ports = layout.Nodes.OfType<LayoutPort>().ToList();
+        var ports = rootBox.Children.OfType<LayoutPort>().ToList();
         Assert.Equal(2, ports.Count);
         Assert.Contains(ports, p => p.ExternalLabel == "cpu");
     }
@@ -292,7 +462,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: no two rounded part boxes overlap
-        var partBoxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
+        var partBoxes = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
         for (var i = 0; i < partBoxes.Count; i++)
         {
             for (var j = i + 1; j < partBoxes.Count; j++)
@@ -444,7 +614,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: every rounded part box is a leaf (no children).
-        var partBoxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
+        var partBoxes = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
         Assert.Equal(2, partBoxes.Count);
         Assert.All(partBoxes, b => Assert.Empty(b.Children));
     }
@@ -598,11 +768,11 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var container = layout.Nodes.OfType<LayoutBox>().First(b => b.Keyword == "part def");
+        var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
         Assert.Equal("SysC", container.Label);
 
         // Only c1 (SysC's part) is rendered, none of SysA's own parts (a1/a2/a3).
-        var partLabels = layout.Nodes.OfType<LayoutBox>()
+        var partLabels = CollectBoxes(layout.Nodes)
             .Where(b => b.Shape == BoxShape.RoundedRectangle)
             .Select(b => b.Label)
             .ToList();
@@ -614,8 +784,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
     /// <summary>Finds the rounded part box with the given label across the whole layout tree.</summary>
     private static LayoutBox FindPartBox(LayoutTree layout, string label)
     {
-        var box = layout.Nodes
-            .OfType<LayoutBox>()
+        var box = CollectBoxes(layout.Nodes)
             .FirstOrDefault(b => b.Shape == BoxShape.RoundedRectangle && b.Label == label);
         Assert.NotNull(box);
         return box;
@@ -627,6 +796,83 @@ public sealed class InterconnectionViewLayoutStrategyTests
         b.X < a.X + a.Width &&
         a.Y < b.Y + b.Height &&
         b.Y < a.Y + a.Height;
+
+    /// <summary>
+    ///     Recursively collects all <see cref="LayoutBox"/> nodes from a node list, including those
+    ///     nested inside a container box's <see cref="LayoutBox.Children"/>.
+    /// </summary>
+    private static IReadOnlyList<LayoutBox> CollectBoxes(IReadOnlyList<LayoutNode> nodes)
+    {
+        var result = new List<LayoutBox>();
+        void Walk(IReadOnlyList<LayoutNode> ns)
+        {
+            foreach (var n in ns)
+            {
+                if (n is LayoutBox box)
+                {
+                    result.Add(box);
+                    Walk(box.Children);
+                }
+            }
+        }
+
+        Walk(nodes);
+        return result;
+    }
+
+    /// <summary>
+    ///     Recursively collects all <see cref="LayoutPort"/> nodes from a node list, including those
+    ///     nested inside a container box's <see cref="LayoutBox.Children"/>.
+    /// </summary>
+    private static IReadOnlyList<LayoutPort> CollectPorts(IReadOnlyList<LayoutNode> nodes)
+    {
+        var result = new List<LayoutPort>();
+        void Walk(IReadOnlyList<LayoutNode> ns)
+        {
+            foreach (var n in ns)
+            {
+                switch (n)
+                {
+                    case LayoutPort port:
+                        result.Add(port);
+                        break;
+                    case LayoutBox box:
+                        Walk(box.Children);
+                        break;
+                }
+            }
+        }
+
+        Walk(nodes);
+        return result;
+    }
+
+    /// <summary>
+    ///     Recursively collects all <see cref="LayoutLine"/> nodes from a node list, including those
+    ///     nested inside a container box's <see cref="LayoutBox.Children"/>.
+    /// </summary>
+    private static IReadOnlyList<LayoutLine> CollectLines(IReadOnlyList<LayoutNode> nodes)
+    {
+        var result = new List<LayoutLine>();
+        void Walk(IReadOnlyList<LayoutNode> ns)
+        {
+            foreach (var n in ns)
+            {
+                switch (n)
+                {
+                    case LayoutLine line:
+                        result.Add(line);
+                        break;
+                    case LayoutBox box:
+                        Walk(box.Children);
+                        break;
+                }
+            }
+        }
+
+        Walk(nodes);
+        return result;
+    }
 
     /// <summary>
     ///     Builds a workspace with two candidate roots: <c>M::SysA</c> (two connections, three
@@ -688,7 +934,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var container = layout.Nodes.OfType<LayoutBox>().First(b => b.Keyword == "part def");
+        var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
         Assert.Equal("SysA", container.Label);
     }
 
@@ -715,7 +961,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var container = layout.Nodes.OfType<LayoutBox>().First(b => b.Keyword == "part def");
+        var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
         Assert.Equal("SysB", container.Label);
     }
 
@@ -791,7 +1037,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var container = layout.Nodes.OfType<LayoutBox>().First(b => b.Keyword == "part def");
+        var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
         Assert.Equal("AB", container.Label);
     }
 
@@ -817,13 +1063,13 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var container = layout.Nodes.OfType<LayoutBox>().First(b => b.Keyword == "part def");
+        var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
         Assert.Equal("SysB", container.Label);
 
         // And the part collection is narrowed to just b1 (b2 dropped, connection dropped with it).
-        var partBoxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
+        var partBoxes = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
         Assert.Single(partBoxes);
-        Assert.Empty(layout.Nodes.OfType<LayoutLine>());
+        Assert.Empty(CollectLines(layout.Nodes));
     }
 
     /// <summary>
@@ -874,10 +1120,10 @@ public sealed class InterconnectionViewLayoutStrategyTests
         var scoped = strategy.BuildLayout(context, options);
         var full = strategy.BuildLayout(new ViewContext("full", workspace), options);
 
-        var scopedParts = scoped.Nodes.OfType<LayoutBox>().Count(b => b.Shape == BoxShape.RoundedRectangle);
-        var fullParts = full.Nodes.OfType<LayoutBox>().Count(b => b.Shape == BoxShape.RoundedRectangle);
+        var scopedParts = CollectBoxes(scoped.Nodes).Count(b => b.Shape == BoxShape.RoundedRectangle);
+        var fullParts = CollectBoxes(full.Nodes).Count(b => b.Shape == BoxShape.RoundedRectangle);
         Assert.True(scopedParts < fullParts, $"expected scoped ({scopedParts}) < full ({fullParts})");
-        Assert.Single(scoped.Nodes.OfType<LayoutBox>(), b => b.Shape == BoxShape.RoundedRectangle);
+        Assert.Single(CollectBoxes(scoped.Nodes), b => b.Shape == BoxShape.RoundedRectangle);
     }
 
     /// <summary>
@@ -906,9 +1152,9 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var partBoxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
+        var partBoxes = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
         Assert.Equal(2, partBoxes.Count);
-        Assert.Single(layout.Nodes.OfType<LayoutLine>());
+        Assert.Single(CollectLines(layout.Nodes));
     }
 
     /// <summary>
@@ -941,7 +1187,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var container = layout.Nodes.OfType<LayoutBox>().First(b => b.Keyword == "part def");
+        var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
         Assert.Equal("SysB", container.Label);
     }
 }
