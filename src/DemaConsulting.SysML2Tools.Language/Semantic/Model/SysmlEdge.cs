@@ -84,6 +84,13 @@ public enum SysmlEdgeKind
     ///     resolved redefined-feature reference.
     /// </summary>
     Redefinition,
+
+    /// <summary>
+    ///     A metadata annotation's type reference (<see cref="SysmlMetadataNode.TypeReference"/> /
+    ///     <c>@Type</c> / <c>{@Type{...}}</c>), from the annotation to the resolved <c>metadata
+    ///     def</c> declaration it references.
+    /// </summary>
+    MetadataType,
 }
 
 /// <summary>

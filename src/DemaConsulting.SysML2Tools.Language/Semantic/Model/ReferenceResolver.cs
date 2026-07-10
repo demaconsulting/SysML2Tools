@@ -770,6 +770,29 @@ internal sealed class ReferenceResolver
             }
         }
 
+        // Metadata annotations (SysmlMetadataNode, a Children entry of the element it annotates)
+        // resolve their annotating type reference (e.g. "Safety" / "Pkg::Safety") the same way
+        // feature typing does. The resulting edge's source is this metadata node's own
+        // (usually-null) QualifiedName — callers (Core.Filtering's FilterExpressionEvaluator)
+        // read the resolved target off node.ResolvedEdges directly rather than by source-name
+        // lookup, since a metadata annotation is always addressed by its owning element, not by
+        // its own identity.
+        if (node is SysmlMetadataNode { TypeReference.Length: > 0 } metadata)
+        {
+            if (TryResolve(metadata.TypeReference, namespaceStack, imports, out var resolvedType))
+            {
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedType, SysmlEdgeKind.MetadataType));
+            }
+            else if (resolvedInFile.Add(metadata.TypeReference))
+            {
+                _diagnostics.Add(new SysmlDiagnostic(
+                    filePath,
+                    0, 0,
+                    DiagnosticSeverity.Warning,
+                    $"Unresolved reference: '{metadata.TypeReference}'"));
+            }
+        }
+
         if (nodeEdges.Count > 0)
         {
             node.ResolvedEdges = nodeEdges;

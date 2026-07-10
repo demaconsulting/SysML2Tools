@@ -1,6 +1,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
+using System.Globalization;
 using DemaConsulting.SysML2Tools.Parser.Antlr;
 
 namespace DemaConsulting.SysML2Tools.Semantic.Model;
@@ -121,9 +122,88 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             };
         }
 
-        // textualRepresentation / metadataFeature: out of scope for this unit, preserves the
-        // existing drop behavior (falls through to the default visitor, which returns null).
+        // metadataFeature: build a SysmlMetadataNode capturing the annotating type reference and
+        // any literal attribute values assigned in its body. textualRepresentation remains out of
+        // scope for this unit, preserving the existing drop behavior.
+        if (context.metadataFeature() is { } metadataFeature)
+        {
+            return BuildMetadataNode(metadataFeature);
+        }
+
         return base.VisitAnnotatingElement(context);
+    }
+
+    /// <summary>
+    ///     Builds a <see cref="SysmlMetadataNode"/> from a <c>metadataFeature</c> parse (the
+    ///     <c>{@Type{attr = value;}}</c> / bare <c>@Type;</c> forms), capturing the annotating
+    ///     type's raw reference text and any literal (boolean/number/string) attribute values
+    ///     assigned directly in its body. Non-literal value expressions are captured as raw text
+    ///     with <see cref="MetadataAttributeValueKind.Unsupported"/> — never evaluated, per the
+    ///     Phase 1 construct boundary (see ROADMAP.md).
+    /// </summary>
+    private static SysmlMetadataNode BuildMetadataNode(SysMLv2Parser.MetadataFeatureContext context)
+    {
+        var typeReference = context.metadataFeatureDeclaration()?.ownedFeatureTyping()?.GetText() ?? string.Empty;
+
+        var attributes = new List<MetadataAttributeValue>();
+        foreach (var element in context.metadataBody()?.metadataBodyElement() ?? [])
+        {
+            var feature = element.metadataBodyFeatureMember()?.metadataBodyFeature();
+            var name = feature?.ownedRedefinition()?.GetText();
+            var valueExpr = feature?.valuePart()?.featureValue()?.ownedExpression();
+            if (string.IsNullOrEmpty(name) || valueExpr is null)
+            {
+                continue;
+            }
+
+            attributes.Add(BuildMetadataAttributeValue(name, valueExpr));
+        }
+
+        return new SysmlMetadataNode
+        {
+            TypeReference = typeReference,
+            Attributes = attributes,
+        };
+    }
+
+    /// <summary>
+    ///     Classifies a metadata attribute's assigned value expression as a scalar literal
+    ///     (boolean/number/string) when possible, or as
+    ///     <see cref="MetadataAttributeValueKind.Unsupported"/> (raw text preserved, never
+    ///     evaluated) for any other value expression shape.
+    /// </summary>
+    private static MetadataAttributeValue BuildMetadataAttributeValue(
+        string name, SysMLv2Parser.OwnedExpressionContext expr)
+    {
+        var raw = expr.GetText();
+        var literal = expr.baseExpression()?.literalExpression();
+
+        if (literal?.literalBoolean() is { } boolLiteral)
+        {
+            return new MetadataAttributeValue(
+                name, MetadataAttributeValueKind.Boolean, raw, BooleanValue: boolLiteral.TRUE() is not null);
+        }
+
+        if (literal?.literalString() is { } stringLiteral)
+        {
+            var text = stringLiteral.GetText();
+            var unquoted = text.Length >= 2 ? text[1..^1] : text;
+            return new MetadataAttributeValue(name, MetadataAttributeValueKind.String, raw, StringValue: unquoted);
+        }
+
+        if (literal?.literalInteger() is { } integerLiteral &&
+            double.TryParse(integerLiteral.GetText(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var iv))
+        {
+            return new MetadataAttributeValue(name, MetadataAttributeValueKind.Number, raw, NumberValue: iv);
+        }
+
+        if (literal?.literalReal() is { } realLiteral &&
+            double.TryParse(realLiteral.GetText(), NumberStyles.Float, CultureInfo.InvariantCulture, out var rv))
+        {
+            return new MetadataAttributeValue(name, MetadataAttributeValueKind.Number, raw, NumberValue: rv);
+        }
+
+        return new MetadataAttributeValue(name, MetadataAttributeValueKind.Unsupported, raw);
     }
 
     /// <summary>
@@ -922,7 +1002,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var bodyItems = context.viewBody()?.viewBodyItem() ?? [];
 
         var (renderTargetName, filterExpressionText) = ExtractViewRenderAndFilter(bodyItems);
-        var exposedNames = ExtractExposedNames(bodyItems);
+        var (exposedNames, exposeBracketFilterTexts) = ExtractExposedNames(bodyItems);
 
         return new SysmlViewNode
         {
@@ -931,6 +1011,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             RenderTargetName = renderTargetName,
             ExposedNames = exposedNames,
             FilterExpressionText = filterExpressionText,
+            ExposeBracketFilterTexts = exposeBracketFilterTexts,
         };
     }
 
@@ -1011,10 +1092,11 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     <c>view</c> usage's body, in source order, reusing <see cref="ExtractImportTarget"/> —
     ///     the same namespace/membership-import shape <c>import</c> statements use.
     /// </summary>
-    private static IReadOnlyList<string> ExtractExposedNames(
+    private static (IReadOnlyList<string> ExposedNames, IReadOnlyList<string> BracketFilterTexts) ExtractExposedNames(
         IEnumerable<SysMLv2Parser.ViewBodyItemContext> bodyItems)
     {
         var names = new List<string>();
+        var bracketFilterTexts = new List<string>();
         foreach (var item in bodyItems)
         {
             var expose = item.expose();
@@ -1023,16 +1105,21 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 continue;
             }
 
-            var (qn, _) = ExtractImportTarget(
+            var (qn, _, bracketFilterText) = ExtractImportTarget(
                 expose.namespaceExpose()?.namespaceImport(),
                 expose.membershipExpose()?.membershipImport());
             if (qn is { Length: > 0 })
             {
                 names.Add(qn);
             }
+
+            if (bracketFilterText is { Length: > 0 })
+            {
+                bracketFilterTexts.Add(bracketFilterText);
+            }
         }
 
-        return names;
+        return (names, bracketFilterTexts);
     }
 
     /// <inheritdoc/>
@@ -1065,7 +1152,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             return null;
         }
 
-        var (qn, isWildcard) = ExtractImportTarget(decl.namespaceImport(), decl.membershipImport());
+        var (qn, isWildcard, bracketFilterText) = ExtractImportTarget(decl.namespaceImport(), decl.membershipImport());
         if (qn is null)
         {
             return null;
@@ -1076,6 +1163,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             ImportedNamespace = qn,
             ImportedNames = [qn],
             IsWildcard = isWildcard,
+            BracketFilterExpressionText = bracketFilterText,
         };
     }
 
@@ -1095,7 +1183,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     The extracted qualified/dotted name text (or null when neither alternative yielded
     ///     text) and whether the import/expose is a wildcard.
     /// </returns>
-    private static (string? QualifiedName, bool IsWildcard) ExtractImportTarget(
+    private static (string? QualifiedName, bool IsWildcard, string? BracketFilterExpressionText) ExtractImportTarget(
         SysMLv2Parser.NamespaceImportContext? namespaceImport,
         SysMLv2Parser.MembershipImportContext? membershipImport)
     {
@@ -1105,15 +1193,21 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             var qn = namespaceImport.qualifiedName()?.GetText();
             if (qn is { Length: > 0 })
             {
-                return (qn, true);
+                return (qn, true, null);
             }
 
             // Bracketed-filter form: qualifiedName::**[filterExpr] — the dominant expose form in
             // the real OMG corpus. The grammar nests the qualified name two levels deeper here:
             // namespaceImport -> filterPackage -> filterPackageImportDeclaration -> (membershipImport
             // | namespaceImportDirect). Descend through that chain rather than only checking the
-            // direct qualifiedName() child (which is null for this alternative).
-            var filterDecl = namespaceImport.filterPackage()?.filterPackageImportDeclaration();
+            // direct qualifiedName() child (which is null for this alternative). The bracket
+            // expression text itself is captured raw only (Phase 1 does not evaluate it — see
+            // SysmlViewNode.ExposeBracketFilterTexts) from the filterPackage's first
+            // filterPackageMember (multiple bracket filters chained on one path are extremely
+            // rare; the first is representative for the "unevaluated" warning).
+            var filterPackage = namespaceImport.filterPackage();
+            var bracketFilterText = filterPackage?.filterPackageMember()?.FirstOrDefault()?.ownedExpression()?.GetText();
+            var filterDecl = filterPackage?.filterPackageImportDeclaration();
             if (filterDecl is not null)
             {
                 var filterMembershipImport = filterDecl.membershipImport();
@@ -1122,7 +1216,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                     var filterQn = filterMembershipImport.qualifiedName()?.GetText();
                     if (filterQn is { Length: > 0 })
                     {
-                        return (filterQn, filterMembershipImport.STAR_STAR() is not null);
+                        return (filterQn, filterMembershipImport.STAR_STAR() is not null, bracketFilterText);
                     }
                 }
 
@@ -1132,7 +1226,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                     var directQn = namespaceImportDirect.qualifiedName()?.GetText();
                     if (directQn is { Length: > 0 })
                     {
-                        return (directQn, true);
+                        return (directQn, true, bracketFilterText);
                     }
                 }
             }
@@ -1145,11 +1239,11 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             var qn = membershipImport.qualifiedName()?.GetText();
             if (qn is { Length: > 0 })
             {
-                return (qn, membershipImport.STAR_STAR() is not null);
+                return (qn, membershipImport.STAR_STAR() is not null, null);
             }
         }
 
-        return (null, false);
+        return (null, false, null);
     }
 
     /// <inheritdoc/>
