@@ -1044,12 +1044,27 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             if (filterExpressionText is null &&
                 GetElementFilterMember(item) is { } filterMember)
             {
-                filterExpressionText = filterMember.ownedExpression()?.GetText();
+                filterExpressionText = filterMember.ownedExpression() is { } filterExpr
+                    ? GetOriginalText(filterExpr)
+                    : null;
             }
         }
 
         return (renderTargetName, filterExpressionText);
     }
+
+    /// <summary>
+    ///     Reconstructs a parser rule context's original source text (preserving whitespace between
+    ///     tokens), unlike <see cref="Antlr4.Runtime.RuleContext.GetText"/> which concatenates each
+    ///     token's text with no separators. Required whenever the captured text will later be
+    ///     re-lexed on its own (e.g. <c>FilterExpressionParser.Parse</c>) — without the original
+    ///     inter-token spacing, adjacent keyword/identifier tokens can merge into a single token
+    ///     (e.g. <c>"@Safety and (as Safety)"</c> would otherwise round-trip as
+    ///     <c>"@Safetyand(asSafety)"</c>, losing the <c>and</c>/<c>as</c> keyword boundaries).
+    /// </summary>
+    private static string GetOriginalText(Antlr4.Runtime.ParserRuleContext context) =>
+        context.Start.InputStream.GetText(
+            new Antlr4.Runtime.Misc.Interval(context.Start.StartIndex, context.Stop.StopIndex));
 
     /// <summary>Extracts the <c>viewRenderingMember()</c> accessor common to both view body item types.</summary>
     private static SysMLv2Parser.ViewRenderingMemberContext? GetViewRenderingMember(Antlr4.Runtime.ParserRuleContext item) =>
@@ -1206,7 +1221,9 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             // filterPackageMember (multiple bracket filters chained on one path are extremely
             // rare; the first is representative for the "unevaluated" warning).
             var filterPackage = namespaceImport.filterPackage();
-            var bracketFilterText = filterPackage?.filterPackageMember()?.FirstOrDefault()?.ownedExpression()?.GetText();
+            var bracketFilterText = filterPackage?.filterPackageMember()?.FirstOrDefault()?.ownedExpression() is { } bracketExpr
+                ? GetOriginalText(bracketExpr)
+                : null;
             var filterDecl = filterPackage?.filterPackageImportDeclaration();
             if (filterDecl is not null)
             {

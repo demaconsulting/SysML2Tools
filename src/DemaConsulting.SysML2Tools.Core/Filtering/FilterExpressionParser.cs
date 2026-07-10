@@ -157,10 +157,14 @@ public static class FilterExpressionParser
             return BuildComparison(context, operands, diagnostics);
         }
 
-        // (as Type).attribute — a DOT read on a metadata-cast base expression.
+        // (as Type).attribute — a DOT read on a metadata-cast base expression. Note: in this
+        // grammar DOT binds looser than the boolean connectives (see BuildAttributeReadOnto's
+        // remarks), so a DOT node's left operand may itself be an already-assembled boolean
+        // chain (e.g. "@Safety and (as Safety)" for source text "@Safety and (as Safety).x")
+        // that needs the attribute read re-associated onto its rightmost operand.
         if (context.DOT() is not null && operands.Length == 1 && context.qualifiedName().Length > 0)
         {
-            return BuildAttributeRead(context, diagnostics);
+            return BuildAttributeReadOnto(operands[0], context.qualifiedName(0).GetText(), diagnostics);
         }
 
         // Parenthesized sub-expression with no other operator present: baseExpression covers the
@@ -216,20 +220,72 @@ public static class FilterExpressionParser
         return new ComparisonFilterExpression(attributeRead, op, right);
     }
 
-    /// <summary>Builds an <see cref="AttributeReadExpression"/> from a <c>(as Type).attribute</c> DOT node.</summary>
-    private static FilterExpression? BuildAttributeRead(
-        SysMLv2Parser.OwnedExpressionContext context, List<SysmlDiagnostic> diagnostics)
+    /// <summary>
+    /// Builds an <see cref="AttributeReadExpression"/> for a <c>(as Type).attribute</c> DOT read
+    /// whose left-hand operand is <paramref name="left"/>.
+    /// </summary>
+    /// <remarks>
+    /// In this project's ANTLR grammar (<c>SysMLv2Parser.g4</c>'s <c>ownedExpression</c> rule),
+    /// <c>DOT</c> binds looser than the boolean connectives (<c>and</c>/<c>or</c>/<c>xor</c>/
+    /// <c>&amp;</c>/<c>|</c>) and <c>not</c>: for source text like
+    /// <c>@Safety and (as Safety).isMandatory</c>, the parser builds the boolean chain
+    /// <c>@Safety and (as Safety)</c> first (as its two operands are adjacent in the token
+    /// stream), then wraps the trailing <c>.isMandatory</c> DOT around that *entire* chain —
+    /// i.e. the CST shape is <c>DOT(AND(@Safety, (as Safety)), isMandatory)</c>, not the
+    /// intuitively-expected <c>AND(@Safety, DOT((as Safety), isMandatory))</c>. This mirrors the
+    /// canonical OMG filter-expression idiom (see the SysML v2 "Filtering" training example),
+    /// so rather than reporting it as unsupported, this method re-associates the attribute read
+    /// onto the rightmost operand of a boolean/<c>not</c> chain, recursively, producing the
+    /// intuitively-expected tree.
+    /// </remarks>
+    private static FilterExpression? BuildAttributeReadOnto(
+        SysMLv2Parser.OwnedExpressionContext left, string attributeName, List<SysmlDiagnostic> diagnostics)
     {
-        var baseExpr = context.ownedExpression(0).baseExpression();
-        if (baseExpr?.AS() is null || baseExpr.typeReference() is not { } typeRef)
+        var leftOperands = left.ownedExpression();
+
+        // Direct case: left is exactly the "(as Type)" cast primary — the attribute read applies
+        // directly to it.
+        if (leftOperands.Length == 0 &&
+            left.baseExpression() is { } baseExpr && baseExpr.AS() is not null &&
+            baseExpr.typeReference() is { } typeRef)
         {
-            diagnostics.Add(Diagnostic(
-                $"Unsupported filter construct: '.' navigation is only supported on an '(as Type)' cast, found '{context.GetText()}'."));
-            return null;
+            return new AttributeReadExpression(typeRef.GetText(), attributeName);
         }
 
-        var attributeName = context.qualifiedName(0).GetText();
-        return new AttributeReadExpression(typeRef.GetText(), attributeName);
+        // Re-association case: left is a boolean connective chain — attach the attribute read to
+        // its rightmost operand instead (see method remarks), keeping the leftmost operand as-is.
+        if (leftOperands.Length == 2)
+        {
+            var (connective, operatorText) = left switch
+            {
+                _ when left.AND() is not null => (BooleanConnective.And, "and"),
+                _ when left.OR() is not null => (BooleanConnective.Or, "or"),
+                _ when left.XOR() is not null => (BooleanConnective.Xor, "xor"),
+                _ when left.AMP() is not null => (BooleanConnective.And, "&"),
+                _ when left.PIPE() is not null => (BooleanConnective.Or, "|"),
+                _ => ((BooleanConnective?)null, (string?)null),
+            };
+
+            if (connective is { } c && operatorText is { } opText)
+            {
+                var leftmost = TryBuild(leftOperands[0], diagnostics);
+                var rightmost = BuildAttributeReadOnto(leftOperands[1], attributeName, diagnostics);
+                return leftmost is null || rightmost is null
+                    ? null
+                    : new BooleanFilterExpression(c, opText, leftmost, rightmost);
+            }
+        }
+
+        // Re-association case: left is a unary "not" — attach the attribute read to its operand.
+        if (leftOperands.Length == 1 && left.NOT() is not null)
+        {
+            var operand = BuildAttributeReadOnto(leftOperands[0], attributeName, diagnostics);
+            return operand is null ? null : new NotFilterExpression(operand);
+        }
+
+        diagnostics.Add(Diagnostic(
+            $"Unsupported filter construct: '.' navigation is only supported on an '(as Type)' cast, found '{left.GetText()}.{attributeName}'."));
+        return null;
     }
 
     /// <summary>Handles a parenthesized-grouping <c>baseExpression</c> with a single nested expression.</summary>

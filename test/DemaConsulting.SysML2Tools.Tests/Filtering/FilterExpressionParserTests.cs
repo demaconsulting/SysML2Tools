@@ -130,6 +130,28 @@ public sealed class FilterExpressionParserTests
         Assert.True(expression.Right.BooleanValue);
     }
 
+    /// <summary>
+    ///     The canonical OMG "Filtering" idiom <c>@Safety and (as Safety).isMandatory</c> parses
+    ///     as the intuitively-expected <c>AND(classification-test, attribute-read)</c> tree, not
+    ///     the literal CST shape the grammar produces (a DOT node wrapping the whole AND chain —
+    ///     see <c>FilterExpressionParser.BuildAttributeReadOnto</c>'s remarks for why DOT binds
+    ///     looser than the boolean connectives in this grammar and how the parser re-associates
+    ///     the attribute read onto the chain's rightmost operand).
+    /// </summary>
+    [Fact]
+    public void Parse_ClassificationTestAndAttributeRead_ReAssociatesDotOntoRightOperand()
+    {
+        var result = FilterExpressionParser.Parse("@Safety and (as Safety).isMandatory");
+
+        var expression = Assert.IsType<BooleanFilterExpression>(result.Expression);
+        Assert.Equal(BooleanConnective.And, expression.Connective);
+        var left = Assert.IsType<ClassificationTestExpression>(expression.Left);
+        Assert.Equal("Safety", left.TypeName);
+        var right = Assert.IsType<AttributeReadExpression>(expression.Right);
+        Assert.Equal("Safety", right.TypeName);
+        Assert.Equal("isMandatory", right.AttributeName);
+    }
+
     /// <summary>An attribute read compared with <c>!=</c> against a string literal builds a comparison.</summary>
     [Fact]
     public void Parse_AttributeReadNotEqualsString_ReturnsComparisonExpression()
@@ -239,6 +261,7 @@ public sealed class FilterExpressionParserTests
     [InlineData("(as Safety).level != \"low\"")]
     [InlineData("(as Safety).level == 4")]
     [InlineData("@Safety and @Critical or not @Other")]
+    [InlineData("@Safety and (as Safety).isMandatory")]
     public void Parse_RoundTrip_PrettyPrintedTextReparsesToEquivalentTree(string expressionText)
     {
         var first = FilterExpressionParser.Parse(expressionText);
