@@ -158,6 +158,20 @@ Named `view Name { ... }` usages (not just `view def` declarations) are also now
 their own renderable declarations: a workspace containing both `view def` declarations and named
 `view` usages surfaces both kinds as views the `render` command discovers and renders.
 
+### Interconnection View Connector Detail
+
+An Interconnection View's connector endpoints now show the SysML port name from the connection's
+endpoint reference (for example a connection between `StepperMotorX.encoder` and
+`LBO3AxisGantry.J40` labels its two ports `encoder` and `J40`), instead of leaving every port
+unlabeled. When several distinct connections wire the same two parts (for example separate
+`power`, `encoder`, and `sensor` connections between one controller and one motor), each
+connection now renders as its own independently-routed connector line, rather than visually
+collapsing onto a single shared line. A connection whose endpoint reaches into a part nested
+inside a container (for example `connect psu to board.cpu`) shows the port label for the true
+nested target (`cpu`), but the connector line itself still terminates at the containing `board`
+box's own boundary rather than continuing on to the inner part — routing a connector all the way
+into a nested container remains a known limitation.
+
 ## Expose vs. Render: Worked Examples
 
 The three view body statements look similar but do very different jobs. This is a common point

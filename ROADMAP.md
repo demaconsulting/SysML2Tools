@@ -51,6 +51,24 @@ primitives (bar, diamond, pentagon, note). `LayoutActivation`/`LayoutBand` alrea
 **Visual gate:** sequence shows activation bars + a fragment; action flow shows a fork/join and
 a decision/merge with correct shapes.
 
+### Interconnection View: genuine cross-boundary connector routing
+
+`InterconnectionViewLayoutStrategy` now resolves a connection endpoint's full dotted reference
+(e.g. `board.cpu`) for its port **label**, so a cross-boundary reference shows the true nested
+target's name instead of discarding it. The connector line itself, however, still terminates at
+the containing part's own box boundary rather than routing all the way into the nested container
+to the inner part — genuine cross-boundary routing would require restructuring
+`LayOutInterior`'s per-level independent `LayeredPlacement.Place` calls into one connected nested
+`LayoutGraph`/`LayoutGraphNode.Children` for the affected subtree, using the companion
+`DemaConsulting.Rendering` package's boundary/delegation-port (`HierarchyHandling.Recursive`)
+support end-to-end, instead of the strategy's current two-independent-layouts-stitched-together
+recursion.
+
+**Scope:** `InterconnectionViewLayoutStrategy`'s `LayOutInterior`/`CollectParts` recursion;
+possibly a new `LayeredPlacement` entry point that builds a genuinely nested `LayoutGraph`.
+**Visual gate:** `connect psu to board.cpu;` renders a connector line that visually terminates on
+the inner `cpu` box, not the `board` container's boundary.
+
 ### View `filter [<expr>];` expression evaluation
 
 `GeneralViewLayoutStrategy` now scopes a rendered diagram to a view's `expose <...>;` subject

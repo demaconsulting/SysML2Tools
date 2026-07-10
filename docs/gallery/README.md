@@ -191,6 +191,23 @@ SVG: [`svg/ComputerSystemInterconnectionView.svg`](svg/ComputerSystemInterconnec
 
 ---
 
+## 9. Multi-Port Interconnection View — Motor/Controller Rig
+
+Shows multiple independent, named-port connections between the same two parts: a
+`motor` is wired to its `controller` by three separate connections (`powerLink`,
+`encoderLink`, `thermalLink`), each between its own distinct pair of ports. This
+demonstrates that the interconnection layout keeps every parallel connector between
+the same two boxes visually and structurally distinct — rather than collapsing them
+onto one shared route — and labels each end with its own SysML port name, with the
+boxes auto-sized to keep every port label clear of the box's own title.
+
+Model: [`models/09-motor-controller-multi-port.sysml`](models/09-motor-controller-multi-port.sysml) ·
+SVG: [`svg/MotorRigInterconnectionView.svg`](svg/MotorRigInterconnectionView.svg)
+
+![Motor Rig Interconnection View](png/MotorRigInterconnectionView.png)
+
+---
+
 ## View coverage
 
 | # | View type | Example system | Status |
@@ -203,4 +220,5 @@ SVG: [`svg/ComputerSystemInterconnectionView.svg`](svg/ComputerSystemInterconnec
 | 6 | Grid View | Vehicle Taxonomy | ✅ |
 | 7 | Browser View | Avionics System | ✅ |
 | 8 | Nested Interconnection View | Computer System | ✅ |
-| 9 | Geometry View | — | Deferred (requires spatial coordinate data) |
+| 9 | Multi-Port Interconnection View | Motor/Controller Rig | ✅ |
+| 10 | Geometry View | — | Deferred (requires spatial coordinate data) |
