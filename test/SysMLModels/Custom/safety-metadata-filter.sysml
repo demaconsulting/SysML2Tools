@@ -1,4 +1,5 @@
 package RobotArm {
+    private import ScalarValues::Boolean;
 
     metadata def Safety {
         attribute isMandatory : Boolean;
