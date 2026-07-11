@@ -21,6 +21,7 @@
 using System.Globalization;
 using System.Reflection;
 using DemaConsulting.SysML2Tools.Cli;
+using DemaConsulting.SysML2Tools.Export;
 using DemaConsulting.SysML2Tools.Help;
 using DemaConsulting.SysML2Tools.Lint;
 using DemaConsulting.SysML2Tools.Query;
@@ -158,6 +159,10 @@ internal static class Program
 
                     break;
 
+                case SysmlCommand.Export:
+                    ExportCommand.PrintHelp(context);
+                    break;
+
                 default:
                     PrintTopLevelHelp(context);
                     break;
@@ -207,6 +212,8 @@ internal static class Program
         context.WriteLine(ProgramStrings.TopLevel_CommandQuery1);
         context.WriteLine(ProgramStrings.TopLevel_CommandQuery2);
         context.WriteLine(ProgramStrings.TopLevel_CommandQuery3);
+        context.WriteLine(ProgramStrings.TopLevel_CommandExport1);
+        context.WriteLine(ProgramStrings.TopLevel_CommandExport2);
         context.WriteLine(ProgramStrings.TopLevel_CommandHelp1);
         context.WriteLine(ProgramStrings.TopLevel_CommandHelp2);
         context.WriteLine("");
@@ -252,6 +259,10 @@ internal static class Program
 
             case SysmlCommand.Query:
                 await QueryCommand.RunAsync(context).ConfigureAwait(false);
+                break;
+
+            case SysmlCommand.Export:
+                await ExportCommand.RunAsync(context).ConfigureAwait(false);
                 break;
 
             default:

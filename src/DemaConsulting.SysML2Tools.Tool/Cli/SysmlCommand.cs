@@ -37,6 +37,9 @@ internal enum SysmlCommand
     /// <summary>Run a model-analysis query verb.</summary>
     Query,
 
+    /// <summary>Export the resolved semantic model as JSON or JSON Lines.</summary>
+    Export,
+
     /// <summary>Print help for the tool or a specific command/verb.</summary>
     Help
 }

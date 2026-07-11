@@ -85,6 +85,12 @@
   <data name="TopLevel_CommandQuery3" xml:space="preserve">
     <value>                             'sysml2tools query --help' for the verb list)</value>
   </data>
+  <data name="TopLevel_CommandExport1" xml:space="preserve">
+    <value>  export [options] &lt;files..&gt; Export the resolved semantic model as JSON or JSON</value>
+  </data>
+  <data name="TopLevel_CommandExport2" xml:space="preserve">
+    <value>                             Lines (declarations, edges, diagnostics)</value>
+  </data>
   <data name="TopLevel_CommandHelp1" xml:space="preserve">
     <value>  help [command] [verb]      Print help for the tool, a command, or (for 'query')</value>
   </data>

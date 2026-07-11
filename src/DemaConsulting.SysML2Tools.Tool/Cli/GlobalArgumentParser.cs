@@ -107,6 +107,10 @@ internal static class GlobalArgumentParser
                     command = SysmlCommand.Query;
                     break;
 
+                case "export" when command == SysmlCommand.None:
+                    command = SysmlCommand.Export;
+                    break;
+
                 case "help" when command == SysmlCommand.None:
                     command = SysmlCommand.Help;
                     break;
