@@ -457,7 +457,7 @@ public sealed class ActionFlowViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["ProcessB"],
+            ExposeMembers = [new ExposeMember("ProcessB", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::ProcessB", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -485,7 +485,7 @@ public sealed class ActionFlowViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["b1"],
+            ExposeMembers = [new ExposeMember("b1", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::ProcessB::b1", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -559,7 +559,7 @@ public sealed class ActionFlowViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["c1"],
+            ExposeMembers = [new ExposeMember("c1", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::ProcessA::ProcessC::c1", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -585,7 +585,7 @@ public sealed class ActionFlowViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["Unrelated"],
+            ExposeMembers = [new ExposeMember("Unrelated", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::Unrelated", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -613,7 +613,7 @@ public sealed class ActionFlowViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["a1"],
+            ExposeMembers = [new ExposeMember("a1", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::ProcessA::a1", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -654,7 +654,7 @@ public sealed class ActionFlowViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["myProcess"],
+            ExposeMembers = [new ExposeMember("myProcess", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::myProcess", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);

@@ -73,22 +73,41 @@ public sealed class LayoutWarningsTests
         Assert.Contains("unsupported construct", message);
     }
 
-    /// <summary>An empty bracket-filter list produces no warnings.</summary>
+    /// <summary>An empty failure list produces no warnings.</summary>
     [Fact]
     public void ForUnevaluatedExposeBracketFilter_Empty_ReturnsEmpty()
     {
         Assert.Empty(LayoutWarnings.ForUnevaluatedExposeBracketFilter("View", []));
     }
 
-    /// <summary>A non-empty bracket-filter list produces a single warning naming the view.</summary>
+    /// <summary>
+    ///     A single parse/evaluation failure produces a single warning naming the view, the failed
+    ///     expression text, and the reason.
+    /// </summary>
     [Fact]
-    public void ForUnevaluatedExposeBracketFilter_NonEmpty_ReturnsWarning()
+    public void ForUnevaluatedExposeBracketFilter_SingleFailure_ReturnsWarningWithReason()
     {
-        var warnings = LayoutWarnings.ForUnevaluatedExposeBracketFilter("MyView", ["@Safety"]);
+        var warnings = LayoutWarnings.ForUnevaluatedExposeBracketFilter(
+            "MyView", [new BracketFilterFailure("@Safety", "unsupported construct")]);
 
         var message = Assert.Single(warnings);
         Assert.Contains("MyView", message);
-        Assert.Contains("bracket-filter", message);
-        Assert.Contains("not yet evaluated", message);
+        Assert.Contains("@Safety", message);
+        Assert.Contains("could not be evaluated", message);
+        Assert.Contains("unsupported construct", message);
+    }
+
+    /// <summary>Multiple failures each produce their own warning message.</summary>
+    [Fact]
+    public void ForUnevaluatedExposeBracketFilter_MultipleFailures_ReturnsOneWarningPerFailure()
+    {
+        var warnings = LayoutWarnings.ForUnevaluatedExposeBracketFilter(
+            "MyView",
+            [
+                new BracketFilterFailure("@Safety", "unsupported construct"),
+                new BracketFilterFailure("x istype Y", "unsupported construct"),
+            ]);
+
+        Assert.Equal(2, warnings.Count);
     }
 }

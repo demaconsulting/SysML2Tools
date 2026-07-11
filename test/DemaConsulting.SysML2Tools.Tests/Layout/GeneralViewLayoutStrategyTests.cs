@@ -1057,7 +1057,7 @@ public sealed class GeneralViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposedNames = ["A"],
+            ExposeMembers = [new ExposeMember("A", null)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -1124,7 +1124,7 @@ public sealed class GeneralViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposedNames = ["myVehicle"],
+            ExposeMembers = [new ExposeMember("myVehicle", null)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -1270,7 +1270,7 @@ public sealed class GeneralViewLayoutStrategyTests
 
         // Confirm the fix actually resolved an Expose edge before asserting on layout scoping —
         // otherwise this test would pass vacuously by comparing full-workspace to full-workspace.
-        Assert.NotEmpty(viewNode.ExposedNames);
+        Assert.NotEmpty(viewNode.GetExposedNames());
         Assert.Contains(workspace.Index.AllEdges,
             e => e.Kind == SysmlEdgeKind.Expose && e.SourceQualifiedName == viewQualifiedName);
 

@@ -70,7 +70,7 @@ internal sealed class BrowserViewLayoutStrategy : ILayoutStrategy
     /// forest root automatically, yielding "only the subtree(s) rooted at exposed targets" with no
     /// additional tree-building logic.
     /// </summary>
-    private static IReadOnlyList<TreeNode> BuildForest(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
+    private static IReadOnlyList<TreeNode> BuildForest(SysmlWorkspace workspace, ExposedScope? scope)
     {
         var byName = new Dictionary<string, TreeNode>(StringComparer.Ordinal);
         var roots = new List<TreeNode>();

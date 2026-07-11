@@ -269,7 +269,7 @@ public sealed class SequenceViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["ProtocolB"],
+            ExposeMembers = [new ExposeMember("ProtocolB", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::ProtocolB", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -298,7 +298,7 @@ public sealed class SequenceViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["x"],
+            ExposeMembers = [new ExposeMember("x", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::ProtocolB::x", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -372,7 +372,7 @@ public sealed class SequenceViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["x"],
+            ExposeMembers = [new ExposeMember("x", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::ProtocolA::ProtocolC::x", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -399,7 +399,7 @@ public sealed class SequenceViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["Unrelated"],
+            ExposeMembers = [new ExposeMember("Unrelated", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::Unrelated", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -428,7 +428,7 @@ public sealed class SequenceViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["server"],
+            ExposeMembers = [new ExposeMember("server", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::ProtocolA::server", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -466,7 +466,7 @@ public sealed class SequenceViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["client", "server"],
+            ExposeMembers = [new ExposeMember("client", null), new ExposeMember("server", null)],
             ResolvedEdges =
             [
                 new SysmlEdge("M::V", "M::ProtocolA::client", SysmlEdgeKind.Expose),
@@ -506,7 +506,7 @@ public sealed class SequenceViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["myProtocol"],
+            ExposeMembers = [new ExposeMember("myProtocol", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::myProtocol", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
