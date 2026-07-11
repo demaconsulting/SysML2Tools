@@ -43,8 +43,9 @@ Performs four steps, in order, short-circuiting to a diagnostic on the first fai
      `DefinitionKeyword == "part def"` and at least one nested `SysmlFeatureNode` with
      `FeatureKeyword == "part"`, mirroring `InterconnectionViewLayoutStrategy`'s two-part
      `FindRoot`/post-`FindRoot` gate.
-   - `state`: at least one nested `SysmlTransitionNode`, mirroring
-     `StateTransitionViewLayoutStrategy`.
+   - `state`: at least one nested `SysmlTransitionNode` (a transition) or at least one nested
+     `SysmlFeatureNode` with `FeatureKeyword == "state"`, mirroring
+     `StateTransitionViewLayoutStrategy`'s `CollectStates` gate (`states.Count == 0`).
    - `action`: at least one nested `SysmlTransitionNode` (a succession) or at least one nested
      `SysmlFeatureNode` with `FeatureKeyword == "action"`, mirroring
      `ActionFlowViewLayoutStrategy`.

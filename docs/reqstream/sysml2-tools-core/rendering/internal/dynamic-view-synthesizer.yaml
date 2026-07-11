@@ -53,7 +53,8 @@ sections:
           DynamicViewSynthesizer shall run a cheap, per-kind structural compatibility pre-check
           before synthesizing a view, rejecting a target with a clear diagnostic when the
           pre-check fails: interconnection requires a "part def" target with at least one nested
-          "part" feature; state requires at least one nested state transition; action requires at
+          "part" feature; state requires at least one nested state transition or "state" feature;
+          action requires at
           least one succession or "action" feature; sequence requires at least one nested
           "message" usage (a necessary-but-not-sufficient approximation of "at least one
           lifeline" — see the design documentation's documented limitation); general, grid, and

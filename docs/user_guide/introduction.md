@@ -146,7 +146,7 @@ sysml2tools render model.sysml --view-type general --view-target Pkg::Vehicle --
   | --- | --- |
   | `general`, `grid`, `browser` | None — any resolvable, non-stdlib definition or usage is accepted |
   | `interconnection` | Target must be a `part def` with at least one nested `part` feature |
-  | `state` | Target must have at least one nested state transition |
+  | `state` | Target must have at least one nested state transition or `state` feature |
   | `action` | Target must have at least one succession or nested `action` feature |
   | `sequence` | Target must have at least one nested `message` usage |
 

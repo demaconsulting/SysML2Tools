@@ -185,6 +185,38 @@ public sealed class DynamicViewSynthesizerTests
         Assert.Contains("no nested state transitions", diagnostic!, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A "state" dynamic view targeting a definition with declared "state" features but no
+    /// transitions succeeds (CollectStates populates from declared state features alone).
+    /// </summary>
+    [Fact]
+    public void Synthesize_StateKind_HasStateFeatureNoTransitions_Succeeds()
+    {
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Traffic"] = new SysmlDefinitionNode
+                {
+                    Name = "Traffic",
+                    QualifiedName = "P::Traffic",
+                    DefinitionKeyword = "state def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "red", QualifiedName = "P::Traffic::red", FeatureKeyword = "state" },
+                        new SysmlFeatureNode { Name = "green", QualifiedName = "P::Traffic::green", FeatureKeyword = "state" }
+                    ]
+                }
+            }
+        };
+
+        var viewNode = DiagramRenderer.SynthesizeDynamicView(workspace, "state", "P::Traffic", null, out var diagnostic);
+
+        Assert.Null(diagnostic);
+        Assert.NotNull(viewNode);
+        Assert.Equal("asStateTransitionDiagram", viewNode!.RenderTargetName);
+    }
+
     /// <summary>An "action" dynamic view targeting a definition with an "action" feature succeeds.</summary>
     [Fact]
     public void Synthesize_ActionKind_HasActionFeature_Succeeds()

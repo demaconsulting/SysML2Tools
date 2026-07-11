@@ -176,9 +176,11 @@ internal static class DynamicViewSynthesizer
                 return null;
 
             case "state":
-                if (!target.Children.OfType<SysmlTransitionNode>().Any())
+                var hasStateTransitions = target.Children.OfType<SysmlTransitionNode>().Any();
+                var hasStateFeature = target.Children.OfType<SysmlFeatureNode>().Any(f => f.FeatureKeyword == "state");
+                if (!hasStateTransitions && !hasStateFeature)
                 {
-                    return $"--view-target '{targetQualifiedName}' has no nested state transitions, so the state-transition view would render nothing";
+                    return $"--view-target '{targetQualifiedName}' has no nested state transitions or 'state' features, so the state-transition view would render nothing";
                 }
 
                 return null;
