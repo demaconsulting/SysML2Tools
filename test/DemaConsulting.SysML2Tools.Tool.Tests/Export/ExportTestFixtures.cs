@@ -1,0 +1,73 @@
+// Copyright (c) DEMA Consulting
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+using DemaConsulting.SysML2Tools.Cli;
+
+namespace DemaConsulting.SysML2Tools.Tests.Export;
+
+/// <summary>
+///     Shared test helper for the Export subsystem test suites: writes an inline SysML fixture to
+///     a temp file and runs an <c>export</c> invocation through <see cref="Program.RunAsync"/>,
+///     capturing stdout and the resulting exit code.
+/// </summary>
+internal static class ExportTestFixtures
+{
+    /// <summary>
+    ///     Writes <paramref name="sysml"/> to a uniquely-named temp <c>.sysml</c> file, runs
+    ///     <c>export</c> with the given arguments (the temp file path is appended automatically),
+    ///     and returns the captured stdout and exit code. The temp file is deleted afterward.
+    /// </summary>
+    /// <param name="sysml">The inline SysML source to write to a temp file.</param>
+    /// <param name="args">The export arguments, e.g. <c>["--format", "jsonl"]</c>.</param>
+    /// <returns>
+    ///     The captured stdout text (with any stderr diagnostics appended) and the resulting
+    ///     <see cref="Context.ExitCode"/>.
+    /// </returns>
+    public static async Task<(string Output, int ExitCode)> RunExportAsync(string sysml, params string[] args)
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        try
+        {
+            using var outWriter = new StringWriter();
+            using var errWriter = new StringWriter();
+            Console.SetOut(outWriter);
+            Console.SetError(errWriter);
+
+            var fullArgs = new List<string> { "export" };
+            fullArgs.AddRange(args);
+            fullArgs.Add(tempFile);
+
+            using var context = Context.Create([.. fullArgs]);
+            await Program.RunAsync(context);
+
+            return (outWriter.ToString() + errWriter, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+            File.Delete(tempFile);
+        }
+    }
+}

@@ -246,6 +246,35 @@ public class ValidationTests
     }
 
     /// <summary>
+    ///     Test that the export self-test passes for the built-in self-test model.
+    /// </summary>
+    [Fact]
+    public async Task Validation_RunExportSelfTest_ValidModel_Passes()
+    {
+        // Arrange: capture validation output via log file
+        var logFile = Path.Combine(Path.GetTempPath(), $"validation_test_{Guid.NewGuid()}.log");
+        try
+        {
+            using (var context = Context.Create(["--silent", "--log", logFile]))
+            {
+                // Act: run the full validation suite (includes export self-test)
+                await Validation.RunAsync(context);
+            }
+
+            // Assert: the export self-test produced a pass marker in the log
+            var logContent = await File.ReadAllTextAsync(logFile, TestContext.Current.CancellationToken);
+            Assert.Contains("✓ SysML2Tools_ExportSelfTest", logContent);
+        }
+        finally
+        {
+            if (File.Exists(logFile))
+            {
+                File.Delete(logFile);
+            }
+        }
+    }
+
+    /// <summary>
     ///     Test that the PNG render self-test passes (or is skipped) when SkiaSharp is available.
     /// </summary>
     [Fact]
