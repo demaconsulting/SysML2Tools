@@ -44,9 +44,9 @@ CST into the Phase 1 AST.
 necessary):
 
 1. It eagerly tokenizes the input (`CommonTokenStream.Fill()`, which only drives the iterative
-   lexer and never recurses) and rejects input whose parenthesization/bracket-indexing/prefix-
-   unary-operator nesting depth would exceed `MaxNestingDepth` (200) *before* invoking the
-   recursive-descent parser, which has no depth guard of its own.
+   lexer and never recurses) and rejects input whose parenthesization/bracket-indexing/
+   body-expression-brace/prefix-unary-operator nesting depth would exceed `MaxNestingDepth` (200)
+   *before* invoking the recursive-descent parser, which has no depth guard of its own.
 2. It catches `Exception` generically (in addition to `RecognitionException`) around the lex/parse
    call, converting any other unexpected ANTLR-internal failure into a diagnostic.
 3. It checks the token stream is positioned at EOF after `ownedExpression()` returns, reporting an
@@ -112,21 +112,28 @@ lexer/recursive-descent-parser internals could violate that contract despite `Pa
 `RecognitionException` handling, all now hardened against:
 
 - **Uncatchable stack overflow on deep nesting**: ANTLR's recursive-descent
-  `ownedExpression()`/`baseExpression()` parse recurses once per nesting level — each `(`, each
-  `[` (the `ownedExpression LBRACK sequenceExpressionList? RBRACK` sequence-indexing production
-  recurses back into `ownedExpression` for its bracketed contents exactly like parenthesization
-  does), or each prefix unary operator such as `not` — with no depth guard. Beyond roughly
-  4000-5000 levels for parens (far fewer — around 500 — for bracket indexing, since its recursion
-  signature involves an extra `sequenceExpressionList()` frame per level) this overflows the
-  native call stack with a `StackOverflowException`, which — unlike every other .NET exception —
-  cannot be caught and terminates the entire process immediately, not just the `Parse` call.
-  `Parse` now pre-scans the already-lexed (non-recursive) token stream and rejects input whose
-  simulated recursion depth — tracking `(`/`[` and prefix unary operators identically as
-  "pending frame" pushes, popped by a matching `)`/`]` or by reaching the next atom — would exceed
-  200 levels, well before the recursive parser runs. A follow-up review found the first version of
-  this guard omitted `[`/`]` from the push/pop cases, leaving the bracket-indexing recursion path
-  free to still crash the process at just 500 levels; both bracket kinds are now handled
-  identically.
+  `ownedExpression()`/`baseExpression()`/`bodyExpression()` parse recurses once per nesting
+  level — each `(`, each `[` (the `ownedExpression LBRACK sequenceExpressionList? RBRACK`
+  sequence-indexing production), each `{` (the `bodyExpression : LBRACE functionBodyPart RBRACE`
+  production, reachable via `ownedExpression DOT_QUESTION bodyExpression` and directly from
+  `baseExpression`), or each prefix unary operator such as `not` — with no depth guard. Every one
+  of these three balanced-delimiter productions recurses back into `ownedExpression` for its
+  enclosed contents exactly like parenthesization does; per `SysMLv2Parser.g4`'s
+  `ownedExpression`/`baseExpression`/`bodyExpression`/`argumentList` productions, `(`/`)`, `[`/`]`,
+  and `{`/`}` are the *complete* set of delimiter pairs that can drive this recursion — see
+  `ExceedsMaxNestingDepth`'s remarks in source for the full derivation. Beyond roughly 4000-5000
+  levels for parens (far fewer — around 500 — for bracket indexing and body-expression braces,
+  since their recursion signature involves an extra `sequenceExpressionList()`/`functionBodyPart()`
+  frame per level) this overflows the native call stack with a `StackOverflowException`, which —
+  unlike every other .NET exception — cannot be caught and terminates the entire process
+  immediately, not just the `Parse` call. `Parse` now pre-scans the already-lexed (non-recursive)
+  token stream and rejects input whose simulated recursion depth — tracking `(`/`[`/`{` and prefix
+  unary operators identically as "pending frame" pushes, popped by a matching `)`/`]`/`}` or by
+  reaching the next atom — would exceed 200 levels, well before the recursive parser runs. Two
+  follow-up reviews each found the guard missing one of the three delimiter pairs in turn
+  (`[`/`]` first, then `{`/`}`); all three are now handled identically and the source comment
+  explicitly records that these are the complete set, to catch a future grammar change that adds a
+  fourth.
 - **Uncaught `ArgumentException` on astral-plane Unicode input**: `Antlr4.Runtime.Lexer.GetErrorDisplay`
   calls `Char.ConvertToUtf32` while formatting a lexer error message, which throws `ArgumentException`
   (not `RecognitionException`) for input containing an unpaired UTF-16 surrogate — including a

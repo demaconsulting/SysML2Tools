@@ -324,6 +324,49 @@ public sealed class FilterExpressionParserTests
     }
 
     /// <summary>
+    ///     Deeply nested body-expression braces must not overflow the native call stack either —
+    ///     a second follow-up review found that the deep-nesting guard still did not track
+    ///     <c>{</c>/<c>}</c>, leaving the grammar's <c>bodyExpression : LBRACE functionBodyPart
+    ///     RBRACE</c> production (reachable via <c>ownedExpression DOT_QUESTION bodyExpression</c>,
+    ///     which recurses back into <c>ownedExpression</c> for its brace-enclosed contents exactly
+    ///     like parenthesization and bracket indexing do) free to still crash the process via the
+    ///     same uncatchable <see cref="StackOverflowException"/> failure mode, at a nesting depth
+    ///     (500 levels) far below the guard's own 200-level ceiling. Reproduces the exact repro
+    ///     construction from the second follow-up code-review report:
+    ///     <c>"a.?{" * 500 + "0" + "}" * 500</c>.
+    /// </summary>
+    [Fact]
+    public void Parse_DeeplyNestedBodyExpressionBraces_ReturnsDiagnosticInsteadOfCrashing()
+    {
+        var deeplyNested = string.Concat(Enumerable.Repeat("a.?{", 500)) + "0" + string.Concat(Enumerable.Repeat("}", 500));
+
+        var result = FilterExpressionParser.Parse(deeplyNested);
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("too deeply nested"));
+    }
+
+    /// <summary>
+    ///     Shallow (non-adversarial) body-expression brace nesting must not be rejected by the
+    ///     depth guard. Body expressions are outside the Phase 1 construct subset, so this is
+    ///     still expected to produce an "unsupported construct" diagnostic — the point of this
+    ///     test is that it is *that* diagnostic, and not the "too deeply nested" one, confirming
+    ///     the guard itself introduces no false-positive rejection for ordinary-depth
+    ///     body-expression nesting.
+    /// </summary>
+    [Fact]
+    public void Parse_ShallowBodyExpressionBraces_ReturnsUnsupportedConstructNotDeepNestingDiagnostic()
+    {
+        var shallowNested = string.Concat(Enumerable.Repeat("a.?{", 5)) + "0" + string.Concat(Enumerable.Repeat("}", 5));
+
+        var result = FilterExpressionParser.Parse(shallowNested);
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("Unsupported filter construct"));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("too deeply nested"));
+    }
+
+    /// <summary>
     ///     Filter text containing an astral-plane Unicode character (a valid UTF-16 surrogate
     ///     pair, e.g. an emoji) must never throw — ANTLR's own <c>Lexer.GetErrorDisplay</c> throws
     ///     an uncaught <see cref="ArgumentException"/> (via <c>Char.ConvertToUtf32</c>) when

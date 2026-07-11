@@ -2,7 +2,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
-// cspell:ignore parenthesization istype hastype ISTYPE HASTYPE LPAREN RPAREN LBRACK RBRACK uncatchable
+// cspell:ignore parenthesization istype hastype ISTYPE HASTYPE LPAREN RPAREN LBRACK RBRACK LBRACE RBRACE uncatchable
 
 using Antlr4.Runtime;
 using DemaConsulting.SysML2Tools.Parser;
@@ -45,17 +45,19 @@ public static class FilterExpressionParser
     private const string VirtualFilePath = "[filter-expression]";
 
     /// <summary>
-    /// Maximum permitted nesting depth (parenthesization, sequence-indexing brackets, and/or
-    /// prefix unary operators such as <c>not</c>) before <see cref="Parse"/> rejects the input
-    /// with a diagnostic instead of invoking ANTLR's recursive-descent
-    /// <c>ownedExpression()</c>/<c>baseExpression()</c>/<c>sequenceExpressionList()</c> parse,
-    /// which recurses once per nesting level and has no depth guard of its own — beyond a few
-    /// thousand levels (empirically, far fewer for bracket indexing than for parens — see
-    /// <see cref="ExceedsMaxNestingDepth"/>'s remarks) that recursion overflows the native call
-    /// stack with an uncatchable <see cref="StackOverflowException"/> that terminates the whole
-    /// process. This ceiling is chosen well above any realistic Phase 1 filter expression's
-    /// nesting (a handful of levels at most) but far below the depth that overflows the stack for
-    /// any of the recursing token shapes.
+    /// Maximum permitted nesting depth (parenthesization, sequence-indexing brackets,
+    /// body-expression braces, and/or prefix unary operators such as <c>not</c>) before
+    /// <see cref="Parse"/> rejects the input with a diagnostic instead of invoking ANTLR's
+    /// recursive-descent
+    /// <c>ownedExpression()</c>/<c>baseExpression()</c>/<c>bodyExpression()</c>/<c>sequenceExpressionList()</c>
+    /// parse, which recurses once per nesting level and has no depth guard of its own — beyond a
+    /// few thousand levels (empirically, far fewer for bracket indexing and body-expression
+    /// braces than for parens — see <see cref="ExceedsMaxNestingDepth"/>'s remarks) that
+    /// recursion overflows the native call stack with an uncatchable
+    /// <see cref="StackOverflowException"/> that terminates the whole process. This ceiling is
+    /// chosen well above any realistic Phase 1 filter expression's nesting (a handful of levels
+    /// at most) but far below the depth that overflows the stack for any of the recursing token
+    /// shapes.
     /// </summary>
     private const int MaxNestingDepth = 200;
 
@@ -148,15 +150,51 @@ public static class FilterExpressionParser
     /// ANTLR's recursive-descent <c>ownedExpression()</c>/<c>baseExpression()</c> parse would need
     /// to reach in order to parse this token sequence, without itself recursing. This is a simple
     /// stack-depth simulation over the token kinds that push or pop a parse frame in that grammar:
-    /// <c>(</c>, <c>[</c> (the <c>ownedExpression LBRACK sequenceExpressionList? RBRACK</c>
-    /// sequence-indexing production, which recurses back into <c>ownedExpression</c> for its
-    /// bracketed contents exactly like parenthesization does), and each prefix unary operator
-    /// (<c>not</c>/<c>+</c>/<c>-</c>/<c>~</c>/<c>if</c>/<c>all</c>) push a frame; a matching
-    /// <c>)</c> or <c>]</c> pops one balanced frame (plus any still-pending unary frames above
-    /// it), and reaching any other token (an atom, or a subsequent operator) pops the innermost
-    /// run of still-pending unary frames, since those are fully closed only once the
-    /// sub-expression they qualify has been recognized.
+    /// <c>(</c>, <c>[</c>, <c>{</c> (see the remarks below for exactly which grammar productions
+    /// these three balanced-delimiter pairs recurse through), and each prefix unary operator
+    /// (<c>not</c>/<c>+</c>/<c>-</c>/<c>~</c>/<c>if</c>/<c>all</c>) push a frame; a matching close
+    /// delimiter pops one balanced frame (plus any still-pending unary frames above it), and
+    /// reaching any other token (an atom, or a subsequent operator) pops the innermost run of
+    /// still-pending unary frames, since those are fully closed only once the sub-expression they
+    /// qualify has been recognized.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Per <c>SysMLv2Parser.g4</c>'s <c>ownedExpression</c>/<c>baseExpression</c>/
+    /// <c>bodyExpression</c>/<c>argumentList</c> productions, there are exactly three
+    /// balanced-delimiter pairs whose recursive-descent parse recurses back into
+    /// <c>ownedExpression</c> once per nesting level — i.e. the only three pairs that can drive
+    /// this class of stack overflow. <b>If the grammar changes, re-derive this list before
+    /// trusting it.</b> As of this writing:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>
+    /// <c>LPAREN</c>/<c>RPAREN</c> — via <c>argumentList</c> (<c>LPAREN (positionalArgumentList |
+    /// namedArgumentList)? RPAREN</c>, reached from <c>ownedExpression argumentList</c> and from
+    /// <c>constructorExpression</c>/the merged feature-reference-with-invocation alternative in
+    /// <c>baseExpression</c>), <c>ownedExpression HASH LPAREN sequenceExpressionList? RPAREN</c>,
+    /// the metadata cast <c>LPAREN AS typeReference RPAREN</c>, and the grouping
+    /// <c>LPAREN sequenceExpressionList? RPAREN</c> alternative in <c>baseExpression</c>.
+    /// </description></item>
+    /// <item><description>
+    /// <c>LBRACK</c>/<c>RBRACK</c> — via the sequence-indexing production
+    /// <c>ownedExpression LBRACK sequenceExpressionList? RBRACK</c>.
+    /// </description></item>
+    /// <item><description>
+    /// <c>LBRACE</c>/<c>RBRACE</c> — via <c>bodyExpression : LBRACE functionBodyPart RBRACE</c>,
+    /// reached both directly from <c>baseExpression</c> and via
+    /// <c>ownedExpression DOT_QUESTION bodyExpression</c>; <c>functionBodyPart</c> reaches back to
+    /// <c>ownedExpression</c> through its <c>resultExpressionMember</c> alternative.
+    /// </description></item>
+    /// </list>
+    /// <para>
+    /// No other bracket/brace/paren-shaped token in the grammar (e.g. the multiplicity-range and
+    /// filter-package-import uses of <c>LBRACK</c>/<c>RBRACK</c>) is reachable through
+    /// <c>ownedExpression</c>'s own recursive-descent chain, so none of them can compound this
+    /// specific stack-overflow risk from within a <see cref="Parse"/> call (which only ever enters
+    /// the grammar at the <c>ownedExpression()</c> rule).
+    /// </para>
+    /// </remarks>
     /// <returns><see langword="true"/> when the simulated depth would exceed <see cref="MaxNestingDepth"/>.</returns>
     private static bool ExceedsMaxNestingDepth(CommonTokenStream tokenStream)
     {
@@ -169,6 +207,7 @@ public static class FilterExpressionParser
             {
                 case SysMLv2Lexer.LPAREN:
                 case SysMLv2Lexer.LBRACK:
+                case SysMLv2Lexer.LBRACE:
                     pendingIsParen.Push(true);
                     break;
 
@@ -183,6 +222,7 @@ public static class FilterExpressionParser
 
                 case SysMLv2Lexer.RPAREN:
                 case SysMLv2Lexer.RBRACK:
+                case SysMLv2Lexer.RBRACE:
                     while (pendingIsParen.Count > 0 && !pendingIsParen.Peek())
                     {
                         pendingIsParen.Pop();
