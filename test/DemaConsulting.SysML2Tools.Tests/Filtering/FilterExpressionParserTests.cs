@@ -248,6 +248,137 @@ public sealed class FilterExpressionParserTests
     }
 
     /// <summary>
+    ///     Deeply nested parenthesization (thousands of levels) must not overflow the native call
+    ///     stack via ANTLR's recursive-descent parse of <c>ownedExpression</c>/<c>baseExpression</c>
+    ///     (a <see cref="StackOverflowException"/> cannot be caught in .NET and would crash the
+    ///     whole process instead). Reproduces the exact input shape from the retroactive Filtering
+    ///     code-review report: 5000 levels of <c>(</c> around <c>@Foo</c>, followed by 5000 levels
+    ///     of <c>)</c>.
+    /// </summary>
+    [Fact]
+    public void Parse_DeeplyNestedParentheses_ReturnsDiagnosticInsteadOfCrashing()
+    {
+        var deeplyNested = new string('(', 5000) + "@Foo" + new string(')', 5000);
+
+        var result = FilterExpressionParser.Parse(deeplyNested);
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("too deeply nested"));
+    }
+
+    /// <summary>
+    ///     Reasonable (non-adversarial) parenthesization nesting still parses successfully — the
+    ///     depth guard must not reject ordinary Phase 1 filter expressions.
+    /// </summary>
+    [Fact]
+    public void Parse_ModeratelyNestedParentheses_StillParsesSuccessfully()
+    {
+        var moderatelyNested = new string('(', 20) + "@Foo" + new string(')', 20);
+
+        var result = FilterExpressionParser.Parse(moderatelyNested);
+
+        Assert.Empty(result.Diagnostics);
+        var expression = Assert.IsType<ClassificationTestExpression>(result.Expression);
+        Assert.Equal("Foo", expression.TypeName);
+    }
+
+    /// <summary>
+    ///     Filter text containing an astral-plane Unicode character (a valid UTF-16 surrogate
+    ///     pair, e.g. an emoji) must never throw — ANTLR's own <c>Lexer.GetErrorDisplay</c> throws
+    ///     an uncaught <see cref="ArgumentException"/> (via <c>Char.ConvertToUtf32</c>) when
+    ///     formatting the lexer error for such input, which previously propagated straight out of
+    ///     <see cref="FilterExpressionParser.Parse"/> since only <see cref="Antlr4.Runtime.RecognitionException"/>
+    ///     was caught. Reproduces the exact repro input from the retroactive Filtering code-review
+    ///     report.
+    /// </summary>
+    [Fact]
+    public void Parse_AstralPlaneUnicodeCharacter_NeverThrows_ReturnsDiagnostic()
+    {
+        var result = FilterExpressionParser.Parse("@\U0001F600Type");
+
+        Assert.Null(result.Expression);
+        Assert.NotEmpty(result.Diagnostics);
+    }
+
+    /// <summary>
+    ///     A second astral-plane Unicode reproduction shape from the report: the surrogate pair
+    ///     appears as a trailing token rather than embedded in an identifier.
+    /// </summary>
+    [Fact]
+    public void Parse_AstralPlaneUnicodeCharacterAsTrailingToken_NeverThrows_ReturnsDiagnostic()
+    {
+        var result = FilterExpressionParser.Parse("@Foo and \U0001F600");
+
+        Assert.Null(result.Expression);
+        Assert.NotEmpty(result.Diagnostics);
+    }
+
+    /// <summary>
+    ///     Trailing garbage after a syntactically valid expression prefix must be reported as a
+    ///     diagnostic rather than silently discarded — previously <c>parser.ownedExpression()</c>
+    ///     returned the recognized prefix with zero diagnostics, discarding
+    ///     <c>"extra garbage tokens"</c> with no indication anything was wrong. Reproduces the
+    ///     exact repro input from the retroactive Filtering code-review report.
+    /// </summary>
+    [Fact]
+    public void Parse_TrailingGarbageAfterValidExpression_ReturnsDiagnostic()
+    {
+        var result = FilterExpressionParser.Parse("@Foo and @Bar extra garbage tokens");
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("trailing content"));
+    }
+
+    /// <summary>A stray trailing close-paren after a valid expression is also reported as trailing content.</summary>
+    [Fact]
+    public void Parse_TrailingCloseParen_ReturnsDiagnostic()
+    {
+        var result = FilterExpressionParser.Parse("@Foo )");
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("trailing content"));
+    }
+
+    /// <summary>A stray trailing semicolon after a valid expression is also reported as trailing content.</summary>
+    [Fact]
+    public void Parse_TrailingSemicolon_ReturnsDiagnostic()
+    {
+        var result = FilterExpressionParser.Parse("@Foo;");
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("trailing content"));
+    }
+
+    /// <summary>
+    ///     A numeric literal whose magnitude overflows <see cref="double"/> during parsing (e.g.
+    ///     <c>3.14e400</c>, which <c>double.TryParse</c> silently accepts as
+    ///     <see cref="double.PositiveInfinity"/>) must be reported as an invalid literal rather
+    ///     than silently producing a value whose pretty-printed form (<c>"Infinity"</c>) is not
+    ///     valid SysML v2 numeric syntax and therefore cannot round-trip. Reproduces the exact
+    ///     repro input from the retroactive Filtering code-review report.
+    /// </summary>
+    [Fact]
+    public void Parse_NumericLiteralOverflow_ReturnsDiagnosticInsteadOfInfinity()
+    {
+        var result = FilterExpressionParser.Parse("(as X).y != 3.14e400");
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("out of range"));
+    }
+
+    /// <summary>An ordinary large-exponent real literal (well within <see cref="double"/>'s range) still parses.</summary>
+    [Fact]
+    public void Parse_LargeButFiniteRealLiteral_StillParsesSuccessfully()
+    {
+        var result = FilterExpressionParser.Parse("(as X).y != 3.14e10");
+
+        Assert.Empty(result.Diagnostics);
+        var expression = Assert.IsType<ComparisonFilterExpression>(result.Expression);
+        Assert.Equal(FilterLiteralKind.Number, expression.Right.Kind);
+        Assert.Equal(3.14e10, expression.Right.NumberValue);
+    }
+
+    /// <summary>
     ///     Round-trip: pretty-printing a parsed expression and re-parsing the printed text yields a
     ///     semantically-equivalent tree, for every Phase 1 construct.
     /// </summary>
