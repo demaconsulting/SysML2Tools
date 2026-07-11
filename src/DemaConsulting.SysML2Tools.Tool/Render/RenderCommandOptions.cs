@@ -68,4 +68,41 @@ internal sealed record RenderCommandOptions
     ///     Gets the file glob patterns supplied as positional arguments.
     /// </summary>
     public IReadOnlyList<string> Files { get; init; } = [];
+
+    /// <summary>
+    ///     Gets the dynamic (ad-hoc) view kind, supplied via <c>--view-type</c>; <see
+    ///     langword="null"/> means no dynamic view was requested.
+    /// </summary>
+    /// <remarks>
+    ///     Must be supplied together with <see cref="ViewTarget"/>. Accepted values (validated by
+    ///     <see cref="Rendering.Internal.DynamicViewSynthesizer"/>, not at parse time) are
+    ///     <c>general</c>, <c>interconnection</c>, <c>state</c>, <c>action</c>, <c>sequence</c>,
+    ///     <c>grid</c>, and <c>browser</c>. Mutually exclusive with <see cref="ViewName"/> and
+    ///     <see cref="AutoView"/>.
+    /// </remarks>
+    public string? ViewType { get; init; }
+
+    /// <summary>
+    ///     Gets the dynamic (ad-hoc) view's target element, supplied via <c>--view-target</c> as a
+    ///     fully-qualified name; <see langword="null"/> means no dynamic view was requested.
+    /// </summary>
+    /// <remarks>
+    ///     Must be supplied together with <see cref="ViewType"/>.
+    /// </remarks>
+    public string? ViewTarget { get; init; }
+
+    /// <summary>
+    ///     Gets the dynamic (ad-hoc) view's filter expression text, supplied via <c>--filter</c>;
+    ///     <see langword="null"/> means no filter was supplied.
+    /// </summary>
+    /// <remarks>
+    ///     Only valid alongside <see cref="ViewType"/>/<see cref="ViewTarget"/>; rejected by
+    ///     <see cref="RenderCommand.RunAsync"/> when supplied standalone. Captured raw and passed
+    ///     through unchanged to the synthesized view's <c>FilterExpressionText</c> — no expression
+    ///     tree is built and no evaluation is performed by the dynamic-view feature itself
+    ///     (evaluation, when it happens, is the responsibility of the layout strategy that renders
+    ///     the synthesized view, unchanged from how a declared view's <c>filter</c> statement is
+    ///     handled today).
+    /// </remarks>
+    public string? FilterExpression { get; init; }
 }

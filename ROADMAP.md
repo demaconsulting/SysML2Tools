@@ -8,7 +8,8 @@ The work falls into three themes:
 - **Notation & view conformance** — bring rendered output in line with SysML v2 graphical notation
   and finish the remaining view dynamics.
 - **Release & packaging** — self-validation coverage, package validation, and licensing/attribution.
-- **Model query & analysis** — dynamic (ad-hoc) views and further AI-analysis options.
+- **Model query & analysis** — further AI-analysis options beyond the completed dynamic
+  (ad-hoc) views feature.
 
 ---
 
@@ -45,6 +46,15 @@ and renderers; possibly `LayoutLabel`/compartment tweaks.
   (alt/opt/loop); async/reply message styling.
 - **Action Flow View:** **fork/join** thick bars, **decision/merge** diamonds, accept/send
   action shapes; optional **swim-lanes** via `LayoutBand`; item-flow edge annotations.
+- **Sequence dynamic-view compatibility check (known limitation, carried over from "Dynamic
+  (ad-hoc) views", done):** `DynamicViewSynthesizer`'s `--view-type sequence` pre-check accepts
+  any target with at least one nested `message` usage (the cheap, necessary-but-not-sufficient
+  approximation of "at least one lifeline" — the AST has no dedicated lifeline node, so a full
+  message-edge-walk validation was deliberately not implemented). A target with lifelines but
+  zero resolvable messages passes this pre-check yet still renders the near-blank canonical
+  `LayoutTree` sentinel. Closing this gap requires either a full message-edge-walk validation in
+  `DynamicViewSynthesizer` or surfacing `SequenceViewLayoutStrategy`'s own lifeline-resolution
+  result back to the synthesizer.
 
 **Scope:** `SequenceViewLayoutStrategy`, `ActionFlowViewLayoutStrategy`, renderer shape
 primitives (bar, diamond, pentagon, note). `LayoutActivation`/`LayoutBand` already defined.
@@ -205,39 +215,13 @@ changing or reviewing code could re-derive all of that by reading raw source —
 SysML2Tools targeted questions and get small, authoritative, token-cheap answers. This theme
 extends SysML2Tools's model query and analysis capabilities beyond the existing `query` command.
 
-### Dynamic (ad-hoc) views
-
-**Motivation.** Today rendering requires the SysML source to declare a `view`. That means a
-consumer cannot get a diagram of an element the model author did not pre-declare a view for — an
-AI (or a reviewer) must edit the SysML files first. Dynamic views let a caller request **any view
-type of any element** entirely from the command line, without modifying the model.
-
-**Scope.**
-
-```text
-sysml2tools render --view-type interconnection --view-target SystemsModel::Engine --depth 2 <files...>
-```
-
-- `--view-type <kind>` — select a viewpoint/layout strategy (general, interconnection, state,
-  action, sequence, grid, browser) explicitly, bypassing model-declared views.
-- `--view-target <qualified-name>` — the element to render the view of.
-- Reuse the existing `--depth`, `--format`, `--output`, and theme options.
-- Internally, synthesize an in-memory view node (the same mechanism `--auto` already uses to
-  inject a synthetic `GeneralView`) targeting the requested element, then route it through the
-  existing `DiagramTypeRouter` → `ILayoutStrategy` → `IRenderer` pipeline. No new rendering
-  engines — this is an **input path**, not a new renderer.
-- Validate that the requested view type is compatible with the target (e.g. a state view requires
-  states); emit a clear diagnostic when it is not, rather than an empty diagram.
-
-**Why this is appropriate.** It generalizes the already-proven `--auto` synthesis path, requires
-no model edits (critical for read-only AI review workflows), and composes naturally with the
-`query` command: an AI can `query describe` an element, then `render --view-type` the most
-relevant view of it — all without touching source files.
-
-**Scope:** `render` option parsing (per-verb command model); synthetic view construction for each
-view type; target/type compatibility validation; requirements/design/verification + ReviewMark.
-**Gate:** each view type renders for a suitable ad-hoc target with no model-declared view;
-incompatible type/target combinations produce a clear diagnostic, not a broken diagram.
+**Done:** Dynamic (ad-hoc) views — `render --view-type <kind> --view-target
+<qualified-name> [--filter <expr>]` renders any view type of any resolvable element without
+requiring the model to declare a `view`. Implemented by `DynamicViewSynthesizer` (Core Rendering
+Internal subsystem), wired through `RenderCommand`'s new flags. See its design/requirements/
+verification documentation for the full per-kind compatibility rules; the sequence-view
+compatibility-check gap is carried forward as a known limitation in the "View dynamics
+refinements" item above.
 
 ### Additional AI-analysis options (candidates)
 

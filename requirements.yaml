@@ -39,6 +39,7 @@ includes:
   - docs/reqstream/sysml2-tools-core/rendering/diagram-renderer.yaml
   - docs/reqstream/sysml2-tools-core/rendering/internal.yaml
   - docs/reqstream/sysml2-tools-core/rendering/internal/diagram-type-router.yaml
+  - docs/reqstream/sysml2-tools-core/rendering/internal/dynamic-view-synthesizer.yaml
   - docs/reqstream/sysml2-tools-tool.yaml
   - docs/reqstream/sysml2-tools-tool/program.yaml
   - docs/reqstream/sysml2-tools-tool/cli.yaml

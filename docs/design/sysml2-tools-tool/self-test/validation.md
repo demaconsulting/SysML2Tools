@@ -28,9 +28,11 @@ lint and render self-tests without requiring external files.
 
 Calls `PrintValidationHeader`, constructs a `TestResults` object named
 `"SysML2 Tools Self-Validation"`, calls `RunVersionTest`, `RunHelpTest`,
-`RunLintSelfTest`, `RunRenderSvgSelfTest`, and `RunRenderPngSelfTest`, prints
-totals (using `WriteError` if any tests failed), prints `"SysML2Tools self-test: PASSED"`
-or `"SysML2Tools self-test: FAILED — N test(s) failed"`, and calls `WriteResultsFile` if
+`RunLintSelfTest`, `RunRenderSvgSelfTest`, `RunRenderPngSelfTest`,
+`RunRenderDynamicViewSvgSelfTestAsync`, `RunRenderDynamicViewPngSelfTestAsync`, and
+`RunRenderDynamicViewFilteredSelfTestAsync`, prints totals (using `WriteError` if any tests
+failed), prints `"SysML2Tools self-test: PASSED"` or
+`"SysML2Tools self-test: FAILED — N test(s) failed"`, and calls `WriteResultsFile` if
 `context.ResultsFile` is set.
 
 **RunVersionTest**: Verifies that `--version` produces a version string.
@@ -85,6 +87,47 @@ the test as `Passed` with a skip message and returns early. Otherwise frees the 
 `SelfTestModel` to a temp file, loads the workspace, calls `DiagramRenderer.RenderWorkspace`
 with `new PngRenderer()`, and asserts non-empty output. Records pass or fail. Any exception
 is caught and recorded via `HandleTestException`.
+
+**RunRenderDynamicViewSvgSelfTestAsync**: Verifies that a dynamic (ad-hoc) view synthesized via
+`DiagramRenderer.SynthesizeDynamicView` against `SelfTestModel`'s `ValidateTest` package (with
+`viewType: "general"`, targeting the package itself — no `view def` involved) renders to a
+non-empty SVG stream.
+
+- *Parameters*: `Context context`, `DemaConsulting.TestResults.TestResults testResults`.
+- *Returns*: `Task`.
+
+Creates a `TemporaryDirectory`, writes `SelfTestModel` to a temp file, loads the workspace with
+`WorkspaceLoader.LoadAsync`, calls `DiagramRenderer.SynthesizeDynamicView(workspace, "general",
+"ValidateTest", null, out diagnostic)`, injects the synthesized node via
+`workspace.AddDeclaration`, calls `DiagramRenderer.RenderWorkspace` with `new SvgRenderer()`, and
+asserts `outputs.Count > 0 && outputs[0].Data.Length > 0`. Records pass or fail (including a
+distinct failure message when `diagnostic` is non-null or workspace loading failed). Any
+exception is caught and recorded via `HandleTestException`.
+
+**RunRenderDynamicViewPngSelfTestAsync**: Mirrors
+`RunRenderDynamicViewSvgSelfTestAsync` but with the PNG renderer, skipping gracefully (same
+`NativeLibrary.TryLoad("libSkiaSharp", ...)` guard) when the native SkiaSharp library is
+unavailable.
+
+- *Parameters*: `Context context`, `DemaConsulting.TestResults.TestResults testResults`.
+- *Returns*: `Task`.
+
+**RunRenderDynamicViewFilteredSelfTestAsync**: Verifies that a `--filter` expression matching
+nothing produces a strictly smaller rendered SVG than the unfiltered equivalent, proving the
+filter genuinely reaches the layout strategy.
+
+- *Parameters*: `Context context`, `DemaConsulting.TestResults.TestResults testResults`.
+- *Returns*: `Task`.
+
+Calls a private helper (`RenderDynamicGeneralViewLengthAsync(modelFile, filterExpressionText)`)
+twice, each time loading a **fresh** `WorkspaceLoader.LoadAsync` workspace (avoiding
+`DiagramRenderer.SynthesizeDynamicView`'s name-collision diagnostic that a second synthesis call
+against the same workspace/target would trigger) and rendering to SVG: once with
+`filterExpressionText: null` and once with `filterExpressionText: "@NoSuchMetadataType"` (a
+metadata-existence expression matching nothing, reusing the same expression
+`GeneralViewLayoutStrategyTests` uses to produce an empty layout). Asserts the filtered length is
+strictly smaller than the unfiltered length. Records pass or fail. Any exception is caught and
+recorded via `HandleTestException`.
 
 **WriteResultsFile**: Serializes `testResults` to `context.ResultsFile`.
 

@@ -35,13 +35,31 @@ Returns the display names of all renderable user-defined views, mirroring the fi
 
 Synthesizes a `SysmlViewNode` targeting the most representative top-level element (the non-stdlib
 `part def` with the most children, else the first non-stdlib definition) for use with `--auto` when
-no user-defined views exist. Returns `null` when there is nothing to target.
+no user-defined views exist. Returns `null` when there is nothing to target. Unlike
+`SynthesizeDynamicView` below, the returned node carries no `ResolvedEdges`, so
+`ExposeScopeResolver` resolves a `null` scope and the rendered diagram covers the entire workspace.
+
+##### `SynthesizeDynamicView(workspace, viewType, targetQualifiedName, filterExpressionText, out diagnostic)`
+
+Public entry point for the dynamic (ad-hoc) view CLI feature (`render --view-type <kind>
+--view-target <qualified-name> [--filter <expr>]`). Delegates directly to
+`Internal.DynamicViewSynthesizer.Synthesize`, returning the synthesized `SysmlViewNode` (or
+`null` with a non-null `diagnostic` on failure). Placed alongside `SynthesizeAutoView` since both
+methods synthesize a view node outside the normal parse pipeline, but the two differ in scope:
+`SynthesizeDynamicView`'s node is scoped to exactly the requested target via a manually populated
+`Expose` edge, while `SynthesizeAutoView`'s node has no scoping edges at all (see above). See
+`docs/design/sysml2-tools-core/rendering/internal/dynamic-view-synthesizer.md` for the full
+per-kind compatibility rules and known limitations.
 
 #### Error Handling
 
-`RenderWorkspace`, `GetViewNames`, and `SynthesizeAutoView` throw `ArgumentNullException` for null
-required arguments. Views whose type is unsupported by any strategy are skipped silently rather than
-failing the whole render.
+`RenderWorkspace`, `GetViewNames`, `SynthesizeAutoView`, and `SynthesizeDynamicView` throw
+`ArgumentNullException` for null required arguments (`SynthesizeDynamicView`'s `filterExpressionText`
+parameter excepted, since `null` is its valid "no filter" value). Views whose type is unsupported
+by any strategy are skipped silently rather than failing the whole render. `SynthesizeDynamicView`
+never throws for a synthesis failure (unrecognized view type, unresolved/wrong-kind/stdlib target,
+failed compatibility pre-check, or name collision); it reports these via its `out diagnostic`
+parameter instead.
 
 #### Dependencies
 
@@ -50,11 +68,14 @@ failing the whole render.
 - `LayoutTree`, `IRenderer`, `RenderOptions`, `RenderOutput` (off-the-shelf, from the
   `DemaConsulting.Rendering` and `DemaConsulting.Rendering.Abstractions` OTS packages).
 - `DiagramTypeRouter` and `StdlibFilter` (Rendering Internal subsystem).
+- `Internal.DynamicViewSynthesizer` (Rendering Internal subsystem) — `SynthesizeDynamicView`
+  delegates its entire implementation to this unit.
 
 #### Callers
 
 The `RenderCommand` in the Tool system calls `RenderWorkspace` (and `GetViewNames` /
-`SynthesizeAutoView`) to produce diagram output files from a loaded workspace.
+`SynthesizeAutoView` / `SynthesizeDynamicView`) to produce diagram output files from a loaded
+workspace.
 
 #### Requirements Traceability
 
@@ -63,3 +84,4 @@ The `RenderCommand` in the Tool system calls `RenderWorkspace` (and `GetViewName
 | SysML2Tools-Core-Rendering-DiagramRenderer-RendersEachView | `RenderWorkspace` per-view build-and-render loop |
 | SysML2Tools-Core-Rendering-DiagramRenderer-RendererAgnostic | `RenderWorkspace` using only the `IRenderer` contract |
 | SysML2Tools-Core-Rendering-DiagramRenderer-NoViews | `RenderWorkspace` empty result for a view-free workspace |
+| SysML2Tools-Core-Rendering-DiagramRenderer-SynthesizeDynamicView | `SynthesizeDynamicView` delegation |

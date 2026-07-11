@@ -113,6 +113,53 @@ sysml2tools render model.sysml --auto --output out --format svg
 | Multiple views, `--view <name>` | Render only the named view |
 | `--view <name>` names a view that does not exist | Error: lists available view names, exits non-zero |
 
+## Dynamic (Ad-Hoc) Views
+
+Rendering normally requires the SysML source to declare a `view`. `--view-type`/`--view-target`
+(with an optional `--filter`) instead render **any resolvable element** on demand, without
+requiring any model changes:
+
+```bash
+# Render an interconnection-style view of a part def, with no view def in the model
+sysml2tools render model.sysml --view-type interconnection --view-target Pkg::Engine --output out
+
+# Render a general view narrowed to elements carrying a @Safety metadata annotation
+sysml2tools render model.sysml --view-type general --view-target Pkg::Vehicle --filter @Safety --output out
+```
+
+- `--view-type <kind>` — one of `general`, `interconnection`, `state`, `action`, `sequence`,
+  `grid`, `browser`. Selects the same layout strategy `DiagramTypeRouter` would select for a
+  declared view's `render asGeneralDiagram;`/`asInterconnectionDiagram;`/etc. member — see
+  "View Body Statements" below.
+- `--view-target <qualified-name>` — the element to render. Must resolve in the workspace, must
+  not be a standard-library element, and must not be a `view`/`viewpoint`/`import`/`metadata`/
+  `transition`/`connection` node (these kinds cannot serve as a dynamic view's rendered content).
+- `--view-type` and `--view-target` must be supplied together; `--filter` is valid only alongside
+  both of them; none of the three may be combined with `--view` or `--auto`. Violating any of
+  these rules reports a specific error and a non-zero exit code, rather than silently picking one
+  option over another.
+- Each `--view-type` kind runs a cheap, **necessary-but-not-sufficient** structural compatibility
+  pre-check against the target before rendering, so an obviously incompatible target reports a
+  clear diagnostic instead of an empty or broken diagram:
+
+  | `--view-type` | Compatibility pre-check |
+  | --- | --- |
+  | `general`, `grid`, `browser` | None — any resolvable, non-stdlib definition or usage is accepted |
+  | `interconnection` | Target must be a `part def` with at least one nested `part` feature |
+  | `state` | Target must have at least one nested state transition or `state` feature |
+  | `action` | Target must have at least one succession or nested `action` feature |
+  | `sequence` | Target must have at least one nested `message` usage |
+
+  > **Known limitation — sequence view.** The AST has no dedicated "lifeline" node;
+  > `SequenceViewLayoutStrategy` derives lifelines purely from each `message` usage's endpoint
+  > references. The `sequence` pre-check therefore approximates "at least one lifeline" as "at
+  > least one nested `message` usage" — necessary (zero messages guarantees zero lifelines) but
+  > **not sufficient**: a target whose message endpoints fail to resolve to any lifeline still
+  > passes this pre-check yet still renders the near-blank canonical `LayoutTree` sentinel. A
+  > full message-edge-walk validation was deliberately not implemented for this check (see
+  > `ROADMAP.md`'s "View dynamics refinements" item); this is a documented gap, not a silent
+  > omission.
+
 ## View Body Statements
 
 A `view def`/`view` declaration's body may contain `render <target>;` and `filter [<expr>];`
@@ -139,13 +186,15 @@ entire workspace:
   the previous whole-subtree behavior for that entry, with a diagnostic identifying the failed
   expression and reason.
 - `render <target>;` — per the SysML v2 grammar, this names a rendering style/format (e.g.
-  `asTreeDiagram`, `asElementTable`). `render asTreeDiagram;` and
-  `render asInterconnectionDiagram;` now select the Browser View and Interconnection View layout
-  strategies respectively, taking precedence over the name/supertype heuristic `DiagramTypeRouter`
-  otherwise applies. Every other rendering-style name (`asElementTable`, `asTextualNotation`, or
-  an unrecognized name) — and a view declaring no `render` member at all — has **no effect** on
-  which strategy renders the view; see `ROADMAP.md` for further rendering-style selectors that
-  may be added in future.
+  `asTreeDiagram`, `asElementTable`). `render asTreeDiagram;`, `render
+  asInterconnectionDiagram;`, `render asGeneralDiagram;`, `render asStateTransitionDiagram;`,
+  `render asActionFlowDiagram;`, `render asSequenceDiagram;`, and `render asGridDiagram;` now
+  each select their corresponding layout strategy, taking precedence over the name/supertype
+  heuristic `DiagramTypeRouter` otherwise applies (the same tokens the `--view-type` dynamic-view
+  flag maps to — see "Dynamic (Ad-Hoc) Views" above). Every other rendering-style name
+  (`asElementTable`, `asTextualNotation`, or an unrecognized name) — and a view declaring no
+  `render` member at all — has **no effect** on which strategy renders the view; see
+  `ROADMAP.md` for further rendering-style selectors that may be added in future.
 - `filter <expr>;` — a standalone view-body filter statement is now **evaluated** for a
   supported subset of SysML v2 filter-expression syntax (Phase 1): metadata classification
   tests (`@Type`, `@Pkg::Type`), boolean connectives (`and`, `or`, `not`, `xor`, `&`, `|`),

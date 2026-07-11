@@ -43,3 +43,18 @@ sections:
           placeholder keeps the caller's output free of spurious files.
         tests:
           - DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList
+
+      - id: SysML2Tools-Core-Rendering-DiagramRenderer-SynthesizeDynamicView
+        title: >-
+          DiagramRenderer shall expose a SynthesizeDynamicView method that delegates entirely to
+          the internal DynamicViewSynthesizer, returning a synthesized view node (or a diagnostic
+          on failure) for the render --view-type/--view-target/--filter CLI feature, without
+          duplicating any of DynamicViewSynthesizer's validation or construction logic.
+        justification: |
+          Keeping DiagramRenderer as a thin public-surface delegate (mirroring
+          SynthesizeAutoView's own existing pattern) preserves DynamicViewSynthesizer as the
+          single source of truth for dynamic-view synthesis rules, avoiding drift between two
+          copies of the same per-kind compatibility logic.
+        tests:
+          - Synthesize_GeneralKind_ResolvableTarget_Succeeds
+          - Synthesize_UnresolvedTarget_Fails

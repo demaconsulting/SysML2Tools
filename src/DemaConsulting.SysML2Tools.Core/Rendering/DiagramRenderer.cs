@@ -291,6 +291,60 @@ public sealed class DiagramRenderer
     }
 
     /// <summary>
+    /// Synthesizes a <see cref="SysmlViewNode"/> targeting any resolvable, non-stdlib element in
+    /// the workspace with the requested layout kind, for use by the <c>render --view-type
+    /// &lt;kind&gt; --view-target &lt;qualified-name&gt; [--filter &lt;expr&gt;]</c> CLI feature
+    /// ("dynamic" or "ad-hoc" views).
+    /// </summary>
+    /// <param name="workspace">The loaded workspace to resolve the target against. Must not be null.</param>
+    /// <param name="viewType">
+    /// One of <c>"general"</c>, <c>"interconnection"</c>, <c>"state"</c>, <c>"action"</c>,
+    /// <c>"sequence"</c>, <c>"grid"</c>, or <c>"browser"</c> (case-sensitive).
+    /// </param>
+    /// <param name="targetQualifiedName">
+    /// The fully-qualified name of the element to render, looked up in <see
+    /// cref="SysmlWorkspace.Declarations"/>.
+    /// </param>
+    /// <param name="filterExpressionText">
+    /// The raw <c>--filter</c> expression text, passed through unchanged to the synthesized
+    /// node's <see cref="SysmlViewNode.FilterExpressionText"/>, or <see langword="null"/> when no
+    /// filter was supplied.
+    /// </param>
+    /// <param name="diagnostic">
+    /// Set to a non-null, human-readable message when synthesis fails (unrecognized
+    /// <paramref name="viewType"/>, unresolved or wrong-kind target, a per-kind structural
+    /// compatibility failure, or a name collision); <see langword="null"/> on success.
+    /// </param>
+    /// <returns>
+    /// A synthesized <see cref="SysmlViewNode"/> ready to be injected via <see
+    /// cref="SysmlWorkspace.AddDeclaration"/>, or <see langword="null"/> when
+    /// <paramref name="diagnostic"/> is non-null.
+    /// </returns>
+    /// <remarks>
+    /// Unlike <see cref="SynthesizeAutoView"/> (whose node carries no resolved <c>expose</c>
+    /// scoping, so the diagram renders the entire workspace), the node returned here is scoped
+    /// to exactly <paramref name="targetQualifiedName"/> — see <see
+    /// cref="Internal.DynamicViewSynthesizer"/> for the scoping mechanism and per-kind
+    /// compatibility rules.
+    /// </remarks>
+    public static SysmlViewNode? SynthesizeDynamicView(
+        SysmlWorkspace workspace,
+        string viewType,
+        string targetQualifiedName,
+        string? filterExpressionText,
+        out string? diagnostic)
+    {
+        ArgumentNullException.ThrowIfNull(workspace);
+        ArgumentNullException.ThrowIfNull(viewType);
+        ArgumentNullException.ThrowIfNull(targetQualifiedName);
+
+        var (viewNode, message) = Internal.DynamicViewSynthesizer.Synthesize(
+            workspace, viewType, targetQualifiedName, filterExpressionText);
+        diagnostic = message;
+        return viewNode;
+    }
+
+    /// <summary>
     /// Produces a file-system-safe name by replacing any character that is invalid
     /// in a file name with an underscore.
     /// </summary>

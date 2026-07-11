@@ -91,7 +91,24 @@ sysml2tools render model.sysml --auto --output out --format svg
 
 # Limit nesting depth (truncated parts show "+N more…")
 sysml2tools render model.sysml --output out --depth 3
+
+# Dynamic (ad-hoc) view: render any resolvable element without declaring a view def in the model
+sysml2tools render model.sysml --view-type interconnection --view-target Pkg::Engine --output out
+
+# Dynamic view, narrowed to elements carrying a @Safety metadata annotation
+sysml2tools render model.sysml --view-type general --view-target Pkg::Vehicle --filter @Safety --output out
 ```
+
+`--view-type` selects the layout strategy explicitly (`general`, `interconnection`, `state`,
+`action`, `sequence`, `grid`, `browser`) and `--view-target` names the element to render — no
+`view def` declaration is required. `--filter` (valid only alongside `--view-type`/
+`--view-target`) narrows the rendered scope by a bracket-filter expression. `--view-type`/
+`--view-target` cannot be combined with `--view` or `--auto`. Each view kind has a cheap
+compatibility pre-check against the target (e.g. `interconnection` requires a `part def` with a
+nested `part`); an incompatible target reports a diagnostic instead of a broken diagram. The
+`sequence` kind's pre-check only confirms the target has at least one nested `message` usage — a
+target with lifelines but no messages passes this check yet still renders a near-blank diagram;
+see `docs/user_guide/introduction.md` for details.
 
 ### Querying
 
@@ -191,7 +208,13 @@ section above).
 | `--format svg\|png` | Renderer format (default: `svg`) |
 | `--view <name>` | Name of the view to render; omit to render every declared view (default) |
 | `--auto` | Auto-render the BDD of the top-level `part def` when no view is defined |
+| `--view-type <kind>` | Dynamic view kind (`general`/`interconnection`/`state`/`action`/`sequence`/`grid`/`browser`) |
+| `--view-target <name>` | Qualified name of the dynamic view's target element; requires `--view-type` |
+| `--filter <expr>` | Bracket-filter expression narrowing a dynamic view's rendered scope (requires `--view-type`) |
 | `--depth <#>` | Limit rendered nesting depth; truncated parts show `+N more…` |
+
+`--view-type` and `--view-target` must be specified together, and are mutually exclusive with
+`--view`/`--auto`; `--filter` is only valid alongside `--view-type`/`--view-target`.
 
 ### `query` Options
 

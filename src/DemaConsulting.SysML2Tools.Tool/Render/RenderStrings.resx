@@ -79,6 +79,15 @@
   <data name="Render_OptionAuto" xml:space="preserve">
     <value>  --auto             Auto-generate a view when none are defined</value>
   </data>
+  <data name="Render_OptionViewType" xml:space="preserve">
+    <value>  --view-type &lt;kind&gt; Dynamic view kind: general, interconnection, state, action, sequence, grid, or browser (requires --view-target)</value>
+  </data>
+  <data name="Render_OptionViewTarget" xml:space="preserve">
+    <value>  --view-target &lt;qualified-name&gt; Element to render as a dynamic (ad-hoc) view (requires --view-type)</value>
+  </data>
+  <data name="Render_OptionFilter" xml:space="preserve">
+    <value>  --filter &lt;expr&gt;    Filter expression for a dynamic view (requires --view-type and --view-target)</value>
+  </data>
   <data name="Render_DepthNote1" xml:space="preserve">
     <value>The global --depth option also bounds diagram nesting depth for this command</value>
   </data>

@@ -18,12 +18,27 @@ diagnostic message when no strategy can be determined.
 
 Returns the strategy for the view. Dispatch first checks the view's declared `render` target
 (`SysmlViewNode.RenderTargetName`) for an exact, case-sensitive (`StringComparison.Ordinal`)
-match against a recognized rendering-kind name: `asTreeDiagram` selects the browser (tree)
-strategy and `asInterconnectionDiagram` selects the interconnection strategy, taking precedence
-over the name/supertype heuristic below regardless of the view's own name or declared
-supertypes. `asElementTable`, `asTextualNotation`, any other unrecognized rendering-kind name,
-and a `null` (absent) render target are deliberately left unmapped: they have no effect and fall
-through unchanged, with no diagnostic, to the name/supertype heuristic. `asElementTable` is left
+match against a recognized rendering-kind name, taking precedence over the name/supertype
+heuristic below regardless of the view's own name or declared supertypes:
+
+- `asTreeDiagram` → browser (tree) strategy
+- `asInterconnectionDiagram` → interconnection strategy
+- `asGeneralDiagram` → general view strategy
+- `asStateTransitionDiagram` → state transition strategy
+- `asActionFlowDiagram` → action flow strategy
+- `asSequenceDiagram` → sequence strategy
+- `asGridDiagram` → grid strategy
+
+The latter five tokens are additive: they give every remaining layout strategy the same
+explicit, precedence-taking dispatch path already enjoyed by `asTreeDiagram`/
+`asInterconnectionDiagram`. They are also the exact tokens the dynamic (ad-hoc) view CLI feature
+(`render --view-type <kind> --view-target <name>`, implemented by `DynamicViewSynthesizer`)
+relies on to select a layout strategy independently of the target's own name or supertypes —
+see `dynamic-view-synthesizer.md`.
+
+`asElementTable`, `asTextualNotation`, any other unrecognized rendering-kind name, and a `null`
+(absent) render target are deliberately left unmapped: they have no effect and fall through
+unchanged, with no diagnostic, to the name/supertype heuristic. `asElementTable` is left
 unmapped because its `TabularRendering` semantics (a per-row/per-column table composition) are
 fundamentally different from `GridViewLayoutStrategy`'s matrix layout, not merely a naming
 variant of it; `asTextualNotation` is left unmapped because it is a non-graphical rendering
@@ -51,4 +66,7 @@ cannot be rendered; it is currently always null because every view resolves to a
 ##### Callers
 
 `DiagramRenderer`, which calls `GetStrategy` once per view before building and rendering its
-layout.
+layout. `DynamicViewSynthesizer` also relies on this dispatch indirectly: it sets a synthesized
+view's `RenderTargetName` to one of the exact-match tokens above so that `DiagramRenderer`'s
+existing call to `GetStrategy` resolves to the requested layout strategy without any special
+casing.

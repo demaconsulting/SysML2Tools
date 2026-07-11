@@ -27,11 +27,15 @@ namespace DemaConsulting.SysML2Tools.Render;
 ///     <see cref="RenderCommandOptions"/> instance.
 /// </summary>
 /// <remarks>
-///     Recognizes only <c>--output</c>, <c>--format</c>, <c>--view</c>, and <c>--auto</c>, plus
-///     positional file glob patterns. Any other <c>-</c>-prefixed token is rejected so that flags
-///     belonging to other commands (e.g., <c>--kind</c>, <c>--element</c>) are never silently
-///     accepted. <c>--format</c>'s value is captured raw and validated later by
+///     Recognizes only <c>--output</c>, <c>--format</c>, <c>--view</c>, <c>--auto</c>,
+///     <c>--view-type</c>, <c>--view-target</c>, and <c>--filter</c>, plus positional file glob
+///     patterns. Any other <c>-</c>-prefixed token is rejected so that flags belonging to other
+///     commands (e.g., <c>--kind</c>, <c>--element</c>) are never silently accepted.
+///     <c>--format</c>'s value is captured raw and validated later by
 ///     <see cref="RenderCommand.RunAsync"/>, matching the <c>query</c> command's validation style.
+///     <c>--view-type</c>, <c>--view-target</c>, and <c>--filter</c> are likewise captured raw
+///     here — mutual-exclusion and value validation happen entirely in
+///     <see cref="RenderCommand.RunAsync"/>.
 /// </remarks>
 internal static class RenderArgumentParser
 {
@@ -53,6 +57,9 @@ internal static class RenderArgumentParser
         string? format = null;
         string? viewName = null;
         var autoView = false;
+        string? viewType = null;
+        string? viewTarget = null;
+        string? filterExpression = null;
         var files = new List<string>();
 
         var index = 0;
@@ -80,6 +87,21 @@ internal static class RenderArgumentParser
                     autoView = true;
                     break;
 
+                case "--view-type":
+                    viewType = CliArgumentHelpers.GetRequiredStringArgument(
+                        arg, commandArgs, ref index, "a view type argument (e.g. general, interconnection, state, action, sequence, grid, browser)");
+                    break;
+
+                case "--view-target":
+                    viewTarget = CliArgumentHelpers.GetRequiredStringArgument(
+                        arg, commandArgs, ref index, "a view target qualified-name argument");
+                    break;
+
+                case "--filter":
+                    filterExpression = CliArgumentHelpers.GetRequiredStringArgument(
+                        arg, commandArgs, ref index, "a filter expression argument");
+                    break;
+
                 default:
                     if (arg.StartsWith("-", StringComparison.Ordinal))
                     {
@@ -98,6 +120,9 @@ internal static class RenderArgumentParser
             Format = format,
             ViewName = viewName,
             AutoView = autoView,
+            ViewType = viewType,
+            ViewTarget = viewTarget,
+            FilterExpression = filterExpression,
             Files = files
         };
     }
