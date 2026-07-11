@@ -31,8 +31,11 @@ documentation, CI/CD pipelines, and AI-assisted modeling workflows.
   `hierarchy`, `requirements`, `interface`, `connections`, `states`, `list`, `find`) for AI
   and human callers, with Markdown or JSON output — designed so an AI agent can query
   architecture and traceability facts directly instead of reading raw `.sysml` files
+- **`export` Command**: Dumps the resolved semantic model (declarations, edges,
+  diagnostics) as a single JSON document or as JSON Lines (JSONL), for bulk/offline
+  AI-assisted analysis of an entire workspace at once
 - **`help` Command**: Print help for the tool itself, a specific command
-  (`lint`/`render`/`query`), or a specific `query` verb — identical output to the
+  (`lint`/`render`/`query`/`export`), or a specific `query` verb — identical output to the
   corresponding `<command> --help`
 - **GeneralView Layout**: Package-grouped definition block diagrams placed by a layered (ELK-style)
   engine with orthogonal specialization and membership edges, depth-coded fill colors, compartments,
@@ -132,15 +135,37 @@ sysml2tools query uses --element Pkg::MyPart model.sysml --format json
 See [Querying](docs/user_guide/introduction.md#querying) in the user guide for the full
 verb reference and more examples.
 
+### Exporting
+
+Dump the resolved semantic model as JSON or JSONL, for bulk/offline AI-assisted analysis:
+
+```bash
+# Export the whole workspace as a single indented JSON document (default format)
+sysml2tools export model.sysml
+
+# Export as JSON Lines (one compact JSON object per declaration/edge/diagnostic)
+sysml2tools export model.sysml --format jsonl
+
+# Write to a file instead of stdout (--output names a FILE, not a directory)
+sysml2tools export "src/**/*.sysml" --format jsonl --output model.jsonl
+
+# Include OMG standard library declarations/edges in the export
+sysml2tools export model.sysml --include-stdlib
+```
+
+See [Exporting](docs/user_guide/introduction.md#exporting) in the user guide for the full
+JSON/JSONL output shape.
+
 ### Getting Help
 
 ```bash
 # Top-level help (same as bare --help)
 sysml2tools help
 
-# Command-specific help (identical to `lint --help`/`render --help`)
+# Command-specific help (identical to `lint --help`/`render --help`/`export --help`)
 sysml2tools help lint
 sysml2tools help render
+sysml2tools help export
 
 # Query verb overview (identical to `query --help`)
 sysml2tools help query
@@ -175,11 +200,11 @@ sysml2tools --silent --log output.log
 sysml2tools [-v|--version] [-?|-h|--help] [--silent]
             [--validate] [--result|--results <file>] [--depth <#>] [--log <file>]
             [<verb> [verb-options] [<globs>]]
-sysml2tools help [lint|render|query [<query-verb>]]
+sysml2tools help [lint|render|query [<query-verb>]|export]
 ```
 
-`<verb>` is `lint`, `render`, or `query <query-verb>` (11 query verbs — see the *Querying*
-section above).
+`<verb>` is `lint`, `render`, `export`, or `query <query-verb>` (11 query verbs — see the
+*Querying* section above).
 
 ### Global Options
 
@@ -230,11 +255,20 @@ section above).
 | `--name <substring>` | Name substring filter (`list`/`find` verbs only) |
 | `--include-stdlib` | Include OMG standard library elements in results |
 
+### `export` Options
+
+| Option | Description |
+| --- | --- |
+| `<globs>` | One or more glob patterns for `.sysml` input files |
+| `--format json\|jsonl` | Output format (default: `json`) |
+| `--output <file>` | Write export document to this **file** (default: stdout); differs from `render`'s `--output` dir |
+| `--include-stdlib` | Include OMG standard library declarations/edges (diagnostics are never stdlib-filtered) |
+
 ### `help` Options
 
 | Option | Description |
 | --- | --- |
-| `[command]` | Optional: `lint`, `render`, or `query`; omit for top-level help |
+| `[command]` | Optional: `lint`, `render`, `query`, or `export`; omit for top-level help |
 | `[verb]` | Optional; only meaningful when `command` is `query` — one of the 11 supported query verbs |
 
 ## View Selection
@@ -265,7 +299,7 @@ see the *Introduction* user guide for details.
 | `DemaConsulting.SysML2Tools.Language` | Library: SysML v2/KerML parser, AST, semantic model |
 | `DemaConsulting.SysML2Tools.Stdlib` | Library: pre-compiled SysML v2 standard library |
 | `DemaConsulting.SysML2Tools.Core` | Library: parser, semantic model, layout, `IRenderer` interface |
-| `DemaConsulting.SysML2Tools.Tool` | CLI tool: `lint`, `render`, and `query` commands |
+| `DemaConsulting.SysML2Tools.Tool` | CLI tool: `lint`, `render`, `query`, and `export` commands |
 
 Library consumers can take a dependency on `DemaConsulting.SysML2Tools.Core` alone to access
 parsing, semantic model, and layout without pulling in the CLI tool; `Core` automatically pulls

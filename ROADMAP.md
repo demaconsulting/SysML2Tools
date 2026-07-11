@@ -9,7 +9,7 @@ The work falls into three themes:
   and finish the remaining view dynamics.
 - **Release & packaging** — self-validation coverage, package validation, and licensing/attribution.
 - **Model query & analysis** — further AI-analysis options beyond the completed dynamic
-  (ad-hoc) views feature.
+  (ad-hoc) views and `export` verb features.
 
 ---
 
@@ -223,6 +223,14 @@ verification documentation for the full per-kind compatibility rules; the sequen
 compatibility-check gap is carried forward as a known limitation in the "View dynamics
 refinements" item above.
 
+**Done:** `export` verb — `export [--format json|jsonl] [--output <file>] [--include-stdlib]
+<patterns...>` dumps the resolved semantic model (declarations, edges, diagnostics) as a
+single indented JSON document or as JSON Lines, for an agent harness to index locally and run
+its own queries offline. Implemented by the new `Export` subsystem (`ExportCommand`,
+`ExportResult`, `ExportResultSerializerContext`/`ExportLineSerializerContext`), reusing
+`SysmlNode`/`SysmlEdge`/`SysmlDiagnostic` directly rather than a fourth parallel result shape.
+See its design/requirements/verification documentation for the full JSON/JSONL output shape.
+
 ### Additional AI-analysis options (candidates)
 
 Lower-priority options that further support AI analysis of a model; each is independently
@@ -230,8 +238,6 @@ scoped and gated, and any may be pulled forward or dropped:
 
 - **`--format sarif` for `lint`** — `SysmlDiagnostic` is already structurally SARIF-compatible;
   emitting SARIF lets AI/CI toolchains consume lint findings through standard tooling.
-- **`export` verb** — dump the resolved semantic model (symbol table + edges + diagnostics) as
-  JSON/JSONL for an agent harness to index locally and run its own queries offline.
 - **Metrics / summary query** — workspace-level counts and hotspots (most-depended-on elements,
   unverified requirements, orphan elements, cyclic specialization) to orient an AI before it
   starts, and to flag model-health issues in review.
@@ -239,7 +245,7 @@ scoped and gated, and any may be pulled forward or dropped:
   removed / changed elements, edges, and requirement traces) so an AI reviewing a change sees the
   *model-level* impact of a PR, not just the text diff.
 - **Machine-readable `--format json` everywhere** — extend the shared formatter so every command
-  (not just `query`) can emit JSON, keeping the CLI uniformly scriptable.
+  (not just `query`/`export`) can emit JSON, keeping the CLI uniformly scriptable.
 
 ---
 

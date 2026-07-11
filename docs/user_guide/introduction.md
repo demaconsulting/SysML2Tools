@@ -414,6 +414,79 @@ the same order, so either format can be relied on for automated comparisons.
 | `list` | no | Enumerate elements, optionally filtered by `--kind`/`--name` |
 | `find` | no | Search elements — requires `--kind` and/or `--name` |
 
+# Exporting
+
+The `export` command loads a workspace, resolves the semantic model, and dumps the *entire*
+model — every declaration, every semantic edge, and every diagnostic — as a single JSON
+document or as JSON Lines (JSONL). Unlike `query`, which answers a targeted analysis
+question about one element, `export` is a lossless, bulk dump intended for offline/AI-
+assisted analysis of a whole workspace at once (e.g., loading it into a separate tool,
+`jq`-based scripting, or feeding an entire workspace's facts to an LLM in one shot).
+
+```bash
+# Export the whole workspace as a single indented JSON document (default format)
+sysml2tools export "src/**/*.sysml"
+
+# Export as JSON Lines (one compact JSON object per declaration/edge/diagnostic)
+sysml2tools export "src/**/*.sysml" --format jsonl
+
+# Write to a file instead of stdout
+sysml2tools export "src/**/*.sysml" --format jsonl --output model.jsonl
+
+# Include OMG standard library declarations/edges in the export
+sysml2tools export "src/**/*.sysml" --include-stdlib
+```
+
+## `export` Options
+
+| Option | Description |
+| --- | --- |
+| `<globs>` | One or more glob patterns for `.sysml` input files |
+| `--format json\|jsonl` | Output format (default: `json`) |
+| `--output <file>` | Write to this **file** (default: stdout); `render`'s `--output` is a *directory* instead |
+| `--include-stdlib` | Include OMG stdlib decls/edges (excluded by default); diagnostics are never stdlib-filtered |
+
+## Export Output Shape
+
+**`--format json`** (default) is a single indented document:
+
+```json
+{
+  "Declarations": {
+    "Model::Vehicle": { "$type": "definition", "Kind": "part def", "...": "..." },
+    "Model::Engine": { "$type": "definition", "Kind": "part def", "...": "..." }
+  },
+  "Edges": [
+    { "SourceQualifiedName": "Model::Engine", "TargetQualifiedName": "Model::Vehicle", "Kind": "Composition" }
+  ],
+  "Diagnostics": []
+}
+```
+
+- `Declarations` is a JSON object keyed by qualified name (not an array), so a caller can
+  look up a specific element directly instead of scanning an array.
+- Each declaration is serialized using its own existing polymorphic `$type` discriminator
+  (the same node types used internally by the parser/semantic model), so the export is a
+  faithful, round-trip-capable dump — not a separate, narrower summary shape like `query`'s
+  result.
+- `Edges` and `Diagnostics` are plain JSON arrays.
+
+**`--format jsonl`** emits one compact JSON object per line, each tagged with a `"Kind"`
+discriminator so a line-oriented consumer (`grep`, `jq -c`, streaming parsers) can process
+records without buffering the whole document:
+
+```jsonl
+{"Kind":"declaration","QualifiedName":"Model::Vehicle","Node":{"$type":"definition","...":"..."}}
+{"Kind":"edge","SourceQualifiedName":"Model::Engine","TargetQualifiedName":"Model::Vehicle","EdgeKind":"Composition"}
+{"Kind":"diagnostic","FilePath":"model.sysml","Line":1,"Column":1,"Severity":"Error","Message":"..."}
+```
+
+Declarations are emitted first, then edges, then diagnostics. Both output shapes exclude
+OMG standard-library declarations and edges by default (mirroring `query`'s
+`--include-stdlib` convention exactly); diagnostics are always included, since
+`WorkspaceLoader` diagnostics only ever come from the user's own supplied files (the stdlib
+symbol table is a pre-resolved seed, never re-parsed).
+
 # Global Options
 
 The following global options are accepted before the verb:
@@ -440,9 +513,10 @@ the other.
 # Top-level help (same as bare --help)
 sysml2tools help
 
-# Command-specific help (identical to `lint --help`/`render --help`)
+# Command-specific help (identical to `lint --help`/`render --help`/`export --help`)
 sysml2tools help lint
 sysml2tools help render
+sysml2tools help export
 
 # Query verb overview (identical to `query --help`)
 sysml2tools help query

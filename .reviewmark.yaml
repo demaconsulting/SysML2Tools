@@ -955,6 +955,22 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryOmgFixtureTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryErrorPathTests.cs"
 
+  - id: SysML2Tools-Tool-Export
+    title: Review of SysML2 Tools Export subsystem implementation
+    context:
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-tool/export.yaml"
+      - "docs/design/sysml2-tools-tool/export.md"
+      - "docs/verification/sysml2-tools-tool/export.md"
+      - "src/DemaConsulting.SysML2Tools.Tool/Export/*.cs"
+      - "src/DemaConsulting.SysML2Tools.Tool/Export/ExportStrings.resx"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Resources/ResxResourceTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Export/ExportTestFixtures.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Export/ExportSubsystemTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Export/ExportRenderingTests.cs"
+
   - id: SysML2Tools-Tool-Help
     title: Review of SysML2 Tools Help subsystem implementation
     context:
