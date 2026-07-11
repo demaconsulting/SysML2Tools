@@ -269,4 +269,114 @@ public sealed class DiagramTypeRouterTests
         Assert.Null(unsupported);
         Assert.IsType<GeneralViewLayoutStrategy>(strategy);
     }
+
+    /// <summary>A view declaring <c>render asGeneralDiagram;</c> routes to the general strategy.</summary>
+    [Fact]
+    public void GetStrategy_RenderAsGeneralDiagram_ReturnsGeneralViewStrategy()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "MyView",
+            QualifiedName = "M::MyView",
+            RenderTargetName = "asGeneralDiagram"
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType<GeneralViewLayoutStrategy>(strategy);
+    }
+
+    /// <summary>A view declaring <c>render asStateTransitionDiagram;</c> routes to the state-transition strategy.</summary>
+    [Fact]
+    public void GetStrategy_RenderAsStateTransitionDiagram_ReturnsStateTransitionStrategy()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "MyView",
+            QualifiedName = "M::MyView",
+            RenderTargetName = "asStateTransitionDiagram"
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType<StateTransitionViewLayoutStrategy>(strategy);
+    }
+
+    /// <summary>A view declaring <c>render asActionFlowDiagram;</c> routes to the action-flow strategy.</summary>
+    [Fact]
+    public void GetStrategy_RenderAsActionFlowDiagram_ReturnsActionFlowStrategy()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "MyView",
+            QualifiedName = "M::MyView",
+            RenderTargetName = "asActionFlowDiagram"
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType<ActionFlowViewLayoutStrategy>(strategy);
+    }
+
+    /// <summary>A view declaring <c>render asSequenceDiagram;</c> routes to the sequence strategy.</summary>
+    [Fact]
+    public void GetStrategy_RenderAsSequenceDiagram_ReturnsSequenceStrategy()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "MyView",
+            QualifiedName = "M::MyView",
+            RenderTargetName = "asSequenceDiagram"
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType<SequenceViewLayoutStrategy>(strategy);
+    }
+
+    /// <summary>A view declaring <c>render asGridDiagram;</c> routes to the grid strategy.</summary>
+    [Fact]
+    public void GetStrategy_RenderAsGridDiagram_ReturnsGridStrategy()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "MyView",
+            QualifiedName = "M::MyView",
+            RenderTargetName = "asGridDiagram"
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType<GridViewLayoutStrategy>(strategy);
+    }
+
+    /// <summary>
+    /// A view declaring <c>render asGeneralDiagram;</c> takes precedence over a conflicting
+    /// name/supertype heuristic match.
+    /// </summary>
+    [Fact]
+    public void GetStrategy_RenderAsGeneralDiagram_PrecedenceOverridesNameHeuristic()
+    {
+        var view = new SysmlViewNode
+        {
+            Name = "TrafficStateTransitionView",
+            QualifiedName = "M::TrafficStateTransitionView",
+            RenderTargetName = "asGeneralDiagram"
+        };
+        var workspace = new SysmlWorkspace();
+
+        var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out _);
+
+        Assert.IsType<GeneralViewLayoutStrategy>(strategy);
+    }
 }

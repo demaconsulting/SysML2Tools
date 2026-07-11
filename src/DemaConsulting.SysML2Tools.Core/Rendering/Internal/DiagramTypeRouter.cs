@@ -16,16 +16,23 @@ namespace DemaConsulting.SysML2Tools.Rendering.Internal;
 /// Dispatch first checks the view's declared <c>render</c> target (<see
 /// cref="SysmlViewNode.RenderTargetName"/>) for an exact, case-sensitive (<see
 /// cref="StringComparison.Ordinal"/>) match against a recognized rendering-kind name:
-/// <c>asTreeDiagram</c> routes to the browser (tree) strategy and <c>asInterconnectionDiagram</c>
-/// routes to the interconnection strategy, regardless of the view's name or supertypes. Any other
-/// value — including <see langword="null"/>, <c>asElementTable</c>, <c>asTextualNotation</c>, or
-/// an unrecognized name — has no effect and falls through unchanged, with no diagnostic, to the
-/// existing name/supertype heuristic: the view's declared supertype names (and its own name) are
-/// inspected for a recognized view kind. A view that specializes a name containing
-/// <c>Interconnection</c> routes to the interconnection strategy; <c>StateTransition</c>/<c>State</c>,
-/// <c>ActionFlow</c>/<c>Action</c>, <c>Grid</c>/<c>Matrix</c>/<c>Tabular</c>,
-/// <c>Browser</c>/<c>Tree</c>, and <c>Sequence</c> route to their corresponding strategies;
-/// everything else falls back to the general view strategy.
+/// <c>asTreeDiagram</c> and <c>asInterconnectionDiagram</c> route to the browser (tree) and
+/// interconnection strategies respectively (the original two tokens, recognized since these views
+/// could be authored directly in SysML source); <c>asGeneralDiagram</c>, <c>asStateTransitionDiagram</c>,
+/// <c>asActionFlowDiagram</c>, <c>asSequenceDiagram</c>, and <c>asGridDiagram</c> route to the
+/// general, state-transition, action-flow, sequence, and grid strategies respectively (five
+/// additional tokens added so every view kind — including "general" — has an unambiguous,
+/// name-independent selector; see <c>DynamicViewSynthesizer</c>, the sole current producer of
+/// these five tokens for synthesized ad-hoc views). Each of these seven tokens takes precedence
+/// over the name/supertype heuristic below, regardless of the view's own name or declared
+/// supertypes. Any other value — including <see langword="null"/>, <c>asElementTable</c>,
+/// <c>asTextualNotation</c>, or an unrecognized name — has no effect and falls through unchanged,
+/// with no diagnostic, to the existing name/supertype heuristic: the view's declared supertype
+/// names (and its own name) are inspected for a recognized view kind. A view that specializes a
+/// name containing <c>Interconnection</c> routes to the interconnection strategy;
+/// <c>StateTransition</c>/<c>State</c>, <c>ActionFlow</c>/<c>Action</c>,
+/// <c>Grid</c>/<c>Matrix</c>/<c>Tabular</c>, <c>Browser</c>/<c>Tree</c>, and <c>Sequence</c> route
+/// to their corresponding strategies; everything else falls back to the general view strategy.
 /// </remarks>
 internal static class DiagramTypeRouter
 {
@@ -59,6 +66,21 @@ internal static class DiagramTypeRouter
 
                 case "asInterconnectionDiagram":
                     return new InterconnectionViewLayoutStrategy();
+
+                case "asGeneralDiagram":
+                    return new GeneralViewLayoutStrategy();
+
+                case "asStateTransitionDiagram":
+                    return new StateTransitionViewLayoutStrategy();
+
+                case "asActionFlowDiagram":
+                    return new ActionFlowViewLayoutStrategy();
+
+                case "asSequenceDiagram":
+                    return new SequenceViewLayoutStrategy();
+
+                case "asGridDiagram":
+                    return new GridViewLayoutStrategy();
             }
 
             if (Matches(view, "Interconnection"))
