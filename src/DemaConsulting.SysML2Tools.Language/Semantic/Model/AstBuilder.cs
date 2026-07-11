@@ -1213,10 +1213,10 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             // namespaceImport -> filterPackage -> filterPackageImportDeclaration -> (membershipImport
             // | namespaceImportDirect). Descend through that chain rather than only checking the
             // direct qualifiedName() child (which is null for this alternative). The bracket
-            // expression text itself is captured raw only (Phase 1 does not evaluate it — see
-            // SysmlViewNode.ExposeBracketFilterTexts) from the filterPackage's first
+            // expression text itself is captured raw here from the filterPackage's first
             // filterPackageMember (multiple bracket filters chained on one path are extremely
-            // rare; the first is representative for the "unevaluated" warning).
+            // rare; the first is representative); it is paired with its ExposeMember by
+            // ExtractExposedNames and evaluated per-entry by ExposeScopeResolver (Phase 2a).
             var filterPackage = namespaceImport.filterPackage();
             var bracketFilterText = filterPackage?.filterPackageMember()?.FirstOrDefault()?.ownedExpression() is { } bracketExpr
                 ? GetOriginalText(bracketExpr)
