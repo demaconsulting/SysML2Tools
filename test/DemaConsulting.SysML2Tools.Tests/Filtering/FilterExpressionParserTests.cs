@@ -1,7 +1,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
-// cspell:ignore Parenthesization istype Istype hastype Hastype Reparses
+// cspell:ignore Parenthesization istype Istype hastype Hastype Reparses LBRACK RBRACK uncatchable
 
 using DemaConsulting.SysML2Tools.Filtering;
 
@@ -280,6 +280,47 @@ public sealed class FilterExpressionParserTests
         Assert.Empty(result.Diagnostics);
         var expression = Assert.IsType<ClassificationTestExpression>(result.Expression);
         Assert.Equal("Foo", expression.TypeName);
+    }
+
+    /// <summary>
+    ///     Deeply nested sequence-indexing brackets must not overflow the native call stack either
+    ///     — a follow-up review found that the deep-nesting guard above only tracked <c>(</c>/<c>)</c>
+    ///     and prefix unary operators, leaving the grammar's <c>ownedExpression LBRACK
+    ///     sequenceExpressionList? RBRACK</c> indexing production (which recurses back into
+    ///     <c>ownedExpression</c> for its bracketed contents exactly like parenthesization does)
+    ///     free to still crash the process via the same uncatchable <see cref="StackOverflowException"/>
+    ///     failure mode, at a nesting depth (500 levels, ~1501 characters) far below the guard's own
+    ///     200-level ceiling. Reproduces the exact repro construction from the follow-up code-review
+    ///     report: <c>"a[" * 500 + "0" + "]" * 500</c>.
+    /// </summary>
+    [Fact]
+    public void Parse_DeeplyNestedBracketIndexing_ReturnsDiagnosticInsteadOfCrashing()
+    {
+        var deeplyNested = "a" + string.Concat(Enumerable.Repeat("[a", 500)) + "0" + string.Concat(Enumerable.Repeat("]", 500));
+
+        var result = FilterExpressionParser.Parse(deeplyNested);
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("too deeply nested"));
+    }
+
+    /// <summary>
+    ///     Shallow (non-adversarial) sequence-indexing bracket nesting must not be rejected by the
+    ///     depth guard. Bracket indexing is outside the Phase 1 construct subset, so it is still
+    ///     expected to produce an "unsupported construct" diagnostic — the point of this test is
+    ///     that it is *that* diagnostic, and not the "too deeply nested" one, confirming the guard
+    ///     itself introduces no false-positive rejection for ordinary-depth bracket expressions.
+    /// </summary>
+    [Fact]
+    public void Parse_ShallowBracketIndexing_ReturnsUnsupportedConstructNotDeepNestingDiagnostic()
+    {
+        var shallowNested = "a" + string.Concat(Enumerable.Repeat("[a", 5)) + "0" + string.Concat(Enumerable.Repeat("]", 5));
+
+        var result = FilterExpressionParser.Parse(shallowNested);
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("Unsupported filter construct"));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("too deeply nested"));
     }
 
     /// <summary>

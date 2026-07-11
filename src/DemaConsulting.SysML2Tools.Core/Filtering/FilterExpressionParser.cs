@@ -2,7 +2,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
-// cspell:ignore parenthesization istype hastype ISTYPE HASTYPE LPAREN RPAREN uncatchable
+// cspell:ignore parenthesization istype hastype ISTYPE HASTYPE LPAREN RPAREN LBRACK RBRACK uncatchable
 
 using Antlr4.Runtime;
 using DemaConsulting.SysML2Tools.Parser;
@@ -45,14 +45,17 @@ public static class FilterExpressionParser
     private const string VirtualFilePath = "[filter-expression]";
 
     /// <summary>
-    /// Maximum permitted nesting depth (parenthesization and/or prefix unary operators such as
-    /// <c>not</c>) before <see cref="Parse"/> rejects the input with a diagnostic instead of
-    /// invoking ANTLR's recursive-descent <c>ownedExpression()</c>/<c>baseExpression()</c> parse,
+    /// Maximum permitted nesting depth (parenthesization, sequence-indexing brackets, and/or
+    /// prefix unary operators such as <c>not</c>) before <see cref="Parse"/> rejects the input
+    /// with a diagnostic instead of invoking ANTLR's recursive-descent
+    /// <c>ownedExpression()</c>/<c>baseExpression()</c>/<c>sequenceExpressionList()</c> parse,
     /// which recurses once per nesting level and has no depth guard of its own — beyond a few
-    /// thousand levels that recursion overflows the native call stack with an uncatchable
-    /// <see cref="StackOverflowException"/> that terminates the whole process. This ceiling is
-    /// chosen well above any realistic Phase 1 filter expression's nesting (a handful of levels
-    /// at most) but far below the depth (empirically ~4000-5000 levels) that overflows the stack.
+    /// thousand levels (empirically, far fewer for bracket indexing than for parens — see
+    /// <see cref="ExceedsMaxNestingDepth"/>'s remarks) that recursion overflows the native call
+    /// stack with an uncatchable <see cref="StackOverflowException"/> that terminates the whole
+    /// process. This ceiling is chosen well above any realistic Phase 1 filter expression's
+    /// nesting (a handful of levels at most) but far below the depth that overflows the stack for
+    /// any of the recursing token shapes.
     /// </summary>
     private const int MaxNestingDepth = 200;
 
@@ -145,11 +148,14 @@ public static class FilterExpressionParser
     /// ANTLR's recursive-descent <c>ownedExpression()</c>/<c>baseExpression()</c> parse would need
     /// to reach in order to parse this token sequence, without itself recursing. This is a simple
     /// stack-depth simulation over the token kinds that push or pop a parse frame in that grammar:
-    /// <c>(</c> and each prefix unary operator (<c>not</c>/<c>+</c>/<c>-</c>/<c>~</c>/<c>if</c>/
-    /// <c>all</c>) push a frame; a matching <c>)</c> pops one paren frame (plus any still-pending
-    /// unary frames above it), and reaching any other token (an atom, or a subsequent operator)
-    /// pops the innermost run of still-pending unary frames, since those are fully closed only
-    /// once the sub-expression they qualify has been recognized.
+    /// <c>(</c>, <c>[</c> (the <c>ownedExpression LBRACK sequenceExpressionList? RBRACK</c>
+    /// sequence-indexing production, which recurses back into <c>ownedExpression</c> for its
+    /// bracketed contents exactly like parenthesization does), and each prefix unary operator
+    /// (<c>not</c>/<c>+</c>/<c>-</c>/<c>~</c>/<c>if</c>/<c>all</c>) push a frame; a matching
+    /// <c>)</c> or <c>]</c> pops one balanced frame (plus any still-pending unary frames above
+    /// it), and reaching any other token (an atom, or a subsequent operator) pops the innermost
+    /// run of still-pending unary frames, since those are fully closed only once the
+    /// sub-expression they qualify has been recognized.
     /// </summary>
     /// <returns><see langword="true"/> when the simulated depth would exceed <see cref="MaxNestingDepth"/>.</returns>
     private static bool ExceedsMaxNestingDepth(CommonTokenStream tokenStream)
@@ -162,6 +168,7 @@ public static class FilterExpressionParser
             switch (token.Type)
             {
                 case SysMLv2Lexer.LPAREN:
+                case SysMLv2Lexer.LBRACK:
                     pendingIsParen.Push(true);
                     break;
 
@@ -175,6 +182,7 @@ public static class FilterExpressionParser
                     break;
 
                 case SysMLv2Lexer.RPAREN:
+                case SysMLv2Lexer.RBRACK:
                     while (pendingIsParen.Count > 0 && !pendingIsParen.Peek())
                     {
                         pendingIsParen.Pop();

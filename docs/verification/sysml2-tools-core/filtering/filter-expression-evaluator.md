@@ -27,8 +27,9 @@ SDK and the repository's committed SysML fixtures.
 - Absent metadata attributes evaluate conservatively as false.
 - Unsupported constructs and malformed syntax report diagnostics and never throw.
 - Pretty-printing a supported AST re-parses to an equivalent tree.
-- Pathologically deep nesting (thousands of levels of parenthesization) reports a diagnostic
-  instead of overflowing the native call stack and crashing the process.
+- Pathologically deep nesting (thousands of levels of parenthesization, or hundreds of levels of
+  sequence-indexing brackets) reports a diagnostic instead of overflowing the native call stack
+  and crashing the process.
 - Filter text containing non-BMP (astral-plane) Unicode characters never throws.
 - A syntactically valid expression prefix followed by trailing content reports a diagnostic
   instead of silently discarding the trailing tokens.
@@ -74,6 +75,8 @@ SDK and the repository's committed SysML fixtures.
   - `Parse_MalformedSyntax_NeverThrows_ReturnsDiagnostic`
   - `Parse_DeeplyNestedParentheses_ReturnsDiagnosticInsteadOfCrashing`
   - `Parse_ModeratelyNestedParentheses_StillParsesSuccessfully`
+  - `Parse_DeeplyNestedBracketIndexing_ReturnsDiagnosticInsteadOfCrashing`
+  - `Parse_ShallowBracketIndexing_ReturnsUnsupportedConstructNotDeepNestingDiagnostic`
   - `Parse_AstralPlaneUnicodeCharacter_NeverThrows_ReturnsDiagnostic`
   - `Parse_AstralPlaneUnicodeCharacterAsTrailingToken_NeverThrows_ReturnsDiagnostic`
   - `Parse_TrailingGarbageAfterValidExpression_ReturnsDiagnostic`
@@ -105,6 +108,9 @@ SDK and the repository's committed SysML fixtures.
   accepted by the parser
 - `Parse_DeeplyNestedParentheses_ReturnsDiagnosticInsteadOfCrashing` — 5000 levels of nested
   parentheses report a diagnostic instead of overflowing the native call stack
+- `Parse_DeeplyNestedBracketIndexing_ReturnsDiagnosticInsteadOfCrashing` — 500 levels of nested
+  sequence-indexing brackets (`a[a[a[...0...]]]`) report a diagnostic instead of overflowing the
+  native call stack, closing the gap a follow-up review found in the initial paren-only guard
 - `Parse_AstralPlaneUnicodeCharacter_NeverThrows_ReturnsDiagnostic` — an astral-plane Unicode
   character (surrogate pair) is reported as a diagnostic instead of throwing `ArgumentException`
 - `Parse_TrailingGarbageAfterValidExpression_ReturnsDiagnostic` — a valid expression prefix
