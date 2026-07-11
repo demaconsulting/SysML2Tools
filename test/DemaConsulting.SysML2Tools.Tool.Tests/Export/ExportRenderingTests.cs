@@ -273,6 +273,76 @@ public class ExportRenderingTests
     }
 
     /// <summary>
+    ///     <c>--output</c> pointing at a file inside a directory that doesn't yet exist succeeds,
+    ///     creating the missing parent directory (mirroring <c>render</c>'s
+    ///     <c>Directory.CreateDirectory</c> guard for its own <c>--output</c> directory).
+    /// </summary>
+    [Fact]
+    public void ExportIntegration_OutputInMissingDirectory_CreatesDirectoryAndSucceeds()
+    {
+        var dllPath = PathHelpers.SafePathCombine(AppContext.BaseDirectory, "DemaConsulting.SysML2Tools.dll");
+        Assert.True(File.Exists(dllPath), $"Could not find SysML2 Tools DLL at {dllPath}");
+
+        var fixtureRoot = FindSysMlModelsRoot();
+        Assert.NotNull(fixtureRoot);
+        var fixtureFile = Path.Combine(fixtureRoot!, "OMG", "examples", "VehicleExample", "VehicleDefinitions.sysml");
+        Assert.True(File.Exists(fixtureFile), $"Could not find fixture file at {fixtureFile}");
+
+        var tempRoot = Path.Combine(Path.GetTempPath(), "sysml2tools-export-test-" + Guid.NewGuid().ToString("N"));
+        var outputFile = Path.Combine(tempRoot, "nested", "out.json");
+        try
+        {
+            Assert.False(Directory.Exists(Path.GetDirectoryName(outputFile)));
+
+            var exitCode = Runner.Run(
+                out _, "dotnet", dllPath, "export", "--format", "json", "--output", outputFile, fixtureFile);
+
+            Assert.Equal(0, exitCode);
+            Assert.True(File.Exists(outputFile));
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     <c>--output</c> pointing at an existing directory (rather than a file) fails cleanly
+    ///     with a non-zero exit code and a user-facing error message, instead of an unhandled
+    ///     exception/stack trace.
+    /// </summary>
+    [Fact]
+    public void ExportIntegration_OutputIsExistingDirectory_FailsCleanly()
+    {
+        var dllPath = PathHelpers.SafePathCombine(AppContext.BaseDirectory, "DemaConsulting.SysML2Tools.dll");
+        Assert.True(File.Exists(dllPath), $"Could not find SysML2 Tools DLL at {dllPath}");
+
+        var fixtureRoot = FindSysMlModelsRoot();
+        Assert.NotNull(fixtureRoot);
+        var fixtureFile = Path.Combine(fixtureRoot!, "OMG", "examples", "VehicleExample", "VehicleDefinitions.sysml");
+        Assert.True(File.Exists(fixtureFile), $"Could not find fixture file at {fixtureFile}");
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "sysml2tools-export-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var exitCode = Runner.Run(
+                out var output, "dotnet", dllPath, "export", "--format", "json", "--output", tempDir, fixtureFile);
+
+            Assert.NotEqual(0, exitCode);
+            Assert.Contains("export: failed to write output file", output);
+            Assert.DoesNotContain("Unhandled exception", output);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
     ///     Finds the <c>test/SysMLModels</c> directory relative to the test assembly, mirroring
     ///     <c>Query.QueryOmgFixtureTests.FindSysMlModelsRoot</c>.
     /// </summary>

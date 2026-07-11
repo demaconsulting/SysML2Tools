@@ -127,7 +127,29 @@ internal static class ExportCommand
         // Write to --output file if specified, else stdout via context.WriteLine
         if (options.Output is not null)
         {
-            await File.WriteAllTextAsync(options.Output, rendered).ConfigureAwait(false);
+            try
+            {
+                // Ensure the parent directory exists (mirroring 'render's Directory.CreateDirectory
+                // guard for its --output directory), so a nonexistent output path fails cleanly
+                // rather than throwing DirectoryNotFoundException from WriteAllTextAsync below.
+                var outputDir = Path.GetDirectoryName(Path.GetFullPath(options.Output));
+                if (!string.IsNullOrEmpty(outputDir))
+                {
+                    Directory.CreateDirectory(outputDir);
+                }
+
+                await File.WriteAllTextAsync(options.Output, rendered).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                // Covers cases such as '--output' pointing at an existing directory (unlike
+                // 'render', where --output is a directory), a read-only/locked target, or an
+                // otherwise-invalid path, surfacing a clean error instead of an unhandled
+                // exception with a stack trace.
+                context.WriteError($"export: failed to write output file '{options.Output}': {ex.Message}");
+                return;
+            }
+
             context.WriteLine($"export: wrote {declarations.Count} declaration(s), {edges.Count} edge(s), " +
                                $"{result.Diagnostics.Count} diagnostic(s) to '{options.Output}'.");
         }
