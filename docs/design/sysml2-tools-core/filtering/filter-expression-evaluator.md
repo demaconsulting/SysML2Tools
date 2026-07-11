@@ -1,4 +1,4 @@
-<!-- cspell:ignore istype hastype -->
+<!-- cspell:ignore istype hastype parenthesization uncatchable -->
 
 ### FilterExpressionEvaluator
 
@@ -38,6 +38,22 @@ A custom `CollectingErrorListener` captures syntax errors as `SysmlDiagnostic` e
 virtual file path (`[filter-expression]`) so parsing never writes to the console or throws on
 malformed input. If ANTLR reports no syntax errors, `Parse` delegates to `TryBuild` to adapt the
 CST into the Phase 1 AST.
+
+`Parse` guards against four hardening scenarios beyond ordinary syntax errors, all reported as
+`SysmlDiagnostic` rather than by throwing or crashing (see Error Handling below for why each is
+necessary):
+
+1. It eagerly tokenizes the input (`CommonTokenStream.Fill()`, which only drives the iterative
+   lexer and never recurses) and rejects input whose parenthesization/prefix-unary-operator
+   nesting depth would exceed `MaxNestingDepth` (200) *before* invoking the recursive-descent
+   parser, which has no depth guard of its own.
+2. It catches `Exception` generically (in addition to `RecognitionException`) around the lex/parse
+   call, converting any other unexpected ANTLR-internal failure into a diagnostic.
+3. It checks the token stream is positioned at EOF after `ownedExpression()` returns, reporting an
+   "unexpected trailing content" diagnostic when the parser only consumed a prefix of the input.
+4. `TryBuildLiteral` rejects integer/real literals that parse to a non-finite `double` (overflow),
+   reporting a "numeric literal out of range" diagnostic instead of producing an
+   `Infinity`/`NaN`-valued literal that cannot round-trip through `ToString()`.
 
 ##### `FilterExpressionParser.TryBuild(OwnedExpressionContext, diagnostics)`
 
@@ -88,6 +104,39 @@ candidates, missing metadata, and missing attributes. Diagnostics in `FilterEval
 currently always empty because evaluation of an already-supported AST cannot fail, but the result
 shape leaves room for future evaluation-time diagnostics without a breaking API change.
 
+`Parse`'s "never throws" contract is non-negotiable: a planned future GUI will call `Parse`/
+`Evaluate` live on every keystroke of a text-editing filter box, so any uncaught exception —
+recognized syntax error or not — would be user-visible and disruptive, and an uncatchable process
+crash would be far worse. A retroactive robustness review found four ways ANTLR's own
+lexer/recursive-descent-parser internals could violate that contract despite `Parse`'s existing
+`RecognitionException` handling, all now hardened against:
+
+- **Uncatchable stack overflow on deep nesting**: ANTLR's recursive-descent
+  `ownedExpression()`/`baseExpression()` parse recurses once per nesting level (each `(` or prefix
+  unary operator such as `not`) with no depth guard. Beyond roughly 4000-5000 levels this overflows
+  the native call stack with a `StackOverflowException`, which — unlike every other .NET exception
+  — cannot be caught and terminates the entire process immediately, not just the `Parse` call.
+  `Parse` now pre-scans the already-lexed (non-recursive) token stream and rejects input whose
+  simulated recursion depth would exceed 200 levels, well before the recursive parser runs.
+- **Uncaught `ArgumentException` on astral-plane Unicode input**: `Antlr4.Runtime.Lexer.GetErrorDisplay`
+  calls `Char.ConvertToUtf32` while formatting a lexer error message, which throws `ArgumentException`
+  (not `RecognitionException`) for input containing an unpaired UTF-16 surrogate — including a
+  *paired* surrogate that the lexer itself cannot otherwise tokenize. `Parse`'s catch clause was
+  broadened to `catch (Exception ex)` around the lex/parse call (a deliberate, documented generic
+  catch, consistent with this repository's established pattern for boundary code that must never
+  propagate an unexpected failure) so this and any other ANTLR-internal failure mode become a
+  diagnostic instead of an unhandled exception.
+- **Silent trailing-garbage acceptance**: `parser.ownedExpression()` only requires a syntactically
+  valid expression *prefix*; it returns successfully without consuming any trailing tokens, and
+  previously nothing checked for that. `Parse` now verifies the token stream is positioned at EOF
+  after the parse and reports an "unexpected trailing content" diagnostic otherwise.
+- **Non-lossless round-trip for numeric literal overflow**: `double.TryParse` silently accepts
+  literal text whose magnitude overflows `double` (e.g. `3.14e400`), returning
+  `double.PositiveInfinity` rather than failing. `LiteralFilterExpression.ToString()` would then
+  print the non-SysML-syntax text `"Infinity"`, which fails to re-parse. `TryBuildLiteral` now
+  checks `double.IsFinite` after parsing an integer/real literal and reports a "numeric literal out
+  of range" diagnostic instead of building a non-finite-valued literal.
+
 #### Dependencies
 
 - `SysMLv2Lexer` / `SysMLv2Parser` (Language Parser subsystem) — reusable grammar implementation
@@ -126,6 +175,10 @@ shape leaves room for future evaluation-time diagnostics without a breaking API 
   `FilterExpressionEvaluator.EvaluateComparison`
 - `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-UnsupportedConstructDiagnostics` —
   `CollectingErrorListener`, `FilterExpressionParser.Unsupported`,
-  `FilterExpressionParser.TryBuildLiteral`, `FilterExpressionEvaluator.Evaluate`
+  `FilterExpressionParser.TryBuildLiteral`, `FilterExpressionEvaluator.Evaluate`,
+  `FilterExpressionParser.ExceedsMaxNestingDepth` (deep-nesting guard), `FilterExpressionParser.Parse`'s
+  broadened `catch (Exception)` (astral Unicode / other ANTLR-internal failures), and `Parse`'s
+  post-parse EOF check (trailing-content diagnostic)
 - `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-RoundTripPrettyPrinting` —
-  `FilterExpression.ToString()` overrides and `FilterExpressionParser.Parse`
+  `FilterExpression.ToString()` overrides, `FilterExpressionParser.Parse`, and
+  `FilterExpressionParser.TryBuildLiteral`'s `double.IsFinite` check (numeric-literal-overflow guard)

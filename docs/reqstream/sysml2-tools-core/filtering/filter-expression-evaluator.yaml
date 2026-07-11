@@ -73,12 +73,18 @@ sections:
       - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-UnsupportedConstructDiagnostics
         title: >-
           FilterExpressionEvaluator shall report malformed syntax and every construct outside the
-          Phase 1 subset as explicit diagnostics and shall never throw while parsing or evaluating
-          them.
+          Phase 1 subset as explicit diagnostics and shall never throw — or crash the process —
+          while parsing or evaluating them, including for adversarial/malformed input shapes such
+          as pathologically deep nesting, non-BMP Unicode characters, and syntactically-valid
+          expression prefixes followed by trailing content.
         justification: |
           Unsupported constructs are an expected Phase 1 boundary, not an exceptional condition.
           Reporting them as diagnostics allows layout to fall back to the unfiltered scope with a
-          visible warning instead of crashing or silently dropping the filter.
+          visible warning instead of crashing or silently dropping the filter. Because a planned
+          future GUI will call `Parse`/`Evaluate` live on every keystroke of a text-editing filter
+          box, this "never throws / never crashes" contract must also hold for adversarial or
+          malformed input a user could easily produce by accident (a stray paste, an editor
+          autocomplete bug, an emoji typed mid-edit) — not just recognized syntax errors.
         tests:
           - Parse_Istype_ReturnsUnsupportedConstructDiagnostic
           - Parse_Hastype_ReturnsUnsupportedConstructDiagnostic
@@ -87,15 +93,30 @@ sections:
           - Parse_Conditional_ReturnsUnsupportedConstructDiagnostic
           - Parse_GeneralFeatureChainNavigation_ReturnsUnsupportedConstructDiagnostic
           - Parse_MalformedSyntax_NeverThrows_ReturnsDiagnostic
+          - Parse_DeeplyNestedParentheses_ReturnsDiagnosticInsteadOfCrashing
+          - Parse_ModeratelyNestedParentheses_StillParsesSuccessfully
+          - Parse_AstralPlaneUnicodeCharacter_NeverThrows_ReturnsDiagnostic
+          - Parse_AstralPlaneUnicodeCharacterAsTrailingToken_NeverThrows_ReturnsDiagnostic
+          - Parse_TrailingGarbageAfterValidExpression_ReturnsDiagnostic
+          - Parse_TrailingCloseParen_ReturnsDiagnostic
+          - Parse_TrailingSemicolon_ReturnsDiagnostic
           - Evaluate_UnknownCandidate_SkipsGracefully
 
       - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-RoundTripPrettyPrinting
         title: >-
           Every supported Phase 1 filter-expression tree shall pretty-print to canonical SysML v2
-          filter syntax whose re-parse yields a semantically-equivalent tree.
+          filter syntax whose re-parse yields a semantically-equivalent tree, and numeric literals
+          that would overflow that lossless round-trip (i.e. parse to a non-finite `double`) shall
+          be rejected as an invalid literal at parse time rather than silently accepted.
         justification: |
           Canonical pretty-printing keeps diagnostics, debugging output, and future persisted
           filter-expression scenarios stable. Re-parsing the printed form proves the AST shape and
-          printer stay aligned with the accepted grammar subset.
+          printer stay aligned with the accepted grammar subset. A numeric literal that overflows
+          `double` during parsing (e.g. `3.14e400`) would otherwise silently become
+          `double.PositiveInfinity`, whose pretty-printed form (`"Infinity"`) is not valid SysML v2
+          syntax and cannot be re-parsed — violating this requirement's round-trip guarantee at its
+          source rather than only at its symptom.
         tests:
           - Parse_RoundTrip_PrettyPrintedTextReparsesToEquivalentTree
+          - Parse_NumericLiteralOverflow_ReturnsDiagnosticInsteadOfInfinity
+          - Parse_LargeButFiniteRealLiteral_StillParsesSuccessfully

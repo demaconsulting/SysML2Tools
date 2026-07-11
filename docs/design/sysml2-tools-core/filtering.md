@@ -97,6 +97,14 @@ flowchart TD
   `(as Type).attribute` metadata read is intentionally rejected.
 - The evaluator is read-only over `SysmlWorkspace`; it never mutates declarations or resolved
   edges.
+- `Parse`/`Evaluate` must never throw and must never crash the process, since a planned future GUI
+  will call them live on every keystroke of a text-editing filter box (see
+  `docs/design/sysml2-tools-core/filtering/filter-expression-evaluator.md`'s Error Handling
+  section for the hardening this constraint requires beyond ordinary syntax-error diagnostics:
+  a bounded nesting-depth guard against ANTLR's own recursive-descent stack overflow, a broadened
+  catch for ANTLR-internal failures such as astral-plane Unicode input, an EOF check rejecting
+  trailing garbage after a valid expression prefix, and a finite-value check rejecting numeric
+  literals that overflow `double`).
 
 ### Requirements Traceability
 
