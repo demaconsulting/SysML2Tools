@@ -12,6 +12,12 @@ outputs; no internal implementation details are assumed.
 (e.g., "standard error is empty") are not possible at this level; all assertions are made
 against the combined output.
 
+Detailed, per-subsystem verification for each of the tool's eight subsystems (`Cli`, `Lint`,
+`Render`, `Help`, `Query`, `Export`, `SelfTest`, `Utilities`) is tracked separately under
+`docs/verification/sysml2-tools-tool/*.md` (`cli.md`, `lint.md`, `render.md`, `help.md`,
+`query.md`, `export.md`, `self-test.md`, `utilities.md`), matching the subsystem list in
+`docs/design/sysml2-tools-tool.md`.
+
 ## Test Environment
 
 Integration tests run on .NET 8.0, .NET 9.0, and .NET 10.0 across Windows, Linux, and macOS.
@@ -25,6 +31,9 @@ combinations. Temporary files and directories are created and cleaned up within 
 - Exit code non-zero is returned for all invalid argument combinations.
 - Results files are created at the specified paths when `--results` is used with `--validate`.
 - Silent mode (`--silent`) produces empty combined output.
+- The `export` subcommand produces valid JSON/JSONL output for a real fixture, honors
+  `--include-stdlib`, and is covered by dedicated Export-subsystem tests (see
+  `docs/verification/sysml2-tools-tool/export.md`).
 
 ## Test Scenarios
 

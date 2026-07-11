@@ -634,6 +634,99 @@ public class ContextTests
     }
 
     /// <summary>
+    ///     Test creating a context with the export command sets Command to SysmlCommand.Export.
+    /// </summary>
+    [Fact]
+    public void Context_Create_ExportCommand_SetsCommandExport()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["export"]);
+
+        // Assert: verify expected behavior
+        Assert.Equal(SysmlCommand.Export, context.Command);
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
+    ///     Test creating a context with export command and --format jsonl sets Export.Format to "jsonl".
+    /// </summary>
+    [Fact]
+    public void Context_Create_ExportCommand_WithFormat_SetsFormat()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["export", "--format", "jsonl"]);
+
+        // Assert: verify expected behavior
+        Assert.Equal("jsonl", context.Export!.Format);
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
+    ///     Test creating a context with export command and --output sets Export.Output.
+    /// </summary>
+    [Fact]
+    public void Context_Create_ExportCommand_WithOutput_SetsOutput()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["export", "--output", "out.json"]);
+
+        // Assert: verify expected behavior
+        Assert.Equal("out.json", context.Export!.Output);
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
+    ///     Test creating a context with export command and --include-stdlib sets Export.IncludeStdlib to true.
+    /// </summary>
+    [Fact]
+    public void Context_Create_ExportCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["export", "--include-stdlib"]);
+
+        // Assert: verify expected behavior
+        Assert.True(context.Export!.IncludeStdlib);
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
+    ///     Test creating a context with export command and a file pattern sets Files.
+    /// </summary>
+    [Fact]
+    public void Context_Create_ExportCommand_WithFiles_SetsFiles()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["export", "*.sysml"]);
+
+        // Assert: verify expected behavior
+        Assert.Single(context.Export!.Files);
+        Assert.Equal("*.sysml", context.Export.Files[0]);
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
+    ///     Test creating a context with export --format but no value throws ArgumentException.
+    /// </summary>
+    [Fact]
+    public void Context_Create_ExportCommand_FormatWithoutValue_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() => Context.Create(["export", "--format"]));
+        Assert.Contains("--format", exception.Message);
+    }
+
+    /// <summary>
+    ///     Test creating a context with export --output but no value throws ArgumentException.
+    /// </summary>
+    [Fact]
+    public void Context_Create_ExportCommand_OutputWithoutValue_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() => Context.Create(["export", "--output"]));
+        Assert.Contains("--output", exception.Message);
+    }
+
+    /// <summary>
     ///     Test creating a context with the query command and each of the 11 verb tokens sets
     ///     Command to SysmlCommand.Query and Query.Verb to the matching enum value.
     /// </summary>

@@ -129,3 +129,25 @@ line, each parseable and carrying the expected `"Kind"` discriminator. Satisfies
 Verifies that `Validation.RunExportSelfTestAsync` passes against the built-in self-test
 model, reporting a passing `TestResult` named `SysML2Tools_ExportSelfTest`. Satisfies
 `SysML2Tools-Tool-Export-SelfTest`.
+
+##### ContextTests.cs
+
+**`Context_Create_ExportCommand_SetsCommandExport`**: Verifies that
+`Context.Create(["export"])` sets `Command` to `SysmlCommand.Export` with exit code 0.
+
+**`Context_Create_ExportCommand_WithFormat_SetsFormat`**: Verifies that `--format jsonl`
+populates `Export.Format`.
+
+**`Context_Create_ExportCommand_WithOutput_SetsOutput`**: Verifies that
+`--output out.json` populates `Export.Output`.
+
+**`Context_Create_ExportCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue`**: Verifies
+that `--include-stdlib` sets `Export.IncludeStdlib` to `true`.
+
+**`Context_Create_ExportCommand_WithFiles_SetsFiles`**: Verifies that a file pattern
+supplied after the `export` token populates `Export.Files` with the matching glob.
+
+**`Context_Create_ExportCommand_FormatWithoutValue_ThrowsArgumentException`** /
+**`Context_Create_ExportCommand_OutputWithoutValue_ThrowsArgumentException`**: Verifies
+that a trailing `--format`/`--output` with no following value throws `ArgumentException`
+naming the flag, mirroring the `render`/`query` commands' equivalent dispatch-level tests.
