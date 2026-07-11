@@ -17,9 +17,10 @@ configuration are required beyond a standard .NET SDK installation.
 - Each recognized view kind, whether identified by name or by a specialized supertype, routes to
   its corresponding strategy.
 - A view matching no recognized kind routes to the general view strategy.
-- A view declaring `render asTreeDiagram;` or `render asInterconnectionDiagram;` routes to the
-  browser or interconnection strategy respectively, taking precedence over a conflicting
-  name/supertype heuristic match.
+- A view declaring `render asTreeDiagram;`, `render asInterconnectionDiagram;`,
+  `render asGeneralDiagram;`, `render asStateTransitionDiagram;`, `render asActionFlowDiagram;`,
+  `render asSequenceDiagram;`, or `render asGridDiagram;` routes to the corresponding strategy,
+  taking precedence over a conflicting name/supertype heuristic match.
 - A view declaring any other render target — `asElementTable`, `asTextualNotation`, an
   unrecognized name, or none — falls through unchanged to the name/supertype heuristic, with no
   diagnostic.
@@ -39,6 +40,12 @@ configuration are required beyond a standard .NET SDK installation.
 | `GetStrategy_RenderAsTreeDiagram_ReturnsBrowserStrategy` | `render asTreeDiagram;` selects browser strategy |
 | `GetStrategy_RenderAsInterconnectionDiagram_ReturnsInterconnectionStrategy` | render picks interconnection |
 | `GetStrategy_RenderTargetPrecedenceOverridesNameHeuristic` | Render target wins over a conflicting name heuristic |
+| `GetStrategy_RenderAsGeneralDiagram_ReturnsGeneralViewStrategy` | `asGeneralDiagram;` selects general strategy |
+| `GetStrategy_RenderAsStateTransitionDiagram_ReturnsStateTransitionStrategy` | selects state strategy |
+| `GetStrategy_RenderAsActionFlowDiagram_ReturnsActionFlowStrategy` | `asActionFlowDiagram;` selects action-flow |
+| `GetStrategy_RenderAsSequenceDiagram_ReturnsSequenceStrategy` | `asSequenceDiagram;` selects sequence strategy |
+| `GetStrategy_RenderAsGridDiagram_ReturnsGridStrategy` | `render asGridDiagram;` selects grid strategy |
+| `GetStrategy_RenderAsGeneralDiagram_PrecedenceOverridesNameHeuristic` | New token wins over name heuristic |
 | `GetStrategy_RenderAsElementTable_FallsThroughUnchanged` | `render asElementTable;` has no effect |
 | `GetStrategy_RenderAsTextualNotation_FallsThroughUnchanged` | `render asTextualNotation;` has no effect |
 | `GetStrategy_UnrecognizedRenderTarget_FallsThroughUnchanged` | Unrecognized render target has no effect |

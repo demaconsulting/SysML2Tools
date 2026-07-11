@@ -81,6 +81,30 @@ sections:
         tests:
           - Validation_RunRenderPngSelfTest_SkiaSharpAvailable_Passes
 
+      - id: SysML2Tools-Tool-Validation-RenderDynamicViewSelfTests
+        title: >-
+          The Validation class shall include three dynamic-view self-tests —
+          SysML2Tools_RenderDynamicViewSvgSelfTest, SysML2Tools_RenderDynamicViewPngSelfTest, and
+          SysML2Tools_RenderDynamicViewFilteredSelfTest — that synthesize and render a dynamic
+          view (via DiagramRenderer.SynthesizeDynamicView) targeting the built-in self-test
+          model's package with no view def present, verifying: at least one non-empty SVG stream
+          is produced (Svg); at least one non-empty PNG stream is produced, skipping gracefully
+          when SkiaSharp is absent (Png, mirroring the existing PNG self-test's skip behavior);
+          and that applying a --filter expression which matches nothing produces a strictly
+          smaller rendered SVG than the unfiltered equivalent (Filtered), confirming the filter
+          genuinely narrows output rather than being merely accepted.
+        justification: |
+          A self-test confirms the dynamic (ad-hoc) view feature — a user-facing CLI capability
+          with no prior automated smoke coverage in the deployment self-test suite — is
+          operational end to end (synthesis, layout, and rendering) in the deployment
+          environment, mirroring the existing declared-view SVG/PNG self-tests' coverage
+          pattern. The Filtered self-test additionally proves the --filter flag's effect is real,
+          not just accepted and ignored.
+        tests:
+          - Validation_RunRenderDynamicViewSvgSelfTest_ValidModel_Passes
+          - Validation_RunRenderDynamicViewPngSelfTest_SkiaSharpAvailable_Passes
+          - Validation_RunRenderDynamicViewFilteredSelfTest_ValidModel_Passes
+
       - id: SysML2Tools-Tool-Validation-PassedSummary
         title: >-
           The Validation class shall print "SysML2Tools self-test: PASSED" after the

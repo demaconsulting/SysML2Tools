@@ -4,9 +4,11 @@
 
 The internal rendering components are verified through unit tests. `DiagramTypeRouter` is
 covered by `DiagramTypeRouterTests`, which construct view nodes of each kind and assert on the
-concrete strategy returned. The `StdlibFilter` behavior is verified indirectly through the
-view-strategy tests that assert standard-library elements are excluded from the produced
-layout. No mocking is required; both components are pure and deterministic.
+concrete strategy returned. `DynamicViewSynthesizer` is covered by
+`DynamicViewSynthesizerTests` — see its own verification chapter for full scenario detail. The
+`StdlibFilter` behavior is verified indirectly through the view-strategy tests that assert
+standard-library elements are excluded from the produced layout. No mocking is required; all
+three components are pure and deterministic.
 
 #### Test Environment
 
@@ -18,9 +20,10 @@ or configuration are required beyond a standard .NET SDK installation.
 - All `DiagramTypeRouterTests` pass with zero failures across all three target frameworks.
 - Each recognized view kind routes to its corresponding strategy.
 - A view matching no recognized kind routes to the general view strategy.
-- A view declaring `render asTreeDiagram;` or `render asInterconnectionDiagram;` routes to the
-  browser or interconnection strategy regardless of the view's name, taking precedence over the
-  name/supertype heuristic.
+- A view declaring `render asTreeDiagram;`, `render asInterconnectionDiagram;`,
+  `render asGeneralDiagram;`, `render asStateTransitionDiagram;`, `render asActionFlowDiagram;`,
+  `render asSequenceDiagram;`, or `render asGridDiagram;` routes to the corresponding strategy
+  regardless of the view's name, taking precedence over the name/supertype heuristic.
 - A view declaring `render asElementTable;`, `render asTextualNotation;`, or any other
   unrecognized (or absent) render target falls through unchanged to the existing
   name-heuristic/general-view behavior, with no diagnostic.

@@ -69,6 +69,25 @@ the full validation suite is run; the log output contains
 log and exit code is 0 (the test skips internally). This scenario is tested by
 `Validation_RunRenderPngSelfTest_SkiaSharpAvailable_Passes`.
 
+**Validation_RunRenderDynamicViewSvgSelfTest_ValidModel_Passes**: The full validation suite is
+run with a silent context; the log output contains
+`"✓ SysML2Tools_RenderDynamicViewSvgSelfTest"`, confirming that a dynamic view synthesized via
+`DiagramRenderer.SynthesizeDynamicView` (with no `view def` in the model) renders successfully.
+This scenario is tested by `Validation_RunRenderDynamicViewSvgSelfTest_ValidModel_Passes`.
+
+**Validation_RunRenderDynamicViewPngSelfTest_SkiaSharpAvailable_Passes**: When SkiaSharp is
+available, the full validation suite is run; the log output contains
+`"✓ SysML2Tools_RenderDynamicViewPngSelfTest"`. When SkiaSharp is absent, the suite is run
+without a log and exit code is 0 (the test skips internally, mirroring the existing PNG
+self-test's skip behavior). This scenario is tested by
+`Validation_RunRenderDynamicViewPngSelfTest_SkiaSharpAvailable_Passes`.
+
+**Validation_RunRenderDynamicViewFilteredSelfTest_ValidModel_Passes**: The full validation
+suite is run with a silent context; the log output contains
+`"✓ SysML2Tools_RenderDynamicViewFilteredSelfTest"`, confirming that a `--filter` expression
+matching nothing produces a strictly smaller rendered SVG than the unfiltered equivalent. This
+scenario is tested by `Validation_RunRenderDynamicViewFilteredSelfTest_ValidModel_Passes`.
+
 **Validation_Run_AllTestsPass_PrintsPassedSummary**: The full validation suite is run with
 a silent context; the log output contains `"SysML2Tools self-test: PASSED"`, confirming
 the overall outcome line is present when all tests pass. This scenario is tested by

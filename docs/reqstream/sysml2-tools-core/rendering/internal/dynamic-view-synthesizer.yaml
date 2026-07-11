@@ -1,0 +1,90 @@
+---
+# DynamicViewSynthesizer Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the DynamicViewSynthesizer unit
+# - DynamicViewSynthesizer builds an in-memory view node for any resolvable, non-stdlib
+#   target, without requiring a `view def` in the model
+# - Requirements describe observable synthesis and validation behavior only
+
+sections:
+  - title: DynamicViewSynthesizer Unit Requirements
+    requirements:
+      - id: SysML2Tools-Core-Rendering-Internal-DynamicViewSynthesizer-ViewTypeMapping
+        title: >-
+          DynamicViewSynthesizer shall map each of the accepted --view-type values (general,
+          interconnection, state, action, sequence, grid, browser) to the corresponding
+          DiagramTypeRouter render-target token, and shall report a diagnostic naming the valid
+          values for any other --view-type value.
+        justification: |
+          Using DiagramTypeRouter's highest-precedence, exact-match RenderTargetName tokens
+          (rather than relying on the target's own name coincidentally matching the
+          name/supertype heuristic) guarantees the requested layout strategy is selected
+          regardless of how the target happens to be named.
+        tests:
+          - Synthesize_GeneralKind_ResolvableTarget_Succeeds
+          - Synthesize_GridKind_ResolvableTarget_Succeeds
+          - Synthesize_BrowserKind_ResolvableTarget_Succeeds
+          - Synthesize_InterconnectionKind_PartDefWithNestedPart_Succeeds
+          - Synthesize_StateKind_HasTransition_Succeeds
+          - Synthesize_ActionKind_HasActionFeature_Succeeds
+          - Synthesize_SequenceKind_HasMessage_Succeeds
+          - Synthesize_UnrecognizedViewType_Fails
+
+      - id: SysML2Tools-Core-Rendering-Internal-DynamicViewSynthesizer-TargetResolution
+        title: >-
+          DynamicViewSynthesizer shall resolve --view-target against the workspace's
+          declarations and shall report a clear diagnostic when the target is unresolved, is a
+          view/viewpoint/import/metadata/transition/connection node (a kind that cannot serve as
+          a dynamic view target), or is a standard-library element.
+        justification: |
+          Rejecting unresolved or structurally inappropriate targets up front, with a specific
+          diagnostic, avoids silently rendering nothing or crashing deeper in the layout
+          pipeline, and keeps standard-library noise out of user-facing dynamic views exactly as
+          it is kept out of ordinary declared views.
+        tests:
+          - Synthesize_UnresolvedTarget_Fails
+          - Synthesize_TargetIsView_Fails
+          - Synthesize_TargetIsTransition_Fails
+          - Synthesize_TargetIsStdlib_Fails
+
+      - id: SysML2Tools-Core-Rendering-Internal-DynamicViewSynthesizer-CompatibilityPreCheck
+        title: >-
+          DynamicViewSynthesizer shall run a cheap, per-kind structural compatibility pre-check
+          before synthesizing a view, rejecting a target with a clear diagnostic when the
+          pre-check fails: interconnection requires a "part def" target with at least one nested
+          "part" feature; state requires at least one nested state transition; action requires at
+          least one succession or "action" feature; sequence requires at least one nested
+          "message" usage (a necessary-but-not-sufficient approximation of "at least one
+          lifeline" — see the design documentation's documented limitation); general, grid, and
+          browser have no structural precondition beyond target resolution.
+        justification: |
+          Most incompatible targets would otherwise render a near-blank or broken diagram with no
+          explanation. A cheap, up-front pre-check catches the common cases inexpensively,
+          without requiring a full message-edge-walk validation for the sequence case, which is
+          deferred as a documented limitation (see ROADMAP.md).
+        tests:
+          - Synthesize_InterconnectionKind_NotPartDef_Fails
+          - Synthesize_InterconnectionKind_NoNestedParts_Fails
+          - Synthesize_StateKind_NoTransitions_Fails
+          - Synthesize_ActionKind_HasSuccession_Succeeds
+          - Synthesize_ActionKind_NoActionsOrSuccessions_Fails
+          - Synthesize_SequenceKind_NoMessages_Fails
+
+      - id: SysML2Tools-Core-Rendering-Internal-DynamicViewSynthesizer-NodeConstruction
+        title: >-
+          DynamicViewSynthesizer shall construct a synthesized view node with a reserved,
+          collision-checked qualified name, a RenderTargetName set to the resolved token, a
+          single Expose edge and ExposeMembers entry scoping the view to exactly the requested
+          target, and a FilterExpressionText passed through unchanged from --filter, reporting a
+          diagnostic instead of silently overwriting an existing declaration on the rare name
+          collision.
+        justification: |
+          Scoping the synthesized view to exactly its target (rather than the whole workspace,
+          as SynthesizeAutoView does) is the key behavior that makes a dynamic view usable for a
+          large model. The reserved, collision-checked name prevents any possibility of
+          corrupting an existing declaration.
+        tests:
+          - Synthesize_FilterExpression_PassedThroughUnchanged
+          - Synthesize_NoFilterExpression_ResultsInNullFilterExpressionText
+          - Synthesize_NameCollision_Fails

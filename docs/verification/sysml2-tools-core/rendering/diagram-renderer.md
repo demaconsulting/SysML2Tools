@@ -25,6 +25,10 @@ external services are required.
   `expose` subject — verified end-to-end at the CLI level (see the `RenderCommand`
   verification doc's `RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic`)
   and at the layout-strategy level (see the `GeneralViewLayoutStrategy` verification doc).
+- `SynthesizeDynamicView` delegates entirely to `Internal.DynamicViewSynthesizer.Synthesize` —
+  verified directly via `DynamicViewSynthesizerTests` (which call
+  `DiagramRenderer.SynthesizeDynamicView`, the public entry point, rather than the internal type
+  directly) and end-to-end via the `RenderCommand` verification doc's dynamic-view scenarios.
 
 #### Test Scenarios
 
@@ -36,3 +40,5 @@ external services are required.
 | `DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput` | The PNG output carries the PNG signature |
 | `DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList` | A view-free workspace yields an empty result |
 | `RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic` | Produces scoped output |
+| `Synthesize_GeneralKind_ResolvableTarget_Succeeds` (via `SynthesizeDynamicView`) | Delegates successfully |
+| `Synthesize_UnresolvedTarget_Fails` (via `SynthesizeDynamicView`) | Delegates diagnostic on failure |

@@ -159,3 +159,29 @@ sections:
         tests:
           - ResxResource_EveryKey_ResolvesToNonEmptyText
           - ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity
+
+      - id: SysML2Tools-Tool-Render-DynamicView
+        title: >-
+          The render command shall accept --view-type and --view-target (together, and an
+          optional --filter) to synthesize and render an ad-hoc view targeting any resolvable
+          element without requiring a view def in the model, and shall reject: --filter supplied
+          without both --view-type and --view-target; --view-type or --view-target supplied
+          without the other; and --view-type/--view-target combined with --view or --auto —
+          each with a clear, specific diagnostic and a non-zero exit code.
+        justification: |
+          Requiring a view def for every diagram a user wants is a friction point for
+          exploratory, one-off diagramming of a specific element. Delegating synthesis to
+          DiagramRenderer.SynthesizeDynamicView (Core subsystem) keeps the CLI's own
+          responsibility limited to flag validation, mutual-exclusion enforcement, and wiring
+          the synthesized view into the existing render pipeline unchanged.
+        tests:
+          - RenderSubsystem_DynamicViewTypeAndTarget_RendersSynthesizedView
+          - RenderSubsystem_DynamicViewTypeInterconnection_RendersSynthesizedView
+          - RenderSubsystem_DynamicViewIncompatibleTarget_ReportsDiagnostic
+          - RenderSubsystem_DynamicViewUnresolvedTarget_ReportsDiagnostic
+          - RenderSubsystem_DynamicViewWithFilter_ProducesNarrowerOutput
+          - RenderSubsystem_FilterWithoutViewTypeAndTarget_ReportsError
+          - RenderSubsystem_ViewTypeWithoutViewTarget_ReportsError
+          - RenderSubsystem_DynamicViewCombinedWithView_ReportsError
+          - RenderSubsystem_DynamicViewCombinedWithAuto_ReportsError
+          - RenderSubsystem_Help_DocumentsDynamicViewFlags

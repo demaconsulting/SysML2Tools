@@ -54,6 +54,26 @@ on context output and exit code. File-writing scenarios use a temporary director
   regression-guarding the `VisitViewUsage` capability addition, with no false
   "Unresolved reference" diagnostic for its `render asTreeDiagram;`/`render asElementTable;`
   rendering-style members.
+- `--view-type <kind> --view-target <name>` synthesizes and renders a dynamic view for a model
+  with no `view def` declarations at all, for both a structurally-unconstrained kind (general)
+  and a structurally-constrained kind (interconnection), producing exactly one output file and
+  the "Synthesizing dynamic ... view" progress message.
+- `--view-type <kind> --view-target <target>` where the target fails the requested kind's
+  compatibility pre-check reports the specific pre-check diagnostic and exit code 1, rather than
+  rendering a blank/broken diagram.
+- `--view-type <kind> --view-target <unresolved-name>` reports a "was not found" diagnostic and
+  exit code 1.
+- `--view-type general --view-target <target> --filter <expr>` produces strictly narrower
+  (smaller) rendered output than the same render without `--filter`, proving the filter
+  expression genuinely reaches the synthesized view's rendering rather than being accepted and
+  ignored.
+- `--filter` without both `--view-type` and `--view-target` reports
+  "--filter requires both --view-type and --view-target" and exit code 1.
+- `--view-type` without `--view-target` (or vice versa) reports
+  "--view-type and --view-target must be specified together" and exit code 1.
+- `--view-type`/`--view-target` combined with `--view` or with `--auto` each report
+  "cannot be combined with --view or --auto" and exit code 1.
+- `render --help` documents the `--view-type`, `--view-target`, and `--filter` flags.
 
 ### Test Scenarios
 
@@ -176,3 +196,54 @@ tests), every key discovered in `Render/RenderStrings.resx`'s invariant-culture 
 resolves to non-null/non-empty text via `ResourceManager`, and every such key has a matching
 `public static string` property on `RenderStrings` (and vice versa). Satisfies
 `SysML2Tools-Tool-Render-LocalizableHelpText`.
+
+#### RenderSubsystem_DynamicViewTypeAndTarget_RendersSynthesizedView
+
+Verifies that `render --view-type general --view-target DynTest::Vehicle` against a model with
+no `view def` declarations synthesizes and renders a view: exit code 0, the "Synthesizing
+dynamic 'general' view" progress message written, and exactly one `.svg` output file produced.
+
+#### RenderSubsystem_DynamicViewTypeInterconnection_RendersSynthesizedView
+
+Verifies the same end-to-end path for a structurally-constrained kind: `--view-type
+interconnection --view-target DynTest::Vehicle` (a `part def` with two nested `part` features)
+synthesizes and renders successfully, confirming `DiagramTypeRouter` dispatch to the
+interconnection strategy via the CLI.
+
+#### RenderSubsystem_DynamicViewIncompatibleTarget_ReportsDiagnostic
+
+Verifies that `--view-type interconnection --view-target DynTest::Engine` (a `part def` with no
+nested `part` features) reports the "no nested 'part' features" diagnostic and exit code 1,
+rather than rendering nothing silently.
+
+#### RenderSubsystem_DynamicViewUnresolvedTarget_ReportsDiagnostic
+
+Verifies that `--view-type general --view-target DynTest::DoesNotExist` reports a "was not
+found" diagnostic and exit code 1.
+
+#### RenderSubsystem_DynamicViewWithFilter_ProducesNarrowerOutput
+
+Verifies that adding `--filter @NoSuchMetadataType` (a metadata-existence expression matching
+nothing) to an otherwise-identical dynamic-view render produces a strictly smaller `.svg` output
+file than the unfiltered render — proving the filter expression is genuinely evaluated by the
+underlying layout strategy, not merely accepted and ignored. Uses two fully independent temp
+files/output directories so the two renders cannot interfere with each other.
+
+#### RenderSubsystem_FilterWithoutViewTypeAndTarget_ReportsError
+
+Verifies that `--filter @Safety` with neither `--view-type` nor `--view-target` reports
+"--filter requires both --view-type and --view-target" and exit code 1.
+
+#### RenderSubsystem_ViewTypeWithoutViewTarget_ReportsError
+
+Verifies that `--view-type general` without `--view-target` reports "--view-type and
+--view-target must be specified together" and exit code 1.
+
+#### RenderSubsystem_DynamicViewCombinedWithView_ReportsError / RenderSubsystem_DynamicViewCombinedWithAuto_ReportsError
+
+Verify that `--view-type`/`--view-target` combined with `--view` (respectively `--auto`) each
+report "cannot be combined with --view or --auto" and exit code 1.
+
+#### RenderSubsystem_Help_DocumentsDynamicViewFlags
+
+Verifies that `render --help` output contains `--view-type`, `--view-target`, and `--filter`.

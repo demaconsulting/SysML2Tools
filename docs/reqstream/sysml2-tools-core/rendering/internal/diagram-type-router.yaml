@@ -39,25 +39,37 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-Internal-DiagramTypeRouter-RenderTargetOverride
         title: >-
-          When a view declares a render target of asTreeDiagram or asInterconnectionDiagram,
-          DiagramTypeRouter shall select the corresponding browser or interconnection layout
-          strategy, taking precedence over the name/supertype heuristic.
+          When a view declares a render target of asTreeDiagram, asInterconnectionDiagram,
+          asGeneralDiagram, asStateTransitionDiagram, asActionFlowDiagram, asSequenceDiagram, or
+          asGridDiagram, DiagramTypeRouter shall select the corresponding layout strategy, taking
+          precedence over the name/supertype heuristic.
         justification: |
           A view's declared render target is an explicit, author-specified rendering-style
           selection per the SysML v2 grammar. Honoring it ahead of the name/supertype heuristic
-          lets an author pick a diagram type directly, without relying on naming conventions,
-          and resolves any conflict between the two in the author's favor.
+          lets an author pick a diagram type directly, without relying on naming conventions, and
+          resolves any conflict between the two in the author's favor. The five additive tokens
+          (asGeneralDiagram, asStateTransitionDiagram, asActionFlowDiagram, asSequenceDiagram,
+          asGridDiagram) give every remaining layout strategy the same explicit,
+          precedence-taking dispatch path already enjoyed by asTreeDiagram/
+          asInterconnectionDiagram, and are the exact-match tokens the dynamic (ad-hoc) view CLI
+          feature (<c>render --view-type &lt;kind&gt; --view-target &lt;name&gt;</c>) relies on
+          to select a layout strategy independently of the target's own name.
         tests:
           - GetStrategy_RenderAsTreeDiagram_ReturnsBrowserStrategy
           - GetStrategy_RenderAsInterconnectionDiagram_ReturnsInterconnectionStrategy
           - GetStrategy_RenderTargetPrecedenceOverridesNameHeuristic
+          - GetStrategy_RenderAsGeneralDiagram_ReturnsGeneralViewStrategy
+          - GetStrategy_RenderAsStateTransitionDiagram_ReturnsStateTransitionStrategy
+          - GetStrategy_RenderAsActionFlowDiagram_ReturnsActionFlowStrategy
+          - GetStrategy_RenderAsSequenceDiagram_ReturnsSequenceStrategy
+          - GetStrategy_RenderAsGridDiagram_ReturnsGridStrategy
+          - GetStrategy_RenderAsGeneralDiagram_PrecedenceOverridesNameHeuristic
 
       - id: SysML2Tools-Core-Rendering-Internal-DiagramTypeRouter-RenderTargetUnrecognizedFallthrough
         title: >-
-          When a view declares a render target other than asTreeDiagram or
-          asInterconnectionDiagram — including asElementTable, asTextualNotation, an unrecognized
-          name, or none at all — DiagramTypeRouter shall fall through unchanged to the
-          name/supertype heuristic, with no diagnostic.
+          When a view declares an unrecognized render target — including asElementTable,
+          asTextualNotation, or none at all — DiagramTypeRouter shall fall through unchanged to
+          the name/supertype heuristic, with no diagnostic.
         justification: |
           Rendering-style names with no corresponding layout strategy (asElementTable is a
           fundamentally tabular composition distinct from the Grid View; asTextualNotation is
