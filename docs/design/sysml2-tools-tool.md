@@ -3,8 +3,8 @@
 ## Architecture
 
 The `DemaConsulting.SysML2Tools.Tool` is a command-line application built on .NET. It is structured as one
-system containing one top-level unit (`Program`) and seven subsystems (`Cli`, `Lint`, `Render`,
-`Help`, `Query`, `SelfTest`, `Utilities`):
+system containing one top-level unit (`Program`) and eight subsystems (`Cli`, `Lint`, `Render`,
+`Help`, `Query`, `Export`, `SelfTest`, `Utilities`):
 
 ```mermaid
 flowchart TD
@@ -24,6 +24,9 @@ flowchart TD
     subgraph Query
         QueryCommand
     end
+    subgraph Export
+        ExportCommand
+    end
     subgraph SelfTest
         Validation
     end
@@ -35,6 +38,7 @@ flowchart TD
     Program --> RenderCommand
     Program --> HelpCommand
     Program --> QueryCommand
+    Program --> ExportCommand
     Program --> Validation
     Validation --> Program
     Validation --> PathHelpers
@@ -44,7 +48,8 @@ flowchart TD
 `LintCommand` when the `lint` subcommand is passed, dispatches to `RenderCommand` when the
 `render` subcommand is passed, dispatches to `HelpCommand` when the `help` subcommand (or
 `--help`) is passed, dispatches to `QueryCommand` when the `query` subcommand is passed,
-dispatches to `Validation` when `--validate` is passed, and returns the exit code from
+dispatches to `ExportCommand` when the `export` subcommand is passed, dispatches to
+`Validation` when `--validate` is passed, and returns the exit code from
 `Context`. `Validation` calls `Program.Run` recursively to exercise the tool during
 self-testing, and uses `PathHelpers` to construct safe temporary file paths.
 
@@ -58,8 +63,10 @@ self-testing, and uses `PathHelpers` to construct safe temporary file paths.
   `--results <file>`, `--result <file>` (legacy alias for `--results`), `--depth <n>`, and
   `--log <file>`. Accepts `lint <patterns...>` as a subcommand that invokes lint mode. Accepts
   `query <verb> [options] <patterns...>` (11 verbs; `--element`/`-e`, `--format`,
-  `--direction`, `--kind`, `--name`, `--include-stdlib` options) as a preview subcommand whose
-  verbs currently report a "not yet implemented" diagnostic. Returns
+  `--direction`, `--kind`, `--name`, `--include-stdlib` options). Accepts
+  `export [options] <patterns...>` (`--format json|jsonl`, `--output <file>`,
+  `--include-stdlib` options) which dumps the resolved semantic model (declarations, edges,
+  diagnostics) as JSON or JSON Lines. Returns
   exit code 0 for success and 1 for failures.
 - *Constraints*: Unknown arguments cause exit code 1 and an error message on stderr.
 
@@ -137,10 +144,12 @@ N/A - not a safety-classified software item.
   close any open log file handle.
 - Path safety: all caller-supplied path components are validated by `PathHelpers.SafePathCombine`
   before file-system use.
-- Localization: `Program`, `Lint`, `Render`, and `Query`'s banner/help text (everything printed
-  by `PrintBanner`/`PrintTopLevelHelp`/`PrintHelp`/`PrintGeneralHelp`/`PrintVerbHelp`) is
+- Localization: `Program`, `Lint`, `Render`, `Query`, and `Export`'s banner/help text
+  (everything printed by
+  `PrintBanner`/`PrintTopLevelHelp`/`PrintHelp`/`PrintGeneralHelp`/`PrintVerbHelp`) is
   sourced from per-subsystem `.resx` files via hand-written `ResourceManager` accessor classes
-  (`ProgramStrings`, `LintStrings`, `RenderStrings`, `QueryStrings`), so a future non-English
+  (`ProgramStrings`, `LintStrings`, `RenderStrings`, `QueryStrings`, `ExportStrings`), so a
+  future non-English
   locale can be added with zero code changes (see
   `docs/design/sysml2-tools-tool/program.md`). Operational/diagnostic messages (progress
   lines, error messages) remain plain string literals and are explicitly out of scope for

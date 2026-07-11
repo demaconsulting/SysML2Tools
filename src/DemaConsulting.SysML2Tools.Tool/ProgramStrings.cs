@@ -70,6 +70,12 @@ internal static class ProgramStrings
     /// <summary>Gets the third line of the 'query' command summary.</summary>
     public static string TopLevel_CommandQuery3 => ResourceManager.GetString(nameof(TopLevel_CommandQuery3))!;
 
+    /// <summary>Gets the first line of the 'export' command summary.</summary>
+    public static string TopLevel_CommandExport1 => ResourceManager.GetString(nameof(TopLevel_CommandExport1))!;
+
+    /// <summary>Gets the second line of the 'export' command summary.</summary>
+    public static string TopLevel_CommandExport2 => ResourceManager.GetString(nameof(TopLevel_CommandExport2))!;
+
     /// <summary>Gets the first line of the 'help' command summary.</summary>
     public static string TopLevel_CommandHelp1 => ResourceManager.GetString(nameof(TopLevel_CommandHelp1))!;
 

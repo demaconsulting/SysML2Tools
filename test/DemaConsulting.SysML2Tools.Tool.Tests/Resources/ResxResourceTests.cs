@@ -22,6 +22,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Resources;
 using DemaConsulting.SysML2Tools;
+using DemaConsulting.SysML2Tools.Export;
 using DemaConsulting.SysML2Tools.Lint;
 using DemaConsulting.SysML2Tools.Query;
 using DemaConsulting.SysML2Tools.Render;
@@ -31,7 +32,8 @@ namespace DemaConsulting.SysML2Tools.Tests.Resources;
 /// <summary>
 ///     Reflection-based tests proving that each hand-written <c>XxxStrings</c> resource
 ///     accessor class (<see cref="ProgramStrings"/>, <see cref="LintStrings"/>,
-///     <see cref="RenderStrings"/>, <see cref="QueryStrings"/>) is fully and bidirectionally
+///     <see cref="RenderStrings"/>, <see cref="QueryStrings"/>, <see cref="ExportStrings"/>) is
+///     fully and bidirectionally
 ///     wired to its companion <c>.resx</c> file: every resx key resolves to non-empty text,
 ///     and every resx key has a matching accessor property (and vice versa), so the two
 ///     cannot silently drift apart.
@@ -53,7 +55,8 @@ public class ResxResourceTests
         { "DemaConsulting.SysML2Tools.ProgramStrings", typeof(ProgramStrings) },
         { "DemaConsulting.SysML2Tools.Lint.LintStrings", typeof(LintStrings) },
         { "DemaConsulting.SysML2Tools.Render.RenderStrings", typeof(RenderStrings) },
-        { "DemaConsulting.SysML2Tools.Query.QueryStrings", typeof(QueryStrings) }
+        { "DemaConsulting.SysML2Tools.Query.QueryStrings", typeof(QueryStrings) },
+        { "DemaConsulting.SysML2Tools.Export.ExportStrings", typeof(ExportStrings) }
     };
 
     /// <summary>

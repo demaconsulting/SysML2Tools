@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using DemaConsulting.SysML2Tools.Export;
 using DemaConsulting.SysML2Tools.Help;
 using DemaConsulting.SysML2Tools.Lint;
 using DemaConsulting.SysML2Tools.Query;
@@ -110,6 +111,12 @@ internal sealed class Context : IDisposable
     public QueryOptions? Query { get; private init; }
 
     /// <summary>
+    ///     Gets the parsed options for the <c>export</c> command; <see langword="null"/> unless
+    ///     <see cref="Command"/> is <see cref="SysmlCommand.Export"/>.
+    /// </summary>
+    public ExportOptions? Export { get; private init; }
+
+    /// <summary>
     ///     Gets the parsed options for the <c>help</c> command; <see langword="null"/> unless
     ///     <see cref="Command"/> is <see cref="SysmlCommand.Help"/>.
     /// </summary>
@@ -152,6 +159,7 @@ internal sealed class Context : IDisposable
         LintOptions? lintOptions = null;
         RenderCommandOptions? renderOptions = null;
         QueryOptions? queryOptions = null;
+        ExportOptions? exportOptions = null;
         HelpOptions? helpOptions = null;
 
         switch (global.Command)
@@ -166,6 +174,10 @@ internal sealed class Context : IDisposable
 
             case SysmlCommand.Query:
                 queryOptions = QueryArgumentParser.Parse(global.CommandArgs, global.Help, global.MaxRenderDepth);
+                break;
+
+            case SysmlCommand.Export:
+                exportOptions = ExportArgumentParser.Parse(global.CommandArgs);
                 break;
 
             case SysmlCommand.Help:
@@ -198,6 +210,7 @@ internal sealed class Context : IDisposable
             Lint = lintOptions,
             Render = renderOptions,
             Query = queryOptions,
+            Export = exportOptions,
             HelpCommand = helpOptions
         };
 

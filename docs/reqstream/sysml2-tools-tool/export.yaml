@@ -1,0 +1,144 @@
+---
+# Export Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the DemaConsulting.SysML2Tools.Tool Export subsystem
+# - ExportCommand implements the CLI export verb: loads a workspace and dumps its resolved
+#   semantic model (declarations, edges, diagnostics) as JSON or JSON Lines
+# - ExportResult/ExportResultSerializerContext/ExportLineSerializerContext implement the
+#   envelope and the two serialization contexts (indented JSON vs. compact JSONL)
+# - Requirements describe observable behavior of the export command's parsing, validation,
+#   stdlib filtering, and JSON/JSONL output shape
+
+sections:
+  - title: Export Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Tool-Export-Grammar
+        title: >-
+          The export command shall accept --format, --output, and --include-stdlib options,
+          plus one or more positional file glob patterns, and shall reject any other
+          `-`-prefixed token.
+        justification: |
+          A small, fixed flag vocabulary (mirroring the query/render commands' own per-command
+          argument parsers) keeps export's grammar simple and predictable, and rejecting
+          unrecognized flags prevents another command's flag from being silently accepted.
+        tests:
+          - ExportArgumentParser_NoFlags_ProducesDefaults
+          - ExportArgumentParser_FormatFlag_CapturesRawValue
+          - ExportArgumentParser_OutputFlag_CapturesValue
+          - ExportArgumentParser_IncludeStdlibFlag_SetsTrue
+          - ExportArgumentParser_UnrecognizedFlag_ThrowsArgumentException
+          - ExportArgumentParser_FormatFlagMissingValue_ThrowsArgumentException
+          - ExportArgumentParser_OutputFlagMissingValue_ThrowsArgumentException
+
+      - id: SysML2Tools-Tool-Export-Format
+        title: >-
+          The export command shall accept --format json or --format jsonl, defaulting to
+          json, and shall report a clear error naming the invalid value for anything else.
+        justification: |
+          json (a single indented document) is the natural default for typical CLI-invoked
+          model sizes; jsonl (one compact record per line) is an explicit opt-in for
+          streaming/line-oriented consumption by an agent harness over larger workspaces.
+        tests:
+          - ExportSubsystem_FormatJson_DispatchesAndPrintsJson
+          - ExportSubsystem_NoFormat_DefaultsToJson
+          - ExportSubsystem_FormatJsonl_DispatchesAndPrintsJsonLines
+          - ExportSubsystem_InvalidFormat_ThrowsArgumentException
+
+      - id: SysML2Tools-Tool-Export-Output
+        title: >-
+          The export command shall write its rendered document to the file path supplied via
+          --output when present, or to stdout otherwise; unlike the render command's
+          --output (an output directory), export's --output names a single output file.
+        justification: |
+          Export produces one document (not one file per view like render), so a single
+          output file path is the natural shape; reusing the --output flag name (with a
+          documented, different meaning) avoids introducing a second, differently-named flag
+          for "where does the primary output go".
+        tests:
+          - ExportSubsystem_OutputFlag_WritesToFileInsteadOfStdout
+
+      - id: SysML2Tools-Tool-Export-StdlibFilter
+        title: >-
+          The export command shall exclude OMG standard-library declarations and edges from
+          its output by default, and include them when --include-stdlib is supplied;
+          diagnostics shall never be stdlib-filtered.
+        justification: |
+          Mirrors the query command's exact --include-stdlib convention so the two
+          model-analysis commands behave consistently; diagnostics are never stdlib-filtered
+          because WorkspaceLoader diagnostics only ever originate from the user's own files
+          (the stdlib symbol table is a pre-resolved seed, not re-parsed per invocation).
+        tests:
+          - ExportSubsystem_NoIncludeStdlib_ExcludesStdlib
+          - ExportSubsystem_IncludeStdlib_IncludesStdlibAndIncreasesSize
+          - ExportIntegration_RealFixture_ProducesValidJsonAndJsonl
+
+      - id: SysML2Tools-Tool-Export-NoFilesOrNoMatch
+        title: >-
+          The export command shall report a clear "no input files" error when no file
+          patterns are supplied, and a clear "no files matched" error when one or more
+          patterns are supplied but none resolve to a file on disk, in both cases exiting
+          with a non-zero status.
+        justification: |
+          Mirrors the lint/render/query commands' existing file-resolution error handling so
+          all four commands give consistent, actionable feedback for the same class of
+          mistake.
+        tests:
+          - ExportSubsystem_NoFiles_ReportsNoInputFilesError
+          - ExportSubsystem_NoMatchingFiles_ReportsNoFilesMatchedError
+
+      - id: SysML2Tools-Tool-Export-JsonEnvelope
+        title: >-
+          The export command's --format json output shall be a single indented JSON document
+          containing a qualified-name-keyed "Declarations" object, an "Edges" array, and a
+          "Diagnostics" array, with declaration nodes serialized using their existing
+          polymorphic $type discriminator.
+        justification: |
+          Reusing SysmlNode/SysmlEdge/SysmlDiagnostic directly (rather than a fourth parallel
+          shape) keeps export's output a faithful, lossless, round-trip-capable dump of the
+          resolved semantic model, distinct from query's narrow QueryResult summarization
+          shape.
+        tests:
+          - ExportResultSerializerContext_DefinitionNode_RoundTripsTypeDiscriminator
+          - ExportResultSerializerContext_FeatureNode_UsesFeatureTypeDiscriminator
+          - ExportResultSerializerContext_EdgeKind_RoundTripsExactly
+          - ExportResultSerializerContext_Diagnostic_AllFieldsPresent
+          - ExportIntegration_RealFixture_ProducesValidJsonAndJsonl
+
+      - id: SysML2Tools-Tool-Export-JsonlEnvelope
+        title: >-
+          The export command's --format jsonl output shall be one compact (non-indented)
+          JSON object per declaration/edge/diagnostic, each tagged with a "kind"
+          discriminator ("declaration"/"edge"/"diagnostic"), one record per line.
+        justification: |
+          JSONL's entire value proposition is per-record streaming/line-oriented consumption
+          (grep/tail-friendly); wrapping the whole envelope in a single line would defeat that,
+          hence dedicated per-line wrapper record types rather than one-envelope-per-line.
+        tests:
+          - ExportLineSerializerContext_DeclarationLine_HasKindDiscriminatorAndIsCompact
+          - ExportLineSerializerContext_EdgeLine_HasKindDiscriminatorAndIsCompact
+          - ExportLineSerializerContext_DiagnosticLine_HasKindDiscriminatorAndIsCompact
+          - ExportIntegration_RealFixture_ProducesValidJsonAndJsonl
+
+      - id: SysML2Tools-Tool-Export-Help
+        title: >-
+          The export command shall render help text (via `export --help` or `help export`)
+          describing its flags, including an explicit note that --output names a file (not
+          a directory, unlike render's --output of the same name).
+        justification: |
+          Given the --output flag's collision-in-meaning with render's --output, explicit
+          help text is required to prevent user confusion between the two commands.
+        tests:
+          - ExportSubsystem_ExportHelp_PrintsHelpWithoutThrowing
+
+      - id: SysML2Tools-Tool-Export-SelfTest
+        title: >-
+          The self-validation suite (--validate) shall include an export self-test that loads
+          the built-in self-test model, builds an export result, serializes it as JSON, and
+          asserts the expected declarations are present.
+        justification: |
+          Mirrors the established per-capability self-test convention (SysML2Tools_LintSelfTest,
+          SysML2Tools_RenderSvgSelfTest, etc.), giving export the same qualification evidence
+          as every other command.
+        tests:
+          - Validation_RunExportSelfTest_ValidModel_Passes

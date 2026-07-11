@@ -47,6 +47,7 @@ includes:
   - docs/reqstream/sysml2-tools-tool/lint.yaml
   - docs/reqstream/sysml2-tools-tool/render.yaml
   - docs/reqstream/sysml2-tools-tool/query.yaml
+  - docs/reqstream/sysml2-tools-tool/export.yaml
   - docs/reqstream/sysml2-tools-tool/help.yaml
   - docs/reqstream/sysml2-tools-tool/self-test.yaml
   - docs/reqstream/sysml2-tools-tool/self-test/validation.yaml
