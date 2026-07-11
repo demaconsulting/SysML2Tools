@@ -185,8 +185,10 @@ public sealed class RenderIntegrationTests
 
     /// <summary>
     ///     Path to the safety-metadata-filter test fixture: a package with a <c>metadata def</c>,
-    ///     part definitions carrying <c>@Safety</c> annotations, and two views whose <c>filter</c>
-    ///     statements exercise Phase 1 filter-expression evaluation end-to-end.
+    ///     part definitions carrying <c>@Safety</c> annotations, two views whose <c>filter</c>
+    ///     statements exercise Phase 1 filter-expression evaluation end-to-end, and (Phase 2a) a
+    ///     named <c>view</c> usage whose bracket-form <c>expose</c> statement exercises bracket-filter
+    ///     scope narrowing end-to-end.
     /// </summary>
     private static string SafetyMetadataFilterModel =>
         Path.Combine(FindSysMLModelsRoot() ?? "SysMLModels", "Custom", "safety-metadata-filter.sysml");
@@ -250,6 +252,40 @@ public sealed class RenderIntegrationTests
         Assert.Contains("Actuator", svgText);
         Assert.DoesNotContain("Gripper", svgText);
         Assert.DoesNotContain("Bracket", svgText);
+    }
+
+    /// <summary>
+    ///     Rendering the <c>BracketExposeMandatorySafetyView</c> (a named <c>view</c> usage declaring
+    ///     <c>expose RobotArm::**[@Safety and (as Safety).isMandatory];</c>) from the
+    ///     safety-metadata-filter fixture produces SVG output that includes only the <c>Actuator</c>
+    ///     definition — proving Phase 2a's bracket-form <c>expose</c> filter evaluation narrows the
+    ///     rendered scope end-to-end through the rendering pipeline, and that no spurious
+    ///     "unevaluated" bracket-filter warning is emitted for a filter that evaluates successfully.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_BracketExposeMandatorySafetyView_FiltersToMandatoryPart()
+    {
+        // Arrange: load the safety-metadata-filter fixture workspace
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([SafetyMetadataFilterModel], stdlibTable);
+        Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
+        var diagramRenderer = new DiagramRenderer();
+        var svgRenderer = new SvgRenderer();
+        var options = new RenderOptions(Themes.Light);
+
+        // Act: render the workspace, and locate the BracketExposeMandatorySafetyView output by name
+        var viewNames = DiagramRenderer.GetViewNames(result.Workspace);
+        var outputs = diagramRenderer.RenderWorkspace(result.Workspace, svgRenderer, options);
+        var index = viewNames.ToList().FindIndex(n => n.Contains("BracketExposeMandatorySafetyView"));
+        Assert.True(index >= 0, "BracketExposeMandatorySafetyView not found among rendered views");
+        var svgText = System.Text.Encoding.UTF8.GetString(((MemoryStream)outputs[index].Data).ToArray());
+
+        // Assert: only the mandatory-Safety-annotated definition is rendered, and no
+        // "unevaluated" bracket-filter warning is present for this successfully-evaluated filter
+        Assert.Contains("Actuator", svgText);
+        Assert.DoesNotContain("Gripper", svgText);
+        Assert.DoesNotContain("Bracket", svgText);
+        Assert.DoesNotContain(outputs[index].Warnings, w => w.Contains("could not be evaluated"));
     }
 
     /// <summary>

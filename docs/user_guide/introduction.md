@@ -129,7 +129,15 @@ entire workspace:
   resolve to any declaration in the workspace (for example, a typo), the tool falls back to
   rendering the full workspace for that view — but now also reports a diagnostic identifying the
   unresolved name, so the mistake is visible instead of silently rendering everything with no
-  signal.
+  signal. The bracket-filter form `expose <path>::**[<expr>];` is now (Phase 2a) **evaluated**
+  using the same supported subset described below for standalone `filter <expr>;`: when the
+  bracketed expression parses and evaluates successfully, that entry narrows to only the matched
+  descendant definitions within `<path>`'s own containment subtree, instead of the whole
+  subtree — each `expose` entry in a view is evaluated independently, so one bracket-filtered
+  entry's narrowing never affects any other `expose` entry in the same view. A bracket
+  expression that fails to parse or falls outside the supported subset degrades gracefully to
+  the previous whole-subtree behavior for that entry, with a diagnostic identifying the failed
+  expression and reason.
 - `render <target>;` — per the SysML v2 grammar, this names a rendering style/format (e.g.
   `asTreeDiagram`, `asElementTable`). `render asTreeDiagram;` and
   `render asInterconnectionDiagram;` now select the Browser View and Interconnection View layout
@@ -147,11 +155,11 @@ entire workspace:
   (`istype`/`hastype`/`all`, arithmetic, conditional expressions, general feature-chain
   navigation, etc.) — or any syntax error — produces an explicit "unsupported filter construct"
   (or syntax-error) diagnostic and falls back to rendering the resolved (`expose`) scope
-  unfiltered, exactly as before. The bracketed `expose <path>::**[<expr>]` filter form remains
-  **parsed and captured only, not yet evaluated**, in Phase 1: it always renders its resolved
-  scope unfiltered, with a diagnostic reporting that its filter expression was captured but not
-  evaluated. Full bracket-form evaluation, and evaluation of the remaining Phase 1-excluded
-  constructs, are planned future work — see `ROADMAP.md`.
+  unfiltered, exactly as before. The bracketed `expose <path>::**[<expr>]` filter form (Phase 2a)
+  is evaluated using this identical supported subset, per `expose` entry — see above. Full
+  evaluation of the remaining Phase 1-excluded constructs (`istype`/`hastype`/`all`, arithmetic,
+  conditional expressions, general feature-chain navigation) is planned future work — see
+  `ROADMAP.md`.
 - A view with **no** `expose` statement (including the `--auto`-synthesized view) renders the
   full workspace, exactly as before this scoping behavior was introduced.
 
@@ -196,7 +204,7 @@ of confusion, so it is worth stating plainly:
 | --- | --- |
 | `expose <name>;` | The **only** mechanism scoping which model content appears in the diagram (see above). |
 | `render <renderingKind>;` | Selects a rendering style — see "View Body Statements" above. Never scopes content. |
-| `filter <expr>;` | Narrows scope by Phase 1 metadata filtering; unsupported/bracket forms fall back unfiltered. |
+| `filter <expr>;` | Narrows scope (Phase 1, and Phase 2a per bracketed `expose`); unsupported falls back unfiltered. |
 
 ### Example A: exposing a definition to scope down to a subsystem
 
