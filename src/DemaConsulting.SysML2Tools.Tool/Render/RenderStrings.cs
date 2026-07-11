@@ -59,6 +59,15 @@ internal static class RenderStrings
     /// <summary>Gets the --auto option line.</summary>
     public static string Render_OptionAuto => ResourceManager.GetString(nameof(Render_OptionAuto))!;
 
+    /// <summary>Gets the --view-type option line.</summary>
+    public static string Render_OptionViewType => ResourceManager.GetString(nameof(Render_OptionViewType))!;
+
+    /// <summary>Gets the --view-target option line.</summary>
+    public static string Render_OptionViewTarget => ResourceManager.GetString(nameof(Render_OptionViewTarget))!;
+
+    /// <summary>Gets the --filter option line.</summary>
+    public static string Render_OptionFilter => ResourceManager.GetString(nameof(Render_OptionFilter))!;
+
     /// <summary>Gets the first line of the --depth cross-reference note.</summary>
     public static string Render_DepthNote1 => ResourceManager.GetString(nameof(Render_DepthNote1))!;
 

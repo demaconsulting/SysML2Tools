@@ -806,5 +806,392 @@ public class RenderSubsystemTests
             Directory.Delete(tempDir, recursive: true);
         }
     }
+
+    /// <summary>
+    ///     A minimal SysML model with no view declarations, used by the dynamic-view tests below
+    ///     to prove a view can be rendered purely from <c>--view-type</c>/<c>--view-target</c>
+    ///     with no <c>view def</c> present in the model at all.
+    /// </summary>
+    private const string SysmlNoViewsInterconnection = """
+        package DynTest {
+            part def Vehicle {
+                part engine : Engine;
+                part transmission : Transmission;
+            }
+            part def Engine {}
+            part def Transmission {}
+        }
+        """;
+
+    /// <summary>
+    ///     'render --view-type general --view-target &lt;name&gt;' synthesizes and renders a
+    ///     dynamic view for a model containing no <c>view def</c> declarations at all.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_DynamicViewTypeAndTarget_RendersSynthesizedView()
+    {
+        // Arrange: a model with no view declarations
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_dyn_general_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        await File.WriteAllTextAsync(tempFile, SysmlNoViewsInterconnection, TestContext.Current.CancellationToken);
+        var outputDir = Path.Combine(tempDir, "out");
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act
+            using var context = Context.Create(
+                ["render", "--view-type", "general", "--view-target", "DynTest::Vehicle", "--output", outputDir, tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert: exactly one output file was produced, and the "Synthesizing" progress
+            // message was written
+            Assert.Equal(0, context.ExitCode);
+            Assert.Contains("Synthesizing dynamic 'general' view", outWriter.ToString());
+            Assert.Single(Directory.GetFiles(outputDir, "*.svg"));
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     'render --view-type interconnection --view-target &lt;part def&gt;' synthesizes and
+    ///     renders an interconnection-style dynamic view for a "part def" with nested "part"
+    ///     features, confirming <see cref="DemaConsulting.SysML2Tools.Rendering.Internal.DiagramTypeRouter"/>
+    ///     dispatch to the interconnection strategy end-to-end via the CLI.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_DynamicViewTypeInterconnection_RendersSynthesizedView()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_dyn_interconnection_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        await File.WriteAllTextAsync(tempFile, SysmlNoViewsInterconnection, TestContext.Current.CancellationToken);
+        var outputDir = Path.Combine(tempDir, "out");
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act
+            using var context = Context.Create(
+                ["render", "--view-type", "interconnection", "--view-target", "DynTest::Vehicle", "--output", outputDir, tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert
+            Assert.Equal(0, context.ExitCode);
+            Assert.Single(Directory.GetFiles(outputDir, "*.svg"));
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     'render --view-type &lt;kind&gt; --view-target &lt;target&gt;' reports the
+    ///     per-kind structural compatibility diagnostic (rather than rendering a blank/broken
+    ///     diagram) when the target fails the requested kind's cheap pre-check.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_DynamicViewIncompatibleTarget_ReportsDiagnostic()
+    {
+        // Arrange: "Engine" is a "part def" but declares no nested "part" features, so it fails
+        // the interconnection view's compatibility pre-check.
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_dyn_incompatible_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        await File.WriteAllTextAsync(tempFile, SysmlNoViewsInterconnection, TestContext.Current.CancellationToken);
+
+        var originalError = Console.Error;
+        try
+        {
+            using var errWriter = new StringWriter();
+            Console.SetError(errWriter);
+
+            // Act
+            using var context = Context.Create(
+                ["render", "--view-type", "interconnection", "--view-target", "DynTest::Engine", tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert
+            Assert.Equal(1, context.ExitCode);
+            Assert.Contains("no nested 'part' features", errWriter.ToString());
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     'render --view-type &lt;kind&gt; --view-target &lt;unresolved&gt;' reports a
+    ///     not-found diagnostic rather than throwing or silently rendering nothing.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_DynamicViewUnresolvedTarget_ReportsDiagnostic()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_dyn_unresolved_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        await File.WriteAllTextAsync(tempFile, SysmlNoViewsInterconnection, TestContext.Current.CancellationToken);
+
+        var originalError = Console.Error;
+        try
+        {
+            using var errWriter = new StringWriter();
+            Console.SetError(errWriter);
+
+            // Act
+            using var context = Context.Create(
+                ["render", "--view-type", "general", "--view-target", "DynTest::DoesNotExist", tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert
+            Assert.Equal(1, context.ExitCode);
+            Assert.Contains("was not found", errWriter.ToString());
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     'render --view-type general --view-target &lt;target&gt; --filter &lt;expr&gt;'
+    ///     produces strictly narrower output than the same render without <c>--filter</c>,
+    ///     confirming the filter expression genuinely reaches the synthesized view's rendering
+    ///     rather than merely being accepted and ignored.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_DynamicViewWithFilter_ProducesNarrowerOutput()
+    {
+        // Arrange: two separate temp files/dirs so the two renders are fully independent.
+        var unfilteredDir = Path.Combine(Path.GetTempPath(), $"render_dyn_unfiltered_{Guid.NewGuid():N}");
+        var filteredDir = Path.Combine(Path.GetTempPath(), $"render_dyn_filtered_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(unfilteredDir);
+        Directory.CreateDirectory(filteredDir);
+        var unfilteredFile = Path.Combine(unfilteredDir, "model.sysml");
+        var filteredFile = Path.Combine(filteredDir, "model.sysml");
+        await File.WriteAllTextAsync(unfilteredFile, SysmlNoViewsInterconnection, TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(filteredFile, SysmlNoViewsInterconnection, TestContext.Current.CancellationToken);
+        var unfilteredOut = Path.Combine(unfilteredDir, "out");
+        var filteredOut = Path.Combine(filteredDir, "out");
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: unfiltered render
+            using (var context = Context.Create(
+                       ["render", "--view-type", "general", "--view-target", "DynTest::Vehicle", "--output", unfilteredOut, unfilteredFile]))
+            {
+                await Program.RunAsync(context);
+                Assert.Equal(0, context.ExitCode);
+            }
+
+            // Act: filtered render — a metadata-existence filter matching nothing, guaranteed to
+            // narrow the layout to strictly fewer elements than the unfiltered render.
+            using (var context = Context.Create(
+                       [
+                           "render", "--view-type", "general", "--view-target", "DynTest::Vehicle",
+                           "--filter", "@NoSuchMetadataType", "--output", filteredOut, filteredFile
+                       ]))
+            {
+                await Program.RunAsync(context);
+                Assert.Equal(0, context.ExitCode);
+            }
+
+            // Assert: both produced exactly one file, and the filtered output is strictly
+            // smaller than the unfiltered output — proving the filter genuinely narrowed the
+            // rendered content, not just "rendered without error".
+            var unfilteredLength = new FileInfo(Directory.GetFiles(unfilteredOut, "*.svg")[0]).Length;
+            var filteredLength = new FileInfo(Directory.GetFiles(filteredOut, "*.svg")[0]).Length;
+            Assert.True(
+                filteredLength < unfilteredLength,
+                $"Expected filtered output ({filteredLength} bytes) to be smaller than unfiltered output ({unfilteredLength} bytes).");
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(unfilteredDir, recursive: true);
+            Directory.Delete(filteredDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    ///     '--filter' without '--view-type'/'--view-target' reports a clear diagnostic rather
+    ///     than being silently ignored.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_FilterWithoutViewTypeAndTarget_ReportsError()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), $"render_filter_only_{Guid.NewGuid():N}.sysml");
+        await File.WriteAllTextAsync(tempFile, "package P { part def X {} }", TestContext.Current.CancellationToken);
+
+        var originalError = Console.Error;
+        try
+        {
+            using var errWriter = new StringWriter();
+            Console.SetError(errWriter);
+
+            // Act
+            using var context = Context.Create(["render", "--filter", "@Safety", tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert
+            Assert.Equal(1, context.ExitCode);
+            Assert.Contains("--filter requires both --view-type and --view-target", errWriter.ToString());
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     '--view-type' without '--view-target' (and vice versa) reports a clear diagnostic.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_ViewTypeWithoutViewTarget_ReportsError()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), $"render_view_type_only_{Guid.NewGuid():N}.sysml");
+        await File.WriteAllTextAsync(tempFile, "package P { part def X {} }", TestContext.Current.CancellationToken);
+
+        var originalError = Console.Error;
+        try
+        {
+            using var errWriter = new StringWriter();
+            Console.SetError(errWriter);
+
+            // Act
+            using var context = Context.Create(["render", "--view-type", "general", tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert
+            Assert.Equal(1, context.ExitCode);
+            Assert.Contains("--view-type and --view-target must be specified together", errWriter.ToString());
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     '--view-type'/'--view-target' combined with '--view' reports a mutual-exclusion
+    ///     diagnostic rather than silently picking one.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_DynamicViewCombinedWithView_ReportsError()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), $"render_dyn_with_view_{Guid.NewGuid():N}.sysml");
+        await File.WriteAllTextAsync(tempFile, SysmlNoViewsInterconnection, TestContext.Current.CancellationToken);
+
+        var originalError = Console.Error;
+        try
+        {
+            using var errWriter = new StringWriter();
+            Console.SetError(errWriter);
+
+            // Act
+            using var context = Context.Create(
+                ["render", "--view-type", "general", "--view-target", "DynTest::Vehicle", "--view", "SomeView", tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert
+            Assert.Equal(1, context.ExitCode);
+            Assert.Contains("cannot be combined with --view or --auto", errWriter.ToString());
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     '--view-type'/'--view-target' combined with '--auto' reports a mutual-exclusion
+    ///     diagnostic rather than silently picking one.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_DynamicViewCombinedWithAuto_ReportsError()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), $"render_dyn_with_auto_{Guid.NewGuid():N}.sysml");
+        await File.WriteAllTextAsync(tempFile, SysmlNoViewsInterconnection, TestContext.Current.CancellationToken);
+
+        var originalError = Console.Error;
+        try
+        {
+            using var errWriter = new StringWriter();
+            Console.SetError(errWriter);
+
+            // Act
+            using var context = Context.Create(
+                ["render", "--view-type", "general", "--view-target", "DynTest::Vehicle", "--auto", tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert
+            Assert.Equal(1, context.ExitCode);
+            Assert.Contains("cannot be combined with --view or --auto", errWriter.ToString());
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     'render --help' now documents the dynamic-view flags.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_Help_DocumentsDynamicViewFlags()
+    {
+        // Arrange
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act
+            using var context = Context.Create(["render", "--help"]);
+            await Program.RunAsync(context);
+
+            // Assert
+            var output = outWriter.ToString();
+            Assert.Contains("--view-type", output);
+            Assert.Contains("--view-target", output);
+            Assert.Contains("--filter", output);
+            Assert.Equal(0, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
 }
 

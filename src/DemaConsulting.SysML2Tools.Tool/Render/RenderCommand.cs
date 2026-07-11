@@ -80,6 +80,15 @@ internal static class RenderCommand
             return;
         }
 
+        // Validate and process a dynamic (ad-hoc) view request (--view-type/--view-target
+        // [--filter]) before the declared-view logic below. Kept as an early, self-contained
+        // block so the existing --view/--auto branching below is not disturbed.
+        var effectiveViewFilter = options.ViewName;
+        if (!TryProcessDynamicView(context, options, loadResult.Workspace, ref effectiveViewFilter))
+        {
+            return;
+        }
+
         // Enumerate renderable views. By default (no --view) every declared view is rendered,
         // supporting bulk "render everything" exports for CI/design-doc publishing; --view narrows
         // the run to a single named view.
@@ -126,7 +135,7 @@ internal static class RenderCommand
         var diagramRenderer = new DiagramRenderer();
         var renderOptions = new RenderOptions(Themes.Light, DepthLimit: context.MaxRenderDepth ?? 0);
         var outputs = diagramRenderer.RenderWorkspace(
-            loadResult.Workspace, renderer, renderOptions, viewFilter: options.ViewName);
+            loadResult.Workspace, renderer, renderOptions, viewFilter: effectiveViewFilter);
 
         if (outputs.Count == 0)
         {
@@ -138,7 +147,7 @@ internal static class RenderCommand
         // two views whose display names sanitize to the same output file name — without this
         // check, the second file written below would silently overwrite the first while the
         // final "Rendered N view(s)." message still reports both as rendered.
-        if (options.ViewName is null && outputs.Count > 1 &&
+        if (effectiveViewFilter is null && outputs.Count > 1 &&
             ReportFileNameCollisions(context, loadResult.Workspace, outputs))
         {
             return;
@@ -164,6 +173,75 @@ internal static class RenderCommand
         }
 
         context.WriteLine($"Rendered {outputs.Count} view(s).");
+    }
+
+    /// <summary>
+    /// Validates and processes a dynamic (ad-hoc) view request (<c>--view-type</c>/
+    /// <c>--view-target</c>/<c>--filter</c>), synthesizing and injecting a view node into
+    /// <paramref name="workspace"/> when requested.
+    /// </summary>
+    /// <param name="context">The CLI context used to write diagnostics.</param>
+    /// <param name="options">The parsed render command options.</param>
+    /// <param name="workspace">The loaded workspace to inject the synthesized view into.</param>
+    /// <param name="effectiveViewFilter">
+    /// On entry, the view-name filter that would otherwise apply (<see
+    /// cref="RenderCommandOptions.ViewName"/>). On successful return, updated to the synthesized
+    /// dynamic view's display name when a dynamic view was requested; left unchanged otherwise.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> when processing succeeded (including the common case where no
+    /// dynamic view was requested at all) and the caller should continue; <see langword="false"/>
+    /// when a validation or synthesis error was reported and the caller must return immediately.
+    /// </returns>
+    private static bool TryProcessDynamicView(
+        Context context,
+        RenderCommandOptions options,
+        SysmlWorkspace workspace,
+        ref string? effectiveViewFilter)
+    {
+        var dynamicViewRequested = options.ViewType is not null || options.ViewTarget is not null;
+
+        // --filter is scoped strictly to the dynamic-view feature (see RenderCommandOptions.FilterExpression's
+        // remarks) so its meaning cannot later be conflated with a different, hypothetical
+        // "filter which declared views run" feature.
+        if (options.FilterExpression is not null && !dynamicViewRequested)
+        {
+            context.WriteError("render: --filter requires both --view-type and --view-target.");
+            return false;
+        }
+
+        if (!dynamicViewRequested)
+        {
+            return true;
+        }
+
+        if (options.ViewType is null || options.ViewTarget is null)
+        {
+            context.WriteError("render: --view-type and --view-target must be specified together.");
+            return false;
+        }
+
+        if (options.ViewName is not null || options.AutoView)
+        {
+            context.WriteError(
+                "render: --view-type/--view-target cannot be combined with --view or --auto.");
+            return false;
+        }
+
+        var viewNode = DiagramRenderer.SynthesizeDynamicView(
+            workspace, options.ViewType, options.ViewTarget, options.FilterExpression, out var diagnostic);
+        if (diagnostic is not null)
+        {
+            context.WriteError($"render: {diagnostic}");
+            return false;
+        }
+
+        // SynthesizeDynamicView guarantees a non-null viewNode with a non-null QualifiedName/Name
+        // whenever diagnostic is null.
+        workspace.AddDeclaration(viewNode!.QualifiedName!, viewNode);
+        effectiveViewFilter = viewNode.Name;
+        context.WriteLine($"  Synthesizing dynamic '{options.ViewType}' view for '{options.ViewTarget}'...");
+        return true;
     }
 
     /// <summary>
@@ -251,6 +329,9 @@ internal static class RenderCommand
         context.WriteLine(RenderStrings.Render_OptionFormat);
         context.WriteLine(RenderStrings.Render_OptionView);
         context.WriteLine(RenderStrings.Render_OptionAuto);
+        context.WriteLine(RenderStrings.Render_OptionViewType);
+        context.WriteLine(RenderStrings.Render_OptionViewTarget);
+        context.WriteLine(RenderStrings.Render_OptionFilter);
         context.WriteLine("");
         context.WriteLine(RenderStrings.Render_DepthNote1);
         context.WriteLine(RenderStrings.Render_DepthNote2);
