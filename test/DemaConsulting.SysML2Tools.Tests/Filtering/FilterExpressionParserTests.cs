@@ -1,7 +1,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
-// cspell:ignore Parenthesization istype Istype hastype Hastype Reparses
+// cspell:ignore Parenthesization istype Istype hastype Hastype Reparses LBRACK RBRACK uncatchable
 
 using DemaConsulting.SysML2Tools.Filtering;
 
@@ -245,6 +245,221 @@ public sealed class FilterExpressionParserTests
 
         Assert.Null(result.Expression);
         Assert.NotEmpty(result.Diagnostics);
+    }
+
+    /// <summary>
+    ///     Deeply nested parenthesization (thousands of levels) must not overflow the native call
+    ///     stack via ANTLR's recursive-descent parse of <c>ownedExpression</c>/<c>baseExpression</c>
+    ///     (a <see cref="StackOverflowException"/> cannot be caught in .NET and would crash the
+    ///     whole process instead). Reproduces the exact input shape from the retroactive Filtering
+    ///     code-review report: 5000 levels of <c>(</c> around <c>@Foo</c>, followed by 5000 levels
+    ///     of <c>)</c>.
+    /// </summary>
+    [Fact]
+    public void Parse_DeeplyNestedParentheses_ReturnsDiagnosticInsteadOfCrashing()
+    {
+        var deeplyNested = new string('(', 5000) + "@Foo" + new string(')', 5000);
+
+        var result = FilterExpressionParser.Parse(deeplyNested);
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("too deeply nested"));
+    }
+
+    /// <summary>
+    ///     Reasonable (non-adversarial) parenthesization nesting still parses successfully — the
+    ///     depth guard must not reject ordinary Phase 1 filter expressions.
+    /// </summary>
+    [Fact]
+    public void Parse_ModeratelyNestedParentheses_StillParsesSuccessfully()
+    {
+        var moderatelyNested = new string('(', 20) + "@Foo" + new string(')', 20);
+
+        var result = FilterExpressionParser.Parse(moderatelyNested);
+
+        Assert.Empty(result.Diagnostics);
+        var expression = Assert.IsType<ClassificationTestExpression>(result.Expression);
+        Assert.Equal("Foo", expression.TypeName);
+    }
+
+    /// <summary>
+    ///     Deeply nested sequence-indexing brackets must not overflow the native call stack either
+    ///     — a follow-up review found that the deep-nesting guard above only tracked <c>(</c>/<c>)</c>
+    ///     and prefix unary operators, leaving the grammar's <c>ownedExpression LBRACK
+    ///     sequenceExpressionList? RBRACK</c> indexing production (which recurses back into
+    ///     <c>ownedExpression</c> for its bracketed contents exactly like parenthesization does)
+    ///     free to still crash the process via the same uncatchable <see cref="StackOverflowException"/>
+    ///     failure mode, at a nesting depth (500 levels, ~1501 characters) far below the guard's own
+    ///     200-level ceiling. Reproduces the exact repro construction from the follow-up code-review
+    ///     report: <c>"a[" * 500 + "0" + "]" * 500</c>.
+    /// </summary>
+    [Fact]
+    public void Parse_DeeplyNestedBracketIndexing_ReturnsDiagnosticInsteadOfCrashing()
+    {
+        var deeplyNested = "a" + string.Concat(Enumerable.Repeat("[a", 500)) + "0" + string.Concat(Enumerable.Repeat("]", 500));
+
+        var result = FilterExpressionParser.Parse(deeplyNested);
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("too deeply nested"));
+    }
+
+    /// <summary>
+    ///     Shallow (non-adversarial) sequence-indexing bracket nesting must not be rejected by the
+    ///     depth guard. Bracket indexing is outside the Phase 1 construct subset, so it is still
+    ///     expected to produce an "unsupported construct" diagnostic — the point of this test is
+    ///     that it is *that* diagnostic, and not the "too deeply nested" one, confirming the guard
+    ///     itself introduces no false-positive rejection for ordinary-depth bracket expressions.
+    /// </summary>
+    [Fact]
+    public void Parse_ShallowBracketIndexing_ReturnsUnsupportedConstructNotDeepNestingDiagnostic()
+    {
+        var shallowNested = "a" + string.Concat(Enumerable.Repeat("[a", 5)) + "0" + string.Concat(Enumerable.Repeat("]", 5));
+
+        var result = FilterExpressionParser.Parse(shallowNested);
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("Unsupported filter construct"));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("too deeply nested"));
+    }
+
+    /// <summary>
+    ///     Deeply nested body-expression braces must not overflow the native call stack either —
+    ///     a second follow-up review found that the deep-nesting guard still did not track
+    ///     <c>{</c>/<c>}</c>, leaving the grammar's <c>bodyExpression : LBRACE functionBodyPart
+    ///     RBRACE</c> production (reachable via <c>ownedExpression DOT_QUESTION bodyExpression</c>,
+    ///     which recurses back into <c>ownedExpression</c> for its brace-enclosed contents exactly
+    ///     like parenthesization and bracket indexing do) free to still crash the process via the
+    ///     same uncatchable <see cref="StackOverflowException"/> failure mode, at a nesting depth
+    ///     (500 levels) far below the guard's own 200-level ceiling. Reproduces the exact repro
+    ///     construction from the second follow-up code-review report:
+    ///     <c>"a.?{" * 500 + "0" + "}" * 500</c>.
+    /// </summary>
+    [Fact]
+    public void Parse_DeeplyNestedBodyExpressionBraces_ReturnsDiagnosticInsteadOfCrashing()
+    {
+        var deeplyNested = string.Concat(Enumerable.Repeat("a.?{", 500)) + "0" + string.Concat(Enumerable.Repeat("}", 500));
+
+        var result = FilterExpressionParser.Parse(deeplyNested);
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("too deeply nested"));
+    }
+
+    /// <summary>
+    ///     Shallow (non-adversarial) body-expression brace nesting must not be rejected by the
+    ///     depth guard. Body expressions are outside the Phase 1 construct subset, so this is
+    ///     still expected to produce an "unsupported construct" diagnostic — the point of this
+    ///     test is that it is *that* diagnostic, and not the "too deeply nested" one, confirming
+    ///     the guard itself introduces no false-positive rejection for ordinary-depth
+    ///     body-expression nesting.
+    /// </summary>
+    [Fact]
+    public void Parse_ShallowBodyExpressionBraces_ReturnsUnsupportedConstructNotDeepNestingDiagnostic()
+    {
+        var shallowNested = string.Concat(Enumerable.Repeat("a.?{", 5)) + "0" + string.Concat(Enumerable.Repeat("}", 5));
+
+        var result = FilterExpressionParser.Parse(shallowNested);
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("Unsupported filter construct"));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("too deeply nested"));
+    }
+
+    /// <summary>
+    ///     Filter text containing an astral-plane Unicode character (a valid UTF-16 surrogate
+    ///     pair, e.g. an emoji) must never throw — ANTLR's own <c>Lexer.GetErrorDisplay</c> throws
+    ///     an uncaught <see cref="ArgumentException"/> (via <c>Char.ConvertToUtf32</c>) when
+    ///     formatting the lexer error for such input, which previously propagated straight out of
+    ///     <see cref="FilterExpressionParser.Parse"/> since only <see cref="Antlr4.Runtime.RecognitionException"/>
+    ///     was caught. Reproduces the exact repro input from the retroactive Filtering code-review
+    ///     report.
+    /// </summary>
+    [Fact]
+    public void Parse_AstralPlaneUnicodeCharacter_NeverThrows_ReturnsDiagnostic()
+    {
+        var result = FilterExpressionParser.Parse("@\U0001F600Type");
+
+        Assert.Null(result.Expression);
+        Assert.NotEmpty(result.Diagnostics);
+    }
+
+    /// <summary>
+    ///     A second astral-plane Unicode reproduction shape from the report: the surrogate pair
+    ///     appears as a trailing token rather than embedded in an identifier.
+    /// </summary>
+    [Fact]
+    public void Parse_AstralPlaneUnicodeCharacterAsTrailingToken_NeverThrows_ReturnsDiagnostic()
+    {
+        var result = FilterExpressionParser.Parse("@Foo and \U0001F600");
+
+        Assert.Null(result.Expression);
+        Assert.NotEmpty(result.Diagnostics);
+    }
+
+    /// <summary>
+    ///     Trailing garbage after a syntactically valid expression prefix must be reported as a
+    ///     diagnostic rather than silently discarded — previously <c>parser.ownedExpression()</c>
+    ///     returned the recognized prefix with zero diagnostics, discarding
+    ///     <c>"extra garbage tokens"</c> with no indication anything was wrong. Reproduces the
+    ///     exact repro input from the retroactive Filtering code-review report.
+    /// </summary>
+    [Fact]
+    public void Parse_TrailingGarbageAfterValidExpression_ReturnsDiagnostic()
+    {
+        var result = FilterExpressionParser.Parse("@Foo and @Bar extra garbage tokens");
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("trailing content"));
+    }
+
+    /// <summary>A stray trailing close-paren after a valid expression is also reported as trailing content.</summary>
+    [Fact]
+    public void Parse_TrailingCloseParen_ReturnsDiagnostic()
+    {
+        var result = FilterExpressionParser.Parse("@Foo )");
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("trailing content"));
+    }
+
+    /// <summary>A stray trailing semicolon after a valid expression is also reported as trailing content.</summary>
+    [Fact]
+    public void Parse_TrailingSemicolon_ReturnsDiagnostic()
+    {
+        var result = FilterExpressionParser.Parse("@Foo;");
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("trailing content"));
+    }
+
+    /// <summary>
+    ///     A numeric literal whose magnitude overflows <see cref="double"/> during parsing (e.g.
+    ///     <c>3.14e400</c>, which <c>double.TryParse</c> silently accepts as
+    ///     <see cref="double.PositiveInfinity"/>) must be reported as an invalid literal rather
+    ///     than silently producing a value whose pretty-printed form (<c>"Infinity"</c>) is not
+    ///     valid SysML v2 numeric syntax and therefore cannot round-trip. Reproduces the exact
+    ///     repro input from the retroactive Filtering code-review report.
+    /// </summary>
+    [Fact]
+    public void Parse_NumericLiteralOverflow_ReturnsDiagnosticInsteadOfInfinity()
+    {
+        var result = FilterExpressionParser.Parse("(as X).y != 3.14e400");
+
+        Assert.Null(result.Expression);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("out of range"));
+    }
+
+    /// <summary>An ordinary large-exponent real literal (well within <see cref="double"/>'s range) still parses.</summary>
+    [Fact]
+    public void Parse_LargeButFiniteRealLiteral_StillParsesSuccessfully()
+    {
+        var result = FilterExpressionParser.Parse("(as X).y != 3.14e10");
+
+        Assert.Empty(result.Diagnostics);
+        var expression = Assert.IsType<ComparisonFilterExpression>(result.Expression);
+        Assert.Equal(FilterLiteralKind.Number, expression.Right.Kind);
+        Assert.Equal(3.14e10, expression.Right.NumberValue);
     }
 
     /// <summary>

@@ -2,7 +2,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
-// cspell:ignore parenthesization istype hastype ISTYPE HASTYPE LPAREN RPAREN
+// cspell:ignore parenthesization istype hastype ISTYPE HASTYPE LPAREN RPAREN LBRACK RBRACK LBRACE RBRACE uncatchable
 
 using Antlr4.Runtime;
 using DemaConsulting.SysML2Tools.Parser;
@@ -45,6 +45,23 @@ public static class FilterExpressionParser
     private const string VirtualFilePath = "[filter-expression]";
 
     /// <summary>
+    /// Maximum permitted nesting depth (parenthesization, sequence-indexing brackets,
+    /// body-expression braces, and/or prefix unary operators such as <c>not</c>) before
+    /// <see cref="Parse"/> rejects the input with a diagnostic instead of invoking ANTLR's
+    /// recursive-descent
+    /// <c>ownedExpression()</c>/<c>baseExpression()</c>/<c>bodyExpression()</c>/<c>sequenceExpressionList()</c>
+    /// parse, which recurses once per nesting level and has no depth guard of its own — beyond a
+    /// few thousand levels (empirically, far fewer for bracket indexing and body-expression
+    /// braces than for parens — see <see cref="ExceedsMaxNestingDepth"/>'s remarks) that
+    /// recursion overflows the native call stack with an uncatchable
+    /// <see cref="StackOverflowException"/> that terminates the whole process. This ceiling is
+    /// chosen well above any realistic Phase 1 filter expression's nesting (a handful of levels
+    /// at most) but far below the depth that overflows the stack for any of the recursing token
+    /// shapes.
+    /// </summary>
+    private const int MaxNestingDepth = 200;
+
+    /// <summary>
     /// Parses <paramref name="expressionText"/> into a <see cref="FilterExpression"/> tree.
     /// </summary>
     /// <param name="expressionText">The raw filter-expression source text to parse.</param>
@@ -60,6 +77,7 @@ public static class FilterExpressionParser
         var diagnostics = new List<SysmlDiagnostic>();
 
         SysMLv2Parser.OwnedExpressionContext cst;
+        CommonTokenStream tokenStream;
         try
         {
             var listener = new CollectingErrorListener(diagnostics);
@@ -69,7 +87,17 @@ public static class FilterExpressionParser
             lexer.RemoveErrorListeners();
             lexer.AddErrorListener(listener);
 
-            var tokenStream = new CommonTokenStream(lexer);
+            tokenStream = new CommonTokenStream(lexer);
+
+            // Eagerly tokenize (lexing is iterative and never recurses) so the nesting depth of
+            // the token stream can be checked *before* handing it to the recursive-descent parser
+            // below. See MaxNestingDepth's remarks for why this guard is required.
+            if (ExceedsMaxNestingDepth(tokenStream))
+            {
+                diagnostics.Add(Diagnostic(
+                    $"Filter expression is too deeply nested (nesting exceeds {MaxNestingDepth} levels)."));
+                return new FilterParseResult(null, diagnostics);
+            }
 
             var parser = new SysMLv2Parser(tokenStream);
             parser.RemoveErrorListeners();
@@ -82,6 +110,19 @@ public static class FilterExpressionParser
             diagnostics.Add(Diagnostic($"Filter expression syntax error: {ex.Message}"));
             return new FilterParseResult(null, diagnostics);
         }
+        catch (Exception ex)
+        {
+            // Generic catch is justified here: this class's documented contract is that it never
+            // throws for any input, but ANTLR's own lexer/parser internals are not fully hardened
+            // against every malformed-input shape. For example, Antlr4.Runtime.Lexer.GetErrorDisplay
+            // throws ArgumentException (not RecognitionException) via Char.ConvertToUtf32 when
+            // formatting a lexer error for input containing an unpaired UTF-16 surrogate/astral-plane
+            // character. Converting any such unexpected failure into a diagnostic instead of letting
+            // it propagate is the only way to uphold the "never throws" guarantee this class
+            // documents, given a future GUI will call Parse live on every keystroke.
+            diagnostics.Add(Diagnostic($"Filter expression could not be parsed: {ex.Message}"));
+            return new FilterParseResult(null, diagnostics);
+        }
 
         if (diagnostics.Count > 0)
         {
@@ -89,8 +130,130 @@ public static class FilterExpressionParser
             return new FilterParseResult(null, diagnostics);
         }
 
+        if (tokenStream.LA(1) != TokenConstants.EOF)
+        {
+            // parser.ownedExpression() only requires a syntactically valid expression *prefix* —
+            // it happily returns without consuming any trailing tokens. Left unchecked, that
+            // silently accepts input like "@Foo and @Bar extra garbage tokens" as if it were just
+            // "@Foo and @Bar", discarding the trailing content with no diagnostic at all.
+            diagnostics.Add(Diagnostic(
+                "Unexpected trailing content after expression: the filter expression must consist of a single expression with no trailing tokens."));
+            return new FilterParseResult(null, diagnostics);
+        }
+
         var expression = TryBuild(cst, diagnostics);
         return new FilterParseResult(expression, diagnostics);
+    }
+
+    /// <summary>
+    /// Scans the already-lexed <paramref name="tokenStream"/> for the maximum nesting depth that
+    /// ANTLR's recursive-descent <c>ownedExpression()</c>/<c>baseExpression()</c> parse would need
+    /// to reach in order to parse this token sequence, without itself recursing. This is a simple
+    /// stack-depth simulation over the token kinds that push or pop a parse frame in that grammar:
+    /// <c>(</c>, <c>[</c>, <c>{</c> (see the remarks below for exactly which grammar productions
+    /// these three balanced-delimiter pairs recurse through), and each prefix unary operator
+    /// (<c>not</c>/<c>+</c>/<c>-</c>/<c>~</c>/<c>if</c>/<c>all</c>) push a frame; a matching close
+    /// delimiter pops one balanced frame (plus any still-pending unary frames above it), and
+    /// reaching any other token (an atom, or a subsequent operator) pops the innermost run of
+    /// still-pending unary frames, since those are fully closed only once the sub-expression they
+    /// qualify has been recognized.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Per <c>SysMLv2Parser.g4</c>'s <c>ownedExpression</c>/<c>baseExpression</c>/
+    /// <c>bodyExpression</c>/<c>argumentList</c> productions, there are exactly three
+    /// balanced-delimiter pairs whose recursive-descent parse recurses back into
+    /// <c>ownedExpression</c> once per nesting level — i.e. the only three pairs that can drive
+    /// this class of stack overflow. <b>If the grammar changes, re-derive this list before
+    /// trusting it.</b> As of this writing:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>
+    /// <c>LPAREN</c>/<c>RPAREN</c> — via <c>argumentList</c> (<c>LPAREN (positionalArgumentList |
+    /// namedArgumentList)? RPAREN</c>, reached from <c>ownedExpression argumentList</c> and from
+    /// <c>constructorExpression</c>/the merged feature-reference-with-invocation alternative in
+    /// <c>baseExpression</c>), <c>ownedExpression HASH LPAREN sequenceExpressionList? RPAREN</c>,
+    /// the metadata cast <c>LPAREN AS typeReference RPAREN</c>, and the grouping
+    /// <c>LPAREN sequenceExpressionList? RPAREN</c> alternative in <c>baseExpression</c>.
+    /// </description></item>
+    /// <item><description>
+    /// <c>LBRACK</c>/<c>RBRACK</c> — via the sequence-indexing production
+    /// <c>ownedExpression LBRACK sequenceExpressionList? RBRACK</c>.
+    /// </description></item>
+    /// <item><description>
+    /// <c>LBRACE</c>/<c>RBRACE</c> — via <c>bodyExpression : LBRACE functionBodyPart RBRACE</c>,
+    /// reached both directly from <c>baseExpression</c> and via
+    /// <c>ownedExpression DOT_QUESTION bodyExpression</c>; <c>functionBodyPart</c> reaches back to
+    /// <c>ownedExpression</c> through its <c>resultExpressionMember</c> alternative.
+    /// </description></item>
+    /// </list>
+    /// <para>
+    /// No other bracket/brace/paren-shaped token in the grammar (e.g. the multiplicity-range and
+    /// filter-package-import uses of <c>LBRACK</c>/<c>RBRACK</c>) is reachable through
+    /// <c>ownedExpression</c>'s own recursive-descent chain, so none of them can compound this
+    /// specific stack-overflow risk from within a <see cref="Parse"/> call (which only ever enters
+    /// the grammar at the <c>ownedExpression()</c> rule).
+    /// </para>
+    /// </remarks>
+    /// <returns><see langword="true"/> when the simulated depth would exceed <see cref="MaxNestingDepth"/>.</returns>
+    private static bool ExceedsMaxNestingDepth(CommonTokenStream tokenStream)
+    {
+        tokenStream.Fill();
+
+        var pendingIsParen = new Stack<bool>();
+        foreach (var token in tokenStream.GetTokens())
+        {
+            switch (token.Type)
+            {
+                case SysMLv2Lexer.LPAREN:
+                case SysMLv2Lexer.LBRACK:
+                case SysMLv2Lexer.LBRACE:
+                    pendingIsParen.Push(true);
+                    break;
+
+                case SysMLv2Lexer.NOT:
+                case SysMLv2Lexer.PLUS:
+                case SysMLv2Lexer.MINUS:
+                case SysMLv2Lexer.TILDE:
+                case SysMLv2Lexer.IF:
+                case SysMLv2Lexer.ALL:
+                    pendingIsParen.Push(false);
+                    break;
+
+                case SysMLv2Lexer.RPAREN:
+                case SysMLv2Lexer.RBRACK:
+                case SysMLv2Lexer.RBRACE:
+                    while (pendingIsParen.Count > 0 && !pendingIsParen.Peek())
+                    {
+                        pendingIsParen.Pop();
+                    }
+
+                    if (pendingIsParen.Count > 0)
+                    {
+                        pendingIsParen.Pop();
+                    }
+
+                    break;
+
+                case TokenConstants.EOF:
+                    break;
+
+                default:
+                    while (pendingIsParen.Count > 0 && !pendingIsParen.Peek())
+                    {
+                        pendingIsParen.Pop();
+                    }
+
+                    break;
+            }
+
+            if (pendingIsParen.Count > MaxNestingDepth)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Builds a <see cref="SysmlDiagnostic"/> for the virtual filter-expression file.</summary>
@@ -333,6 +496,11 @@ public static class FilterExpressionParser
             double.TryParse(intLiteral.GetText(), System.Globalization.NumberStyles.Integer,
                 System.Globalization.CultureInfo.InvariantCulture, out var iv))
         {
+            if (!double.IsFinite(iv))
+            {
+                return NumericLiteralOutOfRange(context, diagnostics);
+            }
+
             return new LiteralFilterExpression(FilterLiteralKind.Number, NumberValue: iv);
         }
 
@@ -340,11 +508,31 @@ public static class FilterExpressionParser
             double.TryParse(realLiteral.GetText(), System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var rv))
         {
+            // double.TryParse succeeds (returning +/-Infinity) for literal text whose magnitude
+            // overflows double (e.g. "3.14e400") rather than failing outright. Left unchecked,
+            // FilterExpression.ToString() would later print such a value as the literal text
+            // "Infinity", which is not valid SysML v2 numeric literal syntax and therefore fails
+            // to re-parse — violating the documented round-trip guarantee. Treat non-finite
+            // results the same as an unsupported/invalid literal instead.
+            if (!double.IsFinite(rv))
+            {
+                return NumericLiteralOutOfRange(context, diagnostics);
+            }
+
             return new LiteralFilterExpression(FilterLiteralKind.Number, NumberValue: rv);
         }
 
         diagnostics.Add(Diagnostic(
             $"Unsupported filter construct: comparison right-hand side must be a scalar literal, found '{context.GetText()}'."));
+        return null;
+    }
+
+    /// <summary>Reports a "numeric literal out of range" diagnostic for a non-finite parsed literal.</summary>
+    private static LiteralFilterExpression? NumericLiteralOutOfRange(
+        SysMLv2Parser.OwnedExpressionContext context, List<SysmlDiagnostic> diagnostics)
+    {
+        diagnostics.Add(Diagnostic(
+            $"Unsupported filter construct: numeric literal out of range, found '{context.GetText()}'."));
         return null;
     }
 

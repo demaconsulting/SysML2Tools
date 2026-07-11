@@ -1,4 +1,4 @@
-<!-- cspell:ignore istype hastype reparses -->
+<!-- cspell:ignore istype hastype reparses parenthesization -->
 
 ### FilterExpressionEvaluator Verification
 
@@ -27,6 +27,14 @@ SDK and the repository's committed SysML fixtures.
 - Absent metadata attributes evaluate conservatively as false.
 - Unsupported constructs and malformed syntax report diagnostics and never throw.
 - Pretty-printing a supported AST re-parses to an equivalent tree.
+- Pathologically deep nesting (thousands of levels of parenthesization, or hundreds of levels of
+  sequence-indexing brackets or body-expression braces) reports a diagnostic instead of
+  overflowing the native call stack and crashing the process.
+- Filter text containing non-BMP (astral-plane) Unicode characters never throws.
+- A syntactically valid expression prefix followed by trailing content reports a diagnostic
+  instead of silently discarding the trailing tokens.
+- A numeric literal that overflows `double` during parsing (producing a non-finite value) reports
+  a diagnostic instead of silently round-tripping to unparsable `"Infinity"`/`"NaN"` text.
 
 #### Requirement-to-Test Mapping
 
@@ -65,9 +73,22 @@ SDK and the repository's committed SysML fixtures.
   - `Parse_Conditional_ReturnsUnsupportedConstructDiagnostic`
   - `Parse_GeneralFeatureChainNavigation_ReturnsUnsupportedConstructDiagnostic`
   - `Parse_MalformedSyntax_NeverThrows_ReturnsDiagnostic`
+  - `Parse_DeeplyNestedParentheses_ReturnsDiagnosticInsteadOfCrashing`
+  - `Parse_ModeratelyNestedParentheses_StillParsesSuccessfully`
+  - `Parse_DeeplyNestedBracketIndexing_ReturnsDiagnosticInsteadOfCrashing`
+  - `Parse_ShallowBracketIndexing_ReturnsUnsupportedConstructNotDeepNestingDiagnostic`
+  - `Parse_DeeplyNestedBodyExpressionBraces_ReturnsDiagnosticInsteadOfCrashing`
+  - `Parse_ShallowBodyExpressionBraces_ReturnsUnsupportedConstructNotDeepNestingDiagnostic`
+  - `Parse_AstralPlaneUnicodeCharacter_NeverThrows_ReturnsDiagnostic`
+  - `Parse_AstralPlaneUnicodeCharacterAsTrailingToken_NeverThrows_ReturnsDiagnostic`
+  - `Parse_TrailingGarbageAfterValidExpression_ReturnsDiagnostic`
+  - `Parse_TrailingCloseParen_ReturnsDiagnostic`
+  - `Parse_TrailingSemicolon_ReturnsDiagnostic`
   - `Evaluate_UnknownCandidate_SkipsGracefully`
 - `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-RoundTripPrettyPrinting`
   - `Parse_RoundTrip_PrettyPrintedTextReparsesToEquivalentTree`
+  - `Parse_NumericLiteralOverflow_ReturnsDiagnosticInsteadOfInfinity`
+  - `Parse_LargeButFiniteRealLiteral_StillParsesSuccessfully`
 
 #### Test Scenarios
 
@@ -87,3 +108,18 @@ SDK and the repository's committed SysML fixtures.
   failure
 - `Parse_RoundTrip_PrettyPrintedTextReparsesToEquivalentTree` — pretty-printer output remains
   accepted by the parser
+- `Parse_DeeplyNestedParentheses_ReturnsDiagnosticInsteadOfCrashing` — 5000 levels of nested
+  parentheses report a diagnostic instead of overflowing the native call stack
+- `Parse_DeeplyNestedBracketIndexing_ReturnsDiagnosticInsteadOfCrashing` — 500 levels of nested
+  sequence-indexing brackets (`a[a[a[...0...]]]`) report a diagnostic instead of overflowing the
+  native call stack, closing the gap a follow-up review found in the initial paren-only guard
+- `Parse_DeeplyNestedBodyExpressionBraces_ReturnsDiagnosticInsteadOfCrashing` — 500 levels of
+  nested body-expression braces (`a.?{a.?{...0...}}`) report a diagnostic instead of overflowing
+  the native call stack, closing a second follow-up gap in the paren/bracket-only guard
+- `Parse_AstralPlaneUnicodeCharacter_NeverThrows_ReturnsDiagnostic` — an astral-plane Unicode
+  character (surrogate pair) is reported as a diagnostic instead of throwing `ArgumentException`
+- `Parse_TrailingGarbageAfterValidExpression_ReturnsDiagnostic` — a valid expression prefix
+  followed by extra tokens is reported as a diagnostic instead of silently truncating
+- `Parse_NumericLiteralOverflow_ReturnsDiagnosticInsteadOfInfinity` — a numeric literal that
+  overflows `double` (`3.14e400`) is reported as a diagnostic instead of silently becoming
+  `Infinity`
