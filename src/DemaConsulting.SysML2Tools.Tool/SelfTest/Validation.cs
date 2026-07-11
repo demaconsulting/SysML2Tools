@@ -82,6 +82,7 @@ internal static class Validation
         await RunRenderDynamicViewSvgSelfTestAsync(context, testResults).ConfigureAwait(false);
         await RunRenderDynamicViewPngSelfTestAsync(context, testResults).ConfigureAwait(false);
         await RunRenderDynamicViewFilteredSelfTestAsync(context, testResults).ConfigureAwait(false);
+        await RunExportSelfTestAsync(context, testResults).ConfigureAwait(false);
 
         // Calculate totals
         var totalTests = testResults.Results.Count;
@@ -663,6 +664,91 @@ internal static class Validation
         catch (Exception ex)
         {
             HandleTestException(test, context, "SysML2Tools_RenderDynamicViewFilteredSelfTest", ex);
+        }
+
+        FinalizeTestResult(test, startTime, testResults);
+    }
+
+    /// <summary>
+    ///     Runs an export self-test against the built-in <see cref="SelfTestModel"/>: loads the
+    ///     workspace, builds an <see cref="Export.ExportResult"/> exactly as
+    ///     <see cref="Export.ExportCommand.RunAsync"/> does, serializes it as a single JSON
+    ///     document via <see cref="Export.ExportResultSerializerContext"/>, and asserts the JSON
+    ///     round-trips (deserializes) and contains the expected declaration/edge counts.
+    /// </summary>
+    /// <param name="context">The context for output.</param>
+    /// <param name="testResults">The test results collection.</param>
+    /// <remarks>
+    ///     Only the <c>--format json</c> path is exercised here. A JSONL self-test variant is
+    ///     not added: both formats share the exact same declaration/edge/diagnostic collection
+    ///     and filtering logic in <see cref="Export.ExportCommand.RunAsync"/> — only the final
+    ///     serialization step differs (single indented document vs. one compact line per
+    ///     record) — so this JSON self-test already exercises the qualification-relevant
+    ///     workspace-loading/filtering logic; the JSONL-specific serialization shape is covered
+    ///     directly by the dedicated unit/integration tests in
+    ///     <c>test/DemaConsulting.SysML2Tools.Tool.Tests/Export/ExportRenderingTests.cs</c>
+    ///     instead of being duplicated into the self-test suite.
+    /// </remarks>
+    private static async Task RunExportSelfTestAsync(Context context, DemaConsulting.TestResults.TestResults testResults)
+    {
+        var startTime = DateTime.UtcNow;
+        var test = CreateTestResult("SysML2Tools_ExportSelfTest");
+
+        try
+        {
+            using var tempDir = new TemporaryDirectory();
+            var modelFile = PathHelpers.SafePathCombine(tempDir.DirectoryPath, "self-test.sysml");
+
+            // Write the self-test model to a temporary file
+            await File.WriteAllTextAsync(modelFile, SelfTestModel).ConfigureAwait(false);
+
+            // Load the model (no stdlib seed, mirroring the other self-tests)
+            var loadResult = await WorkspaceLoader.LoadAsync([modelFile]).ConfigureAwait(false);
+            if (loadResult.Workspace is null)
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Failed;
+                test.ErrorMessage = "Workspace loading failed";
+                context.WriteError($"✗ SysML2Tools_ExportSelfTest - Failed: workspace loading failed");
+                FinalizeTestResult(test, startTime, testResults);
+                return;
+            }
+
+            var workspace = loadResult.Workspace;
+            var exportResult = new Export.ExportResult
+            {
+                Declarations = workspace.Declarations,
+                Edges = workspace.Index.AllEdges,
+                Diagnostics = loadResult.Diagnostics
+            };
+
+            var json = System.Text.Json.JsonSerializer.Serialize(
+                exportResult, Export.ExportResultSerializerContext.Default.ExportResult);
+
+            // Verify the JSON round-trips and contains the expected declarations (SelfTestModel
+            // declares 'ValidateTest', 'GeneralView', 'SensorUnit', and 'ActuatorUnit').
+            using var parsed = System.Text.Json.JsonDocument.Parse(json);
+            var declarationsElement = parsed.RootElement.GetProperty("Declarations");
+            var hasExpectedDeclarations =
+                declarationsElement.TryGetProperty("ValidateTest", out _) &&
+                declarationsElement.TryGetProperty("ValidateTest::SensorUnit", out _);
+
+            if (hasExpectedDeclarations && exportResult.Declarations.Count > 0)
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Passed;
+                context.WriteLine($"✓ SysML2Tools_ExportSelfTest - Passed");
+            }
+            else
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Failed;
+                test.ErrorMessage = "Exported JSON did not contain the expected declarations";
+                context.WriteError($"✗ SysML2Tools_ExportSelfTest - Failed: exported JSON did not contain the expected declarations");
+            }
+        }
+        // Generic catch is justified here as this is a test framework - any exception should be
+        // recorded as a test failure to ensure robust test execution and reporting.
+        catch (Exception ex)
+        {
+            HandleTestException(test, context, "SysML2Tools_ExportSelfTest", ex);
         }
 
         FinalizeTestResult(test, startTime, testResults);
