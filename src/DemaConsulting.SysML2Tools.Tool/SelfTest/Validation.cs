@@ -79,6 +79,9 @@ internal static class Validation
         await RunLintSelfTestAsync(context, testResults).ConfigureAwait(false);
         await RunRenderSvgSelfTestAsync(context, testResults).ConfigureAwait(false);
         await RunRenderPngSelfTestAsync(context, testResults).ConfigureAwait(false);
+        await RunRenderDynamicViewSvgSelfTestAsync(context, testResults).ConfigureAwait(false);
+        await RunRenderDynamicViewPngSelfTestAsync(context, testResults).ConfigureAwait(false);
+        await RunRenderDynamicViewFilteredSelfTestAsync(context, testResults).ConfigureAwait(false);
 
         // Calculate totals
         var totalTests = testResults.Results.Count;
@@ -445,6 +448,259 @@ internal static class Validation
         }
 
         FinalizeTestResult(test, startTime, testResults);
+    }
+
+    /// <summary>
+    ///     Runs a dynamic (ad-hoc) view SVG render self-test: synthesizes a <c>general</c>-kind
+    ///     view targeting the built-in <see cref="SelfTestModel"/>'s <c>ValidateTest</c> package
+    ///     (no <c>view def</c> is declared for it), the exact mechanism the <c>render
+    ///     --view-type --view-target</c> CLI feature uses.
+    /// </summary>
+    /// <param name="context">The context for output.</param>
+    /// <param name="testResults">The test results collection.</param>
+    private static async Task RunRenderDynamicViewSvgSelfTestAsync(Context context, DemaConsulting.TestResults.TestResults testResults)
+    {
+        var startTime = DateTime.UtcNow;
+        var test = CreateTestResult("SysML2Tools_RenderDynamicViewSvgSelfTest");
+
+        try
+        {
+            using var tempDir = new TemporaryDirectory();
+            var modelFile = PathHelpers.SafePathCombine(tempDir.DirectoryPath, "self-test.sysml");
+
+            // Write the self-test model to a temporary file
+            await File.WriteAllTextAsync(modelFile, SelfTestModel).ConfigureAwait(false);
+
+            // Load the model
+            var loadResult = await WorkspaceLoader.LoadAsync([modelFile]).ConfigureAwait(false);
+            if (loadResult.Workspace is null)
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Failed;
+                test.ErrorMessage = "Workspace loading failed";
+                context.WriteError($"✗ SysML2Tools_RenderDynamicViewSvgSelfTest - Failed: workspace loading failed");
+                FinalizeTestResult(test, startTime, testResults);
+                return;
+            }
+
+            // Synthesize a dynamic "general" view targeting the ValidateTest package — no
+            // view def is declared for it in SelfTestModel — and inject it into the workspace.
+            var viewNode = DiagramRenderer.SynthesizeDynamicView(
+                loadResult.Workspace, "general", "ValidateTest", null, out var diagnostic);
+            if (viewNode is null || diagnostic is not null)
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Failed;
+                test.ErrorMessage = $"Dynamic view synthesis failed: {diagnostic}";
+                context.WriteError($"✗ SysML2Tools_RenderDynamicViewSvgSelfTest - Failed: {diagnostic}");
+                FinalizeTestResult(test, startTime, testResults);
+                return;
+            }
+
+            loadResult.Workspace.AddDeclaration(viewNode.QualifiedName!, viewNode);
+
+            // Render the synthesized dynamic view to an in-memory SVG stream
+            var diagramRenderer = new DiagramRenderer();
+            var options = new RenderOptions(Themes.Light);
+            var outputs = diagramRenderer.RenderWorkspace(
+                loadResult.Workspace, new SvgRenderer(), options, viewFilter: viewNode.Name);
+
+            // Verify at least one non-empty output was produced
+            if (outputs.Count > 0 && outputs[0].Data.Length > 0)
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Passed;
+                context.WriteLine($"✓ SysML2Tools_RenderDynamicViewSvgSelfTest - Passed");
+            }
+            else
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Failed;
+                test.ErrorMessage = "Dynamic view SVG render produced no output";
+                context.WriteError($"✗ SysML2Tools_RenderDynamicViewSvgSelfTest - Failed: no output produced");
+            }
+        }
+        // Generic catch is justified here as this is a test framework - any exception should be
+        // recorded as a test failure to ensure robust test execution and reporting.
+        catch (Exception ex)
+        {
+            HandleTestException(test, context, "SysML2Tools_RenderDynamicViewSvgSelfTest", ex);
+        }
+
+        FinalizeTestResult(test, startTime, testResults);
+    }
+
+    /// <summary>
+    ///     Runs a dynamic (ad-hoc) view PNG render self-test, mirroring
+    ///     <see cref="RunRenderDynamicViewSvgSelfTestAsync"/> but with the PNG renderer. Skips
+    ///     gracefully when the SkiaSharp native library is unavailable.
+    /// </summary>
+    /// <param name="context">The context for output.</param>
+    /// <param name="testResults">The test results collection.</param>
+    private static async Task RunRenderDynamicViewPngSelfTestAsync(Context context, DemaConsulting.TestResults.TestResults testResults)
+    {
+        var startTime = DateTime.UtcNow;
+        var test = CreateTestResult("SysML2Tools_RenderDynamicViewPngSelfTest");
+
+        try
+        {
+            // Check whether the SkiaSharp native library is loadable before attempting PNG rendering.
+            if (!NativeLibrary.TryLoad("libSkiaSharp", out var nativeHandle))
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Passed;
+                context.WriteLine($"↷ SysML2Tools_RenderDynamicViewPngSelfTest - Skipped (SkiaSharp unavailable)");
+                FinalizeTestResult(test, startTime, testResults);
+                return;
+            }
+
+            NativeLibrary.Free(nativeHandle);
+
+            using var tempDir = new TemporaryDirectory();
+            var modelFile = PathHelpers.SafePathCombine(tempDir.DirectoryPath, "self-test.sysml");
+
+            // Write the self-test model to a temporary file
+            await File.WriteAllTextAsync(modelFile, SelfTestModel).ConfigureAwait(false);
+
+            // Load the model
+            var loadResult = await WorkspaceLoader.LoadAsync([modelFile]).ConfigureAwait(false);
+            if (loadResult.Workspace is null)
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Failed;
+                test.ErrorMessage = "Workspace loading failed";
+                context.WriteError($"✗ SysML2Tools_RenderDynamicViewPngSelfTest - Failed: workspace loading failed");
+                FinalizeTestResult(test, startTime, testResults);
+                return;
+            }
+
+            // Synthesize a dynamic "general" view targeting the ValidateTest package
+            var viewNode = DiagramRenderer.SynthesizeDynamicView(
+                loadResult.Workspace, "general", "ValidateTest", null, out var diagnostic);
+            if (viewNode is null || diagnostic is not null)
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Failed;
+                test.ErrorMessage = $"Dynamic view synthesis failed: {diagnostic}";
+                context.WriteError($"✗ SysML2Tools_RenderDynamicViewPngSelfTest - Failed: {diagnostic}");
+                FinalizeTestResult(test, startTime, testResults);
+                return;
+            }
+
+            loadResult.Workspace.AddDeclaration(viewNode.QualifiedName!, viewNode);
+
+            // Render the synthesized dynamic view to an in-memory PNG stream
+            var diagramRenderer = new DiagramRenderer();
+            var options = new RenderOptions(Themes.Light);
+            var outputs = diagramRenderer.RenderWorkspace(
+                loadResult.Workspace, new PngRenderer(), options, viewFilter: viewNode.Name);
+
+            // Verify at least one non-empty output was produced
+            if (outputs.Count > 0 && outputs[0].Data.Length > 0)
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Passed;
+                context.WriteLine($"✓ SysML2Tools_RenderDynamicViewPngSelfTest - Passed");
+            }
+            else
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Failed;
+                test.ErrorMessage = "Dynamic view PNG render produced no output";
+                context.WriteError($"✗ SysML2Tools_RenderDynamicViewPngSelfTest - Failed: no output produced");
+            }
+        }
+        // Generic catch is justified here as this is a test framework - any exception should be
+        // recorded as a test failure to ensure robust test execution and reporting.
+        catch (Exception ex)
+        {
+            HandleTestException(test, context, "SysML2Tools_RenderDynamicViewPngSelfTest", ex);
+        }
+
+        FinalizeTestResult(test, startTime, testResults);
+    }
+
+    /// <summary>
+    ///     Runs a dynamic (ad-hoc) view <c>--filter</c> self-test: synthesizes the same
+    ///     <c>general</c>-kind dynamic view twice from two independent workspace loads of the
+    ///     built-in <see cref="SelfTestModel"/> — once unfiltered, once with a filter expression
+    ///     (<c>@NoSuchMetadataType</c>) matching neither of the model's two <c>part def</c>s — and
+    ///     asserts the filtered render output is genuinely smaller than the unfiltered one (the
+    ///     filtered view narrows to the canonical near-blank <c>LayoutTree</c> sentinel, containing
+    ///     no part-definition boxes), not merely that both render "without error".
+    /// </summary>
+    /// <param name="context">The context for output.</param>
+    /// <param name="testResults">The test results collection.</param>
+    private static async Task RunRenderDynamicViewFilteredSelfTestAsync(Context context, DemaConsulting.TestResults.TestResults testResults)
+    {
+        var startTime = DateTime.UtcNow;
+        var test = CreateTestResult("SysML2Tools_RenderDynamicViewFilteredSelfTest");
+
+        try
+        {
+            using var tempDir = new TemporaryDirectory();
+            var modelFile = PathHelpers.SafePathCombine(tempDir.DirectoryPath, "self-test.sysml");
+
+            // Write the self-test model to a temporary file
+            await File.WriteAllTextAsync(modelFile, SelfTestModel).ConfigureAwait(false);
+
+            // Render the unfiltered dynamic view from a fresh workspace load
+            var unfilteredLength = await RenderDynamicGeneralViewLengthAsync(modelFile, filterExpressionText: null).ConfigureAwait(false);
+
+            // Render the filtered dynamic view from a second, independent workspace load — a
+            // filter expression matching no metadata annotation in the model, narrowing the
+            // rendered content to nothing.
+            var filteredLength = await RenderDynamicGeneralViewLengthAsync(modelFile, filterExpressionText: "@NoSuchMetadataType").ConfigureAwait(false);
+
+            if (unfilteredLength > 0 && filteredLength > 0 && filteredLength < unfilteredLength)
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Passed;
+                context.WriteLine($"✓ SysML2Tools_RenderDynamicViewFilteredSelfTest - Passed");
+            }
+            else
+            {
+                test.Outcome = DemaConsulting.TestResults.TestOutcome.Failed;
+                test.ErrorMessage =
+                    $"Filtered output ({filteredLength} bytes) was not smaller than unfiltered output ({unfilteredLength} bytes)";
+                context.WriteError(
+                    $"✗ SysML2Tools_RenderDynamicViewFilteredSelfTest - Failed: filtered output ({filteredLength} bytes) " +
+                    $"was not smaller than unfiltered output ({unfilteredLength} bytes)");
+            }
+        }
+        // Generic catch is justified here as this is a test framework - any exception should be
+        // recorded as a test failure to ensure robust test execution and reporting.
+        catch (Exception ex)
+        {
+            HandleTestException(test, context, "SysML2Tools_RenderDynamicViewFilteredSelfTest", ex);
+        }
+
+        FinalizeTestResult(test, startTime, testResults);
+    }
+
+    /// <summary>
+    ///     Loads a fresh workspace from <paramref name="modelFile"/>, synthesizes a dynamic
+    ///     <c>general</c>-kind view targeting the <c>ValidateTest</c> package with the given
+    ///     filter expression, renders it to SVG, and returns the rendered byte length — a fresh
+    ///     workspace load is used per call so each synthesis targets an unused qualified name
+    ///     (avoiding <see cref="DiagramRenderer.SynthesizeDynamicView"/>'s collision diagnostic).
+    /// </summary>
+    /// <param name="modelFile">The path to the <see cref="SelfTestModel"/> source file.</param>
+    /// <param name="filterExpressionText">The filter expression to apply, or null for none.</param>
+    /// <returns>The rendered SVG output's byte length, or 0 when synthesis or rendering failed.</returns>
+    private static async Task<long> RenderDynamicGeneralViewLengthAsync(string modelFile, string? filterExpressionText)
+    {
+        var loadResult = await WorkspaceLoader.LoadAsync([modelFile]).ConfigureAwait(false);
+        if (loadResult.Workspace is null)
+        {
+            return 0;
+        }
+
+        var viewNode = DiagramRenderer.SynthesizeDynamicView(
+            loadResult.Workspace, "general", "ValidateTest", filterExpressionText, out var diagnostic);
+        if (viewNode is null || diagnostic is not null)
+        {
+            return 0;
+        }
+
+        loadResult.Workspace.AddDeclaration(viewNode.QualifiedName!, viewNode);
+
+        var diagramRenderer = new DiagramRenderer();
+        var options = new RenderOptions(Themes.Light);
+        var outputs = diagramRenderer.RenderWorkspace(
+            loadResult.Workspace, new SvgRenderer(), options, viewFilter: viewNode.Name);
+
+        return outputs.Count > 0 ? outputs[0].Data.Length : 0;
     }
 
     /// <summary>
