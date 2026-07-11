@@ -49,14 +49,20 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedExposeBracketFilter
         title: >-
-          When a view declares one or more bracketed `expose <path>::**[<expr>]` filters,
-          LayoutWarnings shall produce a warning naming the view and stating that the bracket
-          filter expressions are parsed but not yet evaluated; when none are present,
-          LayoutWarnings shall produce no warning.
+          When a view declares one or more bracketed `expose <path>::**[<expr>]` filters that
+          failed to parse or evaluate (Phase 2a), LayoutWarnings shall produce one warning per
+          failed expression naming the view, the failed expression text, and (when supplied) a
+          short reason, stating that the exposed path falls back to its whole containment
+          subtree; when every bracket filter in the view (if any) parsed and evaluated
+          successfully, LayoutWarnings shall produce no warning.
         justification: |
-          Phase 1 intentionally defers bracket-filter evaluation while still capturing the raw
-          expression text. A distinct warning prevents users from confusing that deferred capability
-          with the now-supported standalone `filter [<expr>];` statement.
+          Phase 2a makes bracket-filter evaluation real: a successfully-evaluated bracket filter
+          has actual narrowing effect on the rendered scope and no longer needs a "not yet
+          evaluated" disclaimer (unlike Phase 1's always-warn behavior). Reserving the warning for
+          genuine parse/evaluation failures mirrors `ForUnevaluatedFilter`'s existing
+          failure-only pattern, so a bracket filter degrades gracefully (whole-subtree fallback)
+          with a visible, actionable reason rather than silently losing its narrowing effect.
         tests:
           - ForUnevaluatedExposeBracketFilter_Empty_ReturnsEmpty
-          - ForUnevaluatedExposeBracketFilter_NonEmpty_ReturnsWarning
+          - ForUnevaluatedExposeBracketFilter_SingleFailure_ReturnsWarningWithReason
+          - ForUnevaluatedExposeBracketFilter_MultipleFailures_ReturnsOneWarningPerFailure

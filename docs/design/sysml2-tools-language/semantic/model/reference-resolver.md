@@ -139,12 +139,16 @@ no edge):
   = resolved first end, `Target` = resolved second end) only when both ends resolve, using the
   identical both-sides-must-resolve contract as `Satisfy`. Regular `"connection"`/`"message"`
   keyword variants remain intentionally unresolved (out of scope for this unit).
-- **`SysmlViewNode` (Expose)** — resolves each `ExposedNames` entry into its own
-  `SysmlEdgeKind.Expose` edge, or the standard unresolved-reference Warning diagnostic when it
-  does not resolve. `RenderTargetName` names a rendering style/format (e.g. `asTreeDiagram`,
-  `asElementTable`) per the SysML v2 grammar — never model content — so `ReferenceResolver`
-  never inspects it: no edge is produced and no diagnostic is emitted for it, exactly mirroring
-  how `FilterExpressionText` (raw source text, not a reference) is also never inspected here.
+- **`SysmlViewNode` (Expose)** — resolves each `GetExposedNames()` entry (the `QualifiedName` of
+  each `ExposeMember`) into its own `SysmlEdgeKind.Expose` edge, or the standard
+  unresolved-reference Warning diagnostic when it does not resolve. An `ExposeMember`'s own
+  `BracketFilterExpressionText` (when present) is never inspected here — evaluating it is
+  `ExposeScopeResolver`'s responsibility (Phase 2a), given the per-entry containment-subtree
+  candidate set only that unit can compute. `RenderTargetName` names a rendering style/format
+  (e.g. `asTreeDiagram`, `asElementTable`) per the SysML v2 grammar — never model content — so
+  `ReferenceResolver` never inspects it: no edge is produced and no diagnostic is emitted for it,
+  exactly mirroring how `FilterExpressionText` (raw source text, not a reference) is also never
+  inspected here.
 
 ##### Deviations From Uniform Resolution (Behavior-Neutral Additive Fixes)
 
@@ -221,7 +225,8 @@ unresolved names are present.
   (`SubjectName`/`RequirementName`), `SysmlConnectionNode` with `ConnectionKeyword ==
   "allocation"` (`EndpointA`/`EndpointB`), `SysmlConnectionNode` with `ConnectionKeyword ==
   "connection"` or `"message"`, `SysmlTransitionNode` (`Source`/`Target`), and `SysmlViewNode`
-  (`ExposedNames`; `RenderTargetName`/`FilterExpressionText` are never read); reads
+  (`GetExposedNames()`; `RenderTargetName`/`FilterExpressionText`/each `ExposeMember`'s
+  `BracketFilterExpressionText` are never read); reads
   `ResolvedEdges` (`Typing`/`Supertype` kinds during feature-chain resolution; `Supertype`
   **and** `Redefinition` kinds during `FindMemberInAncestorChain`'s bare-redefinition ancestor
   walk).

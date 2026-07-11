@@ -39,12 +39,14 @@ sections:
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewExposeResolution
         title: >-
-          ReferenceResolver.ResolveAll shall resolve each of a view's ExposedNames entries into
-          an Expose-kind edge.
+          ReferenceResolver.ResolveAll shall resolve each of a view's ExposeMembers entries'
+          QualifiedName (via GetExposedNames()) into an Expose-kind edge.
         justification: |
           `expose <name>;` is the only reference a view's body statements resolve into model
-          content; resolving each ExposedNames entry into an Expose-kind edge is the
-          prerequisite for GeneralViewLayoutStrategy to scope a rendered diagram to that content.
+          content; resolving each entry's qualified name into an Expose-kind edge is the
+          prerequisite for GeneralViewLayoutStrategy (via ExposeScopeResolver) to scope a
+          rendered diagram to that content, and — Phase 2a — for ExposeScopeResolver to re-pair
+          the resolved edge back to its originating ExposeMember for bracket-filter evaluation.
         tests:
           - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
           - WorkspaceLoader_LoadAsync_ViewUsageWithBracketedFilterExpose_RecordsExposeEdge
@@ -55,7 +57,7 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewExposeUnresolvedWarning
         title: >-
           ReferenceResolver.ResolveAll shall produce an unresolved-reference Warning diagnostic
-          (with no corresponding edge) when a view's ExposedNames entry cannot resolve —
+          (with no corresponding edge) when a view's ExposeMembers entry cannot resolve —
           mirroring the existing SubjectName/EndpointA unresolved-reference diagnostic pattern.
         justification: |
           A bogus `expose <name>;` entry must be surfaced to the caller as model incompleteness,

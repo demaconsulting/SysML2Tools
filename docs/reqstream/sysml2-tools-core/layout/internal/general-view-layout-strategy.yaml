@@ -171,6 +171,23 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_ExposedName_UnionsAdditionalSubtree
           - GeneralViewLayoutStrategy_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree
 
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposeBracketFilterEvaluation
+        title: >-
+          When a view's `expose <path>::**[<expr>];` entry carries a bracket-filter expression that
+          parses and evaluates successfully (Phase 2a), GeneralViewLayoutStrategy shall narrow that
+          entry's contribution to the resolved scope to only the descendant definitions the
+          expression matches, rather than that entry's whole containment subtree, while every
+          other `expose` entry in the same view continues to contribute unaffected.
+        justification: |
+          The bracket form is the dominant real-world `expose` shape (10/10 sampled OMG corpus
+          instances). Making it an effective per-entry filter — not merely captured raw text —
+          gives `expose <path>::**[<expr>];` its full SysML v2 meaning, matching how the standalone
+          `filter [<expr>];` statement already narrows the whole view's resolved scope.
+        tests:
+          - ResolveExposedScope_BracketFilterEvaluatesSuccessfully_NarrowsToMatchedDefinitionsOnly
+          - ResolveExposedScope_MixedFilteredAndUnfilteredEntries_NarrowsIndependently
+          - DiagramRenderer_RenderWorkspace_BracketExposeMandatorySafetyView_FiltersToMandatoryPart
+
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NoExposeFallback
         title: >-
           When a view's ViewContext carries no resolved Expose edge — because the view has no

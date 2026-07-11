@@ -5,7 +5,9 @@
 # PURPOSE:
 # - Define requirements for the FilterExpressionEvaluator unit
 # - This unit's implementation spans the filter-expression AST, parser adaptation, and evaluator
-#   used by standalone view `filter [<expr>];` statements
+#   used by standalone view `filter [<expr>];` statements, and (Phase 2a) reused unchanged by
+#   `ExposeScopeResolver` for bracket-form `expose <path>::**[<expr>];` statements — the evaluator
+#   is candidate-set-agnostic, so no evaluator-level change was needed to support the second caller
 # - Requirements describe observable parse/evaluate behavior, not CST-walking internals
 
 sections:

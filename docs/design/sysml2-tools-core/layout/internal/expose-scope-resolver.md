@@ -11,9 +11,20 @@ each maintaining its own copy, so every view kind honors `expose` scoping identi
 
 ##### Data Model
 
-`ExposeScopeResolver` is a static class with no instance state; all input arrives through method
-parameters. It has no private records or fields — every method is a pure function over a
-`SysmlWorkspace` and/or a list of qualified-name "subjects".
+`ExposeScopeResolver` is a static class with no instance state; input arrives through method
+parameters, and (Phase 2a) resolution output is returned as two internal record types:
+
+- `ExposedScope(IReadOnlyList<string> PrefixSubjects, IReadOnlyList<string> ExplicitMembers)` —
+  the resolved scope. `PrefixSubjects` are exposed subject qualified names whose entire
+  containment subtree is in scope (the pre-Phase-2a whole-subtree behavior, used for `expose`
+  entries with no bracket filter and as the fallback for a bracket-filtered entry that failed to
+  parse or evaluate). `ExplicitMembers` are individual definition qualified names matched by a
+  successfully-evaluated bracket filter — exact matches only, not their own nested members unless
+  those also match. A settable `Failures` init-property (default empty) carries any bracket
+  filters that failed to parse or evaluate.
+- `BracketFilterFailure(string ExpressionText, string? Reason)` — one failed bracket-filter
+  expression's raw source text plus a short human-readable reason, feeding
+  `LayoutWarnings.ForUnevaluatedExposeBracketFilter`.
 
 ##### Key Methods
 
@@ -26,33 +37,53 @@ content, so `RenderTargetName` never affects this decision). Returns `null` — 
 everything", the pre-scoping behavior — whenever the view has no resolved `Expose`-kind
 `ResolvedEdges` entries: covering a `null` `viewNode` (the `--auto` synthesized view, which never
 carries expose/render/filter data), a view with no `expose` statement, and a view whose every
-`expose` entry failed to resolve, uniformly. Otherwise, for each resolved `Expose` edge's target
-qualified name, adds that name to the scope; when `workspace.Declarations` resolves the target to
-a `SysmlFeatureNode` (a usage, e.g. `part myVehicle : Vehicle;`) rather than a
-`SysmlDefinitionNode`, additionally resolves the usage's own `Typing`-kind `ResolvedEdges` entry
-(if any) and adds *that* type's qualified name to the scope too — the usage-to-type fallback for
-the containment gap where a usage's own (typically empty) subtree would otherwise silently
-produce zero content.
+`expose` entry failed to resolve, uniformly. Otherwise, for each resolved `Expose` edge, re-pairs
+the edge's target with the `ExposeMember` it originated from (see Design below) and:
 
-###### `IsInSubjectScope(string qualifiedName, IReadOnlyList<string> subjects)`
+- when that entry carries no bracket-filter expression, adds the target (and, for a usage target,
+  its resolved type — see the usage-to-type fallback below) to `PrefixSubjects`, unchanged from
+  Phase 1;
+- when that entry's bracket-filter expression parses and evaluates successfully (Phase 2a), computes
+  the candidate set as every `workspace.Declarations` key that is the target itself or lies in its
+  containment subtree (`qn == target || qn.StartsWith(target + "::")`) *and* is a
+  `SysmlDefinitionNode` — mirroring `GeneralViewLayoutStrategy.CollectDefinitions`'s existing
+  restriction — evaluates with `FilterExpressionEvaluator.Evaluate` against that candidate set
+  unchanged, and adds the matched subset to `ExplicitMembers`;
+- when that entry's bracket-filter expression fails to parse or evaluate, falls back to
+  whole-subtree inclusion (`PrefixSubjects`, same as the unfiltered case) and records a
+  `BracketFilterFailure` with the raw expression text and a short reason, so the caller can
+  degrade gracefully instead of silently losing the exposed path's content.
 
-Returns `true` when `qualifiedName` equals one of `subjects` or lies within one of their
-containment subtrees (a `"{subject}::"` prefix match) — the same qualified-name-prefix idiom
-`StdlibFilter.IsStdlibElement` already uses for stdlib-prefix matching. Used by every strategy to
+When an exposed target resolves to a `SysmlFeatureNode` (a usage, e.g.
+`part myVehicle : Vehicle;`) rather than a `SysmlDefinitionNode`, the usage's own containment
+subtree is typically empty — the real content lives under its type's subtree. To avoid silently
+scoping to nothing, whole-subtree inclusion also resolves the usage's own `Typing`-kind
+`ResolvedEdges` entry (if any) and adds that type's qualified name to `PrefixSubjects` too, so both
+the usage and its type's subtree are included. This expansion only applies to whole-subtree
+inclusion — a successfully-evaluated bracket filter's `ExplicitMembers` already name the exact
+matched definitions directly.
+
+###### `IsInSubjectScope(string qualifiedName, ExposedScope scope)`
+
+Returns `true` when `qualifiedName` equals one of `scope.PrefixSubjects` or lies within one of
+their containment subtrees (a `"{subject}::"` prefix match, the same qualified-name-prefix idiom
+`StdlibFilter.IsStdlibElement` already uses for stdlib-prefix matching), or is an exact match of
+one of `scope.ExplicitMembers` (a bracket-filter-matched definition). Used by every strategy to
 decide whether a candidate element belongs in a scoped diagram.
 
-###### `IsRootRelevantToScope(string candidateQualifiedName, IReadOnlyList<string> subjects)`
+###### `IsRootRelevantToScope(string candidateQualifiedName, ExposedScope scope)`
 
 Returns `true` when `candidateQualifiedName` (a candidate single-root diagram root, e.g. the
 definition `InterconnectionViewLayoutStrategy`, `StateTransitionViewLayoutStrategy`,
 `ActionFlowViewLayoutStrategy`, or `SequenceViewLayoutStrategy` would otherwise pick by its own
-heuristic) is related to the resolved `expose` scope in `subjects`, in either containment
-direction: the candidate itself is an exposed subject, the candidate lies within an exposed
-subject's containment subtree, or an exposed subject lies within the candidate's own containment
-subtree (the common "expose an inner state/action/part/lifeline of the root" case). This method
-identifies the *set* of scope-relevant candidates only — because SysML v2 definitions may nest, an
-ancestor and one of its nested descendant definitions can both be relevant to the same resolved
-scope. Disambiguating among multiple relevant candidates is delegated to
+heuristic) is related to the resolved `expose` scope in `scope`, in either containment
+direction — checked against both `scope.PrefixSubjects` and `scope.ExplicitMembers`: the candidate
+itself is an exposed subject or matched member, the candidate lies within an exposed subject's
+containment subtree, or an exposed subject/matched member lies within the candidate's own
+containment subtree (the common "expose an inner state/action/part/lifeline of the root" case).
+This method identifies the *set* of scope-relevant candidates only — because SysML v2 definitions
+may nest, an ancestor and one of its nested descendant definitions can both be relevant to the same
+resolved scope. Disambiguating among multiple relevant candidates is delegated to
 `IsMoreSpecificCandidate`, not decided by this method.
 
 ###### `IsMoreSpecificCandidate(string candidateQualifiedName, string? currentBestQualifiedName, bool currentScoreIsBetter)`
@@ -69,17 +100,40 @@ ties between candidates of equal containment depth (e.g. unrelated siblings), vi
 `currentScoreIsBetter`. Used only by the four single-root strategies, in place of a plain score
 comparison, whenever `scope` is non-null.
 
+##### Design
+
+`ResolveExposedScope` re-pairs each resolved `Expose` edge with the `ExposeMember` it originated
+from using a forward-scanning, order-preserving heuristic: `ReferenceResolver` builds one edge per
+successfully-resolved `ExposeMember`, in source order, silently skipping entries that fail to
+resolve (no edge emitted for them, only a diagnostic). Since a resolved edge carries no direct back
+-reference to its originating `ExposeMember`, the method walks `viewNode.ExposeMembers` alongside
+`ResolvedEdges` with a single forward-only index: for each resolved edge's target (in order), it
+scans forward through the remaining, not-yet-consumed `ExposeMembers` until it finds one whose
+`QualifiedName` matches the edge's target — either exactly or via a `target.EndsWith("::" + qn)`
+suffix heuristic (covering a partially-qualified `ExposeMember.QualifiedName` resolved to a fully
+-qualified edge target) — consuming every entry it scans past, including ones that failed to
+resolve. This is a best-effort heuristic: it is correct for every realistic corpus case (entries
+are declared and resolved in the same order, and duplicate simple names within one view's `expose`
+list are vanishingly rare), but could incorrectly assign a bracket filter to the wrong entry in a
+pathological case with duplicate exposed names — an accepted, documented risk, not a defect.
+
 ##### Error Handling
 
-N/A — none of the four methods validate arguments or throw; a `null` `viewNode` and an empty or
-non-existent `subjects`/workspace-declaration lookup are all treated as ordinary "no match" or
-"no scope" cases, not error conditions.
+None of the methods throw. A `null` `viewNode` and an empty or non-existent
+`subjects`/workspace-declaration lookup are treated as ordinary "no match" or "no scope" cases. A
+bracket-filter expression that fails to parse or evaluate is degraded gracefully to whole-subtree
+inclusion, recorded in `ExposedScope.Failures`, and surfaced only as a warning
+(`LayoutWarnings.ForUnevaluatedExposeBracketFilter`) — never as an exception or a rendering
+failure.
 
 ##### Dependencies
 
 - `SysmlWorkspace`, `SysmlViewNode`, `SysmlFeatureNode`, `SysmlDefinitionNode`, `SysmlEdge`,
-  `SysmlEdgeKind` (Semantic subsystem) — the workspace and view model read by
+  `SysmlEdgeKind`, `ExposeMember` (Semantic subsystem) — the workspace and view model read by
   `ResolveExposedScope`.
+- `FilterExpressionParser.Parse` / `FilterExpressionEvaluator.Evaluate` (Filtering subsystem,
+  Phase 2a) — reused unchanged to parse and evaluate each bracket-filtered `ExposeMember`'s
+  expression text against its own containment-subtree candidate set.
 - `StdlibFilter` (Rendering Internal subsystem) — referenced only in documentation, as the origin
   of the qualified-name-prefix idiom `IsInSubjectScope` reuses.
 - `ILayoutStrategy` (Rendering subsystem) — referenced only in documentation, identifying the
@@ -87,9 +141,9 @@ non-existent `subjects`/workspace-declaration lookup are all treated as ordinary
 
 ##### Callers
 
-- `GeneralViewLayoutStrategy` calls two of the four methods — `ResolveExposedScope` and
-  `IsInSubjectScope` (moved here verbatim from its own former private copies) — to filter its
-  workspace-wide model-edge collection directly; it has no single-root heuristic, so
+- `GeneralViewLayoutStrategy` calls `ResolveExposedScope` and `IsInSubjectScope` to filter its
+  workspace-wide model-edge collection directly, and threads `scope?.Failures` into
+  `LayoutWarnings.ForUnevaluatedExposeBracketFilter`; it has no single-root heuristic, so
   `IsRootRelevantToScope`/`IsMoreSpecificCandidate` do not apply to it.
 - `GridViewLayoutStrategy` and `BrowserViewLayoutStrategy` call `ResolveExposedScope` and
   `IsInSubjectScope` to filter their workspace-wide definition/tree-node collections directly (no
@@ -101,3 +155,12 @@ non-existent `subjects`/workspace-declaration lookup are all treated as ordinary
   relevant candidates by specificity (falling back to their own score only among equally specific
   candidates), and `IsInSubjectScope` to filter the child elements (parts, states, actions,
   lifelines) collected from the selected root.
+
+##### Requirements Traceability
+
+- `SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposeBracketFilterEvaluation` —
+  `ResolveExposedScope`'s per-entry bracket-filter parsing/evaluation and `ExposedScope.ExplicitMembers`
+- `SysML2Tools-Core-Filtering-BracketFormExposeEvaluation` — `ResolveExposedScope` reusing
+  `FilterExpressionParser.Parse`/`FilterExpressionEvaluator.Evaluate` unchanged
+- `SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedExposeBracketFilter` —
+  `ExposedScope.Failures`/`BracketFilterFailure`

@@ -43,15 +43,25 @@ sections:
 
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewExposedNames
         title: >-
-          SysmlViewNode shall expose ExposedNames: the raw reference text of each `expose
-          <name>;` member, empty when absent.
+          SysmlViewNode shall expose ExposeMembers: each `expose <name>[::**[<expr>]];` member's
+          qualified-name reference text paired with its own bracket-filter expression text (or
+          null when the entry carries no bracket filter), in source order; GetExposedNames()
+          shall return the qualified name of each entry as a computed convenience projection.
         justification: |
           Making a view's `expose` statements user-observable data is the prerequisite for
-          ReferenceResolver, which resolves ExposedNames into `Expose`-kind edges that
-          GeneralViewLayoutStrategy uses for scoping.
+          ReferenceResolver, which resolves GetExposedNames() into `Expose`-kind edges that
+          GeneralViewLayoutStrategy uses for scoping. Phase 1 originally captured each entry's
+          bracket-filter text on a separate, unpaired, flattened list
+          (`ExposeBracketFilterTexts`), making it impossible to tell which exposed path a given
+          bracket filter belonged to when a view declared more than one `expose` member; Phase 2a
+          fixes this by pairing each entry's path and bracket-filter text together as a single
+          `ExposeMember`, the prerequisite for `ExposeScopeResolver` to evaluate each entry's
+          bracket filter against that entry's own containment subtree.
         tests:
           - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
           - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
+          - AstBuilder_ExposeBracketFilter_CapturesRawText
+          - AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath
 
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewFilterExpression
         title: >-
@@ -64,17 +74,6 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
           - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
-
-      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewExposeBracketFilters
-        title: >-
-          SysmlViewNode shall expose ExposeBracketFilterTexts: the raw source text of each
-          bracketed `expose <path>::**[<expr>]` filter expression, empty when absent.
-        justification: |
-          Phase 1 defers bracket-filter evaluation but must preserve the captured expressions so
-          layout can surface a distinct warning and later phases can add real evaluation without
-          changing the semantic model.
-        tests:
-          - AstBuilder_ExposeBracketFilter_CapturesRawText
 
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-RedefinedFeatureName
         title: >-

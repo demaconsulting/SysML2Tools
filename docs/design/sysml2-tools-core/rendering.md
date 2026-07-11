@@ -55,14 +55,16 @@ flowchart TD
 - *Role*: Data transfer object.
 - *Contract*: `string ViewName`, `SysmlWorkspace Workspace`, `SysmlViewNode? ViewNode = null`.
   `ViewNode` is the view's resolved AST node, giving a layout strategy access to the view's
-  declared `render`/`expose`/`filter` body statements. Of these, only `ExposedNames` (and its
-  resolved `Expose` edges) drives content scoping — `RenderTargetName` never affects which
+  declared `render`/`expose`/`filter` body statements. Of these, only `ExposeMembers` (and its
+  resolved `Expose` edges, further narrowed per-entry (Phase 2a) by any successfully-evaluated
+  bracket-filter expression) drives content scoping — `RenderTargetName` never affects which
   elements are included in the diagram. `RenderTargetName` does, however, drive **strategy
   selection**: `DiagramTypeRouter` recognizes `asTreeDiagram` and `asInterconnectionDiagram` and
   routes to the browser and interconnection strategies respectively ahead of the name/supertype
   heuristic; any other value (including `null`, `asElementTable`, or `asTextualNotation`) remains
   inert, with no corresponding strategy selection or diagnostic. `FilterExpressionText` is
-  captured as raw text and not yet evaluated. `ViewNode` is `null` for the `--auto` synthesized
+  parsed and evaluated by `GeneralViewLayoutStrategy`. `ViewNode` is `null` for the `--auto`
+  synthesized
   view, which carries no AST node of its own.
 
 **Theme**: Visual configuration record.

@@ -33,13 +33,18 @@ external services or additional configuration are required beyond a standard .NE
 - `SysmlNode.Annotations` is populated by `AstBuilder` with captured `comment`/`doc` text for
   a node whose body contains one or more annotating elements, and is empty (never null) for a
   node with none.
-- `SysmlViewNode.RenderTargetName`/`FilterExpressionText`/`ExposedNames` are populated verbatim
-  from a view's `render`/`filter`/`expose` body members (raw reference/expression text, never
-  evaluated), and are `null`/empty for a view with no such members. `RenderTargetName` is
-  captured but never resolved into an edge or diagnostic (it names a rendering style/format, not
-  content); `ExposedNames` is the only field independently resolved by `ReferenceResolver`.
-- `SysmlViewNode.ExposeBracketFilterTexts` is populated verbatim from bracketed
-  `expose <path>::**[<expr>]` members and remains capture-only Phase 1 data.
+- `SysmlViewNode.RenderTargetName`/`FilterExpressionText` are populated verbatim from a view's
+  `render`/`filter` body members (raw reference/expression text, never resolved into an edge or
+  diagnostic here), and are `null` for a view with no such members. `SysmlViewNode.ExposeMembers`
+  is populated with one paired `ExposeMember(QualifiedName, BracketFilterExpressionText)` entry
+  per `expose <name>[::**[<expr>]];` member, in source order, and is empty for a view with none;
+  `GetExposedNames()`'s projected qualified names are the only data independently resolved by
+  `ReferenceResolver` into `Expose`-kind edges. Each entry's own `BracketFilterExpressionText` is
+  captured verbatim (raw expression text) and is paired with that same entry's `QualifiedName` —
+  fixing the earlier Phase 1 defect where a view declaring more than one `expose` member could not
+  reliably associate a bracket filter with the exposed path it was declared on. `AstBuilder`
+  itself never evaluates a captured bracket-filter expression; real evaluation (Phase 2a) is
+  `ExposeScopeResolver`'s responsibility.
 - `SysmlFeatureNode.RedefinedFeatureName` is populated verbatim from a feature's
   `redefines`/`:>>` clause (bare-name and qualified `Owner::feature` forms, both keyword and
   operator syntax), and is `null` for a feature with no redefinition. It is resolved by
@@ -59,8 +64,9 @@ external services or additional configuration are required beyond a standard .NE
 | `Annotations` populated | `WorkspaceLoader_LoadAsync_CommentAndDocumentation_CapturesBothInSourceOrder` |
 | `RenderTargetName` unresolved | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | `FilterExpressionText` verbatim | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
-| `SysmlViewNode.ExposedNames` from a `view` usage | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
-| `SysmlViewNode.ExposeBracketFilterTexts` verbatim | `AstBuilder_ExposeBracketFilter_CapturesRawText` |
+| `ExposeMembers` from a `view` usage | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
+| `ExposeMember` bracket-filter text paired to its path | `AstBuilder_ExposeBracketFilter_CapturesRawText` |
+| Bracket filter paired to entry | `AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath` |
 | Empty view body leaves all fields null/empty | `WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty` |
 | `RedefinedFeatureName` — `redefines` | `WorkspaceLoader_LoadAsync_RedefinesKeyword_CapturesRedefinedFeatureName` |
 | `RedefinedFeatureName` — `:>>` operator | `WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName` |
