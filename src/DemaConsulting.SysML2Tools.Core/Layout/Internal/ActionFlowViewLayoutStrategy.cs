@@ -127,7 +127,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
     /// scope-relevant, no root is chosen (an empty canvas results). When <paramref name="scope"/> is
     /// <see langword="null"/>, selection is the plain succession/action-count heuristic, unchanged.
     /// </summary>
-    private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
+    private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace, ExposedScope? scope)
     {
         SysmlDefinitionNode? best = null;
         string? bestQualifiedName = null;
@@ -180,7 +180,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
     private static (IReadOnlyList<ActionItem> Actions, Dictionary<string, int> Index) CollectActions(
         SysmlDefinitionNode root,
         Theme theme,
-        IReadOnlyList<string>? scope)
+        ExposedScope? scope)
     {
         var actions = new List<ActionItem>();
         var index = new Dictionary<string, int>(StringComparer.Ordinal);

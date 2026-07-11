@@ -5,10 +5,12 @@
 ### Overview
 
 The Filtering subsystem parses and evaluates the Phase 1 subset of standalone view
-`filter [<expr>];` expressions captured on `SysmlViewNode.FilterExpressionText`. It contains one
-unit, `FilterExpressionEvaluator`, whose implementation spans three tightly-coupled source files:
-`FilterExpression` (the abstract syntax tree), `FilterExpressionParser` (the ANTLR-backed parser
-adapter), and `FilterExpressionEvaluator` (the metadata-driven boolean evaluator).
+`filter [<expr>];` expressions captured on `SysmlViewNode.FilterExpressionText`, and (Phase 2a)
+the same subset of bracket-form `expose <path>::**[<expr>];` expressions captured per-entry on
+`SysmlViewNode.ExposeMembers`. It contains one unit, `FilterExpressionEvaluator`, whose
+implementation spans three tightly-coupled source files: `FilterExpression` (the abstract syntax
+tree), `FilterExpressionParser` (the ANTLR-backed parser adapter), and `FilterExpressionEvaluator`
+(the metadata-driven boolean evaluator).
 
 This subsystem is intentionally narrow in Phase 1: it supports metadata classification tests,
 boolean connectives, parenthesization, and `(as Type).attribute` reads (bare or compared against a
@@ -79,6 +81,13 @@ flowchart TD
 7. The subsystem never throws for malformed or unsupported filter text. `GeneralViewLayoutStrategy`
    uses parser diagnostics as the reason string when it falls back to rendering the unfiltered
    resolved scope.
+8. (Phase 2a) `ExposeScopeResolver` reuses `Parse`/`Evaluate` unchanged for bracket-form
+   `expose <path>::**[<expr>];` entries: it computes a per-entry candidate set restricted to
+   `SysmlDefinitionNode`s within that entry's own target containment subtree (mirroring
+   `GeneralViewLayoutStrategy.CollectDefinitions`'s existing restriction), calls `Evaluate` with
+   that candidate set, and adds the matched subset to the resolved scope's `ExplicitMembers`. No
+   change was required in this subsystem to support the second caller, confirming the evaluator's
+   candidate-set-agnostic design.
 
 ### Design Constraints
 
@@ -94,3 +103,4 @@ flowchart TD
 | Requirement ID | Satisfied by |
 | --- | --- |
 | SysML2Tools-Core-Filtering-StandaloneViewFilterEvaluation | `Parse`, `Evaluate`, and `FilterExpression.ToString()` |
+| SysML2Tools-Core-Filtering-BracketFormExposeEvaluation | `ExposeScopeResolver` reusing `Parse`/`Evaluate` |

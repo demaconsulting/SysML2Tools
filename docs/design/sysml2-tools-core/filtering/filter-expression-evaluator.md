@@ -103,6 +103,12 @@ shape leaves room for future evaluation-time diagnostics without a breaking API 
   `FilterExpressionParser.Parse`, evaluates successful ASTs with `FilterExpressionEvaluator.Evaluate`,
   narrows its candidate definition set to the matched subset, and falls back to an unfiltered
   render with a warning when parsing produces diagnostics.
+- (Phase 2a) `ExposeScopeResolver.ResolveExposedScope` parses each `ExposeMember`'s
+  `BracketFilterExpressionText` with `FilterExpressionParser.Parse`, evaluates successful ASTs
+  with `FilterExpressionEvaluator.Evaluate` against that entry's own containment-subtree
+  candidate set, adds matches to the resolved `ExposedScope.ExplicitMembers`, and falls back to
+  whole-subtree inclusion (`PrefixSubjects`) plus a recorded `BracketFilterFailure` on parse or
+  evaluation failure. No change was required in this unit to support this second caller.
 - `FilterExpressionParserTests` and `FilterExpressionEvaluatorTests` exercise the parser,
   pretty-printer, and evaluator directly.
 

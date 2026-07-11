@@ -179,8 +179,9 @@ public sealed class AstBuilderMetadataTests
 
     /// <summary>
     ///     An <c>expose &lt;path&gt;::**[&lt;expr&gt;]</c> bracket-filter member captures its raw
-    ///     expression text on <see cref="SysmlViewNode.ExposeBracketFilterTexts"/>, without
-    ///     evaluating it (Phase 1 capture-only per the ROADMAP).
+    ///     expression text paired with its exposed path on <see cref="SysmlViewNode.ExposeMembers"/>
+    ///     (Phase 2a fixes the earlier flattened, unpaired capture — see
+    ///     <see cref="AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath"/>).
     /// </summary>
     [Fact]
     public async Task AstBuilder_ExposeBracketFilter_CapturesRawText()
@@ -213,8 +214,70 @@ public sealed class AstBuilderMetadataTests
             Assert.NotNull(result.Workspace);
             Assert.True(result.Workspace!.Declarations.TryGetValue("P::V", out var view));
             var viewNode = Assert.IsType<SysmlViewNode>(view);
-            var bracketFilterText = Assert.Single(viewNode.ExposeBracketFilterTexts);
-            Assert.Equal("@Safety", bracketFilterText);
+            var member = Assert.Single(viewNode.ExposeMembers);
+            Assert.Equal("P", member.QualifiedName);
+            Assert.Equal("@Safety", member.BracketFilterExpressionText);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A view with two <c>expose</c> members, only one of which carries a bracket filter, pairs
+    ///     each entry with its own path and (possibly null) filter text independently — the Phase 2a
+    ///     fix for the earlier flattened, unpaired <c>ExposedNames</c>/<c>ExposeBracketFilterTexts</c>
+    ///     lists that made it impossible to tell which exposed path a given bracket filter belonged
+    ///     to.
+    /// </summary>
+    [Fact]
+    public async Task AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(
+                tempFile,
+                """
+                package P {
+                    metadata def Safety {
+                        attribute isMandatory : Boolean;
+                    }
+
+                    part def Engine {
+                        @Safety;
+                    }
+
+                    part def Chassis;
+
+                    view V {
+                        expose Chassis;
+                        expose Engine::**[@Safety];
+                    }
+                }
+                """,
+                TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            Assert.True(result.Workspace!.Declarations.TryGetValue("P::V", out var view));
+            var viewNode = Assert.IsType<SysmlViewNode>(view);
+
+            Assert.Equal(2, viewNode.ExposeMembers.Count);
+            var chassisMember = viewNode.ExposeMembers[0];
+            Assert.Equal("Chassis", chassisMember.QualifiedName);
+            Assert.Null(chassisMember.BracketFilterExpressionText);
+
+            var engineMember = viewNode.ExposeMembers[1];
+            Assert.Equal("Engine", engineMember.QualifiedName);
+            Assert.Equal("@Safety", engineMember.BracketFilterExpressionText);
+
+            // GetExposedNames() remains the flat qualified-name projection consumed by
+            // ReferenceResolver, unaffected by which entries carry a bracket filter.
+            Assert.Equal(["Chassis", "Engine"], viewNode.GetExposedNames());
         }
         finally
         {

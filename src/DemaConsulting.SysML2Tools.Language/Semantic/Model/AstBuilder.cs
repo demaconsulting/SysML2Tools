@@ -1004,16 +1004,15 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var bodyItems = context.viewBody()?.viewBodyItem() ?? [];
 
         var (renderTargetName, filterExpressionText) = ExtractViewRenderAndFilter(bodyItems);
-        var (exposedNames, exposeBracketFilterTexts) = ExtractExposedNames(bodyItems);
+        var exposeMembers = ExtractExposedNames(bodyItems);
 
         return new SysmlViewNode
         {
             Name = name,
             QualifiedName = qualifiedName,
             RenderTargetName = renderTargetName,
-            ExposedNames = exposedNames,
+            ExposeMembers = exposeMembers,
             FilterExpressionText = filterExpressionText,
-            ExposeBracketFilterTexts = exposeBracketFilterTexts,
         };
     }
 
@@ -1106,15 +1105,15 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <summary>
-    ///     Collects the raw reference text of every <c>expose &lt;name&gt;;</c> member in a
-    ///     <c>view</c> usage's body, in source order, reusing <see cref="ExtractImportTarget"/> —
-    ///     the same namespace/membership-import shape <c>import</c> statements use.
+    ///     Collects each <c>expose &lt;name&gt;;</c> member in a <c>view</c> usage's body, in
+    ///     source order, paired with its own bracket-filter text (if any) — reusing
+    ///     <see cref="ExtractImportTarget"/>, the same namespace/membership-import shape
+    ///     <c>import</c> statements use.
     /// </summary>
-    private static (IReadOnlyList<string> ExposedNames, IReadOnlyList<string> BracketFilterTexts) ExtractExposedNames(
+    private static IReadOnlyList<ExposeMember> ExtractExposedNames(
         IEnumerable<SysMLv2Parser.ViewBodyItemContext> bodyItems)
     {
-        var names = new List<string>();
-        var bracketFilterTexts = new List<string>();
+        var members = new List<ExposeMember>();
         foreach (var item in bodyItems)
         {
             var expose = item.expose();
@@ -1128,16 +1127,11 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 expose.membershipExpose()?.membershipImport());
             if (qn is { Length: > 0 })
             {
-                names.Add(qn);
-            }
-
-            if (bracketFilterText is { Length: > 0 })
-            {
-                bracketFilterTexts.Add(bracketFilterText);
+                members.Add(new ExposeMember(qn, bracketFilterText));
             }
         }
 
-        return (names, bracketFilterTexts);
+        return members;
     }
 
     /// <inheritdoc/>
@@ -1219,10 +1213,10 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             // namespaceImport -> filterPackage -> filterPackageImportDeclaration -> (membershipImport
             // | namespaceImportDirect). Descend through that chain rather than only checking the
             // direct qualifiedName() child (which is null for this alternative). The bracket
-            // expression text itself is captured raw only (Phase 1 does not evaluate it — see
-            // SysmlViewNode.ExposeBracketFilterTexts) from the filterPackage's first
+            // expression text itself is captured raw here from the filterPackage's first
             // filterPackageMember (multiple bracket filters chained on one path are extremely
-            // rare; the first is representative for the "unevaluated" warning).
+            // rare; the first is representative); it is paired with its ExposeMember by
+            // ExtractExposedNames and evaluated per-entry by ExposeScopeResolver (Phase 2a).
             var filterPackage = namespaceImport.filterPackage();
             var bracketFilterText = filterPackage?.filterPackageMember()?.FirstOrDefault()?.ownedExpression() is { } bracketExpr
                 ? GetOriginalText(bracketExpr)

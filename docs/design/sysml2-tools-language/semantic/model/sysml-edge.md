@@ -35,12 +35,14 @@ transition, and expose references, and are the raw material indexed by `Semantic
   source and target resolve — an implied/omitted source produces no edge.
 - `Expose` — a view usage's resolved exposed-name reference (`expose <name>;`, valid only inside
   a `view` usage's body), sourced from the view's qualified name and targeting each resolvable
-  entry in `SysmlViewNode.ExposedNames`, one `Expose` edge per entry. `Expose` is the sole
-  view-scoping edge kind: `GeneralViewLayoutStrategy` scopes its diagram to the union of every
-  `Expose` edge's target containment subtree; a view with no `Expose` edges renders the full
-  workspace, unchanged from the pre-scoping baseline. `SysmlViewNode.RenderTargetName` (a
-  rendering-style/format selector, e.g. `asTreeDiagram`) is captured but never resolved into an
-  edge and has no effect on scope.
+  entry's `ExposeMember.QualifiedName` in `SysmlViewNode.ExposeMembers`, one `Expose` edge per
+  entry. `Expose` is the sole view-scoping edge kind: `GeneralViewLayoutStrategy` scopes its
+  diagram to the union of every `Expose` edge's target containment subtree, further narrowed
+  per-entry (Phase 2a) when that entry's own `ExposeMember.BracketFilterExpressionText` parses and
+  evaluates successfully; a view with no `Expose` edges renders the full workspace, unchanged
+  from the pre-scoping baseline. `SysmlViewNode.RenderTargetName` (a rendering-style/format
+  selector, e.g. `asTreeDiagram`) is captured but never resolved into an edge and has no effect on
+  scope.
 - `Redefinition` — a feature redefinition reference (`redefines X;` / `:>> X`), sourced from the
   redefining feature's own qualified name (`SysmlFeatureNode.RedefinedFeatureName`) and
   targeting the resolved redefined-feature reference. Rendered by `GeneralViewLayoutStrategy` as

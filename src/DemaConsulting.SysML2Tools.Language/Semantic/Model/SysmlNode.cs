@@ -281,13 +281,22 @@ public sealed class SysmlViewNode : SysmlNode
     public string? RenderTargetName { get; init; }
 
     /// <summary>
-    ///     Gets the raw reference text of each <c>expose &lt;name&gt;;</c> member nested in this
-    ///     view's body, in source order. Empty when the view declares no <c>expose</c> members.
-    ///     Each entry is resolved by <see cref="ReferenceResolver"/> into a
-    ///     <see cref="SysmlEdgeKind.Expose"/> edge when it resolves, or an unresolved-reference
-    ///     diagnostic when it does not.
+    ///     Gets each <c>expose &lt;name&gt;;</c> member nested in this view's body, in source
+    ///     order, paired with its own bracketed filter expression text (if any). Empty when the
+    ///     view declares no <c>expose</c> members. Each entry's <see cref="ExposeMember.QualifiedName"/>
+    ///     is resolved by <see cref="ReferenceResolver"/> into a <see cref="SysmlEdgeKind.Expose"/>
+    ///     edge when it resolves, or an unresolved-reference diagnostic when it does not.
     /// </summary>
-    public IReadOnlyList<string> ExposedNames { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<ExposeMember> ExposeMembers { get; init; } = Array.Empty<ExposeMember>();
+
+    /// <summary>
+    ///     Gets the qualified name of each <c>expose &lt;name&gt;;</c> member nested in this view's
+    ///     body, in source order — a computed convenience projection of
+    ///     <see cref="ExposeMembers"/> retained for source-level compatibility with existing
+    ///     readers (e.g. <see cref="ReferenceResolver"/>'s <c>Expose</c> edge construction).
+    /// </summary>
+    /// <returns>The qualified name of each <c>expose</c> member, in source order.</returns>
+    public IReadOnlyList<string> GetExposedNames() => ExposeMembers.Select(m => m.QualifiedName).ToList();
 
     /// <summary>
     ///     Gets the raw source text of this view's <c>filter [&lt;expression&gt;];</c> statement
@@ -300,17 +309,32 @@ public sealed class SysmlViewNode : SysmlNode
     /// </summary>
     public string? FilterExpressionText { get; init; }
 
-    /// <summary>
-    ///     Gets the raw source text of every bracketed <c>expose &lt;path&gt;::**[&lt;expr&gt;]</c>
-    ///     filter expression found among this view's <c>expose</c> members, in source order.
-    ///     Captured verbatim only (from <c>filterPackageMember().ownedExpression().GetText()</c>) —
-    ///     no expression tree is built and no evaluation is performed in Phase 1; a non-empty list
-    ///     causes <c>GeneralViewLayoutStrategy</c> to emit an "unevaluated" warning distinct from
-    ///     <see cref="FilterExpressionText"/>'s. Full bracket-filter evaluation is deferred future
-    ///     work — see the project ROADMAP.
-    /// </summary>
-    public IReadOnlyList<string> ExposeBracketFilterTexts { get; init; } = Array.Empty<string>();
 }
+
+/// <summary>
+///     A single <c>expose &lt;path&gt;[::**[&lt;expr&gt;]];</c> member nested in a
+///     <see cref="SysmlViewNode"/>'s body, pairing the exposed path's raw reference text with its
+///     own bracketed filter expression text (if any) — fixing a Phase 1 gap where a view's
+///     multiple <c>expose</c> members' paths and bracket-filter texts were captured as two
+///     separate, unpaired, flattened lists (<c>ExposedNames</c>/<c>ExposeBracketFilterTexts</c>),
+///     making it impossible to tell which exposed path a given bracket filter belonged to.
+/// </summary>
+/// <param name="QualifiedName">
+///     The raw reference text of the exposed path (e.g. <c>"vehicle"</c> or <c>"Pkg::vehicle"</c>).
+///     Resolved by <see cref="ReferenceResolver"/> into a <see cref="SysmlEdgeKind.Expose"/> edge
+///     when it resolves, or an unresolved-reference diagnostic when it does not.
+/// </param>
+/// <param name="BracketFilterExpressionText">
+///     The raw source text of this entry's bracketed filter expression (from
+///     <c>expose &lt;path&gt;::**[&lt;expr&gt;]</c>'s
+///     <c>filterPackageMember().ownedExpression().GetText()</c>), or <see langword="null"/> when
+///     this entry declares no bracket filter. Parsed (via <c>FilterExpressionParser.Parse</c>) and
+///     evaluated (via <c>FilterExpressionEvaluator.Evaluate</c>) by
+///     <c>ExposeScopeResolver</c> to narrow this entry's own contribution to the view's exposed
+///     scope to the matching descendant definitions only, falling back to whole-subtree inclusion
+///     (plus a diagnostic) when the expression fails to parse or evaluate.
+/// </param>
+public sealed record ExposeMember(string QualifiedName, string? BracketFilterExpressionText);
 
 /// <summary>
 ///     AST node representing a viewpoint definition.

@@ -16,7 +16,7 @@ connections, transitions, and requirement-satisfaction usages.
 | `SysmlFeatureNode` | Feature/usage element |
 | `SysmlImportNode` | Import declaration; adds ImportedNamespace, IsWildcard |
 | `SysmlMetadataNode` | Applied metadata annotation; adds TypeReference and Attributes |
-| `SysmlViewNode` | View definition; adds RenderTargetName, ExposedNames, and filter-expression fields |
+| `SysmlViewNode` | View definition; adds RenderTargetName, ExposeMembers, and filter-expression fields |
 | `SysmlViewpointNode` | Viewpoint definition |
 | `SysmlConnectionNode` | Connection/binding/allocation usage; adds ConnectionKeyword, EndpointA, EndpointB |
 | `SysmlTransitionNode` | State transition; adds Source, Target, Guard |
@@ -132,22 +132,30 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   produced, no diagnostic is emitted), and it has no effect on `GeneralViewLayoutStrategy`'s
   rendered scope. Reserved for a possible future capability that selects among rendering-style
   strategies — see the project ROADMAP.
-- `ExposedNames` — the raw reference text of each `expose <name>;` member in a `view` usage's
-  body, in source order, or empty when none are present (and always empty for a `view def`
-  definition — `expose` is only valid grammar inside a `view` usage's body). Extracted by
-  `AstBuilder.ExtractExposedNames`, sharing the same `ExtractImportTarget` helper `VisitImportRule`
-  uses for plain `import`. Each entry is independently resolved by `ReferenceResolver` into a
+- `ExposeMembers` — each `expose <name>[::**[<expr>]];` member in a `view` usage's body, in
+  source order, paired as an `ExposeMember(string QualifiedName, string? BracketFilterExpressionText)`
+  record — the qualified-name reference text plus that specific entry's own bracket-filter
+  expression text, or null when the entry carries none. Empty when no `expose` members are
+  present (and always empty for a `view def` definition — `expose` is only valid grammar inside a
+  `view` usage's body). Extracted by `AstBuilder.ExtractExposedNames`, sharing the same
+  `ExtractImportTarget` helper `VisitImportRule` uses for plain `import`. `GetExposedNames()`
+  projects each entry's `QualifiedName` as a computed convenience list (a method rather than a
+  property, since a property returning a freshly-projected collection trips SonarAnalyzer S2365).
+  Each entry's `QualifiedName` is independently resolved by `ReferenceResolver` into a
   `SysmlEdgeKind.Expose` edge, or an unresolved-reference diagnostic (and no edge) for that
-  entry. This is the sole field `GeneralViewLayoutStrategy` uses to scope a rendered diagram.
+  entry. `GeneralViewLayoutStrategy` (via the shared `ExposeScopeResolver`) uses this to scope a
+  rendered diagram, and (Phase 2a) re-pairs each resolved edge back to its originating
+  `ExposeMember` to evaluate that entry's own `BracketFilterExpressionText`, if any, against that
+  entry's own containment subtree. Phase 1 originally captured each entry's bracket-filter text on
+  a separate, unpaired, flattened `ExposeBracketFilterTexts` list alongside an equally flattened
+  `ExposedNames` list, making it impossible to tell which exposed path a given bracket filter
+  belonged to when a view declared more than one `expose` member; `ExposeMembers` fixes this
+  defect by pairing the two together at capture time.
 - `FilterExpressionText` — the raw source text of the view's `filter [<expr>];` member's
   bracketed expression, or null when absent. Captured verbatim by `AstBuilder` (using the
   original token spacing, not `RuleContext.GetText()`'s whitespace-stripped form) and never
   inspected by `ReferenceResolver`. The Core Filtering subsystem parses and evaluates this raw
   text later when `GeneralViewLayoutStrategy` renders the view.
-- `ExposeBracketFilterTexts` — the raw source text of each bracketed
-  `expose <path>::**[<expr>]` filter expression, in source order. Phase 1 captures these
-  expressions but does not evaluate them; `GeneralViewLayoutStrategy` surfaces a dedicated
-  warning when this list is non-empty.
 
 ##### Error Handling
 
@@ -167,8 +175,8 @@ elements are filtered out by `AstBuilder` before a node is constructed.
   `VerifiedRequirementNames` via the recursive verification-member finder; builds `SysmlSatisfyNode`
   instances from `satisfyRequirementUsage` via `VisitSatisfyRequirementUsage`, and the
   `"allocation"` `SysmlConnectionNode` variant via `VisitAllocationUsage`; builds `SysmlViewNode`
-  instances (setting `RenderTargetName`/`FilterExpressionText`, and additionally `ExposedNames`
-  and `ExposeBracketFilterTexts` for usages) from both `VisitViewDefinition` (`view def`) and
+  instances (setting `RenderTargetName`/`FilterExpressionText`, and additionally `ExposeMembers`
+  for usages) from both `VisitViewDefinition` (`view def`) and
   `VisitViewUsage` (`view`, the only form that can carry `expose`); builds `SysmlMetadataNode`
   children from `metadataFeature` annotations.
 - `SymbolTable` — traverses the node hierarchy via `Children`; reads `QualifiedName`.
@@ -177,8 +185,10 @@ elements are filtered out by `AstBuilder` before a node is constructed.
   `VerifiedRequirementNames`, `Children`; checks for `SysmlImportNode`, `SysmlSatisfyNode`, the
   `"allocation"` `SysmlConnectionNode` variant, the `"connection"`/`"message"`
   `SysmlConnectionNode` variants, `SysmlTransitionNode`, and `SysmlViewNode` (reading
-  `ExposedNames`; `RenderTargetName`/`FilterExpressionText`/`ExposeBracketFilterTexts` are never
-  read), and `SysmlMetadataNode` (reading `TypeReference`); writes `ResolvedEdges` after
-  resolving references (in two passes — supertype/typing/redefinition/metadata-type/import/
-  satisfy/verify/allocate/expose, then feature-chain connect/transition).
+  `GetExposedNames()`; `RenderTargetName`/`FilterExpressionText`/`ExposeMembers`'
+  `BracketFilterExpressionText` are never read here — bracket-filter evaluation is
+  `ExposeScopeResolver`'s responsibility), and `SysmlMetadataNode` (reading `TypeReference`);
+  writes `ResolvedEdges` after resolving references (in two passes — supertype/typing/
+  redefinition/metadata-type/import/satisfy/verify/allocate/expose, then feature-chain
+  connect/transition).
 - `SupertypeWalker` — reads `SupertypeNames` on each node retrieved from `SymbolTable`.

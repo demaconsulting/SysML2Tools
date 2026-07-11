@@ -760,7 +760,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["c1"],
+            ExposeMembers = [new ExposeMember("c1", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::SysA::SysC::c1", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -953,7 +953,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["SysB"],
+            ExposeMembers = [new ExposeMember("SysB", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::SysB", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -1025,7 +1025,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["AB", "MuchLongerSiblingName"],
+            ExposeMembers = [new ExposeMember("AB", null), new ExposeMember("MuchLongerSiblingName", null)],
             ResolvedEdges =
             [
                 new SysmlEdge("M::V", "M::AB", SysmlEdgeKind.Expose),
@@ -1055,7 +1055,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["b1"],
+            ExposeMembers = [new ExposeMember("b1", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::SysB::b1", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -1086,7 +1086,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["Unrelated"],
+            ExposeMembers = [new ExposeMember("Unrelated", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::Unrelated", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -1111,7 +1111,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["a1"],
+            ExposeMembers = [new ExposeMember("a1", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::SysA::a1", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -1140,7 +1140,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["a1", "a2"],
+            ExposeMembers = [new ExposeMember("a1", null), new ExposeMember("a2", null)],
             ResolvedEdges =
             [
                 new SysmlEdge("M::V", "M::SysA::a1", SysmlEdgeKind.Expose),
@@ -1179,7 +1179,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposedNames = ["myPart"],
+            ExposeMembers = [new ExposeMember("myPart", null)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::myPart", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);

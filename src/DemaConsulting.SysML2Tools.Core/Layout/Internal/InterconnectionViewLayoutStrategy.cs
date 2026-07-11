@@ -159,7 +159,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         int depth,
         IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
         ISet<string> visited,
-        IReadOnlyList<string>? scope)
+        ExposedScope? scope)
     {
         var parts = CollectParts(def, theme, depth, defsByName, visited, scope);
         var partIndex = BuildPartIndex(parts);
@@ -281,7 +281,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// existing null-root path). When <paramref name="scope"/> is <see langword="null"/>, selection is
     /// the plain connections/parts heuristic, unchanged.
     /// </summary>
-    private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
+    private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace, ExposedScope? scope)
     {
         SysmlDefinitionNode? best = null;
         string? bestQualifiedName = null;
@@ -340,7 +340,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         int depth,
         IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
         ISet<string> visited,
-        IReadOnlyList<string>? scope)
+        ExposedScope? scope)
     {
         var result = new List<PartItem>();
         foreach (var feature in root.Children.OfType<SysmlFeatureNode>())

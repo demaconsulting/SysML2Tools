@@ -40,7 +40,9 @@ relationships.
 ###### `BuildLayout(ViewContext context, RenderOptions options)`
 
 Entry point. First resolves the view's exposed-name scope via the shared
-`ExposeScopeResolver.ResolveExposedScope` (see the *ExposeScopeResolver* unit chapter), then calls
+`ExposeScopeResolver.ResolveExposedScope` (see the *ExposeScopeResolver* unit chapter) — which
+(Phase 2a) already narrows any bracket-filtered `expose` entry to its matched definitions and
+records any bracket-filter parse/evaluation failures on `scope.Failures` — then calls
 `CollectDefinitions` to gather user definitions restricted to that scope (or every definition when
 no scope applies); returns a minimal 200×100 empty `LayoutTree` when none are found. If the view
 carries standalone `FilterExpressionText`, the method next parses it with
@@ -60,8 +62,10 @@ is never misled into skipping the hierarchical engine. When any package folder w
 `DecorateTruncatedFolders` stamps each truncated folder's "+N more…" ellipsis label onto its placed
 box. Finally, the returned tree's `Warnings` concatenates
 `LayoutWarnings.ForUnevaluatedFilter` (only when standalone filter parsing/evaluation failed) with
-`LayoutWarnings.ForUnevaluatedExposeBracketFilter` (for the still-capture-only
-`expose <path>::**[<expr>]` form) via the `LayoutTree with { Warnings = … }` record-copy idiom.
+`LayoutWarnings.ForUnevaluatedExposeBracketFilter(context.ViewName, scope?.Failures ?? [])` (Phase
+2a: one warning per bracket-filter expression that failed to parse or evaluate — a
+successfully-evaluated bracket filter now has real narrowing effect and produces no warning) via
+the `LayoutTree with { Warnings = … }` record-copy idiom.
 
 ###### `CollectDefinitions(workspace, theme, scope)`
 
@@ -175,7 +179,7 @@ produces valid geometry, so no crossing warnings are emitted.
   evaluate standalone `filter [<expr>];` statements over the already expose-scoped definition set.
 - `LayoutWarnings` (Layout Internal subsystem) — `ForUnevaluatedFilter` and
   `ForUnevaluatedExposeBracketFilter` supply the warning text for standalone-filter fallback and
-  still-unevaluated expose bracket filters.
+  (Phase 2a) failed expose bracket filters only.
 - The `LayoutTree`, `LayoutBox`, `LayoutCompartment`, `LayoutLine`, `LayoutLabel`, and `Point2D` data
   types (`DemaConsulting.Rendering`).
 - `FeatureMembership` (private record) — carries the keyword, nullable type reference, simple

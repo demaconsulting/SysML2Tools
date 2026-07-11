@@ -313,7 +313,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "SM::V",
-            ExposedNames = ["MachineB"],
+            ExposeMembers = [new ExposeMember("MachineB", null)],
             ResolvedEdges = [new SysmlEdge("SM::V", "SM::MachineB", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -341,7 +341,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "SM::V",
-            ExposedNames = ["b1"],
+            ExposeMembers = [new ExposeMember("b1", null)],
             ResolvedEdges = [new SysmlEdge("SM::V", "SM::MachineB::b1", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -414,7 +414,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "SM::V",
-            ExposedNames = ["b1"],
+            ExposeMembers = [new ExposeMember("b1", null)],
             ResolvedEdges = [new SysmlEdge("SM::V", "SM::MachineA::MachineB::b1", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -440,7 +440,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "SM::V",
-            ExposedNames = ["Unrelated"],
+            ExposeMembers = [new ExposeMember("Unrelated", null)],
             ResolvedEdges = [new SysmlEdge("SM::V", "SM::Unrelated", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -468,7 +468,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "SM::V",
-            ExposedNames = ["s1"],
+            ExposeMembers = [new ExposeMember("s1", null)],
             ResolvedEdges = [new SysmlEdge("SM::V", "SM::MachineA::s1", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -508,7 +508,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "SM::V",
-            ExposedNames = ["myMachine"],
+            ExposeMembers = [new ExposeMember("myMachine", null)],
             ResolvedEdges = [new SysmlEdge("SM::V", "SM::myMachine", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);

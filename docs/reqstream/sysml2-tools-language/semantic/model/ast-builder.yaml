@@ -83,19 +83,25 @@ sections:
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewExposedNames
         title: >-
-          AstBuilder shall capture the raw reference text of each `expose <name>;` member
-          (`view` usages only, in source order) on the corresponding SysmlViewNode's
-          ExposedNames property.
+          AstBuilder shall capture each `expose <name>[::**[<expr>]];` member (`view` usages
+          only, in source order) as a paired `ExposeMember` — qualified-name reference text plus
+          its own bracket-filter expression text (or null when absent) — on the corresponding
+          SysmlViewNode's ExposeMembers property.
         justification: |
           Capturing this data during AST construction is the prerequisite for ReferenceResolver
-          to resolve the `expose` references into edges that GeneralViewLayoutStrategy uses for
-          scoping. `expose` is only valid grammar inside a `view` usage's body, not a `view def`
-          definition's body.
+          to resolve each entry's qualified name into edges that GeneralViewLayoutStrategy uses
+          for scoping. `expose` is only valid grammar inside a `view` usage's body, not a
+          `view def` definition's body. Pairing each entry's path with its own bracket-filter
+          text (rather than the earlier Phase 1 flattened, unpaired `ExposedNames`/
+          `ExposeBracketFilterTexts` lists) is the Phase 2a prerequisite for
+          `ExposeScopeResolver` to evaluate a bracket filter against the specific path it was
+          declared on, when a view declares more than one `expose` member.
         tests:
           - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
           - WorkspaceLoader_LoadAsync_ViewUsageWithBracketedFilterExpose_RecordsExposeEdge
           - WorkspaceLoader_LoadAsync_ViewUsageWithPlainWildcardExpose_RecordsExposeEdge
           - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
+          - AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewUsageExpose
         title: >-
@@ -154,11 +160,16 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ExposeBracketFilterText
         title: >-
           AstBuilder shall capture the raw expression text of each bracketed
-          `expose <path>::**[<expr>]` member on the corresponding SysmlViewNode's
-          ExposeBracketFilterTexts property without evaluating the expression.
+          `expose <path>::**[<expr>]` member alongside that entry's own qualified-name reference
+          text, as a paired ExposeMember on the corresponding SysmlViewNode's ExposeMembers
+          property, without evaluating the expression itself.
         justification: |
-          Phase 1 defers bracket-filter evaluation but must preserve the expression text so layout
-          can surface a distinct "parsed but not yet evaluated" warning and Phase 2 can add real
-          evaluation without changing the AST capture path.
+          AstBuilder's own responsibility ends at raw, paired text capture; real evaluation of
+          the captured expression (Phase 2a) is `ExposeScopeResolver`'s responsibility, given the
+          per-entry candidate set only that unit can compute (a target's containment subtree of
+          definitions). Preserving the pairing at capture time — rather than the earlier flattened
+          `ExposeBracketFilterTexts` list — is what makes correct per-entry evaluation possible
+          when a view declares more than one `expose` member.
         tests:
           - AstBuilder_ExposeBracketFilter_CapturesRawText
+          - AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath

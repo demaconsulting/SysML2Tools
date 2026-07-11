@@ -70,7 +70,7 @@ public enum SysmlEdgeKind
     ///     A view expose reference (<c>expose &lt;name&gt;;</c> nested in a view's body), from
     ///     the view to a resolved element whose containment subtree is included in the rendered
     ///     scope. One edge is recorded per resolvable entry in
-    ///     <see cref="SysmlViewNode.ExposedNames"/>; an unresolved entry produces an
+    ///     <see cref="SysmlViewNode.ExposeMembers"/>; an unresolved entry produces an
     ///     unresolved-reference diagnostic instead. <c>GeneralViewLayoutStrategy</c> scopes its
     ///     diagram to the union of every <see cref="Expose"/> edge's target containment subtree;
     ///     a view with no <see cref="Expose"/> edges renders the full workspace, unchanged from

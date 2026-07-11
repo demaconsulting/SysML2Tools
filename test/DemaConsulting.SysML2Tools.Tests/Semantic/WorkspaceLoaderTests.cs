@@ -3013,7 +3013,7 @@ public sealed class WorkspaceLoaderTests
             Assert.NotNull(result.Workspace);
             var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
                 result.Workspace!.Declarations["P::V"]);
-            Assert.Contains("Exposed", view.ExposedNames);
+            Assert.Contains("Exposed", view.GetExposedNames());
             Assert.Contains(result.Workspace!.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose &&
                      e.SourceQualifiedName == "P::V" &&
@@ -3061,7 +3061,7 @@ public sealed class WorkspaceLoaderTests
             Assert.NotNull(result.Workspace);
             var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
                 result.Workspace!.Declarations["P::V"]);
-            Assert.Contains("Exposed", view.ExposedNames);
+            Assert.Contains("Exposed", view.GetExposedNames());
             Assert.Contains(result.Workspace!.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose &&
                      e.SourceQualifiedName == "P::V" &&
@@ -3103,7 +3103,7 @@ public sealed class WorkspaceLoaderTests
             Assert.NotNull(result.Workspace);
             var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
                 result.Workspace!.Declarations["P::V"]);
-            Assert.Contains("Exposed", view.ExposedNames);
+            Assert.Contains("Exposed", view.GetExposedNames());
             Assert.Contains(result.Workspace!.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose &&
                      e.SourceQualifiedName == "P::V" &&
@@ -3120,9 +3120,11 @@ public sealed class WorkspaceLoaderTests
     ///     <c>11b-SafetyAndSecurityFeatureViews.sysml</c> must resolve
     ///     <c>vehicleMandatorySafetyFeatureViewStandalone</c>'s bracketed-filter
     ///     <c>expose vehicle::**[@Safety and (as Safety).isMandatory];</c> member into a non-empty
-    ///     <c>ExposedNames</c> list and a resolved <c>Expose</c> edge to <c>vehicle</c> — the exact
-    ///     scenario confirmed broken (empty <c>ExposedNames</c>, zero edges, no diagnostic) before
-    ///     the <c>ExtractImportTarget</c> fix.
+    ///     <c>GetExposedNames()</c> list, a resolved <c>Expose</c> edge to <c>vehicle</c>, and (per
+    ///     Phase 2a) a paired <see cref="DemaConsulting.SysML2Tools.Semantic.Model.ExposeMember"/>
+    ///     entry carrying the bracket filter's raw expression text — the exact scenario confirmed
+    ///     broken (empty <c>GetExposedNames()</c>, zero edges, no diagnostic) before the
+    ///     <c>ExtractImportTarget</c> fix.
     /// </summary>
     // cspell:ignore Feaure -- typo present verbatim in the real OMG corpus fixture's package name
     [Fact]
@@ -3150,17 +3152,19 @@ public sealed class WorkspaceLoaderTests
         Assert.NotNull(result.Workspace);
         var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
             result.Workspace!.Declarations["'11b-Safety and Security Feaure Views'::Views::vehicleMandatorySafetyFeatureViewStandalone"]);
-        Assert.NotEmpty(view.ExposedNames);
+        Assert.NotEmpty(view.GetExposedNames());
         Assert.Contains(result.Workspace!.Index.AllEdges,
             e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose &&
                  e.SourceQualifiedName == "'11b-Safety and Security Feaure Views'::Views::vehicleMandatorySafetyFeatureViewStandalone" &&
                  e.TargetQualifiedName == "'11b-Safety and Security Feaure Views'::PartsTree::vehicle");
+        var member = Assert.Single(view.ExposeMembers);
+        Assert.Equal("@Safety and (as Safety).isMandatory", member.BracketFilterExpressionText);
     }
 
     /// <summary>
     ///     A <c>view def</c> with an empty body should leave <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.RenderTargetName"/>
     ///     and <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.FilterExpressionText"/>
-    ///     null and <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.ExposedNames"/>
+    ///     null and <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode.ExposeMembers"/>
     ///     empty — a regression guard for the "no render statement → render everything" fallback.
     /// </summary>
     [Fact]
@@ -3186,7 +3190,7 @@ public sealed class WorkspaceLoaderTests
                 result.Workspace!.Declarations["P::V"]);
             Assert.Null(view.RenderTargetName);
             Assert.Null(view.FilterExpressionText);
-            Assert.Empty(view.ExposedNames);
+            Assert.Empty(view.GetExposedNames());
         }
         finally
         {

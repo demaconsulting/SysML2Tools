@@ -142,7 +142,7 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposedNames = ["A"],
+            ExposeMembers = [new ExposeMember("A", null)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -195,7 +195,7 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposedNames = ["myVehicle"],
+            ExposeMembers = [new ExposeMember("myVehicle", null)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -223,7 +223,7 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposedNames = ["A", "B"],
+            ExposeMembers = [new ExposeMember("A", null), new ExposeMember("B", null)],
             ResolvedEdges =
             [
                 new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose),
@@ -267,7 +267,7 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposedNames = ["Sub"],
+            ExposeMembers = [new ExposeMember("Sub", null)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A::Sub", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -301,7 +301,7 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposedNames = ["A"],
+            ExposeMembers = [new ExposeMember("A", null)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -353,7 +353,7 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposedNames = ["myVehicle"],
+            ExposeMembers = [new ExposeMember("myVehicle", null)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -380,7 +380,7 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposedNames = ["A", "B"],
+            ExposeMembers = [new ExposeMember("A", null), new ExposeMember("B", null)],
             ResolvedEdges =
             [
                 new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose),

@@ -120,7 +120,7 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
     /// scope-relevant, no root is chosen (an empty canvas results). When <paramref name="scope"/> is
     /// <see langword="null"/>, selection is the plain message-count heuristic, unchanged.
     /// </summary>
-    private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
+    private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace, ExposedScope? scope)
     {
         SysmlDefinitionNode? best = null;
         string? bestQualifiedName = null;
@@ -174,7 +174,7 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
     /// </summary>
     private static (IReadOnlyList<string> Lifelines, Dictionary<string, int> Index) CollectLifelines(
         SysmlDefinitionNode root,
-        IReadOnlyList<string>? scope)
+        ExposedScope? scope)
     {
         var lifelines = new List<string>();
         var index = new Dictionary<string, int>(StringComparer.Ordinal);

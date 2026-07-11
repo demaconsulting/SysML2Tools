@@ -8,7 +8,12 @@ the returned `LayoutTree`. A recursive helper collects boxes from the (possibly 
 so assertions can confirm box keywords, folder shapes, compartments, and specialization, membership,
 attribute-typing, and redefinition lines. No
 mocking is required; the strategy depends only on the in-memory model, `LayeredPlacement`, and
-render options, all constructed directly by the tests.
+render options, all constructed directly by the tests. (Phase 2a) Bracket-form `expose`
+filter-narrowing behavior is delegated to `ExposeScopeResolver` and is verified directly by
+`ExposeScopeResolverTests` (see `expose-scope-resolver.md`) plus an end-to-end
+`RenderIntegrationTests` case exercising the full rendering pipeline; both are cross-referenced
+here since the observable effect on `GeneralViewLayoutStrategy`'s rendered output is part of this
+unit's requirement coverage.
 
 ##### Test Environment
 
@@ -48,6 +53,15 @@ configuration are required beyond a standard .NET SDK installation.
 - A view whose resolved `Expose` edge names a feature usage (not a definition) still renders that
   usage's type's containment subtree, by additionally resolving the usage's own `Typing` edge —
   the fix for the usage-vs-definition containment gap.
+- (Phase 2a) A view whose `expose <path>::**[<expr>];` entry carries a bracket-filter expression
+  that parses and evaluates successfully narrows that entry's contribution to only the descendant
+  definitions the expression matches, rather than that entry's whole containment subtree; end-to-end
+  rendering of such a view produces SVG output containing only the matched definitions, with no
+  "could not be evaluated" warning.
+- (Phase 2a) When one `expose` entry in a view carries a successfully-evaluated bracket filter and
+  another entry in the same view carries none, each entry narrows independently — the unfiltered
+  entry still contributes its whole containment subtree while the bracket-filtered entry
+  contributes only its matched definitions.
 - A view whose `ViewContext.ViewNode` carries a supported `FilterExpressionText` narrows the
   already expose-scoped candidate definitions to the matched subset, including the empty-set case.
 - A view whose `ViewContext.ViewNode` carries an unsupported or malformed `FilterExpressionText`
@@ -118,6 +132,17 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_ExposedUsage_ResolvesThroughTypingToDefinitionSubtree`:
   A resolved `Expose` edge naming a feature usage resolves through the usage's `Typing` edge to
   include its type's containment subtree
+- `ResolveExposedScope_BracketFilterEvaluatesSuccessfully_NarrowsToMatchedDefinitionsOnly`
+  (`ExposeScopeResolverTests`):
+  A bracket-filtered `expose` entry that parses and evaluates successfully narrows to only the
+  matched descendant definitions instead of the whole containment subtree
+- `ResolveExposedScope_MixedFilteredAndUnfilteredEntries_NarrowsIndependently`
+  (`ExposeScopeResolverTests`):
+  A bracket-filtered entry and an unfiltered entry on the same view narrow independently
+- `DiagramRenderer_RenderWorkspace_BracketExposeMandatorySafetyView_FiltersToMandatoryPart`
+  (`RenderIntegrationTests`):
+  End-to-end rendering of a `expose <path>::**[<expr>];` view includes only the matched definition
+  and emits no "could not be evaluated" warning for the successfully-evaluated filter
 - `GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning`:
   Unsupported filter text emits the "could not be evaluated" warning while the unfiltered scope
   still renders

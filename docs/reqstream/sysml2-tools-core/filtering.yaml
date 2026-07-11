@@ -4,7 +4,8 @@
 # PURPOSE:
 # - Define requirements for the SysML2Tools Filtering subsystem
 # - The Filtering subsystem parses and evaluates the Phase 1 subset of standalone view
-#   `filter [<expr>];` expressions over semantic-model candidate elements
+#   `filter [<expr>];` expressions over semantic-model candidate elements, and (Phase 2a) the same
+#   subset for bracket-form `expose <path>::**[<expr>];` expressions
 # - Requirements describe observable filtering behavior, not parser internals
 
 sections:
@@ -33,3 +34,26 @@ sections:
           - DiagramRenderer_RenderWorkspace_MandatorySafetyPartsView_FiltersToMandatoryPart
           - GeneralViewLayoutStrategy_BuildLayout_FilterExpressionMatchesNothing_RendersEmpty
           - GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning
+
+      - id: SysML2Tools-Core-Filtering-BracketFormExposeEvaluation
+        title: >-
+          The Filtering subsystem shall additionally support evaluating a bracket-form
+          `expose <path>::**[<expr>];` filter expression against that path's own containment
+          subtree of definitions, narrowing only that `expose` entry's contribution to a view's
+          resolved scope, by reusing the same Phase 1 parser and evaluator unchanged.
+        justification: |
+          The bracket form is the dominant `expose` shape in the real OMG corpus (10/10 sampled
+          instances use only Phase 1 constructs). `FilterExpressionParser`/`FilterExpressionEvaluator`
+          are candidate-set-agnostic, so bracket-form evaluation is realized entirely by computing a
+          per-entry candidate set (the exposed path's own definition subtree) in
+          `ExposeScopeResolver`, rather than by any change to the Filtering subsystem's own parser or
+          evaluator.
+        children:
+          - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-ClassificationTests
+          - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-BooleanConnectives
+          - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-AttributeReads
+          - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-UnsupportedConstructDiagnostics
+        tests:
+          - ResolveExposedScope_BracketFilterEvaluatesSuccessfully_NarrowsToMatchedDefinitionsOnly
+          - ResolveExposedScope_MixedFilteredAndUnfilteredEntries_NarrowsIndependently
+          - ResolveExposedScope_BracketFilterFailsToParse_FallsBackToWholeSubtreeAndRecordsFailure

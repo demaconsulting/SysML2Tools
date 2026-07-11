@@ -32,4 +32,10 @@ package RobotArm {
     view def MandatorySafetyPartsView {
         filter @Safety and (as Safety).isMandatory;
     }
+
+    // Phase 2a: exercises bracket-form `expose <path>::**[<expr>]` scope narrowing end to end —
+    // narrows to only the mandatory-safety definitions within RobotArm's containment subtree.
+    view BracketExposeMandatorySafetyView {
+        expose RobotArm::**[@Safety and (as Safety).isMandatory];
+    }
 }

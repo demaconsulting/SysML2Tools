@@ -22,9 +22,14 @@ configuration are required beyond a standard .NET SDK installation.
 - A non-null filter expression text yields a single warning naming the view and stating the
   filter expression could not be evaluated.
 - A supplied reason string is included in the standalone-filter warning.
-- An empty bracket-filter list yields no warning.
-- A non-empty bracket-filter list yields a single warning naming the view and reporting that the
-  bracket filters are parsed but not yet evaluated.
+- An empty bracket-filter-failure list yields no warning.
+- A bracket-filter-failure list with one entry yields a single warning naming the view, including
+  the failed expression's raw text and the supplied reason, and stating that the exposed path
+  falls back to its whole containment subtree.
+- A bracket-filter-failure list with multiple entries yields one warning per failed expression
+  (Phase 2a: a bracket filter that parses and evaluates successfully produces no warning at all —
+  the warning is reserved for genuine parse/evaluation failures, not merely the presence of a
+  bracket filter).
 
 ##### Test Scenarios
 
@@ -36,5 +41,6 @@ configuration are required beyond a standard .NET SDK installation.
 | `ForUnevaluatedFilter_NullText_ReturnsEmpty` | A null filter expression text yields an empty list |
 | `ForUnevaluatedFilter_NonNullText_ReturnsNotYetEvaluatedWarning` | Non-null filter yields a warning naming the view |
 | `ForUnevaluatedFilter_WithReason_IncludesReason` | Supplied reason text is appended to the warning |
-| `ForUnevaluatedExposeBracketFilter_Empty_ReturnsEmpty` | No bracket filters yields an empty list |
-| `ForUnevaluatedExposeBracketFilter_NonEmpty_ReturnsWarning` | Bracket filters yield a single warning naming the view |
+| `ForUnevaluatedExposeBracketFilter_Empty_ReturnsEmpty` | No failures yields an empty list |
+| `ForUnevaluatedExposeBracketFilter_SingleFailure_ReturnsWarningWithReason` | One failure yields a warning |
+| `ForUnevaluatedExposeBracketFilter_MultipleFailures_ReturnsOneWarningPerFailure` | One warning per failure |

@@ -68,29 +68,35 @@ internal static class LayoutWarnings
     }
 
     /// <summary>
-    /// Returns a single-element warning list stating that a view's <c>expose &lt;path&gt;::**[&lt;expr&gt;]</c>
-    /// bracket-filter expression(s) were parsed but not yet evaluated (Phase 1 captures raw text
-    /// only — see <c>SysmlViewNode.ExposeBracketFilterTexts</c>), or an empty list when the view
-    /// declares no bracket-filter expose members.
+    /// Returns one warning message per <c>expose &lt;path&gt;::**[&lt;expr&gt;]</c> bracket-filter
+    /// expression that failed to parse or evaluate (a syntax error or a construct outside the
+    /// Phase 1 subset — mirroring <see cref="ForUnevaluatedFilter"/>'s failure-only pattern), or an
+    /// empty list when every bracket filter in the view (if any) parsed and evaluated successfully.
+    /// A successfully-evaluated bracket filter has real narrowing effect on the rendered scope and
+    /// no longer needs a warning.
     /// </summary>
     /// <param name="viewName">Name of the view being laid out.</param>
-    /// <param name="bracketFilterTexts">The view's raw bracket-filter expression source texts.</param>
+    /// <param name="failures">
+    /// The view's bracket-filter expressions that failed to parse or evaluate, each with a short
+    /// human-readable reason (see <see cref="BracketFilterFailure"/>).
+    /// </param>
     /// <returns>The warning messages for the view.</returns>
     public static IReadOnlyList<string> ForUnevaluatedExposeBracketFilter(
-        string viewName, IReadOnlyList<string> bracketFilterTexts)
+        string viewName, IReadOnlyList<BracketFilterFailure> failures)
     {
-        if (bracketFilterTexts.Count == 0)
+        if (failures.Count == 0)
         {
             return [];
         }
 
-        var plural = bracketFilterTexts.Count == 1 ? "expression" : "expressions";
-        var verb = bracketFilterTexts.Count == 1 ? "is" : "are";
-        return
-        [
-            $"View '{viewName}' declares {bracketFilterTexts.Count} expose bracket-filter {plural} " +
-            $"('::**[...]'), which {verb} parsed but not yet evaluated; the bracket filter has no " +
-            "effect on the rendered scope.",
-        ];
+        return failures
+            .Select(failure =>
+            {
+                var suffix = failure.Reason is { Length: > 0 } ? $" ({failure.Reason})" : string.Empty;
+                return $"View '{viewName}' declares an expose bracket-filter expression " +
+                    $"('{failure.ExpressionText}') that could not be evaluated{suffix}; the exposed " +
+                    "path falls back to its whole containment subtree.";
+            })
+            .ToList();
     }
 }

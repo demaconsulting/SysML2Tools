@@ -185,12 +185,13 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // tree aligns with graph.Nodes by index.
         var placed = truncated.Count == 0 ? tree : DecorateTruncatedFolders(tree, graph, truncated, theme);
 
-        // Surface any filter-evaluation failure, plus a distinct warning for a still-unevaluated
-        // `expose <path>::**[<expr>]` bracket filter (Phase 1 captures its raw text only — see
-        // SysmlViewNode.ExposeBracketFilterTexts — full bracket-filter evaluation is deferred
-        // future work, see ROADMAP.md), through the standard layout-warnings channel.
+        // Surface any standalone `filter [<expr>];` evaluation failure, plus a distinct warning
+        // for each `expose <path>::**[<expr>]` bracket filter that failed to parse or evaluate
+        // (see ExposeScopeResolver.ResolveExposedScope's ExposedScope.Failures) — a
+        // successfully-evaluated bracket filter already narrowed `scope` above and needs no
+        // warning — through the standard layout-warnings channel.
         var warnings = LayoutWarnings.ForUnevaluatedFilter(context.ViewName, filterFailureReason is null ? null : filterExpressionText, filterFailureReason)
-            .Concat(LayoutWarnings.ForUnevaluatedExposeBracketFilter(context.ViewName, context.ViewNode?.ExposeBracketFilterTexts ?? []))
+            .Concat(LayoutWarnings.ForUnevaluatedExposeBracketFilter(context.ViewName, scope?.Failures ?? []))
             .ToList();
         return warnings.Count == 0 ? placed : placed with { Warnings = warnings };
     }
@@ -203,7 +204,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     private static IReadOnlyList<DefBox> CollectDefinitions(
         SysmlWorkspace workspace,
         Theme theme,
-        IReadOnlyList<string>? scope)
+        ExposedScope? scope)
     {
         var result = new List<DefBox>();
 

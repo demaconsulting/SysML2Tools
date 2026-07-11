@@ -101,7 +101,7 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
     /// specialization relationship visible in the matrix even when only one side was directly
     /// exposed, so the relationship mark is never rendered against a missing row or column.
     /// </remarks>
-    private static IReadOnlyList<DefRow> CollectDefinitions(SysmlWorkspace workspace, IReadOnlyList<string>? scope)
+    private static IReadOnlyList<DefRow> CollectDefinitions(SysmlWorkspace workspace, ExposedScope? scope)
     {
         // Phase 1: collect every non-stdlib definition, unfiltered, building a full simple-name index.
         var all = new List<DefRow>();

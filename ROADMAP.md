@@ -89,31 +89,50 @@ expressions, general feature-chain navigation, or a syntax error — produces an
 "unsupported filter construct" (or syntax-error) diagnostic and falls back to rendering the
 resolved (`expose`) scope unfiltered, exactly as Phase 0 did for every filter expression.
 
-**Phase 2 — deferred:**
+**Phase 2a — done.** The bracketed `expose <path>::**[<expr>]` filter form is now evaluated too,
+reusing the identical Phase 1 parser/evaluator unchanged. Fixed a Phase 1 pairing defect first:
+`SysmlViewNode` previously captured a view's `expose` entries as two flattened, unpaired parallel
+lists (`ExposedNames`/`ExposeBracketFilterTexts`), making it impossible to tell which bracket
+filter belonged to which exposed path once a view declared more than one `expose` member; both
+are now replaced by a single `ExposeMembers` list of paired `ExposeMember(QualifiedName,
+BracketFilterExpressionText)` records. `ExposeScopeResolver` re-pairs each resolved `Expose` edge
+with its originating `ExposeMember` and, for an entry carrying a bracket filter, parses and
+evaluates it against a candidate set restricted to that entry's own target's containment subtree
+of definitions (mirroring `GeneralViewLayoutStrategy.CollectDefinitions`'s existing restriction);
+a successfully-evaluated filter narrows that entry's contribution to only the matched
+definitions, while every other `expose` entry in the same view continues to contribute its whole
+subtree unaffected. A bracket expression that fails to parse or evaluate degrades gracefully to
+the previous whole-subtree behavior for that entry, with `LayoutWarnings.ForUnevaluatedExposeBracketFilter`
+now warning only on that failure (mirroring `ForUnevaluatedFilter`'s existing failure-only
+pattern) instead of unconditionally warning whenever any bracket filter was merely present.
 
-- The bracketed `expose <path>::**[<expr>]` filter form: Phase 1 only captures its raw
-  expression text (mirroring the pre-Phase-1 standalone-`filter` behavior) and emits an
-  "unevaluated" warning; it is never evaluated. Phase 2 should extend the Phase 1 evaluator (or a
-  successor) to cover this form too.
-- The Phase 1-excluded construct list above: `istype`/`hastype`/`all`, arithmetic operators,
-  conditional (`if`/`else`) expressions, and general feature-chain navigation (attribute/feature
-  reads not anchored by an `(as Type)` cast). Each currently produces a clear, non-crashing
-  "unsupported filter construct" diagnostic rather than silently doing nothing — full evaluation
-  of these constructs is future work.
-- Metadata annotations on **usages** (as opposed to definitions) are captured in the semantic
-  model (`SysmlMetadataNode` is attached wherever `metadataFeature` appears), but
-  `GeneralViewLayoutStrategy`'s Phase 1 filter narrowing only evaluates classification
-  tests/attribute reads against rendered `SysmlDefinitionNode` candidates (matching
-  `CollectDefinitions`'s existing scope) — extending filter evaluation to usage-level candidates
-  is future work if a future view kind renders usages directly.
+**Phase 2b — deferred (zero corpus evidence):** the Phase 1-excluded construct list —
+`istype`/`hastype`/`all`, arithmetic operators, conditional (`if`/`else`) expressions, and general
+feature-chain navigation (attribute/feature reads not anchored by an `(as Type)` cast). Each
+currently produces a clear, non-crashing "unsupported filter construct" diagnostic rather than
+silently doing nothing. Across all 251 OMG corpus files sampled during Phase 2 planning, every
+real `filter`/bracket-form-`expose` expression already fell within the Phase 1/2a supported
+subset — there is no observed real-world need to implement these constructs yet, so they remain
+deferred until a concrete corpus example demonstrates a need.
 
-**Scope:** `SysmlNode.cs`/`AstBuilder.cs`/`ReferenceResolver.cs`/`SysmlEdge.cs` (metadata
-capture); `DemaConsulting.SysML2Tools.Core.Filtering` (new subsystem); `GeneralViewLayoutStrategy`/
-`LayoutWarnings` (filter application, dual unevaluated-bracket-filter warning).
-**Visual gate:** a view with a standalone `filter @Type;`-style Phase 1 statement renders only
-the elements satisfying the predicate, with no "not yet evaluated" warning for that statement;
-an unsupported construct or a bracket-form filter still falls back to the resolved scope with an
-explicit diagnostic.
+**Phase 2c — deferred (no current consumer):** metadata annotations on **usages** (as opposed to
+definitions) are captured in the semantic model (`SysmlMetadataNode` is attached wherever
+`metadataFeature` appears), but filter/bracket-filter narrowing only evaluates classification
+tests/attribute reads against `SysmlDefinitionNode` candidates (matching
+`CollectDefinitions`'s/`ExposeScopeResolver`'s existing definition-only restriction) — extending
+evaluation to usage-level candidates is future work. Today, only `GeneralViewLayoutStrategy` uses
+definition-scoped filter candidates at all; no other view kind or consumer currently needs
+usage-level candidate filtering, so there is no concrete driver to implement it yet.
+
+**Scope:** `SysmlNode.cs`/`AstBuilder.cs`/`ReferenceResolver.cs`/`SysmlEdge.cs` (metadata capture,
+paired `ExposeMember` model); `DemaConsulting.SysML2Tools.Core.Filtering` (Phase 1 subsystem,
+reused unchanged for Phase 2a); `ExposeScopeResolver` (Phase 2a bracket-filter evaluation, shared
+by all 7 layout strategies); `GeneralViewLayoutStrategy`/`LayoutWarnings` (filter application,
+failure-only bracket-filter warning).
+**Visual gate:** a view with a standalone `filter @Type;`-style Phase 1 statement, or a bracketed
+`expose <path>::**[<expr>]` Phase 2a statement, renders only the elements satisfying the
+predicate, with no "unevaluated"/"not yet evaluated" warning for that statement; an unsupported
+construct still falls back to the resolved scope with an explicit diagnostic.
 
 ---
 

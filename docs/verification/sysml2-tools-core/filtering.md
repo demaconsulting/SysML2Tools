@@ -10,6 +10,11 @@ The Filtering subsystem is verified by focused parser/evaluator unit tests in
 unit tests exercise the parser and evaluator directly against inline source text and synthetic
 candidate sets; the integration tests confirm that a view's captured `FilterExpressionText` really
 narrows the rendered scope or, on failure, falls back to the unfiltered scope with a warning.
+(Phase 2a) Bracket-form `expose <path>::**[<expr>];` evaluation reuses this same parser/evaluator
+unchanged, applied to a per-entry candidate set computed by `ExposeScopeResolver`; that reuse is
+verified directly by `ExposeScopeResolverTests` (see `expose-scope-resolver.md`) plus an
+end-to-end `RenderIntegrationTests` case, both cross-referenced here since they exercise this
+subsystem's `Filtering-BracketFormExposeEvaluation` requirement.
 
 ### Test Environment
 
@@ -31,6 +36,15 @@ are required.
 - Malformed or unsupported filter expressions surface explicit diagnostics and cause layout to
   render the unfiltered resolved scope with a warning instead of throwing.
 - Canonical pretty-printing of supported filter expressions round-trips through the parser.
+- (Phase 2a) A bracket-form `expose <path>::**[<expr>];` entry whose expression parses and
+  evaluates successfully narrows that entry's contribution to a view's resolved scope to only the
+  matched descendant definitions, by reusing the same parser/evaluator unchanged against a
+  per-entry candidate set (that path's own containment subtree of definitions).
+- (Phase 2a) When multiple `expose` entries appear on one view, a bracket filter on one entry
+  narrows only that entry's contribution; other entries (filtered or not) are unaffected.
+- (Phase 2a) A bracket-form filter expression that fails to parse or evaluate falls back to the
+  whole containment subtree for that entry, and the failure is recorded (not silently dropped) so
+  the caller can surface an actionable warning.
 
 ### Test Scenarios
 
@@ -59,3 +73,15 @@ are required.
   rendering includes only `@Safety`-annotated definitions
 - `DiagramRenderer_RenderWorkspace_MandatorySafetyPartsView_FiltersToMandatoryPart` —
   end-to-end rendering combines classification and attribute-read predicates
+- `ResolveExposedScope_BracketFilterEvaluatesSuccessfully_NarrowsToMatchedDefinitionsOnly`
+  (`ExposeScopeResolverTests`) — a bracket-form `expose` filter narrows to only the matched
+  descendant definitions
+- `ResolveExposedScope_MixedFilteredAndUnfilteredEntries_NarrowsIndependently`
+  (`ExposeScopeResolverTests`) — a bracket-filtered entry and an unfiltered entry on the same view
+  narrow independently
+- `ResolveExposedScope_BracketFilterFailsToParse_FallsBackToWholeSubtreeAndRecordsFailure`
+  (`ExposeScopeResolverTests`) — a bracket-form filter that fails to parse falls back to the whole
+  containment subtree and records the failure
+- `DiagramRenderer_RenderWorkspace_BracketExposeMandatorySafetyView_FiltersToMandatoryPart` —
+  end-to-end rendering of a bracket-form `expose` view includes only the matched definition with
+  no "could not be evaluated" warning
