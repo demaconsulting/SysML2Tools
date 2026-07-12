@@ -590,52 +590,52 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             switch (edge.Kind)
             {
                 case SysmlEdgeKind.Connect:
-                {
-                    var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
-                    var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
-                    if (source is not null && target is not null && source != target)
                     {
-                        edges.Add(new ModelEdge(source, target, EndMarkerStyle.None, EdgeKind.Connect));
-                    }
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
+                        if (source is not null && target is not null && source != target)
+                        {
+                            edges.Add(new ModelEdge(source, target, EndMarkerStyle.None, EdgeKind.Connect));
+                        }
 
-                    break;
-                }
+                        break;
+                    }
 
                 case SysmlEdgeKind.Allocate:
-                {
-                    var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
-                    var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
-                    if (source is not null && target is not null && source != target)
                     {
-                        edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Allocate, "\u00aballocate\u00bb"));
-                    }
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
+                        if (source is not null && target is not null && source != target)
+                        {
+                            edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Allocate, "\u00aballocate\u00bb"));
+                        }
 
-                    break;
-                }
+                        break;
+                    }
 
                 case SysmlEdgeKind.Dependency:
-                {
-                    var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
-                    var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
-                    if (source is not null && target is not null && source != target)
                     {
-                        edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Dependency));
-                    }
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
+                        if (source is not null && target is not null && source != target)
+                        {
+                            edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Dependency));
+                        }
 
-                    break;
-                }
+                        break;
+                    }
 
                 case SysmlEdgeKind.Binding:
-                {
-                    var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
-                    var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
-                    if (source is not null && target is not null && source != target)
                     {
-                        edges.Add(new ModelEdge(source, target, EndMarkerStyle.None, EdgeKind.Binding, "="));
-                    }
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
+                        if (source is not null && target is not null && source != target)
+                        {
+                            edges.Add(new ModelEdge(source, target, EndMarkerStyle.None, EdgeKind.Binding, "="));
+                        }
 
-                    break;
-                }
+                        break;
+                    }
             }
         }
 

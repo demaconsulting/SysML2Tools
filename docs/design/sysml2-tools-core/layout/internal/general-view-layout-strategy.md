@@ -176,8 +176,6 @@ longest-prefix-wins) would resolve *both* sides of the dominant real-world corpu
 — to the same box (`Drone`), producing a false self-loop where a real diagram must show two
 distinct boxes (`Controller` and `Battery`) connected.
 
-
-
 ###### `BuildGraph(groups, modelEdges, theme, depthLimit)`
 
 Builds the single input `LayoutGraph`, setting `CoreOptions.MergeParallelEdges` to `false` on the
