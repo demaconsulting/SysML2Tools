@@ -26,16 +26,21 @@ Render the relationships currently omitted from the General View, each routed vi
   optional readability refinement.
 
 **Scope:** `AstBuilder`/semantic exposure of the relationship kinds as needed;
-`GeneralViewLayoutStrategy` edge emission; resolver coverage.
-**Visual gate:** a model exercising each relationship renders distinct, correctly-headed edges.
+`GeneralViewLayoutStrategy` edge emission; resolver coverage. Also extend the drone gallery
+model (`docs/gallery/models/01-drone-general.sysml`, which today has no real `connect`/`bind`,
+`allocate`, `dependency`, or `subsets` usages) with a minimal real example of each new
+relationship kind, and regenerate its gallery SVG(s), so the visual gate below is demonstrated
+in the shipped gallery rather than only in unit-test fixtures.
+**Visual gate:** a model exercising each relationship renders distinct, correctly-headed edges —
+demonstrated both by test fixtures and by the regenerated gallery drone model/SVG.
 
 ### Gallery: expand drone model with expose/filter-narrowed multi-view showcase (follow-up)
 
-Once the additional relationship edges above ship, extend `docs/gallery/models/01-drone-general.sysml`
-into a richer, real-world-sized drone model that genuinely exercises `connect`/`bind`,
-`allocate`, `dependency`, and `subsets` (the current gallery model has none of these — only
-generalization, containment/typing, and redefinition). Add several `expose`/`filter`-narrowed
-views spotlighting one relationship kind each instead of one flat whole-workspace General View:
+The relationship-edges item above adds minimal real examples of `connect`/`allocate`/
+`dependency`/`subsets` to the drone model to prove the edges render correctly. This follow-up
+goes further: build out a richer, real-world-sized drone model and add several
+`expose`/`filter`-narrowed views spotlighting one relationship kind each, instead of one flat
+whole-workspace General View:
 
 - A power/data subsystem view (`expose PowerSubsystem;`) showing `connect` edges between ports.
 - A requirements-traceability view (`filter @Requirement;` or an `expose`d requirement) showing
