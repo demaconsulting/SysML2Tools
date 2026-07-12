@@ -245,6 +245,22 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         public required SysmlAnnotation Annotation { get; init; }
     }
 
+    /// <summary>
+    ///     Sentinel node used to carry more than one real <see cref="SysmlNode"/> up through the
+    ///     generic ANTLR <c>Visit</c> pipeline from a single grammar alternative that actually
+    ///     produces several sibling AST nodes (e.g. a <c>stateBodyItem</c>'s attached-transition
+    ///     shapes: the preceding state/entry-action usage plus one <see cref="SysmlTransitionNode"/>
+    ///     per attached transition). Never appears in a real <see cref="SysmlNode.Children"/>
+    ///     list — <see cref="CollectChildren"/> always intercepts it and flattens its
+    ///     <see cref="Nodes"/> into the owning node's children instead, mirroring how
+    ///     <see cref="AnnotationCapture"/> is intercepted and routed into
+    ///     <see cref="SysmlNode.Annotations"/> rather than becoming a child itself.
+    /// </summary>
+    private sealed class MultiNodeCapture : SysmlNode
+    {
+        public required IReadOnlyList<SysmlNode> Nodes { get; init; }
+    }
+
     /// <inheritdoc/>
     public override SysmlNode? VisitPartDefinition(SysMLv2Parser.PartDefinitionContext context)
     {
@@ -722,11 +738,19 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <inheritdoc/>
     public override SysmlNode? VisitStateUsage(SysMLv2Parser.StateUsageContext context)
     {
-        var name = GetDeclaredName(context.actionUsageDeclaration()?.usageDeclaration()?.identification());
+        var decl = context.actionUsageDeclaration()?.usageDeclaration();
+        var name = GetDeclaredName(decl?.identification());
         if (name is null)
         {
             return null;
         }
+
+        // A state usage's own feature typing (e.g. `state vehicleStates : VehicleStates { ... }`)
+        // was previously dropped entirely — unlike BuildUsageNode's generic usage handling, no
+        // Typing edge was ever recorded for state usages. This is necessary so
+        // ReferenceResolver's inherited-pseudostate-feature fallback (start/done) can walk from
+        // this usage to its state def and on to Actions::Action via the Supertype chain.
+        var typing = ExtractFeatureTyping(decl?.featureSpecializationPart());
 
         // Collect the state body (nested state usages and transitions) as children, mirroring
         // VisitStateDefinition. Anonymous ("state x;") usages have no body items to collect.
@@ -739,9 +763,197 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             Name = name,
             QualifiedName = QualifyName(name),
             FeatureKeyword = "state",
+            FeatureTyping = typing,
             Children = children,
             Annotations = annotations,
         };
+    }
+
+    /// <summary>
+    ///     Dispatches a single <c>stateBodyItem</c> alternative to the appropriate builder logic.
+    ///     Most alternatives (<c>nonBehaviorBodyItem</c>, <c>transitionUsageMember</c>,
+    ///     <c>doActionMember</c>, <c>exitActionMember</c>) already produce exactly one AST node via
+    ///     the default ANTLR visitor dispatch, so they are simply passed through unchanged. The two
+    ///     "attached transition" shapes — <c>(sourceSuccessionMember)? behaviorUsageMember
+    ///     (targetTransitionUsageMember)*</c> and <c>entryActionMember (entryTransitionMember)*</c>
+    ///     — each produce more than one sibling node (the preceding state/entry-action usage, plus
+    ///     one <see cref="SysmlTransitionNode"/> per attached transition whose <c>Source</c> is
+    ///     implicitly that preceding usage's declared name); without this override, ANTLR's default
+    ///     <c>VisitChildren</c> aggregation silently discards every child result but the last,
+    ///     dropping both the preceding usage and any earlier attached transitions.
+    /// </summary>
+    public override SysmlNode? VisitStateBodyItem(SysMLv2Parser.StateBodyItemContext context)
+    {
+        if (context.nonBehaviorBodyItem() is { } nonBehaviorBodyItem)
+        {
+            return Visit(nonBehaviorBodyItem);
+        }
+
+        if (context.transitionUsageMember() is { } transitionUsageMember)
+        {
+            return Visit(transitionUsageMember);
+        }
+
+        if (context.doActionMember() is { } doActionMember)
+        {
+            return Visit(doActionMember);
+        }
+
+        if (context.exitActionMember() is { } exitActionMember)
+        {
+            return Visit(exitActionMember);
+        }
+
+        if (context.behaviorUsageMember() is { } behaviorUsageMember)
+        {
+            var usageNode = Visit(behaviorUsageMember);
+            var targets = context.targetTransitionUsageMember();
+            if (usageNode is null || targets.Length == 0)
+            {
+                return usageNode;
+            }
+
+            var sourceName = usageNode.Name;
+            var nodes = new List<SysmlNode> { usageNode };
+            foreach (var target in targets)
+            {
+                nodes.Add(BuildAttachedTransition(sourceName, target.targetTransitionUsage()));
+            }
+
+            return new MultiNodeCapture { Nodes = nodes };
+        }
+
+        if (context.entryActionMember() is { } entryActionMember)
+        {
+            var entryNode = Visit(entryActionMember);
+            var transitions = context.entryTransitionMember();
+            if (entryNode is null || transitions.Length == 0)
+            {
+                return entryNode;
+            }
+
+            var sourceName = entryNode.Name;
+            var nodes = new List<SysmlNode> { entryNode };
+            foreach (var transition in transitions)
+            {
+                nodes.Add(BuildEntryAttachedTransition(sourceName, transition));
+            }
+
+            return new MultiNodeCapture { Nodes = nodes };
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Builds the <see cref="SysmlTransitionNode"/> for one <c>targetTransitionUsageMember</c>
+    ///     attached after a state/action usage (e.g. <c>accept Sig then starting;</c>), whose
+    ///     <c>Source</c> is implicitly the preceding usage's declared name (never present in the
+    ///     grammar itself). Extraction mirrors <see cref="VisitTransitionUsage"/>'s handling of the
+    ///     explicit <c>transition ... then ...;</c> form exactly (target via
+    ///     <see cref="ConnectorEndReference"/>, guard via the raw <c>if</c> expression text).
+    /// </summary>
+    private SysmlTransitionNode BuildAttachedTransition(
+        string? sourceName,
+        SysMLv2Parser.TargetTransitionUsageContext? usage)
+    {
+        var target = ConnectorEndReference(
+            usage?.transitionSuccessionMember()?.transitionSuccession()?.connectorEndMember());
+        var guard = usage?.guardExpressionMember()?.ownedExpression()?.GetText();
+
+        return new SysmlTransitionNode
+        {
+            Source = sourceName,
+            Target = target,
+            Guard = guard,
+        };
+    }
+
+    /// <summary>
+    ///     Builds the <see cref="SysmlTransitionNode"/> for one <c>entryTransitionMember</c>
+    ///     attached after an entry action (e.g. <c>entry action initial; ... then off;</c>),
+    ///     whose <c>Source</c> is implicitly the preceding entry action's declared name. Handles
+    ///     both the guarded (<c>guardedTargetSuccession</c>: <c>if ... then ...</c>) and bare
+    ///     (<c>THEN transitionSuccessionMember</c>) alternatives.
+    /// </summary>
+    private SysmlTransitionNode BuildEntryAttachedTransition(
+        string? sourceName,
+        SysMLv2Parser.EntryTransitionMemberContext transition)
+    {
+        var guarded = transition.guardedTargetSuccession();
+        var successionMember = guarded?.transitionSuccessionMember()
+            ?? transition.transitionSuccessionMember();
+        var target = ConnectorEndReference(
+            successionMember?.transitionSuccession()?.connectorEndMember());
+        var guard = guarded?.guardExpressionMember()?.ownedExpression()?.GetText();
+
+        return new SysmlTransitionNode
+        {
+            Source = sourceName,
+            Target = target,
+            Guard = guard,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitEntryActionMember(SysMLv2Parser.EntryActionMemberContext context)
+    {
+        return BuildStateActionFeatureNode(context.stateActionUsage(), "entry");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitDoActionMember(SysMLv2Parser.DoActionMemberContext context)
+    {
+        return BuildStateActionFeatureNode(context.stateActionUsage(), "do");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitExitActionMember(SysMLv2Parser.ExitActionMemberContext context)
+    {
+        return BuildStateActionFeatureNode(context.stateActionUsage(), "exit");
+    }
+
+    /// <summary>
+    ///     Builds a minimal, deliberately non-behavioral <see cref="SysmlFeatureNode"/> for an
+    ///     <c>entry</c>/<c>do</c>/<c>exit</c> action member, registering only its declared name (so
+    ///     it becomes a resolvable transition source per the OMG spec's Annex A.7 idiom, e.g.
+    ///     <c>entry action initial; ... transition initial then off;</c>) with no children. The
+    ///     nested action body's internal semantics — parameter bindings
+    ///     (<c>performSelfTest{ in vehicle = operatingVehicle; }</c>), nested steps
+    ///     (<c>do action providePower { /* ... */ }</c>), accept/send/assignment action-usage
+    ///     alternatives — are deliberately NOT modeled; this tool only needs the named feature
+    ///     itself to exist and be resolvable, not a full action-body AST.
+    /// </summary>
+    private SysmlFeatureNode BuildStateActionFeatureNode(
+        SysMLv2Parser.StateActionUsageContext? usage,
+        string keyword)
+    {
+        var name = ExtractStateActionName(usage);
+
+        return new SysmlFeatureNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            FeatureKeyword = keyword,
+            Children = Array.Empty<SysmlNode>(),
+            Annotations = Array.Empty<SysmlAnnotation>(),
+        };
+    }
+
+    /// <summary>
+    ///     Extracts the declared name of a <c>stateActionUsage</c>, or <see langword="null"/> when
+    ///     the action is unnamed. Only the named <c>ACTION usageDeclaration?</c> alternative of
+    ///     <c>performActionUsageDeclaration</c> (e.g. <c>action providePower { ... }</c>) yields a
+    ///     name; the unnamed reference-subsetting form (e.g. <c>entry performSelfTest{ ... }</c>,
+    ///     which subsets/references an existing behavior rather than declaring a new named
+    ///     feature) and the <c>stateAcceptActionUsage</c>/<c>stateSendActionUsage</c>/
+    ///     <c>stateAssignmentActionUsage</c>/<c>emptyActionUsage_</c> alternatives are out of scope
+    ///     per ROADMAP.md — only NAMED entry actions need to be resolvable transition sources.
+    /// </summary>
+    private static string? ExtractStateActionName(SysMLv2Parser.StateActionUsageContext? usage)
+    {
+        var declaration = usage?.statePerformActionUsage()?.performActionUsageDeclaration();
+        return GetDeclaredName(declaration?.usageDeclaration()?.identification());
     }
 
     /// <inheritdoc/>
@@ -1624,6 +1836,10 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             if (node is AnnotationCapture capture)
             {
                 annotations.Add(capture.Annotation);
+            }
+            else if (node is MultiNodeCapture multi)
+            {
+                children.AddRange(multi.Nodes);
             }
             else if (node is not null)
             {

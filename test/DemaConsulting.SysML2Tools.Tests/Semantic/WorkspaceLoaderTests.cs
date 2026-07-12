@@ -2759,12 +2759,16 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
-    ///     A transition with an implied/omitted <c>Source</c> (an <c>accept ... then target;</c>
-    ///     form with no preceding state to walk from) should produce no <c>Transition</c> edge —
-    ///     a documented limitation of this unit, not a crash or a partial edge.
+    ///     A previously-broken attached-transition shape: <c>state off; accept Signal via
+    ///     requestPort then off;</c> is the <c>stateBodyItem: (sourceSuccessionMember)?
+    ///     behaviorUsageMember (targetTransitionUsageMember)*</c> grammar alternative, whose
+    ///     transition's <c>Source</c> is implicitly the immediately preceding <c>state off;</c>
+    ///     usage. Before the attached-transition fix this silently dropped both the state and the
+    ///     transition (ANTLR's default <c>VisitChildren</c> keeps only the last child); now both
+    ///     are preserved and the transition resolves to a genuine self-loop edge.
     /// </summary>
     [Fact]
-    public async Task WorkspaceLoader_LoadAsync_TransitionImpliedSource_ProducesNoEdge()
+    public async Task WorkspaceLoader_LoadAsync_AttachedTransitionAfterState_ResolvesSelfLoopEdge()
     {
         // Arrange
         var tempFile = Path.GetTempFileName() + ".sysml";
@@ -2788,8 +2792,301 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition &&
+                     e.SourceQualifiedName == "P::Behavior::off" &&
+                     e.TargetQualifiedName == "P::Behavior::off");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A transition attached after a genuinely unnamed/anonymous preceding usage (an anonymous
+    ///     <c>action;</c>, which <c>VisitActionUsage</c> intentionally returns <see langword="null"/>
+    ///     for) has no name to serve as the attached transition's implicit <c>Source</c>. This is
+    ///     the one remaining documented limitation: no crash, no partial edge, just nothing
+    ///     recorded for that body item.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_TransitionImpliedSource_ProducesNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    item def Signal;
+                    state def Behavior {
+                        port requestPort;
+                        action;
+                        accept Signal via requestPort
+                            then off;
+                        state off;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
             Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Two attached transitions after the same preceding state usage (repeated
+    ///     <c>targetTransitionUsageMember</c>) should both be captured, both with the preceding
+    ///     usage's name as their implicit <c>Source</c>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_MultipleAttachedTransitionsAfterState_CapturesAll()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    item def Sig1;
+                    item def Sig2;
+                    state def Behavior {
+                        state a;
+                        accept Sig1 then b;
+                        accept Sig2 then c;
+                        state b;
+                        state c;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition &&
+                     e.SourceQualifiedName == "P::Behavior::a" &&
+                     e.TargetQualifiedName == "P::Behavior::b");
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition &&
+                     e.SourceQualifiedName == "P::Behavior::a" &&
+                     e.TargetQualifiedName == "P::Behavior::c");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     The <c>entryActionMember (entryTransitionMember)*</c> attached-transition shape (e.g.
+    ///     <c>entry action initial; then off;</c>) should capture both the named entry-action
+    ///     feature and its attached transition, whose implicit <c>Source</c> is the entry action's
+    ///     declared name.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_EntryActionWithAttachedTransition_CapturesEntryFeatureAndTransition()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    state def Behavior {
+                        entry action initial;
+                        then off;
+                        state off;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition &&
+                     e.SourceQualifiedName == "P::Behavior::initial" &&
+                     e.TargetQualifiedName == "P::Behavior::off");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     The OMG spec's Annex A.7-preferred style — a named entry action declared once, then
+    ///     referenced from a separate explicit <c>transition</c> statement (rather than an
+    ///     attached <c>entryTransitionMember</c>) — should register a resolvable feature: no
+    ///     "Unresolved reference: 'initial'" diagnostic should be produced.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_NamedEntryAction_RegistersResolvableFeature()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    state def Behavior {
+                        entry action initial;
+                        state off;
+                        transition initial then off;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.DoesNotContain(result.Diagnostics,
+                d => d.Message.Contains("Unresolved reference: 'initial'", StringComparison.Ordinal));
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition &&
+                     e.SourceQualifiedName == "P::Behavior::initial" &&
+                     e.TargetQualifiedName == "P::Behavior::off");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     The unnamed reference-subsetting form of an entry action (e.g.
+    ///     <c>entry performSelfTest;</c>, which subsets/references an existing behavior rather
+    ///     than declaring a new named feature) should still register a feature node (with
+    ///     <c>Name</c> null) and must not throw.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnnamedEntryActionReferenceForm_NoNameNoCrash()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    action performSelfTest;
+                    state def Behavior {
+                        state on {
+                            entry performSelfTest;
+                        }
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     <c>VisitStateUsage</c> must record a <c>Typing</c> edge for a state usage's explicit
+    ///     feature typing (e.g. <c>state usage : X { ... }</c>) — previously dropped entirely,
+    ///     unlike every other usage kind's <c>BuildUsageNode</c> handling.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_StateUsageWithExplicitTyping_RecordsTypingEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    state def X;
+                    state usage : X {
+                        first start then y;
+                        state y;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Typing &&
+                     e.SourceQualifiedName == "P::usage" &&
+                     e.TargetQualifiedName == "P::X");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A transition's implicit initial-pseudostate <c>Source</c> (<c>first start then y;</c>)
+    ///     must resolve <c>start</c> to the real stdlib member every state definition/usage
+    ///     inherits from <c>Actions::Action</c> (<c>action start: Action :&gt;&gt; startShot</c>),
+    ///     via <c>ReferenceResolver.TryResolveInheritedActionMember</c>'s narrow fallback — even
+    ///     though the user's own <c>state def X;</c> declares no explicit supertype at all (this
+    ///     codebase implements no general implicit-generalization/default-supertype inference).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_TransitionSourceStartFeature_ResolvesToStdlibActionMember()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    state def X;
+                    state usage : X {
+                        first start then y;
+                        state y;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.DoesNotContain(result.Diagnostics,
+                d => d.Message.Contains("Unresolved reference: 'start'", StringComparison.Ordinal));
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition &&
+                     e.SourceQualifiedName == "Actions::Action::start" &&
+                     e.TargetQualifiedName == "P::usage::y");
         }
         finally
         {
