@@ -3,13 +3,14 @@ package ElevatorController {
     // An elevator control state machine.
     state def ElevatorStates {
         state idle;
+        accept callReceived then doorsClosing;
         state doorsOpening;
         state doorsOpen;
         state doorsClosing;
         state movingUp;
         state movingDown;
 
-        transition first idle if callReceived then doorsClosing;
+        first start then idle;
         transition first doorsClosing if doorsClosed then movingUp;
         transition first movingUp if atFloor then doorsOpening;
         transition first movingDown if atFloor then doorsOpening;
