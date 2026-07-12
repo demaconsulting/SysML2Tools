@@ -1030,12 +1030,18 @@ internal sealed class ReferenceResolver
     ///     the single-segment resolver used elsewhere.
     ///     A parallel <c>instancePath</c> accumulator is tracked alongside the real declared node's
     ///     qualified name (<c>current</c>, which continues to drive the next segment's
-    ///     <c>_symbolTable.Lookup</c>): when a segment resolves via <see cref="FindFeatureMember"/>'s
-    ///     direct-child branch, <c>instancePath</c> is simply the member's own (already
-    ///     instance-relative) qualified name; when a segment resolves via the type-hierarchy
-    ///     fallback branch, <c>instancePath</c> is instead <c>{previous instancePath}::{segment}</c>
-    ///     — preserving the instance-relative path rather than collapsing to the type's own
-    ///     declared path. This is what <paramref name="resolvedName"/> ultimately returns.
+    ///     <c>_symbolTable.Lookup</c>): while every segment so far has resolved via
+    ///     <see cref="FindFeatureMember"/>'s direct-child branch, <c>instancePath</c> is simply the
+    ///     member's own (already instance-relative) qualified name. Once any segment resolves via
+    ///     the type-hierarchy fallback branch, <c>current</c> stops referring to a real instance
+    ///     node (it becomes the type's own declared path), so every remaining segment — even one
+    ///     that is itself a "direct child" of that type-declared node — is also only reachable
+    ///     relative to the type, not the instance; the accumulator therefore latches into
+    ///     instance-relative-append mode (<c>{previous instancePath}::{segment}</c>) as soon as the
+    ///     first fallback hop occurs, and stays in that mode for every subsequent segment,
+    ///     preserving the instance-relative path rather than collapsing back to a type-declared path
+    ///     on a later direct-child hop. This is what <paramref name="resolvedName"/> ultimately
+    ///     returns.
     /// </summary>
     /// <param name="chain">The raw, possibly dotted, reference text.</param>
     /// <param name="namespaceStack">
@@ -1067,6 +1073,16 @@ internal sealed class ReferenceResolver
 
         var instancePath = current;
 
+        // Once any segment resolves via the type-hierarchy fallback branch, `current` no longer
+        // refers to a real instance node — it is the type's own declared path. Every subsequent
+        // segment is therefore looked up *within that type's declared structure*, so even a
+        // "direct child" match at that point yields a type-declared (not instance-relative)
+        // QualifiedName. `inTypeContext` latches once fallback is hit and stays set, so the
+        // instance-relative accumulation keeps applying to every later segment too — fixing a bug
+        // where a direct-child hop occurring *after* an earlier fallback hop would incorrectly
+        // reset `instancePath` back to the type's own declared path.
+        var inTypeContext = false;
+
         for (var i = 1; i < segments.Length; i++)
         {
             var currentNode = _symbolTable.Lookup(current);
@@ -1084,7 +1100,8 @@ internal sealed class ReferenceResolver
             }
 
             current = memberQualifiedName;
-            instancePath = viaTypeFallback ? $"{instancePath}::{segments[i]}" : memberQualifiedName;
+            inTypeContext = inTypeContext || viaTypeFallback;
+            instancePath = inTypeContext ? $"{instancePath}::{segments[i]}" : memberQualifiedName;
         }
 
         resolvedName = instancePath;

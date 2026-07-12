@@ -2430,6 +2430,61 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     The mirror image of <see cref="WorkspaceLoader_LoadAsync_ConnectionThreeSegmentChain_MixesDirectChildAndTypingFallback"/>:
+    ///     a 3-segment chain where the *first* hop resolves via typing fallback (<c>rearAxle</c> has
+    ///     no own <c>leftHalfAxle</c> usage, so it is found on <c>Axle</c>'s own hierarchy) and the
+    ///     *second* hop is then a direct child of that type-declared node (<c>Axle::leftHalfAxle</c>
+    ///     has its own inline <c>axleToWheelPort</c> nested directly beneath it). Once a chain has
+    ///     entered type-fallback territory, every remaining segment is still only reachable relative
+    ///     to the type, not the instance — even one that is itself a "direct child" match — so the
+    ///     final qualified name must remain instance-relative (<c>P::rearAxle::leftHalfAxle::axleToWheelPort</c>)
+    ///     rather than collapsing back to the type's own declared path
+    ///     (<c>P::Axle::leftHalfAxle::axleToWheelPort</c>) once the direct-child hop occurs.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionThreeSegmentChain_DirectChildAfterTypingFallbackStaysInstanceRelative()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def HalfAxle {
+                        port axleToWheelPort;
+                    }
+                    part def Axle {
+                        part leftHalfAxle : HalfAxle {
+                            port axleToWheelPort;
+                        }
+                    }
+                    part def Wheel {
+                        port wheelToAxlePort;
+                    }
+                    part rearAxle : Axle;
+                    part leftWheel : Wheel;
+                    connect rearAxle.leftHalfAxle.axleToWheelPort to leftWheel.wheelToAxlePort;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
+                     e.SourceQualifiedName == "P::rearAxle::leftHalfAxle::axleToWheelPort" &&
+                     e.TargetQualifiedName == "P::leftWheel::wheelToAxlePort");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     The dominant real-world <c>connect</c> shape: two sibling features (ports) declared
     ///     directly in their owning <c>part def</c>s, referenced from an enclosing part via bare
     ///     <c>part</c> usages with no per-instance nested redeclaration. Both endpoints resolve via
