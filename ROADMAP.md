@@ -71,14 +71,34 @@ implemented first).
 
 ### Annotating elements & compartment depth
 
+Investigation confirmed the semantic model already captures `comment`/`doc` annotation text
+verbatim (`SysmlAnnotation`/`SysmlAnnotationKind.Comment`/`.Documentation`, attached to the
+annotated node's `Annotations` list via the existing `AnnotationCapture` mechanism) — but
+`GeneralViewLayoutStrategy` never reads `Annotations` at all today, so no note is ever rendered.
+Separately, enum literal values, constraint expression bodies, and requirement
+`subject`/`constraints`/`doc` members are not captured in the AST at all yet (`VisitEnumerationDefinition`
+delegates to the generic `BuildDefinitionFromDeclaration`, which never collects children, so an
+`enum def`'s literal values are dropped at the semantic-model layer, not just unrendered) — this
+is a semantic-exposure gap as much as a rendering gap. Per the OMG spec's Graphical Notation
+chapter, the conventional compartment titles are stereotype-style: `«subject»` (requirement
+subject), `«doc»` (documentation compartment), and a `«constraint»`/`«assume constraint»`/
+`«require constraint»`-labelled compartment holding the constraint's expression body (shown as a
+"compartment stack" in the spec's own figures — an ellipsis-abbreviated body, not necessarily the
+full expression rendered inline).
+
 - Render **Documentation/Comment** notes as `BoxShape.Note` (folded-corner) nodes attached to
   their annotated element.
 - Extend compartments to spec depth: enumeration values, constraint bodies, requirement
   `subject`/`constraints`/`doc`, and a documentation compartment on definitions/usages.
 
-**Scope:** semantic exposure of doc/comment + compartment content; `GeneralViewLayoutStrategy`
-and renderers; possibly `LayoutLabel`/compartment tweaks.
-**Visual gate:** a documented requirement/part renders its note and full compartments.
+**Scope:** `AstBuilder` (capture enum literal values, constraint expression bodies, requirement
+subject/constraints/doc as resolvable children/content — a semantic-exposure gap, not only
+rendering); `GeneralViewLayoutStrategy` (read `Annotations` to emit `BoxShape.Note` nodes;
+extend `BuildCompartments` for the new content kinds with spec-style stereotype titles); possibly
+`LayoutLabel`/compartment tweaks.
+**Visual gate:** a documented requirement/part renders its note and full compartments (an enum
+def shows its literal values, a constraint shows its expression body, a requirement shows its
+`«subject»`/`«doc»` compartments).
 
 ### Action Flow View: control-node/successor AST correctness + fork/join/decision/merge shapes — delivered
 
