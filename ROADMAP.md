@@ -29,6 +29,30 @@ Render the relationships currently omitted from the General View, each routed vi
 `GeneralViewLayoutStrategy` edge emission; resolver coverage.
 **Visual gate:** a model exercising each relationship renders distinct, correctly-headed edges.
 
+### Gallery: expand drone model with expose/filter-narrowed multi-view showcase (follow-up)
+
+Once the additional relationship edges above ship, extend `docs/gallery/models/01-drone-general.sysml`
+into a richer, real-world-sized drone model that genuinely exercises `connect`/`bind`,
+`allocate`, `dependency`, and `subsets` (the current gallery model has none of these — only
+generalization, containment/typing, and redefinition). Add several `expose`/`filter`-narrowed
+views spotlighting one relationship kind each instead of one flat whole-workspace General View:
+
+- A power/data subsystem view (`expose PowerSubsystem;`) showing `connect` edges between ports.
+- A requirements-traceability view (`filter @Requirement;` or an `expose`d requirement) showing
+  `allocate` edges from requirements to parts.
+- A subsystem-boundary view showing cross-subsystem `dependency` edges without full
+  implementation detail.
+- A variant/specialization view showing `subsets` alongside the existing redefinition example.
+
+This also exercises `--filter`'s metadata classification-test path (e.g. tagging parts with
+`@Critical`/`@Requirement` metadata) rather than only the bracket/expose-subtree path the
+gallery currently shows.
+
+**Scope:** `docs/gallery/models/01-drone-general.sysml` (or a new model file), regenerated SVGs,
+`docs/gallery/README.md`.
+**Depends on:** "Additional relationship edges (General View)" above (needs the new edge kinds
+implemented first).
+
 ### Annotating elements & compartment depth
 
 - Render **Documentation/Comment** notes as `BoxShape.Note` (folded-corner) nodes attached to
