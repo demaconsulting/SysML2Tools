@@ -1941,6 +1941,208 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A <c>dependency A to B;</c> declaration with both ends resolvable should be recorded as
+    ///     a <c>Dependency</c> edge from the resolved client to the resolved supplier.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DependencyBinaryEnds_RecordsDependencyEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Q {}
+                    part a : Q;
+                    part b : Q;
+                    dependency a to b;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Dependency &&
+                     e.SourceQualifiedName == "P::a" &&
+                     e.TargetQualifiedName == "P::b");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>dependency</c> declaration with comma-separated client and supplier lists should
+    ///     produce one <c>Dependency</c> edge per resolved (client, supplier) pair (cross product).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DependencyCommaLists_RecordsCrossProductEdges()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Q {}
+                    part a : Q;
+                    part b : Q;
+                    part c : Q;
+                    part d : Q;
+                    dependency a, b to c, d;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var edges = result.Workspace!.Index.AllEdges
+                .Where(e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Dependency)
+                .Select(e => (e.SourceQualifiedName, e.TargetQualifiedName))
+                .ToList();
+            Assert.Equal(4, edges.Count);
+            Assert.Contains(("P::a", "P::c"), edges);
+            Assert.Contains(("P::a", "P::d"), edges);
+            Assert.Contains(("P::b", "P::c"), edges);
+            Assert.Contains(("P::b", "P::d"), edges);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>dependency</c> declaration with an unresolvable end should produce a Warning
+    ///     diagnostic and must not produce a <c>Dependency</c> edge (no partial edge, no crash).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DependencyUnresolvedEnd_ProducesWarningNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Q {}
+                    part a : Q;
+                    dependency a to nonExistentEnd;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("nonExistentEnd"));
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Dependency);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>bind a.x = b.y;</c> binding connector usage with a resolvable dotted feature chain
+    ///     on both sides should be recorded as a <c>Binding</c> edge between the resolved features,
+    ///     reusing the same dotted-feature-chain walk as <c>connect</c>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Sensor {
+                        port x;
+                    }
+                    part def Display {
+                        port y;
+                    }
+                    part def Q {
+                        part a : Sensor;
+                        part b : Display;
+                        bind a.x = b.y;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Binding &&
+                     e.SourceQualifiedName == "P::Sensor::x" &&
+                     e.TargetQualifiedName == "P::Display::y");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>bind</c> usage referencing an unresolvable feature chain end should produce a
+    ///     Warning diagnostic and must not produce a <c>Binding</c> edge (no partial edge, no
+    ///     crash).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Sensor {
+                        port x;
+                    }
+                    part def Q {
+                        part a : Sensor;
+                        bind a.x = nonExistentEnd.y;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Binding);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     A fixture combining <c>satisfy</c>, <c>verify</c>, and <c>allocate</c> should let the
     ///     workspace's <see cref="SysmlWorkspace.Index"/> answer both incoming and outgoing edge
     ///     queries correctly for all three new edge kinds, mirroring unit 1's reverse-index test.
