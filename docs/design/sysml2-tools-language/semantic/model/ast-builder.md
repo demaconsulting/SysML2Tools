@@ -33,6 +33,13 @@ stack with `::` to form the fully-qualified name.
 | `VisitEntryActionMember` | `EntryActionMemberContext` | `SysmlFeatureNode` (`FeatureKeyword = "entry"`) |
 | `VisitDoActionMember` | `DoActionMemberContext` | `SysmlFeatureNode` (`FeatureKeyword = "do"`) |
 | `VisitExitActionMember` | `ExitActionMemberContext` | `SysmlFeatureNode` (`FeatureKeyword = "exit"`) |
+| `VisitActionBodyItem` | `ActionBodyItemContext` | `SysmlNode` or `MultiNodeCapture` (node + successions) |
+| `VisitMergeNode` | `MergeNodeContext` | `SysmlFeatureNode` (`FeatureKeyword = "merge"`) |
+| `VisitDecisionNode` | `DecisionNodeContext` | `SysmlFeatureNode` (`FeatureKeyword = "decide"`) |
+| `VisitJoinNode` | `JoinNodeContext` | `SysmlFeatureNode` (`FeatureKeyword = "join"`) |
+| `VisitForkNode` | `ForkNodeContext` | `SysmlFeatureNode` (`FeatureKeyword = "fork"`) |
+| `VisitAcceptNode` | `AcceptNodeContext` | `SysmlFeatureNode` (`FeatureKeyword = "accept"`) |
+| `VisitSendNode` | `SendNodeContext` | `SysmlFeatureNode` (`FeatureKeyword = "send"`) |
 
 `GetDeclaredName(IdentificationContext)` handles the three grammar alternatives:
 
@@ -303,6 +310,59 @@ declaration) it deliberately returns `null` rather than attempting to derive or 
 the resulting feature node still registers as an (unnamed, unregistered) AST child so no
 information is lost, but it is not itself a resolvable symbol. This scope boundary is intentional
 and matches the ROADMAP's framing of entry/do/exit action support as "minimal, non-behavioral."
+
+**Attached-succession action bodies and control-node features.** The `actionBodyItem` grammar
+rule has an analogous combined-shape problem to `stateBodyItem`: two of its alternatives attach
+a succession directly onto the immediately preceding node within the same alternative rather than
+exposing it as a separate `successionAsUsage` —
+`initialNodeMember (actionTargetSuccessionMember)*` (e.g. `first start; then off;`) and
+`(sourceSuccessionMember)? actionBehaviorMember (actionTargetSuccessionMember)*` (e.g. the compact
+`action a1; then a2;` idiom). Before `VisitActionBodyItem` existed, `AstBuilder` only ever
+visited the leading node of each alternative and silently dropped every attached succession, so
+the compact idiom resolved both action nodes but produced no succession edge linking them.
+
+`VisitActionBodyItem` dispatches all four alternatives explicitly:
+
+- `nonBehaviorBodyItem`, `guardedSuccessionMember` — passed straight through to `Visit(...)` (no
+  attached-succession shape applies).
+- `initialNodeMember (actionTargetSuccessionMember)*` — when one or more
+  `actionTargetSuccessionMember`s are attached, synthesizes a `SysmlTransitionNode` per entry
+  (via `BuildActionTargetSuccession`) sourced from the `qualifiedName` referenced by the
+  `initialNodeMember`; the bare `first start;` form (no attached succession) remains a no-op,
+  unchanged from today, since `ActionFlowViewLayoutStrategy` infers start/done markers from
+  succession topology rather than a declarative initial-marker concept.
+- `(sourceSuccessionMember)? actionBehaviorMember (actionTargetSuccessionMember)*` — visits
+  `actionBehaviorMember` (which delegates to the existing `actionNodeMember`/`behaviorUsageMember`
+  handling) to obtain the main node, then calls `BuildActionTargetSuccession` once per
+  `actionTargetSuccessionMember` entry, each producing a `SysmlTransitionNode` whose `Source` is
+  the main node's `Name`.
+
+`BuildActionTargetSuccession` handles all three `actionTargetSuccession` grammar forms:
+unguarded `targetSuccession` (`sourceEndMember THEN connectorEndMember`), guarded
+`guardedTargetSuccession` (`if guardExpressionMember then connectorEndMember`, capturing the
+guard's expression text), and `defaultTargetSuccession` (`else then connectorEndMember`, which the
+grammar provides no guard expression for).
+
+When one or more attached successions are produced, `VisitActionBodyItem` returns the same
+`MultiNodeCapture` sentinel used by `VisitStateBodyItem`, wrapping the node plus its
+succession(s); when none are produced, it returns the visited node/pass-through result directly.
+
+`VisitMergeNode`, `VisitDecisionNode`, `VisitJoinNode`, `VisitForkNode`, `VisitAcceptNode`, and
+`VisitSendNode` each delegate to a shared `BuildActionNodeFeature(usage, keyword)` helper that
+builds a **minimal** `SysmlFeatureNode` — `FeatureKeyword` set to
+`"merge"`/`"decide"`/`"join"`/`"fork"`/`"accept"`/`"send"` respectively, `Children` always empty.
+Unlike ordinary anonymous actions (which are left nameless), an anonymous control node is given a
+synthesized internal name of the form `$<keyword><n>` (via a monotonically increasing
+`_anonymousNodeCounter` field) rather than `null`. This is a deliberate deviation from the
+State Transition View precedent: anonymous fork/decide/send is the *dominant* real-world idiom in
+the OMG training corpus (e.g. `then fork;` immediately followed by several `then` successions),
+so leaving these nodes nameless would make it impossible to wire their successions or render a
+distinct badge for them. The synthetic name is never registered in the symbol table
+(`QualifiedName` stays `null`, so `$`-prefixed names never resolve and surface only as cosmetic
+"unresolved reference" warnings) and is blanked from rendered labels by
+`ActionFlowViewLayoutStrategy`; it exists purely as an internal succession-wiring mechanism.
+`assignmentNode`, `terminateNode`, `ifNode`, `whileLoopNode`, and `forLoopNode` remain
+intentionally unhandled — a pre-existing gap, not introduced by this change.
 
 ##### Error Handling
 

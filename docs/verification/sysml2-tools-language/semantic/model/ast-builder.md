@@ -112,3 +112,11 @@ external services or additional configuration are required beyond a standard .NE
 | State usage explicit typing | `WorkspaceLoader_LoadAsync_StateUsageWithExplicitTyping_RecordsTypingEdge` |
 | Transition source resolves | `WorkspaceLoader_LoadAsync_TransitionSourceStartFeature_ResolvesToStdlibActionMember` |
 | OMG corpus fixture | `Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions` |
+| Compact `action a; then b;` idiom | `WorkspaceLoader_LoadAsync_CompactActionThenIdiom_ResolvesBothNodes` |
+| Multiple attached target successions | `WorkspaceLoader_LoadAsync_MultipleActionTargetSuccessions_CapturesAll` |
+| Bare `first start;`, no succession | `WorkspaceLoader_LoadAsync_BareInitialNodeMember_ProducesNoSuccession` |
+| Attached first-then edge | `WorkspaceLoader_LoadAsync_InitialNodeMemberWithAttachedSuccession_SynthesizesTransition` |
+| Anonymous control nodes synthesize names | `WorkspaceLoader_LoadAsync_AnonymousControlNodes_SynthesizeNames` |
+| Named control nodes keep declared name | `WorkspaceLoader_LoadAsync_NamedControlNodes_KeepDeclaredName` |
+| Guarded/default succession | `WorkspaceLoader_LoadAsync_GuardedAndDefaultActionTargetSuccession_ExtractTargets` |
+| Fork/join/decision/merge OMG corpus fixtures | `ControlNode_OmgCorpusFixture_ResolvesForkJoinDecisionMerge` |

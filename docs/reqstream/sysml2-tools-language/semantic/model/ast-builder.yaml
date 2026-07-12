@@ -272,3 +272,53 @@ sections:
           - WorkspaceLoader_LoadAsync_UnnamedEntryActionReferenceForm_NoNameNoCrash
           - WorkspaceLoader_LoadAsync_StateUsageWithExplicitTyping_RecordsTypingEdge
           - Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ActionBodyAttachedSuccession
+        title: >-
+          AstBuilder shall synthesize a SysmlTransitionNode for each attached-succession
+          `actionBodyItem` shape — an `initialNodeMember` followed by zero or more
+          `actionTargetSuccessionMember`s, and an `actionBehaviorMember` followed by zero or
+          more `actionTargetSuccessionMember`s — sourced from the preceding node's name, in
+          addition to building the preceding node itself.
+        justification: |
+          SysML v2's grammar attaches a `then`/guarded/default succession directly onto the
+          immediately preceding action node or `first` marker within the same
+          `actionBodyItem` alternative, rather than as a standalone
+          `successionAsUsage`/`transitionUsageMember`. Previously, AstBuilder only visited the
+          leading node and silently dropped every attached succession, so the compact idiom
+          `action a1; then a2;` produced both nodes but no succession edge between them. The
+          existing `MultiNodeCapture` sentinel (introduced for the analogous State Transition
+          View fix) is reused so a single `actionBodyItem` visit can yield both the node and
+          one or more synthesized transition nodes. A bare `initialNodeMember` with no
+          attached succession remains a no-op, unchanged from today, since
+          `ActionFlowViewLayoutStrategy` infers start/done markers from succession topology
+          rather than a declarative initial-marker concept.
+        tests:
+          - WorkspaceLoader_LoadAsync_CompactActionThenIdiom_ResolvesBothNodes
+          - WorkspaceLoader_LoadAsync_MultipleActionTargetSuccessions_CapturesAll
+          - WorkspaceLoader_LoadAsync_BareInitialNodeMember_ProducesNoSuccession
+          - WorkspaceLoader_LoadAsync_InitialNodeMemberWithAttachedSuccession_SynthesizesTransition
+          - WorkspaceLoader_LoadAsync_GuardedAndDefaultActionTargetSuccession_ExtractTargets
+          - ControlNode_OmgCorpusFixture_ResolvesForkJoinDecisionMerge
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ActionControlNodes
+        title: >-
+          AstBuilder shall build a minimal SysmlFeatureNode (with Children always empty and
+          FeatureKeyword "merge", "decide", "join", "fork", "accept", or "send") for each
+          mergeNode, decisionNode, joinNode, forkNode, acceptNode, and sendNode, synthesizing
+          an internal `$<keyword><n>` name when the node is anonymous (no declared name), so
+          it can still act as the implicit source of its attached successions.
+        justification: |
+          Anonymous control nodes (e.g. a bare `then fork;` immediately followed by several
+          `then` successions) are the dominant idiom for fork/decide/send in the real OMG
+          training corpus, not a rare edge case; leaving them nameless (as ordinary anonymous
+          actions are) would make it impossible to wire their successions or render a distinct
+          badge for them. The synthetic name is never added to the symbol table (QualifiedName
+          stays null) and is blanked from rendered labels, so it is purely an internal wiring
+          mechanism. `assignmentNode`, `terminateNode`, `ifNode`, `whileLoopNode`, and
+          `forLoopNode` remain intentionally unhandled — a pre-existing gap, not introduced by
+          this change.
+        tests:
+          - WorkspaceLoader_LoadAsync_AnonymousControlNodes_SynthesizeNames
+          - WorkspaceLoader_LoadAsync_NamedControlNodes_KeepDeclaredName
+          - ControlNode_OmgCorpusFixture_ResolvesForkJoinDecisionMerge

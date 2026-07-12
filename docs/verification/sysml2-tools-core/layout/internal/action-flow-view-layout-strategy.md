@@ -65,3 +65,8 @@ configuration are required beyond a standard .NET SDK installation.
 | `ActionFlowView_BuildLayout_ExposeSingleAction_DropsOutOfScopeAction` | Isolated action dropped; referenced kept |
 | `ActionFlowView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
 | `ActionFlowView_BuildLayout_ExposeInnerActionOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested wins |
+| `ActionFlowView_BuildLayout_ForkAndJoin_RenderHorizontalBarBadges` | Fork/join render horizontal-bar badges |
+| `ActionFlowView_BuildLayout_DecisionAndMerge_RenderDiamondBadges` | Decision/merge render diamond badges |
+| `ActionFlowView_BuildLayout_AcceptAndSend_RenderBoxesWithDistinctKeyword` | Accept/send keep own `Keyword` |
+| `ActionFlowView_BuildLayout_SyntheticControlNodeName_RendersBlankLabel` | `$`-prefixed synthetic names render blank |
+| `ActionFlowView_BuildLayout_CompactActionThenIdiom_ResolvesBothNodes` | Compact `action a; then b;` idiom resolves |

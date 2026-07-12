@@ -148,3 +148,30 @@ sections:
           defeating the intended scoping.
         tests:
           - ActionFlowView_BuildLayout_ExposeInnerActionOfNestedDefinition_SelectsNestedDefinitionNotAncestor
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ControlNodeShapes
+        title: >-
+          ActionFlowViewLayoutStrategy shall render "fork"/"join" action nodes as a
+          LayoutBadge with BadgeShape.HorizontalBar, "decide"/"merge" action nodes as a
+          LayoutBadge with BadgeShape.Diamond, and "accept"/"send" action nodes as a
+          LayoutBox with BoxShape.RoundedRectangle whose Keyword reflects the distinct
+          "accept"/"send" node kind, while leaving ordinary "action" node rendering
+          unchanged.
+        justification: |
+          Control nodes are semantically distinct from ordinary actions and the existing
+          State Transition View precedent already separates pseudostate markers from real
+          state boxes; Action Flow View needs the analogous visual separation so fork/join
+          branch points and decision/merge points are recognizable at a glance. No pentagon
+          primitive exists in the referenced rendering package, so accept/send nodes keep the
+          rounded-rectangle box shape but gain a distinguishing Keyword label instead of the
+          hard-coded "action" text. Badge-kind nodes use a fixed intrinsic size
+          (ControlNodeBadgeSize) rather than name-based sizing, and their rendered Label is
+          blanked when the underlying name is an AstBuilder-synthesized internal identifier.
+          Ordinary-action rendering is required to stay byte-for-byte unchanged, since many
+          existing gallery/test fixtures depend on today's plain-box behavior.
+        tests:
+          - ActionFlowView_BuildLayout_ForkAndJoin_RenderHorizontalBarBadges
+          - ActionFlowView_BuildLayout_DecisionAndMerge_RenderDiamondBadges
+          - ActionFlowView_BuildLayout_AcceptAndSend_RenderBoxesWithDistinctKeyword
+          - ActionFlowView_BuildLayout_SyntheticControlNodeName_RendersBlankLabel
+          - ActionFlowView_BuildLayout_CompactActionThenIdiom_ResolvesBothNodes
