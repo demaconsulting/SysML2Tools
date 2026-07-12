@@ -27,6 +27,8 @@ stack with `::` to form the fully-qualified name.
 | `VisitAllocationUsage` | `AllocationUsageContext` | `SysmlConnectionNode` (`ConnectionKeyword = "allocation"`) |
 | `VisitSatisfyRequirementUsage` | `SatisfyRequirementUsageContext` | `SysmlSatisfyNode` |
 | `VisitRequirementUsage` | `RequirementUsageContext` | `SysmlFeatureNode` (`FeatureKeyword = "requirement"`) |
+| `VisitDependency` | `DependencyContext` | `SysmlDependencyNode` |
+| `VisitBindingConnectorAsUsage` | `BindingConnectorAsUsageContext` | `SysmlConnectionNode` (`ConnectionKeyword = "binding"`) |
 
 `GetDeclaredName(IdentificationContext)` handles the three grammar alternatives:
 
@@ -112,6 +114,26 @@ surfaced and was fixed during this unit's implementation for the `CollectTypeBod
 `allocate A to B;` usages, reusing the existing `ExtractConnectorEnds` helper: the generated
 `AllocationUsageDeclarationContext.connectorPart()` exposes the exact same `ConnectorPartContext`
 shape as `ConnectionUsageContext.connectorPart()`, so no new endpoint-extraction logic is needed.
+
+`VisitBindingConnectorAsUsage` builds a `SysmlConnectionNode` with `ConnectionKeyword = "binding"`
+for the common `bind A = B;` (`bindingConnectorAsUsage`) grammar shape, reusing the shared
+`ConnectorEndReference` helper against each of the rule's `connectorEndMember()` entries — the
+same helper `connectionUsage`'s endpoint extraction already uses. The longer
+`bindingConnector`/`typeBody` grammar form has zero corpus evidence and is a documented,
+intentional non-goal (not attempted). `ReferenceResolver` resolves `"binding"`-keyword
+`SysmlConnectionNode` endpoints via the same dotted-feature-chain walk it already applies to
+`"connection"`/`"message"`.
+
+`VisitDependency` builds a `SysmlDependencyNode` for a standalone `dependency A, B to C, D;`
+declaration. The grammar's `dependency` rule exposes a single flat `qualifiedName()` list (no
+separate "from" vs. "to" sub-rules), so `VisitDependency` splits it positionally: every
+`qualifiedName()` whose start token index is before the `TO()` terminal's token index is a
+"from" (client) name, and every one after is a "to" (supplier) name. This also correctly handles
+the grammar's optional `FROM` keyword (e.g. `dependency z to x, y;`, with no explicit `from`
+before `z`) since the split is driven purely by position relative to `TO`, never by the
+presence/absence of the `FROM` keyword token itself. `ReferenceResolver` resolves every
+`FromNames` entry against every `ToNames` entry (a cross product), emitting one
+`SysmlEdgeKind.Dependency` edge per resolved pair.
 
 `VisitSatisfyRequirementUsage` builds a `SysmlSatisfyNode` for `satisfy X by Y;` usages. The
 satisfied requirement's raw reference text is taken from `ownedReferenceSubsetting()` when the
@@ -220,8 +242,8 @@ results without propagating failures.
   dispatch over the CST.
 - `SysMLv2Parser` — provides all CST context types consumed by the visitor methods.
 - `SysmlNode` hierarchy (`SysmlPackageNode`, `SysmlDefinitionNode`, `SysmlViewNode`,
-  `SysmlViewpointNode`, `SysmlSatisfyNode`, `SysmlConnectionNode`) — AST node types constructed
-  by the visitor.
+  `SysmlViewpointNode`, `SysmlSatisfyNode`, `SysmlConnectionNode`, `SysmlDependencyNode`) — AST
+  node types constructed by the visitor.
 - `SysmlAnnotation` / `SysmlAnnotationKind` — captured comment/documentation data attached to
   `SysmlNode.Annotations`.
 
