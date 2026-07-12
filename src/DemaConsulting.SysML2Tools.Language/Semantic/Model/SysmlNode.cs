@@ -368,10 +368,11 @@ public sealed class SysmlViewpointNode : SysmlNode
 public sealed class SysmlConnectionNode : SysmlNode
 {
     /// <summary>
-    ///     Gets the connection keyword. One of <c>"connection"</c>, <c>"message"</c>, or
-    ///     <c>"allocation"</c> (the latter reusing this node's endpoint shape for
-    ///     <c>allocate A to B</c>, since <c>allocationUsageDeclaration</c>'s <c>connectorPart</c>
-    ///     is the exact same grammar rule used by <c>connectionUsage</c>).
+    ///     Gets the connection keyword. One of <c>"connection"</c>, <c>"message"</c>,
+    ///     <c>"allocation"</c>, or <c>"binding"</c> (the latter two reusing this node's endpoint
+    ///     shape for <c>allocate A to B</c> and <c>bind A = B</c> respectively, since
+    ///     <c>allocationUsageDeclaration</c>'s and <c>bindingConnectorAsUsage</c>'s
+    ///     <c>connectorPart</c> is the exact same grammar rule used by <c>connectionUsage</c>).
     /// </summary>
     public string ConnectionKeyword { get; init; } = string.Empty;
 
@@ -446,8 +447,11 @@ public sealed class SysmlSatisfyNode : SysmlNode
 public sealed class SysmlDependencyNode : SysmlNode
 {
     /// <summary>
-    ///     Gets the raw reference text of the client ("from") names, or empty when the optional
-    ///     <c>from</c> clause is omitted (the implicit-from shape, e.g. <c>dependency z to x;</c>).
+    ///     Gets the raw reference text of the client ("from") names. Populated for both the
+    ///     explicit shape (<c>dependency from A to B;</c>) and the implicit-from shape with the
+    ///     <c>from</c> keyword omitted (e.g. <c>dependency z to x;</c>, where <c>z</c> is still
+    ///     classified as a from-name by its token position before <c>to</c>); empty only when no
+    ///     qualified name at all precedes <c>to</c> (e.g. <c>dependency to x;</c>).
     /// </summary>
     public IReadOnlyList<string> FromNames { get; init; } = Array.Empty<string>();
 

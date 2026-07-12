@@ -5,12 +5,12 @@
 `SysmlEdge` and `SysmlEdgeKind` model a single resolved directed reference between two
 qualified names in the semantic model. Edges are produced by `ReferenceResolver` while
 walking supertype, feature-typing, redefinition, import, satisfy, verify, allocate, connect,
-transition, expose, dependency, and binding references, and are the raw material indexed by
-`SemanticIndex`.
+transition, expose, metadata-typing, dependency, and binding references, and are the raw
+material indexed by `SemanticIndex`.
 
 ##### Types
 
-`SysmlEdgeKind` is an enum with twelve members:
+`SysmlEdgeKind` is an enum with thirteen members:
 
 - `Supertype` — a specialization reference (`SupertypeNames` / `specializes` / `:>`).
 - `Typing` — a feature typing reference (`SysmlFeatureNode.FeatureTyping`, the type after `:`).
@@ -49,6 +49,9 @@ transition, expose, dependency, and binding references, and are the raw material
   targeting the resolved redefined-feature reference. Rendered by `GeneralViewLayoutStrategy` as
   a solid line with a hollow-triangle-crossbar end marker at the owning definition of the
   redefined feature.
+- `MetadataType` — a metadata annotation's type reference (`SysmlMetadataNode.TypeReference` /
+  `@Type` / `{@Type{...}}`), sourced from the annotation and targeting the resolved `metadata
+  def` declaration it references.
 - `Dependency` — a standalone dependency declaration (`dependency A, B to C, D;`), sourced from
   each resolvable name in `SysmlDependencyNode.FromNames` and targeting each resolvable name in
   `SysmlDependencyNode.ToNames`, one `Dependency` edge per resolved (from, to) pair (cross
