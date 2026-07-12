@@ -520,4 +520,184 @@ public sealed class StateTransitionViewLayoutStrategyTests
         Assert.Contains(boxes, b => b.Label == "b1");
         Assert.Contains(boxes, b => b.Label == "b2");
     }
+
+    /// <summary>
+    ///     A pseudostate-sourced initial transition (<c>first start then X;</c>) makes the initial
+    ///     marker's arrow land on the semantically-resolved target, not the first-declared state —
+    ///     confirmed here with declaration order deliberately chosen so the two disagree.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_PseudostateSourceTransition_MarksResolvedTargetNotFirstDeclared()
+    {
+        // Arrange: "b" is declared first, but "first start then b" is not present — instead
+        // "start" (an inherited pseudostate feature, never declared as its own state box) targets
+        // "b" while "a" is declared first. This confirms the marker follows the resolved target
+        // ("b") rather than the first-declared state ("a").
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var machine = new SysmlDefinitionNode
+        {
+            Name = "M",
+            QualifiedName = "P::M",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlTransitionNode { Source = "start", Target = "b" },
+                new SysmlFeatureNode { Name = "a", QualifiedName = "P::M::a", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "b", QualifiedName = "P::M::b", FeatureKeyword = "state" },
+                new SysmlTransitionNode { Source = "a", Target = "b", Guard = null }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::M"] = machine }
+        };
+        var context = new ViewContext("StateTransition", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the initial marker's arrow terminates at "b"'s top edge (Y), not "a"'s — using Y
+        // rather than X since a linear a->b chain may share a column (same X) under the layered
+        // placement algorithm, but "a" (flow source) and "b" (flow target) never share the same Y.
+        var badge = Assert.Single(layout.Nodes.OfType<LayoutBadge>());
+        var bBox = layout.Nodes.OfType<LayoutBox>().Single(b => b.Keyword == "state" && b.Label == "b");
+        var aBox = layout.Nodes.OfType<LayoutBox>().Single(b => b.Keyword == "state" && b.Label == "a");
+        var markerArrow = layout.Nodes.OfType<LayoutLine>()
+            .Single(l => l.TargetEnd == EndMarkerStyle.FilledArrow && l.Waypoints.Count == 2 &&
+                         Math.Abs(l.Waypoints[0].X - badge.CentreX) < 0.01);
+        var arrowEndY = markerArrow.Waypoints[^1].Y;
+        Assert.Equal(bBox.Y, arrowEndY, precision: 3);
+        Assert.NotEqual(aBox.Y, arrowEndY, precision: 3);
+    }
+
+    /// <summary>
+    ///     No state box is ever labelled <c>"start"</c> — a pseudostate-sourced transition's source
+    ///     must be excluded from ordinary state-box rendering (it would otherwise be synthesized as
+    ///     an "additional state referenced only by a transition endpoint").
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_PseudostateSourceTransition_NoSpuriousBox()
+    {
+        // Arrange
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var machine = new SysmlDefinitionNode
+        {
+            Name = "M",
+            QualifiedName = "P::M",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlTransitionNode { Source = "start", Target = "off" },
+                new SysmlFeatureNode { Name = "off", QualifiedName = "P::M::off", FeatureKeyword = "state" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::M"] = machine }
+        };
+        var context = new ViewContext("StateTransition", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: exactly one state box ("off"), never a "start" box.
+        var stateBoxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        Assert.Single(stateBoxes);
+        Assert.DoesNotContain(stateBoxes, b => b.Label == "start");
+    }
+
+    /// <summary>
+    ///     The <c>entryActionMember (entryTransitionMember)*</c> shape's implicit source (a named
+    ///     entry-action feature, e.g. <c>entry action initial; then off;</c>) is likewise excluded
+    ///     from ordinary state-box rendering, and the initial marker still resolves to the correct
+    ///     target via the entry action's name.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_EntryActionSourceTransition_NoSpuriousBoxUsesResolvedTarget()
+    {
+        // Arrange
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var machine = new SysmlDefinitionNode
+        {
+            Name = "M",
+            QualifiedName = "P::M",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "initial", QualifiedName = "P::M::initial", FeatureKeyword = "entry" },
+                new SysmlFeatureNode { Name = "a", QualifiedName = "P::M::a", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "off", QualifiedName = "P::M::off", FeatureKeyword = "state" },
+                new SysmlTransitionNode { Source = "initial", Target = "off" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::M"] = machine }
+        };
+        var context = new ViewContext("StateTransition", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: two state boxes ("a", "off"), no "initial" box, and the initial marker arrow
+        // lands on "off" (the entry action's declared target) rather than "a" (first declared).
+        var stateBoxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        Assert.Equal(2, stateBoxes.Count);
+        Assert.DoesNotContain(stateBoxes, b => b.Label == "initial");
+
+        var badge = Assert.Single(layout.Nodes.OfType<LayoutBadge>());
+        var offBox = stateBoxes.Single(b => b.Label == "off");
+        var markerArrow = layout.Nodes.OfType<LayoutLine>()
+            .Single(l => l.TargetEnd == EndMarkerStyle.FilledArrow && l.Waypoints.Count == 2 &&
+                         Math.Abs(l.Waypoints[0].X - badge.CentreX) < 0.01);
+        var arrowEndX = markerArrow.Waypoints[^1].X;
+        Assert.InRange(arrowEndX, offBox.X, offBox.X + offBox.Width);
+    }
+
+    /// <summary>
+    ///     Regression guard: when no pseudostate-sourced transition exists, the initial marker's
+    ///     arrow still lands on the first-declared state — the pre-existing heuristic — exactly as
+    ///     before this fix (protects every pre-existing passing test in this file, and the gallery's
+    ///     <c>03-elevator-state.sysml</c>, which uses only guarded <c>transition first idle if ...
+    ///     then ...;</c> chains with no pseudostate source at all).
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_NoExplicitInitialTransition_FallsBackToFirstDeclared()
+    {
+        // Arrange: ordinary declared-state-to-state transitions only, no "start"/entry source.
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var machine = new SysmlDefinitionNode
+        {
+            Name = "M",
+            QualifiedName = "P::M",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a", QualifiedName = "P::M::a", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "b", QualifiedName = "P::M::b", FeatureKeyword = "state" },
+                new SysmlTransitionNode { Source = "a", Target = "b", Guard = "t" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::M"] = machine }
+        };
+        var context = new ViewContext("StateTransition", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the initial marker's arrow lands on "a" (the first-declared state).
+        var badge = Assert.Single(layout.Nodes.OfType<LayoutBadge>());
+        var aBox = layout.Nodes.OfType<LayoutBox>().Single(b => b.Keyword == "state" && b.Label == "a");
+        var markerArrow = layout.Nodes.OfType<LayoutLine>()
+            .Single(l => l.TargetEnd == EndMarkerStyle.FilledArrow && l.Waypoints.Count == 2 &&
+                         Math.Abs(l.Waypoints[0].X - badge.CentreX) < 0.01);
+        var arrowEndX = markerArrow.Waypoints[^1].X;
+        Assert.InRange(arrowEndX, aBox.X, aBox.X + aBox.Width);
+    }
 }
