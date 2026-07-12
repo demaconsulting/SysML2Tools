@@ -812,21 +812,30 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var supertypeNames = ExtractSubsettingTargetNames(decl?.featureSpecializationPart());
         var multiplicity = ExtractMultiplicity(decl?.featureSpecializationPart());
 
+        // An unnamed usage that redefines a feature (e.g. `port redefines fuelTankPort { ... }`,
+        // with no name token of its own) implicitly takes the redefined feature's own simple name
+        // per SysML v2 semantics — without this fallback, such a usage's Name/QualifiedName stay
+        // null and it can never be referenced or resolved by name (e.g. as a `connect`/`bind`
+        // endpoint), even though the model clearly identifies it. Only the trailing segment of the
+        // (possibly qualified) redefined reference is used, mirroring how a redefined feature's own
+        // declared name is always just its simple name.
+        var effectiveName = name ?? (redefined is not null ? SimpleNameFromReference(redefined) : null);
+
         // Named usages contribute a namespace segment for any nested usages they own.
-        var qualifiedName = name is not null ? QualifyName(name) : null;
+        var qualifiedName = effectiveName is not null ? QualifyName(effectiveName) : null;
         IReadOnlyList<SysmlNode> children = Array.Empty<SysmlNode>();
         IReadOnlyList<SysmlAnnotation> annotations = Array.Empty<SysmlAnnotation>();
         var body = usage.usageCompletion()?.usageBody()?.definitionBody();
         if (body is not null)
         {
-            if (name is not null)
+            if (effectiveName is not null)
             {
-                _namespaceStack.Add(name);
+                _namespaceStack.Add(effectiveName);
             }
 
             (children, annotations) = CollectDefinitionBodyItems(body.definitionBodyItem());
 
-            if (name is not null)
+            if (effectiveName is not null)
             {
                 _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
             }
@@ -834,7 +843,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
         return new SysmlFeatureNode
         {
-            Name = name,
+            Name = effectiveName,
             QualifiedName = qualifiedName,
             FeatureKeyword = keyword,
             FeatureTyping = typing,
@@ -938,6 +947,18 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         }
 
         return null;
+    }
+
+    /// <summary>
+    ///     Derives the trailing simple-name segment from a raw (possibly qualified) reference text,
+    ///     e.g. <c>"Owner::fuelTankPort"</c> → <c>"fuelTankPort"</c>; a reference with no <c>::</c>
+    ///     separator is returned unchanged. Used to derive an unnamed usage's implicit name from the
+    ///     feature it redefines (see the <c>effectiveName</c> fallback in <see cref="BuildUsageNode"/>).
+    /// </summary>
+    private static string SimpleNameFromReference(string reference)
+    {
+        var separatorIndex = reference.LastIndexOf("::", StringComparison.Ordinal);
+        return separatorIndex < 0 ? reference : reference[(separatorIndex + 2)..];
     }
 
     /// <summary>

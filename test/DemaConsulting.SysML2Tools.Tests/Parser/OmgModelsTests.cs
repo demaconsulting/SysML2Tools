@@ -124,21 +124,17 @@ public sealed class OmgModelsTests
     }
 
     /// <summary>
-    ///     The dedicated <c>bind</c> corpus fixture parses and resolves without crashing (the
-    ///     Phase 1 gate every fixture in this unit must clear). This fixture's two <c>bind</c>
-    ///     statements reference a port/item usage declared only via
+    ///     The dedicated <c>bind</c> corpus fixture parses and resolves its two <c>bind</c>
+    ///     statements, whose endpoints reference a port/item usage declared only via
     ///     <c>port redefines fuelTankPort { out item redefines fuelSupply; ... }</c> — an implicitly
-    ///     named usage (no explicit name token precedes <c>redefines</c>) whose effective name is
-    ///     never populated by <c>AstBuilder</c> (a pre-existing gap: <c>BuildUsageNode</c> only
-    ///     reads a name from an explicit <c>usageDeclaration</c>, never falling back to the
-    ///     redefined feature's own name), so both <c>bind</c> endpoints legitimately fail to
-    ///     resolve for this specific fixture. This mirrors the already-documented
-    ///     <see cref="SysmlEdgeKind.Transition"/> implied-source limitation and is called out here,
-    ///     not silently masked, per this unit's existing graceful-degradation contract (0 edges,
-    ///     Warning diagnostics, no crash — never an Error/exception).
+    ///     named usage (no explicit name token precedes <c>redefines</c>). Per SysML v2 semantics
+    ///     such a usage's implicit name is the name of the feature it redefines, so
+    ///     <c>fuelTankPort</c>/<c>fuelSupply</c> etc. are resolvable simple names despite never
+    ///     being written explicitly — <c>AstBuilder.BuildUsageNode</c>'s <c>effectiveName</c>
+    ///     fallback derives them from <see cref="SysmlFeatureNode.RedefinedFeatureName"/>.
     /// </summary>
     [Fact]
-    public async Task Binding_OmgCorpusFixture_ParsesAndResolvesWithoutCrashing()
+    public async Task Binding_OmgCorpusFixture_ResolvesBindingEdgesViaImplicitRedefinitionNames()
     {
         var omgRoot = FindOmgModelsRoot();
         var files = new[]
@@ -153,7 +149,19 @@ public sealed class OmgModelsTests
 
         Assert.DoesNotContain(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
 
-        // Documented limitation (see summary above): 0 Binding edges for this specific fixture.
-        Assert.DoesNotContain(result.Workspace!.Index.AllEdges, e => e.Kind == SysmlEdgeKind.Binding);
+        var bindingEdges = result.Workspace!.Index.AllEdges
+            .Where(e => e.Kind == SysmlEdgeKind.Binding)
+            .Select(e => (Source: e.SourceQualifiedName ?? string.Empty, Target: e.TargetQualifiedName))
+            .ToList();
+
+        Assert.Contains(
+            ("'Binding Connectors Example-1'::vehicle::tank::fuelTankPort::fuelSupply",
+                "'Binding Connectors Example-1'::vehicle::tank::pump::pumpOut"),
+            bindingEdges);
+        Assert.Contains(
+            ("'Binding Connectors Example-1'::vehicle::tank::fuelTankPort::fuelReturn",
+                "'Binding Connectors Example-1'::vehicle::tank::tank::fuelIn"),
+            bindingEdges);
+        Assert.Equal(2, bindingEdges.Count);
     }
 }

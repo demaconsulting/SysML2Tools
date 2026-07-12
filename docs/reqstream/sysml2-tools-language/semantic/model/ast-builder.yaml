@@ -144,6 +144,25 @@ sections:
           - WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText
           - WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull
 
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ImplicitRedefinitionName
+        title: >-
+          AstBuilder shall assign an implicitly-named redefining usage (one with no explicit
+          declared name but a non-null RedefinedFeatureName) an effective name derived from the
+          redefined feature's simple (trailing `::`-segment) name, using it in place of the
+          missing declared name for namespace registration, QualifiedName, and the node's Name
+          property.
+        justification: |
+          SysML v2 allows a redefining usage to omit its own declared name, in which case it
+          takes the redefined feature's name (e.g. `port redefines fuelTankPort { item redefines
+          fuelSupply; }` is named `fuelTankPort`). Without this fallback, such usages were built
+          as anonymous nodes never registered in the symbol table, so any subsequent reference
+          to them (including `bind` connector ends) failed to resolve — reproduced by the OMG
+          corpus fixture `BindingConnectorsExample-1.sysml`, whose `bind` statements reference an
+          implicitly-named `port redefines fuelTankPort { ... }` usage.
+        tests:
+          - WorkspaceLoader_LoadAsync_BindingViaImplicitlyNamedRedefinedUsage_RecordsBindingEdge
+          - Binding_OmgCorpusFixture_ResolvesBindingEdgesViaImplicitRedefinitionNames
+
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-MetadataAnnotations
         title: >-
           AstBuilder shall capture each applied metadata annotation nested in an element body as a

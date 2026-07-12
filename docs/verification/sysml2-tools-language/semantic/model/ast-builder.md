@@ -39,6 +39,10 @@ external services or additional configuration are required beyond a standard .NE
   the `redefines` keyword form and the `:>>` operator form, for both a bare simple name and a
   qualified `Owner::feature` form (captured verbatim, unresolved), and leaves it null for a
   feature that declares no redefinition.
+- An implicitly-named redefining usage (e.g. `port redefines fuelTankPort { item redefines
+  fuelSupply; }`, with no explicit declared name) is assigned an `effectiveName`/`QualifiedName`
+  derived from the redefined feature's simple name, making it resolvable by later references
+  (including `bind` connector ends) instead of remaining anonymous.
 - `VisitDependency` splits a `dependency A, B to C, D;` declaration's flat qualified-name list
   into `FromNames`/`ToNames` correctly, including the FROM-keyword-omitted shape
   (`dependency z to x, y;`), and resolves to the expected cross-product `Dependency` edges (or a
@@ -70,10 +74,11 @@ external services or additional configuration are required beyond a standard .NE
 | Redefinition capture, `:>>` operator | `WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName` |
 | Redefinition capture, qualified form | `WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText` |
 | No redefinition leaves field null | `WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull` |
+| Implicit redefinition name | `WorkspaceLoader_LoadAsync_BindingViaImplicitlyNamedRedefinedUsage_RecordsBindingEdge` |
 | Dependency binary ends | `WorkspaceLoader_LoadAsync_DependencyBinaryEnds_RecordsDependencyEdge` |
 | Dependency comma-list cross product | `WorkspaceLoader_LoadAsync_DependencyCommaLists_RecordsCrossProductEdges` |
 | Dependency unresolved end | `WorkspaceLoader_LoadAsync_DependencyUnresolvedEnd_ProducesWarningNoEdge` |
 | Dependency OMG corpus fixtures | `Dependency_OmgCorpusFixtures_ResolveExpectedEdges` |
 | Binding dotted-chain resolution | `WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge` |
 | Binding unresolved end | `WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge` |
-| Binding OMG corpus fixture (documented limitation) | `Binding_OmgCorpusFixture_ParsesAndResolvesWithoutCrashing` |
+| Binding OMG corpus fixture | `Binding_OmgCorpusFixture_ResolvesBindingEdgesViaImplicitRedefinitionNames` |

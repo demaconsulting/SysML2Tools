@@ -65,6 +65,16 @@ forms identically without needing to branch on which token was used. The raw ref
 captured verbatim — including qualified `Owner::feature` forms — with no resolution attempted;
 resolution happens later, in `ReferenceResolver`.
 
+When a usage has no explicit declared name (`GetDeclaredName` returns `null`) but does have a
+redefinition (`redefined is not null`), `BuildUsageNode` derives an implicit name via
+`SimpleNameFromReference(redefined)` — the trailing `::`-separated segment of the redefined
+feature's reference text — and uses this `effectiveName` everywhere the declared name would
+otherwise be used: the namespace-stack push/pop, the constructed node's `QualifiedName`, and its
+`Name` property. This mirrors SysML v2's own naming rule that an implicitly-named redefining
+usage inherits the redefined feature's name (e.g. `port redefines fuelTankPort { ... }` is named
+`fuelTankPort`), and allows such usages — and any references to them (including `bind` connector
+ends) — to resolve correctly instead of remaining anonymous and unresolvable.
+
 `BuildUsageNode` also calls `ExtractSubsettingTargetNames(decl?.featureSpecializationPart())`,
 setting the result on the constructed `SysmlFeatureNode`'s inherited `SupertypeNames` property —
 mirroring `ExtractRedefinedFeature`'s structure (first checking

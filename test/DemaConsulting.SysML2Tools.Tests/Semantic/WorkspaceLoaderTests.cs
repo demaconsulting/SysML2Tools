@@ -2104,6 +2104,63 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A <c>bind</c> endpoint that names an implicitly-named usage (a nested
+    ///     <c>port redefines fuelTankPort { ... }</c> with no name token of its own) should still
+    ///     resolve and produce a <c>Binding</c> edge, because such a usage's implicit name is the
+    ///     name of the feature it redefines (SysML v2 semantics) — <c>AstBuilder.BuildUsageNode</c>'s
+    ///     <c>effectiveName</c> fallback derives it from <c>RedefinedFeatureName</c> rather than
+    ///     leaving the usage permanently unnamed and unresolvable. Mirrors the real-world OMG
+    ///     corpus fixture shape (<c>BindingConnectorsExample-1.sysml</c> / <c>PortExample.sysml</c>)
+    ///     in isolation, independent of the external corpus.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_BindingViaImplicitlyNamedRedefinedUsage_RecordsBindingEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    port def FuelOutPort {
+                        item fuelSupply;
+                    }
+                    part def Tank {
+                        port fuelTankPort : FuelOutPort;
+                    }
+                    part def Pump {
+                        item pumpOut;
+                    }
+                    part def Vehicle {
+                        part tank : Tank {
+                            port redefines fuelTankPort {
+                                item redefines fuelSupply;
+                            }
+                        }
+                        part pump : Pump;
+                        bind tank.fuelTankPort.fuelSupply = pump.pumpOut;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Binding &&
+                     e.SourceQualifiedName == "P::Vehicle::tank::fuelTankPort::fuelSupply" &&
+                     e.TargetQualifiedName == "P::Vehicle::pump::pumpOut");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     A <c>bind</c> usage referencing an unresolvable feature chain end should produce a
     ///     Warning diagnostic and must not produce a <c>Binding</c> edge (no partial edge, no
     ///     crash).
