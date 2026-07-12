@@ -33,6 +33,17 @@ ports, parts) and specialization edges. Definitions are placed by a layered
 (`attribute :>> maxThrust : Mass;`), demonstrating the hollow-triangle-crossbar
 marker used for `redefines`/`:>>` relationships.
 
+`Drone`'s `connect controller.power to battery.output;` statement demonstrates
+the plain, unmarked solid line used for `connect` between two sibling parts'
+ports. `RacingDrone`'s `part frontMotors : Motor[2] subsets motors;` narrows
+`Drone`'s inherited `motors` feature, demonstrating the dashed hollow-triangle
+marker used for `subsets`/`:>` feature subsetting. `allocate FlightTimeRequirement
+to Battery;` demonstrates the dashed open-chevron line carrying the
+`«allocate»` stereotype label used for allocation relationships, while the
+standalone `dependency FlightController to Battery;` statement demonstrates the
+same dashed open-chevron line without a label, used for general OMG
+dependency relationships.
+
 Model: [`models/01-drone-general.sysml`](models/01-drone-general.sysml) ·
 SVG: [`svg/DroneGeneralView.svg`](svg/DroneGeneralView.svg)
 
