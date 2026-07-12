@@ -36,14 +36,27 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
     private const double MarkerSize = 20.0;
 
     /// <summary>
+    /// Intrinsic size (both width and height) of a control-node badge (fork/join bar, decision/merge
+    /// diamond), independent of the box-sizing heuristics used for ordinary actions and
+    /// accept/send boxes.
+    /// </summary>
+    private const double ControlNodeBadgeSize = 24.0;
+
+    /// <summary>
     /// Gap between a start/done marker and the adjacent action layer. Mirrors the layered algorithm's
     /// between-layer corridor width (70 px) so the control markers keep the same vertical rhythm as
     /// the action layers.
     /// </summary>
     private const double MarkerLayerGap = 70.0;
 
-    /// <summary>An action with its computed box size.</summary>
-    private sealed record ActionItem(string Name, double Width, double Height);
+    /// <summary>
+    /// An action-flow node with its computed intrinsic size and kind. <paramref name="Kind"/> is one
+    /// of <c>"action"</c> (ordinary action box, or a succession-endpoint-only fallback — the default),
+    /// <c>"merge"</c>/<c>"decide"</c>/<c>"join"</c>/<c>"fork"</c> (rendered as a badge), or
+    /// <c>"accept"</c>/<c>"send"</c> (rendered as a rounded-rectangle box, like an ordinary action,
+    /// but labelled with its own distinct keyword).
+    /// </summary>
+    private sealed record ActionItem(string Name, double Width, double Height, string Kind = "action");
 
     /// <inheritdoc/>
     public LayoutTree BuildLayout(ViewContext context, RenderOptions options)
@@ -102,7 +115,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         var nodes = new List<LayoutNode>();
         for (var i = 0; i < actions.Count; i++)
         {
-            nodes.Add(MakeActionBox(actions[i], rects[i]));
+            nodes.Add(MakeActionNode(actions[i], rects[i]));
         }
 
         var crossings = AddSuccessionEdges(edges, placed.EdgePolylines, rects, offsetX, offsetY, nodes);
@@ -151,7 +164,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             }
 
             var successions = def.Children.OfType<SysmlTransitionNode>().Count();
-            var actions = def.Children.OfType<SysmlFeatureNode>().Count(f => f.FeatureKeyword == "action");
+            var actions = def.Children.OfType<SysmlFeatureNode>().Count(f => IsActionFlowKeyword(f.FeatureKeyword));
             var score = (successions * 100) + actions;
             var scoreBetter = score > bestScore;
             var isBetter = scope is not null
@@ -185,7 +198,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         var actions = new List<ActionItem>();
         var index = new Dictionary<string, int>(StringComparer.Ordinal);
 
-        void Add(string name)
+        void Add(string name, string kind)
         {
             if (index.ContainsKey(name))
             {
@@ -193,13 +206,13 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             }
 
             index[name] = actions.Count;
-            var (width, height) = ComputeActionSize(name, theme);
-            actions.Add(new ActionItem(name, width, height));
+            var (width, height) = ComputeActionSize(name, kind, theme);
+            actions.Add(new ActionItem(name, width, height, kind));
         }
 
         foreach (var feature in root.Children.OfType<SysmlFeatureNode>())
         {
-            if (feature.FeatureKeyword != "action" || feature.Name is null)
+            if (!IsActionFlowKeyword(feature.FeatureKeyword) || feature.Name is null)
             {
                 continue;
             }
@@ -210,19 +223,19 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            Add(feature.Name);
+            Add(feature.Name, feature.FeatureKeyword);
         }
 
         foreach (var succession in root.Children.OfType<SysmlTransitionNode>())
         {
             if (LastSegment(succession.Source) is { } s)
             {
-                Add(s);
+                Add(s, "action");
             }
 
             if (LastSegment(succession.Target) is { } t)
             {
-                Add(t);
+                Add(t, "action");
             }
         }
 
@@ -247,28 +260,89 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         return result;
     }
 
-    /// <summary>Computes the intrinsic size of an action box.</summary>
-    private static (double Width, double Height) ComputeActionSize(string name, Theme theme)
+    /// <summary>Computes the intrinsic size of an action-flow node for the given kind.</summary>
+    /// <remarks>
+    /// Ordinary actions (kind <c>"action"</c>) and accept/send boxes use the same name-based sizing
+    /// heuristic as before this branch (accept/send previously always used kind <c>"action"</c>
+    /// sizing too, so this is unchanged for them). Badge kinds (fork/join/decide/merge) use a fixed
+    /// <see cref="ControlNodeBadgeSize"/> square instead, independent of the node's name length.
+    /// </remarks>
+    private static (double Width, double Height) ComputeActionSize(string name, string kind, Theme theme)
     {
+        if (IsBadgeKind(kind))
+        {
+            return (ControlNodeBadgeSize, ControlNodeBadgeSize);
+        }
+
         var labelWidth = (name.Length * theme.FontSizeTitle * CharWidthFactor) + (4.0 * theme.LabelPadding);
         var width = Math.Max(MinActionWidth, labelWidth);
         var height = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true) + theme.LabelPadding;
         return (width, height);
     }
 
-    /// <summary>Creates a rounded-rectangle action box at the given position.</summary>
-    private static LayoutBox MakeActionBox(ActionItem action, Rect rect) =>
-        new(
-            X: rect.X,
-            Y: rect.Y,
-            Width: rect.Width,
-            Height: rect.Height,
-            Label: action.Name,
-            Depth: 1,
-            Shape: BoxShape.RoundedRectangle,
-            Compartments: [],
-            Children: [],
-            Keyword: "action");
+    /// <summary>
+    /// Returns whether <paramref name="keyword"/> names an action-flow node kind recognized by this
+    /// layout strategy: the original ordinary <c>"action"</c> plus the control-node/accept/send
+    /// keywords added for fork/join/decision/merge/accept/send support.
+    /// </summary>
+    private static bool IsActionFlowKeyword(string keyword) =>
+        keyword is "action" or "merge" or "decide" or "join" or "fork" or "accept" or "send";
+
+    /// <summary>Returns whether <paramref name="kind"/> renders as a <see cref="LayoutBadge"/> rather than a box.</summary>
+    private static bool IsBadgeKind(string kind) => kind is "merge" or "decide" or "join" or "fork";
+
+    /// <summary>
+    /// Creates the layout node for an action-flow item at the given placed rectangle: a
+    /// <see cref="BadgeShape.Diamond"/> badge for decision/merge, a <see cref="BadgeShape.HorizontalBar"/>
+    /// badge for fork/join, or a rounded-rectangle box (labelled with its own distinct keyword) for
+    /// ordinary actions and accept/send nodes. Ordinary-action (<c>"action"</c>) rendering is
+    /// byte-for-byte identical to before this branch. A synthetic <c>$</c>-prefixed internal name
+    /// (assigned by <c>AstBuilder</c> to an anonymous control node) is never shown as a label.
+    /// </summary>
+    private static LayoutNode MakeActionNode(ActionItem action, Rect rect)
+    {
+        var centreX = rect.X + (rect.Width / 2.0);
+        var centreY = rect.Y + (rect.Height / 2.0);
+        var label = action.Name.StartsWith("$", StringComparison.Ordinal) ? null : action.Name;
+
+        switch (action.Kind)
+        {
+            case "merge":
+            case "decide":
+                return new LayoutBadge(centreX, centreY, rect.Width, BadgeShape.Diamond, label);
+
+            case "fork":
+            case "join":
+                return new LayoutBadge(centreX, centreY, rect.Width, BadgeShape.HorizontalBar, label);
+
+            case "accept":
+            case "send":
+                return new LayoutBox(
+                    X: rect.X,
+                    Y: rect.Y,
+                    Width: rect.Width,
+                    Height: rect.Height,
+                    Label: label ?? string.Empty,
+                    Depth: 1,
+                    Shape: BoxShape.RoundedRectangle,
+                    Compartments: [],
+                    Children: [],
+                    Keyword: action.Kind);
+
+            default:
+                return new LayoutBox(
+                    X: rect.X,
+                    Y: rect.Y,
+                    Width: rect.Width,
+                    Height: rect.Height,
+                    Label: action.Name,
+                    Depth: 1,
+                    Shape: BoxShape.RoundedRectangle,
+                    Compartments: [],
+                    Children: [],
+                    Keyword: "action");
+        }
+    }
 
     /// <summary>
     /// Adds the succession flow edges (top-to-bottom) between action boxes, using the orthogonal
