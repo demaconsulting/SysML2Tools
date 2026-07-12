@@ -15,7 +15,7 @@ The work falls into three themes:
 
 ## Notation & view conformance
 
-### Additional relationship edges (General View)
+### Additional relationship edges (General View) — delivered
 
 Render the relationships currently omitted from the General View, each routed via
 `ChannelRouter` and carrying the correct spec end shape:
