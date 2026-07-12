@@ -29,6 +29,10 @@ stack with `::` to form the fully-qualified name.
 | `VisitRequirementUsage` | `RequirementUsageContext` | `SysmlFeatureNode` (`FeatureKeyword = "requirement"`) |
 | `VisitDependency` | `DependencyContext` | `SysmlDependencyNode` |
 | `VisitBindingConnectorAsUsage` | `BindingConnectorAsUsageContext` | `SysmlConnectionNode` (kind `binding`) |
+| `VisitStateBodyItem` | `StateBodyItemContext` | `SysmlNode` or `MultiNodeCapture` (usage + transitions) |
+| `VisitEntryActionMember` | `EntryActionMemberContext` | `SysmlFeatureNode` (`FeatureKeyword = "entry"`) |
+| `VisitDoActionMember` | `DoActionMemberContext` | `SysmlFeatureNode` (`FeatureKeyword = "do"`) |
+| `VisitExitActionMember` | `ExitActionMemberContext` | `SysmlFeatureNode` (`FeatureKeyword = "exit"`) |
 
 `GetDeclaredName(IdentificationContext)` handles the three grammar alternatives:
 
@@ -241,6 +245,64 @@ placeholder form's feature typing (`verify requirement <name> : <Type>;`, via th
 `VisitRequirementUsage` (via its own `requirementBody()`). This walk is safe from double-counting
 because nothing else in `AstBuilder` currently visits into `requirementBody`/`caseBody`
 subtrees.
+
+`VisitStateUsage` additionally calls `ExtractFeatureTyping(decl?.featureSpecializationPart())` and
+sets the result on the constructed `SysmlFeatureNode`'s `FeatureTyping` property — previously this
+was always left `null` for state usages, unlike every other usage kind built via `BuildUsageNode`.
+This is a prerequisite for `StateTransitionViewLayoutStrategy`'s expose-scoping root selection
+(which resolves an exposed usage's type via its `Typing` edge) and for
+`ReferenceResolver.TryResolveInheritedActionMember` (below) to find the enclosing usage's
+supertype when its source has no explicit `state usage : Type { ... }` form.
+
+**Attached-transition state bodies and entry/do/exit action features.** The `stateBodyItem`
+grammar rule has six alternatives; two of them attach a transition directly onto the immediately
+preceding usage within the same alternative rather than exposing it as a separate
+`transitionUsageMember`: `behaviorUsageMember (targetTransitionUsageMember)*` (e.g.
+`state off; accept Signal then starting;`) and `entryActionMember (entryTransitionMember)*` (e.g.
+`entry action initial; then off;`). Before `VisitStateBodyItem` existed, `AstBuilder` only ever
+visited the leading usage of each alternative (via the default `VisitChildren` aggregation) and
+silently dropped every attached transition, so this common OMG Annex A.7 idiom produced no
+transition edge at all.
+
+`VisitStateBodyItem` dispatches all six alternatives explicitly:
+
+- `nonBehaviorBodyItem`, `transitionUsageMember`, `doActionMember`, `exitActionMember` — passed
+  straight through to `Visit(...)` (no attached-transition shape applies).
+- `behaviorUsageMember (targetTransitionUsageMember)*` — visits the usage, then calls
+  `BuildAttachedTransition` once per `targetTransitionUsageMember` entry, each producing a
+  `SysmlTransitionNode` whose `Source` is the visited usage's `Name`.
+- `entryActionMember (entryTransitionMember)*` — visits the entry action (via
+  `VisitEntryActionMember`, below), then calls `BuildEntryAttachedTransition` once per
+  `entryTransitionMember` entry (handling both the `guardedTargetSuccession` and bare `THEN`
+  grammar alternatives), each producing a `SysmlTransitionNode` sourced from the entry action's
+  name.
+
+When one or more attached transitions are produced, `VisitStateBodyItem` returns a
+`MultiNodeCapture` (a private nested `SysmlNode` subtype, mirroring the existing
+`AnnotationCapture` sentinel pattern exactly) wrapping the usage plus its transition(s); when none
+are produced, it returns the visited usage/pass-through result directly with no wrapping.
+`CollectChildren` — the only collection helper that ever visits a `stateBodyItem()` (confirmed by
+inspection: `VisitStateDefinition` and `VisitStateUsage` are the sole two call sites) — flattens
+any `MultiNodeCapture.Nodes` it encounters into the resulting `Children` list, exactly as it
+already does for `AnnotationCapture`. Like `AnnotationCapture`, `MultiNodeCapture` is never
+registered as a `[JsonDerivedType]` and must never reach a real `Children` list; the same
+single-call-site guarantee that protects `AnnotationCapture` protects it here.
+
+`VisitEntryActionMember`, `VisitDoActionMember`, and `VisitExitActionMember` each delegate to a
+shared `BuildStateActionFeatureNode(usage, keyword)` helper, which builds a **minimal**
+`SysmlFeatureNode` — `FeatureKeyword` set to `"entry"`/`"do"`/`"exit"` respectively, `Children`
+always empty — using `ExtractStateActionName` to determine the node's `Name`. Entry/do/exit
+action *bodies* are behavioral (statement sequences: assignments, sends, control flow), which is
+out of scope for this unit's declarative AST; this deliberately mirrors the existing
+`VisitRequirementUsage` "minimal capture" pattern rather than attempting to model action-body
+statements. `ExtractStateActionName` only derives a name for the named
+`ACTION usageDeclaration?` grammar alternative (e.g. `do action providePower { ... }` →
+`"providePower"`); for the unnamed reference-subsetting alternative (e.g.
+`entry performSelfTest{...}`, a reference to an inherited/imported behavior rather than a new
+declaration) it deliberately returns `null` rather than attempting to derive or evaluate a name —
+the resulting feature node still registers as an (unnamed, unregistered) AST child so no
+information is lost, but it is not itself a resolvable symbol. This scope boundary is intentional
+and matches the ROADMAP's framing of entry/do/exit action support as "minimal, non-behavioral."
 
 ##### Error Handling
 

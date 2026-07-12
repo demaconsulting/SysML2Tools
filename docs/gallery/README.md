@@ -98,7 +98,11 @@ SVG: [`svg/CoreLinkInterconnectionView.svg`](svg/CoreLinkInterconnectionView.svg
 ## 3. State Transition View — Elevator Controller
 
 Shows states placed top-to-bottom by the layered layout pipeline, an initial pseudo-state, and
-guarded transitions routed as orthogonal `[guard]`-labelled arrows.
+guarded transitions routed as orthogonal `[guard]`-labelled arrows. The initial marker targets
+the state named by an explicit `first start then idle;` transition (rather than the
+first-declared state), and the `idle`/`doorsClosing` pair uses the attached-transition idiom
+(`state idle; accept callReceived then doorsClosing;`) instead of a standalone `transition`
+statement.
 
 Model: [`models/03-elevator-state.sysml`](models/03-elevator-state.sysml) ·
 SVG: [`svg/ElevatorStateTransitionView.svg`](svg/ElevatorStateTransitionView.svg)

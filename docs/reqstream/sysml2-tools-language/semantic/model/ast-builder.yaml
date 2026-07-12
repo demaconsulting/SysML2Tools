@@ -230,3 +230,45 @@ sections:
           - WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge
           - WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge
           - Binding_OmgCorpusFixture_ResolvesBindingEdgesViaImplicitRedefinitionNames
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-AttachedTransitionStateBody
+        title: >-
+          AstBuilder shall synthesize a SysmlTransitionNode for each attached-transition
+          state body shape — a `behaviorUsageMember` followed by zero or more
+          `targetTransitionUsageMember`s, and an `entryActionMember` followed by zero or more
+          `entryTransitionMember`s — sourced from the preceding usage's name, in addition to
+          building the preceding usage itself.
+        justification: |
+          SysML v2's grammar attaches a `then`/`accept ... then`/guarded-succession
+          transition directly onto the immediately preceding state or entry-action usage
+          within the same `stateBodyItem` alternative, rather than as a standalone
+          `transitionUsageMember`. Previously, AstBuilder only visited the leading usage and
+          silently dropped every attached transition, so the OMG Annex A.7 idiom
+          `state off; accept Signal then starting;` produced no transition edge at all. A new
+          `MultiNodeCapture` sentinel (flattened by `CollectChildren`, mirroring the existing
+          `AnnotationCapture` pattern) lets a single `stateBodyItem` visit yield both the usage
+          node and one or more synthesized transition nodes.
+        tests:
+          - WorkspaceLoader_LoadAsync_AttachedTransitionAfterState_ResolvesSelfLoopEdge
+          - WorkspaceLoader_LoadAsync_MultipleAttachedTransitionsAfterState_CapturesAll
+          - WorkspaceLoader_LoadAsync_EntryActionWithAttachedTransition_CapturesEntryFeatureAndTransition
+          - WorkspaceLoader_LoadAsync_NamedEntryAction_RegistersResolvableFeature
+          - Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-EntryDoExitActionFeatures
+        title: >-
+          AstBuilder shall build a minimal SysmlFeatureNode (with FeatureKeyword "entry",
+          "do", or "exit" and no children) for each `entryActionMember`, `doActionMember`, and
+          `exitActionMember`, naming it only when the grammar's named `ACTION usageDeclaration?`
+          alternative supplies a declared name.
+        justification: |
+          Entry/do/exit action bodies are behavioral (statement sequences), which is out of
+          scope for this unit's declarative AST; capturing a minimal, non-behavioral feature
+          node (Children always empty) is sufficient to register a resolvable name in the
+          symbol table for the named alternative, while the unnamed reference-subsetting
+          alternative (e.g. `entry performSelfTest{...}`) intentionally yields a nameless
+          feature node rather than attempting to derive or evaluate a name.
+        tests:
+          - WorkspaceLoader_LoadAsync_UnnamedEntryActionReferenceForm_NoNameNoCrash
+          - WorkspaceLoader_LoadAsync_StateUsageWithExplicitTyping_RecordsTypingEdge
+          - Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions

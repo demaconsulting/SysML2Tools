@@ -82,6 +82,14 @@ resolve — mirroring the existing Satisfy/Allocate both-sides-must-resolve cont
 appended to `node.ResolvedEdges` (pass-1 edges, if any, are preserved) and to the aggregate edge
 list.
 
+For a `SysmlTransitionNode`, the `Source` side specifically is resolved via `ResolveTransitionSource`
+rather than the plain `TryResolveFeatureChain` call used for `Target`: it tries
+`TryResolveFeatureChain` first, and only when that fails, falls back to
+`TryResolveInheritedActionMember` (see "Inherited Pseudostate Feature Resolution" below) before
+the pair is given up on as unresolved. The `Target` side is never given this fallback — it is
+scoped to `Source` only, matching the ROADMAP's own framing of this gap as specifically about an
+implicit/inherited transition *source*.
+
 `TryResolveFeatureChain(chain, namespaceStack, imports, out resolvedName)` splits the raw
 reference text on `.`. Segment 0 is resolved via the existing `TryResolve` four-step lookup (so it
 participates in the same scope/import resolution as any other single-name reference); a
@@ -133,9 +141,50 @@ walk always terminates.
   no crash).
 - **Imported/wildcard-imported feature members are not merged into type member lookup** — only
   `Children` and `Supertype`-chain `Children` are searched.
-- **An implied/omitted `SysmlTransitionNode.Source` produces no edge** — there is nothing to walk
-  a chain from, so no partial/misleading edge is emitted; this is a documented limitation, not a
-  defect.
+- **An implied/omitted `SysmlTransitionNode.Source` produces no edge, except for the narrow
+  `start`/`done` inherited-pseudostate fallback described below** — there is nothing to walk a
+  chain from in the general case, so no partial/misleading edge is emitted; this remains a
+  documented limitation for every other implicit-source shape.
+
+##### Inherited Pseudostate Feature Resolution
+
+A transition's source commonly names a pseudostate feature (`start`/`done`) that the enclosing
+state/action **inherits** from its supertype rather than declares itself — e.g.
+`first start then off;` inside a `state usage : VehicleStates { ... }` with no local `start`
+feature declared, or the synthesized `Source` of an attached transition following an
+`entryActionMember`. `TryResolveFeatureChain` cannot see inherited members (it only resolves via
+namespace/import scope), so without a dedicated fallback every such transition produced a false
+"Unresolved reference" diagnostic and no `Transition` edge, even though the model is semantically
+valid per the SysML v2 spec.
+
+`TryResolveInheritedActionMember(namespaceStack, name, out resolvedName)` is tried only after
+`TryResolveFeatureChain` fails, and only for a `SysmlTransitionNode`'s `Source` (never `Target`):
+
+1. Looks up the enclosing node via `_symbolTable.Lookup(string.Join("::", namespaceStack))` —
+   the same joined-namespace-stack convention `TryResolveBareRedefinition` uses, since at the
+   point a `SysmlTransitionNode` is visited, `namespaceStack` reflects the enclosing state/usage
+   (transitions have no `Name` of their own to push).
+2. If the enclosing node has a resolved `Typing` edge, follows it to the type node and searches
+   via `FindMemberInTypeHierarchy` (the same supertype-chain walk `TryResolveFeatureChain`'s
+   type-fallback branch uses).
+3. Also tries `FindMemberInAncestorChain` directly on the enclosing node itself (covering the
+   `Supertype`/`Redefinition`-edge walk `TryResolveBareRedefinition` already performs elsewhere).
+4. **Narrow, hardcoded last resort:** only when `name` is exactly `"start"` or `"done"`, and only
+   when the enclosing node has a state/action keyword (a `SysmlFeatureNode` with
+   `FeatureKeyword` `"state"`/`"action"`, or a `SysmlDefinitionNode` with `DefinitionKeyword`
+   `"state def"`/`"action def"`), looks up the standard library's `Actions::Action` type node's
+   direct children by name. This covers the common case of a `state def`/`state usage` with no
+   explicit `:>` supertype clause at all — whose implicit ultimate supertype, per the SysML v2
+   standard library, is `Actions::Action` — since this codebase has no general
+   implicit-generalization/default-supertype inference mechanism (confirmed absent by inspection)
+   to derive that relationship automatically.
+
+This fallback is **intentionally narrow and not a general inherited-member resolver**: it is
+scoped to Transition `Source` resolution only (step 4 additionally scoped to the two
+well-known pseudostate names), consistent with how the ROADMAP itself frames this gap. A future
+model using a different, custom state-machine base type that also needs `start`/`done`-like
+inherited pseudostate features would not resolve via step 4 (only via steps 1–3, if it declares
+an explicit supertype chain) — this is a known, accepted limitation, not a defect to fix here.
 
 ##### Requirement-Trace Edge Resolution
 
@@ -248,7 +297,8 @@ unresolved names are present.
 - `SymbolTable` — `Contains` method used to check whether a supertype, typing, redefinition, or
   import name is registered; `Lookup` used by feature-chain resolution and
   `TryResolveBareRedefinition`/`FindMemberInAncestorChain` to walk from a resolved qualified name
-  back to its node.
+  back to its node; also used by `TryResolveInheritedActionMember` to look up the enclosing node
+  and (in its narrow last-resort branch) the stdlib `Actions::Action` type node.
 - `SysmlNode` hierarchy — traversed to collect `SupertypeNames`, `ImportedNames`, and
   `VerifiedRequirementNames`; checks for `SysmlFeatureNode.FeatureTyping` and
   `SysmlFeatureNode.RedefinedFeatureName`, `SysmlSatisfyNode`

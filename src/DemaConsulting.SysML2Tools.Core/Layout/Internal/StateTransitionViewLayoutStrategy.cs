@@ -66,7 +66,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             return new LayoutTree(200.0, 100.0, []);
         }
 
-        var (states, index) = CollectStates(root, theme, scope);
+        var (states, index, pseudoSourceNames) = CollectStates(root, theme, scope);
         if (states.Count == 0)
         {
             return new LayoutTree(200.0, 100.0, []);
@@ -112,8 +112,12 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             nodes.Add(MakeStateBox(states[i], stateRects[i]));
         }
 
-        // Initial pseudo-state entering the first declared state.
-        AddInitialMarker(stateRects[0], nodes);
+        // Initial pseudo-state entering the semantically-resolved initial target state when one
+        // exists (a real `first start then X;`/entry-action-sourced transition), falling back to
+        // the first-declared state heuristic otherwise (unchanged behavior for every model with no
+        // pseudostate-sourced transition, e.g. the gallery's 03-elevator-state.sysml).
+        var initialIndex = FindInitialTargetIndex(root, pseudoSourceNames, index) ?? 0;
+        AddInitialMarker(stateRects[initialIndex], nodes);
 
         // Transition edges (with guard labels), mapped from the algorithm's routed polylines.
         var crossings = AddTransitions(transitions, flowTransitions, placed.EdgePolylines, stateRects, offsetX, offsetY, nodes);
@@ -265,14 +269,23 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     /// states synthesized only from transition endpoints have no independent qualified name and are
     /// always added, since they exist only because a transition endpoint that already named them
     /// exists on the (already scope-selected) root.
+    /// <para/>
+    /// Also collects and returns <c>PseudoSourceNames</c>: names that must never become an ordinary
+    /// state box even when referenced only as a transition's source. This is the well-known,
+    /// narrowly-scoped set of inherited pseudostate/action feature names (<c>"start"</c>/
+    /// <c>"done"</c>, consistent with the same simplification <c>ReferenceResolver</c>'s
+    /// <c>TryResolveInheritedActionMember</c> fallback uses) plus every declared <c>entry</c>-keyword
+    /// feature's name (the <c>entryActionMember (entryTransitionMember)*</c> idiom's implicit
+    /// transition source) declared directly on <paramref name="root"/>.
     /// </summary>
-    private static (IReadOnlyList<StateItem> States, Dictionary<string, int> Index) CollectStates(
+    private static (IReadOnlyList<StateItem> States, Dictionary<string, int> Index, HashSet<string> PseudoSourceNames) CollectStates(
         SysmlDefinitionNode root,
         Theme theme,
         ExposedScope? scope)
     {
         var states = new List<StateItem>();
         var index = new Dictionary<string, int>(StringComparer.Ordinal);
+        var pseudoSourceNames = new HashSet<string>(StringComparer.Ordinal) { "start", "done" };
 
         void Add(string name)
         {
@@ -287,8 +300,16 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         }
 
         // Declared state usages first (preserves declaration order for the initial-state choice).
+        // Entry/do/exit action features (FeatureKeyword != "state") are always skipped as ordinary
+        // state boxes; a named entry action's name is additionally recorded in
+        // pseudoSourceNames since it can be an implicit transition source (sub-problem 2's shape).
         foreach (var feature in root.Children.OfType<SysmlFeatureNode>())
         {
+            if (feature.FeatureKeyword == "entry" && feature.Name is { } entryName)
+            {
+                pseudoSourceNames.Add(entryName);
+            }
+
             if (feature.FeatureKeyword != "state" || feature.Name is null)
             {
                 continue;
@@ -303,10 +324,14 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             Add(feature.Name);
         }
 
-        // Any additional states referenced only by transition endpoints.
+        // Any additional states referenced only by transition endpoints. The source side is
+        // skipped when it names a pseudostate/entry-action feature — such a name must never be
+        // drawn as an ordinary state box (it is rendered, if at all, only via the initial-marker
+        // arrow computed by FindInitialTargetIndex). The target side is unaffected: a real state
+        // reached only via such a transition is still a real state and must still get a box.
         foreach (var transition in root.Children.OfType<SysmlTransitionNode>())
         {
-            if (LastSegment(transition.Source) is { } s)
+            if (LastSegment(transition.Source) is { } s && !pseudoSourceNames.Contains(s))
             {
                 Add(s);
             }
@@ -317,7 +342,35 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             }
         }
 
-        return (states, index);
+        return (states, index, pseudoSourceNames);
+    }
+
+    /// <summary>
+    /// Finds the state index that the semantically-resolved initial transition targets — the first
+    /// transition (in declaration order) whose source names a pseudostate/entry-action feature (see
+    /// <see cref="CollectStates"/>'s <c>pseudoSourceNames</c>) — or <see langword="null"/> when no
+    /// such transition exists (or its target does not resolve to a known state), in which case the
+    /// caller falls back to the pre-existing first-declared-state heuristic.
+    /// </summary>
+    private static int? FindInitialTargetIndex(
+        SysmlDefinitionNode root,
+        HashSet<string> pseudoSourceNames,
+        Dictionary<string, int> index)
+    {
+        foreach (var transition in root.Children.OfType<SysmlTransitionNode>())
+        {
+            if (LastSegment(transition.Source) is not { } source || !pseudoSourceNames.Contains(source))
+            {
+                continue;
+            }
+
+            if (LastSegment(transition.Target) is { } target && index.TryGetValue(target, out var targetIndex))
+            {
+                return targetIndex;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Resolves transition endpoints to state indices via their last name segment.</summary>

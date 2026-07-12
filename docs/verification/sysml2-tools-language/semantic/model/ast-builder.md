@@ -53,6 +53,25 @@ external services or additional configuration are required beyond a standard .NE
   `SysmlConnectionNode` with `ConnectionKeyword == "binding"`, resolved via the same
   dotted-feature-chain walk as `connect`, producing a `Binding` edge when both sides resolve (or
   a Warning with no edge otherwise).
+- `VisitStateBodyItem` synthesizes an attached `SysmlTransitionNode` for the
+  `behaviorUsageMember (targetTransitionUsageMember)*` shape (e.g. `state off; accept Signal
+  then starting;`), including the repeated (`*`) case, and for the
+  `entryActionMember (entryTransitionMember)*` shape (e.g. `entry action initial; then off;`),
+  in each case in addition to building the preceding usage/entry-action node itself.
+- A named entry action (the OMG Annex A.7-preferred separate `entry action initial; ...
+  transition initial then off;` form) registers a resolvable feature — no "Unresolved reference:
+  'initial'" diagnostic is produced.
+- An unnamed entry-action reference form (e.g. `entry performSelfTest{...}`) produces a feature
+  node with `Name == null` and does not crash.
+- `VisitStateUsage` populates `FeatureTyping` from an explicit `state usage : Type { ... }` form,
+  recording the expected `Typing` edge (previously always dropped for state usages).
+- A transition source named `"start"` with no locally-declared `start` feature resolves against
+  the standard library's `Actions::Action` via the new inherited-pseudostate-feature fallback,
+  producing a `Transition` edge and no unresolved-reference diagnostic.
+- The real OMG corpus fixture `training/25.Transitions/TransitionActions.sysml` parses with no
+  unresolved-reference diagnostics for `start`/`off`/`starting`/`on`, and produces the exact
+  expected declared-state and resolved-transition counts, including entry/do/exit action feature
+  nodes on the `on` state.
 
 ##### Test Scenarios
 
@@ -85,3 +104,11 @@ external services or additional configuration are required beyond a standard .NE
 | Binding dotted-chain resolution | `WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge` |
 | Binding unresolved end | `WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge` |
 | Binding OMG corpus fixture | `Binding_OmgCorpusFixture_ResolvesBindingEdgesViaImplicitRedefinitionNames` |
+| Attached transition (self-loop) | `WorkspaceLoader_LoadAsync_AttachedTransitionAfterState_ResolvesSelfLoopEdge` |
+| Multiple attached transitions | `WorkspaceLoader_LoadAsync_MultipleAttachedTransitionsAfterState_CapturesAll` |
+| Entry action | `WorkspaceLoader_LoadAsync_EntryActionWithAttachedTransition_CapturesEntryFeatureAndTransition` |
+| Named entry action registers feature | `WorkspaceLoader_LoadAsync_NamedEntryAction_RegistersResolvableFeature` |
+| Unnamed entry-action form, no crash | `WorkspaceLoader_LoadAsync_UnnamedEntryActionReferenceForm_NoNameNoCrash` |
+| State usage explicit typing | `WorkspaceLoader_LoadAsync_StateUsageWithExplicitTyping_RecordsTypingEdge` |
+| Transition source resolves | `WorkspaceLoader_LoadAsync_TransitionSourceStartFeature_ResolvesToStdlibActionMember` |
+| OMG corpus fixture | `Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions` |

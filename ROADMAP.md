@@ -101,27 +101,54 @@ primitives (bar, diamond, pentagon, note). `LayoutActivation`/`LayoutBand` alrea
 **Visual gate:** sequence shows activation bars + a fragment; action flow shows a fork/join and
 a decision/merge with correct shapes.
 
-### State Transition View: implied-source (initial-pseudostate) transitions
+### State Transition View: attached-transition states, entry/exit actions, inherited pseudostate features
 
-SysML v2 allows a state transition with no explicit source state (`then TargetState;`),
-meaning an implicit/default transition taken automatically on entry to the enclosing region —
-the UML/SysML "initial pseudostate" concept. Today `ReferenceResolver`'s `Transition` edge is
-only recorded when both a source and target resolve, so an omitted source produces no edge at
-all (a documented limitation, not a crash) — confirmed against the real OMG corpus fixture
-`training/12.BindingConnectors/...` cross-checks during the General View relationship-edges
-work.
+Investigation for this item (cross-checking the real OMG corpus fixture
+`training/25.Transitions/TransitionActions.sysml` and the OMG spec's own worked example, `formal-26-03-02.md`
+Annex A.7 "States") found the actual gap is significantly larger than originally scoped here, and is a
+correctness bug, not just a missing notation refinement:
 
-Closing this requires more than an edge-resolution tweak: `AstBuilder`/`ReferenceResolver` need
-to distinguish "no source specified" from "source failed to resolve," and
-`StateTransitionViewLayoutStrategy` needs to render the conventional small filled-circle
-initial-pseudostate marker with an edge into the target state, rather than only ever connecting
-two named states.
+1. **Attached-transition state bodies are silently dropped (both the state AND its transition).**
+   SysML v2's most common compact state-machine idiom writes a state's outgoing transition directly after it
+   with no `transition`/`first` keyword at all, e.g. `state off; accept Sig then starting;` — grammatically
+   `stateBodyItem: (sourceSuccessionMember)? behaviorUsageMember (targetTransitionUsageMember)*`, where the
+   transition's source is *implicitly* the immediately preceding state usage in the same body item. The
+   parallel shape `entryActionMember (entryTransitionMember)*` (e.g. `entry action initial; then off;`) has
+   the identical problem. `AstBuilder` has no visitor override for either shape, so ANTLR's default
+   `VisitChildren` (which returns only the last child's result, discarding earlier ones) causes **both** the
+   preceding usage and its attached transition(s) to vanish — confirmed: `vehicleStates` in the fixture above
+   should register 4 states and 4 transitions, but exporting it today yields 0 states and 1 transition, plus
+   "Unresolved reference" warnings for the never-registered state names.
+2. **Entry/do/exit action features are entirely unmodeled.** `entryActionMember`, `doActionMember`,
+   `exitActionMember` (and their nested `statePerformActionUsage`/`stateAcceptActionUsage`/etc.) have no
+   `AstBuilder` visitor at all — not even the well-formed, spec-preferred style of declaring a named entry
+   action and referencing it from a separate `transition` statement (OMG spec Annex A.7: `entry action
+   initial; ... transition initial then off;`) currently registers a resolvable `initial` feature.
+3. **Inherited pseudostate-like features don't resolve.** The training corpus's explicit form of an initial
+   transition, `first start then off;`, references `start` — a real feature every state definition/usage
+   inherits from `Action` (`Stdlib/SystemsLibrary/Actions.sysml`'s `action start: Action :>> startShot`), not
+   a special keyword. `ReferenceResolver`'s feature-chain walk only looks up local/imported names, not
+   inherited members, so `start` (and `done`, its counterpart) fail to resolve even once (1)/(2) are fixed.
+4. **Initial-pseudostate marker rendering is already partially implemented but purely heuristic.**
+   `StateTransitionViewLayoutStrategy.AddInitialMarker` already draws the conventional filled-circle marker
+   with an arrow into the *first declared* state, unconditionally, regardless of whether a real initial
+   transition resolves. Once (1)-(3) let `start`/`initial`-sourced transitions resolve, the layout strategy
+   needs to: (a) prefer the semantically-resolved initial-transition target over the first-declared-state
+   guess when one exists, and (b) exclude pseudostate/entry-action source features (e.g. `start`, `initial`)
+   from being drawn as ordinary state boxes — today `CollectStates`'s "states referenced only by transition
+   endpoints" fallback would add them as a spurious extra box.
 
-**Scope:** `AstBuilder` (transition parsing), `SysmlEdge`/`ReferenceResolver` (distinguishing
-implied-source from unresolved-source), `StateTransitionViewLayoutStrategy` (initial-pseudostate
-marker + edge rendering).
-**Visual gate:** a state machine with a `then InitialState;`-shaped entry transition renders a
-filled-circle initial marker with an edge into that state.
+**Scope:** `AstBuilder` (new handling for the `behaviorUsageMember (targetTransitionUsageMember)*` and
+`entryActionMember (entryTransitionMember)*` state-body shapes, producing the preceding usage node plus one
+`SysmlTransitionNode` per attached transition with an implicit `Source`; minimal feature-node support for
+entry/do/exit action declarations so their names are resolvable); `ReferenceResolver`/`TryResolveFeatureChain`
+(inherited-member lookup so `start`/`done` resolve); `StateTransitionViewLayoutStrategy` (prefer a resolved
+initial transition over the first-declared-state heuristic; exclude pseudostate/entry-action sources from
+ordinary state-box rendering).
+**Visual gate:** a state machine using the `state X; accept ... then Y;` idiom renders every state and every
+attached transition correctly; a `first start then InitialState;`-shaped (or `entry action initial; ...
+transition initial then X;`-shaped) entry transition renders a filled-circle initial marker with an edge into
+the correct (resolved) state, with no spurious `start`/`initial` box.
 
 ### Interconnection View: genuine cross-boundary connector routing
 

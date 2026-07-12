@@ -164,4 +164,75 @@ public sealed class OmgModelsTests
             bindingEdges);
         Assert.Equal(2, bindingEdges.Count);
     }
+
+    /// <summary>
+    ///     The dedicated <c>25.Transitions/TransitionActions.sysml</c> corpus fixture exercises all
+    ///     three ROADMAP.md sub-problems together: the attached-transition state-body idiom
+    ///     (<c>state off; accept VehicleStartSignal then starting;</c>), named/unnamed entry/do/exit
+    ///     action features (<c>state on { entry performSelfTest{...}; do action providePower{...};
+    ///     exit action applyParkingBrake{...}; }</c>), and an inherited-pseudostate-feature initial
+    ///     transition (<c>first start then off;</c>, where <c>start</c> is inherited from
+    ///     <c>Actions::Action</c> since <c>state def VehicleStates;</c> declares no explicit
+    ///     supertype). Before the fix this fixture produced 0 resolved states/transitions plus
+    ///     "Unresolved reference" warnings for every never-registered name; the fixed counts below
+    ///     were confirmed by directly exporting this fixture and inspecting the resulting AST
+    ///     (see the developer report for the exact command).
+    /// </summary>
+    [Fact]
+    public async Task Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions()
+    {
+        var omgRoot = FindOmgModelsRoot();
+        var file = Path.Combine(omgRoot, "training", "25.Transitions", "TransitionActions.sysml");
+        Assert.True(File.Exists(file), $"Expected fixture not found: {file}");
+
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([file], stdlibTable);
+
+        Assert.DoesNotContain(result.Diagnostics,
+            d => d.Message.Contains("Unresolved reference: 'start'", StringComparison.Ordinal) ||
+                 d.Message.Contains("Unresolved reference: 'off'", StringComparison.Ordinal) ||
+                 d.Message.Contains("Unresolved reference: 'starting'", StringComparison.Ordinal) ||
+                 d.Message.Contains("Unresolved reference: 'on'", StringComparison.Ordinal));
+
+        var vehicleStates = (SysmlFeatureNode)result.Workspace!.Declarations["'Transition Actions'::vehicleStates"];
+
+        // 3 declared state-keyword children (off, starting, on); vehicleStates itself is the
+        // enclosing state usage, not counted among "states of the machine".
+        var declaredStates = vehicleStates.Children
+            .OfType<SysmlFeatureNode>()
+            .Where(f => f.FeatureKeyword == "state")
+            .ToList();
+        Assert.Equal(3, declaredStates.Count);
+        Assert.Equal(["off", "starting", "on"], declaredStates.Select(s => s.Name));
+
+        // 4 transitions: start->off (pseudostate/initial), off->starting, starting->on, on->off —
+        // all fully resolved (each has a Transition ResolvedEdge, none unresolved).
+        var transitions = vehicleStates.Children.OfType<SysmlTransitionNode>().ToList();
+        Assert.Equal(4, transitions.Count);
+        Assert.All(transitions, t => Assert.Contains(t.ResolvedEdges, e => e.Kind == SysmlEdgeKind.Transition));
+
+        var transitionEdges = transitions
+            .SelectMany(t => t.ResolvedEdges)
+            .Where(e => e.Kind == SysmlEdgeKind.Transition)
+            .Select(e => (Source: e.SourceQualifiedName ?? string.Empty, Target: e.TargetQualifiedName))
+            .ToList();
+        Assert.Contains(("Actions::Action::start", "'Transition Actions'::vehicleStates::off"), transitionEdges);
+        Assert.Contains(
+            ("'Transition Actions'::vehicleStates::off", "'Transition Actions'::vehicleStates::starting"),
+            transitionEdges);
+        Assert.Contains(
+            ("'Transition Actions'::vehicleStates::starting", "'Transition Actions'::vehicleStates::on"),
+            transitionEdges);
+        Assert.Contains(
+            ("'Transition Actions'::vehicleStates::on", "'Transition Actions'::vehicleStates::off"),
+            transitionEdges);
+
+        // The "on" state's entry/do/exit action features are all registered: the entry action is
+        // the fixture's unnamed reference-subsetting form (Name null), do/exit are named.
+        var onState = declaredStates.Single(s => s.Name == "on");
+        var actionFeatures = onState.Children.OfType<SysmlFeatureNode>().ToList();
+        Assert.Contains(actionFeatures, f => f.FeatureKeyword == "entry" && f.Name is null);
+        Assert.Contains(actionFeatures, f => f.FeatureKeyword == "do" && f.Name == "providePower");
+        Assert.Contains(actionFeatures, f => f.FeatureKeyword == "exit" && f.Name == "applyParkingBrake");
+    }
 }

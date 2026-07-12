@@ -943,10 +943,14 @@ internal sealed class ReferenceResolver
         }
 
         // Transition source/target (an implied/omitted Source produces no edge — documented
-        // limitation, since there is nothing to walk a chain from).
+        // limitation, since there is nothing to walk a chain from). Source additionally falls
+        // back to TryResolveInheritedActionMember (see its doc comment) when the ordinary
+        // dotted-chain walk fails — this is the only reference kind allowed that fallback, since
+        // it exists specifically to resolve inherited pseudostate-like features (`start`/`done`)
+        // used as a transition's implicit initial source (e.g. `first start then off;`).
         if (node is SysmlTransitionNode transition)
         {
-            var resolvedSource = ResolveFeatureChainSide(
+            var resolvedSource = ResolveTransitionSource(
                 transition.Source, filePath, resolvedInFile, namespaceStack, imports);
             var resolvedTarget = ResolveFeatureChainSide(
                 transition.Target, filePath, resolvedInFile, namespaceStack, imports);
@@ -1017,6 +1021,150 @@ internal sealed class ReferenceResolver
         }
 
         return null;
+    }
+
+    /// <summary>
+    ///     Resolves a <see cref="SysmlTransitionNode"/>'s <c>Source</c> side. Behaves exactly like
+    ///     <see cref="ResolveFeatureChainSide"/> (same diagnostic/deduplication behavior) except
+    ///     that, when the ordinary dotted-chain walk fails, it also tries
+    ///     <see cref="TryResolveInheritedActionMember"/> before giving up — the narrow fallback
+    ///     that lets an implied initial-pseudostate transition (e.g. <c>first start then off;</c>)
+    ///     resolve <c>start</c>/<c>done</c>, inherited members that ordinary scope/import
+    ///     resolution can never see since they are not declared or imported anywhere in the
+    ///     referencing file. This fallback is deliberately scoped to Transition <c>Source</c> only
+    ///     — not <c>Target</c>, and not connection/binding endpoints — per ROADMAP.md's explicit
+    ///     instruction.
+    /// </summary>
+    private string? ResolveTransitionSource(
+        string? source,
+        string filePath,
+        HashSet<string> resolvedInFile,
+        IReadOnlyList<string> namespaceStack,
+        IReadOnlyList<SysmlImportNode> imports)
+    {
+        if (source is not { Length: > 0 })
+        {
+            return null;
+        }
+
+        if (TryResolveFeatureChain(source, namespaceStack, imports, out var resolved))
+        {
+            return resolved;
+        }
+
+        if (TryResolveInheritedActionMember(namespaceStack, source, out var inherited))
+        {
+            return inherited;
+        }
+
+        if (resolvedInFile.Add(source))
+        {
+            _diagnostics.Add(new SysmlDiagnostic(
+                filePath,
+                0, 0,
+                DiagnosticSeverity.Warning,
+                $"Unresolved reference: '{source}'"));
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Narrow fallback for resolving a Transition <c>Source</c> that names a member inherited
+    ///     from the enclosing state/action's type or ancestor chain, rather than declared/imported
+    ///     directly — the shape needed for real SysML v2 initial-pseudostate/entry-action idioms
+    ///     like <c>first start then off;</c>, where <c>start</c> is a real feature every state
+    ///     definition/usage inherits from <c>Actions::Action</c>
+    ///     (<c>action start: Action :&gt;&gt; startShot</c>), not a special keyword.
+    ///     <para/>
+    ///     Resolution order: (1) if the enclosing node (the current <paramref name="namespaceStack"/>
+    ///     top) has a resolved <see cref="SysmlEdgeKind.Typing"/> edge (e.g. a
+    ///     <c>state x : SomeStateDef { ... }</c> usage), follow it to the type node and walk its
+    ///     <see cref="SysmlEdgeKind.Supertype"/> chain via <see cref="FindMemberInTypeHierarchy"/>;
+    ///     (2) failing that, walk the enclosing node's own
+    ///     <see cref="SysmlEdgeKind.Supertype"/>/<see cref="SysmlEdgeKind.Redefinition"/> edges
+    ///     directly via <see cref="FindMemberInAncestorChain"/> (covers a <c>state def</c> that
+    ///     itself declares an explicit <c>:&gt;</c> supertype); (3) only if both fail, and only for
+    ///     the two well-known names ROADMAP.md calls out (<c>"start"</c>/<c>"done"</c>), and only
+    ///     when the enclosing node itself has a state/action keyword, fall back to a hardcoded,
+    ///     narrowly-scoped last resort: look the name up directly among
+    ///     <c>Actions::Action</c>'s own direct children in the stdlib. This last-resort branch
+    ///     exists because this codebase implements no general implicit-generalization/default-
+    ///     supertype inference (a bare <c>state def VehicleStates;</c> with no explicit <c>:&gt;</c>
+    ///     clause never gets an automatic <c>Supertype</c> edge to <c>States::StateAction</c>/
+    ///     <c>Actions::Action</c> the way the real SysML v2 spec implies) — it is a deliberate,
+    ///     explicitly-scoped simplification, not a general inherited-member resolver, and must not
+    ///     be reused for any other reference kind or name.
+    /// </summary>
+    private bool TryResolveInheritedActionMember(
+        IReadOnlyList<string> namespaceStack,
+        string name,
+        out string resolvedName)
+    {
+        resolvedName = string.Empty;
+
+        if (namespaceStack.Count == 0)
+        {
+            return false;
+        }
+
+        var enclosingNode = _symbolTable.Lookup(string.Join("::", namespaceStack));
+        if (enclosingNode is null)
+        {
+            return false;
+        }
+
+        var typingEdge = enclosingNode.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Typing);
+        if (typingEdge is not null)
+        {
+            var typeNode = _symbolTable.Lookup(typingEdge.TargetQualifiedName);
+            if (typeNode is not null)
+            {
+                var viaTyping = FindMemberInTypeHierarchy(typeNode, name, new HashSet<string>());
+                if (viaTyping?.QualifiedName is { Length: > 0 } viaTypingQualifiedName)
+                {
+                    resolvedName = viaTypingQualifiedName;
+                    return true;
+                }
+            }
+        }
+
+        var viaAncestor = FindMemberInAncestorChain(enclosingNode, name, new HashSet<string>());
+        if (viaAncestor?.QualifiedName is { Length: > 0 } viaAncestorQualifiedName)
+        {
+            resolvedName = viaAncestorQualifiedName;
+            return true;
+        }
+
+        // Last resort: only for the two well-known inherited pseudostate/action members named in
+        // ROADMAP.md, and only when the enclosing node itself has a state/action keyword, so this
+        // simplification cannot silently misfire for unrelated names or node kinds.
+        if (name is not ("start" or "done"))
+        {
+            return false;
+        }
+
+        var isStateOrActionKeyword = enclosingNode switch
+        {
+            SysmlFeatureNode { FeatureKeyword: "state" or "action" } => true,
+            SysmlDefinitionNode { DefinitionKeyword: "state def" or "action def" } => true,
+            _ => false,
+        };
+
+        if (!isStateOrActionKeyword)
+        {
+            return false;
+        }
+
+        var actionDefinition = _symbolTable.Lookup("Actions::Action");
+        var fallback = actionDefinition?.Children.FirstOrDefault(c => c.Name == name);
+        if (fallback?.QualifiedName is not { Length: > 0 } fallbackQualifiedName)
+        {
+            return false;
+        }
+
+        resolvedName = fallbackQualifiedName;
+        return true;
     }
 
     /// <summary>
