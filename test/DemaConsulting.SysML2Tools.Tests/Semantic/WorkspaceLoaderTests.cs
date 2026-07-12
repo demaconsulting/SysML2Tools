@@ -3957,7 +3957,10 @@ public sealed class WorkspaceLoaderTests
     /// <summary>
     ///     Multiple <c>actionTargetSuccessionMember</c>s attached after a single
     ///     <c>actionBehaviorMember</c> (e.g. a fork's three outgoing branches) are all captured,
-    ///     each sharing the preceding node's name as their implicit <c>Source</c>.
+    ///     each sharing the preceding node's name as their implicit <c>Source</c>. This also
+    ///     verifies the fork's own leading <c>then</c> (<c>sourceSuccessionMember</c>) synthesizes
+    ///     the implicit *incoming* succession from the immediately preceding sibling (<c>a</c>),
+    ///     since the grammar's leading marker itself carries no name of its own.
     /// </summary>
     [Fact]
     public async Task WorkspaceLoader_LoadAsync_MultipleActionTargetSuccessions_CapturesAll()
@@ -3991,6 +3994,11 @@ public sealed class WorkspaceLoaderTests
             Assert.Equal(2, successions.Count);
             Assert.Contains(successions, t => t.Target == "b1");
             Assert.Contains(successions, t => t.Target == "b2");
+
+            var incoming = flow.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlTransitionNode>()
+                .Single(t => t.Target == "f");
+            Assert.Equal("a", incoming.Source);
         }
         finally
         {

@@ -248,7 +248,11 @@ public sealed class OmgModelsTests
     ///     and feature kind/name — not full reference resolution — per the design decision that an
     ///     anonymous control node's synthesized <c>$</c>-prefixed name is expected to produce an
     ///     "Unresolved reference" warning (cosmetic only: <c>ActionFlowViewLayoutStrategy</c> reads
-    ///     the raw text directly, never <c>ResolvedEdges</c>).
+    ///     the raw text directly, never <c>ResolvedEdges</c>). Each fixture's leading `then`
+    ///     (<c>sourceSuccessionMember</c>) is also asserted to synthesize its implicit incoming
+    ///     succession from the immediately preceding sibling (e.g. <c>TurnOn-&gt;$fork0</c>,
+    ///     <c>J-&gt;F</c>, and the <c>ChargeBattery</c> declare-then-declare chain), since the
+    ///     grammar's leading marker itself carries no name of its own.
     /// </summary>
     [Fact]
     public async Task ControlNode_OmgCorpusFixture_ResolvesForkJoinDecisionMerge()
@@ -280,6 +284,12 @@ public sealed class OmgModelsTests
         Assert.Contains(forkSuccessions, t => t.Target == "monitorTraction");
         Assert.Contains(forkSuccessions, t => t.Target == "braking");
 
+        // The fork's own leading `then` (sourceSuccessionMember) synthesizes the implicit
+        // incoming succession from the immediately preceding sibling action `TurnOn`.
+        Assert.Contains(
+            brake.Children.OfType<SysmlTransitionNode>(),
+            t => t.Source == "TurnOn" && t.Target == brakeFork.Name);
+
         var joinNode = Assert.Single(
             brake.Children.OfType<SysmlFeatureNode>(), f => f.FeatureKeyword == "join");
         Assert.Equal("joinNode", joinNode.Name);
@@ -305,6 +315,14 @@ public sealed class OmgModelsTests
             chargeBattery.Children.OfType<SysmlFeatureNode>(),
             f => f.FeatureKeyword == "merge" && f.Name == "continueCharging");
 
+        // Each of ChargeBattery's leading-`then` chain items (`first start; then merge
+        // continueCharging; then action monitor: MonitorBattery{...}; then decide;`) synthesizes
+        // its own implicit incoming succession from the immediately preceding sibling.
+        var chargeBatteryTransitions = chargeBattery.Children.OfType<SysmlTransitionNode>().ToList();
+        Assert.Contains(chargeBatteryTransitions, t => t.Source == "start" && t.Target == "continueCharging");
+        Assert.Contains(chargeBatteryTransitions, t => t.Source == "continueCharging" && t.Target == "monitor");
+        Assert.Contains(chargeBatteryTransitions, t => t.Source == "monitor" && t.Target == decide.Name);
+
         // ControlNodeTest.sysml: fully named fork/join/merge — the richest, most reliable fixture.
         var controlNodeTest = (SysmlDefinitionNode)result.Workspace!.Declarations["ControlNodeTest"];
         var controlFeatures = controlNodeTest.Children.OfType<SysmlFeatureNode>().ToList();
@@ -319,5 +337,9 @@ public sealed class OmgModelsTests
         Assert.Contains(controlTransitions, t => t.Source == "F" && t.Target == "B2");
         Assert.Contains(controlTransitions, t => t.Source == "B1" && t.Target == "M");
         Assert.Contains(controlTransitions, t => t.Source == "B2" && t.Target == "M");
+
+        // The join's own leading `then` synthesizes the implicit incoming succession from the
+        // immediately preceding sibling `J`.
+        Assert.Contains(controlTransitions, t => t.Source == "J" && t.Target == "F");
     }
 }

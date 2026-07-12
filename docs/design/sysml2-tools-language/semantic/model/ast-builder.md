@@ -335,7 +335,25 @@ the compact idiom resolved both action nodes but produced no succession edge lin
   `actionBehaviorMember` (which delegates to the existing `actionNodeMember`/`behaviorUsageMember`
   handling) to obtain the main node, then calls `BuildActionTargetSuccession` once per
   `actionTargetSuccessionMember` entry, each producing a `SysmlTransitionNode` whose `Source` is
-  the main node's `Name`.
+  the main node's `Name`. When the optional leading `sourceSuccessionMember` is present (a bare
+  `then` immediately before the node, e.g. `action a; then fork f; ...` — the dominant real-world
+  idiom for wiring a control node into a flow) an additional *incoming* `SysmlTransitionNode` is
+  prepended, whose `Source` is `_actionBodyPreviousNodeName` and whose `Target` is the main node's
+  `Name`. The grammar's leading marker (`sourceSuccessionMember: THEN sourceSuccession`, where
+  `sourceSuccession`/`sourceEndMember`/`sourceEnd` carry no name token at all) is a pure marker —
+  its meaning is "this node's incoming edge comes from whatever immediately preceded it in the
+  same enclosing action body" — so its `Source` identity cannot be read off the grammar node
+  itself. It is instead resolved from `_actionBodyPreviousNodeName`, an `AstBuilder` instance
+  field maintained by `CollectActionBodyChildren` (a body-specific counterpart to the generic
+  `CollectChildren`, used only for action bodies) as it iterates an action body's
+  `actionBodyItem`s in source order, updating the tracked position after each item via
+  `DetermineFlowPositionName` (which resolves to the last synthesized transition's `Target` when
+  the item produced trailing successions, or the visited node's own `Name` otherwise). When no
+  previous position is known (e.g. the item is the first thing in the body), no incoming edge is
+  synthesized rather than fabricating a `Source` from nothing — this matches the safe,
+  no-op-by-default behavior applied elsewhere in this visitor. `CollectChildren` itself remains
+  untouched and continues to serve the state-body call sites, since only action bodies need this
+  order-sensitive bookkeeping.
 
 `BuildActionTargetSuccession` handles all three `actionTargetSuccession` grammar forms:
 unguarded `targetSuccession` (`sourceEndMember THEN connectorEndMember`), guarded
@@ -343,9 +361,27 @@ unguarded `targetSuccession` (`sourceEndMember THEN connectorEndMember`), guarde
 guard's expression text), and `defaultTargetSuccession` (`else then connectorEndMember`, which the
 grammar provides no guard expression for).
 
-When one or more attached successions are produced, `VisitActionBodyItem` returns the same
-`MultiNodeCapture` sentinel used by `VisitStateBodyItem`, wrapping the node plus its
-succession(s); when none are produced, it returns the visited node/pass-through result directly.
+When one or more attached successions (incoming, trailing, or both) are produced,
+`VisitActionBodyItem` returns the same `MultiNodeCapture` sentinel used by
+`VisitStateBodyItem`, wrapping the incoming transition (if any), the node, and its trailing
+succession(s) in that order; when none are produced, it returns the visited node/pass-through
+result directly.
+
+**Known follow-up gaps (out of scope for this fix).** Two structurally analogous
+leading-marker cases were discovered while fixing the above but deliberately left unfixed to keep
+this change surgical:
+
+- `nonBehaviorBodyItem`'s `(sourceSuccessionMember)? structureUsageMember` shape has the same
+  "leading `then` implies an implicit incoming edge" grammar structure, but there is no
+  `VisitNonBehaviorBodyItem`/`VisitStructureUsageMember` override at all today — it relies
+  entirely on ANTLR's default `VisitChildren` aggregation, which drops every child but the last.
+  This is a broader, pre-existing gap (no `MultiNodeCapture` handling exists there yet at all),
+  not merely a missing `sourceSuccessionMember` read.
+- `VisitStateBodyItem`'s `(sourceSuccessionMember)? behaviorUsageMember
+  (targetTransitionUsageMember)*` shape (State Transition View) has the identical unread-marker
+  problem this fix addresses for action bodies, and was not established as a working precedent to
+  copy — it has the same gap, latent and undetected because no current test exercises a leading
+  `then` before a `behaviorUsageMember` inside a state body.
 
 `VisitMergeNode`, `VisitDecisionNode`, `VisitJoinNode`, `VisitForkNode`, `VisitAcceptNode`, and
 `VisitSendNode` each delegate to a shared `BuildActionNodeFeature(usage, keyword)` helper that
