@@ -42,6 +42,14 @@ configuration are required beyond a standard .NET SDK installation.
 - A view whose resolved `Expose` edge names an inner state of a definition genuinely nested
   inside another eligible root candidate selects the nested definition, not the ancestor, even
   though the ancestor has more transitions and would win the old pure-score tie-break.
+- A transition whose source is a pseudostate/entry-action name (`"start"`, or a declared
+  entry-action feature's name) is never rendered as its own state box.
+- The initial-state marker's arrow lands on the resolved target of a pseudostate- or
+  entry-action-sourced transition, not the first-declared state, when such a transition exists.
+- When no pseudostate/entry-action-sourced transition exists, the initial-state marker's arrow
+  still lands on the first-declared state, unchanged from the pre-existing heuristic (protecting
+  the `03-elevator-state.sysml` gallery example and every other model using no explicit initial
+  transition).
 
 ##### Test Scenarios
 
@@ -60,3 +68,7 @@ configuration are required beyond a standard .NET SDK installation.
 | `StateTransitionView_BuildLayout_ExposeSingleState_DropsIsolatedOutOfScopeState` | Isolated state dropped |
 | `StateTransitionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
 | `StateTransitionView_BuildLayout_ExposeInnerStateOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested |
+| `StateTransitionView_BuildLayout_PseudostateSourceTransition_MarksResolvedTargetNotFirstDeclared` | Resolved target |
+| `StateTransitionView_BuildLayout_PseudostateSourceTransition_NoSpuriousBox` | No `"start"` box |
+| `StateTransitionView_BuildLayout_EntryActionSourceTransition_NoSpuriousBoxUsesResolvedTarget` | No entry box |
+| `StateTransitionView_BuildLayout_NoExplicitInitialTransition_FallsBackToFirstDeclared` | Fallback unchanged |

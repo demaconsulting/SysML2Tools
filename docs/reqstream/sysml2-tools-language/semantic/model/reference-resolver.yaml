@@ -150,3 +150,30 @@ sections:
           - WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge
           - WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge
           - Binding_OmgCorpusFixture_ResolvesBindingEdgesViaImplicitRedefinitionNames
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-InheritedTransitionSource
+        title: >-
+          ReferenceResolver.ResolveFeatureChains shall, when resolving a SysmlTransitionNode's
+          Source, fall back to a narrowly-scoped inherited-action-member lookup
+          (TryResolveInheritedActionMember, reusing FindMemberInAncestorChain and
+          FindMemberInTypeHierarchy) after the standard feature-chain resolution fails, only for
+          the Source side — never the Target side.
+        justification: |
+          A transition's implicit source (e.g. `first start then off;`, or the bare `start`
+          feature an attached transition's synthesized Source implicitly names) commonly
+          references a pseudostate feature the enclosing state/action inherits from its
+          supertype rather than declares itself; the standard namespace/import-scoped lookup
+          cannot see inherited members, so without this fallback every such transition produced
+          a false "Unresolved reference" diagnostic and no Transition edge, even though the
+          model is semantically valid per the SysML v2 spec. As a narrow, deliberately
+          hardcoded last resort — only for the literal names "start"/"done", and only when the
+          enclosing node is a state- or action-keyword feature/definition — the fallback also
+          resolves against the standard library's `Actions::Action` direct children when no
+          user-declared supertype supplies the member, covering the common case of a `state def`
+          with no explicit `:>` clause (whose implicit ultimate supertype is `Actions::Action`).
+          This is intentionally not a general implicit-generalization/default-supertype resolver:
+          it is scoped to Transition Source resolution only, and to the two well-known
+          pseudostate-derived names, consistent with how the ROADMAP itself scopes this gap.
+        tests:
+          - WorkspaceLoader_LoadAsync_TransitionSourceStartFeature_ResolvesToStdlibActionMember
+          - Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions

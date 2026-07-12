@@ -53,6 +53,13 @@ external services or additional configuration are required beyond a standard .NE
   instance-relative (e.g. `Drone::controller::power`, not the shared port type's own declared
   path), so that two structurally distinct endpoints of the same type never collapse to the same
   resolved name.
+- A `SysmlTransitionNode`'s `Source` that names an inherited pseudostate feature (`"start"`
+  or `"done"`) not declared locally on the enclosing state/usage resolves via the new
+  `TryResolveInheritedActionMember` fallback — including the narrow last-resort case where no
+  explicit supertype is declared at all, resolving against the standard library's
+  `Actions::Action` direct children — producing a `Transition`-kind `SysmlEdge` and no
+  unresolved-reference diagnostic. The `Target` side of a transition never receives this
+  fallback.
 
 ##### Test Scenarios
 
@@ -93,3 +100,5 @@ external services or additional configuration are required beyond a standard .NE
 | Unresolved chain endpoint | `WorkspaceLoader_LoadAsync_ConnectionUnresolvedEndpoint_ProducesWarningNoEdge` |
 | Supertype-cycle chain segment | `WorkspaceLoader_LoadAsync_ConnectionChain_SupertypeCycleTerminatesGracefully` |
 | OMG Connections example fixture | `WorkspaceLoader_LoadAsync_ConnectionsExampleFixture_RecordsConnectEdge` |
+| Inherited transition source | `WorkspaceLoader_LoadAsync_TransitionSourceStartFeature_ResolvesToStdlibActionMember` |
+| OMG Transitions corpus fixture | `Transition_OmgCorpusFixture_ResolvesAllStatesAndTransitions` |

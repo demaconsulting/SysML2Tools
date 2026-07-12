@@ -143,3 +143,38 @@ sections:
           defeating the intended scoping.
         tests:
           - StateTransitionView_BuildLayout_ExposeInnerStateOfNestedDefinition_SelectsNestedDefinitionNotAncestor
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-PseudostateExclusion
+        title: >-
+          StateTransitionViewLayoutStrategy's CollectStates shall never render an ordinary state
+          box for a transition source named "start"/"done" or matching a declared entry-action
+          feature's name, even when that source is otherwise only referenced by a transition
+          endpoint.
+        justification: |
+          A pseudostate ("start"/"done") or entry-action-kind transition source is not itself a
+          state and must never be drawn as one; without this exclusion, the existing
+          "additional states referenced only by a transition endpoint" pass would synthesize a
+          spurious box labelled "start" (or the entry action's name) for every model using the
+          attached-transition or entry-action-transition idiom, since that source name is never
+          separately declared as a state. Only the transition source side is excluded — the
+          target side of any transition is unaffected.
+        tests:
+          - StateTransitionView_BuildLayout_PseudostateSourceTransition_NoSpuriousBox
+          - StateTransitionView_BuildLayout_EntryActionSourceTransition_NoSpuriousBoxUsesResolvedTarget
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-SemanticInitialMarker
+        title: >-
+          StateTransitionViewLayoutStrategy's BuildLayout shall place the initial pseudo-state
+          marker at the target of the first transition whose source is a pseudostate/entry-action
+          name, falling back to the first-declared state only when no such transition exists.
+        justification: |
+          The first-declared-state heuristic used previously is only an approximation of "where
+          the machine starts" — it is wrong whenever a model contains an explicit
+          `first start then X;` (or attached entry-action-transition) idiom naming a different
+          state as the true initial target. Preferring the semantically-resolved target keeps the
+          marker correct for every model using this idiom, while the fallback preserves the
+          existing behavior (and the `03-elevator-state.sysml` gallery example's original
+          rendering) for every model that declares no explicit initial transition.
+        tests:
+          - StateTransitionView_BuildLayout_PseudostateSourceTransition_MarksResolvedTargetNotFirstDeclared
+          - StateTransitionView_BuildLayout_NoExplicitInitialTransition_FallsBackToFirstDeclared
