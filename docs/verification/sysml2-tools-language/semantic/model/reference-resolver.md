@@ -36,6 +36,13 @@ external services or additional configuration are required beyond a standard .NE
 - A resolved feature redefinition reference (`redefines X;` / `:>> X`) is recorded as a
   `Redefinition`-kind `SysmlEdge`; an unresolved one produces a Warning diagnostic naming the
   unresolved identifier and no edge, mirroring `FeatureTyping`'s resolution behavior exactly.
+- A standalone `dependency A, B to C, D;` declaration resolves each `FromNames`/`ToNames` entry
+  independently and emits one `Dependency`-kind `SysmlEdge` per resolved (from, to) pair (a
+  cross product); an unresolvable name on either side produces its own Warning diagnostic
+  without suppressing edges for the other resolvable names.
+- A `bind A = B;` binding connector's endpoints resolve via the same dotted-feature-chain walk
+  used for `connect`/`message`, recording a `Binding`-kind `SysmlEdge` only when both endpoints
+  resolve.
 
 ##### Test Scenarios
 
@@ -60,3 +67,10 @@ external services or additional configuration are required beyond a standard .NE
 | Cross-file | `WorkspaceLoader_LoadAsync_CrossFileOutOfOrderRedefinitionChain_RecordsRedefinitionEdgeNoWarning` |
 | OMG `RedefinitionExample` | `WorkspaceLoader_LoadAsync_RedefinitionExampleFixture_NoUnresolvedReferenceWarnings` |
 | OMG PartsTree fixture | `WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings` |
+| Dependency binary ends | `WorkspaceLoader_LoadAsync_DependencyBinaryEnds_RecordsDependencyEdge` |
+| Dependency comma-list cross product | `WorkspaceLoader_LoadAsync_DependencyCommaLists_RecordsCrossProductEdges` |
+| Dependency unresolved end | `WorkspaceLoader_LoadAsync_DependencyUnresolvedEnd_ProducesWarningNoEdge` |
+| Dependency OMG corpus fixtures | `Dependency_OmgCorpusFixtures_ResolveExpectedEdges` |
+| Binding dotted-chain resolution | `WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge` |
+| Binding unresolved end | `WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge` |
+| Binding OMG corpus fixture (documented limitation) | `Binding_OmgCorpusFixture_ParsesAndResolvesWithoutCrashing` |

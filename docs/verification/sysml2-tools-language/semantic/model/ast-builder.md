@@ -39,6 +39,14 @@ external services or additional configuration are required beyond a standard .NE
   the `redefines` keyword form and the `:>>` operator form, for both a bare simple name and a
   qualified `Owner::feature` form (captured verbatim, unresolved), and leaves it null for a
   feature that declares no redefinition.
+- `VisitDependency` splits a `dependency A, B to C, D;` declaration's flat qualified-name list
+  into `FromNames`/`ToNames` correctly, including the FROM-keyword-omitted shape
+  (`dependency z to x, y;`), and resolves to the expected cross-product `Dependency` edges (or a
+  Warning with no edge for an unresolvable name).
+- `VisitBindingConnectorAsUsage` captures a `bind A = B;` binding connector's two endpoints on a
+  `SysmlConnectionNode` with `ConnectionKeyword == "binding"`, resolved via the same
+  dotted-feature-chain walk as `connect`, producing a `Binding` edge when both sides resolve (or
+  a Warning with no edge otherwise).
 
 ##### Test Scenarios
 
@@ -62,3 +70,10 @@ external services or additional configuration are required beyond a standard .NE
 | Redefinition capture, `:>>` operator | `WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName` |
 | Redefinition capture, qualified form | `WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText` |
 | No redefinition leaves field null | `WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull` |
+| Dependency binary ends | `WorkspaceLoader_LoadAsync_DependencyBinaryEnds_RecordsDependencyEdge` |
+| Dependency comma-list cross product | `WorkspaceLoader_LoadAsync_DependencyCommaLists_RecordsCrossProductEdges` |
+| Dependency unresolved end | `WorkspaceLoader_LoadAsync_DependencyUnresolvedEnd_ProducesWarningNoEdge` |
+| Dependency OMG corpus fixtures | `Dependency_OmgCorpusFixtures_ResolveExpectedEdges` |
+| Binding dotted-chain resolution | `WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge` |
+| Binding unresolved end | `WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge` |
+| Binding OMG corpus fixture (documented limitation) | `Binding_OmgCorpusFixture_ParsesAndResolvesWithoutCrashing` |

@@ -91,13 +91,96 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ReferenceMembership
         title: >-
           GeneralViewLayoutStrategy shall connect a definition to the type of each owned <c>ref</c>
-          feature with a hollow-diamond end marker at the owning definition end.
+          feature with a dashed line ending in an open-chevron end marker at the referenced type,
+          sharing the same rendering as a standalone Dependency edge.
         justification: |
-          Reference membership (e.g. a requirement's subject feature) is a distinct SysML v2
-          relationship shown with a hollow diamond. Rendering it as a separate edge distinguishes
-          it visually from structural containment (filled diamond).
+          A `ref` (reference usage) feature is a usage-type dependency per current OMG SysML v2
+          notation, not a diamond-marked structural membership. The previous hollow-diamond
+          membership marker for `ref` was an obsolete notation and has been removed; rendering
+          `ref` with the same dashed/open-chevron style as a `Dependency` edge keeps both visually
+          identical, matching their shared semantic meaning.
         tests:
-          - GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesHollowDiamondEdge
+          - GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesDependencyEdge
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Connect
+        title: >-
+          GeneralViewLayoutStrategy shall connect the owning rendered box of each resolved
+          Connect edge's source endpoint to the owning rendered box of its target endpoint with
+          a solid line and no end marker, and shall draw no edge when both endpoints resolve to
+          the same box (a self-loop).
+        justification: |
+          `connect A to B;` (and a `message`'s from/to events) is a core SysML v2 relationship;
+          rendering it with a plain solid line (no marker) matches OMG connector notation and
+          distinguishes it from every other edge kind, all of which carry either a marker, a
+          dashed style, or both. Suppressing same-box self-loops is required because the
+          dominant real-world corpus shape nests both connector ends as sibling features of the
+          very same enclosing definition — drawing a self-loop there would be visual noise with
+          no informational value.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_Connect_DifferentOwningTypes_ProducesUnmarkedSolidEdge
+          - GeneralViewLayoutStrategy_BuildLayout_Connect_SameOwningType_ProducesNoEdge
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Allocate
+        title: >-
+          GeneralViewLayoutStrategy shall connect the owning rendered box of each resolved
+          Allocate edge's source endpoint to the owning rendered box of its target endpoint with
+          a dashed line ending in an open chevron at the target, carrying a <c>«allocate»</c>
+          midpoint label.
+        justification: |
+          `allocate A to B;` is the SysML v2 allocation relationship, conventionally rendered as
+          a dashed dependency-style edge with an explicit <c>«allocate»</c> stereotype label
+          distinguishing it from an unlabeled Dependency edge that shares the same line style and
+          marker.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_Allocate_ProducesDashedChevronEdgeWithLabel
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Dependency
+        title: >-
+          GeneralViewLayoutStrategy shall connect the owning rendered box of each resolved
+          Dependency edge's source endpoint to the owning rendered box of its target endpoint
+          with a dashed line ending in an open chevron at the target (the depended-upon
+          element), with no midpoint label.
+        justification: |
+          A standalone `dependency A to B;` declaration is the general OMG dependency
+          relationship, rendered per convention as a dashed line with an open arrowhead pointing
+          at the depended-upon element — the same rendering the `ref`-fix reuses, since both are
+          semantically a usage-type dependency.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_Dependency_ProducesDashedChevronEdge
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Binding
+        title: >-
+          GeneralViewLayoutStrategy shall connect the owning rendered box of each resolved
+          Binding edge's source endpoint to the owning rendered box of its target endpoint with
+          a solid line and no end marker, carrying a <c>=</c> midpoint label.
+        justification: |
+          `bind A = B;` (a binding connector) asserts equality between its two connector ends;
+          rendering it as a solid, unmarked line (matching `Connect`'s notation, since both are
+          connector-shaped relationships) with an explicit <c>=</c> midpoint label distinguishes
+          it from a plain `Connect` edge while preserving the shared connector notation.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_Binding_ProducesSolidEdgeWithEqualsLabel
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Subsetting
+        title: >-
+          GeneralViewLayoutStrategy shall connect a subtype feature that declares a `subsets`/`:>`
+          reference to the owning definition of the subsetted (ancestor) feature — resolved via
+          the same owner-resolution walk used for Redefinition — with a dashed line ending in a
+          hollow-triangle end marker at the owner, and shall draw no edge when the reference
+          cannot be resolved or resolves back to the subtype's own owning definition.
+        justification: |
+          Subsetting (`subsets`/`:>` on a feature) is a distinct SysML v2 relationship from
+          redefinition, but shares the same "reference to an inherited member" resolution shape;
+          reusing `ResolveRedefinitionOwner` verbatim avoids adding a new public `SysmlEdgeKind`
+          or duplicating the owner-resolution algorithm, per this feature's explicit design
+          decision to keep Subsetting a private, view-layer-only classification derived from the
+          existing `SupertypeNames`/redefinition-owner machinery. The hollow-triangle marker
+          matches Specialization's marker (both express an "is-a-kind-of" narrowing), while the
+          dashed line style distinguishes it from Specialization's solid line, mirroring how
+          Typing is distinguished from Membership.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_Subsetting_CrossesSpecializationBoundary_ProducesDashedHollowTriangleEdge
+          - GeneralViewLayoutStrategy_BuildLayout_SelfReferentialSubsetting_ProducesNoEdge
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NonStructuralMembership
         title: >-
