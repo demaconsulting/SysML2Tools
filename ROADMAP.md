@@ -80,12 +80,50 @@ implemented first).
 and renderers; possibly `LayoutLabel`/compartment tweaks.
 **Visual gate:** a documented requirement/part renders its note and full compartments.
 
-### View dynamics refinements
+### Action Flow View: control-node/successor AST correctness + fork/join/decision/merge shapes
 
-- **Sequence View:** populate `LayoutActivation` execution bars; combined-fragment boxes
-  (alt/opt/loop); async/reply message styling.
-- **Action Flow View:** **fork/join** thick bars, **decision/merge** diamonds, accept/send
-  action shapes; optional **swim-lanes** via `LayoutBand`; item-flow edge annotations.
+Investigation (mirroring the pattern found in the State Transition View item above — same grammar
+family, same class of bug) found `actionBodyItem`'s combined shape has the identical AST gap, plus
+control nodes are entirely uncaptured today:
+
+1. **Attached/implicit-source successions are silently dropped (both the action AND its successor).**
+   `actionBodyItem: (sourceSuccessionMember)? actionBehaviorMember (actionTargetSuccessionMember)*`
+   has no `AstBuilder` visitor, so the compact, common idiom `action a1; then a2;` (successor
+   implied by adjacency, no explicit `succession`/`first` statement) falls through to ANTLR's
+   default aggregation and loses both nodes — the same failure mode fixed for `stateBodyItem` in
+   the State Transition View branch.
+2. **Fork/join/decide/merge/accept/send control nodes are entirely unmodeled.** The grammar's
+   `actionNode: controlNode | sendNode | acceptNode | assignmentNode | terminateNode | ifNode |
+   whileLoopNode | forLoopNode` (`controlNode: mergeNode | decisionNode | joinNode | forkNode`) has
+   zero `AstBuilder` visitors — not even a bare `fork f1;` registers today, so every Action Flow
+   View renders every node as an identical rounded-rectangle "action" box regardless of its real
+   control-node kind, and successions through them are lost too (compounding problem 1).
+3. **Renderer shape primitives already exist for the two structural kinds, just unused.** The
+   `DemaConsulting.Rendering` package already defines `BadgeShape.HorizontalBar`/`VerticalBar`
+   (usable for fork/join thick bars) and `BadgeShape.Diamond` (usable for decision/merge) —
+   `ActionFlowViewLayoutStrategy` just never produces a `LayoutBadge` for anything but the
+   start/done markers today. There is **no pentagon primitive** in the Rendering package's
+   `BoxShape`/`BadgeShape` enums for a true UML accept/send action shape — adding one requires a
+   change to the separate `DemaConsulting.Rendering` package, out of scope for this repo/branch.
+
+**Scope (this branch):** `AstBuilder` (new handling for the `actionBehaviorMember
+(actionTargetSuccessionMember)*` combined shape, mirroring the state-body fix; new visitors for
+`controlNode`/`sendNode`/`acceptNode` registering a distinguishable node kind);
+`ActionFlowViewLayoutStrategy` (render fork/join as `LayoutBadge(BadgeShape.HorizontalBar |
+VerticalBar)`, decision/merge as `LayoutBadge(BadgeShape.Diamond)`, keeping accept/send as
+keyword-labelled rounded-rectangle boxes for now, pending a future pentagon primitive).
+**Explicitly deferred (separate future items, not this branch):** a true pentagon accept/send
+shape (needs a `DemaConsulting.Rendering` package change); swim-lanes via `LayoutBand`; item-flow
+edge annotations (no item-flow/payload capture exists in the AST yet); the Sequence View dynamics
+item below (different subsystem, separate branch).
+**Visual gate:** an action flow with a fork feeding two parallel actions that rejoin renders a
+thick bar in each direction; a guarded decision/merge renders diamonds; the compact `action a;
+then b;` idiom renders correctly with no dropped nodes.
+
+### Sequence View dynamics
+
+- Populate `LayoutActivation` execution bars; combined-fragment boxes (alt/opt/loop); async/reply
+  message styling.
 - **Sequence dynamic-view compatibility check (known limitation, carried over from "Dynamic
   (ad-hoc) views", done):** `DynamicViewSynthesizer`'s `--view-type sequence` pre-check accepts
   any target with at least one nested `message` usage (the cheap, necessary-but-not-sufficient
@@ -96,10 +134,9 @@ and renderers; possibly `LayoutLabel`/compartment tweaks.
   `DynamicViewSynthesizer` or surfacing `SequenceViewLayoutStrategy`'s own lifeline-resolution
   result back to the synthesizer.
 
-**Scope:** `SequenceViewLayoutStrategy`, `ActionFlowViewLayoutStrategy`, renderer shape
-primitives (bar, diamond, pentagon, note). `LayoutActivation`/`LayoutBand` already defined.
-**Visual gate:** sequence shows activation bars + a fragment; action flow shows a fork/join and
-a decision/merge with correct shapes.
+**Scope:** `SequenceViewLayoutStrategy`, renderer shape primitives (note). `LayoutActivation`
+already defined.
+**Visual gate:** sequence shows activation bars + a fragment.
 
 ### State Transition View: attached-transition states, entry/exit actions, inherited pseudostate features
 
