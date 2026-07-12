@@ -575,6 +575,26 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <inheritdoc/>
+    public override SysmlNode? VisitBindingConnectorAsUsage(SysMLv2Parser.BindingConnectorAsUsageContext context)
+    {
+        // Only the common "bind A = B;" (bindingConnectorAsUsage) shape is supported; the longer
+        // bindingConnector/typeBody form has zero corpus evidence and is a documented limitation.
+        var name = GetDeclaredName(context.usageDeclaration()?.identification());
+        var ends = context.connectorEndMember();
+        var endpointA = ends.Length > 0 ? ConnectorEndReference(ends[0]) : null;
+        var endpointB = ends.Length > 1 ? ConnectorEndReference(ends[1]) : null;
+
+        return new SysmlConnectionNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            ConnectionKeyword = "binding",
+            EndpointA = endpointA,
+            EndpointB = endpointB,
+        };
+    }
+
+    /// <inheritdoc/>
     public override SysmlNode? VisitSatisfyRequirementUsage(SysMLv2Parser.SatisfyRequirementUsageContext context)
     {
         // Prefer the ownedReferenceSubsetting form (satisfy <ref> ...); fall back to the
@@ -589,6 +609,29 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         {
             RequirementName = requirementName,
             SubjectName = subjectName,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitDependency(SysMLv2Parser.DependencyContext context)
+    {
+        // Split the flat qualifiedName() list into from/to by comparing each name's start token
+        // index against TO()'s token index: everything before TO is a "from" (client) name,
+        // everything after is a "to" (supplier) name. The optional FROM keyword may be omitted
+        // (e.g. "dependency z to x, y;"), in which case the single qualifiedName captured before
+        // TO is still correctly classified as the (implicit) "from" name by this position check.
+        var toTokenIndex = context.TO()?.Symbol.TokenIndex ?? int.MaxValue;
+        var fromNames = new List<string>();
+        var toNames = new List<string>();
+        foreach (var qualifiedName in context.qualifiedName())
+        {
+            (qualifiedName.Start.TokenIndex < toTokenIndex ? fromNames : toNames).Add(qualifiedName.GetText());
+        }
+
+        return new SysmlDependencyNode
+        {
+            FromNames = fromNames,
+            ToNames = toNames,
         };
     }
 

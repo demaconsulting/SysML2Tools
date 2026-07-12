@@ -91,6 +91,27 @@ public enum SysmlEdgeKind
     ///     def</c> declaration it references.
     /// </summary>
     MetadataType,
+
+    /// <summary>
+    ///     A standalone dependency reference (<c>dependency (id)? (from A(,A)*)? to B(,B)*;</c>,
+    ///     <see cref="SysmlDependencyNode.FromNames"/> / <see cref="SysmlDependencyNode.ToNames"/>),
+    ///     recorded as one edge per resolvable from×to pair, <c>Source=A, Target=B</c>, reflecting
+    ///     the client (<c>from</c>) depending on the supplier (<c>to</c>). Only the common
+    ///     single-segment name form is resolved (parity with <see cref="Satisfy"/>/
+    ///     <see cref="Allocate"/>); an unresolved name produces a diagnostic instead of an edge.
+    /// </summary>
+    Dependency,
+
+    /// <summary>
+    ///     A binding connector reference (<c>bind A = B;</c>, the common
+    ///     <c>bindingConnectorAsUsage</c> shape only), recorded as a single edge
+    ///     <c>Source=A, Target=B</c> reflecting the textual left-to-right order of the binding.
+    ///     Either endpoint may be a dotted feature chain, resolved by <c>ReferenceResolver</c>'s
+    ///     feature-chain walk (parity with <see cref="Connect"/>); the longer
+    ///     <c>bindingConnector</c>/<c>typeBody</c> form is a documented, out-of-scope limitation
+    ///     (no corpus evidence).
+    /// </summary>
+    Binding,
 }
 
 /// <summary>

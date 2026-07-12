@@ -744,6 +744,57 @@ internal sealed class ReferenceResolver
             }
         }
 
+        // Standalone dependency statements (SysmlDependencyNode) resolve every "from" name against
+        // every "to" name independently (a cross product, per the grammar's list-of-lists shape),
+        // mirroring Satisfy/Allocate's single-segment TryResolve resolution. An unresolved name
+        // produces one Warning diagnostic per distinct unresolved name per file (via
+        // resolvedInFile, the same de-duplication used by every other block in this method); a
+        // pair is only emitted as an edge when both its from-name and to-name resolve.
+        if (node is SysmlDependencyNode dependency)
+        {
+            var resolvedFrom = new List<string>();
+            foreach (var fromName in dependency.FromNames)
+            {
+                if (TryResolve(fromName, namespaceStack, imports, out var resolved))
+                {
+                    resolvedFrom.Add(resolved);
+                }
+                else if (resolvedInFile.Add(fromName))
+                {
+                    _diagnostics.Add(new SysmlDiagnostic(
+                        filePath,
+                        0, 0,
+                        DiagnosticSeverity.Warning,
+                        $"Unresolved reference: '{fromName}'"));
+                }
+            }
+
+            var resolvedTo = new List<string>();
+            foreach (var toName in dependency.ToNames)
+            {
+                if (TryResolve(toName, namespaceStack, imports, out var resolved))
+                {
+                    resolvedTo.Add(resolved);
+                }
+                else if (resolvedInFile.Add(toName))
+                {
+                    _diagnostics.Add(new SysmlDiagnostic(
+                        filePath,
+                        0, 0,
+                        DiagnosticSeverity.Warning,
+                        $"Unresolved reference: '{toName}'"));
+                }
+            }
+
+            foreach (var from in resolvedFrom)
+            {
+                foreach (var to in resolvedTo)
+                {
+                    nodeEdges.Add(new SysmlEdge(from, to, SysmlEdgeKind.Dependency));
+                }
+            }
+        }
+
         // Views resolve only GetExposedNames() (a view's expose members) into Expose edges; each
         // entry is resolved independently, and an unresolved entry produces the Warning diagnostic
         // below with no edge. RenderTargetName (a view's render member) names a rendering style or
@@ -872,6 +923,22 @@ internal sealed class ReferenceResolver
             if (resolvedA is not null && resolvedB is not null)
             {
                 nodeEdges.Add(new SysmlEdge(resolvedA, resolvedB, SysmlEdgeKind.Connect));
+            }
+        }
+
+        // Binding connector endpoints ("bind A = B;", the bindingConnectorAsUsage shape only)
+        // resolve via the same dotted feature-chain walk as connection/message, for parity per
+        // the corpus's frequent dotted-chain bind sides (e.g. "bind engine.fuelCmdPort=fuelCmdPort;").
+        if (node is SysmlConnectionNode { ConnectionKeyword: "binding" } binding)
+        {
+            var resolvedA = ResolveFeatureChainSide(
+                binding.EndpointA, filePath, resolvedInFile, namespaceStack, imports);
+            var resolvedB = ResolveFeatureChainSide(
+                binding.EndpointB, filePath, resolvedInFile, namespaceStack, imports);
+
+            if (resolvedA is not null && resolvedB is not null)
+            {
+                nodeEdges.Add(new SysmlEdge(resolvedA, resolvedB, SysmlEdgeKind.Binding));
             }
         }
 

@@ -32,6 +32,7 @@ namespace DemaConsulting.SysML2Tools.Semantic.Model;
 [JsonDerivedType(typeof(SysmlTransitionNode), "transition")]
 [JsonDerivedType(typeof(SysmlSatisfyNode), "satisfy")]
 [JsonDerivedType(typeof(SysmlMetadataNode), "metadata")]
+[JsonDerivedType(typeof(SysmlDependencyNode), "dependency")]
 public abstract class SysmlNode
 {
     /// <summary>
@@ -52,6 +53,16 @@ public abstract class SysmlNode
     /// <summary>
     ///     Gets the supertype names referenced by specialization.
     /// </summary>
+    /// <remarks>
+    ///     For <see cref="SysmlFeatureNode"/> specifically, this field is populated only by
+    ///     <c>AstBuilder.ExtractSubsettingTargetNames</c> (the <c>subsets &lt;target&gt;</c> /
+    ///     <c>:&gt;</c> feature-relationship form) — no other code path populates a feature
+    ///     node's <see cref="SupertypeNames"/>. It is therefore, implicitly, a subsetting-only
+    ///     field on feature nodes; definition-level specialization (<c>subclassificationPart</c>,
+    ///     e.g. <c>part def RacingDrone :&gt; Drone</c>) is a structurally separate grammar rule
+    ///     that populates <see cref="SysmlDefinitionNode"/>'s own <see cref="SupertypeNames"/>
+    ///     through a different code path and is unaffected by this remark.
+    /// </remarks>
     public IReadOnlyList<string> SupertypeNames { get; init; } = Array.Empty<string>();
 
     /// <summary>
@@ -422,4 +433,26 @@ public sealed class SysmlSatisfyNode : SysmlNode
     ///     clause), or null when no <c>by</c> clause is present.
     /// </summary>
     public string? SubjectName { get; init; }
+}
+
+/// <summary>
+///     AST node representing a standalone <c>dependency (id)? (from A(,A)*)? to B(,B)*;</c>
+///     relationship.
+/// </summary>
+/// <remarks>
+///     Inherited from SysmlNode: Name, QualifiedName, Children, SupertypeNames, ImportedNames,
+///     VerifiedRequirementNames, ResolvedEdges, Annotations.
+/// </remarks>
+public sealed class SysmlDependencyNode : SysmlNode
+{
+    /// <summary>
+    ///     Gets the raw reference text of the client ("from") names, or empty when the optional
+    ///     <c>from</c> clause is omitted (the implicit-from shape, e.g. <c>dependency z to x;</c>).
+    /// </summary>
+    public IReadOnlyList<string> FromNames { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    ///     Gets the raw reference text of the supplier ("to") names.
+    /// </summary>
+    public IReadOnlyList<string> ToNames { get; init; } = Array.Empty<string>();
 }
