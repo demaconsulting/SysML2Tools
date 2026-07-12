@@ -57,12 +57,8 @@ package QuadcopterDrone {
     part def Drone {
         attribute totalMass : Mass;
         part airframe : Frame;
-        part battery : Battery {
-            port output : PowerPort;
-        }
-        part controller : FlightController {
-            port power : PowerPort;
-        }
+        part battery : Battery;
+        part controller : FlightController;
         part motors : Motor[4];
         part propellers : Propeller[4];
         part imu : ImuSensor;

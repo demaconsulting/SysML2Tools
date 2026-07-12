@@ -234,7 +234,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Resolve the specialization/membership/attribute-typing edge set by qualified name; the
         // graph-construction pass below drops any edge touching a definition that never received a
         // node (because its folder was depth-truncated).
-        var (modelEdges, droppedEdges) = BuildModelEdges(defs, context.Workspace);
+        var (modelEdges, droppedEdges) = BuildModelEdges(defs, context.Workspace, scope is not null);
 
         // Build the single input graph: package folders as containers, definitions as leaves.
         var (graph, truncated) = BuildGraph(groups, modelEdges, theme, options.DepthLimit);
@@ -474,10 +474,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <c>workspace.Index.AllEdges</c> that was dropped because an endpoint failed to resolve to a
     /// rendered box, or because both endpoints resolved to the same box (a genuine self-loop) — for
     /// surfacing via <see cref="LayoutWarnings.ForDroppedRelationshipEdges"/>, so a residual/future
-    /// collapse is visible instead of silently dropped.
+    /// collapse is visible instead of silently dropped. An unresolved-endpoint drop is only
+    /// reported when <paramref name="isScoped"/> is <see langword="false"/> (the view renders the
+    /// whole workspace, so an endpoint that fails to resolve to a box is genuinely wrong); when the
+    /// view is narrowed by <c>expose</c>, an endpoint outside the exposed scope legitimately fails
+    /// to resolve to a box by design and is not reported, to avoid misleading noise for ordinary,
+    /// intentional scope narrowing. A genuine self-loop (both endpoints resolve, to the same box)
+    /// is always reported, regardless of scoping, since it can never be an intended outcome.
     /// </summary>
     private static (List<ModelEdge> Edges, List<DroppedRelationshipEdge> Dropped) BuildModelEdges(
-        IReadOnlyList<DefBox> defs, SysmlWorkspace workspace)
+        IReadOnlyList<DefBox> defs, SysmlWorkspace workspace, bool isScoped)
     {
         // Index every definition by qualified and simple name (first-seen wins for simple names,
         // mirroring how packages may reuse a simple name across different qualified locations).
@@ -603,10 +609,23 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // endpoint mapped to its owning rendered box via ResolveOwningBox. An edge is only emitted
         // when both endpoints resolve to distinct boxes; a same-box result (e.g. two sibling
         // features of the same enclosing definition) is a genuine self-loop and is dropped, exactly
-        // as every other edge kind in this method already does. Every dropped edge (unresolved
-        // endpoint or genuine self-loop) is also recorded in `dropped` for
-        // LayoutWarnings.ForDroppedRelationshipEdges, so the drop is visible rather than silent.
+        // as every other edge kind in this method already does. Every dropped edge is also
+        // considered for `dropped` (LayoutWarnings.ForDroppedRelationshipEdges) — see RecordDrop.
         var dropped = new List<DroppedRelationshipEdge>();
+
+        void RecordDrop(string kind, string source0, string target0, string? source, string? target)
+        {
+            // A genuine self-loop (both endpoints resolved, to the same box) is always reported.
+            // An unresolved endpoint is only reported when the view is not `expose`-scoped: within
+            // a scoped view, an endpoint outside the exposed subtree legitimately fails to resolve
+            // to a box by design, and warning about it would be misleading noise for ordinary,
+            // intentional scope narrowing.
+            if ((source is not null && target is not null) || !isScoped)
+            {
+                dropped.Add(new DroppedRelationshipEdge(kind, source0, target0, DropReason(source, target)));
+            }
+        }
+
         foreach (var edge in workspace.Index.AllEdges)
         {
             if (edge.SourceQualifiedName is not { Length: > 0 } sourceRef)
@@ -626,8 +645,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                         }
                         else
                         {
-                            dropped.Add(new DroppedRelationshipEdge(
-                                "Connect", sourceRef, edge.TargetQualifiedName, DropReason(source, target)));
+                            RecordDrop("Connect", sourceRef, edge.TargetQualifiedName, source, target);
                         }
 
                         break;
@@ -643,8 +661,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                         }
                         else
                         {
-                            dropped.Add(new DroppedRelationshipEdge(
-                                "Allocate", sourceRef, edge.TargetQualifiedName, DropReason(source, target)));
+                            RecordDrop("Allocate", sourceRef, edge.TargetQualifiedName, source, target);
                         }
 
                         break;
@@ -660,8 +677,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                         }
                         else
                         {
-                            dropped.Add(new DroppedRelationshipEdge(
-                                "Dependency", sourceRef, edge.TargetQualifiedName, DropReason(source, target)));
+                            RecordDrop("Dependency", sourceRef, edge.TargetQualifiedName, source, target);
                         }
 
                         break;
@@ -677,8 +693,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                         }
                         else
                         {
-                            dropped.Add(new DroppedRelationshipEdge(
-                                "Binding", sourceRef, edge.TargetQualifiedName, DropReason(source, target)));
+                            RecordDrop("Binding", sourceRef, edge.TargetQualifiedName, source, target);
                         }
 
                         break;
