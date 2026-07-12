@@ -2094,8 +2094,8 @@ public sealed class WorkspaceLoaderTests
             Assert.NotNull(result.Workspace);
             Assert.Contains(result.Workspace!.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Binding &&
-                     e.SourceQualifiedName == "P::Sensor::x" &&
-                     e.TargetQualifiedName == "P::Display::y");
+                     e.SourceQualifiedName == "P::Q::a::x" &&
+                     e.TargetQualifiedName == "P::Q::b::y");
         }
         finally
         {
