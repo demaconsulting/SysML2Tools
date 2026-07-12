@@ -115,3 +115,38 @@ sections:
           - WorkspaceLoader_LoadAsync_BareRedefinitionOfInheritedFeature_RecordsRedefinitionEdgeNoWarning
           - WorkspaceLoader_LoadAsync_RedefinitionExampleFixture_NoUnresolvedReferenceWarnings
           - WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-DependencyCrossProduct
+        title: >-
+          ReferenceResolver.ResolveAll shall independently resolve every entry in a
+          SysmlDependencyNode's FromNames and ToNames against the symbol table, emitting one
+          Dependency-kind edge per resolved (from, to) pair (a cross product), and an
+          unresolved-reference Warning for each name on either side that fails to resolve.
+        justification: |
+          The `dependency` grammar allows comma-separated client and supplier lists (e.g.
+          `dependency a, b to c, d;`), each of which independently participates in the
+          dependency relationship; per-pair resolution (rather than an all-or-nothing
+          both-sides contract) ensures a single unresolvable name does not suppress edges for
+          every other resolvable name, and per-name diagnostics correctly surface exactly which
+          reference is bogus.
+        tests:
+          - WorkspaceLoader_LoadAsync_DependencyBinaryEnds_RecordsDependencyEdge
+          - WorkspaceLoader_LoadAsync_DependencyCommaLists_RecordsCrossProductEdges
+          - WorkspaceLoader_LoadAsync_DependencyUnresolvedEnd_ProducesWarningNoEdge
+          - Dependency_OmgCorpusFixtures_ResolveExpectedEdges
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-BindingFeatureChain
+        title: >-
+          ReferenceResolver.ResolveAll shall resolve a "binding"-keyword SysmlConnectionNode's
+          EndpointA/EndpointB via the same dotted-feature-chain walk used for
+          "connection"/"message" endpoints, emitting a Binding-kind edge only when both
+          endpoints resolve.
+        justification: |
+          A binding connector's endpoints (`bind A.x = B.y;`) are frequently dotted feature
+          chains, identical in shape to a connect/message endpoint; reusing the existing
+          feature-chain walk (rather than a separate resolution path) keeps the two-sided
+          must-both-resolve contract consistent across every dotted-endpoint edge kind.
+        tests:
+          - WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge
+          - WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge
+          - Binding_OmgCorpusFixture_ResolvesBindingEdgesViaImplicitRedefinitionNames

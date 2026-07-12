@@ -20,10 +20,21 @@ The work falls into three themes:
 Render the relationships currently omitted from the General View, each routed via
 `ChannelRouter` and carrying the correct spec end shape:
 
-- Subsetting (where shown as edges), feature typing, dependency, containment,
-  connection/binding, allocation.
+- Subsetting (where shown as edges), dependency, connection/binding, allocation.
+- Fix `ref` usages, currently drawn as a hollow-diamond Membership edge: SysML v2 removed
+  "shared aggregation" (the UML/SysML v1 hollow-diamond concept), so `ref` should render as a
+  dependency-style edge (dashed, open arrowhead) instead.
 - Shared-bus generalization (multiple subtypes merging into one line to a supertype) as an
   optional readability refinement.
+
+Per the OMG SysML v2 spec's Graphical Notation chapter (§8.2.3), `item`, `occurrence`,
+`action`, `state`, and `requirement` usages are **not** edge-connected boxes — they are
+canonically rendered as compartment rows on their owning box (same mechanism as
+`attribute`), which `GeneralViewLayoutStrategy.BuildCompartments` already does generically
+for any feature keyword. No new edge kind or "containment broadening" is needed for these;
+earlier roadmap phrasing implying a `containment` edge kind was based on secondary-source
+notation tables that conflated other relationships (item flow, action succession,
+requirement satisfy/derive) with containment, and has been corrected here.
 
 **Scope:** `AstBuilder`/semantic exposure of the relationship kinds as needed;
 `GeneralViewLayoutStrategy` edge emission; resolver coverage. Also extend the drone gallery
@@ -89,6 +100,28 @@ and renderers; possibly `LayoutLabel`/compartment tweaks.
 primitives (bar, diamond, pentagon, note). `LayoutActivation`/`LayoutBand` already defined.
 **Visual gate:** sequence shows activation bars + a fragment; action flow shows a fork/join and
 a decision/merge with correct shapes.
+
+### State Transition View: implied-source (initial-pseudostate) transitions
+
+SysML v2 allows a state transition with no explicit source state (`then TargetState;`),
+meaning an implicit/default transition taken automatically on entry to the enclosing region —
+the UML/SysML "initial pseudostate" concept. Today `ReferenceResolver`'s `Transition` edge is
+only recorded when both a source and target resolve, so an omitted source produces no edge at
+all (a documented limitation, not a crash) — confirmed against the real OMG corpus fixture
+`training/12.BindingConnectors/...` cross-checks during the General View relationship-edges
+work.
+
+Closing this requires more than an edge-resolution tweak: `AstBuilder`/`ReferenceResolver` need
+to distinguish "no source specified" from "source failed to resolve," and
+`StateTransitionViewLayoutStrategy` needs to render the conventional small filled-circle
+initial-pseudostate marker with an edge into the target state, rather than only ever connecting
+two named states.
+
+**Scope:** `AstBuilder` (transition parsing), `SysmlEdge`/`ReferenceResolver` (distinguishing
+implied-source from unresolved-source), `StateTransitionViewLayoutStrategy` (initial-pseudostate
+marker + edge rendering).
+**Visual gate:** a state machine with a `then InitialState;`-shaped entry transition renders a
+filled-circle initial marker with an edge into that state.
 
 ### Interconnection View: genuine cross-boundary connector routing
 

@@ -8,14 +8,15 @@
    files and uses depth-first search to detect cycles.
 2. **Reference resolution (pass 1)** — checks each `SupertypeName`, `SysmlFeatureNode.FeatureTyping`,
    `SysmlFeatureNode.RedefinedFeatureName`, `ImportedName`, `VerifiedRequirementNames` entry,
-   `SysmlSatisfyNode` subject/requirement, and `SysmlConnectionNode`
-   (`ConnectionKeyword == "allocation"`) endpoint in all AST nodes against
+   `SysmlSatisfyNode` subject/requirement, `SysmlConnectionNode`
+   (`ConnectionKeyword == "allocation"`) endpoint, and `SysmlDependencyNode` from/to name lists
+   in all AST nodes against
    the symbol table, emitting a Warning for any name not found and recording a `SysmlEdge` for
    any name (or pair of names) that resolves.
 3. **Feature-chain resolution (pass 2)** — after pass 1 has completed for every file root,
    resolves dotted feature chains (e.g. `engine.fuelPort`) referenced by `SysmlConnectionNode`
-   (`ConnectionKeyword == "connection"` or `"message"`) endpoints and `SysmlTransitionNode`
-   `Source`/`Target` into `Connect`/`Transition`-kind edges.
+   (`ConnectionKeyword == "connection"`, `"message"`, or `"binding"`) endpoints and
+   `SysmlTransitionNode` `Source`/`Target` into `Connect`/`Binding`/`Transition`-kind edges.
 
 ##### Import Graph
 
@@ -71,10 +72,12 @@ guarantees every `Typing`/`Supertype` edge needed by the walk already exists.
 `ResolveFeatureChains` mirrors `ResolveNode`'s namespace-stack push/pop condition exactly
 (`(node is SysmlPackageNode or SysmlDefinitionNode or SysmlFeatureNode) && node.Name is not null`)
 so that segment-0 resolution scope cannot silently diverge between the two passes. For each
-`SysmlConnectionNode` with `ConnectionKeyword` `"connection"` or `"message"` (the `"allocation"`
-variant is excluded — it keeps its existing, unit-3, single-segment-only behavior), and for each
+`SysmlConnectionNode` with `ConnectionKeyword` `"connection"`, `"message"`, or `"binding"` (the
+`"allocation"` variant is excluded — it keeps its existing, unit-3, single-segment-only
+behavior), and for each
 `SysmlTransitionNode`, both sides (`EndpointA`/`EndpointB` or `Source`/`Target`) are resolved via
-`TryResolveFeatureChain`, and a `Connect`/`Transition` edge is emitted only when **both** sides
+`TryResolveFeatureChain`, and a `Connect`/`Binding`/`Transition` edge is emitted only when **both**
+sides
 resolve — mirroring the existing Satisfy/Allocate both-sides-must-resolve contract. New edges are
 appended to `node.ResolvedEdges` (pass-1 edges, if any, are preserved) and to the aggregate edge
 list.
@@ -84,12 +87,31 @@ reference text on `.`. Segment 0 is resolved via the existing `TryResolve` four-
 participates in the same scope/import resolution as any other single-name reference); a
 single-segment "chain" is handled by the remaining-segment loop simply never executing. Each
 subsequent segment is resolved relative to the previous segment's node (looked up via
-`SymbolTable.Lookup`) using `FindFeatureMember`.
+`SymbolTable.Lookup`) using `FindFeatureMember`. Two parallel accumulators are tracked across the
+loop: `current` (the real declared node's qualified name, which continues to drive the *next*
+segment's `SymbolTable.Lookup` — this part of the walk is unchanged) and `instancePath` (the value
+ultimately returned as `resolvedName`). For a segment resolved via `FindFeatureMember`'s
+direct-child branch, `instancePath` is simply set to the member's own (already instance-relative)
+qualified name — unchanged from before. For a segment resolved via the type-hierarchy fallback
+branch (`viaTypeFallback == true`, see `FindFeatureMember` below), `instancePath` is instead set to
+`{previous instancePath}::{raw segment text}` — preserving the instance-relative path rather than
+collapsing to the type's own declared qualified name. This distinction matters for the dominant
+real-world `connect`/`bind` shape: two sibling features (e.g. ports) declared directly in their
+owning `part def`s, referenced from an enclosing part via bare usages with no per-instance nested
+redeclaration — every such reference resolves via the fallback branch, and without this
+`instancePath` accumulator the returned qualified name would collapse to the shared port type's own
+declared path (e.g. `PowerPort`'s owning type's own `power`/`output` declaration), causing
+`GeneralViewLayoutStrategy.ResolveOwningBox` to (incorrectly) map both endpoints to the same box.
 
-`FindFeatureMember(node, name)` tries `node`'s own direct children first — an inline nested usage
-or redefinition shadows a same-named definition-level member (confirmed by the OMG fixture
-`2c-PartsInterconnection-MultipleDecompositions.sysml`'s `port :>> pe = c1.pb` pattern) — falling
-back to the member's `Typing`-edge target's own hierarchy only when no direct child matches.
+`FindFeatureMember(node, name, out viaTypeFallback)` tries `node`'s own direct children first — an
+inline nested usage or redefinition shadows a same-named definition-level member (confirmed by the
+OMG fixture `2c-PartsInterconnection-MultipleDecompositions.sysml`'s `port :>> pe = c1.pb`
+pattern) — setting `viaTypeFallback = false` and returning immediately when found. Only when no
+direct child matches does it fall back to the member's `Typing`-edge target's own hierarchy,
+setting `viaTypeFallback = true` for that branch; the returned node's own `QualifiedName` in this
+case is the *type's own* declared path, not instance-relative — it is the caller
+(`TryResolveFeatureChain`) that reconstructs the instance-relative path using `viaTypeFallback`, as
+described above.
 
 `FindMemberInTypeHierarchy(typeNode, name, visited)` finds a member in `typeNode`'s own direct
 children, or — recursively — in any `Supertype`-edge ancestor's direct children, walking the
@@ -139,6 +161,14 @@ no edge):
   = resolved first end, `Target` = resolved second end) only when both ends resolve, using the
   identical both-sides-must-resolve contract as `Satisfy`. Regular `"connection"`/`"message"`
   keyword variants remain intentionally unresolved (out of scope for this unit).
+- **`SysmlDependencyNode` (Dependency)** — resolves every entry in `FromNames` and every entry in
+  `ToNames` independently (each unresolvable name produces its own Warning, per the
+  `resolvedInFile` de-duplication rule), then emits one `SysmlEdgeKind.Dependency` edge per
+  resolved (from, to) pair — a cross product, per the grammar's list-of-lists shape (e.g.
+  `dependency a, b to c, d;` resolves to up to 4 edges). Unlike the two-sided
+  Satisfy/Allocate/Connect contract, a `Dependency` edge is emitted per-pair rather than
+  all-or-nothing: an unresolvable name on one side does not suppress edges for the other
+  resolvable names.
 - **`SysmlViewNode` (Expose)** — resolves each `GetExposedNames()` entry (the `QualifiedName` of
   each `ExposeMember`) into its own `SysmlEdgeKind.Expose` edge, or the standard
   unresolved-reference Warning diagnostic when it does not resolve. An `ExposeMember`'s own
@@ -222,9 +252,11 @@ unresolved names are present.
 - `SysmlNode` hierarchy — traversed to collect `SupertypeNames`, `ImportedNames`, and
   `VerifiedRequirementNames`; checks for `SysmlFeatureNode.FeatureTyping` and
   `SysmlFeatureNode.RedefinedFeatureName`, `SysmlSatisfyNode`
-  (`SubjectName`/`RequirementName`), `SysmlConnectionNode` with `ConnectionKeyword ==
+  (`SubjectName`/`RequirementName`), `SysmlDependencyNode` (`FromNames`/`ToNames`),
+  `SysmlConnectionNode` with `ConnectionKeyword ==
   "allocation"` (`EndpointA`/`EndpointB`), `SysmlConnectionNode` with `ConnectionKeyword ==
-  "connection"` or `"message"`, `SysmlTransitionNode` (`Source`/`Target`), and `SysmlViewNode`
+  "connection"`, `"message"`, or `"binding"`, `SysmlTransitionNode` (`Source`/`Target`), and
+  `SysmlViewNode`
   (`GetExposedNames()`; `RenderTargetName`/`FilterExpressionText`/each `ExposeMember`'s
   `BracketFilterExpressionText` are never read); reads
   `ResolvedEdges` (`Typing`/`Supertype` kinds during feature-chain resolution; `Supertype`

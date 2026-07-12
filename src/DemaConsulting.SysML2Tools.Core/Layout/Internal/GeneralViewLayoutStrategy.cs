@@ -43,11 +43,17 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     private const double CharWidthFactor = 0.62;
 
     /// <summary>
-    /// A feature membership: the keyword, raw typing reference (if any), simple name, and raw
-    /// redefined-feature reference (if any) of one owned feature. <see cref="TypeName"/> is
-    /// nullable because a feature may declare a redefinition without an explicit type annotation.
+    /// A feature membership: the keyword, raw typing reference (if any), simple name, raw
+    /// redefined-feature reference (if any), and raw subsetted-feature reference(s) (if any) of
+    /// one owned feature. <see cref="TypeName"/> is nullable because a feature may declare a
+    /// redefinition/subsetting without an explicit type annotation.
     /// </summary>
-    private sealed record FeatureMembership(string Keyword, string? TypeName, string? Name, string? RedefinedFeatureName);
+    private sealed record FeatureMembership(
+        string Keyword,
+        string? TypeName,
+        string? Name,
+        string? RedefinedFeatureName,
+        IReadOnlyList<string> SubsettedFeatureNames);
 
     /// <summary>
     /// The classification of an edge, which selects its line style so the renderer can distinguish
@@ -73,6 +79,41 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         /// line, hollow-triangle-with-crossbar at the owner.
         /// </summary>
         Redefinition,
+
+        /// <summary>
+        /// Subtype feature subsetting → the owning definition of the subsetted (ancestor) feature:
+        /// dashed line, hollow triangle at the owner (the same marker as
+        /// <see cref="Specialization"/>, distinguished purely by line style, mirroring how
+        /// <see cref="Typing"/> is distinguished from <see cref="Membership"/>).
+        /// </summary>
+        Subsetting,
+
+        /// <summary>
+        /// A resolved <c>connect A to B</c>/message reference between two definitions (each
+        /// endpoint's owning box resolved via <see cref="ResolveOwningBox"/>): solid line, no
+        /// end marker.
+        /// </summary>
+        Connect,
+
+        /// <summary>
+        /// A resolved <c>allocate A to B</c> reference: dashed line, open chevron at the target,
+        /// with a <c>«allocate»</c> midpoint label.
+        /// </summary>
+        Allocate,
+
+        /// <summary>
+        /// A resolved standalone <c>dependency</c> reference, and the <c>ref</c>-keyword's
+        /// feature-typing dependency (sharing this same rendering so both are visually
+        /// identical): dashed line, open chevron at the depended-upon element.
+        /// </summary>
+        Dependency,
+
+        /// <summary>
+        /// A resolved <c>bind A = B</c> binding connector reference (each endpoint's owning box
+        /// resolved via <see cref="ResolveOwningBox"/>): solid line, no end marker, with a
+        /// <c>=</c> midpoint label distinguishing it from <see cref="Connect"/>.
+        /// </summary>
+        Binding,
     }
 
     /// <summary>
@@ -83,11 +124,22 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <param name="TargetQualified">Qualified name of the target (supertype, owner, or attribute-type) definition.</param>
     /// <param name="Arrowhead">Arrowhead drawn at the target end.</param>
     /// <param name="Kind">The edge classification, which selects the rendered line style.</param>
-    private sealed record ModelEdge(string SourceQualified, string TargetQualified, EndMarkerStyle Arrowhead, EdgeKind Kind);
+    /// <param name="Label">
+    /// Optional midpoint label (e.g. <c>«allocate»</c>, <c>=</c>), or <see langword="null"/> for
+    /// the majority of kinds that render no label.
+    /// </param>
+    private sealed record ModelEdge(
+        string SourceQualified,
+        string TargetQualified,
+        EndMarkerStyle Arrowhead,
+        EdgeKind Kind,
+        string? Label = null);
 
-    /// <summary>Maps an edge kind to its rendered line style: typing edges are dashed, all others solid.</summary>
+    /// <summary>Maps an edge kind to its rendered line style: typing/allocate/dependency/subsetting edges are dashed, all others solid.</summary>
     private static LineStyle LineStyleForKind(EdgeKind kind) =>
-        kind == EdgeKind.Typing ? LineStyle.Dashed : LineStyle.Solid;
+        kind is EdgeKind.Typing or EdgeKind.Allocate or EdgeKind.Dependency or EdgeKind.Subsetting
+            ? LineStyle.Dashed
+            : LineStyle.Solid;
 
     /// <summary>A user-defined definition together with its computed box size and supertypes.</summary>
     private sealed record DefBox(
@@ -110,6 +162,20 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <param name="Node">The leaf graph node standing in for the folder.</param>
     /// <param name="HiddenCount">Number of hidden definitions the ellipsis label reports.</param>
     private sealed record TruncatedFolder(LayoutGraphNode Node, int HiddenCount);
+
+    /// <summary>
+    /// A <see cref="EdgeKind.Connect"/>/<see cref="EdgeKind.Allocate"/>/
+    /// <see cref="EdgeKind.Dependency"/>/<see cref="EdgeKind.Binding"/> edge from
+    /// <c>workspace.Index.AllEdges</c> that was not rendered because an endpoint failed to resolve
+    /// to a rendered box, or because both endpoints resolved to the same box (a genuine self-loop).
+    /// Reported via <see cref="LayoutWarnings.ForDroppedRelationshipEdges"/> so the drop is visible
+    /// instead of silent.
+    /// </summary>
+    /// <param name="Kind">The short edge-kind label (e.g. <c>"Connect"</c>).</param>
+    /// <param name="Source">The edge's raw source qualified/dotted-chain-resolved reference.</param>
+    /// <param name="Target">The edge's raw target qualified/dotted-chain-resolved reference.</param>
+    /// <param name="Reason">A short human-readable explanation of why the edge was dropped.</param>
+    private sealed record DroppedRelationshipEdge(string Kind, string Source, string Target, string Reason);
 
     /// <inheritdoc/>
     public LayoutTree BuildLayout(ViewContext context, RenderOptions options)
@@ -168,7 +234,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Resolve the specialization/membership/attribute-typing edge set by qualified name; the
         // graph-construction pass below drops any edge touching a definition that never received a
         // node (because its folder was depth-truncated).
-        var modelEdges = BuildModelEdges(defs);
+        var (modelEdges, droppedEdges) = BuildModelEdges(defs, context.Workspace, scope is not null);
 
         // Build the single input graph: package folders as containers, definitions as leaves.
         var (graph, truncated) = BuildGraph(groups, modelEdges, theme, options.DepthLimit);
@@ -192,6 +258,9 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // warning — through the standard layout-warnings channel.
         var warnings = LayoutWarnings.ForUnevaluatedFilter(context.ViewName, filterFailureReason is null ? null : filterExpressionText, filterFailureReason)
             .Concat(LayoutWarnings.ForUnevaluatedExposeBracketFilter(context.ViewName, scope?.Failures ?? []))
+            .Concat(LayoutWarnings.ForDroppedRelationshipEdges(context.ViewName, droppedEdges
+                .Select(d => (d.Kind, d.Source, d.Target, d.Reason))
+                .ToList()))
             .ToList();
         return warnings.Count == 0 ? placed : placed with { Warnings = warnings };
     }
@@ -289,8 +358,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Collects the feature memberships of a definition: the keyword, type reference (if any), simple
-    /// name, and redefined-feature reference (if any) of each owned feature that carries a type
-    /// annotation and/or a redefinition.
+    /// name, redefined-feature reference (if any), and subsetted-feature reference(s) (if any) of
+    /// each owned feature that carries a type annotation, a redefinition, and/or a subsetting.
     /// </summary>
     private static IReadOnlyList<FeatureMembership> CollectMemberships(SysmlDefinitionNode def)
     {
@@ -303,10 +372,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             }
 
             var typing = feature.FeatureTyping is { Length: > 0 } ft ? ft : null;
-            if (typing is not null || feature.RedefinedFeatureName is not null)
+            if (typing is not null || feature.RedefinedFeatureName is not null || feature.SupertypeNames.Count > 0)
             {
                 var keyword = string.IsNullOrEmpty(feature.FeatureKeyword) ? "feature" : feature.FeatureKeyword;
-                result.Add(new FeatureMembership(keyword, typing, feature.Name, feature.RedefinedFeatureName));
+                result.Add(new FeatureMembership(keyword, typing, feature.Name, feature.RedefinedFeatureName, feature.SupertypeNames));
             }
         }
 
@@ -395,12 +464,26 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Resolves the specialization, membership, and attribute-typing relationships across every
-    /// definition (regardless of package) into a flat list of qualified-name edges. Self-references
-    /// and unresolved targets are skipped; whether an edge's endpoints actually receive a graph node
-    /// (i.e., were not depth-truncated) is decided later, in <see cref="BuildGraph"/>.
+    /// Resolves the specialization, membership, attribute-typing, redefinition, subsetting,
+    /// connect, allocate, dependency, and binding relationships across every definition (regardless
+    /// of package) into a flat list of qualified-name edges. Self-references and unresolved targets
+    /// are skipped; whether an edge's endpoints actually receive a graph node (i.e., were not
+    /// depth-truncated) is decided later, in <see cref="BuildGraph"/>. The second tuple element
+    /// reports every <see cref="EdgeKind.Connect"/>/<see cref="EdgeKind.Allocate"/>/
+    /// <see cref="EdgeKind.Dependency"/>/<see cref="EdgeKind.Binding"/> edge from
+    /// <c>workspace.Index.AllEdges</c> that was dropped because an endpoint failed to resolve to a
+    /// rendered box, or because both endpoints resolved to the same box (a genuine self-loop) — for
+    /// surfacing via <see cref="LayoutWarnings.ForDroppedRelationshipEdges"/>, so a residual/future
+    /// collapse is visible instead of silently dropped. An unresolved-endpoint drop is only
+    /// reported when <paramref name="isScoped"/> is <see langword="false"/> (the view renders the
+    /// whole workspace, so an endpoint that fails to resolve to a box is genuinely wrong); when the
+    /// view is narrowed by <c>expose</c>, an endpoint outside the exposed scope legitimately fails
+    /// to resolve to a box by design and is not reported, to avoid misleading noise for ordinary,
+    /// intentional scope narrowing. A genuine self-loop (both endpoints resolve, to the same box)
+    /// is always reported, regardless of scoping, since it can never be an intended outcome.
     /// </summary>
-    private static List<ModelEdge> BuildModelEdges(IReadOnlyList<DefBox> defs)
+    private static (List<ModelEdge> Edges, List<DroppedRelationshipEdge> Dropped) BuildModelEdges(
+        IReadOnlyList<DefBox> defs, SysmlWorkspace workspace, bool isScoped)
     {
         // Index every definition by qualified and simple name (first-seen wins for simple names,
         // mirroring how packages may reuse a simple name across different qualified locations).
@@ -427,13 +510,14 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             }
 
             // Membership: member-type → owner, diamond at the owner (target) end. Structural keywords
-            // (part/port) use a filled diamond; reference (ref) uses a hollow diamond; others emit none.
+            // (part/port) use a filled diamond; others emit none. (The "ref" keyword previously used
+            // an obsolete hollow-diamond marker here — it has moved to its own Dependency-shaped edge
+            // below, per current OMG SysML v2 notation for reference usages.)
             foreach (var membership in def.Memberships)
             {
                 var arrowhead = membership.Keyword switch
                 {
                     "part" or "port" => EndMarkerStyle.FilledDiamond,
-                    "ref" => EndMarkerStyle.HollowDiamond,
                     _ => EndMarkerStyle.None,
                 };
 
@@ -465,6 +549,25 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 }
             }
 
+            // ref (reference usage) typing: owner → referenced-type dependency, sharing the same
+            // Dependency rendering (dashed, open chevron) as the new public Dependency edge kind
+            // below, per current OMG SysML v2 notation for reference usages (no longer an obsolete
+            // hollow-diamond membership marker).
+            foreach (var membership in def.Memberships)
+            {
+                if (membership.Keyword != "ref")
+                {
+                    continue;
+                }
+
+                if (membership.TypeName is { Length: > 0 } refTypeName &&
+                    TryResolveQualified(refTypeName, byQualified, bySimple, out var refType) &&
+                    refType != def.QualifiedName)
+                {
+                    edges.Add(new ModelEdge(def.QualifiedName, refType, EndMarkerStyle.OpenChevron, EdgeKind.Dependency));
+                }
+            }
+
             // Redefinition: subtype → the owning definition of the redefined feature, hollow
             // triangle with crossbar at the owner (target) end. A qualified reference
             // (Owner::feature) resolves the owner directly; a bare reference is looked up by
@@ -482,9 +585,192 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     edges.Add(new ModelEdge(def.QualifiedName, owner, EndMarkerStyle.HollowTriangleCrossbar, EdgeKind.Redefinition));
                 }
             }
+
+            // Subsetting: subtype → the owning definition of each subsetted (ancestor) feature,
+            // hollow triangle (dashed) at the owner (target) end. Reuses ResolveRedefinitionOwner
+            // verbatim — a subsetted-feature reference is resolved identically to a
+            // redefined-feature reference (qualified reference resolves the owner directly; a bare
+            // reference walks the definition's own supertype chain for a matching member name).
+            foreach (var membership in def.Memberships)
+            {
+                foreach (var subsettedRef in membership.SubsettedFeatureNames)
+                {
+                    var owner = ResolveRedefinitionOwner(def, subsettedRef, byQualified, bySimple, defByQualified);
+                    if (owner is not null && owner != def.QualifiedName)
+                    {
+                        edges.Add(new ModelEdge(def.QualifiedName, owner, EndMarkerStyle.HollowTriangle, EdgeKind.Subsetting));
+                    }
+                }
+            }
         }
 
-        return edges;
+        // Connect/Allocate/Dependency/Binding: resolved directly from the workspace's semantic
+        // index (already computed by ReferenceResolver — no re-resolution needed here), each
+        // endpoint mapped to its owning rendered box via ResolveOwningBox. An edge is only emitted
+        // when both endpoints resolve to distinct boxes; a same-box result (e.g. two sibling
+        // features of the same enclosing definition) is a genuine self-loop and is dropped, exactly
+        // as every other edge kind in this method already does. Every dropped edge is also
+        // considered for `dropped` (LayoutWarnings.ForDroppedRelationshipEdges) — see RecordDrop.
+        var dropped = new List<DroppedRelationshipEdge>();
+
+        void RecordDrop(string kind, string source0, string target0, string? source, string? target)
+        {
+            // A genuine self-loop (both endpoints resolved, to the same box) is always reported.
+            // An unresolved endpoint is only reported when the view is not `expose`-scoped: within
+            // a scoped view, an endpoint outside the exposed subtree legitimately fails to resolve
+            // to a box by design, and warning about it would be misleading noise for ordinary,
+            // intentional scope narrowing.
+            if ((source is not null && target is not null) || !isScoped)
+            {
+                dropped.Add(new DroppedRelationshipEdge(kind, source0, target0, DropReason(source, target)));
+            }
+        }
+
+        foreach (var edge in workspace.Index.AllEdges)
+        {
+            if (edge.SourceQualifiedName is not { Length: > 0 } sourceRef)
+            {
+                continue;
+            }
+
+            switch (edge.Kind)
+            {
+                case SysmlEdgeKind.Connect:
+                    {
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
+                        if (source is not null && target is not null && source != target)
+                        {
+                            edges.Add(new ModelEdge(source, target, EndMarkerStyle.None, EdgeKind.Connect));
+                        }
+                        else
+                        {
+                            RecordDrop("Connect", sourceRef, edge.TargetQualifiedName, source, target);
+                        }
+
+                        break;
+                    }
+
+                case SysmlEdgeKind.Allocate:
+                    {
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
+                        if (source is not null && target is not null && source != target)
+                        {
+                            edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Allocate, "«allocate»"));
+                        }
+                        else
+                        {
+                            RecordDrop("Allocate", sourceRef, edge.TargetQualifiedName, source, target);
+                        }
+
+                        break;
+                    }
+
+                case SysmlEdgeKind.Dependency:
+                    {
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
+                        if (source is not null && target is not null && source != target)
+                        {
+                            edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Dependency));
+                        }
+                        else
+                        {
+                            RecordDrop("Dependency", sourceRef, edge.TargetQualifiedName, source, target);
+                        }
+
+                        break;
+                    }
+
+                case SysmlEdgeKind.Binding:
+                    {
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
+                        if (source is not null && target is not null && source != target)
+                        {
+                            edges.Add(new ModelEdge(source, target, EndMarkerStyle.None, EdgeKind.Binding, "="));
+                        }
+                        else
+                        {
+                            RecordDrop("Binding", sourceRef, edge.TargetQualifiedName, source, target);
+                        }
+
+                        break;
+                    }
+            }
+        }
+
+        return (edges, dropped);
+    }
+
+    /// <summary>
+    /// Returns a short human-readable reason a Connect/Allocate/Dependency/Binding edge's endpoints
+    /// did not resolve to two distinct rendered boxes, for
+    /// <see cref="LayoutWarnings.ForDroppedRelationshipEdges"/>.
+    /// </summary>
+    private static string DropReason(string? source, string? target)
+    {
+        if (source is null && target is null)
+        {
+            return "neither endpoint resolved to a box";
+        }
+
+        if (source is null)
+        {
+            return "source endpoint did not resolve to a box";
+        }
+
+        if (target is null)
+        {
+            return "target endpoint did not resolve to a box";
+        }
+
+        return "both endpoints resolved to the same box";
+    }
+
+    /// <summary>
+    /// Resolves the qualified name of the rendered box that "owns" the given endpoint reference,
+    /// for <see cref="EdgeKind.Connect"/>/<see cref="EdgeKind.Binding"/> endpoint mapping. A
+    /// reference that already names a definition resolves directly (the common case for
+    /// definition-to-definition references, e.g. <see cref="EdgeKind.Allocate"/>/
+    /// <see cref="EdgeKind.Dependency"/>); otherwise this walks successively shorter <c>"::"</c>
+    /// prefixes of the (dotted-chain-resolved) qualified name, from longest to shortest, looking
+    /// for a <see cref="SysmlFeatureNode"/> whose resolved <see cref="SysmlEdgeKind.Typing"/> edge
+    /// targets a rendered box; the <em>shortest</em> matching prefix wins (the feature immediately
+    /// owned by the rendered enclosing definition), which prevents the self-loop a naive
+    /// "nearest enclosing definition" walk would produce for the dominant real-world shape where
+    /// both sides of a <c>connect</c>/<c>bind</c> are nested inside the very same definition (e.g.
+    /// <c>connect controller.power to battery.output;</c> inside <c>Drone</c> — walking to the
+    /// nearest enclosing definition would resolve both sides to <c>Drone</c> itself).
+    /// </summary>
+    private static string? ResolveOwningBox(
+        string qualifiedName,
+        SysmlWorkspace workspace,
+        HashSet<string> byQualified,
+        Dictionary<string, string> bySimple)
+    {
+        if (TryResolveQualified(qualifiedName, byQualified, bySimple, out var direct))
+        {
+            return direct;
+        }
+
+        var segments = qualifiedName.Split("::");
+        string? candidate = null;
+        for (var length = segments.Length; length >= 1; length--)
+        {
+            var prefix = string.Join("::", segments.Take(length));
+            if (workspace.Declarations.TryGetValue(prefix, out var declaration) &&
+                declaration is SysmlFeatureNode &&
+                declaration.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Typing) is { } typingEdge &&
+                byQualified.Contains(typingEdge.TargetQualifiedName))
+            {
+                // Keep walking to shorter prefixes: the shortest (outermost) matching prefix wins.
+                candidate = typingEdge.TargetQualifiedName;
+            }
+        }
+
+        return candidate;
     }
 
     /// <summary>
@@ -684,6 +970,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             var added = scope.AddEdge($"e{edgeId++}", source.Node, target.Node);
             added.TargetEnd = edge.Arrowhead;
             added.LineStyle = LineStyleForKind(edge.Kind);
+            added.Label = edge.Label;
         }
 
         return (graph, truncated);

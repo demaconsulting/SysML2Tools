@@ -356,11 +356,13 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A part def that owns a <c>ref</c>-typed feature emits a hollow-diamond line from the
-    ///     referenced type box to the owning definition box (SysML v2 reference membership notation).
+    ///     A part def that owns a <c>ref</c>-typed feature emits a Dependency-shaped edge (dashed
+    ///     line, open chevron) from the owning definition to the referenced type box — the obsolete
+    ///     hollow-diamond membership notation was removed in favor of current OMG SysML v2 notation
+    ///     for reference usages, sharing the same rendering as the public Dependency edge kind.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesHollowDiamondEdge()
+    public void GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesDependencyEdge()
     {
         // Arrange: System owns a ref typed as Engine; both are user definitions
         var strategy = new GeneralViewLayoutStrategy();
@@ -387,10 +389,12 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a hollow-diamond arrowhead edge (EndMarkerStyle.HollowDiamond) is emitted for a ref feature
-        var membershipEdge = CollectLines(layout.Nodes)
-            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowDiamond);
-        Assert.NotNull(membershipEdge);
+        // Assert: a dashed open-chevron edge is emitted for a ref feature, and no hollow-diamond
+        // edge is emitted anywhere (the obsolete notation is fully retired).
+        var lines = CollectLines(layout.Nodes);
+        var dependencyEdge = lines.FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed);
+        Assert.NotNull(dependencyEdge);
+        Assert.DoesNotContain(lines, l => l.TargetEnd == EndMarkerStyle.HollowDiamond);
     }
 
     /// <summary>
@@ -1337,4 +1341,413 @@ public sealed class GeneralViewLayoutStrategyTests
             }
         }
     }
+
+    /// <summary>
+    ///     A resolved <see cref="SysmlEdgeKind.Connect"/> edge between two sibling ports/parts of
+    ///     different types (each nested inside the same enclosing definition, the dominant
+    ///     real-world shape) emits a solid, unmarked line between the two distinct owning boxes —
+    ///     confirming <c>ResolveOwningBox</c>'s shortest-typed-feature-prefix walk correctly maps
+    ///     each dotted-chain endpoint to a different box rather than self-looping back to the
+    ///     shared enclosing definition.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_Connect_DifferentOwningTypes_ProducesUnmarkedSolidEdge()
+    {
+        // Arrange: Drone owns "controller" (typed FlightController) and "battery" (typed Battery),
+        // each with a nested feature ("power"/"output"); a Connect edge links the two nested chains.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::FlightController"] = new SysmlDefinitionNode { Name = "FlightController", QualifiedName = "P::FlightController", DefinitionKeyword = "part def" },
+                ["P::Battery"] = new SysmlDefinitionNode { Name = "Battery", QualifiedName = "P::Battery", DefinitionKeyword = "part def" },
+                ["P::Drone"] = new SysmlDefinitionNode
+                {
+                    Name = "Drone",
+                    QualifiedName = "P::Drone",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "controller", QualifiedName = "P::Drone::controller", FeatureKeyword = "part", FeatureTyping = "FlightController" },
+                        new SysmlFeatureNode { Name = "battery", QualifiedName = "P::Drone::battery", FeatureKeyword = "part", FeatureTyping = "Battery" }
+                    ]
+                },
+                ["P::Drone::controller"] = new SysmlFeatureNode
+                {
+                    Name = "controller",
+                    QualifiedName = "P::Drone::controller",
+                    FeatureKeyword = "part",
+                    FeatureTyping = "FlightController",
+                    ResolvedEdges = [new SysmlEdge("P::Drone::controller", "P::FlightController", SysmlEdgeKind.Typing)]
+                },
+                ["P::Drone::battery"] = new SysmlFeatureNode
+                {
+                    Name = "battery",
+                    QualifiedName = "P::Drone::battery",
+                    FeatureKeyword = "part",
+                    FeatureTyping = "Battery",
+                    ResolvedEdges = [new SysmlEdge("P::Drone::battery", "P::Battery", SysmlEdgeKind.Typing)]
+                }
+            },
+            Index = new SemanticIndex(
+            [
+                new SysmlEdge("P::Drone::controller::power", "P::Drone::battery::output", SysmlEdgeKind.Connect)
+            ])
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a solid, unmarked line exists linking the FlightController and Battery boxes.
+        var lines = CollectLines(layout.Nodes);
+        var connectEdge = lines.FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.None && l.LineStyle == LineStyle.Solid && l.MidpointLabel is null);
+        Assert.NotNull(connectEdge);
+    }
+
+    /// <summary>
+    ///     A <c>connect</c> edge whose two dotted-chain endpoints resolve to the <em>same</em>
+    ///     owning box (e.g. two features of the same enclosing definition) produces no edge — the
+    ///     self-loop guard that every other edge kind in this unit already applies.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_Connect_SameOwningType_ProducesNoEdge()
+    {
+        // Arrange: Vehicle owns two features both typed as Port (the same owning box).
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Port"] = new SysmlDefinitionNode { Name = "Port", QualifiedName = "P::Port", DefinitionKeyword = "port def" },
+                ["P::Vehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "Vehicle",
+                    QualifiedName = "P::Vehicle",
+                    DefinitionKeyword = "part def"
+                },
+                ["P::Vehicle::portA"] = new SysmlFeatureNode
+                {
+                    Name = "portA",
+                    QualifiedName = "P::Vehicle::portA",
+                    FeatureKeyword = "port",
+                    FeatureTyping = "Port",
+                    ResolvedEdges = [new SysmlEdge("P::Vehicle::portA", "P::Port", SysmlEdgeKind.Typing)]
+                },
+                ["P::Vehicle::portB"] = new SysmlFeatureNode
+                {
+                    Name = "portB",
+                    QualifiedName = "P::Vehicle::portB",
+                    FeatureKeyword = "port",
+                    FeatureTyping = "Port",
+                    ResolvedEdges = [new SysmlEdge("P::Vehicle::portB", "P::Port", SysmlEdgeKind.Typing)]
+                }
+            },
+            Index = new SemanticIndex(
+            [
+                new SysmlEdge("P::Vehicle::portA::sig", "P::Vehicle::portB::sig", SysmlEdgeKind.Connect)
+            ])
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: no Connect-shaped (unmarked solid) edge is emitted between Vehicle and itself.
+        var lines = CollectLines(layout.Nodes);
+        Assert.DoesNotContain(lines, l => l.TargetEnd == EndMarkerStyle.None && l.LineStyle == LineStyle.Solid);
+
+        // Assert: the drop is surfaced as a visible warning (defense-in-depth diagnostic) rather
+        // than silently discarded.
+        Assert.Contains(layout.Warnings, w => w.Contains("Connect", StringComparison.Ordinal) &&
+            w.Contains("P::Vehicle::portA::sig", StringComparison.Ordinal) &&
+            w.Contains("P::Vehicle::portB::sig", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     End-to-end regression guard for the dominant real-world <c>connect</c> shape: two
+    ///     sibling features (ports) declared directly in their owning <c>part def</c>s, referenced
+    ///     from an enclosing part via bare <c>part</c> usages with no per-instance nested
+    ///     redeclaration. This test runs the real <see cref="WorkspaceLoader"/> (not a synthetic
+    ///     <see cref="SysmlWorkspace"/>) and feeds the resulting workspace into the real
+    ///     <see cref="GeneralViewLayoutStrategy.BuildLayout"/>, proving the fix to
+    ///     <c>ReferenceResolver.TryResolveFeatureChain</c>'s instance-path preservation actually
+    ///     reaches the rendering pipeline end to end for this shape — not just via hand-built
+    ///     fixtures that assume already-correct resolver output.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ConnectDominantShape_RealWorkspaceLoader_ProducesDistinctBoxes()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def PowerPort;
+                    part def FlightController {
+                        port power : PowerPort;
+                    }
+                    part def Battery {
+                        port output : PowerPort;
+                    }
+                    part def Drone {
+                        part controller : FlightController;
+                        part battery : Battery;
+                        connect controller.power to battery.output;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            var workspace = result.Workspace!;
+
+            var strategy = new GeneralViewLayoutStrategy();
+            var options = new RenderOptions(Themes.Light);
+            var context = new ViewContext("v", workspace);
+
+            // Act
+            var layout = strategy.BuildLayout(context, options);
+
+            // Assert: a solid, unmarked Connect edge exists between the FlightController and
+            // Battery boxes, and no dropped-edge warning is emitted for it.
+            var lines = CollectLines(layout.Nodes);
+            var connectEdge = lines.FirstOrDefault(l =>
+                l.TargetEnd == EndMarkerStyle.None && l.LineStyle == LineStyle.Solid && l.MidpointLabel is null);
+            Assert.NotNull(connectEdge);
+
+            var boxes = CollectBoxes(layout.Nodes);
+            var boxLabels = boxes.Select(b => b.Label).ToList();
+            Assert.Contains("FlightController", boxLabels);
+            Assert.Contains("Battery", boxLabels);
+            Assert.DoesNotContain(layout.Warnings, w => w.Contains("Connect", StringComparison.Ordinal));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A resolved <see cref="SysmlEdgeKind.Allocate"/> edge between two definitions emits a
+    ///     dashed, open-chevron edge carrying the <c>«allocate»</c> midpoint label.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_Allocate_ProducesDashedChevronEdgeWithLabel()
+    {
+        // Arrange: an Allocate edge from FlightTimeRequirement to Battery.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::FlightTimeRequirement"] = new SysmlDefinitionNode { Name = "FlightTimeRequirement", QualifiedName = "P::FlightTimeRequirement", DefinitionKeyword = "requirement def" },
+                ["P::Battery"] = new SysmlDefinitionNode { Name = "Battery", QualifiedName = "P::Battery", DefinitionKeyword = "part def" }
+            },
+            Index = new SemanticIndex(
+            [
+                new SysmlEdge("P::FlightTimeRequirement", "P::Battery", SysmlEdgeKind.Allocate)
+            ])
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a dashed open-chevron edge with the "«allocate»" label is emitted.
+        var lines = CollectLines(layout.Nodes);
+        var allocateEdge = lines.FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed && l.MidpointLabel == "«allocate»");
+        Assert.NotNull(allocateEdge);
+    }
+
+    /// <summary>
+    ///     A resolved standalone <see cref="SysmlEdgeKind.Dependency"/> edge between two
+    ///     definitions produces the same dashed, open-chevron rendering as the <c>ref</c>-keyword
+    ///     fix (<see cref="GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesDependencyEdge"/>),
+    ///     confirming both sources share one visual identity.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_Dependency_ProducesDashedChevronEdge()
+    {
+        // Arrange: a standalone dependency from FlightController to Battery.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::FlightController"] = new SysmlDefinitionNode { Name = "FlightController", QualifiedName = "P::FlightController", DefinitionKeyword = "part def" },
+                ["P::Battery"] = new SysmlDefinitionNode { Name = "Battery", QualifiedName = "P::Battery", DefinitionKeyword = "part def" }
+            },
+            Index = new SemanticIndex(
+            [
+                new SysmlEdge("P::FlightController", "P::Battery", SysmlEdgeKind.Dependency)
+            ])
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a dashed open-chevron edge (no label) is emitted.
+        var lines = CollectLines(layout.Nodes);
+        var dependencyEdge = lines.FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed && l.MidpointLabel is null);
+        Assert.NotNull(dependencyEdge);
+    }
+
+    /// <summary>
+    ///     A resolved <see cref="SysmlEdgeKind.Binding"/> edge between two dotted feature chains
+    ///     resolves through <c>ResolveOwningBox</c> the same way <c>Connect</c> does, and emits a
+    ///     solid, unmarked edge carrying the <c>=</c> midpoint label distinguishing it from Connect.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_Binding_ProducesSolidEdgeWithEqualsLabel()
+    {
+        // Arrange: Vehicle owns "engine" (typed Engine) and "gauge" (typed Gauge); a Binding links
+        // a feature nested under each.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Engine"] = new SysmlDefinitionNode { Name = "Engine", QualifiedName = "P::Engine", DefinitionKeyword = "part def" },
+                ["P::Gauge"] = new SysmlDefinitionNode { Name = "Gauge", QualifiedName = "P::Gauge", DefinitionKeyword = "part def" },
+                ["P::Vehicle"] = new SysmlDefinitionNode { Name = "Vehicle", QualifiedName = "P::Vehicle", DefinitionKeyword = "part def" },
+                ["P::Vehicle::engine"] = new SysmlFeatureNode
+                {
+                    Name = "engine",
+                    QualifiedName = "P::Vehicle::engine",
+                    FeatureKeyword = "part",
+                    FeatureTyping = "Engine",
+                    ResolvedEdges = [new SysmlEdge("P::Vehicle::engine", "P::Engine", SysmlEdgeKind.Typing)]
+                },
+                ["P::Vehicle::gauge"] = new SysmlFeatureNode
+                {
+                    Name = "gauge",
+                    QualifiedName = "P::Vehicle::gauge",
+                    FeatureKeyword = "part",
+                    FeatureTyping = "Gauge",
+                    ResolvedEdges = [new SysmlEdge("P::Vehicle::gauge", "P::Gauge", SysmlEdgeKind.Typing)]
+                }
+            },
+            Index = new SemanticIndex(
+            [
+                new SysmlEdge("P::Vehicle::engine::rpm", "P::Vehicle::gauge::value", SysmlEdgeKind.Binding)
+            ])
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a solid, unmarked edge with the "=" label is emitted.
+        var lines = CollectLines(layout.Nodes);
+        var bindingEdge = lines.FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.None && l.LineStyle == LineStyle.Solid && l.MidpointLabel == "=");
+        Assert.NotNull(bindingEdge);
+    }
+
+    /// <summary>
+    ///     A subtype narrowing an inherited feature via <c>subsets</c> (e.g.
+    ///     <c>part frontMotors : Motor[2] subsets motors;</c> where <c>motors</c> is declared on
+    ///     the supertype) emits a dashed hollow-triangle edge from the subtype to the ancestor
+    ///     definition that declares the subsetted feature — reusing the same
+    ///     <c>ResolveRedefinitionOwner</c> ancestor-chain walk as Redefinition, but rendered dashed
+    ///     to distinguish it from solid Specialization/Redefinition edges.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_Subsetting_CrossesSpecializationBoundary_ProducesDashedHollowTriangleEdge()
+    {
+        // Arrange: Drone declares "motors"; RacingDrone specializes Drone and subsets "motors" via
+        // a narrower "frontMotors" feature.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Motor"] = new SysmlDefinitionNode { Name = "Motor", QualifiedName = "P::Motor", DefinitionKeyword = "part def" },
+                ["P::Drone"] = new SysmlDefinitionNode
+                {
+                    Name = "Drone",
+                    QualifiedName = "P::Drone",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "motors", QualifiedName = "P::Drone::motors", FeatureKeyword = "part", FeatureTyping = "Motor", Multiplicity = "[4]" }
+                    ]
+                },
+                ["P::RacingDrone"] = new SysmlDefinitionNode
+                {
+                    Name = "RacingDrone",
+                    QualifiedName = "P::RacingDrone",
+                    DefinitionKeyword = "part def",
+                    SupertypeNames = ["Drone"],
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "frontMotors", QualifiedName = "P::RacingDrone::frontMotors", FeatureKeyword = "part", FeatureTyping = "Motor", Multiplicity = "[2]", SupertypeNames = ["motors"] }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a dashed hollow-triangle edge from RacingDrone to Drone is emitted (distinct
+        // from the solid hollow-triangle Specialization edge also present between the same boxes).
+        var lines = CollectLines(layout.Nodes);
+        var subsettingEdge = lines.FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Dashed);
+        Assert.NotNull(subsettingEdge);
+        Assert.Contains(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Solid);
+    }
+
+    /// <summary>
+    ///     A <c>subsets</c> reference to a sibling feature declared on the very same definition
+    ///     (no specialization boundary crossed) produces no edge — a known limitation mirroring
+    ///     <see cref="GeneralViewLayoutStrategy_BuildLayout_SelfReferentialRedefinition_ProducesNoEdge"/>'s
+    ///     documented self-reference behavior for Redefinition.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_SelfReferentialSubsetting_ProducesNoEdge()
+    {
+        // Arrange: Vehicle declares both "wheels" and a same-definition sibling "frontWheels" that
+        // subsets "wheels" with no supertype to walk.
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Wheel"] = new SysmlDefinitionNode { Name = "Wheel", QualifiedName = "P::Wheel", DefinitionKeyword = "part def" },
+                ["P::Vehicle"] = new SysmlDefinitionNode
+                {
+                    Name = "Vehicle",
+                    QualifiedName = "P::Vehicle",
+                    DefinitionKeyword = "part def",
+                    Children =
+                    [
+                        new SysmlFeatureNode { Name = "wheels", QualifiedName = "P::Vehicle::wheels", FeatureKeyword = "part", FeatureTyping = "Wheel", Multiplicity = "[4]" },
+                        new SysmlFeatureNode { Name = "frontWheels", QualifiedName = "P::Vehicle::frontWheels", FeatureKeyword = "part", FeatureTyping = "Wheel", Multiplicity = "[2]", SupertypeNames = ["wheels"] }
+                    ]
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: no dashed hollow-triangle (Subsetting) edge is emitted.
+        var lines = CollectLines(layout.Nodes);
+        Assert.DoesNotContain(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Dashed);
+    }
 }
+

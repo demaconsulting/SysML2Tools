@@ -1006,6 +1006,52 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     An implicitly-named redefining usage whose <c>redefines</c> reference is a dot-chained
+    ///     feature path (e.g. <c>tank.fuelTankPort</c>, grammatically distinct from a <c>::</c>-qualified
+    ///     name — <c>ownedRedefinition</c> is <c>qualifiedName ( DOT qualifiedName )*</c>) must still
+    ///     take only the trailing simple-name segment (<c>fuelTankPort</c>), not the whole dotted
+    ///     reference text, as its implicit name.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ImplicitNameFromDottedRedefinitionChain_UsesTrailingSegment()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                part def Vehicle {
+                    part tank {
+                        port fuelTankPort;
+                    }
+                    port redefines tank.fuelTankPort {
+                        item item1;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var vehicle = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["Vehicle"]);
+            var implicitlyNamedPort = vehicle.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
+                .First(f => f.RedefinedFeatureName == "tank.fuelTankPort");
+
+            Assert.Equal("fuelTankPort", implicitlyNamedPort.Name);
+            Assert.Equal("Vehicle::fuelTankPort", implicitlyNamedPort.QualifiedName);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     A resolved redefined-feature reference should be recorded as a <c>Redefinition</c> edge
     ///     in the workspace's <see cref="SysmlWorkspace.Index"/>, queryable from both directions.
     /// </summary>
@@ -1941,6 +1987,268 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A <c>dependency A to B;</c> declaration with both ends resolvable should be recorded as
+    ///     a <c>Dependency</c> edge from the resolved client to the resolved supplier.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DependencyBinaryEnds_RecordsDependencyEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Q {}
+                    part a : Q;
+                    part b : Q;
+                    dependency a to b;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Dependency &&
+                     e.SourceQualifiedName == "P::a" &&
+                     e.TargetQualifiedName == "P::b");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>dependency</c> declaration with comma-separated client and supplier lists should
+    ///     produce one <c>Dependency</c> edge per resolved (client, supplier) pair (cross product).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DependencyCommaLists_RecordsCrossProductEdges()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Q {}
+                    part a : Q;
+                    part b : Q;
+                    part c : Q;
+                    part d : Q;
+                    dependency a, b to c, d;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var edges = result.Workspace!.Index.AllEdges
+                .Where(e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Dependency)
+                .Select(e => (e.SourceQualifiedName, e.TargetQualifiedName))
+                .ToList();
+            Assert.Equal(4, edges.Count);
+            Assert.Contains(("P::a", "P::c"), edges);
+            Assert.Contains(("P::a", "P::d"), edges);
+            Assert.Contains(("P::b", "P::c"), edges);
+            Assert.Contains(("P::b", "P::d"), edges);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>dependency</c> declaration with an unresolvable end should produce a Warning
+    ///     diagnostic and must not produce a <c>Dependency</c> edge (no partial edge, no crash).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_DependencyUnresolvedEnd_ProducesWarningNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Q {}
+                    part a : Q;
+                    dependency a to nonExistentEnd;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("nonExistentEnd"));
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Dependency);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>bind a.x = b.y;</c> binding connector usage with a resolvable dotted feature chain
+    ///     on both sides should be recorded as a <c>Binding</c> edge between the resolved features,
+    ///     reusing the same dotted-feature-chain walk as <c>connect</c>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Sensor {
+                        port x;
+                    }
+                    part def Display {
+                        port y;
+                    }
+                    part def Q {
+                        part a : Sensor;
+                        part b : Display;
+                        bind a.x = b.y;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Binding &&
+                     e.SourceQualifiedName == "P::Q::a::x" &&
+                     e.TargetQualifiedName == "P::Q::b::y");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>bind</c> endpoint that names an implicitly-named usage (a nested
+    ///     <c>port redefines fuelTankPort { ... }</c> with no name token of its own) should still
+    ///     resolve and produce a <c>Binding</c> edge, because such a usage's implicit name is the
+    ///     name of the feature it redefines (SysML v2 semantics) — <c>AstBuilder.BuildUsageNode</c>'s
+    ///     <c>effectiveName</c> fallback derives it from <c>RedefinedFeatureName</c> rather than
+    ///     leaving the usage permanently unnamed and unresolvable. Mirrors the real-world OMG
+    ///     corpus fixture shape (<c>BindingConnectorsExample-1.sysml</c> / <c>PortExample.sysml</c>)
+    ///     in isolation, independent of the external corpus.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_BindingViaImplicitlyNamedRedefinedUsage_RecordsBindingEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    port def FuelOutPort {
+                        item fuelSupply;
+                    }
+                    part def Tank {
+                        port fuelTankPort : FuelOutPort;
+                    }
+                    part def Pump {
+                        item pumpOut;
+                    }
+                    part def Vehicle {
+                        part tank : Tank {
+                            port redefines fuelTankPort {
+                                item redefines fuelSupply;
+                            }
+                        }
+                        part pump : Pump;
+                        bind tank.fuelTankPort.fuelSupply = pump.pumpOut;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Binding &&
+                     e.SourceQualifiedName == "P::Vehicle::tank::fuelTankPort::fuelSupply" &&
+                     e.TargetQualifiedName == "P::Vehicle::pump::pumpOut");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>bind</c> usage referencing an unresolvable feature chain end should produce a
+    ///     Warning diagnostic and must not produce a <c>Binding</c> edge (no partial edge, no
+    ///     crash).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def Sensor {
+                        port x;
+                    }
+                    part def Q {
+                        part a : Sensor;
+                        bind a.x = nonExistentEnd.y;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("nonExistentEnd"));
+            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Binding);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     A fixture combining <c>satisfy</c>, <c>verify</c>, and <c>allocate</c> should let the
     ///     workspace's <see cref="SysmlWorkspace.Index"/> answer both incoming and outgoing edge
     ///     queries correctly for all three new edge kinds, mirroring unit 1's reverse-index test.
@@ -2129,8 +2437,8 @@ public sealed class WorkspaceLoaderTests
             Assert.NotNull(result.Workspace);
             Assert.Contains(result.Workspace!.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
-                     e.SourceQualifiedName == "P::Engine::fuelCmdPort" &&
-                     e.TargetQualifiedName == "P::Transmission::input");
+                     e.SourceQualifiedName == "P::vehicle::engine::fuelCmdPort" &&
+                     e.TargetQualifiedName == "P::vehicle::transmission::input");
         }
         finally
         {
@@ -2174,8 +2482,8 @@ public sealed class WorkspaceLoaderTests
             Assert.NotNull(result.Workspace);
             Assert.Contains(result.Workspace!.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
-                     e.SourceQualifiedName == "P::HalfAxle::axleToWheelPort" &&
-                     e.TargetQualifiedName == "P::Wheel::wheelToAxlePort");
+                     e.SourceQualifiedName == "P::rearAxle::leftHalfAxle::axleToWheelPort" &&
+                     e.TargetQualifiedName == "P::leftWheel::wheelToAxlePort");
         }
         finally
         {
@@ -2218,8 +2526,113 @@ public sealed class WorkspaceLoaderTests
             Assert.NotNull(result.Workspace);
             Assert.Contains(result.Workspace!.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
-                     e.SourceQualifiedName == "P::AxleAssembly::shaftPort" &&
-                     e.TargetQualifiedName == "P::Wheel::wheelToAxlePort");
+                     e.SourceQualifiedName == "P::rearAxleAssembly::shaftPort" &&
+                     e.TargetQualifiedName == "P::leftWheel::wheelToAxlePort");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     The mirror image of <see cref="WorkspaceLoader_LoadAsync_ConnectionThreeSegmentChain_MixesDirectChildAndTypingFallback"/>:
+    ///     a 3-segment chain where the *first* hop resolves via typing fallback (<c>rearAxle</c> has
+    ///     no own <c>leftHalfAxle</c> usage, so it is found on <c>Axle</c>'s own hierarchy) and the
+    ///     *second* hop is then a direct child of that type-declared node (<c>Axle::leftHalfAxle</c>
+    ///     has its own inline <c>axleToWheelPort</c> nested directly beneath it). Once a chain has
+    ///     entered type-fallback territory, every remaining segment is still only reachable relative
+    ///     to the type, not the instance — even one that is itself a "direct child" match — so the
+    ///     final qualified name must remain instance-relative (<c>P::rearAxle::leftHalfAxle::axleToWheelPort</c>)
+    ///     rather than collapsing back to the type's own declared path
+    ///     (<c>P::Axle::leftHalfAxle::axleToWheelPort</c>) once the direct-child hop occurs.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionThreeSegmentChain_DirectChildAfterTypingFallbackStaysInstanceRelative()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def HalfAxle {
+                        port axleToWheelPort;
+                    }
+                    part def Axle {
+                        part leftHalfAxle : HalfAxle {
+                            port axleToWheelPort;
+                        }
+                    }
+                    part def Wheel {
+                        port wheelToAxlePort;
+                    }
+                    part rearAxle : Axle;
+                    part leftWheel : Wheel;
+                    connect rearAxle.leftHalfAxle.axleToWheelPort to leftWheel.wheelToAxlePort;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
+                     e.SourceQualifiedName == "P::rearAxle::leftHalfAxle::axleToWheelPort" &&
+                     e.TargetQualifiedName == "P::leftWheel::wheelToAxlePort");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     The dominant real-world <c>connect</c> shape: two sibling features (ports) declared
+    ///     directly in their owning <c>part def</c>s, referenced from an enclosing part via bare
+    ///     <c>part</c> usages with no per-instance nested redeclaration. Both endpoints resolve via
+    ///     the typing-fallback branch, and each must produce a distinct, instance-relative qualified
+    ///     name (<c>Drone::controller::power</c>, <c>Drone::battery::output</c>) rather than
+    ///     collapsing to the shared port type's own declared path — the root-cause regression this
+    ///     fix addresses.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionDominantShape_ResolvesDistinctInstancePaths()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def PowerPort;
+                    part def FlightController {
+                        port power : PowerPort;
+                    }
+                    part def Battery {
+                        port output : PowerPort;
+                    }
+                    part def Drone {
+                        part controller : FlightController;
+                        part battery : Battery;
+                        connect controller.power to battery.output;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
+                     e.SourceQualifiedName == "P::Drone::controller::power" &&
+                     e.TargetQualifiedName == "P::Drone::battery::output");
         }
         finally
         {

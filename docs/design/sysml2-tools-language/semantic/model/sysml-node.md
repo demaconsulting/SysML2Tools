@@ -4,7 +4,7 @@
 
 `SysmlNode` is the abstract base class for all SysML/KerML AST nodes. Concrete subtypes represent
 packages, definitions, features, imports, applied metadata annotations, views, viewpoints,
-connections, transitions, and requirement-satisfaction usages.
+connections, transitions, dependency declarations, and requirement-satisfaction usages.
 
 ##### Class Hierarchy
 
@@ -21,6 +21,7 @@ connections, transitions, and requirement-satisfaction usages.
 | `SysmlConnectionNode` | Connection/binding/allocation usage; adds ConnectionKeyword, EndpointA, EndpointB |
 | `SysmlTransitionNode` | State transition; adds Source, Target, Guard |
 | `SysmlSatisfyNode` | `satisfy X by Y;` requirement-satisfaction usage; adds RequirementName, SubjectName |
+| `SysmlDependencyNode` | Standalone `dependency A, B to C, D;` declaration; adds FromNames, ToNames |
 
 ##### Properties
 
@@ -29,7 +30,14 @@ All nodes carry:
 - `Name` — simple (unqualified) name, or null if anonymous.
 - `QualifiedName` — fully-qualified name in containing namespace.
 - `Children` — nested AST nodes.
-- `SupertypeNames` — qualified names of supertypes referenced via `specializes` / `:>`.
+- `SupertypeNames` — qualified names of supertypes referenced via `specializes` / `:>`. For a
+  `SysmlFeatureNode`, this list is also reused, unresolved, by `GeneralViewLayoutStrategy` as the
+  raw source of its private view-layer `Subsetting` classification (`subsets <target>;` /
+  `:> <target>` on a feature) — there is no separate `SysmlEdgeKind.Subsetting` or dedicated AST
+  field; the layout strategy re-derives which entries are subsetting targets versus ordinary
+  specialization targets by walking the same feature-typing/redefinition-owner resolution it
+  already performs for `Redefinition` edges. See `general-view-layout-strategy.md` for the exact
+  algorithm.
 - `ImportedNames` — qualified/dotted-name text of imported namespaces or members; populated by
   `AstBuilder.VisitImportRule` for `SysmlImportNode` (mirroring `ImportedNamespace`), and empty
   for all other node types today.

@@ -36,6 +36,23 @@ external services or additional configuration are required beyond a standard .NE
 - A resolved feature redefinition reference (`redefines X;` / `:>> X`) is recorded as a
   `Redefinition`-kind `SysmlEdge`; an unresolved one produces a Warning diagnostic naming the
   unresolved identifier and no edge, mirroring `FeatureTyping`'s resolution behavior exactly.
+- A standalone `dependency A, B to C, D;` declaration resolves each `FromNames`/`ToNames` entry
+  independently and emits one `Dependency`-kind `SysmlEdge` per resolved (from, to) pair (a
+  cross product); an unresolvable name on either side produces its own Warning diagnostic
+  without suppressing edges for the other resolvable names.
+- A `bind A = B;` binding connector's endpoints resolve via the same dotted-feature-chain walk
+  used for `connect`/`message`, recording a `Binding`-kind `SysmlEdge` only when both endpoints
+  resolve.
+- A dotted feature-chain endpoint (e.g. `engine.fuelPort`, `rearAxle.leftHalfAxle.axleToWheelPort`)
+  resolves segment-by-segment via `TryResolveFeatureChain`/`FindFeatureMember`, producing an
+  instance-relative qualified name for the final segment regardless of whether each segment
+  resolved via a direct-child match or the type-hierarchy fallback branch: for the dominant
+  real-world shape — two sibling features declared directly in their owning `part def`s,
+  referenced from an enclosing part via bare usages with no per-instance nested redeclaration —
+  every segment resolves via the fallback branch, and the returned qualified name is still
+  instance-relative (e.g. `Drone::controller::power`, not the shared port type's own declared
+  path), so that two structurally distinct endpoints of the same type never collapse to the same
+  resolved name.
 
 ##### Test Scenarios
 
@@ -60,3 +77,19 @@ external services or additional configuration are required beyond a standard .NE
 | Cross-file | `WorkspaceLoader_LoadAsync_CrossFileOutOfOrderRedefinitionChain_RecordsRedefinitionEdgeNoWarning` |
 | OMG `RedefinitionExample` | `WorkspaceLoader_LoadAsync_RedefinitionExampleFixture_NoUnresolvedReferenceWarnings` |
 | OMG PartsTree fixture | `WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings` |
+| Dependency binary ends | `WorkspaceLoader_LoadAsync_DependencyBinaryEnds_RecordsDependencyEdge` |
+| Dependency comma-list cross product | `WorkspaceLoader_LoadAsync_DependencyCommaLists_RecordsCrossProductEdges` |
+| Dependency unresolved end | `WorkspaceLoader_LoadAsync_DependencyUnresolvedEnd_ProducesWarningNoEdge` |
+| Dependency OMG corpus fixtures | `Dependency_OmgCorpusFixtures_ResolveExpectedEdges` |
+| Binding dotted-chain resolution | `WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge` |
+| Binding unresolved end | `WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge` |
+| Binding OMG corpus fixture | `Binding_OmgCorpusFixture_ResolvesBindingEdgesViaImplicitRedefinitionNames` |
+| Connect single-segment endpoints | `WorkspaceLoader_LoadAsync_ConnectionSingleSegmentEndpoints_RecordsConnectEdge` |
+| Direct-child chain | `WorkspaceLoader_LoadAsync_ConnectionTwoSegmentChain_ResolvesViaDirectChild` |
+| Fallback chain, instance path | `WorkspaceLoader_LoadAsync_ConnectionTwoSegmentChain_ResolvesViaTypingFallback` |
+| Mixed chain branches | `WorkspaceLoader_LoadAsync_ConnectionThreeSegmentChain_MixesDirectChildAndTypingFallback` |
+| Chain via inherited feature | `WorkspaceLoader_LoadAsync_ConnectionChain_ResolvesInheritedFeatureViaSupertype` |
+| Dominant shape, distinct paths | `WorkspaceLoader_LoadAsync_ConnectionDominantShape_ResolvesDistinctInstancePaths` |
+| Unresolved chain endpoint | `WorkspaceLoader_LoadAsync_ConnectionUnresolvedEndpoint_ProducesWarningNoEdge` |
+| Supertype-cycle chain segment | `WorkspaceLoader_LoadAsync_ConnectionChain_SupertypeCycleTerminatesGracefully` |
+| OMG Connections example fixture | `WorkspaceLoader_LoadAsync_ConnectionsExampleFixture_RecordsConnectEdge` |

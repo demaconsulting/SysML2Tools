@@ -575,6 +575,26 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <inheritdoc/>
+    public override SysmlNode? VisitBindingConnectorAsUsage(SysMLv2Parser.BindingConnectorAsUsageContext context)
+    {
+        // Only the common "bind A = B;" (bindingConnectorAsUsage) shape is supported; the longer
+        // bindingConnector/typeBody form has zero corpus evidence and is a documented limitation.
+        var name = GetDeclaredName(context.usageDeclaration()?.identification());
+        var ends = context.connectorEndMember();
+        var endpointA = ends.Length > 0 ? ConnectorEndReference(ends[0]) : null;
+        var endpointB = ends.Length > 1 ? ConnectorEndReference(ends[1]) : null;
+
+        return new SysmlConnectionNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            ConnectionKeyword = "binding",
+            EndpointA = endpointA,
+            EndpointB = endpointB,
+        };
+    }
+
+    /// <inheritdoc/>
     public override SysmlNode? VisitSatisfyRequirementUsage(SysMLv2Parser.SatisfyRequirementUsageContext context)
     {
         // Prefer the ownedReferenceSubsetting form (satisfy <ref> ...); fall back to the
@@ -589,6 +609,29 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         {
             RequirementName = requirementName,
             SubjectName = subjectName,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitDependency(SysMLv2Parser.DependencyContext context)
+    {
+        // Split the flat qualifiedName() list into from/to by comparing each name's start token
+        // index against TO()'s token index: everything before TO is a "from" (client) name,
+        // everything after is a "to" (supplier) name. The optional FROM keyword may be omitted
+        // (e.g. "dependency z to x, y;"), in which case the single qualifiedName captured before
+        // TO is still correctly classified as the (implicit) "from" name by this position check.
+        var toTokenIndex = context.TO()?.Symbol.TokenIndex ?? int.MaxValue;
+        var fromNames = new List<string>();
+        var toNames = new List<string>();
+        foreach (var qualifiedName in context.qualifiedName())
+        {
+            (qualifiedName.Start.TokenIndex < toTokenIndex ? fromNames : toNames).Add(qualifiedName.GetText());
+        }
+
+        return new SysmlDependencyNode
+        {
+            FromNames = fromNames,
+            ToNames = toNames,
         };
     }
 
@@ -769,21 +812,30 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var supertypeNames = ExtractSubsettingTargetNames(decl?.featureSpecializationPart());
         var multiplicity = ExtractMultiplicity(decl?.featureSpecializationPart());
 
+        // An unnamed usage that redefines a feature (e.g. `port redefines fuelTankPort { ... }`,
+        // with no name token of its own) implicitly takes the redefined feature's own simple name
+        // per SysML v2 semantics — without this fallback, such a usage's Name/QualifiedName stay
+        // null and it can never be referenced or resolved by name (e.g. as a `connect`/`bind`
+        // endpoint), even though the model clearly identifies it. Only the trailing segment of the
+        // (possibly qualified) redefined reference is used, mirroring how a redefined feature's own
+        // declared name is always just its simple name.
+        var effectiveName = name ?? (redefined is not null ? SimpleNameFromReference(redefined) : null);
+
         // Named usages contribute a namespace segment for any nested usages they own.
-        var qualifiedName = name is not null ? QualifyName(name) : null;
+        var qualifiedName = effectiveName is not null ? QualifyName(effectiveName) : null;
         IReadOnlyList<SysmlNode> children = Array.Empty<SysmlNode>();
         IReadOnlyList<SysmlAnnotation> annotations = Array.Empty<SysmlAnnotation>();
         var body = usage.usageCompletion()?.usageBody()?.definitionBody();
         if (body is not null)
         {
-            if (name is not null)
+            if (effectiveName is not null)
             {
-                _namespaceStack.Add(name);
+                _namespaceStack.Add(effectiveName);
             }
 
             (children, annotations) = CollectDefinitionBodyItems(body.definitionBodyItem());
 
-            if (name is not null)
+            if (effectiveName is not null)
             {
                 _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
             }
@@ -791,7 +843,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
         return new SysmlFeatureNode
         {
-            Name = name,
+            Name = effectiveName,
             QualifiedName = qualifiedName,
             FeatureKeyword = keyword,
             FeatureTyping = typing,
@@ -895,6 +947,29 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         }
 
         return null;
+    }
+
+    /// <summary>
+    ///     Derives the trailing simple-name segment from a raw (possibly qualified and/or
+    ///     dot-chained) reference text, e.g. <c>"Owner::fuelTankPort"</c> → <c>"fuelTankPort"</c>,
+    ///     and <c>"tank.fuelTankPort"</c> → <c>"fuelTankPort"</c> (an <c>ownedRedefinition</c> is
+    ///     grammatically a <c>qualifiedName ( DOT qualifiedName )*</c> chain, so a redefinition
+    ///     reference can be a dotted feature path, not just a single <c>::</c>-qualified name). Takes
+    ///     whichever of the last <c>::</c> or last <c>.</c> separator occurs furthest to the right, so
+    ///     a reference with neither separator is returned unchanged. Used to derive an unnamed usage's
+    ///     implicit name from the feature it redefines (see the <c>effectiveName</c> fallback in
+    ///     <see cref="BuildUsageNode"/>).
+    /// </summary>
+    private static string SimpleNameFromReference(string reference)
+    {
+        var afterColonColon = reference.LastIndexOf("::", StringComparison.Ordinal) is var colonIndex && colonIndex >= 0
+            ? colonIndex + 2
+            : 0;
+        var afterDot = reference.LastIndexOf('.') is var dotIndex && dotIndex >= 0
+            ? dotIndex + 1
+            : 0;
+        var start = Math.Max(afterColonColon, afterDot);
+        return start > 0 ? reference[start..] : reference;
     }
 
     /// <summary>

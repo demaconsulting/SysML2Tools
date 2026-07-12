@@ -144,6 +144,29 @@ sections:
           - WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText
           - WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull
 
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ImplicitRedefinitionName
+        title: >-
+          AstBuilder shall assign an implicitly-named redefining usage (one with no explicit
+          declared name but a non-null RedefinedFeatureName) an effective name derived from the
+          redefined feature's simple (trailing `::`-segment) name, using it in place of the
+          missing declared name for namespace registration, QualifiedName, and the node's Name
+          property.
+        justification: |
+          SysML v2 allows a redefining usage to omit its own declared name, in which case it
+          takes the redefined feature's name (e.g. `port redefines fuelTankPort { item redefines
+          fuelSupply; }` is named `fuelTankPort`). Without this fallback, such usages were built
+          as anonymous nodes never registered in the symbol table, so any subsequent reference
+          to them (including `bind` connector ends) failed to resolve — reproduced by the OMG
+          corpus fixture `BindingConnectorsExample-1.sysml`, whose `bind` statements reference an
+          implicitly-named `port redefines fuelTankPort { ... }` usage. Because `ownedRedefinition`
+          is grammatically `qualifiedName ( DOT qualifiedName )*`, the redefined reference can
+          itself be a dot-chained feature path (e.g. `tank.fuelTankPort`); the derivation takes
+          only the trailing simple-name segment, not the whole dotted or qualified reference text.
+        tests:
+          - WorkspaceLoader_LoadAsync_BindingViaImplicitlyNamedRedefinedUsage_RecordsBindingEdge
+          - WorkspaceLoader_LoadAsync_ImplicitNameFromDottedRedefinitionChain_UsesTrailingSegment
+          - Binding_OmgCorpusFixture_ResolvesBindingEdgesViaImplicitRedefinitionNames
+
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-MetadataAnnotations
         title: >-
           AstBuilder shall capture each applied metadata annotation nested in an element body as a
@@ -173,3 +196,37 @@ sections:
         tests:
           - AstBuilder_ExposeBracketFilter_CapturesRawText
           - AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-Dependency
+        title: >-
+          AstBuilder shall build a SysmlDependencyNode from a standalone `dependency A, B to
+          C, D;` declaration, splitting the grammar's single flat qualifiedName() list into
+          FromNames and ToNames by comparing each name's start token index against the TO()
+          terminal's token index.
+        justification: |
+          The `dependency` grammar rule exposes one flat list of qualified names with no
+          separate "from"/"to" sub-rules, so AstBuilder must positionally split the list itself
+          before ReferenceResolver can resolve each side independently. Position-based splitting
+          (rather than looking for the optional FROM keyword) also correctly handles the grammar's
+          optional FROM keyword being entirely omitted (e.g. "dependency z to x, y;").
+        tests:
+          - WorkspaceLoader_LoadAsync_DependencyBinaryEnds_RecordsDependencyEdge
+          - WorkspaceLoader_LoadAsync_DependencyCommaLists_RecordsCrossProductEdges
+          - WorkspaceLoader_LoadAsync_DependencyUnresolvedEnd_ProducesWarningNoEdge
+          - Dependency_OmgCorpusFixtures_ResolveExpectedEdges
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-BindingConnector
+        title: >-
+          AstBuilder shall build a SysmlConnectionNode with ConnectionKeyword "binding" from
+          the common `bind A = B;` (bindingConnectorAsUsage) grammar shape, reusing the shared
+          connector-end-reference extraction helper used by `connectionUsage`.
+        justification: |
+          Reusing the existing connector-end extraction helper against bindingConnectorAsUsage's
+          connectorEndMember() entries lets ReferenceResolver treat binding connector endpoints
+          uniformly with connect/message endpoints (the same dotted-feature-chain walk), without
+          duplicating endpoint-extraction logic. The longer bindingConnector/typeBody grammar form
+          has zero corpus evidence and is an intentional, documented non-goal.
+        tests:
+          - WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge
+          - WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge
+          - Binding_OmgCorpusFixture_ResolvesBindingEdgesViaImplicitRedefinitionNames

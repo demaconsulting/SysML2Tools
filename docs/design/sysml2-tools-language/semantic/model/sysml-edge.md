@@ -5,11 +5,12 @@
 `SysmlEdge` and `SysmlEdgeKind` model a single resolved directed reference between two
 qualified names in the semantic model. Edges are produced by `ReferenceResolver` while
 walking supertype, feature-typing, redefinition, import, satisfy, verify, allocate, connect,
-transition, and expose references, and are the raw material indexed by `SemanticIndex`.
+transition, expose, metadata-typing, dependency, and binding references, and are the raw
+material indexed by `SemanticIndex`.
 
 ##### Types
 
-`SysmlEdgeKind` is an enum with ten members:
+`SysmlEdgeKind` is an enum with thirteen members:
 
 - `Supertype` — a specialization reference (`SupertypeNames` / `specializes` / `:>`).
 - `Typing` — a feature typing reference (`SysmlFeatureNode.FeatureTyping`, the type after `:`).
@@ -48,6 +49,23 @@ transition, and expose references, and are the raw material indexed by `Semantic
   targeting the resolved redefined-feature reference. Rendered by `GeneralViewLayoutStrategy` as
   a solid line with a hollow-triangle-crossbar end marker at the owning definition of the
   redefined feature.
+- `MetadataType` — a metadata annotation's type reference (`SysmlMetadataNode.TypeReference` /
+  `@Type` / `{@Type{...}}`), sourced from the annotation and targeting the resolved `metadata
+  def` declaration it references.
+- `Dependency` — a standalone dependency declaration (`dependency A, B to C, D;`), sourced from
+  each resolvable name in `SysmlDependencyNode.FromNames` and targeting each resolvable name in
+  `SysmlDependencyNode.ToNames`, one `Dependency` edge per resolved (from, to) pair (cross
+  product); an unresolvable name on either side is skipped (with a Warning diagnostic) rather
+  than blocking the other pairs. Rendered by `GeneralViewLayoutStrategy` as a dashed line with an
+  open-chevron end marker at the target (depended-upon) box; the pre-existing `ref`-typed
+  membership case is rendered with the same dashed/open-chevron style (see
+  `general-view-layout-strategy.md`).
+- `Binding` — a resolved binding-connector reference (`bind A = B;`), sourced from the first
+  connector end and targeting the second (`SysmlConnectionNode` with
+  `ConnectionKeyword == "binding"`, reusing the `EndpointA`/`EndpointB` shape and the same
+  dotted-feature-chain walk as `Connect`); recorded only when both endpoints resolve. Rendered
+  by `GeneralViewLayoutStrategy` as a solid line with no end marker and an optional `=` midpoint
+  label.
 
 `SysmlEdge` is a sealed positional record with three properties:
 

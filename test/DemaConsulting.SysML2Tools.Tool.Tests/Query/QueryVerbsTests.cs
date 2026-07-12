@@ -327,10 +327,10 @@ public class QueryVerbsTests
             """;
 
         var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
-            sysml, "connections", "--element", "Model::Engine::fuelPort");
+            sysml, "connections", "--element", "Model::Vehicle::engine");
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("Model::Tank::outlet", output);
+        Assert.Contains("Model::Vehicle::tank::outlet", output);
         Assert.Contains("connection", output);
     }
 

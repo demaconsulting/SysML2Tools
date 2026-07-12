@@ -6,7 +6,7 @@
 that construct a synthetic `SysmlWorkspace` of definitions, invoke `BuildLayout`, and assert on
 the returned `LayoutTree`. A recursive helper collects boxes from the (possibly nested) node tree
 so assertions can confirm box keywords, folder shapes, compartments, and specialization, membership,
-attribute-typing, and redefinition lines. No
+attribute-typing, redefinition, subsetting, connect, allocate, dependency, and binding lines. No
 mocking is required; the strategy depends only on the in-memory model, `LayeredPlacement`, and
 render options, all constructed directly by the tests. (Phase 2a) Bracket-form `expose`
 filter-narrowing behavior is delegated to `ExposeScopeResolver` and is verified directly by
@@ -29,7 +29,8 @@ configuration are required beyond a standard .NET SDK installation.
 - A specialization yields a line with an open end marker at the supertype end.
 - A `part`-feature yields a line with a filled-diamond end marker at the owner end.
 - A `port`-feature yields a line with a filled-diamond end marker at the owner end.
-- A `ref`-feature yields a line with a hollow-diamond end marker at the owner end.
+- A `ref`-feature yields a dashed line with an open-chevron end marker at the referenced type,
+  sharing the same rendering as a standalone Dependency edge (no hollow-diamond marker).
 - An `attribute`-feature does NOT yield any diamond end marker edge.
 - An `attribute`-feature whose type resolves to a definition in the view yields a dashed line with an
   open-chevron end marker at the attribute-type definition end.
@@ -85,6 +86,30 @@ configuration are required beyond a standard .NET SDK installation.
 - A genuinely self-referential redefinition (a feature's `redefines` target resolves back to its
   own owning definition, via a self-referential supertype cycle) produces no edge, and layout
   completes without throwing.
+- A resolved `Connect` edge whose endpoints map (via `ResolveOwningBox`) to two distinct rendered
+  boxes yields a solid line with no end marker between them — including the dominant real-world
+  shape (two sibling features declared directly in their owning `part def`s, resolved via
+  `ReferenceResolver`'s instance-path-preserving type-hierarchy fallback), verified end to end
+  with the real `WorkspaceLoader` and `BuildLayout`, not just a hand-built fixture.
+- A resolved `Connect` edge whose endpoints both map to the same rendered box (a genuine self-loop
+  — e.g. two sibling features of the same enclosing definition with no distinguishing owner)
+  yields no edge, and the drop is surfaced as a `Connect`-kind warning via
+  `LayoutWarnings.ForDroppedRelationshipEdges`.
+- A resolved `Allocate` edge yields a dashed line with an open-chevron end marker at the target
+  and a `«allocate»` midpoint label.
+- A resolved `Dependency` edge yields a dashed line with an open-chevron end marker at the target
+  and no midpoint label — the same rendering as the `ref`-fix.
+- A resolved `Binding` edge whose endpoints map to two distinct rendered boxes yields a solid line
+  with no end marker and an `=` midpoint label.
+- A subtype feature that subsets a bare-named or qualified inherited feature yields a dashed line
+  with a hollow-triangle end marker at the owning definition of the subsetted feature.
+- A subsetting reference that resolves back to the subtype's own owning definition (a
+  self-referential same-definition shape) produces no edge.
+- Any `Connect`/`Allocate`/`Dependency`/`Binding` edge whose endpoint fails to resolve to a
+  rendered box, or whose endpoints resolve to the same box, is surfaced as a warning in
+  `LayoutTree.Warnings` (defense-in-depth diagnostic) — except an unresolved-endpoint drop caused
+  solely by the endpoint falling outside an active `expose` scope narrowing, which is expected
+  behavior and produces no warning.
 
 ##### Test Scenarios
 
@@ -108,8 +133,8 @@ configuration are required beyond a standard .NET SDK installation.
   Filled-diamond at owner for `part` feature
 - `GeneralViewLayoutStrategy_BuildLayout_PortFeature_ProducesFilledDiamondEdge`:
   Filled-diamond at owner for `port` feature
-- `GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesHollowDiamondEdge`:
-  Hollow-diamond at owner for `ref` feature
+- `GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesDependencyEdge`:
+  Dashed open-chevron Dependency-style edge for `ref` feature (no hollow-diamond marker)
 - `GeneralViewLayoutStrategy_BuildLayout_AttributeFeature_DoesNotProduceDiamondEdge`:
   No diamond edge for `attribute` feature
 - `GeneralViewLayoutStrategy_BuildLayout_AttributeTyping_ProducesDashedOpenChevronEdge`:
@@ -164,3 +189,24 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_SelfReferentialRedefinition_ProducesNoEdge`:
   A genuinely self-referential redefinition (resolving back to its own owning definition via a
   self-referential supertype cycle) produces no edge and does not throw
+- `GeneralViewLayoutStrategy_BuildLayout_Connect_DifferentOwningTypes_ProducesUnmarkedSolidEdge`:
+  A `Connect` edge between two distinct owning boxes produces a solid line with no end marker
+- `GeneralViewLayoutStrategy_BuildLayout_Connect_SameOwningType_ProducesNoEdge`:
+  A `Connect` edge whose endpoints resolve to the same owning box (self-loop) produces no edge,
+  and the drop is reported as a `Connect`-kind warning in `LayoutTree.Warnings`
+- `GeneralViewLayoutStrategy_BuildLayout_ConnectDominantShape_RealWorkspaceLoader_ProducesDistinctBoxes`:
+  End-to-end regression guard: the real `WorkspaceLoader` + `BuildLayout` pipeline (no synthetic
+  edges) renders a `Connect` edge between two distinct boxes for the dominant real-world shape,
+  with no dropped-edge warning
+- `GeneralViewLayoutStrategy_BuildLayout_Allocate_ProducesDashedChevronEdgeWithLabel`:
+  An `Allocate` edge produces a dashed open-chevron line with a `«allocate»` midpoint label
+- `GeneralViewLayoutStrategy_BuildLayout_Dependency_ProducesDashedChevronEdge`:
+  A `Dependency` edge produces a dashed open-chevron line with no midpoint label
+- `GeneralViewLayoutStrategy_BuildLayout_Binding_ProducesSolidEdgeWithEqualsLabel`:
+  A `Binding` edge produces a solid line with no end marker and an `=` midpoint label
+- `GeneralViewLayoutStrategy_BuildLayout_Subsetting_CrossesSpecializationBoundary_ProducesDashedHollowTriangleEdge`:
+  A `subsets`/`:>` feature reference produces a dashed hollow-triangle edge to the owner of the
+  subsetted feature
+- `GeneralViewLayoutStrategy_BuildLayout_SelfReferentialSubsetting_ProducesNoEdge`:
+  A self-referential subsetting reference (resolving back to the subtype's own owning definition)
+  produces no edge

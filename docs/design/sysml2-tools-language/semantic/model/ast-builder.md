@@ -27,6 +27,8 @@ stack with `::` to form the fully-qualified name.
 | `VisitAllocationUsage` | `AllocationUsageContext` | `SysmlConnectionNode` (`ConnectionKeyword = "allocation"`) |
 | `VisitSatisfyRequirementUsage` | `SatisfyRequirementUsageContext` | `SysmlSatisfyNode` |
 | `VisitRequirementUsage` | `RequirementUsageContext` | `SysmlFeatureNode` (`FeatureKeyword = "requirement"`) |
+| `VisitDependency` | `DependencyContext` | `SysmlDependencyNode` |
+| `VisitBindingConnectorAsUsage` | `BindingConnectorAsUsageContext` | `SysmlConnectionNode` (kind `binding`) |
 
 `GetDeclaredName(IdentificationContext)` handles the three grammar alternatives:
 
@@ -62,6 +64,19 @@ part — i.e. the feature declares no redefinition. Both the `redefines` keyword
 forms identically without needing to branch on which token was used. The raw reference text is
 captured verbatim — including qualified `Owner::feature` forms — with no resolution attempted;
 resolution happens later, in `ReferenceResolver`.
+
+When a usage has no explicit declared name (`GetDeclaredName` returns `null`) but does have a
+redefinition (`redefined is not null`), `BuildUsageNode` derives an implicit name via
+`SimpleNameFromReference(redefined)` — the trailing `::`- or `.`-separated segment of the
+redefined feature's reference text, whichever separator occurs furthest to the right (an
+`ownedRedefinition` is grammatically `qualifiedName ( DOT qualifiedName )*`, so the reference can
+be a dotted feature-chain path like `tank.fuelTankPort`, not just a `::`-qualified name) — and
+uses this `effectiveName` everywhere the declared name would otherwise be used: the
+namespace-stack push/pop, the constructed node's `QualifiedName`, and its `Name` property. This
+mirrors SysML v2's own naming rule that an implicitly-named redefining usage inherits the
+redefined feature's name (e.g. `port redefines fuelTankPort { ... }` is named `fuelTankPort`),
+and allows such usages — and any references to them (including `bind` connector ends) — to
+resolve correctly instead of remaining anonymous and unresolvable.
 
 `BuildUsageNode` also calls `ExtractSubsettingTargetNames(decl?.featureSpecializationPart())`,
 setting the result on the constructed `SysmlFeatureNode`'s inherited `SupertypeNames` property —
@@ -112,6 +127,26 @@ surfaced and was fixed during this unit's implementation for the `CollectTypeBod
 `allocate A to B;` usages, reusing the existing `ExtractConnectorEnds` helper: the generated
 `AllocationUsageDeclarationContext.connectorPart()` exposes the exact same `ConnectorPartContext`
 shape as `ConnectionUsageContext.connectorPart()`, so no new endpoint-extraction logic is needed.
+
+`VisitBindingConnectorAsUsage` builds a `SysmlConnectionNode` with `ConnectionKeyword = "binding"`
+for the common `bind A = B;` (`bindingConnectorAsUsage`) grammar shape, reusing the shared
+`ConnectorEndReference` helper against each of the rule's `connectorEndMember()` entries — the
+same helper `connectionUsage`'s endpoint extraction already uses. The longer
+`bindingConnector`/`typeBody` grammar form has zero corpus evidence and is a documented,
+intentional non-goal (not attempted). `ReferenceResolver` resolves `"binding"`-keyword
+`SysmlConnectionNode` endpoints via the same dotted-feature-chain walk it already applies to
+`"connection"`/`"message"`.
+
+`VisitDependency` builds a `SysmlDependencyNode` for a standalone `dependency A, B to C, D;`
+declaration. The grammar's `dependency` rule exposes a single flat `qualifiedName()` list (no
+separate "from" vs. "to" sub-rules), so `VisitDependency` splits it positionally: every
+`qualifiedName()` whose start token index is before the `TO()` terminal's token index is a
+"from" (client) name, and every one after is a "to" (supplier) name. This also correctly handles
+the grammar's optional `FROM` keyword (e.g. `dependency z to x, y;`, with no explicit `from`
+before `z`) since the split is driven purely by position relative to `TO`, never by the
+presence/absence of the `FROM` keyword token itself. `ReferenceResolver` resolves every
+`FromNames` entry against every `ToNames` entry (a cross product), emitting one
+`SysmlEdgeKind.Dependency` edge per resolved pair.
 
 `VisitSatisfyRequirementUsage` builds a `SysmlSatisfyNode` for `satisfy X by Y;` usages. The
 satisfied requirement's raw reference text is taken from `ownedReferenceSubsetting()` when the
@@ -220,8 +255,8 @@ results without propagating failures.
   dispatch over the CST.
 - `SysMLv2Parser` — provides all CST context types consumed by the visitor methods.
 - `SysmlNode` hierarchy (`SysmlPackageNode`, `SysmlDefinitionNode`, `SysmlViewNode`,
-  `SysmlViewpointNode`, `SysmlSatisfyNode`, `SysmlConnectionNode`) — AST node types constructed
-  by the visitor.
+  `SysmlViewpointNode`, `SysmlSatisfyNode`, `SysmlConnectionNode`, `SysmlDependencyNode`) — AST
+  node types constructed by the visitor.
 - `SysmlAnnotation` / `SysmlAnnotationKind` — captured comment/documentation data attached to
   `SysmlNode.Annotations`.
 

@@ -63,10 +63,30 @@ package QuadcopterDrone {
         part propellers : Propeller[4];
         part imu : ImuSensor;
         part gps : GpsSensor;
+
+        // A connect relationship between two sibling parts' ports, demonstrating
+        // the plain solid line (no end marker) used for `connect`.
+        connect controller.power to battery.output;
+    }
+
+    // RacingDrone subsets Drone's "motors" feature with its own "frontMotors"
+    // usage, demonstrating the dashed hollow-triangle marker used for
+    // `subsets`/`:>` feature subsetting (distinct from redefinition).
+    part def RacingDrone :> Drone {
+        part frontMotors : Motor[2] subsets motors;
     }
 
     // ===== A requirement =====
     requirement def FlightTimeRequirement;
+
+    // An allocate relationship from the requirement to the part it is
+    // allocated to, demonstrating the dashed open-chevron line with the
+    // «allocate» stereotype label.
+    allocate FlightTimeRequirement to Battery;
+
+    // A standalone dependency declaration, demonstrating the dashed
+    // open-chevron line (no label) used for a general OMG dependency.
+    dependency FlightController to Battery;
 
     view def DroneGeneralView {}
 
