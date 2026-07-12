@@ -1459,6 +1459,78 @@ public sealed class GeneralViewLayoutStrategyTests
         // Assert: no Connect-shaped (unmarked solid) edge is emitted between Vehicle and itself.
         var lines = CollectLines(layout.Nodes);
         Assert.DoesNotContain(lines, l => l.TargetEnd == EndMarkerStyle.None && l.LineStyle == LineStyle.Solid);
+
+        // Assert: the drop is surfaced as a visible warning (defense-in-depth diagnostic) rather
+        // than silently discarded.
+        Assert.Contains(layout.Warnings, w => w.Contains("Connect", StringComparison.Ordinal) &&
+            w.Contains("P::Vehicle::portA::sig", StringComparison.Ordinal) &&
+            w.Contains("P::Vehicle::portB::sig", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     End-to-end regression guard for the dominant real-world <c>connect</c> shape: two
+    ///     sibling features (ports) declared directly in their owning <c>part def</c>s, referenced
+    ///     from an enclosing part via bare <c>part</c> usages with no per-instance nested
+    ///     redeclaration. This test runs the real <see cref="WorkspaceLoader"/> (not a synthetic
+    ///     <see cref="SysmlWorkspace"/>) and feeds the resulting workspace into the real
+    ///     <see cref="GeneralViewLayoutStrategy.BuildLayout"/>, proving the fix to
+    ///     <c>ReferenceResolver.TryResolveFeatureChain</c>'s instance-path preservation actually
+    ///     reaches the rendering pipeline end to end for this shape — not just via hand-built
+    ///     fixtures that assume already-correct resolver output.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ConnectDominantShape_RealWorkspaceLoader_ProducesDistinctBoxes()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def PowerPort;
+                    part def FlightController {
+                        port power : PowerPort;
+                    }
+                    part def Battery {
+                        port output : PowerPort;
+                    }
+                    part def Drone {
+                        part controller : FlightController;
+                        part battery : Battery;
+                        connect controller.power to battery.output;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            var workspace = result.Workspace!;
+
+            var strategy = new GeneralViewLayoutStrategy();
+            var options = new RenderOptions(Themes.Light);
+            var context = new ViewContext("v", workspace);
+
+            // Act
+            var layout = strategy.BuildLayout(context, options);
+
+            // Assert: a solid, unmarked Connect edge exists between the FlightController and
+            // Battery boxes, and no dropped-edge warning is emitted for it.
+            var lines = CollectLines(layout.Nodes);
+            var connectEdge = lines.FirstOrDefault(l =>
+                l.TargetEnd == EndMarkerStyle.None && l.LineStyle == LineStyle.Solid && l.MidpointLabel is null);
+            Assert.NotNull(connectEdge);
+
+            var boxes = CollectBoxes(layout.Nodes);
+            var boxLabels = boxes.Select(b => b.Label).ToList();
+            Assert.Contains("FlightController", boxLabels);
+            Assert.Contains("Battery", boxLabels);
+            Assert.DoesNotContain(layout.Warnings, w => w.Contains("Connect", StringComparison.Ordinal));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
     }
 
     /// <summary>

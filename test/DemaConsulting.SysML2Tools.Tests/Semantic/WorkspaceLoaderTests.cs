@@ -2331,8 +2331,8 @@ public sealed class WorkspaceLoaderTests
             Assert.NotNull(result.Workspace);
             Assert.Contains(result.Workspace!.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
-                     e.SourceQualifiedName == "P::Engine::fuelCmdPort" &&
-                     e.TargetQualifiedName == "P::Transmission::input");
+                     e.SourceQualifiedName == "P::vehicle::engine::fuelCmdPort" &&
+                     e.TargetQualifiedName == "P::vehicle::transmission::input");
         }
         finally
         {
@@ -2376,8 +2376,8 @@ public sealed class WorkspaceLoaderTests
             Assert.NotNull(result.Workspace);
             Assert.Contains(result.Workspace!.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
-                     e.SourceQualifiedName == "P::HalfAxle::axleToWheelPort" &&
-                     e.TargetQualifiedName == "P::Wheel::wheelToAxlePort");
+                     e.SourceQualifiedName == "P::rearAxle::leftHalfAxle::axleToWheelPort" &&
+                     e.TargetQualifiedName == "P::leftWheel::wheelToAxlePort");
         }
         finally
         {
@@ -2420,8 +2420,58 @@ public sealed class WorkspaceLoaderTests
             Assert.NotNull(result.Workspace);
             Assert.Contains(result.Workspace!.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
-                     e.SourceQualifiedName == "P::AxleAssembly::shaftPort" &&
-                     e.TargetQualifiedName == "P::Wheel::wheelToAxlePort");
+                     e.SourceQualifiedName == "P::rearAxleAssembly::shaftPort" &&
+                     e.TargetQualifiedName == "P::leftWheel::wheelToAxlePort");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     The dominant real-world <c>connect</c> shape: two sibling features (ports) declared
+    ///     directly in their owning <c>part def</c>s, referenced from an enclosing part via bare
+    ///     <c>part</c> usages with no per-instance nested redeclaration. Both endpoints resolve via
+    ///     the typing-fallback branch, and each must produce a distinct, instance-relative qualified
+    ///     name (<c>Drone::controller::power</c>, <c>Drone::battery::output</c>) rather than
+    ///     collapsing to the shared port type's own declared path — the root-cause regression this
+    ///     fix addresses.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionDominantShape_ResolvesDistinctInstancePaths()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def PowerPort;
+                    part def FlightController {
+                        port power : PowerPort;
+                    }
+                    part def Battery {
+                        port output : PowerPort;
+                    }
+                    part def Drone {
+                        part controller : FlightController;
+                        part battery : Battery;
+                        connect controller.power to battery.output;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Workspace!.Index.AllEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
+                     e.SourceQualifiedName == "P::Drone::controller::power" &&
+                     e.TargetQualifiedName == "P::Drone::battery::output");
         }
         finally
         {

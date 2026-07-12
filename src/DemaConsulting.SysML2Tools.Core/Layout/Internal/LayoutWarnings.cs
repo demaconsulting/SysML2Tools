@@ -99,4 +99,34 @@ internal static class LayoutWarnings
             })
             .ToList();
     }
+
+    /// <summary>
+    /// Returns one warning message per <c>Connect</c>/<c>Allocate</c>/<c>Dependency</c>/
+    /// <c>Binding</c> relationship edge that could not be rendered because an endpoint failed to
+    /// resolve to a rendered box, or because both endpoints resolved to the same box (a genuine
+    /// self-loop), or an empty list when every such edge in the view rendered normally. This is a
+    /// defense-in-depth diagnostic: a correctly-resolving model never produces any of these
+    /// warnings, but a genuinely unresolvable or self-referential relationship is now surfaced
+    /// instead of silently dropped.
+    /// </summary>
+    /// <param name="viewName">Name of the view being laid out.</param>
+    /// <param name="dropped">
+    /// Each dropped edge's kind (e.g. <c>"Connect"</c>), raw source/target references, and a short
+    /// human-readable reason it was not rendered.
+    /// </param>
+    /// <returns>The warning messages for the view.</returns>
+    public static IReadOnlyList<string> ForDroppedRelationshipEdges(
+        string viewName, IReadOnlyList<(string Kind, string Source, string Target, string Reason)> dropped)
+    {
+        if (dropped.Count == 0)
+        {
+            return [];
+        }
+
+        return dropped
+            .Select(edge =>
+                $"{edge.Kind} edge '{edge.Source}' -> '{edge.Target}' in '{viewName}' was not " +
+                $"rendered ({edge.Reason}).")
+            .ToList();
+    }
 }

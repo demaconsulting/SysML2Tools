@@ -163,6 +163,20 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <param name="HiddenCount">Number of hidden definitions the ellipsis label reports.</param>
     private sealed record TruncatedFolder(LayoutGraphNode Node, int HiddenCount);
 
+    /// <summary>
+    /// A <see cref="EdgeKind.Connect"/>/<see cref="EdgeKind.Allocate"/>/
+    /// <see cref="EdgeKind.Dependency"/>/<see cref="EdgeKind.Binding"/> edge from
+    /// <c>workspace.Index.AllEdges</c> that was not rendered because an endpoint failed to resolve
+    /// to a rendered box, or because both endpoints resolved to the same box (a genuine self-loop).
+    /// Reported via <see cref="LayoutWarnings.ForDroppedRelationshipEdges"/> so the drop is visible
+    /// instead of silent.
+    /// </summary>
+    /// <param name="Kind">The short edge-kind label (e.g. <c>"Connect"</c>).</param>
+    /// <param name="Source">The edge's raw source qualified/dotted-chain-resolved reference.</param>
+    /// <param name="Target">The edge's raw target qualified/dotted-chain-resolved reference.</param>
+    /// <param name="Reason">A short human-readable explanation of why the edge was dropped.</param>
+    private sealed record DroppedRelationshipEdge(string Kind, string Source, string Target, string Reason);
+
     /// <inheritdoc/>
     public LayoutTree BuildLayout(ViewContext context, RenderOptions options)
     {
@@ -220,7 +234,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Resolve the specialization/membership/attribute-typing edge set by qualified name; the
         // graph-construction pass below drops any edge touching a definition that never received a
         // node (because its folder was depth-truncated).
-        var modelEdges = BuildModelEdges(defs, context.Workspace);
+        var (modelEdges, droppedEdges) = BuildModelEdges(defs, context.Workspace);
 
         // Build the single input graph: package folders as containers, definitions as leaves.
         var (graph, truncated) = BuildGraph(groups, modelEdges, theme, options.DepthLimit);
@@ -244,6 +258,9 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // warning — through the standard layout-warnings channel.
         var warnings = LayoutWarnings.ForUnevaluatedFilter(context.ViewName, filterFailureReason is null ? null : filterExpressionText, filterFailureReason)
             .Concat(LayoutWarnings.ForUnevaluatedExposeBracketFilter(context.ViewName, scope?.Failures ?? []))
+            .Concat(LayoutWarnings.ForDroppedRelationshipEdges(context.ViewName, droppedEdges
+                .Select(d => (d.Kind, d.Source, d.Target, d.Reason))
+                .ToList()))
             .ToList();
         return warnings.Count == 0 ? placed : placed with { Warnings = warnings };
     }
@@ -451,9 +468,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// connect, allocate, dependency, and binding relationships across every definition (regardless
     /// of package) into a flat list of qualified-name edges. Self-references and unresolved targets
     /// are skipped; whether an edge's endpoints actually receive a graph node (i.e., were not
-    /// depth-truncated) is decided later, in <see cref="BuildGraph"/>.
+    /// depth-truncated) is decided later, in <see cref="BuildGraph"/>. The second tuple element
+    /// reports every <see cref="EdgeKind.Connect"/>/<see cref="EdgeKind.Allocate"/>/
+    /// <see cref="EdgeKind.Dependency"/>/<see cref="EdgeKind.Binding"/> edge from
+    /// <c>workspace.Index.AllEdges</c> that was dropped because an endpoint failed to resolve to a
+    /// rendered box, or because both endpoints resolved to the same box (a genuine self-loop) — for
+    /// surfacing via <see cref="LayoutWarnings.ForDroppedRelationshipEdges"/>, so a residual/future
+    /// collapse is visible instead of silently dropped.
     /// </summary>
-    private static List<ModelEdge> BuildModelEdges(IReadOnlyList<DefBox> defs, SysmlWorkspace workspace)
+    private static (List<ModelEdge> Edges, List<DroppedRelationshipEdge> Dropped) BuildModelEdges(
+        IReadOnlyList<DefBox> defs, SysmlWorkspace workspace)
     {
         // Index every definition by qualified and simple name (first-seen wins for simple names,
         // mirroring how packages may reuse a simple name across different qualified locations).
@@ -579,7 +603,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // endpoint mapped to its owning rendered box via ResolveOwningBox. An edge is only emitted
         // when both endpoints resolve to distinct boxes; a same-box result (e.g. two sibling
         // features of the same enclosing definition) is a genuine self-loop and is dropped, exactly
-        // as every other edge kind in this method already does.
+        // as every other edge kind in this method already does. Every dropped edge (unresolved
+        // endpoint or genuine self-loop) is also recorded in `dropped` for
+        // LayoutWarnings.ForDroppedRelationshipEdges, so the drop is visible rather than silent.
+        var dropped = new List<DroppedRelationshipEdge>();
         foreach (var edge in workspace.Index.AllEdges)
         {
             if (edge.SourceQualifiedName is not { Length: > 0 } sourceRef)
@@ -597,6 +624,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                         {
                             edges.Add(new ModelEdge(source, target, EndMarkerStyle.None, EdgeKind.Connect));
                         }
+                        else
+                        {
+                            dropped.Add(new DroppedRelationshipEdge(
+                                "Connect", sourceRef, edge.TargetQualifiedName, DropReason(source, target)));
+                        }
 
                         break;
                     }
@@ -608,6 +640,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                         if (source is not null && target is not null && source != target)
                         {
                             edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Allocate, "«allocate»"));
+                        }
+                        else
+                        {
+                            dropped.Add(new DroppedRelationshipEdge(
+                                "Allocate", sourceRef, edge.TargetQualifiedName, DropReason(source, target)));
                         }
 
                         break;
@@ -621,6 +658,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                         {
                             edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Dependency));
                         }
+                        else
+                        {
+                            dropped.Add(new DroppedRelationshipEdge(
+                                "Dependency", sourceRef, edge.TargetQualifiedName, DropReason(source, target)));
+                        }
 
                         break;
                     }
@@ -633,13 +675,43 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                         {
                             edges.Add(new ModelEdge(source, target, EndMarkerStyle.None, EdgeKind.Binding, "="));
                         }
+                        else
+                        {
+                            dropped.Add(new DroppedRelationshipEdge(
+                                "Binding", sourceRef, edge.TargetQualifiedName, DropReason(source, target)));
+                        }
 
                         break;
                     }
             }
         }
 
-        return edges;
+        return (edges, dropped);
+    }
+
+    /// <summary>
+    /// Returns a short human-readable reason a Connect/Allocate/Dependency/Binding edge's endpoints
+    /// did not resolve to two distinct rendered boxes, for
+    /// <see cref="LayoutWarnings.ForDroppedRelationshipEdges"/>.
+    /// </summary>
+    private static string DropReason(string? source, string? target)
+    {
+        if (source is null && target is null)
+        {
+            return "neither endpoint resolved to a box";
+        }
+
+        if (source is null)
+        {
+            return "source endpoint did not resolve to a box";
+        }
+
+        if (target is null)
+        {
+            return "target endpoint did not resolve to a box";
+        }
+
+        return "both endpoints resolved to the same box";
     }
 
     /// <summary>

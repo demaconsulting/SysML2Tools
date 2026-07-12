@@ -1021,13 +1021,21 @@ internal sealed class ReferenceResolver
 
     /// <summary>
     ///     Resolves a dotted feature chain (e.g. <c>engine.fuelPort</c>,
-    ///     <c>rearAxle.leftHalfAxle.axleToWheelPort</c>) to the qualified name of its final
-    ///     segment. Segment 0 is resolved via the existing <see cref="TryResolve"/> four-step
-    ///     lookup (so it participates in the same scope/import resolution as any other single-name
-    ///     reference); each subsequent segment is resolved relative to the previous segment's
-    ///     node via <see cref="FindFeatureMember"/>. A single-segment "chain" (no <c>.</c>) is
-    ///     handled by the loop simply never executing, so this method also serves as the
-    ///     single-segment resolver used elsewhere.
+    ///     <c>rearAxle.leftHalfAxle.axleToWheelPort</c>) to an instance-relative qualified path for
+    ///     its final segment. Segment 0 is resolved via the existing <see cref="TryResolve"/>
+    ///     four-step lookup (so it participates in the same scope/import resolution as any other
+    ///     single-name reference); each subsequent segment is resolved relative to the previous
+    ///     segment's node via <see cref="FindFeatureMember"/>. A single-segment "chain" (no
+    ///     <c>.</c>) is handled by the loop simply never executing, so this method also serves as
+    ///     the single-segment resolver used elsewhere.
+    ///     A parallel <c>instancePath</c> accumulator is tracked alongside the real declared node's
+    ///     qualified name (<c>current</c>, which continues to drive the next segment's
+    ///     <c>_symbolTable.Lookup</c>): when a segment resolves via <see cref="FindFeatureMember"/>'s
+    ///     direct-child branch, <c>instancePath</c> is simply the member's own (already
+    ///     instance-relative) qualified name; when a segment resolves via the type-hierarchy
+    ///     fallback branch, <c>instancePath</c> is instead <c>{previous instancePath}::{segment}</c>
+    ///     — preserving the instance-relative path rather than collapsing to the type's own
+    ///     declared path. This is what <paramref name="resolvedName"/> ultimately returns.
     /// </summary>
     /// <param name="chain">The raw, possibly dotted, reference text.</param>
     /// <param name="namespaceStack">
@@ -1035,8 +1043,8 @@ internal sealed class ReferenceResolver
     /// </param>
     /// <param name="imports">All import nodes collected from the current file.</param>
     /// <param name="resolvedName">
-    ///     When this method returns <see langword="true"/>, the qualified name of the chain's
-    ///     final segment. When this method returns <see langword="false"/>, set to
+    ///     When this method returns <see langword="true"/>, the instance-relative qualified path of
+    ///     the chain's final segment. When this method returns <see langword="false"/>, set to
     ///     <see cref="string.Empty"/>.
     /// </param>
     /// <returns>
@@ -1057,6 +1065,8 @@ internal sealed class ReferenceResolver
             return false;
         }
 
+        var instancePath = current;
+
         for (var i = 1; i < segments.Length; i++)
         {
             var currentNode = _symbolTable.Lookup(current);
@@ -1066,7 +1076,7 @@ internal sealed class ReferenceResolver
                 return false;
             }
 
-            var member = FindFeatureMember(currentNode, segments[i]);
+            var member = FindFeatureMember(currentNode, segments[i], out var viaTypeFallback);
             if (member?.QualifiedName is not { Length: > 0 } memberQualifiedName)
             {
                 resolvedName = string.Empty;
@@ -1074,9 +1084,10 @@ internal sealed class ReferenceResolver
             }
 
             current = memberQualifiedName;
+            instancePath = viaTypeFallback ? $"{instancePath}::{segments[i]}" : memberQualifiedName;
         }
 
-        resolvedName = current;
+        resolvedName = instancePath;
         return true;
     }
 
@@ -1089,13 +1100,26 @@ internal sealed class ReferenceResolver
     ///     target's own hierarchy (direct children and supertype chain) when no direct child
     ///     matches.
     /// </summary>
-    private SysmlNode? FindFeatureMember(SysmlNode node, string name)
+    /// <param name="node">The node whose members are searched.</param>
+    /// <param name="name">The member name being looked up.</param>
+    /// <param name="viaTypeFallback">
+    ///     Set to <see langword="false"/> when the returned node was found among
+    ///     <paramref name="node"/>'s own direct children (the result's <c>QualifiedName</c> is
+    ///     already instance-relative). Set to <see langword="true"/> when the returned node was
+    ///     found via the <see cref="SysmlEdgeKind.Typing"/> target's own hierarchy (the result's
+    ///     <c>QualifiedName</c> is the type's own declared path, not instance-relative — callers
+    ///     that need an instance-relative path must reconstruct it themselves).
+    /// </param>
+    private SysmlNode? FindFeatureMember(SysmlNode node, string name, out bool viaTypeFallback)
     {
         var direct = node.Children.FirstOrDefault(c => c.Name == name);
         if (direct is not null)
         {
+            viaTypeFallback = false;
             return direct;
         }
+
+        viaTypeFallback = true;
 
         var typingEdge = node.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Typing);
         if (typingEdge is null)
