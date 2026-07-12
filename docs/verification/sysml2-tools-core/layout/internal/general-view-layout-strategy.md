@@ -87,9 +87,14 @@ configuration are required beyond a standard .NET SDK installation.
   own owning definition, via a self-referential supertype cycle) produces no edge, and layout
   completes without throwing.
 - A resolved `Connect` edge whose endpoints map (via `ResolveOwningBox`) to two distinct rendered
-  boxes yields a solid line with no end marker between them.
-- A resolved `Connect` edge whose endpoints both map to the same rendered box (a self-loop, the
-  dominant real-world corpus shape) yields no edge.
+  boxes yields a solid line with no end marker between them — including the dominant real-world
+  shape (two sibling features declared directly in their owning `part def`s, resolved via
+  `ReferenceResolver`'s instance-path-preserving type-hierarchy fallback), verified end to end
+  with the real `WorkspaceLoader` and `BuildLayout`, not just a hand-built fixture.
+- A resolved `Connect` edge whose endpoints both map to the same rendered box (a genuine self-loop
+  — e.g. two sibling features of the same enclosing definition with no distinguishing owner)
+  yields no edge, and the drop is surfaced as a `Connect`-kind warning via
+  `LayoutWarnings.ForDroppedRelationshipEdges`.
 - A resolved `Allocate` edge yields a dashed line with an open-chevron end marker at the target
   and a `«allocate»` midpoint label.
 - A resolved `Dependency` edge yields a dashed line with an open-chevron end marker at the target
@@ -100,6 +105,11 @@ configuration are required beyond a standard .NET SDK installation.
   with a hollow-triangle end marker at the owning definition of the subsetted feature.
 - A subsetting reference that resolves back to the subtype's own owning definition (a
   self-referential same-definition shape) produces no edge.
+- Any `Connect`/`Allocate`/`Dependency`/`Binding` edge whose endpoint fails to resolve to a
+  rendered box, or whose endpoints resolve to the same box, is surfaced as a warning in
+  `LayoutTree.Warnings` (defense-in-depth diagnostic) — except an unresolved-endpoint drop caused
+  solely by the endpoint falling outside an active `expose` scope narrowing, which is expected
+  behavior and produces no warning.
 
 ##### Test Scenarios
 
@@ -182,7 +192,12 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_Connect_DifferentOwningTypes_ProducesUnmarkedSolidEdge`:
   A `Connect` edge between two distinct owning boxes produces a solid line with no end marker
 - `GeneralViewLayoutStrategy_BuildLayout_Connect_SameOwningType_ProducesNoEdge`:
-  A `Connect` edge whose endpoints resolve to the same owning box (self-loop) produces no edge
+  A `Connect` edge whose endpoints resolve to the same owning box (self-loop) produces no edge,
+  and the drop is reported as a `Connect`-kind warning in `LayoutTree.Warnings`
+- `GeneralViewLayoutStrategy_BuildLayout_ConnectDominantShape_RealWorkspaceLoader_ProducesDistinctBoxes`:
+  End-to-end regression guard: the real `WorkspaceLoader` + `BuildLayout` pipeline (no synthetic
+  edges) renders a `Connect` edge between two distinct boxes for the dominant real-world shape,
+  with no dropped-edge warning
 - `GeneralViewLayoutStrategy_BuildLayout_Allocate_ProducesDashedChevronEdgeWithLabel`:
   An `Allocate` edge produces a dashed open-chevron line with a `«allocate»` midpoint label
 - `GeneralViewLayoutStrategy_BuildLayout_Dependency_ProducesDashedChevronEdge`:

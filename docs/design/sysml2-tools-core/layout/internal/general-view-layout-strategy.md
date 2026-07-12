@@ -27,7 +27,10 @@ binding relationship expressed by qualified name, together with its target end m
 and an optional midpoint label), `Location` (a located definition's
 graph node and owning package, used to resolve and scope edges), and `TruncatedFolder` (a
 depth-truncated package folder's leaf graph node and hidden-definition count, used to stamp its
-ellipsis label onto the placed box after layout). `FeatureMembership` (a private record) carries
+ellipsis label onto the placed box after layout). `DroppedRelationshipEdge` (a private record)
+carries the short kind label, raw source/target reference, and human-readable reason for one
+`Connect`/`Allocate`/`Dependency`/`Binding` edge `BuildModelEdges` could not map to two distinct
+rendered boxes, feeding `LayoutWarnings.ForDroppedRelationshipEdges`. `FeatureMembership` (a private record) carries
 each owned feature's keyword, raw type reference (`TypeName`, nullable — a feature may declare a
 redefinition with no explicit type annotation), simple `Name`, raw
 `RedefinedFeatureName` reference, and the raw `SubsettedFeatureNames` list (populated verbatim
@@ -61,7 +64,8 @@ diagnostic message is remembered as the warning reason and the method continues 
 unfiltered resolved scope. The remaining pipeline is unchanged: definitions are grouped by package
 with `GroupByPackage`, the specialization/membership/attribute-typing/redefinition/subsetting/
 connect/allocate/dependency/binding relationships are
-resolved into qualified-name edges with `BuildModelEdges`, the single input `LayoutGraph` is built
+resolved into qualified-name edges (plus any dropped-edge diagnostics) with `BuildModelEdges`, the
+single input `LayoutGraph` is built
 with `BuildGraph`, and the whole graph is placed with one
 `HierarchicalLayoutAlgorithm().Apply(graph, LayoutOptions.ForAlgorithm("containment"))` call —
 passing the desired root-scope leaf algorithm through the options parameter (not
@@ -69,10 +73,13 @@ passing the desired root-scope leaf algorithm through the options parameter (not
 is never misled into skipping the hierarchical engine. When any package folder was depth-truncated,
 `DecorateTruncatedFolders` stamps each truncated folder's "+N more…" ellipsis label onto its placed
 box. Finally, the returned tree's `Warnings` concatenates
-`LayoutWarnings.ForUnevaluatedFilter` (only when standalone filter parsing/evaluation failed) with
+`LayoutWarnings.ForUnevaluatedFilter` (only when standalone filter parsing/evaluation failed),
 `LayoutWarnings.ForUnevaluatedExposeBracketFilter(context.ViewName, scope?.Failures ?? [])` (Phase
 2a: one warning per bracket-filter expression that failed to parse or evaluate — a
-successfully-evaluated bracket filter now has real narrowing effect and produces no warning) via
+successfully-evaluated bracket filter now has real narrowing effect and produces no warning), and
+`LayoutWarnings.ForDroppedRelationshipEdges(context.ViewName, dropped)` (one warning per
+`Connect`/`Allocate`/`Dependency`/`Binding` edge `BuildModelEdges` could not map to two distinct
+rendered boxes — see `BuildModelEdges` below) via
 the `LayoutTree with { Warnings = … }` record-copy idiom.
 
 ###### `CollectDefinitions(workspace, theme, scope)`
@@ -89,7 +96,7 @@ and the longest compartment row.
 Groups definitions by the qualified-name prefix before the last `::`, preserving first-seen order.
 Top-level definitions (no package prefix) become plain leaves directly on the root graph.
 
-###### `BuildModelEdges(defs, workspace)`
+###### `BuildModelEdges(defs, workspace, isScoped)`
 
 Resolves every specialization (subtype → supertype), structural membership (member-type → owner),
 attribute-typing (owner → attribute-type), redefinition (subtype → the owning definition of
@@ -150,9 +157,35 @@ before it can become a graph edge endpoint. `Allocate` edges carry an open chevr
 and a `«allocate»` midpoint label; `Dependency` edges carry an open chevron with no label (matching
 the `ref`-fix rendering above); `Connect` edges carry no end marker and no label; `Binding` edges
 carry no end marker and an `=` midpoint label. An edge is only emitted when both endpoints resolve
-to *distinct* boxes — a same-box result (e.g. two sibling features of the same enclosing
-definition, the dominant corpus shape for `connect`) is a genuine self-loop and is silently
-dropped, exactly as every other edge kind in this method already does for self-references.
+to *distinct* boxes — a same-box result is a genuine self-loop and is dropped, exactly as every
+other edge kind in this method already does for self-references. For the dominant real-world
+corpus shape — two sibling features (e.g. ports) declared directly in their owning `part def`s,
+referenced from an enclosing part via bare `part` usages with no per-instance nested redeclaration
+— `ReferenceResolver`'s dotted-chain resolution now (as of the instance-path-preserving fix
+documented in the `ReferenceResolver` design chapter) correctly returns an instance-relative
+qualified name for each endpoint (e.g. `Drone::controller::power`, `Drone::battery::output`), which
+`ResolveOwningBox`'s shortest-matching-prefix walk maps to two *distinct* boxes — this is the
+normal, expected outcome for that shape, not a self-loop. A genuine same-box result now only arises
+when both endpoints are truly features of the same enclosing definition (e.g. two sibling ports of
+one part, with no distinguishing intermediate owner) — a rarer, legitimately self-referential
+model shape.
+
+Every edge dropped by this method — whether because an endpoint failed to resolve to any rendered
+box, or because both endpoints resolved to the same box — is also recorded (subject to the scoping
+rule described in the next paragraph) as a `DroppedRelationshipEdge` (kind, raw source/target
+reference, and a short human-readable reason), returned as `BuildModelEdges`'s second tuple element
+and surfaced by `BuildLayout` via `LayoutWarnings.ForDroppedRelationshipEdges` — a defense-in-depth
+diagnostic ensuring that any residual or future resolution gap remains visible in the view's
+`Warnings` rather than being silently and invisibly dropped, as it was before this diagnostic was
+added. An unresolved-endpoint drop is only reported when the view carries no `expose` scope
+restriction: within an `expose`-scoped view, an endpoint whose owning box falls outside the exposed
+subtree legitimately fails to resolve by design, and reporting it would be misleading noise for
+ordinary, intentional scope narrowing (confirmed empirically while regenerating the gallery's
+`expose`-scoped `BatterySubsystemView`, whose `Allocate`/`Dependency`/`Connect` edges reaching
+outside the exposed `Battery` subtree produced exactly this noise before the scoping rule was
+added). A genuine self-loop (both endpoints resolve, to the same box) is always reported,
+regardless of scoping, since a same-box result can never be an intended outcome of `expose`
+narrowing.
 
 Whether an edge's endpoints actually
 receive a graph node — i.e.,
@@ -245,9 +278,10 @@ produces valid geometry, so no crossing warnings are emitted.
   `CollectDefinitions`.
 - `FilterExpressionParser` and `FilterExpressionEvaluator` (Filtering subsystem) — parse and
   evaluate standalone `filter [<expr>];` statements over the already expose-scoped definition set.
-- `LayoutWarnings` (Layout Internal subsystem) — `ForUnevaluatedFilter` and
-  `ForUnevaluatedExposeBracketFilter` supply the warning text for standalone-filter fallback and
-  (Phase 2a) failed expose bracket filters only.
+- `LayoutWarnings` (Layout Internal subsystem) — `ForUnevaluatedFilter`,
+  `ForUnevaluatedExposeBracketFilter`, and `ForDroppedRelationshipEdges` supply the warning text
+  for standalone-filter fallback, (Phase 2a) failed expose bracket filters, and dropped
+  `Connect`/`Allocate`/`Dependency`/`Binding` edges, respectively.
 - The `LayoutTree`, `LayoutBox`, `LayoutCompartment`, `LayoutLine`, `LayoutLabel`, and `Point2D` data
   types (`DemaConsulting.Rendering`).
 - `FeatureMembership` (private record) — carries the keyword, nullable type reference, simple

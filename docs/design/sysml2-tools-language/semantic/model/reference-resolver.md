@@ -87,12 +87,31 @@ reference text on `.`. Segment 0 is resolved via the existing `TryResolve` four-
 participates in the same scope/import resolution as any other single-name reference); a
 single-segment "chain" is handled by the remaining-segment loop simply never executing. Each
 subsequent segment is resolved relative to the previous segment's node (looked up via
-`SymbolTable.Lookup`) using `FindFeatureMember`.
+`SymbolTable.Lookup`) using `FindFeatureMember`. Two parallel accumulators are tracked across the
+loop: `current` (the real declared node's qualified name, which continues to drive the *next*
+segment's `SymbolTable.Lookup` — this part of the walk is unchanged) and `instancePath` (the value
+ultimately returned as `resolvedName`). For a segment resolved via `FindFeatureMember`'s
+direct-child branch, `instancePath` is simply set to the member's own (already instance-relative)
+qualified name — unchanged from before. For a segment resolved via the type-hierarchy fallback
+branch (`viaTypeFallback == true`, see `FindFeatureMember` below), `instancePath` is instead set to
+`{previous instancePath}::{raw segment text}` — preserving the instance-relative path rather than
+collapsing to the type's own declared qualified name. This distinction matters for the dominant
+real-world `connect`/`bind` shape: two sibling features (e.g. ports) declared directly in their
+owning `part def`s, referenced from an enclosing part via bare usages with no per-instance nested
+redeclaration — every such reference resolves via the fallback branch, and without this
+`instancePath` accumulator the returned qualified name would collapse to the shared port type's own
+declared path (e.g. `PowerPort`'s owning type's own `power`/`output` declaration), causing
+`GeneralViewLayoutStrategy.ResolveOwningBox` to (incorrectly) map both endpoints to the same box.
 
-`FindFeatureMember(node, name)` tries `node`'s own direct children first — an inline nested usage
-or redefinition shadows a same-named definition-level member (confirmed by the OMG fixture
-`2c-PartsInterconnection-MultipleDecompositions.sysml`'s `port :>> pe = c1.pb` pattern) — falling
-back to the member's `Typing`-edge target's own hierarchy only when no direct child matches.
+`FindFeatureMember(node, name, out viaTypeFallback)` tries `node`'s own direct children first — an
+inline nested usage or redefinition shadows a same-named definition-level member (confirmed by the
+OMG fixture `2c-PartsInterconnection-MultipleDecompositions.sysml`'s `port :>> pe = c1.pb`
+pattern) — setting `viaTypeFallback = false` and returning immediately when found. Only when no
+direct child matches does it fall back to the member's `Typing`-edge target's own hierarchy,
+setting `viaTypeFallback = true` for that branch; the returned node's own `QualifiedName` in this
+case is the *type's own* declared path, not instance-relative — it is the caller
+(`TryResolveFeatureChain`) that reconstructs the instance-relative path using `viaTypeFallback`, as
+described above.
 
 `FindMemberInTypeHierarchy(typeNode, name, visited)` finds a member in `typeNode`'s own direct
 children, or — recursively — in any `Supertype`-edge ancestor's direct children, walking the

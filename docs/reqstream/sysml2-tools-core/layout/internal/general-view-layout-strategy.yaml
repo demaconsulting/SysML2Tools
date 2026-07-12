@@ -107,18 +107,23 @@ sections:
           GeneralViewLayoutStrategy shall connect the owning rendered box of each resolved
           Connect edge's source endpoint to the owning rendered box of its target endpoint with
           a solid line and no end marker, and shall draw no edge when both endpoints resolve to
-          the same box (a self-loop).
+          the same box (a genuine self-loop).
         justification: |
           `connect A to B;` (and a `message`'s from/to events) is a core SysML v2 relationship;
           rendering it with a plain solid line (no marker) matches OMG connector notation and
           distinguishes it from every other edge kind, all of which carry either a marker, a
-          dashed style, or both. Suppressing same-box self-loops is required because the
-          dominant real-world corpus shape nests both connector ends as sibling features of the
-          very same enclosing definition — drawing a self-loop there would be visual noise with
-          no informational value.
+          dashed style, or both. Suppressing same-box self-loops is required because a rarer,
+          genuinely self-referential model shape (e.g. two sibling ports of the very same
+          enclosing definition, with no distinguishing intermediate owner) would otherwise draw
+          a self-loop with no informational value. The dominant real-world corpus shape — two
+          sibling features declared directly in their owning `part def`s, referenced from an
+          enclosing part via bare usages with no per-instance nested redeclaration — resolves to
+          two *distinct* boxes (not a self-loop), verified end to end against the real
+          `WorkspaceLoader`/`BuildLayout` pipeline.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_Connect_DifferentOwningTypes_ProducesUnmarkedSolidEdge
           - GeneralViewLayoutStrategy_BuildLayout_Connect_SameOwningType_ProducesNoEdge
+          - GeneralViewLayoutStrategy_BuildLayout_ConnectDominantShape_RealWorkspaceLoader_ProducesDistinctBoxes
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Allocate
         title: >-
@@ -316,6 +321,27 @@ sections:
           diagram and makes the limitation explicit.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-DroppedRelationshipEdgeWarning
+        title: >-
+          When a Connect/Allocate/Dependency/Binding edge's endpoint fails to resolve to a
+          rendered box, or both endpoints resolve to the same box (a genuine self-loop),
+          GeneralViewLayoutStrategy shall emit a warning naming the edge kind, its raw
+          source/target references, and a short reason, rather than silently dropping the edge.
+          An unresolved-endpoint drop caused solely by the endpoint falling outside an active
+          `expose` scope narrowing is expected behavior and shall not be reported.
+        justification: |
+          A dropped relationship edge with no rendered box was previously indistinguishable from
+          correct behavior — the diagram simply omitted it, with no signal to the user that a
+          model reference failed to resolve or collapsed into an unintended self-loop. This
+          defense-in-depth diagnostic makes any residual or future resolution gap visible,
+          matching the same visible-not-silent principle already applied by
+          `ForUnevaluatedFilter`/`ForUnevaluatedExposeBracketFilter`. Excluding drops caused by
+          ordinary `expose` scope narrowing avoids misleading noise for a relationship whose
+          endpoint is simply, and correctly, outside the exposed subtree by design.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_Connect_SameOwningType_ProducesNoEdge
+          - GeneralViewLayoutStrategy_BuildLayout_ConnectDominantShape_RealWorkspaceLoader_ProducesDistinctBoxes
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-QualifiedForm
         title: >-
