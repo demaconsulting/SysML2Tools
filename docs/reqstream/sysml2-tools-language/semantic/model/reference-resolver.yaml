@@ -149,4 +149,4 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_BindingDottedChain_RecordsBindingEdge
           - WorkspaceLoader_LoadAsync_BindingUnresolvedEnd_ProducesWarningNoEdge
-          - Binding_OmgCorpusFixture_ParsesAndResolvesWithoutCrashing
+          - Binding_OmgCorpusFixture_ResolvesBindingEdgesViaImplicitRedefinitionNames
