@@ -224,9 +224,15 @@ compatibility-check gap is carried forward as a known limitation in the "View dy
 refinements" item above.
 
 **Done:** `export` verb — `export [--format json|jsonl] [--output <file>] [--include-stdlib]
-<patterns...>` dumps the resolved semantic model (declarations, edges, diagnostics) as a
-single indented JSON document or as JSON Lines, for an agent harness to index locally and run
-its own queries offline. Implemented by the new `Export` subsystem (`ExportCommand`,
+[--target <qualified-name>] [--filter <expr>] <patterns...>` dumps the resolved semantic
+model (declarations, edges, diagnostics) as a single indented JSON document or as JSON
+Lines, for an agent harness to index locally and run its own queries offline. `--target`
+restricts output to a single element's containment subtree (expanding a usage/feature
+target to its resolved type's subtree too), and `--filter` narrows the (optionally
+`--target`-scoped) declarations/edges using the same Phase 1 filter-expression subset
+`render`'s dynamic-view `--filter` uses, composing `--target`-then-`--filter` — a graceful,
+non-aborting warning/diagnostic is surfaced for an unparseable `--filter` expression rather
+than failing the export. Implemented by the new `Export` subsystem (`ExportCommand`,
 `ExportResult`, `ExportResultSerializerContext`/`ExportLineSerializerContext`), reusing
 `SysmlNode`/`SysmlEdge`/`SysmlDiagnostic` directly rather than a fourth parallel result shape.
 See its design/requirements/verification documentation for the full JSON/JSONL output shape.

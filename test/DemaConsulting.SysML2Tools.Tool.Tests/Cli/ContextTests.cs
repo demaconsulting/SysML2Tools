@@ -690,6 +690,34 @@ public class ContextTests
     }
 
     /// <summary>
+    ///     Test creating a context with export command and --target sets Export.Target.
+    /// </summary>
+    [Fact]
+    public void Context_Create_ExportCommand_WithTarget_SetsTarget()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["export", "--target", "Model::Vehicle"]);
+
+        // Assert: verify expected behavior
+        Assert.Equal("Model::Vehicle", context.Export!.Target);
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
+    ///     Test creating a context with export command and --filter sets Export.FilterExpression.
+    /// </summary>
+    [Fact]
+    public void Context_Create_ExportCommand_WithFilter_SetsFilterExpression()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["export", "--filter", "@Critical"]);
+
+        // Assert: verify expected behavior
+        Assert.Equal("@Critical", context.Export!.FilterExpression);
+        Assert.Equal(0, context.ExitCode);
+    }
+
+    /// <summary>
     ///     Test creating a context with export command and a file pattern sets Files.
     /// </summary>
     [Fact]

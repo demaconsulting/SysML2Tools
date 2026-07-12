@@ -435,6 +435,9 @@ sysml2tools export "src/**/*.sysml" --format jsonl --output model.jsonl
 
 # Include OMG standard library declarations/edges in the export
 sysml2tools export "src/**/*.sysml" --include-stdlib
+
+# Restrict output to a containment subtree, then narrow it with a filter expression
+sysml2tools export "src/**/*.sysml" --target Vehicle::Engine --filter "@Deprecated"
 ```
 
 ## `export` Options
@@ -445,6 +448,44 @@ sysml2tools export "src/**/*.sysml" --include-stdlib
 | `--format json\|jsonl` | Output format (default: `json`) |
 | `--output <file>` | Write to this **file** (default: stdout); `render`'s `--output` is a *directory* instead |
 | `--include-stdlib` | Include OMG stdlib decls/edges (excluded by default); diagnostics are never stdlib-filtered |
+| `--target <qualified-name>` | Restrict output to the containment subtree rooted at this element |
+| `--filter <expr>` | Narrow output using a Phase 1 filter expression |
+
+## Target Scoping and Filter Narrowing
+
+`--target <qualified-name>` and `--filter <expr>` compose the same way `render`'s dynamic-view
+`--view-target`/`--filter` pair does (see "Dynamic (Ad-Hoc) Views" above), but for `export`
+instead of rendering: `--target` scopes the export to one element's containment subtree,
+`--filter` narrows the declaration/edge set using the same Phase 1 filter-expression subset
+(classification tests, boolean connectives, `(as Type).attribute` reads) — and, when both are
+supplied, `--target` is applied **first**, with `--filter` narrowing the already-scoped result
+**second**:
+
+```bash
+# Only the Engine subtree
+sysml2tools export "src/**/*.sysml" --target Vehicle::Engine
+
+# The whole workspace, narrowed to elements carrying @Deprecated
+sysml2tools export "src/**/*.sysml" --filter @Deprecated
+
+# The Engine subtree, further narrowed to elements carrying @Deprecated
+sysml2tools export "src/**/*.sysml" --target Vehicle::Engine --filter @Deprecated
+```
+
+- If `--target` names a usage/feature (e.g. `part myEngine : Engine;`) rather than a
+  definition, its resolved type's subtree is included too, so scoping to a usage still yields
+  useful content instead of a near-empty result.
+- An unresolvable `--target` (not present in the workspace, or a standard-library element
+  without `--include-stdlib`) reports a clean `export: --target '<name>' was not found in the
+  workspace.` error and produces no export — both cases share the same message.
+- An unparsable or unsupported `--filter` expression does **not** abort the export: it falls
+  back to the unfiltered (still `--target`-scoped, if applicable) result, appending a synthetic
+  warning diagnostic (`"FilePath": "<--filter>"`) to the output's `Diagnostics` array and
+  printing a matching `export: warning: ...` console message — the same graceful-degradation
+  behavior views apply to a non-evaluatable `filter [<expr>];` statement.
+- Exported edges always require both endpoints (source and target, when the source is
+  non-null) to survive every active narrowing step (stdlib filtering, `--target` scoping, and
+  `--filter` matching) — never just one endpoint.
 
 ## Export Output Shape
 

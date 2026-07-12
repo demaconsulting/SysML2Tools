@@ -151,6 +151,9 @@ sysml2tools export "src/**/*.sysml" --format jsonl --output model.jsonl
 
 # Include OMG standard library declarations/edges in the export
 sysml2tools export model.sysml --include-stdlib
+
+# Restrict output to a containment subtree, then narrow it with a filter expression
+sysml2tools export model.sysml --target Vehicle::Engine --filter "@Deprecated"
 ```
 
 See [Exporting](docs/user_guide/introduction.md#exporting) in the user guide for the full
@@ -263,6 +266,8 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 | `--format json\|jsonl` | Output format (default: `json`) |
 | `--output <file>` | Write export document to this **file** (default: stdout); differs from `render`'s `--output` dir |
 | `--include-stdlib` | Include OMG standard library declarations/edges (diagnostics are never stdlib-filtered) |
+| `--target <qualified-name>` | Restrict output to the containment subtree rooted at this element (before `--filter`) |
+| `--filter <expr>` | Narrow output using a Phase 1 filter expression (see `render`'s `--filter`); after `--target` |
 
 ### `help` Options
 

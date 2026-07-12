@@ -61,4 +61,16 @@ internal static class ExportStrings
 
     /// <summary>Gets the --include-stdlib option line.</summary>
     public static string Export_OptionIncludeStdlib => ResourceManager.GetString(nameof(Export_OptionIncludeStdlib))!;
+
+    /// <summary>Gets the first line of the --target option description.</summary>
+    public static string Export_OptionTarget1 => ResourceManager.GetString(nameof(Export_OptionTarget1))!;
+
+    /// <summary>Gets the second line of the --target option description.</summary>
+    public static string Export_OptionTarget2 => ResourceManager.GetString(nameof(Export_OptionTarget2))!;
+
+    /// <summary>Gets the first line of the --filter option description.</summary>
+    public static string Export_OptionFilter1 => ResourceManager.GetString(nameof(Export_OptionFilter1))!;
+
+    /// <summary>Gets the second line of the --filter option description.</summary>
+    public static string Export_OptionFilter2 => ResourceManager.GetString(nameof(Export_OptionFilter2))!;
 }

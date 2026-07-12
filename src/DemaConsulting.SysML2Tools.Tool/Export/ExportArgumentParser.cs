@@ -27,12 +27,13 @@ namespace DemaConsulting.SysML2Tools.Export;
 ///     <see cref="ExportOptions"/> instance.
 /// </summary>
 /// <remarks>
-///     Recognizes only <c>--format</c>, <c>--output</c>, and <c>--include-stdlib</c>, plus
-///     positional file glob patterns. Any other <c>-</c>-prefixed token is rejected so that flags
-///     belonging to other commands (e.g., <c>--view</c>, <c>--kind</c>) are never silently
-///     accepted. <c>--format</c>'s value is captured raw and validated later by
+///     Recognizes only <c>--format</c>, <c>--output</c>, <c>--include-stdlib</c>, <c>--target</c>,
+///     and <c>--filter</c>, plus positional file glob patterns. Any other <c>-</c>-prefixed token
+///     is rejected so that flags belonging to other commands (e.g., <c>--view</c>, <c>--kind</c>)
+///     are never silently accepted. <c>--format</c>'s value is captured raw and validated later by
 ///     <see cref="ExportCommand.RunAsync"/>, matching the <c>query</c>/<c>render</c> commands'
-///     validation style.
+///     validation style; <c>--target</c>'s and <c>--filter</c>'s values are likewise captured raw
+///     here and resolved/applied later by <see cref="ExportCommand.RunAsync"/>.
 /// </remarks>
 internal static class ExportArgumentParser
 {
@@ -53,6 +54,8 @@ internal static class ExportArgumentParser
         string? format = null;
         string? output = null;
         var includeStdlib = false;
+        string? target = null;
+        string? filterExpression = null;
         var files = new List<string>();
 
         var index = 0;
@@ -75,6 +78,16 @@ internal static class ExportArgumentParser
                     includeStdlib = true;
                     break;
 
+                case "--target":
+                    target = CliArgumentHelpers.GetRequiredStringArgument(
+                        arg, commandArgs, ref index, "a target qualified-name argument");
+                    break;
+
+                case "--filter":
+                    filterExpression = CliArgumentHelpers.GetRequiredStringArgument(
+                        arg, commandArgs, ref index, "a filter expression argument");
+                    break;
+
                 default:
                     if (arg.StartsWith("-", StringComparison.Ordinal))
                     {
@@ -92,6 +105,8 @@ internal static class ExportArgumentParser
             Format = format,
             Output = output,
             IncludeStdlib = includeStdlib,
+            Target = target,
+            FilterExpression = filterExpression,
             Files = files
         };
     }

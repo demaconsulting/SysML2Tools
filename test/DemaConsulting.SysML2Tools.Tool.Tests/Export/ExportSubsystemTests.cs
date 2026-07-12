@@ -42,6 +42,22 @@ public class ExportSubsystemTests
         }
         """;
 
+    private const string TargetFixture = """
+        package Model {
+            metadata def Critical;
+
+            part def Vehicle {
+                part engine : Engine;
+            }
+
+            part def Engine {
+                @Critical;
+            }
+
+            part def Accessory;
+        }
+        """;
+
     // ---- ExportArgumentParser ----
 
     /// <summary>
@@ -56,6 +72,8 @@ public class ExportSubsystemTests
         Assert.Null(options.Format);
         Assert.Null(options.Output);
         Assert.False(options.IncludeStdlib);
+        Assert.Null(options.Target);
+        Assert.Null(options.FilterExpression);
         Assert.Equal(["a.sysml", "b.sysml"], options.Files);
     }
 
@@ -121,6 +139,48 @@ public class ExportSubsystemTests
     public void ExportArgumentParser_OutputFlagMissingValue_ThrowsArgumentException()
     {
         Assert.Throws<ArgumentException>(() => ExportArgumentParser.Parse(["--output"]));
+    }
+
+    /// <summary>
+    ///     --target captures the qualified-name value.
+    /// </summary>
+    [Fact]
+    public void ExportArgumentParser_TargetFlag_CapturesValue()
+    {
+        var options = ExportArgumentParser.Parse(["--target", "Model::Vehicle", "a.sysml"]);
+
+        Assert.Equal("Model::Vehicle", options.Target);
+        Assert.Equal(["a.sysml"], options.Files);
+    }
+
+    /// <summary>
+    ///     --filter captures the raw expression text without validating it (validation happens
+    ///     later in ExportCommand.RunAsync).
+    /// </summary>
+    [Fact]
+    public void ExportArgumentParser_FilterFlag_CapturesValue()
+    {
+        var options = ExportArgumentParser.Parse(["--filter", "@Critical", "a.sysml"]);
+
+        Assert.Equal("@Critical", options.FilterExpression);
+    }
+
+    /// <summary>
+    ///     --target with no value throws an ArgumentException.
+    /// </summary>
+    [Fact]
+    public void ExportArgumentParser_TargetFlagMissingValue_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => ExportArgumentParser.Parse(["--target"]));
+    }
+
+    /// <summary>
+    ///     --filter with no value throws an ArgumentException.
+    /// </summary>
+    [Fact]
+    public void ExportArgumentParser_FilterFlagMissingValue_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => ExportArgumentParser.Parse(["--filter"]));
     }
 
     // ---- ExportCommand happy path ----
@@ -229,6 +289,175 @@ public class ExportSubsystemTests
         }
     }
 
+    // ---- --target / --filter ----
+
+    /// <summary>
+    ///     --target restricts the exported declarations to the target's containment subtree,
+    ///     excluding unrelated top-level declarations.
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_TargetFlag_RestrictsToSubtree()
+    {
+        var (output, exitCode) = await ExportTestFixtures.RunExportAsync(
+            TargetFixture, "--format", "json", "--target", "Model::Vehicle");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Model::Vehicle", output);
+        Assert.Contains("Model::Vehicle::engine", output);
+        Assert.DoesNotContain("Model::Accessory", output);
+    }
+
+    /// <summary>
+    ///     --target only includes edges whose source and target both lie within the target's
+    ///     subtree; using a usage (feature) target exercises the usage-to-type expansion, so the
+    ///     usage's own <c>Typing</c> edge to its resolved type survives (both endpoints — the
+    ///     usage and its type — are in scope), while an edge to an unrelated declaration would not.
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_TargetFlag_IncludesEdgesWithBothEndpointsInSubtree()
+    {
+        var (output, exitCode) = await ExportTestFixtures.RunExportAsync(
+            TargetFixture, "--format", "jsonl", "--target", "Model::Vehicle::engine");
+
+        Assert.Equal(0, exitCode);
+
+        // The usage's Typing edge (Model::Vehicle::engine -> Model::Engine) survives because
+        // usage-to-type expansion added Model::Engine to the target's subtree subjects alongside
+        // the usage itself.
+        Assert.Contains("Model::Vehicle::engine", output);
+        Assert.Contains("Model::Engine", output);
+        Assert.DoesNotContain("Model::Accessory", output);
+        Assert.Contains("\"kind\":\"edge\"", output.Replace(" ", "", StringComparison.Ordinal), StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    ///     A --target value that does not resolve to any declaration in the workspace reports a
+    ///     clean "not found" error and produces no export output.
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_TargetFlag_UnresolvedName_ReportsNotFoundError()
+    {
+        var (output, exitCode) = await ExportTestFixtures.RunExportAsync(
+            TargetFixture, "--format", "json", "--target", "Model::NoSuchElement");
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("--target 'Model::NoSuchElement' was not found in the workspace", output);
+    }
+
+    /// <summary>
+    ///     A --target value naming a standard-library declaration, without --include-stdlib,
+    ///     reports the same "not found" error as a genuinely absent name (an invisible stdlib
+    ///     target is indistinguishable from a nonexistent one).
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_TargetFlag_StdlibTargetWithoutIncludeStdlib_ReportsNotFoundError()
+    {
+        var (output, exitCode) = await ExportTestFixtures.RunExportAsync(
+            TargetFixture, "--format", "json", "--target", "ScalarValues::Boolean");
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("--target 'ScalarValues::Boolean' was not found in the workspace", output);
+    }
+
+    /// <summary>
+    ///     A --target value naming a standard-library declaration succeeds when --include-stdlib
+    ///     is also supplied, scoping the export to that stdlib element's subtree.
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_TargetFlag_StdlibTargetWithIncludeStdlib_Succeeds()
+    {
+        var (output, exitCode) = await ExportTestFixtures.RunExportAsync(
+            TargetFixture, "--format", "json", "--target", "ScalarValues::Boolean", "--include-stdlib");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("ScalarValues::Boolean", output);
+        Assert.DoesNotContain("Model::Vehicle", output);
+    }
+
+    /// <summary>
+    ///     --filter (with no --target) narrows the exported declarations to those matching the
+    ///     classification-test expression.
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_FilterFlag_NarrowsDeclarations()
+    {
+        var (output, exitCode) = await ExportTestFixtures.RunExportAsync(
+            TargetFixture, "--format", "json", "--filter", "@Critical");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Model::Engine", output);
+        Assert.DoesNotContain("Model::Vehicle\"", output);
+        Assert.DoesNotContain("Model::Accessory", output);
+    }
+
+    /// <summary>
+    ///     --filter without --target narrows the whole (stdlib-filtered) workspace, not just a
+    ///     subset scoped by some other means.
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_FilterFlag_WithoutTarget_NarrowsWholeWorkspace()
+    {
+        var (unfiltered, exitCode1) = await ExportTestFixtures.RunExportAsync(TargetFixture, "--format", "json");
+        var (filtered, exitCode2) = await ExportTestFixtures.RunExportAsync(
+            TargetFixture, "--format", "json", "--filter", "@Critical");
+
+        Assert.Equal(0, exitCode1);
+        Assert.Equal(0, exitCode2);
+        Assert.True(filtered.Length < unfiltered.Length);
+        Assert.Contains("Model::Engine", filtered);
+    }
+
+    /// <summary>
+    ///     --target and --filter compose in order: --target scopes to the subtree first (here,
+    ///     via a usage target whose usage-to-type expansion adds its resolved type to scope), then
+    ///     --filter narrows that already-scoped set further, so only elements satisfying both
+    ///     survive.
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_TargetAndFilter_ComposeTargetFirstThenFilter()
+    {
+        var (output, exitCode) = await ExportTestFixtures.RunExportAsync(
+            TargetFixture, "--format", "json", "--target", "Model::Vehicle::engine", "--filter", "@Critical");
+
+        Assert.Equal(0, exitCode);
+
+        // --target's usage-to-type expansion brings Model::Engine into scope alongside the usage
+        // itself; --filter then narrows to only the elements carrying @Critical: Model::Engine
+        // matches (it carries the annotation) but the usage itself does not, proving --filter
+        // narrows the already-scoped set rather than either step alone deciding the result.
+        Assert.Contains("Model::Engine", output);
+        Assert.DoesNotContain("Vehicle::engine", output);
+        Assert.DoesNotContain("Model::Accessory", output);
+    }
+
+    /// <summary>
+    ///     A --filter expression using an unsupported Phase 1 construct does not abort the export:
+    ///     it falls back to the unfiltered result, appends a synthetic warning diagnostic to the
+    ///     output, and prints a matching console warning.
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_FilterFlag_UnsupportedConstruct_AddsDiagnosticAndWarns()
+    {
+        var (output, exitCode) = await ExportTestFixtures.RunExportAsync(
+            TargetFixture, "--format", "json", "--filter", "1 + 1");
+
+        Assert.Equal(0, exitCode);
+
+        // Console warning channel (plain text, not JSON-escaped).
+        Assert.Contains("export: warning: --filter expression '1 + 1' failed to parse/evaluate", output);
+        Assert.Contains("Unsupported filter construct", output);
+
+        // Synthetic diagnostic channel: FilePath uses the "<--filter>" virtual-path convention
+        // (JSON-encoded as \u003C--filter\u003E by System.Text.Json's default HTML-safe encoder)
+        // with Severity 1 (Warning).
+        Assert.Contains("\\u003C--filter\\u003E", output);
+        Assert.Contains("\"Severity\": 1", output);
+
+        // Falls back to the unfiltered result: every declaration is still present.
+        Assert.Contains("Model::Vehicle", output);
+        Assert.Contains("Model::Accessory", output);
+    }
+
     // ---- error paths ----
 
     /// <summary>
@@ -311,6 +540,8 @@ public class ExportSubsystemTests
             Assert.Contains("export", outWriter.ToString());
             Assert.Contains("--format", outWriter.ToString());
             Assert.Contains("--include-stdlib", outWriter.ToString());
+            Assert.Contains("--target", outWriter.ToString());
+            Assert.Contains("--filter", outWriter.ToString());
             Assert.Equal(0, context.ExitCode);
         }
         finally

@@ -15,9 +15,9 @@ sections:
     requirements:
       - id: SysML2Tools-Tool-Export-Grammar
         title: >-
-          The export command shall accept --format, --output, and --include-stdlib options,
-          plus one or more positional file glob patterns, and shall reject any other
-          `-`-prefixed token.
+          The export command shall accept --format, --output, --include-stdlib, --target, and
+          --filter options, plus one or more positional file glob patterns, and shall reject
+          any other `-`-prefixed token.
         justification: |
           A small, fixed flag vocabulary (mirroring the query/render commands' own per-command
           argument parsers) keeps export's grammar simple and predictable, and rejecting
@@ -27,9 +27,13 @@ sections:
           - ExportArgumentParser_FormatFlag_CapturesRawValue
           - ExportArgumentParser_OutputFlag_CapturesValue
           - ExportArgumentParser_IncludeStdlibFlag_SetsTrue
+          - ExportArgumentParser_TargetFlag_CapturesValue
+          - ExportArgumentParser_FilterFlag_CapturesValue
           - ExportArgumentParser_UnrecognizedFlag_ThrowsArgumentException
           - ExportArgumentParser_FormatFlagMissingValue_ThrowsArgumentException
           - ExportArgumentParser_OutputFlagMissingValue_ThrowsArgumentException
+          - ExportArgumentParser_TargetFlagMissingValue_ThrowsArgumentException
+          - ExportArgumentParser_FilterFlagMissingValue_ThrowsArgumentException
 
       - id: SysML2Tools-Tool-Export-Format
         title: >-
@@ -130,6 +134,52 @@ sections:
           help text is required to prevent user confusion between the two commands.
         tests:
           - ExportSubsystem_ExportHelp_PrintsHelpWithoutThrowing
+
+      - id: SysML2Tools-Tool-Export-Target
+        title: >-
+          The export command shall accept --target <qualified-name> restricting output to the
+          containment subtree rooted at that element (expanding a usage/feature target to also
+          include its resolved type's subtree), reporting a clear "not found" error — with no
+          export produced — when the name does not resolve to a visible declaration (either
+          genuinely absent, or a standard-library declaration without --include-stdlib).
+        justification: |
+          A single-target containment-subtree scope lets an agent/CLI consumer request a
+          focused slice of a large workspace instead of always exporting the whole model,
+          mirroring the subtree-scoping semantics already established by render's `expose`
+          statement handling (Core's ExposeScopeResolver), applied here as a small, purpose-
+          built duplicate since the Tool project cannot reference that Core-internal type.
+        tests:
+          - ExportSubsystem_TargetFlag_RestrictsToSubtree
+          - ExportSubsystem_TargetFlag_IncludesEdgesWithBothEndpointsInSubtree
+          - ExportSubsystem_TargetFlag_UnresolvedName_ReportsNotFoundError
+          - ExportSubsystem_TargetFlag_StdlibTargetWithoutIncludeStdlib_ReportsNotFoundError
+          - ExportSubsystem_TargetFlag_StdlibTargetWithIncludeStdlib_Succeeds
+          - Context_Create_ExportCommand_WithTarget_SetsTarget
+          - ExportIntegration_RealFixture_TargetAndFilter_ProducesScopedJson
+
+      - id: SysML2Tools-Tool-Export-Filter
+        title: >-
+          The export command shall accept --filter <expr> narrowing exported declarations and
+          edges using the Phase 1 filter-expression subset (Core.Filtering), applied after
+          --target scoping (narrowing the target-scoped set further when both are supplied, or
+          the whole stdlib-filtered workspace when --target is absent); an unparsable or
+          unsupported --filter expression shall not abort the export — it shall fall back to
+          the unfiltered (but still target-scoped, if applicable) result, surfaced via both a
+          synthetic warning diagnostic in the output and a console warning.
+        justification: |
+          Reusing the public Core.Filtering FilterExpressionParser/FilterExpressionEvaluator
+          directly (no duplication needed, unlike --target's subtree logic) keeps export's
+          filter semantics identical to render's `--filter`; falling back to the unfiltered
+          result on parse failure (rather than aborting) mirrors GeneralViewLayoutStrategy's
+          own graceful degradation for a non-evaluatable `filter [<expr>];` statement, so a
+          typo in the expression never turns a working export invocation into a hard failure.
+        tests:
+          - ExportSubsystem_FilterFlag_NarrowsDeclarations
+          - ExportSubsystem_FilterFlag_WithoutTarget_NarrowsWholeWorkspace
+          - ExportSubsystem_TargetAndFilter_ComposeTargetFirstThenFilter
+          - ExportSubsystem_FilterFlag_UnsupportedConstruct_AddsDiagnosticAndWarns
+          - Context_Create_ExportCommand_WithFilter_SetsFilterExpression
+          - ExportIntegration_RealFixture_TargetAndFilter_ProducesScopedJson
 
       - id: SysML2Tools-Tool-Export-SelfTest
         title: >-

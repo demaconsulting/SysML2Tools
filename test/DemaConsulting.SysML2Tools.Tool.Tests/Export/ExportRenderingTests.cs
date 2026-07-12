@@ -273,6 +273,86 @@ public class ExportRenderingTests
     }
 
     /// <summary>
+    ///     Full CLI end-to-end integration test: runs the built tool via <c>dotnet</c> against the
+    ///     real <c>VehicleDefinitions.sysml</c> fixture with both <c>--target</c> and
+    ///     <c>--filter</c> supplied together, validating that the composed narrowing produces a
+    ///     smaller, valid JSON document scoped to the target's containment subtree, with every
+    ///     declaration key and edge endpoint confined to that subtree.
+    /// </summary>
+    [Fact]
+    public void ExportIntegration_RealFixture_TargetAndFilter_ProducesScopedJson()
+    {
+        var dllPath = PathHelpers.SafePathCombine(AppContext.BaseDirectory, "DemaConsulting.SysML2Tools.dll");
+        Assert.True(File.Exists(dllPath), $"Could not find SysML2 Tools DLL at {dllPath}");
+
+        var fixtureRoot = FindSysMlModelsRoot();
+        Assert.NotNull(fixtureRoot);
+        var fixtureFile = Path.Combine(fixtureRoot!, "OMG", "examples", "VehicleExample", "VehicleDefinitions.sysml");
+        Assert.True(File.Exists(fixtureFile), $"Could not find fixture file at {fixtureFile}");
+
+        // --- Unscoped baseline, for a size comparison below ---
+        var exitCodeBaseline = Runner.Run(out var baselineOutput, "dotnet", dllPath, "export", "--format", "json", fixtureFile);
+        Assert.Equal(0, exitCodeBaseline);
+
+        // --- --target + --filter together: --target narrows to the 'Vehicle' subtree; the
+        // "not @NoSuchMetadataType" --filter expression is a supported Phase 1 construct
+        // (negated classification test) that matches every candidate (since none carry that
+        // nonexistent metadata type), so it exercises the composed pipeline without further
+        // narrowing, keeping the expected result predictable. ---
+        var exitCodeScoped = Runner.Run(
+            out var scopedOutput,
+            "dotnet", dllPath, "export", "--format", "json",
+            "--target", "VehicleDefinitions::Vehicle",
+            "--filter", "not @NoSuchMetadataType",
+            fixtureFile);
+        Assert.Equal(0, exitCodeScoped);
+
+        var jsonStart = scopedOutput.IndexOf('{');
+        Assert.True(jsonStart >= 0, $"Could not find start of JSON document in output:\n{scopedOutput}");
+        var scopedDocumentText = scopedOutput[jsonStart..];
+
+        using var document = JsonDocument.Parse(scopedDocumentText);
+        var root = document.RootElement;
+        Assert.True(root.TryGetProperty("Declarations", out var declarations));
+        Assert.True(root.TryGetProperty("Edges", out var edges));
+        Assert.True(root.TryGetProperty("Diagnostics", out var diagnostics));
+
+        // No --filter parse failure occurred, so no synthetic warning diagnostic was appended.
+        Assert.DoesNotContain(diagnostics.EnumerateArray(), d => d.GetProperty("FilePath").GetString() == "<--filter>");
+
+        // Every declaration key is 'VehicleDefinitions::Vehicle' itself or lies within its
+        // containment subtree — never an unrelated top-level definition like 'Transmission'.
+        var declarationNames = declarations.EnumerateObject().Select(p => p.Name).ToList();
+        Assert.NotEmpty(declarationNames);
+        Assert.All(declarationNames, name =>
+            Assert.True(
+                name == "VehicleDefinitions::Vehicle" || name.StartsWith("VehicleDefinitions::Vehicle::", StringComparison.Ordinal),
+                $"Declaration '{name}' is outside the --target subtree."));
+
+        // Every edge's endpoints (when present) also lie within the same subtree.
+        foreach (var edge in edges.EnumerateArray())
+        {
+            var target = edge.GetProperty("TargetQualifiedName").GetString();
+            Assert.NotNull(target);
+            Assert.True(
+                target == "VehicleDefinitions::Vehicle" || target!.StartsWith("VehicleDefinitions::Vehicle::", StringComparison.Ordinal),
+                $"Edge target '{target}' is outside the --target subtree.");
+
+            var source = edge.GetProperty("SourceQualifiedName").GetString();
+            if (source is not null)
+            {
+                Assert.True(
+                    source == "VehicleDefinitions::Vehicle" || source.StartsWith("VehicleDefinitions::Vehicle::", StringComparison.Ordinal),
+                    $"Edge source '{source}' is outside the --target subtree.");
+            }
+        }
+
+        // The scoped, composed export is strictly smaller than the unscoped baseline, confirming
+        // the narrowing had an observable effect rather than silently exporting everything.
+        Assert.True(scopedOutput.Length < baselineOutput.Length);
+    }
+
+    /// <summary>
     ///     <c>--output</c> pointing at a file inside a directory that doesn't yet exist succeeds,
     ///     creating the missing parent directory (mirroring <c>render</c>'s
     ///     <c>Directory.CreateDirectory</c> guard for its own <c>--output</c> directory).
