@@ -82,4 +82,16 @@
   <data name="Export_OptionIncludeStdlib" xml:space="preserve">
     <value>  --include-stdlib           Include OMG standard library elements</value>
   </data>
+  <data name="Export_OptionTarget1" xml:space="preserve">
+    <value>  --target &lt;qualified-name&gt;  Restrict output to the containment subtree rooted at</value>
+  </data>
+  <data name="Export_OptionTarget2" xml:space="preserve">
+    <value>                             the named element (applied before --filter)</value>
+  </data>
+  <data name="Export_OptionFilter1" xml:space="preserve">
+    <value>  --filter &lt;expr&gt;            Narrow output using a Phase 1 filter expression</value>
+  </data>
+  <data name="Export_OptionFilter2" xml:space="preserve">
+    <value>                             (see 'render --filter'); applied after --target</value>
+  </data>
 </root>

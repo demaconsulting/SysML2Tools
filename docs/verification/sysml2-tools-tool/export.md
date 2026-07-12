@@ -43,6 +43,22 @@ shape. Tests run against all three target frameworks.
   included/excluded per `--include-stdlib`.
 - `export --help` prints usage/help text without throwing, including an explicit note that
   `--output` names a file (not a directory, unlike `render`'s `--output`).
+- `--target <qualified-name>` restricts the exported declarations/edges to the target's
+  containment subtree (expanding a usage/feature target to also include its resolved type's
+  subtree); edges require both endpoints (when the source is non-null) to lie within the
+  subtree.
+- An unresolvable `--target` (genuinely absent, or a standard-library declaration without
+  `--include-stdlib`) reports "--target '<name>' was not found in the workspace" with exit
+  code 1 and no export produced; both cases share the same message.
+- `--filter <expr>` narrows the exported declarations/edges using the Phase 1
+  filter-expression subset, applied after `--target` scoping (or over the whole
+  stdlib-filtered workspace when `--target` is absent).
+- An unparsable/unsupported `--filter` expression does not abort the export: it falls back
+  to the unfiltered (`--target`-scoped, if applicable) result, appending a synthetic warning
+  `SysmlDiagnostic` (`FilePath = "<--filter>"`) to the output and printing a matching console
+  warning, with exit code 0.
+- `--target` and `--filter` compose in order — `--target` scopes first, `--filter` narrows
+  the already-scoped set second — never the reverse.
 - The `SysML2Tools_ExportSelfTest` self-test (part of `--validate`) passes.
 - Existing `lint`/`render`/`query` test suites continue to pass unmodified, confirming no
   regression.
@@ -70,6 +86,14 @@ globs produces `Format = null`, `Output = null`, `IncludeStdlib = false`.
 **`ExportArgumentParser_OutputFlagMissingValue_ThrowsArgumentException`**: Verifies a
 trailing `--format`/`--output` with no following value throws `ArgumentException`.
 
+**`ExportArgumentParser_TargetFlag_CapturesValue`** /
+**`ExportArgumentParser_FilterFlag_CapturesValue`**: Verifies `--target <qualified-name>` /
+`--filter <expr>` populate `Target`/`FilterExpression` with the raw supplied value.
+
+**`ExportArgumentParser_TargetFlagMissingValue_ThrowsArgumentException`** /
+**`ExportArgumentParser_FilterFlagMissingValue_ThrowsArgumentException`**: Verifies a
+trailing `--target`/`--filter` with no following value throws `ArgumentException`.
+
 **`ExportSubsystem_FormatJson_DispatchesAndPrintsJson`** /
 **`ExportSubsystem_NoFormat_DefaultsToJson`** /
 **`ExportSubsystem_FormatJsonl_DispatchesAndPrintsJsonLines`**: Verifies each accepted
@@ -93,7 +117,41 @@ declarations/edges are excluded by default and included (with measurably larger 
 file-resolution error paths report the expected message and exit code 1.
 
 **`ExportSubsystem_ExportHelp_PrintsHelpWithoutThrowing`**: Verifies `export --help` prints
-help text (including the `--output` file-vs-directory clarification) and exits with code 0.
+help text (including the `--output` file-vs-directory clarification, and the new `--target`/
+`--filter` option lines) and exits with code 0.
+
+**`ExportSubsystem_TargetFlag_RestrictsToSubtree`**: Verifies `--target` narrows the
+exported declarations to the target's containment subtree, excluding unrelated declarations.
+
+**`ExportSubsystem_TargetFlag_IncludesEdgesWithBothEndpointsInSubtree`**: Verifies that a
+usage/feature `--target` value's usage-to-type expansion brings its resolved type into scope,
+so the usage's own `Typing` edge (whose endpoints are both then in scope) survives, while an
+edge to an unrelated declaration does not.
+
+**`ExportSubsystem_TargetFlag_UnresolvedName_ReportsNotFoundError`**: Verifies a `--target`
+value absent from the workspace reports the "not found" error with exit code 1.
+
+**`ExportSubsystem_TargetFlag_StdlibTargetWithoutIncludeStdlib_ReportsNotFoundError`** /
+**`ExportSubsystem_TargetFlag_StdlibTargetWithIncludeStdlib_Succeeds`**: Verifies a `--target`
+value naming a standard-library declaration reports the same "not found" error without
+`--include-stdlib`, and succeeds (scoping to that stdlib element's subtree) with it.
+
+**`ExportSubsystem_FilterFlag_NarrowsDeclarations`**: Verifies `--filter` narrows the
+exported declarations to those matching the supplied classification-test expression.
+
+**`ExportSubsystem_FilterFlag_WithoutTarget_NarrowsWholeWorkspace`**: Verifies `--filter`
+with no `--target` narrows the whole (stdlib-filtered) workspace, producing measurably
+smaller output than the unfiltered baseline.
+
+**`ExportSubsystem_TargetAndFilter_ComposeTargetFirstThenFilter`**: Verifies `--target` and
+`--filter` compose in order — `--target` scopes to the subtree (including a usage's expanded
+type) first, and `--filter` then narrows that already-scoped set further, so only elements
+satisfying both narrowing steps survive.
+
+**`ExportSubsystem_FilterFlag_UnsupportedConstruct_AddsDiagnosticAndWarns`**: Verifies an
+unsupported Phase 1 `--filter` construct does not abort the export — it falls back to the
+unfiltered result, appends a synthetic warning `SysmlDiagnostic` (`FilePath = "<--filter>"`,
+`Severity = Warning`) to the output, and prints a matching console warning.
 
 ##### ExportRenderingTests.cs
 
@@ -124,6 +182,14 @@ line, each parseable and carrying the expected `"Kind"` discriminator. Satisfies
 `SysML2Tools-Tool-Export-StdlibFilter`, `SysML2Tools-Tool-Export-JsonEnvelope`, and
 `SysML2Tools-Tool-Export-JsonlEnvelope`.
 
+**`ExportIntegration_RealFixture_TargetAndFilter_ProducesScopedJson`**: A full CLI
+end-to-end test (via `Runner.Run`) against the same `VehicleDefinitions.sysml` fixture,
+supplying both `--target VehicleDefinitions::Vehicle` and a supported (always-matching)
+`--filter` expression together: asserts the resulting JSON document is valid, strictly
+smaller than an unscoped baseline export, contains no synthetic `--filter`-failure
+diagnostic, and that every declaration key and edge endpoint lies within the `--target`
+subtree. Satisfies `SysML2Tools-Tool-Export-Target` and `SysML2Tools-Tool-Export-Filter`.
+
 ##### Validation_RunExportSelfTest_ValidModel_Passes (ValidationTests.cs)
 
 Verifies that `Validation.RunExportSelfTestAsync` passes against the built-in self-test
@@ -143,6 +209,12 @@ populates `Export.Format`.
 
 **`Context_Create_ExportCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue`**: Verifies
 that `--include-stdlib` sets `Export.IncludeStdlib` to `true`.
+
+**`Context_Create_ExportCommand_WithTarget_SetsTarget`**: Verifies that
+`--target Model::Vehicle` populates `Export.Target`.
+
+**`Context_Create_ExportCommand_WithFilter_SetsFilterExpression`**: Verifies that
+`--filter @Critical` populates `Export.FilterExpression`.
 
 **`Context_Create_ExportCommand_WithFiles_SetsFiles`**: Verifies that a file pattern
 supplied after the `export` token populates `Export.Files` with the matching glob.

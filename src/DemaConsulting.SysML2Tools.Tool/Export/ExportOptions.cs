@@ -67,6 +67,40 @@ internal sealed record ExportOptions
     public bool IncludeStdlib { get; init; }
 
     /// <summary>
+    ///     Gets the qualified name of the element to restrict the export to, supplied via
+    ///     <c>--target</c>.
+    /// </summary>
+    /// <remarks>
+    ///     Captured raw here and resolved/validated later by <see cref="ExportCommand.RunAsync"/>
+    ///     (which narrows <see cref="ExportResult.Declarations"/>/<see cref="ExportResult.Edges"/>
+    ///     to the target's containment subtree, reporting a clean error when the name does not
+    ///     resolve to a visible declaration). <see langword="null"/> means no target scoping is
+    ///     applied — the whole (stdlib-filtered) workspace is exported, matching the pre-existing
+    ///     behavior. Applied before <see cref="FilterExpression"/> — see
+    ///     <see cref="ExportCommand"/>'s remarks for the composition order.
+    /// </remarks>
+    public string? Target { get; init; }
+
+    /// <summary>
+    ///     Gets the Phase 1 filter expression narrowing the exported declarations/edges, supplied
+    ///     via <c>--filter</c>.
+    /// </summary>
+    /// <remarks>
+    ///     Mirrors <see cref="Render.RenderCommandOptions.FilterExpression"/>'s style: captured
+    ///     raw text here, passed through unchanged to
+    ///     <see cref="Filtering.FilterExpressionParser"/>'s <c>Parse</c> method by
+    ///     <see cref="ExportCommand.RunAsync"/> — no expression validation happens during parsing
+    ///     of the command line. Unlike <c>render</c>'s <c>--filter</c> (which requires
+    ///     <c>--view-type</c>/<c>--view-target</c>), this is independent of <see cref="Target"/>:
+    ///     with no <see cref="Target"/>, it narrows the whole (stdlib-filtered) workspace; with a
+    ///     <see cref="Target"/>, it narrows the target's already-scoped subtree further. A
+    ///     parse/evaluation failure does not abort the export — it falls back to the unfiltered
+    ///     (but still target-scoped, if applicable) result, with a diagnostic and console warning
+    ///     — see <see cref="ExportCommand"/>'s remarks.
+    /// </remarks>
+    public string? FilterExpression { get; init; }
+
+    /// <summary>
     ///     Gets the file glob patterns supplied as positional arguments.
     /// </summary>
     public IReadOnlyList<string> Files { get; init; } = [];
