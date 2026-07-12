@@ -4137,7 +4137,10 @@ public sealed class WorkspaceLoaderTests
 
     /// <summary>
     ///     Named control nodes (e.g. <c>fork f;</c>, <c>join j;</c>) keep their declared name
-    ///     instead of a synthesized one.
+    ///     instead of a synthesized one, and — unlike anonymous control nodes — are given a
+    ///     non-null, fully-qualified <c>QualifiedName</c> (mirroring <c>BuildStateActionFeatureNode</c>'s
+    ///     handling of named entry/do/exit actions), so they are correctly registered in the
+    ///     symbol table and subject to expose-scope filtering.
     /// </summary>
     [Fact]
     public async Task WorkspaceLoader_LoadAsync_NamedControlNodes_KeepDeclaredName()
@@ -4167,8 +4170,19 @@ public sealed class WorkspaceLoaderTests
                 result.Workspace!.Declarations["AF::Flow"]);
             var features = flow.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>().ToList();
 
-            Assert.Contains(features, f => f.FeatureKeyword == "fork" && f.Name == "f");
-            Assert.Contains(features, f => f.FeatureKeyword == "join" && f.Name == "j");
+            var fork = Assert.Single(features, f => f.FeatureKeyword == "fork" && f.Name == "f");
+            Assert.Equal("AF::Flow::f", fork.QualifiedName);
+
+            var join = Assert.Single(features, f => f.FeatureKeyword == "join" && f.Name == "j");
+            Assert.Equal("AF::Flow::j", join.QualifiedName);
+
+            // The named control nodes must actually be registered in the symbol table (this is
+            // the crux of the fix: previously QualifiedName was always null, so RegisterAll never
+            // registered named fork/join/merge/decide/accept/send nodes).
+            Assert.True(result.Workspace!.Declarations.TryGetValue("AF::Flow::f", out var forkSymbol));
+            Assert.Same(fork, forkSymbol);
+            Assert.True(result.Workspace!.Declarations.TryGetValue("AF::Flow::j", out var joinSymbol));
+            Assert.Same(join, joinSymbol);
         }
         finally
         {

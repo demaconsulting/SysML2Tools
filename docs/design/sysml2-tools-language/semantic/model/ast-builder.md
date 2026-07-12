@@ -396,7 +396,12 @@ so leaving these nodes nameless would make it impossible to wire their successio
 distinct badge for them. The synthetic name is never registered in the symbol table
 (`QualifiedName` stays `null`, so `$`-prefixed names never resolve and surface only as cosmetic
 "unresolved reference" warnings) and is blanked from rendered labels by
-`ActionFlowViewLayoutStrategy`; it exists purely as an internal succession-wiring mechanism.
+`ActionFlowViewLayoutStrategy`; it exists purely as an internal succession-wiring mechanism. When
+the control node instead has an *explicitly declared* name (e.g. `fork buildFork;`), it is treated
+like any other named feature: `QualifiedName` is populated via the same `QualifyName` helper used
+by `BuildStateActionFeatureNode`, so it is registered in the symbol table and correctly subject to
+expose-scope filtering (`ExposeScopeResolver.IsInSubjectScope`) in
+`ActionFlowViewLayoutStrategy.CollectActions`.
 `assignmentNode`, `terminateNode`, `ifNode`, `whileLoopNode`, and `forLoopNode` remain
 intentionally unhandled — a pre-existing gap, not introduced by this change.
 

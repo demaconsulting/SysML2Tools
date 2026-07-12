@@ -640,21 +640,26 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     <c>$&lt;keyword&gt;&lt;n&gt;</c> name is assigned via <see cref="_anonymousNodeCounter"/>
     ///     so the node still renders as a distinct shape and can still act as those successions'
     ///     implicit source; its <see cref="SysmlNode.QualifiedName"/> stays <see langword="null"/>
-    ///     (this is purely local succession-wiring data, never registered in the symbol table or
-    ///     referenced across files/scopes). The nested <c>actionBody</c>'s internal semantics are
-    ///     deliberately NOT modeled, mirroring <see cref="BuildStateActionFeatureNode"/>.
-    ///     <c>assignmentNode</c>/<c>terminateNode</c>/<c>ifNode</c>/<c>whileLoopNode</c>/
-    ///     <c>forLoopNode</c> remain an intentional, out-of-scope gap — not handled here or
-    ///     anywhere else in <see cref="AstBuilder"/>.
+    ///     in that synthesized case (this is purely local succession-wiring data, never registered
+    ///     in the symbol table or referenced across files/scopes). When the node instead has an
+    ///     explicitly declared name (e.g. <c>fork buildFork;</c>), it is treated like any other
+    ///     named feature in this file: its <see cref="SysmlNode.QualifiedName"/> is populated via
+    ///     <see cref="QualifyName"/> so it is registered in the symbol table and correctly subject
+    ///     to expose-scope filtering, mirroring <see cref="BuildStateActionFeatureNode"/>. The
+    ///     nested <c>actionBody</c>'s internal semantics are deliberately NOT modeled, mirroring
+    ///     <see cref="BuildStateActionFeatureNode"/>. <c>assignmentNode</c>/<c>terminateNode</c>/
+    ///     <c>ifNode</c>/<c>whileLoopNode</c>/<c>forLoopNode</c> remain an intentional, out-of-scope
+    ///     gap — not handled here or anywhere else in <see cref="AstBuilder"/>.
     /// </summary>
     private SysmlFeatureNode BuildActionNodeFeature(SysMLv2Parser.UsageDeclarationContext? decl, string keyword)
     {
-        var name = GetDeclaredName(decl?.identification()) ?? $"${keyword}{_anonymousNodeCounter++}";
+        var declaredName = GetDeclaredName(decl?.identification());
+        var name = declaredName ?? $"${keyword}{_anonymousNodeCounter++}";
 
         return new SysmlFeatureNode
         {
             Name = name,
-            QualifiedName = null,
+            QualifiedName = declaredName is not null ? QualifyName(name) : null,
             FeatureKeyword = keyword,
             Children = Array.Empty<SysmlNode>(),
             Annotations = Array.Empty<SysmlAnnotation>(),
