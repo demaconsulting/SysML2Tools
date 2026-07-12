@@ -1086,7 +1086,7 @@ internal sealed class ReferenceResolver
     ///     directly via <see cref="FindMemberInAncestorChain"/> (covers a <c>state def</c> that
     ///     itself declares an explicit <c>:&gt;</c> supertype); (3) only if both fail, and only for
     ///     the two well-known names ROADMAP.md calls out (<c>"start"</c>/<c>"done"</c>), and only
-    ///     when the enclosing node is itself state/action-keyworded, fall back to a hardcoded,
+    ///     when the enclosing node itself has a state/action keyword, fall back to a hardcoded,
     ///     narrowly-scoped last resort: look the name up directly among
     ///     <c>Actions::Action</c>'s own direct children in the stdlib. This last-resort branch
     ///     exists because this codebase implements no general implicit-generalization/default-
@@ -1137,21 +1137,21 @@ internal sealed class ReferenceResolver
         }
 
         // Last resort: only for the two well-known inherited pseudostate/action members named in
-        // ROADMAP.md, and only when the enclosing node is itself state/action-keyworded, so this
+        // ROADMAP.md, and only when the enclosing node itself has a state/action keyword, so this
         // simplification cannot silently misfire for unrelated names or node kinds.
         if (name is not ("start" or "done"))
         {
             return false;
         }
 
-        var isStateOrActionKeyworded = enclosingNode switch
+        var isStateOrActionKeyword = enclosingNode switch
         {
             SysmlFeatureNode { FeatureKeyword: "state" or "action" } => true,
             SysmlDefinitionNode { DefinitionKeyword: "state def" or "action def" } => true,
             _ => false,
         };
 
-        if (!isStateOrActionKeyworded)
+        if (!isStateOrActionKeyword)
         {
             return false;
         }
