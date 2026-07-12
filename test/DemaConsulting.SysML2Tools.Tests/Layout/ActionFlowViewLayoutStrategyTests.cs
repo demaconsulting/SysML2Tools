@@ -666,4 +666,201 @@ public sealed class ActionFlowViewLayoutStrategyTests
         Assert.Contains(boxes, b => b.Label == "b1");
         Assert.Contains(boxes, b => b.Label == "b2");
     }
+
+    /// <summary>
+    ///     A named fork feeding two actions that later join renders a
+    ///     <see cref="BadgeShape.HorizontalBar"/> badge at both the fork and the join, with the
+    ///     succession edges wired between them (regression-guarding the ordinary-action rendering
+    ///     path: <c>b1</c>/<c>b2</c> still render as plain boxes).
+    /// </summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_ForkAndJoin_RenderHorizontalBarBadges()
+    {
+        var strategy = new ActionFlowViewLayoutStrategy();
+        var process = new SysmlDefinitionNode
+        {
+            Name = "Process",
+            QualifiedName = "P::Process",
+            DefinitionKeyword = "action def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a", QualifiedName = "P::Process::a", FeatureKeyword = "action" },
+                new SysmlFeatureNode { Name = "f", QualifiedName = null, FeatureKeyword = "fork" },
+                new SysmlFeatureNode { Name = "b1", QualifiedName = "P::Process::b1", FeatureKeyword = "action" },
+                new SysmlFeatureNode { Name = "b2", QualifiedName = "P::Process::b2", FeatureKeyword = "action" },
+                new SysmlFeatureNode { Name = "j", QualifiedName = null, FeatureKeyword = "join" },
+                new SysmlTransitionNode { Source = "a", Target = "f" },
+                new SysmlTransitionNode { Source = "f", Target = "b1" },
+                new SysmlTransitionNode { Source = "f", Target = "b2" },
+                new SysmlTransitionNode { Source = "b1", Target = "j" },
+                new SysmlTransitionNode { Source = "b2", Target = "j" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::Process"] = process }
+        };
+        var context = new ViewContext("ActionFlow", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var bars = layout.Nodes.OfType<LayoutBadge>().Where(b => b.Shape == BadgeShape.HorizontalBar).ToList();
+        Assert.Equal(2, bars.Count);
+        Assert.Contains(bars, b => b.Label == "f");
+        Assert.Contains(bars, b => b.Label == "j");
+
+        var actionBoxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "action").ToList();
+        Assert.Equal(3, actionBoxes.Count);
+        Assert.Contains(actionBoxes, b => b.Label == "a");
+        Assert.Contains(actionBoxes, b => b.Label == "b1");
+        Assert.Contains(actionBoxes, b => b.Label == "b2");
+    }
+
+    /// <summary>
+    ///     A guarded decision feeding a merge renders a <see cref="BadgeShape.Diamond"/> badge for
+    ///     both the decision and the merge node.
+    /// </summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_DecisionAndMerge_RenderDiamondBadges()
+    {
+        var strategy = new ActionFlowViewLayoutStrategy();
+        var process = new SysmlDefinitionNode
+        {
+            Name = "Process",
+            QualifiedName = "P::Process",
+            DefinitionKeyword = "action def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "monitor", QualifiedName = "P::Process::monitor", FeatureKeyword = "action" },
+                new SysmlFeatureNode { Name = "d", QualifiedName = null, FeatureKeyword = "decide" },
+                new SysmlFeatureNode { Name = "addCharge", QualifiedName = "P::Process::addCharge", FeatureKeyword = "action" },
+                new SysmlFeatureNode { Name = "m", QualifiedName = null, FeatureKeyword = "merge" },
+                new SysmlTransitionNode { Source = "monitor", Target = "d" },
+                new SysmlTransitionNode { Source = "d", Target = "addCharge", Guard = "monitor.charge<100" },
+                new SysmlTransitionNode { Source = "d", Target = "m" },
+                new SysmlTransitionNode { Source = "addCharge", Target = "m" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::Process"] = process }
+        };
+        var context = new ViewContext("ActionFlow", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var diamonds = layout.Nodes.OfType<LayoutBadge>().Where(b => b.Shape == BadgeShape.Diamond).ToList();
+        Assert.Equal(2, diamonds.Count);
+        Assert.Contains(diamonds, b => b.Label == "d");
+        Assert.Contains(diamonds, b => b.Label == "m");
+    }
+
+    /// <summary>
+    ///     Accept/send nodes render as rounded-rectangle boxes (like ordinary actions) but keep
+    ///     their own distinct keyword instead of the hard-coded <c>"action"</c> keyword.
+    /// </summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_AcceptAndSend_RenderBoxesWithDistinctKeyword()
+    {
+        var strategy = new ActionFlowViewLayoutStrategy();
+        var process = new SysmlDefinitionNode
+        {
+            Name = "Process",
+            QualifiedName = "P::Process",
+            DefinitionKeyword = "action def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "sig", QualifiedName = "P::Process::sig", FeatureKeyword = "accept" },
+                new SysmlFeatureNode { Name = "msg", QualifiedName = "P::Process::msg", FeatureKeyword = "send" },
+                new SysmlTransitionNode { Source = "sig", Target = "msg" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::Process"] = process }
+        };
+        var context = new ViewContext("ActionFlow", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var boxes = layout.Nodes.OfType<LayoutBox>().ToList();
+        Assert.Contains(boxes, b => b.Keyword == "accept" && b.Label == "sig");
+        Assert.Contains(boxes, b => b.Keyword == "send" && b.Label == "msg");
+        Assert.DoesNotContain(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape is BadgeShape.Diamond or BadgeShape.HorizontalBar);
+    }
+
+    /// <summary>
+    ///     A synthetic <c>$</c>-prefixed anonymous control-node name (as synthesized by
+    ///     <c>AstBuilder</c> for an unnamed fork/decide/etc.) is never shown as the badge's label.
+    /// </summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_SyntheticControlNodeName_RendersBlankLabel()
+    {
+        var strategy = new ActionFlowViewLayoutStrategy();
+        var process = new SysmlDefinitionNode
+        {
+            Name = "Process",
+            QualifiedName = "P::Process",
+            DefinitionKeyword = "action def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a", QualifiedName = "P::Process::a", FeatureKeyword = "action" },
+                new SysmlFeatureNode { Name = "$fork0", QualifiedName = null, FeatureKeyword = "fork" },
+                new SysmlFeatureNode { Name = "b1", QualifiedName = "P::Process::b1", FeatureKeyword = "action" },
+                new SysmlTransitionNode { Source = "a", Target = "$fork0" },
+                new SysmlTransitionNode { Source = "$fork0", Target = "b1" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::Process"] = process }
+        };
+        var context = new ViewContext("ActionFlow", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var bar = Assert.Single(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.HorizontalBar);
+        Assert.Null(bar.Label);
+    }
+
+    /// <summary>
+    ///     The compact <c>action a; then b;</c> idiom (an action followed directly by an attached
+    ///     succession, as produced by <c>AstBuilder.VisitActionBodyItem</c>) resolves both nodes and
+    ///     wires the succession between them.
+    /// </summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_CompactActionThenIdiom_ResolvesBothNodes()
+    {
+        var strategy = new ActionFlowViewLayoutStrategy();
+        var process = new SysmlDefinitionNode
+        {
+            Name = "Process",
+            QualifiedName = "P::Process",
+            DefinitionKeyword = "action def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a", QualifiedName = "P::Process::a", FeatureKeyword = "action" },
+                new SysmlTransitionNode { Source = "a", Target = "b" },
+                new SysmlFeatureNode { Name = "b", QualifiedName = "P::Process::b", FeatureKeyword = "action" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::Process"] = process }
+        };
+        var context = new ViewContext("ActionFlow", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var boxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "action").ToList();
+        Assert.Equal(2, boxes.Count);
+        Assert.Contains(boxes, b => b.Label == "a");
+        Assert.Contains(boxes, b => b.Label == "b");
+        Assert.Contains(layout.Nodes.OfType<LayoutLine>(), l => l.LineStyle == LineStyle.Dashed);
+    }
 }

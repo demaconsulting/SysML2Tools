@@ -3909,6 +3909,336 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     The compact <c>action a1; then a2;</c> idiom (the
+    ///     <c>(sourceSuccessionMember)? actionBehaviorMember (actionTargetSuccessionMember)*</c>
+    ///     <c>actionBodyItem</c> alternative) resolves both the action and its attached succession.
+    ///     Before this fix, ANTLR's default <c>VisitChildren</c> aggregation silently dropped the
+    ///     action, keeping only the succession (or vice versa).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_CompactActionThenIdiom_ResolvesBothNodes()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package AF {
+                    action def Flow {
+                        action a1;
+                        then a2;
+                        action a2;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["AF::Flow"]);
+            var actions = flow.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
+                .Count(f => f.FeatureKeyword == "action");
+            Assert.Equal(2, actions);
+
+            var succession = flow.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlTransitionNode>()
+                .Single();
+            Assert.Equal("a1", succession.Source);
+            Assert.Equal("a2", succession.Target);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Multiple <c>actionTargetSuccessionMember</c>s attached after a single
+    ///     <c>actionBehaviorMember</c> (e.g. a fork's three outgoing branches) are all captured,
+    ///     each sharing the preceding node's name as their implicit <c>Source</c>. This also
+    ///     verifies the fork's own leading <c>then</c> (<c>sourceSuccessionMember</c>) synthesizes
+    ///     the implicit *incoming* succession from the immediately preceding sibling (<c>a</c>),
+    ///     since the grammar's leading marker itself carries no name of its own.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_MultipleActionTargetSuccessions_CapturesAll()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package AF {
+                    action def Flow {
+                        action a;
+                        then fork f;
+                        then b1;
+                        then b2;
+                        action b1;
+                        action b2;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["AF::Flow"]);
+            var successions = flow.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlTransitionNode>()
+                .Where(t => t.Source == "f")
+                .ToList();
+            Assert.Equal(2, successions.Count);
+            Assert.Contains(successions, t => t.Target == "b1");
+            Assert.Contains(successions, t => t.Target == "b2");
+
+            var incoming = flow.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlTransitionNode>()
+                .Single(t => t.Target == "f");
+            Assert.Equal("a", incoming.Source);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A bare <c>first start;</c> (no attached target succession) produces no succession node
+    ///     — unchanged from today, since <c>ActionFlowViewLayoutStrategy</c> infers its start/done
+    ///     markers purely from succession topology, not a declarative initial marker.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_BareInitialNodeMember_ProducesNoSuccession()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package AF {
+                    action def Flow {
+                        action a;
+                        first a;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["AF::Flow"]);
+            Assert.Empty(flow.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlTransitionNode>());
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     <c>first start then off;</c> (an <c>initialNodeMember</c> with an attached target
+    ///     succession) synthesizes a <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlTransitionNode"/>
+    ///     whose <c>Source</c> is the referenced qualified name and whose <c>Target</c> is the
+    ///     attached succession's target.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_InitialNodeMemberWithAttachedSuccession_SynthesizesTransition()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package AF {
+                    action def Flow {
+                        first start then off;
+                        action off;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["AF::Flow"]);
+            var succession = flow.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlTransitionNode>()
+                .Single();
+            Assert.Equal("start", succession.Source);
+            Assert.Equal("off", succession.Target);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Anonymous <c>fork</c>/<c>decide</c>/<c>join</c>/<c>merge</c>/<c>accept</c>/<c>send</c>
+    ///     control nodes each register a <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode"/>
+    ///     with the correct <c>FeatureKeyword</c> and a non-null synthetic <c>$</c>-prefixed
+    ///     <c>Name</c> (rather than the <see langword="null"/> name left by a genuinely anonymous
+    ///     plain action), since fork/decide/send are the dominant real-world idiom for anonymous
+    ///     control nodes per the OMG training corpus.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_AnonymousControlNodes_SynthesizeNames()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package AF {
+                    action def Flow {
+                        action a;
+                        then fork;
+                        then b1;
+                        then b2;
+                        action b1;
+                        action b2;
+                        then join;
+                        then decide;
+                        if true then b1;
+                        else b2;
+                        then merge;
+                        accept sig;
+                        then send;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["AF::Flow"]);
+            var features = flow.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>().ToList();
+
+            foreach (var keyword in new[] { "fork", "join", "decide", "merge" })
+            {
+                var feature = features.Single(f => f.FeatureKeyword == keyword);
+                Assert.NotNull(feature.Name);
+                Assert.StartsWith("$", feature.Name, StringComparison.Ordinal);
+                Assert.Null(feature.QualifiedName);
+            }
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Named control nodes (e.g. <c>fork f;</c>, <c>join j;</c>) keep their declared name
+    ///     instead of a synthesized one, and — unlike anonymous control nodes — are given a
+    ///     non-null, fully-qualified <c>QualifiedName</c> (mirroring <c>BuildStateActionFeatureNode</c>'s
+    ///     handling of named entry/do/exit actions), so they are correctly registered in the
+    ///     symbol table and subject to expose-scope filtering.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_NamedControlNodes_KeepDeclaredName()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package AF {
+                    action def Flow {
+                        action a;
+                        then fork f;
+                        then b1;
+                        then b2;
+                        action b1;
+                        action b2;
+                        then join j;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["AF::Flow"]);
+            var features = flow.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>().ToList();
+
+            var fork = Assert.Single(features, f => f.FeatureKeyword == "fork" && f.Name == "f");
+            Assert.Equal("AF::Flow::f", fork.QualifiedName);
+
+            var join = Assert.Single(features, f => f.FeatureKeyword == "join" && f.Name == "j");
+            Assert.Equal("AF::Flow::j", join.QualifiedName);
+
+            // The named control nodes must actually be registered in the symbol table (this is
+            // the crux of the fix: previously QualifiedName was always null, so RegisterAll never
+            // registered named fork/join/merge/decide/accept/send nodes).
+            Assert.True(result.Workspace!.Declarations.TryGetValue("AF::Flow::f", out var forkSymbol));
+            Assert.Same(fork, forkSymbol);
+            Assert.True(result.Workspace!.Declarations.TryGetValue("AF::Flow::j", out var joinSymbol));
+            Assert.Same(join, joinSymbol);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Both the guarded (<c>if ... then ...</c>) and default (<c>else ...</c>)
+    ///     <c>actionTargetSuccession</c> variants extract a target; only the guarded form captures
+    ///     a guard expression (the grammar provides none for the <c>else</c> alternative).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_GuardedAndDefaultActionTargetSuccession_ExtractTargets()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package AF {
+                    action def Flow {
+                        action monitor;
+                        then decide d;
+                        if true then addCharge;
+                        else endCharging;
+                        action addCharge;
+                        action endCharging;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["AF::Flow"]);
+            var successions = flow.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlTransitionNode>()
+                .Where(t => t.Source == "d")
+                .ToList();
+            Assert.Equal(2, successions.Count);
+
+            var guarded = successions.Single(t => t.Target == "addCharge");
+            Assert.Equal("true", guarded.Guard);
+
+            var defaulted = successions.Single(t => t.Target == "endCharging");
+            Assert.Null(defaulted.Guard);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     Finds the test/SysMLModels directory relative to the test assembly.
     /// </summary>
     private static string? FindSysMLModelsRoot()

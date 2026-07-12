@@ -10,9 +10,11 @@ that have no successor, and successions drawn as dashed downward flow arrows.
 ##### Data Model
 
 `ActionFlowViewLayoutStrategy` has no instance state; all input arrives through the `BuildLayout`
-parameters. Layout constants (`MinActionWidth`, `CharWidthFactor`, `MarkerSize`, `MarkerBand`) are
-declared as `private const double` fields. A private `ActionItem` record carries each action with
-its computed box size; successions are carried as `(int From, int To)` index pairs.
+parameters. Layout constants (`MinActionWidth`, `CharWidthFactor`, `MarkerSize`, `MarkerBand`,
+`ControlNodeBadgeSize`) are declared as `private const double` fields. A private `ActionItem`
+record carries each action with its computed box size and a `Kind` field (`"action"` by default,
+or `"merge"`/`"decide"`/`"join"`/`"fork"`/`"accept"`/`"send"` for control nodes); successions are
+carried as `(int From, int To)` index pairs.
 
 ##### Key Methods
 
@@ -39,7 +41,28 @@ by this change — it is applied regardless of specificity. `CollectActions` gat
 qualified name fails `ExposeScopeResolver.IsInSubjectScope`; it then adds any additional action
 named only by a succession endpoint **unconditionally** (this second pass has no independent
 qualified name of its own to scope against, since it exists solely because a succession names it),
-building a name → index lookup.
+building a name → index lookup. Both the primary loop and `FindRoot`'s succession/action scoring
+recognize a 7-way `IsActionFlowKeyword` allow-list (`"action"`, `"merge"`, `"decide"`, `"join"`,
+`"fork"`, `"accept"`, `"send"`) rather than only `"action"`, so control-node-heavy action defs
+(e.g. one dominated by fork/join/decide/merge nodes) are still favored as root candidates; each
+collected item records its real `Kind` alongside its name.
+
+###### `ComputeActionSize(name, kind, theme)` and `MakeActionNode(item, rect)`
+
+`ComputeActionSize` sizes badge-kind items (`IsBadgeKind`: `"merge"`, `"decide"`, `"join"`,
+`"fork"`) to a fixed `ControlNodeBadgeSize` square, independent of the name's length; box-kind
+items (`"action"`, `"accept"`, `"send"`) keep the existing name-length-driven
+`MinActionWidth`/`CharWidthFactor` sizing. `MakeActionNode` is a router that replaces the former
+`MakeActionBox`: `"merge"`/`"decide"` map their placed rectangle's centre to a
+`LayoutBadge(CentreX, CentreY, Size, BadgeShape.Diamond, Label)`; `"fork"`/`"join"` map to a
+`LayoutBadge(..., BadgeShape.HorizontalBar, Label)`; `"accept"`/`"send"` and ordinary `"action"`
+items map to an unchanged `LayoutBox(BoxShape.RoundedRectangle, ...)`, except that `"accept"`/
+`"send"` set `Keyword` to their own kind instead of the hard-coded `"action"` text so the
+distinct node kind remains visible. For every kind, a badge or box `Label` derived from an
+AstBuilder-synthesized `$`-prefixed internal name (anonymous control nodes) is blanked to
+`string.Empty`, since synthetic internal identifiers are never meant to be user-visible. The
+ordinary-`"action"` rendering path is unchanged byte-for-byte from before this routing was
+introduced, since many existing gallery/test fixtures depend on today's plain-box behavior.
 
 ###### `ResolveSuccessions(root, index)`
 

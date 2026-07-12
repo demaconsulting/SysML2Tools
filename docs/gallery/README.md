@@ -113,8 +113,12 @@ SVG: [`svg/ElevatorStateTransitionView.svg`](svg/ElevatorStateTransitionView.svg
 
 ## 4. Action Flow View — CI/CD Pipeline
 
-Shows actions arranged top-to-bottom by the layered layout pipeline,
-with a start node, a done node, and a quality-gate branch and join.
+Shows actions arranged top-to-bottom by the layered layout pipeline, with a start node, a done
+node, and a quality-gate branch and join. The `build` step fans out through a named `fork`
+(rendered as a horizontal-bar badge) into parallel `unitTest`/`securityScan` branches that rejoin
+through a named `join` (also a horizontal-bar badge) before `qualityGate`. The `checkout` step
+uses the compact `action checkout; then restoreDependencies;` idiom instead of a standalone
+`first ... then ...;` succession statement.
 
 Model: [`models/04-pipeline-action-flow.sysml`](models/04-pipeline-action-flow.sysml) ·
 SVG: [`svg/PipelineActionFlowView.svg`](svg/PipelineActionFlowView.svg)

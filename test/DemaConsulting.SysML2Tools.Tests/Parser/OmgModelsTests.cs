@@ -235,4 +235,111 @@ public sealed class OmgModelsTests
         Assert.Contains(actionFeatures, f => f.FeatureKeyword == "do" && f.Name == "providePower");
         Assert.Contains(actionFeatures, f => f.FeatureKeyword == "exit" && f.Name == "applyParkingBrake");
     }
+
+    /// <summary>
+    ///     The dedicated <c>17.Control</c> corpus fixtures exercise the two Action Flow View
+    ///     sub-problems together: the combined-succession <c>actionBodyItem</c> shapes (the compact
+    ///     <c>action a1; then a2;</c> idiom, plus <c>first start;</c>/<c>first start then X;</c>)
+    ///     and the six control-node kinds (<c>merge</c>/<c>decide</c>/<c>join</c>/<c>fork</c>/
+    ///     <c>accept</c>/<c>send</c>), including the dominant real-world anonymous-node idiom
+    ///     (<c>then fork;</c>/<c>then decide;</c> with no declared name, immediately followed by
+    ///     several <c>then &lt;name&gt;;</c>/guarded target successions). Assertions are on raw
+    ///     <see cref="SysmlTransitionNode.Source"/>/<see cref="SysmlTransitionNode.Target"/> text
+    ///     and feature kind/name — not full reference resolution — per the design decision that an
+    ///     anonymous control node's synthesized <c>$</c>-prefixed name is expected to produce an
+    ///     "Unresolved reference" warning (cosmetic only: <c>ActionFlowViewLayoutStrategy</c> reads
+    ///     the raw text directly, never <c>ResolvedEdges</c>). Each fixture's leading `then`
+    ///     (<c>sourceSuccessionMember</c>) is also asserted to synthesize its implicit incoming
+    ///     succession from the immediately preceding sibling (e.g. <c>TurnOn-&gt;$fork0</c>,
+    ///     <c>J-&gt;F</c>, and the <c>ChargeBattery</c> declare-then-declare chain), since the
+    ///     grammar's leading marker itself carries no name of its own.
+    /// </summary>
+    [Fact]
+    public async Task ControlNode_OmgCorpusFixture_ResolvesForkJoinDecisionMerge()
+    {
+        var omgRoot = FindOmgModelsRoot();
+        var forkJoinFile = Path.Combine(omgRoot, "training", "17.Control", "ForkJoinExample.sysml");
+        var decisionFile = Path.Combine(omgRoot, "training", "17.Control", "DecisionExample.sysml");
+        var controlNodeFile = Path.Combine(omgRoot, "examples", "SimpleTests", "ControlNodeTest.sysml");
+        Assert.All(
+            [forkJoinFile, decisionFile, controlNodeFile],
+            f => Assert.True(File.Exists(f), $"Expected fixture not found: {f}"));
+
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([forkJoinFile, decisionFile, controlNodeFile], stdlibTable);
+
+        // ForkJoinExample.sysml: an anonymous fork feeding 3 branches that all join back together.
+        var brake = (SysmlDefinitionNode)result.Workspace!.Declarations["'Fork Join Example'::Brake"];
+        var brakeFork = Assert.Single(
+            brake.Children.OfType<SysmlFeatureNode>(), f => f.FeatureKeyword == "fork");
+        Assert.NotNull(brakeFork.Name);
+        Assert.StartsWith("$", brakeFork.Name, StringComparison.Ordinal);
+
+        var forkSuccessions = brake.Children
+            .OfType<SysmlTransitionNode>()
+            .Where(t => t.Source == brakeFork.Name)
+            .ToList();
+        Assert.Equal(3, forkSuccessions.Count);
+        Assert.Contains(forkSuccessions, t => t.Target == "monitorBrakePedal");
+        Assert.Contains(forkSuccessions, t => t.Target == "monitorTraction");
+        Assert.Contains(forkSuccessions, t => t.Target == "braking");
+
+        // The fork's own leading `then` (sourceSuccessionMember) synthesizes the implicit
+        // incoming succession from the immediately preceding sibling action `TurnOn`.
+        Assert.Contains(
+            brake.Children.OfType<SysmlTransitionNode>(),
+            t => t.Source == "TurnOn" && t.Target == brakeFork.Name);
+
+        var joinNode = Assert.Single(
+            brake.Children.OfType<SysmlFeatureNode>(), f => f.FeatureKeyword == "join");
+        Assert.Equal("joinNode", joinNode.Name);
+        Assert.Equal(3, brake.Children.OfType<SysmlTransitionNode>().Count(t => t.Target == "joinNode"));
+
+        // DecisionExample.sysml: an anonymous decide with two guarded successions, plus a named
+        // merge that the decide's default-path action succession eventually rejoins.
+        var chargeBattery = (SysmlDefinitionNode)result.Workspace!.Declarations["'Decision Example'::ChargeBattery"];
+        var decide = Assert.Single(
+            chargeBattery.Children.OfType<SysmlFeatureNode>(), f => f.FeatureKeyword == "decide");
+        Assert.NotNull(decide.Name);
+        Assert.StartsWith("$", decide.Name, StringComparison.Ordinal);
+
+        var decideSuccessions = chargeBattery.Children
+            .OfType<SysmlTransitionNode>()
+            .Where(t => t.Source == decide.Name)
+            .ToList();
+        Assert.Equal(2, decideSuccessions.Count);
+        Assert.Contains(decideSuccessions, t => t.Target == "addCharge" && t.Guard == "monitor.batteryCharge<100");
+        Assert.Contains(decideSuccessions, t => t.Target == "endCharging" && t.Guard == "monitor.batteryCharge>=100");
+
+        Assert.Contains(
+            chargeBattery.Children.OfType<SysmlFeatureNode>(),
+            f => f.FeatureKeyword == "merge" && f.Name == "continueCharging");
+
+        // Each of ChargeBattery's leading-`then` chain items (`first start; then merge
+        // continueCharging; then action monitor: MonitorBattery{...}; then decide;`) synthesizes
+        // its own implicit incoming succession from the immediately preceding sibling.
+        var chargeBatteryTransitions = chargeBattery.Children.OfType<SysmlTransitionNode>().ToList();
+        Assert.Contains(chargeBatteryTransitions, t => t.Source == "start" && t.Target == "continueCharging");
+        Assert.Contains(chargeBatteryTransitions, t => t.Source == "continueCharging" && t.Target == "monitor");
+        Assert.Contains(chargeBatteryTransitions, t => t.Source == "monitor" && t.Target == decide.Name);
+
+        // ControlNodeTest.sysml: fully named fork/join/merge — the richest, most reliable fixture.
+        var controlNodeTest = (SysmlDefinitionNode)result.Workspace!.Declarations["ControlNodeTest"];
+        var controlFeatures = controlNodeTest.Children.OfType<SysmlFeatureNode>().ToList();
+        Assert.Contains(controlFeatures, f => f.FeatureKeyword == "join" && f.Name == "J");
+        Assert.Contains(controlFeatures, f => f.FeatureKeyword == "fork" && f.Name == "F");
+        Assert.Contains(controlFeatures, f => f.FeatureKeyword == "merge" && f.Name == "M");
+
+        var controlTransitions = controlNodeTest.Children.OfType<SysmlTransitionNode>().ToList();
+        Assert.Contains(controlTransitions, t => t.Source == "A1" && t.Target == "J");
+        Assert.Contains(controlTransitions, t => t.Source == "A2" && t.Target == "J");
+        Assert.Contains(controlTransitions, t => t.Source == "F" && t.Target == "B1");
+        Assert.Contains(controlTransitions, t => t.Source == "F" && t.Target == "B2");
+        Assert.Contains(controlTransitions, t => t.Source == "B1" && t.Target == "M");
+        Assert.Contains(controlTransitions, t => t.Source == "B2" && t.Target == "M");
+
+        // The join's own leading `then` synthesizes the implicit incoming succession from the
+        // immediately preceding sibling `J`.
+        Assert.Contains(controlTransitions, t => t.Source == "J" && t.Target == "F");
+    }
 }

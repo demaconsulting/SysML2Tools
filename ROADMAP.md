@@ -80,12 +80,38 @@ implemented first).
 and renderers; possibly `LayoutLabel`/compartment tweaks.
 **Visual gate:** a documented requirement/part renders its note and full compartments.
 
-### View dynamics refinements
+### Action Flow View: control-node/successor AST correctness + fork/join/decision/merge shapes — delivered
 
-- **Sequence View:** populate `LayoutActivation` execution bars; combined-fragment boxes
-  (alt/opt/loop); async/reply message styling.
-- **Action Flow View:** **fork/join** thick bars, **decision/merge** diamonds, accept/send
-  action shapes; optional **swim-lanes** via `LayoutBand`; item-flow edge annotations.
+**Delivered.** `AstBuilder.VisitActionBodyItem` now synthesizes a `SysmlTransitionNode` for both
+combined-shape `actionBodyItem` alternatives — `initialNodeMember (actionTargetSuccessionMember)*`
+and `(sourceSuccessionMember)? actionBehaviorMember (actionTargetSuccessionMember)*` — reusing the
+`MultiNodeCapture` sentinel introduced for the State Transition View fix, so the compact `action
+a1; then a2;` idiom and multiple attached successions now resolve correctly (previously both the
+node and its successor were silently dropped). `VisitMergeNode`/`VisitDecisionNode`/
+`VisitJoinNode`/`VisitForkNode`/`VisitAcceptNode`/`VisitSendNode` build minimal `SysmlFeatureNode`s
+with `FeatureKeyword` values `"merge"`/`"decide"`/`"join"`/`"fork"`/`"accept"`/`"send"`, giving
+anonymous control nodes (the dominant idiom in the OMG training corpus) a synthesized `$<keyword>
+<n>` internal name so their successions still wire correctly.
+`ActionFlowViewLayoutStrategy` now renders fork/join as a `LayoutBadge(BadgeShape.HorizontalBar)`
+and decision/merge as a `LayoutBadge(BadgeShape.Diamond)`; accept/send keep the rounded-rectangle
+box shape (no pentagon primitive exists in the referenced `DemaConsulting.Rendering` package) but
+now show their own `Keyword` instead of the hard-coded `"action"` text. Ordinary-action rendering
+is unchanged. The CI/CD Pipeline gallery model (`docs/gallery/models/04-pipeline-action-flow.sysml`)
+was extended with a named `fork`/`join` pair and the compact succession idiom, and regenerated.
+
+**Explicitly deferred (separate future items, not delivered here):** a true pentagon accept/send
+shape (needs a `DemaConsulting.Rendering` package change); swim-lanes via `LayoutBand`; item-flow
+edge annotations (no item-flow/payload capture exists in the AST yet); `assignmentNode`/
+`terminateNode`/`ifNode`/`whileLoopNode`/`forLoopNode` AST support (still entirely unmodeled); an
+`actionUsage`-level (rather than `action def`-level) nested `actionBody` — `VisitActionUsage`
+still doesn't collect nested action-body children, so control nodes/successions nested inside a
+`action x : T { ... }` *usage* (as opposed to an `action def X { ... }` body) remain invisible;
+the Sequence View dynamics item below (different subsystem, separate branch).
+
+### Sequence View dynamics
+
+- Populate `LayoutActivation` execution bars; combined-fragment boxes (alt/opt/loop); async/reply
+  message styling.
 - **Sequence dynamic-view compatibility check (known limitation, carried over from "Dynamic
   (ad-hoc) views", done):** `DynamicViewSynthesizer`'s `--view-type sequence` pre-check accepts
   any target with at least one nested `message` usage (the cheap, necessary-but-not-sufficient
@@ -96,10 +122,9 @@ and renderers; possibly `LayoutLabel`/compartment tweaks.
   `DynamicViewSynthesizer` or surfacing `SequenceViewLayoutStrategy`'s own lifeline-resolution
   result back to the synthesizer.
 
-**Scope:** `SequenceViewLayoutStrategy`, `ActionFlowViewLayoutStrategy`, renderer shape
-primitives (bar, diamond, pentagon, note). `LayoutActivation`/`LayoutBand` already defined.
-**Visual gate:** sequence shows activation bars + a fragment; action flow shows a fork/join and
-a decision/merge with correct shapes.
+**Scope:** `SequenceViewLayoutStrategy`, renderer shape primitives (note). `LayoutActivation`
+already defined.
+**Visual gate:** sequence shows activation bars + a fragment.
 
 ### State Transition View: attached-transition states, entry/exit actions, inherited pseudostate features
 

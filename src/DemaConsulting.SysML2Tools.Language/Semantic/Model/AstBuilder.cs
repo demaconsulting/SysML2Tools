@@ -250,16 +250,47 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     generic ANTLR <c>Visit</c> pipeline from a single grammar alternative that actually
     ///     produces several sibling AST nodes (e.g. a <c>stateBodyItem</c>'s attached-transition
     ///     shapes: the preceding state/entry-action usage plus one <see cref="SysmlTransitionNode"/>
-    ///     per attached transition). Never appears in a real <see cref="SysmlNode.Children"/>
-    ///     list — <see cref="CollectChildren"/> always intercepts it and flattens its
-    ///     <see cref="Nodes"/> into the owning node's children instead, mirroring how
-    ///     <see cref="AnnotationCapture"/> is intercepted and routed into
+    ///     per attached transition; or an <c>actionBodyItem</c>'s analogous combined-succession
+    ///     shapes: <c>(sourceSuccessionMember)? actionBehaviorMember
+    ///     (actionTargetSuccessionMember)*</c> and <c>initialNodeMember
+    ///     (actionTargetSuccessionMember)*</c>). Never appears in a real
+    ///     <see cref="SysmlNode.Children"/> list — <see cref="CollectChildren"/> always intercepts
+    ///     it and flattens its <see cref="Nodes"/> into the owning node's children instead,
+    ///     mirroring how <see cref="AnnotationCapture"/> is intercepted and routed into
     ///     <see cref="SysmlNode.Annotations"/> rather than becoming a child itself.
     /// </summary>
     private sealed class MultiNodeCapture : SysmlNode
     {
         public required IReadOnlyList<SysmlNode> Nodes { get; init; }
     }
+
+    /// <summary>
+    ///     Monotonically-increasing counter used to synthesize a unique internal
+    ///     <c>$&lt;keyword&gt;&lt;n&gt;</c> name for an anonymous control/accept/send node (see
+    ///     <see cref="BuildActionNodeFeature"/>). A synthetic name is required (rather than leaving
+    ///     <see cref="SysmlNode.Name"/> null, as plain anonymous actions do) because anonymous
+    ///     <c>fork</c>/<c>decide</c>/<c>send</c> nodes are the dominant idiom in the real OMG
+    ///     corpus and must still render as a distinct shape and act as the implicit
+    ///     <see cref="SysmlTransitionNode.Source"/> of their attached successions.
+    /// </summary>
+    private int _anonymousNodeCounter;
+
+    /// <summary>
+    ///     Tracks the name of the most recently established "flow position" while
+    ///     <see cref="CollectActionBodyChildren"/> iterates an action body's <c>actionBodyItem</c>s
+    ///     in source order, so <see cref="VisitActionBodyItem"/> can resolve the implicit
+    ///     <c>Source</c> of a leading bare <c>then</c> (<c>sourceSuccessionMember</c>) on a
+    ///     subsequent sibling. The grammar's <c>sourceSuccessionMember: THEN sourceSuccession</c>
+    ///     carries no name at all (it is just the <c>THEN</c> token plus an always-empty
+    ///     <c>sourceEnd</c>) — its meaning is "this node's incoming edge comes from whatever
+    ///     action/node immediately precedes it in the same enclosing action body." That identity
+    ///     can only come from order-sensitive traversal state maintained by the caller that
+    ///     iterates the sibling <c>actionBodyItem</c>s, not from anything inside the grammar node
+    ///     itself. Null outside an active <see cref="CollectActionBodyChildren"/> call, or when the
+    ///     preceding sibling did not establish a nameable flow position (e.g. the very first item
+    ///     in the body).
+    /// </summary>
+    private string? _actionBodyPreviousNodeName;
 
     /// <inheritdoc/>
     public override SysmlNode? VisitPartDefinition(SysMLv2Parser.PartDefinitionContext context)
@@ -352,9 +383,12 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var qualifiedName = QualifyName(name);
         var supertypeNames = GetSubclassificationSupertypes(decl?.subclassificationPart());
 
-        // Collect the action body (action usages and successions) as children.
+        // Collect the action body (action usages and successions) as children. Action bodies use
+        // CollectActionBodyChildren (not the generic CollectChildren) because resolving an
+        // implicit leading `then` requires order-sensitive tracking of the preceding sibling's
+        // flow position — see VisitActionBodyItem and _actionBodyPreviousNodeName.
         _namespaceStack.Add(name);
-        var (children, annotations) = CollectChildren(context.actionBody()?.actionBodyItem() ?? []);
+        var (children, annotations) = CollectActionBodyChildren(context.actionBody()?.actionBodyItem() ?? []);
         _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
 
         return new SysmlDefinitionNode
@@ -406,6 +440,229 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         {
             Source = source,
             Target = target,
+        };
+    }
+
+    /// <summary>
+    ///     Dispatches a single <c>actionBodyItem</c> alternative to the appropriate builder logic.
+    ///     Mirrors <see cref="VisitStateBodyItem"/>'s dispatch shape. <c>nonBehaviorBodyItem</c> and
+    ///     <c>guardedSuccessionMember</c> already produce exactly one AST node via default ANTLR
+    ///     visitor dispatch, so they are passed through unchanged (the latter's own internal shape
+    ///     is left untouched here, exactly as <see cref="VisitStateBodyItem"/> leaves its own
+    ///     untouched alternatives unhandled). The two combined-succession shapes —
+    ///     <c>initialNodeMember (actionTargetSuccessionMember)*</c> (e.g. <c>first start;</c> or
+    ///     <c>first start then off;</c>) and <c>(sourceSuccessionMember)? actionBehaviorMember
+    ///     (actionTargetSuccessionMember)*</c> (e.g. the compact <c>action a1; then a2;</c> idiom) —
+    ///     each may produce more than one sibling node (the referenced/behavior node itself, plus
+    ///     one <see cref="SysmlTransitionNode"/> per attached target succession whose
+    ///     <c>Source</c> is implicit); without this override, ANTLR's default <c>VisitChildren</c>
+    ///     aggregation silently discards every child result but the last, dropping the earlier
+    ///     nodes and losing successions entirely. The <c>actionBehaviorMember</c> alternative's
+    ///     optional leading <c>sourceSuccessionMember</c> (a bare <c>then</c> immediately before
+    ///     the node, e.g. <c>action a; then fork f; ...</c>) also synthesizes an additional
+    ///     incoming <see cref="SysmlTransitionNode"/> whose <c>Source</c> is
+    ///     <see cref="_actionBodyPreviousNodeName"/> — the name of the immediately preceding
+    ///     sibling in the enclosing action body, tracked by <see cref="CollectActionBodyChildren"/>
+    ///     since the grammar's leading marker itself carries no identity.
+    /// </summary>
+    public override SysmlNode? VisitActionBodyItem(SysMLv2Parser.ActionBodyItemContext context)
+    {
+        if (context.nonBehaviorBodyItem() is { } nonBehaviorBodyItem)
+        {
+            return Visit(nonBehaviorBodyItem);
+        }
+
+        if (context.guardedSuccessionMember() is { } guardedSuccessionMember)
+        {
+            return Visit(guardedSuccessionMember);
+        }
+
+        if (context.initialNodeMember() is { } initialNodeMember)
+        {
+            var targets = context.actionTargetSuccessionMember();
+            if (targets.Length == 0)
+            {
+                // Bare `first start;` carries no attached succession. Unlike state-transition
+                // pseudostates, ActionFlowViewLayoutStrategy infers its start/done markers purely
+                // from succession topology (no declarative initial-marker concept exists for
+                // actions), so there is nothing useful to synthesize here — unchanged from today.
+                return null;
+            }
+
+            var sourceName = initialNodeMember.qualifiedName()?.GetText();
+            var nodes = targets
+                .Select(target => (SysmlNode)BuildActionTargetSuccession(sourceName, target.actionTargetSuccession()))
+                .ToList();
+
+            return nodes.Count == 1 ? nodes[0] : new MultiNodeCapture { Nodes = nodes };
+        }
+
+        if (context.actionBehaviorMember() is { } actionBehaviorMember)
+        {
+            var behaviorNode = Visit(actionBehaviorMember);
+            if (behaviorNode is null)
+            {
+                return null;
+            }
+
+            var targets = context.actionTargetSuccessionMember();
+            var hasImplicitSource = context.sourceSuccessionMember() is not null;
+            if (!hasImplicitSource && targets.Length == 0)
+            {
+                return behaviorNode;
+            }
+
+            var nodes = new List<SysmlNode>();
+            if (hasImplicitSource && _actionBodyPreviousNodeName is { } previousName)
+            {
+                // A bare leading `then` (sourceSuccessionMember) means this node's incoming edge
+                // comes from whatever immediately preceded it in the same enclosing action body.
+                // The grammar gives that marker no name, so the source is resolved from the
+                // order-sensitive _actionBodyPreviousNodeName tracked by CollectActionBodyChildren.
+                // When no previous position is known (e.g. this is the first item in the body), no
+                // incoming edge is synthesized rather than fabricating a Source from nothing.
+                nodes.Add(new SysmlTransitionNode
+                {
+                    Source = previousName,
+                    Target = behaviorNode.Name,
+                });
+            }
+
+            nodes.Add(behaviorNode);
+
+            var sourceName = behaviorNode.Name;
+            foreach (var target in targets)
+            {
+                nodes.Add(BuildActionTargetSuccession(sourceName, target.actionTargetSuccession()));
+            }
+
+            return nodes.Count == 1 ? nodes[0] : new MultiNodeCapture { Nodes = nodes };
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Builds the <see cref="SysmlTransitionNode"/> for one <c>actionTargetSuccession</c>
+    ///     attached after an action-flow node (e.g. <c>then a2;</c>, <c>if g then a3;</c>, or
+    ///     <c>else a4;</c>), whose <c>Source</c> is implicitly the preceding node's name (never
+    ///     present in the grammar itself). Covers all three alternatives: <c>targetSuccession</c>
+    ///     (unguarded, target via a bare <see cref="SysMLv2Parser.ConnectorEndMemberContext"/>),
+    ///     <c>guardedTargetSuccession</c> (<c>if ... then ...</c>, guard captured), and
+    ///     <c>defaultTargetSuccession</c> (<c>else ...</c>, no guard expression exists in the
+    ///     grammar for this alternative — a known, documented simplification). The trailing
+    ///     <c>usageBody()</c> is ignored, mirroring <see cref="BuildAttachedTransition"/>'s
+    ///     treatment of <c>targetTransitionUsage</c>'s own trailing <c>actionBody()</c>.
+    /// </summary>
+    private SysmlTransitionNode BuildActionTargetSuccession(
+        string? sourceName,
+        SysMLv2Parser.ActionTargetSuccessionContext? succession)
+    {
+        if (succession?.targetSuccession() is { } targetSuccession)
+        {
+            return new SysmlTransitionNode
+            {
+                Source = sourceName,
+                Target = ConnectorEndReference(targetSuccession.connectorEndMember()),
+            };
+        }
+
+        if (succession?.guardedTargetSuccession() is { } guardedTargetSuccession)
+        {
+            return new SysmlTransitionNode
+            {
+                Source = sourceName,
+                Target = ConnectorEndReference(
+                    guardedTargetSuccession.transitionSuccessionMember()?.transitionSuccession()?.connectorEndMember()),
+                Guard = guardedTargetSuccession.guardExpressionMember()?.ownedExpression()?.GetText(),
+            };
+        }
+
+        if (succession?.defaultTargetSuccession() is { } defaultTargetSuccession)
+        {
+            return new SysmlTransitionNode
+            {
+                Source = sourceName,
+                Target = ConnectorEndReference(
+                    defaultTargetSuccession.transitionSuccessionMember()?.transitionSuccession()?.connectorEndMember()),
+            };
+        }
+
+        return new SysmlTransitionNode { Source = sourceName, Target = null };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitMergeNode(SysMLv2Parser.MergeNodeContext context)
+    {
+        return BuildActionNodeFeature(context.usageDeclaration(), "merge");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitDecisionNode(SysMLv2Parser.DecisionNodeContext context)
+    {
+        return BuildActionNodeFeature(context.usageDeclaration(), "decide");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitJoinNode(SysMLv2Parser.JoinNodeContext context)
+    {
+        return BuildActionNodeFeature(context.usageDeclaration(), "join");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitForkNode(SysMLv2Parser.ForkNodeContext context)
+    {
+        return BuildActionNodeFeature(context.usageDeclaration(), "fork");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitAcceptNode(SysMLv2Parser.AcceptNodeContext context)
+    {
+        var declaration = context.acceptNodeDeclaration()?.actionNodeUsageDeclaration();
+        return BuildActionNodeFeature(declaration?.usageDeclaration(), "accept");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitSendNode(SysMLv2Parser.SendNodeContext context)
+    {
+        var declaration = context.actionNodeUsageDeclaration()?.usageDeclaration()
+            ?? context.actionUsageDeclaration()?.usageDeclaration();
+        return BuildActionNodeFeature(declaration, "send");
+    }
+
+    /// <summary>
+    ///     Builds a minimal, deliberately non-behavioral <see cref="SysmlFeatureNode"/> for a
+    ///     <c>merge</c>/<c>decide</c>/<c>join</c>/<c>fork</c>/<c>accept</c>/<c>send</c> action-flow
+    ///     control node, registering only its (possibly synthesized) name with no children. When
+    ///     <paramref name="decl"/> yields no declared name — the dominant real-world idiom for
+    ///     <c>fork</c>/<c>decide</c>/<c>send</c> per the OMG training corpus (e.g. <c>then fork;</c>
+    ///     immediately followed by several <c>then &lt;name&gt;;</c> successions) — a synthetic
+    ///     <c>$&lt;keyword&gt;&lt;n&gt;</c> name is assigned via <see cref="_anonymousNodeCounter"/>
+    ///     so the node still renders as a distinct shape and can still act as those successions'
+    ///     implicit source; its <see cref="SysmlNode.QualifiedName"/> stays <see langword="null"/>
+    ///     in that synthesized case (this is purely local succession-wiring data, never registered
+    ///     in the symbol table or referenced across files/scopes). When the node instead has an
+    ///     explicitly declared name (e.g. <c>fork buildFork;</c>), it is treated like any other
+    ///     named feature in this file: its <see cref="SysmlNode.QualifiedName"/> is populated via
+    ///     <see cref="QualifyName"/> so it is registered in the symbol table and correctly subject
+    ///     to expose-scope filtering, mirroring <see cref="BuildStateActionFeatureNode"/>. The
+    ///     nested <c>actionBody</c>'s internal semantics are deliberately NOT modeled, mirroring
+    ///     <see cref="BuildStateActionFeatureNode"/>. <c>assignmentNode</c>/<c>terminateNode</c>/
+    ///     <c>ifNode</c>/<c>whileLoopNode</c>/<c>forLoopNode</c> remain an intentional, out-of-scope
+    ///     gap — not handled here or anywhere else in <see cref="AstBuilder"/>.
+    /// </summary>
+    private SysmlFeatureNode BuildActionNodeFeature(SysMLv2Parser.UsageDeclarationContext? decl, string keyword)
+    {
+        var declaredName = GetDeclaredName(decl?.identification());
+        var name = declaredName ?? $"${keyword}{_anonymousNodeCounter++}";
+
+        return new SysmlFeatureNode
+        {
+            Name = name,
+            QualifiedName = declaredName is not null ? QualifyName(name) : null,
+            FeatureKeyword = keyword,
+            Children = Array.Empty<SysmlNode>(),
+            Annotations = Array.Empty<SysmlAnnotation>(),
         };
     }
 
@@ -1848,6 +2105,84 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         }
 
         return (children, annotations);
+    }
+
+    /// <summary>
+    ///     Collects an action body's child nodes by visiting its <c>actionBodyItem</c>s in source
+    ///     order, tracking <see cref="_actionBodyPreviousNodeName"/> as it goes so
+    ///     <see cref="VisitActionBodyItem"/> can resolve the implicit incoming <c>Source</c> of a
+    ///     leading bare <c>then</c> (<c>sourceSuccessionMember</c>) on any sibling. This is
+    ///     deliberately kept separate from the generic <see cref="CollectChildren"/> (which
+    ///     continues to serve state bodies and other item kinds unmodified) because only action
+    ///     bodies currently need this order-sensitive "current flow position" bookkeeping — the
+    ///     grammar's leading marker carries no name of its own, so its identity must come from
+    ///     traversal state maintained here rather than from anything inside the visited node.
+    /// </summary>
+    private (IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations)
+        CollectActionBodyChildren(IEnumerable<SysMLv2Parser.ActionBodyItemContext> items)
+    {
+        var children = new List<SysmlNode>();
+        var annotations = new List<SysmlAnnotation>();
+        var savedPreviousName = _actionBodyPreviousNodeName;
+        _actionBodyPreviousNodeName = null;
+        try
+        {
+            foreach (var item in items)
+            {
+                var node = Visit(item);
+                if (node is AnnotationCapture capture)
+                {
+                    // A comment/doc annotation does not change the current flow position.
+                    annotations.Add(capture.Annotation);
+                    continue;
+                }
+
+                if (node is MultiNodeCapture multi)
+                {
+                    children.AddRange(multi.Nodes);
+                }
+                else if (node is not null)
+                {
+                    children.Add(node);
+                }
+
+                _actionBodyPreviousNodeName = DetermineFlowPositionName(item, node);
+            }
+        }
+        finally
+        {
+            _actionBodyPreviousNodeName = savedPreviousName;
+        }
+
+        return (children, annotations);
+    }
+
+    /// <summary>
+    ///     Determines the name that represents the "current flow position" after visiting one
+    ///     <c>actionBodyItem</c>, for use as the implicit <c>Source</c> of a subsequent sibling's
+    ///     leading bare <c>then</c>. When the item produced a <see cref="MultiNodeCapture"/> ending
+    ///     in a synthesized <see cref="SysmlTransitionNode"/> (one or more trailing
+    ///     <c>actionTargetSuccessionMember</c>s), the position moves to that succession's
+    ///     <c>Target</c> (e.g. after <c>first start then off;</c>, the position is <c>"off"</c>,
+    ///     not <c>"start"</c>). Otherwise it is the visited node's own <c>Name</c>. A bare
+    ///     <c>first start;</c> (no attached succession) still establishes <c>"start"</c> as the
+    ///     position even though it synthesizes no AST node of its own.
+    /// </summary>
+    private static string? DetermineFlowPositionName(SysMLv2Parser.ActionBodyItemContext item, SysmlNode? node)
+    {
+        if (node is MultiNodeCapture { Nodes.Count: > 0 } multi)
+        {
+            return multi.Nodes[^1] is SysmlTransitionNode lastTransition
+                ? lastTransition.Target
+                : multi.Nodes[^1].Name;
+        }
+
+        if (node is not null)
+        {
+            return node.Name;
+        }
+
+        return item.initialNodeMember()?.qualifiedName()?.GetText();
     }
 
     /// <summary>
