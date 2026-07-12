@@ -607,7 +607,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                         var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
                         if (source is not null && target is not null && source != target)
                         {
-                            edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Allocate, "\u00aballocate\u00bb"));
+                            edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Allocate, "«allocate»"));
                         }
 
                         break;

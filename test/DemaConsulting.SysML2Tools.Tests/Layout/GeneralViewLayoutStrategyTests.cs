@@ -1490,7 +1490,7 @@ public sealed class GeneralViewLayoutStrategyTests
 
         // Assert: a dashed open-chevron edge with the "«allocate»" label is emitted.
         var lines = CollectLines(layout.Nodes);
-        var allocateEdge = lines.FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed && l.MidpointLabel == "\u00aballocate\u00bb");
+        var allocateEdge = lines.FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed && l.MidpointLabel == "«allocate»");
         Assert.NotNull(allocateEdge);
     }
 

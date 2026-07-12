@@ -28,7 +28,7 @@ stack with `::` to form the fully-qualified name.
 | `VisitSatisfyRequirementUsage` | `SatisfyRequirementUsageContext` | `SysmlSatisfyNode` |
 | `VisitRequirementUsage` | `RequirementUsageContext` | `SysmlFeatureNode` (`FeatureKeyword = "requirement"`) |
 | `VisitDependency` | `DependencyContext` | `SysmlDependencyNode` |
-| `VisitBindingConnectorAsUsage` | `BindingConnectorAsUsageContext` | `SysmlConnectionNode` (`ConnectionKeyword = "binding"`) |
+| `VisitBindingConnectorAsUsage` | `BindingConnectorAsUsageContext` | `SysmlConnectionNode` (kind `binding`) |
 
 `GetDeclaredName(IdentificationContext)` handles the three grammar alternatives:
 
