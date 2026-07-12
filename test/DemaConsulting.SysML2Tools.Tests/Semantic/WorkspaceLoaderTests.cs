@@ -1006,6 +1006,52 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     An implicitly-named redefining usage whose <c>redefines</c> reference is a dot-chained
+    ///     feature path (e.g. <c>tank.fuelTankPort</c>, grammatically distinct from a <c>::</c>-qualified
+    ///     name — <c>ownedRedefinition</c> is <c>qualifiedName ( DOT qualifiedName )*</c>) must still
+    ///     take only the trailing simple-name segment (<c>fuelTankPort</c>), not the whole dotted
+    ///     reference text, as its implicit name.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ImplicitNameFromDottedRedefinitionChain_UsesTrailingSegment()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                part def Vehicle {
+                    part tank {
+                        port fuelTankPort;
+                    }
+                    port redefines tank.fuelTankPort {
+                        item item1;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var vehicle = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["Vehicle"]);
+            var implicitlyNamedPort = vehicle.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
+                .First(f => f.RedefinedFeatureName == "tank.fuelTankPort");
+
+            Assert.Equal("fuelTankPort", implicitlyNamedPort.Name);
+            Assert.Equal("Vehicle::fuelTankPort", implicitlyNamedPort.QualifiedName);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     A resolved redefined-feature reference should be recorded as a <c>Redefinition</c> edge
     ///     in the workspace's <see cref="SysmlWorkspace.Index"/>, queryable from both directions.
     /// </summary>

@@ -950,15 +950,26 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <summary>
-    ///     Derives the trailing simple-name segment from a raw (possibly qualified) reference text,
-    ///     e.g. <c>"Owner::fuelTankPort"</c> → <c>"fuelTankPort"</c>; a reference with no <c>::</c>
-    ///     separator is returned unchanged. Used to derive an unnamed usage's implicit name from the
-    ///     feature it redefines (see the <c>effectiveName</c> fallback in <see cref="BuildUsageNode"/>).
+    ///     Derives the trailing simple-name segment from a raw (possibly qualified and/or
+    ///     dot-chained) reference text, e.g. <c>"Owner::fuelTankPort"</c> → <c>"fuelTankPort"</c>,
+    ///     and <c>"tank.fuelTankPort"</c> → <c>"fuelTankPort"</c> (an <c>ownedRedefinition</c> is
+    ///     grammatically a <c>qualifiedName ( DOT qualifiedName )*</c> chain, so a redefinition
+    ///     reference can be a dotted feature path, not just a single <c>::</c>-qualified name). Takes
+    ///     whichever of the last <c>::</c> or last <c>.</c> separator occurs furthest to the right, so
+    ///     a reference with neither separator is returned unchanged. Used to derive an unnamed usage's
+    ///     implicit name from the feature it redefines (see the <c>effectiveName</c> fallback in
+    ///     <see cref="BuildUsageNode"/>).
     /// </summary>
     private static string SimpleNameFromReference(string reference)
     {
-        var separatorIndex = reference.LastIndexOf("::", StringComparison.Ordinal);
-        return separatorIndex < 0 ? reference : reference[(separatorIndex + 2)..];
+        var afterColonColon = reference.LastIndexOf("::", StringComparison.Ordinal) is var colonIndex && colonIndex >= 0
+            ? colonIndex + 2
+            : 0;
+        var afterDot = reference.LastIndexOf('.') is var dotIndex && dotIndex >= 0
+            ? dotIndex + 1
+            : 0;
+        var start = Math.Max(afterColonColon, afterDot);
+        return start > 0 ? reference[start..] : reference;
     }
 
     /// <summary>

@@ -158,9 +158,13 @@ sections:
           as anonymous nodes never registered in the symbol table, so any subsequent reference
           to them (including `bind` connector ends) failed to resolve — reproduced by the OMG
           corpus fixture `BindingConnectorsExample-1.sysml`, whose `bind` statements reference an
-          implicitly-named `port redefines fuelTankPort { ... }` usage.
+          implicitly-named `port redefines fuelTankPort { ... }` usage. Because `ownedRedefinition`
+          is grammatically `qualifiedName ( DOT qualifiedName )*`, the redefined reference can
+          itself be a dot-chained feature path (e.g. `tank.fuelTankPort`); the derivation takes
+          only the trailing simple-name segment, not the whole dotted or qualified reference text.
         tests:
           - WorkspaceLoader_LoadAsync_BindingViaImplicitlyNamedRedefinedUsage_RecordsBindingEdge
+          - WorkspaceLoader_LoadAsync_ImplicitNameFromDottedRedefinitionChain_UsesTrailingSegment
           - Binding_OmgCorpusFixture_ResolvesBindingEdgesViaImplicitRedefinitionNames
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-MetadataAnnotations

@@ -42,7 +42,9 @@ external services or additional configuration are required beyond a standard .NE
 - An implicitly-named redefining usage (e.g. `port redefines fuelTankPort { item redefines
   fuelSupply; }`, with no explicit declared name) is assigned an `effectiveName`/`QualifiedName`
   derived from the redefined feature's simple name, making it resolvable by later references
-  (including `bind` connector ends) instead of remaining anonymous.
+  (including `bind` connector ends) instead of remaining anonymous. When the `redefines`
+  reference itself is a dot-chained feature path (e.g. `tank.fuelTankPort`), only the trailing
+  segment is used, not the whole dotted reference text.
 - `VisitDependency` splits a `dependency A, B to C, D;` declaration's flat qualified-name list
   into `FromNames`/`ToNames` correctly, including the FROM-keyword-omitted shape
   (`dependency z to x, y;`), and resolves to the expected cross-product `Dependency` edges (or a
@@ -75,6 +77,7 @@ external services or additional configuration are required beyond a standard .NE
 | Redefinition capture, qualified form | `WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText` |
 | No redefinition leaves field null | `WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull` |
 | Implicit redefinition name | `WorkspaceLoader_LoadAsync_BindingViaImplicitlyNamedRedefinedUsage_RecordsBindingEdge` |
+| Dotted redefinition name | `WorkspaceLoader_LoadAsync_ImplicitNameFromDottedRedefinitionChain_UsesTrailingSegment` |
 | Dependency binary ends | `WorkspaceLoader_LoadAsync_DependencyBinaryEnds_RecordsDependencyEdge` |
 | Dependency comma-list cross product | `WorkspaceLoader_LoadAsync_DependencyCommaLists_RecordsCrossProductEdges` |
 | Dependency unresolved end | `WorkspaceLoader_LoadAsync_DependencyUnresolvedEnd_ProducesWarningNoEdge` |
