@@ -101,6 +101,28 @@ primitives (bar, diamond, pentagon, note). `LayoutActivation`/`LayoutBand` alrea
 **Visual gate:** sequence shows activation bars + a fragment; action flow shows a fork/join and
 a decision/merge with correct shapes.
 
+### State Transition View: implied-source (initial-pseudostate) transitions
+
+SysML v2 allows a state transition with no explicit source state (`then TargetState;`),
+meaning an implicit/default transition taken automatically on entry to the enclosing region —
+the UML/SysML "initial pseudostate" concept. Today `ReferenceResolver`'s `Transition` edge is
+only recorded when both a source and target resolve, so an omitted source produces no edge at
+all (a documented limitation, not a crash) — confirmed against the real OMG corpus fixture
+`training/12.BindingConnectors/...` cross-checks during the General View relationship-edges
+work.
+
+Closing this requires more than an edge-resolution tweak: `AstBuilder`/`ReferenceResolver` need
+to distinguish "no source specified" from "source failed to resolve," and
+`StateTransitionViewLayoutStrategy` needs to render the conventional small filled-circle
+initial-pseudostate marker with an edge into the target state, rather than only ever connecting
+two named states.
+
+**Scope:** `AstBuilder` (transition parsing), `SysmlEdge`/`ReferenceResolver` (distinguishing
+implied-source from unresolved-source), `StateTransitionViewLayoutStrategy` (initial-pseudostate
+marker + edge rendering).
+**Visual gate:** a state machine with a `then InitialState;`-shaped entry transition renders a
+filled-circle initial marker with an edge into that state.
+
 ### Interconnection View: genuine cross-boundary connector routing
 
 `InterconnectionViewLayoutStrategy` now resolves a connection endpoint's full dotted reference
