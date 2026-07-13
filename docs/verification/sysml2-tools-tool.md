@@ -20,13 +20,13 @@ Detailed, per-subsystem verification for each of the tool's eight subsystems (`C
 
 ## Test Environment
 
-Integration tests run on .NET 8.0, .NET 9.0, and .NET 10.0 across Windows, Linux, and macOS.
-All scenarios are expected to produce identical results on all supported runtime and platform
-combinations. Temporary files and directories are created and cleaned up within each test.
+Integration tests run on .NET 10.0 across Windows, Linux, and macOS. All scenarios are expected
+to produce identical results on all supported platforms. Temporary files and directories are
+created and cleaned up within each test.
 
 ## Acceptance Criteria
 
-- All integration tests pass with zero failures across all supported runtimes and platforms.
+- All integration tests pass with zero failures across all supported platforms.
 - Exit code 0 is returned for all valid invocations.
 - Exit code non-zero is returned for all invalid argument combinations.
 - Results files are created at the specified paths when `--results` is used with `--validate`.

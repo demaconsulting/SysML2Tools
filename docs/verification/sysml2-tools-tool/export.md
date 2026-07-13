@@ -10,12 +10,12 @@ test in `test/DemaConsulting.SysML2Tools.Tool.Tests/SelfTest/ValidationTests.cs`
 invoke `Context.Create`, `ExportCommand.RunAsync`, `Program.RunAsync`, and (for the
 end-to-end scenario) the built tool as a real process via `Runner.Run`, asserting on
 captured console output, exit code, produced file content, and deserialized JSON/JSONL
-shape. Tests run against all three target frameworks.
+shape. Tests run against the tool's target framework.
 
 #### Test Environment
 
 - Framework: xUnit v3
-- Target frameworks: net8.0, net9.0, net10.0
+- Target framework: net10.0
 - Test project: `DemaConsulting.SysML2Tools.Tool.Tests`
 - Dependencies: `DemaConsulting.SysML2Tools.Tool` (internal access via `InternalsVisibleTo`);
   OMG reference models under `test/SysMLModels/OMG/` (locatable via a repo-root search

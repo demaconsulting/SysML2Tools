@@ -48,7 +48,8 @@ documentation, CI/CD pipelines, and AI-assisted modeling workflows.
 - **Self-Validation**: Built-in validation tests with TRX/JUnit output for regulated
   environments
 - **Multi-Platform Support**: Builds and runs on Windows, Linux, and macOS
-- **Multi-Runtime Support**: Targets .NET 8, 9, and 10
+- **Multi-Runtime Support**: CLI tool targets .NET 10; library packages (`Core`/`Language`/
+  `Stdlib`) support .NET 8, 9, and 10
 
 ## Installation
 
