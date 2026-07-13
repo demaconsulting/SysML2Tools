@@ -11,10 +11,20 @@ package QuadcopterDrone {
     // ===== Attribute and enumeration definitions =====
     attribute def Mass;
     attribute def Voltage;
-    enum def FlightMode;
+
+    // An enum def with literal values, demonstrating the "enum values"
+    // compartment populated from AstBuilder's enum-literal capture.
+    enum def FlightMode {
+        enum idle;
+        enum manual;
+        enum autonomous;
+    }
 
     // ===== Core part definitions =====
     part def Battery {
+        doc /* Rechargeable lithium-polymer battery pack supplying the drone's
+             * flight controller, motors, and sensor bus via the PowerPort
+             * interface. Demonstrates the BoxShape.Note annotation rendering. */
         attribute capacity : Voltage;
         port output : PowerPort;
     }
@@ -77,7 +87,13 @@ package QuadcopterDrone {
     }
 
     // ===== A requirement =====
-    requirement def FlightTimeRequirement;
+    // A subject and a require constraint, demonstrating the «subject» and
+    // «require constraint» stereotype-titled compartments.
+    requirement def FlightTimeRequirement {
+        subject drone : Drone;
+        attribute minFlightTimeMinutes : Mass;
+        require constraint { drone.totalMass <= 2500 }
+    }
 
     // An allocate relationship from the requirement to the part it is
     // allocated to, demonstrating the dashed open-chevron line with the
