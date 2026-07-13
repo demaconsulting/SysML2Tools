@@ -279,8 +279,11 @@ SVG: [`svg/GroundSegmentDirectChildrenView.svg`](svg/GroundSegmentDirectChildren
 
 `GroundSegmentRecursiveView` (`expose GroundSegment::*::**;`, NamespaceRecursive) exposes
 every descendant of `GroundSegment`, recursively — `OperatorConsole`, `DisplayPanel`,
-`CommsHandset`, `ThermalRegulator`, `RadioNetwork`, `Uplink`, and `Downlink` are all in
-scope — but (unlike MembershipRecursive) `GroundSegment` itself is still excluded.
+`CommsHandset`, `ThermalRegulator`, `Uplink`, and `Downlink` all appear. `RadioNetwork`
+is a bare `package`, not a definition, so it is never itself rendered as a box; its members
+`Uplink`/`Downlink` are in scope and render as flat top-level boxes with no `RadioNetwork`
+wrapper. `GroundSegment` (also a bare package) is excluded from scope and, like
+`RadioNetwork`, shows no folder either.
 
 Model: [`models/10-mission-control-expose-recursion.sysml`](models/10-mission-control-expose-recursion.sysml)
 (`GroundSegmentRecursiveView`) · SVG: [`svg/GroundSegmentRecursiveView.svg`](svg/GroundSegmentRecursiveView.svg)
