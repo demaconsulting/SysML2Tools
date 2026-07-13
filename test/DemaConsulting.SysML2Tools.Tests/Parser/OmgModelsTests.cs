@@ -342,4 +342,163 @@ public sealed class OmgModelsTests
         // immediately preceding sibling `J`.
         Assert.Contains(controlTransitions, t => t.Source == "J" && t.Target == "F");
     }
+
+    /// <summary>
+    ///     The dedicated <c>06.EnumerationDefinitions</c> corpus fixtures exercise all three
+    ///     <c>enum def</c> literal forms found in real OMG models: bare literals
+    ///     (<c>enum green;</c>), a redefinition-body literal (<c>unclassified { :&gt;&gt; code =
+    ///     "..."; ... }</c>), and the value-assignment form (<c>A = 4.0;</c>) — confirming
+    ///     <c>CollectEnumerationBodyChildren</c>'s narrow raw-children walk (needed because
+    ///     <c>enumerationBody</c> uniquely alternates <c>annotatingMember</c>/
+    ///     <c>enumerationUsageMember</c> directly, unlike the single-wrapping-rule shape of
+    ///     <c>definitionBody</c>/<c>requirementBody</c>) and <c>VisitEnumeratedValue</c>'s
+    ///     <c>"enum value"</c> keyword.
+    /// </summary>
+    [Fact]
+    public async Task Enumeration_OmgCorpusFixtures_CaptureAllLiteralForms()
+    {
+        var omgRoot = FindOmgModelsRoot();
+        var files = new[]
+        {
+            Path.Combine(omgRoot, "training", "06.EnumerationDefinitions", "EnumerationDefinitions-1.sysml"),
+            Path.Combine(omgRoot, "training", "06.EnumerationDefinitions", "EnumerationDefinitions-2.sysml"),
+        };
+        Assert.All(files, f => Assert.True(File.Exists(f), $"Expected fixture not found: {f}"));
+
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync(files, stdlibTable);
+
+        Assert.DoesNotContain(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // Bare-literal form.
+        var trafficLightColor =
+            (SysmlDefinitionNode)result.Workspace!.Declarations["'Enumeration Definitions-1'::TrafficLightColor"];
+        var trafficLightValues = trafficLightColor.Children
+            .OfType<SysmlFeatureNode>()
+            .Where(f => f.FeatureKeyword == "enum value")
+            .Select(f => f.Name)
+            .ToList();
+        Assert.Equal(["green", "yellow", "red"], trafficLightValues);
+
+        // Redefinition-body form (each literal redefines "code"/"color" attributes via `:>>`).
+        var classificationKind =
+            (SysmlDefinitionNode)result.Workspace!.Declarations["'Enumeration Definitions-2'::ClassificationKind"];
+        var classificationValues = classificationKind.Children
+            .OfType<SysmlFeatureNode>()
+            .Where(f => f.FeatureKeyword == "enum value")
+            .Select(f => f.Name)
+            .ToList();
+        Assert.Equal(["unclassified", "confidential", "secret"], classificationValues);
+
+        // Value-assignment form (`A = 4.0;`) — the assigned value expression is not parsed, only
+        // the literal's own name, an accepted minimal-capture gap.
+        var gradePoints =
+            (SysmlDefinitionNode)result.Workspace!.Declarations["'Enumeration Definitions-2'::GradePoints"];
+        var gradeValues = gradePoints.Children
+            .OfType<SysmlFeatureNode>()
+            .Where(f => f.FeatureKeyword == "enum value")
+            .Select(f => f.Name)
+            .ToList();
+        Assert.Equal(["A", "B", "C", "D", "F"], gradeValues);
+    }
+
+    /// <summary>
+    ///     The dedicated <c>32.Requirements</c> corpus fixtures exercise the requirement
+    ///     compartment-depth idioms found in real OMG models: a <c>requirement def</c> with
+    ///     <c>doc</c>/<c>subject</c>/<c>require constraint</c>/<c>assume constraint</c> members, and
+    ///     — the dominant real-corpus idiom — a <c>requirement</c> *usage* that specializes a
+    ///     requirement def and supplies its own <c>subject</c>/<c>assume constraint</c> body
+    ///     (confirming the deliberate extension of <c>VisitRequirementUsage</c> to collect
+    ///     <c>Children</c>, beyond the plan's literal <c>*Definition</c>-only wording). The nested
+    ///     <c>doc</c> inside <c>RequirementUsages.sysml</c>'s <c>assume constraint { doc /* ... */
+    ///     ... }</c> is confirmed NOT captured (an accepted scope boundary — constraint bodies are
+    ///     captured only as raw <c>ExpressionText</c>, with no nested-member traversal).
+    /// </summary>
+    [Fact]
+    public async Task Requirement_OmgCorpusFixtures_CaptureSubjectAndConstraints()
+    {
+        var omgRoot = FindOmgModelsRoot();
+        var definitionsFile = Path.Combine(omgRoot, "training", "32.Requirements", "RequirementDefinitions.sysml");
+        var usagesFile = Path.Combine(omgRoot, "training", "32.Requirements", "RequirementUsages.sysml");
+        Assert.All([definitionsFile, usagesFile], f => Assert.True(File.Exists(f), $"Expected fixture not found: {f}"));
+
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([definitionsFile, usagesFile], stdlibTable);
+
+        Assert.DoesNotContain(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // RequirementDefinitions.sysml: MassLimitationRequirement has doc + require constraint.
+        var massLimitation =
+            (SysmlDefinitionNode)result.Workspace!.Declarations[
+                "'Requirement Definitions'::MassLimitationRequirement"];
+        Assert.Contains(massLimitation.Annotations, a => a.Kind == SysmlAnnotationKind.Documentation);
+        var requireConstraint = Assert.Single(
+            massLimitation.Children.OfType<SysmlFeatureNode>(), f => f.FeatureKeyword == "require constraint");
+        Assert.Contains("massActual", requireConstraint.ExpressionText);
+        Assert.Contains("massReqd", requireConstraint.ExpressionText);
+
+        // VehicleMassLimitationRequirement (a requirement def specializing another) has subject +
+        // assume constraint.
+        var vehicleMassLimitation =
+            (SysmlDefinitionNode)result.Workspace!.Declarations[
+                "'Requirement Definitions'::VehicleMassLimitationRequirement"];
+        var subject = Assert.Single(
+            vehicleMassLimitation.Children.OfType<SysmlFeatureNode>(), f => f.FeatureKeyword == "subject");
+        Assert.Equal("vehicle", subject.Name);
+        Assert.Equal("Vehicle", subject.FeatureTyping);
+        var assumeConstraint = Assert.Single(
+            vehicleMassLimitation.Children.OfType<SysmlFeatureNode>(), f => f.FeatureKeyword == "assume constraint");
+        Assert.Contains("fuelMass", assumeConstraint.ExpressionText);
+
+        // RequirementUsages.sysml: fullVehicleMassLimit is a requirement *usage* specializing
+        // VehicleMassLimitationRequirement, with its own subject + assume constraint body.
+        var fullVehicleMassLimit =
+            (SysmlFeatureNode)result.Workspace!.Declarations["'Requirement Usages'::fullVehicleMassLimit"];
+        var usageSubject = Assert.Single(
+            fullVehicleMassLimit.Children.OfType<SysmlFeatureNode>(), f => f.FeatureKeyword == "subject");
+        Assert.Equal("vehicle", usageSubject.Name);
+        var usageAssumeConstraint = Assert.Single(
+            fullVehicleMassLimit.Children.OfType<SysmlFeatureNode>(), f => f.FeatureKeyword == "assume constraint");
+        Assert.Contains("fuelFullMass", usageAssumeConstraint.ExpressionText);
+
+        // The nested `doc` inside the assume constraint's own calculation body is NOT captured as
+        // a separate Annotation anywhere on fullVehicleMassLimit — an accepted scope boundary.
+        Assert.DoesNotContain(
+            fullVehicleMassLimit.Annotations, a => a.Kind == SysmlAnnotationKind.Documentation);
+    }
+
+    /// <summary>
+    ///     The dedicated <c>01.Packages/CommentExample.sysml</c> and
+    ///     <c>DocumentationExample.sysml</c> corpus fixtures confirm <c>comment</c>/<c>doc</c>
+    ///     annotations attach to their owning package/definition via the pre-existing
+    ///     <c>AnnotationCapture</c> mechanism — the source of note-box text rendered by
+    ///     <c>GeneralViewLayoutStrategy.AddAnnotationNote</c>.
+    /// </summary>
+    [Fact]
+    public async Task CommentAndDocumentation_OmgCorpusFixtures_CaptureAnnotations()
+    {
+        var omgRoot = FindOmgModelsRoot();
+        var commentsFile = Path.Combine(omgRoot, "examples", "CommentExamples", "Comments.sysml");
+        var docFile = Path.Combine(omgRoot, "training", "01.Packages", "DocumentationExample.sysml");
+        Assert.All([commentsFile, docFile], f => Assert.True(File.Exists(f), $"Expected fixture not found: {f}"));
+
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([commentsFile, docFile], stdlibTable);
+
+        Assert.DoesNotContain(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // Comments.sysml's `part def C { doc /* ... */ comment /* Comment in Part Def */ ... }`
+        // nests both an annotatingMember doc and comment directly inside C's own body, so both
+        // attach to C itself (as opposed to the file's `comment about C ...`/`comment about
+        // Comments ...` forms, which target an element by name via `about` — a reference the
+        // existing AnnotationCapture mechanism does not resolve; such comments attach to their
+        // syntactically-owning namespace instead, an existing, unchanged limitation).
+        var partDefC = (SysmlDefinitionNode)result.Workspace!.Declarations["Comments::C"];
+        Assert.Contains(partDefC.Annotations, a => a.Kind == SysmlAnnotationKind.Documentation);
+        Assert.Contains(partDefC.Annotations, a => a.Kind == SysmlAnnotationKind.Comment);
+
+        var automobileWithDoc =
+            (SysmlDefinitionNode)result.Workspace!.Declarations["'Documentation Example'::Automobile"];
+        Assert.Contains(automobileWithDoc.Annotations, a => a.Kind == SysmlAnnotationKind.Documentation);
+    }
 }

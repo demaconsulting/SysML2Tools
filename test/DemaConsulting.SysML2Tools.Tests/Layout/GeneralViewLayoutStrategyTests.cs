@@ -1749,5 +1749,213 @@ public sealed class GeneralViewLayoutStrategyTests
         var lines = CollectLines(layout.Nodes);
         Assert.DoesNotContain(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Dashed);
     }
+
+    /// <summary>
+    ///     BuildLayout emits a companion <see cref="BoxShape.Note"/> box (plus a connecting plain
+    ///     line) for a definition that carries a <c>doc</c>/<c>comment</c> annotation.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_AnnotatedDefinition_EmitsNoteBox()
+    {
+        // Arrange: a part def with one Documentation annotation
+        var strategy = new GeneralViewLayoutStrategy();
+        var battery = new SysmlDefinitionNode
+        {
+            Name = "Battery",
+            QualifiedName = "P::Battery",
+            DefinitionKeyword = "part def",
+            Annotations = [new SysmlAnnotation(SysmlAnnotationKind.Documentation, "Nominal battery capacity is 5000mAh.")],
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::Battery"] = battery }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a Note-shaped box is present, plus a plain (no-arrowhead, solid) connecting line
+        var boxes = CollectBoxes(layout.Nodes);
+        var note = Assert.Single(boxes, b => b.Shape == BoxShape.Note);
+        Assert.Contains(note.Compartments, c => c.Rows.Any(r => r.Contains("Nominal battery capacity")));
+
+        var lines = CollectLines(layout.Nodes);
+        Assert.Contains(lines, l => l.TargetEnd == EndMarkerStyle.None && l.LineStyle == LineStyle.Solid);
+    }
+
+    /// <summary>
+    ///     BuildLayout does not emit a Note box for a definition with no annotations (regression
+    ///     guard against always-on note emission).
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_UnannotatedDefinition_EmitsNoNoteBox()
+    {
+        // Arrange: a part def with no annotations
+        var strategy = new GeneralViewLayoutStrategy();
+        var battery = new SysmlDefinitionNode
+        {
+            Name = "Battery",
+            QualifiedName = "P::Battery",
+            DefinitionKeyword = "part def",
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::Battery"] = battery }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: no Note-shaped box is emitted
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.DoesNotContain(boxes, b => b.Shape == BoxShape.Note);
+    }
+
+    /// <summary>
+    ///     BuildLayout combines multiple annotations on one element into a single Note box (not
+    ///     one box per annotation), per this strategy's documented aggregation choice.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_MultipleAnnotations_ProduceOneNoteBox()
+    {
+        // Arrange: a part def with two annotations (a doc and a comment)
+        var strategy = new GeneralViewLayoutStrategy();
+        var battery = new SysmlDefinitionNode
+        {
+            Name = "Battery",
+            QualifiedName = "P::Battery",
+            DefinitionKeyword = "part def",
+            Annotations =
+            [
+                new SysmlAnnotation(SysmlAnnotationKind.Documentation, "Primary power source."),
+                new SysmlAnnotation(SysmlAnnotationKind.Comment, "TODO: revisit capacity."),
+            ],
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::Battery"] = battery }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: exactly one Note box, containing both annotations' text
+        var boxes = CollectBoxes(layout.Nodes);
+        var note = Assert.Single(boxes, b => b.Shape == BoxShape.Note);
+        Assert.Contains(note.Compartments, c => c.Rows.Any(r => r.Contains("Primary power source")));
+        Assert.Contains(note.Compartments, c => c.Rows.Any(r => r.Contains("revisit capacity")));
+    }
+
+    /// <summary>
+    ///     BuildLayout renders a requirement definition's <c>subject</c> feature under a
+    ///     stereotype-style <c>«subject»</c> compartment title.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_RequirementSubject_UsesGuillemetTitle()
+    {
+        // Arrange: a requirement def owning a subject feature
+        var strategy = new GeneralViewLayoutStrategy();
+        var requirement = new SysmlDefinitionNode
+        {
+            Name = "MassLimitationRequirement",
+            QualifiedName = "P::MassLimitationRequirement",
+            DefinitionKeyword = "requirement def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "vehicle", QualifiedName = "P::MassLimitationRequirement::vehicle", FeatureKeyword = "subject", FeatureTyping = "Vehicle" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::MassLimitationRequirement"] = requirement }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert
+        var box = CollectBoxes(layout.Nodes).First(b => b.Label == "MassLimitationRequirement");
+        Assert.Contains(box.Compartments, c => c.Title == "«subject»" && c.Rows.Contains("vehicle : Vehicle"));
+    }
+
+    /// <summary>
+    ///     BuildLayout renders <c>assume constraint</c>/<c>require constraint</c>/<c>constraint</c>
+    ///     features under stereotype-style compartment titles, showing the raw expression text
+    ///     instead of a <c>name : Type</c> row.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_ConstraintFeatures_ShowExpressionText()
+    {
+        // Arrange: a requirement def owning assume/require constraint features
+        var strategy = new GeneralViewLayoutStrategy();
+        var requirement = new SysmlDefinitionNode
+        {
+            Name = "MassLimitationRequirement",
+            QualifiedName = "P::MassLimitationRequirement",
+            DefinitionKeyword = "requirement def",
+            Children =
+            [
+                new SysmlFeatureNode { FeatureKeyword = "assume constraint", ExpressionText = "{fuelMass > 0}" },
+                new SysmlFeatureNode { FeatureKeyword = "require constraint", ExpressionText = "{massActual <= massReqd}" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::MassLimitationRequirement"] = requirement }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert
+        var box = CollectBoxes(layout.Nodes).First(b => b.Label == "MassLimitationRequirement");
+        Assert.Contains(box.Compartments, c => c.Title == "«assume constraint»" && c.Rows.Contains("{fuelMass > 0}"));
+        Assert.Contains(box.Compartments, c => c.Title == "«require constraint»" && c.Rows.Contains("{massActual <= massReqd}"));
+    }
+
+    /// <summary>
+    ///     BuildLayout renders an <c>enum def</c>'s literal values under an "enum values"
+    ///     compartment title (the plain default pluralization, not a stereotype).
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_EnumDefLiteralValues_ProducesEnumValuesCompartment()
+    {
+        // Arrange: an enum def owning two enum-value features
+        var strategy = new GeneralViewLayoutStrategy();
+        var flightMode = new SysmlDefinitionNode
+        {
+            Name = "FlightMode",
+            QualifiedName = "P::FlightMode",
+            DefinitionKeyword = "enum def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "manual", QualifiedName = "P::FlightMode::manual", FeatureKeyword = "enum value" },
+                new SysmlFeatureNode { Name = "auto", QualifiedName = "P::FlightMode::auto", FeatureKeyword = "enum value" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::FlightMode"] = flightMode }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert
+        var box = CollectBoxes(layout.Nodes).First(b => b.Label == "FlightMode");
+        Assert.Contains(box.Compartments, c => c.Title == "enum values" && c.Rows.Contains("manual") && c.Rows.Contains("auto"));
+    }
 }
 
