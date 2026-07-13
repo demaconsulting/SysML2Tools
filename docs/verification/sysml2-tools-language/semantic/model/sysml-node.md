@@ -36,15 +36,18 @@ external services or additional configuration are required beyond a standard .NE
 - `SysmlViewNode.RenderTargetName`/`FilterExpressionText` are populated verbatim from a view's
   `render`/`filter` body members (raw reference/expression text, never resolved into an edge or
   diagnostic here), and are `null` for a view with no such members. `SysmlViewNode.ExposeMembers`
-  is populated with one paired `ExposeMember(QualifiedName, BracketFilterExpressionText)` entry
-  per `expose <name>[::**[<expr>]];` member, in source order, and is empty for a view with none;
+  is populated with one paired
+  `ExposeMember(QualifiedName, BracketFilterExpressionText, RecursionKind)` entry per
+  `expose <name>[::**[<expr>]];` member, in source order, and is empty for a view with none;
   `GetExposedNames()`'s projected qualified names are the only data independently resolved by
   `ReferenceResolver` into `Expose`-kind edges. Each entry's own `BracketFilterExpressionText` is
   captured verbatim (raw expression text) and is paired with that same entry's `QualifiedName` —
   fixing the earlier Phase 1 defect where a view declaring more than one `expose` member could not
-  reliably associate a bracket filter with the exposed path it was declared on. `AstBuilder`
-  itself never evaluates a captured bracket-filter expression; real evaluation (Phase 2a) is
-  `ExposeScopeResolver`'s responsibility.
+  reliably associate a bracket filter with the exposed path it was declared on. Each entry's
+  `RecursionKind` is correctly classified as `MembershipExact`/`MembershipRecursive`/
+  `NamespaceDirectChildren`/`NamespaceRecursive` per its grammar form and recursion setting.
+  `AstBuilder` itself never evaluates a captured bracket-filter expression; real evaluation
+  (Phase 2a) is `ExposeScopeResolver`'s responsibility.
 - `SysmlFeatureNode.RedefinedFeatureName` is populated verbatim from a feature's
   `redefines`/`:>>` clause (bare-name and qualified `Owner::feature` forms, both keyword and
   operator syntax), and is `null` for a feature with no redefinition. It is resolved by
@@ -67,6 +70,10 @@ external services or additional configuration are required beyond a standard .NE
 | `ExposeMembers` from a `view` usage | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | `ExposeMember` bracket-filter text paired to its path | `AstBuilder_ExposeBracketFilter_CapturesRawText` |
 | Bracket filter paired to entry | `AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath` |
+| `RecursionKind` bare membership | `AstBuilder_ExposeBareMembership_CapturesMembershipExact` |
+| `RecursionKind` recursive membership | `AstBuilder_ExposeRecursiveMembership_CapturesMembershipRecursive` |
+| `RecursionKind` bare namespace | `AstBuilder_ExposeNamespaceDirectChildren_CapturesNamespaceDirectChildren` |
+| `RecursionKind` recursive namespace | `AstBuilder_ExposeNamespaceRecursive_CapturesNamespaceRecursive` |
 | Empty view body leaves all fields null/empty | `WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty` |
 | `RedefinedFeatureName` — `redefines` | `WorkspaceLoader_LoadAsync_RedefinesKeyword_CapturesRedefinedFeatureName` |
 | `RedefinedFeatureName` — `:>>` operator | `WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName` |

@@ -269,7 +269,7 @@ public sealed class SequenceViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("ProtocolB", null)],
+            ExposeMembers = [new ExposeMember("ProtocolB", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::ProtocolB", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -298,7 +298,7 @@ public sealed class SequenceViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("x", null)],
+            ExposeMembers = [new ExposeMember("x", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::ProtocolB::x", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -372,7 +372,7 @@ public sealed class SequenceViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("x", null)],
+            ExposeMembers = [new ExposeMember("x", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::ProtocolA::ProtocolC::x", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -399,7 +399,7 @@ public sealed class SequenceViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("Unrelated", null)],
+            ExposeMembers = [new ExposeMember("Unrelated", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::Unrelated", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -428,7 +428,7 @@ public sealed class SequenceViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("server", null)],
+            ExposeMembers = [new ExposeMember("server", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::ProtocolA::server", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -466,7 +466,7 @@ public sealed class SequenceViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("client", null), new ExposeMember("server", null)],
+            ExposeMembers = [new ExposeMember("client", null, ExposeRecursionKind.MembershipRecursive), new ExposeMember("server", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges =
             [
                 new SysmlEdge("M::V", "M::ProtocolA::client", SysmlEdgeKind.Expose),
@@ -506,7 +506,7 @@ public sealed class SequenceViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("myProtocol", null)],
+            ExposeMembers = [new ExposeMember("myProtocol", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::myProtocol", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);

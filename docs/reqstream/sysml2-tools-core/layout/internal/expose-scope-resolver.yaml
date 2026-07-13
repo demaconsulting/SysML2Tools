@@ -52,17 +52,69 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-SubjectScopeMembership
         title: >-
           ExposeScopeResolver.IsInSubjectScope shall return true for a qualified name that
-          exactly matches a subject or lies within a subject's containment subtree (a
-          "{subject}::" prefix match), and false otherwise.
+          matches a subject per that subject's own ExposeRecursionKind — an exact match for
+          MembershipExact, a direct (one-level) child match for NamespaceDirectChildren, or an
+          exact match or containment-subtree match (a "{subject}::" prefix match) for
+          MembershipRecursive/NamespaceRecursive — and false otherwise.
         justification: |
           Every strategy needs a single, consistent rule for "is this element within the exposed
-          scope" that treats an exposed target's entire containment subtree — not just the target
-          itself — as included, matching how SysML v2 namespaces nest qualified names.
+          scope" that honors each `expose` entry's own SysML v2 grammar form and recursion
+          setting (`expose X;`/`expose X::**;`/`expose X::*;`/`expose X::*::**;`), rather than
+          unconditionally treating an exposed target's entire containment subtree as included
+          regardless of whether the entry actually requested recursion.
         tests:
           - IsInSubjectScope_ExactMatch_ReturnsTrue
           - IsInSubjectScope_SubtreeMatch_ReturnsTrue
           - IsInSubjectScope_PrefixWithoutSeparator_ReturnsFalse
           - IsInSubjectScope_UnrelatedName_ReturnsFalse
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-MembershipExactNarrowScope
+        title: >-
+          ExposeScopeResolver.ResolveExposedScope shall resolve a non-recursive MembershipExpose
+          entry (expose X;) to a scope containing only X itself (and, for a usage target, its
+          resolved type, itself only) — not X's containment subtree.
+        justification: |
+          Per formal-26-03-02.md §8.3.26.2-4, a bare `expose X;` (MembershipExpose with no
+          trailing `::**`) is non-recursive: only X is exposed, not its nested members. Treating a
+          bare `expose X;` as whole-subtree inclusion (the pre-fix behavior) silently over-scoped
+          every non-recursive membership expose to its entire subtree, which is a correctness bug,
+          not a rendering nicety.
+        tests:
+          - ResolveExposedScope_MembershipExact_ScopeIsExactOnly
+          - ResolveExposedScope_MembershipExactUsage_TypeFallbackIsAlsoExactOnly
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-NamespaceDirectChildrenNarrowScope
+        title: >-
+          ExposeScopeResolver.ResolveExposedScope shall resolve a non-recursive NamespaceExpose
+          entry (expose X::*;) to a scope containing only X's direct (one-level) children — not X
+          itself and not deeper descendants.
+        justification: |
+          Per formal-26-03-02.md §8.3.26.2-4, a non-recursive `expose X::*;` (NamespaceExpose with
+          no trailing `::**`) exposes only X's direct members, not X itself and not their own
+          nested members. Treating this form as whole-subtree inclusion (the pre-fix behavior) was
+          incorrect on two counts: it wrongly included X itself, and it wrongly included
+          grandchildren and deeper descendants.
+        tests:
+          - ResolveExposedScope_NamespaceDirectChildren_ScopeIsDirectChildrenOnly
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-RecursiveWholeSubtreeUnchanged
+        title: >-
+          ExposeScopeResolver.ResolveExposedScope shall continue to resolve a recursive
+          MembershipExpose entry (expose X::**;) or recursive NamespaceExpose entry
+          (expose X::*::**;) to a scope containing X and its entire containment subtree, and a
+          bracket-filtered entry that fails to parse or evaluate shall continue to fall back to
+          this same whole-subtree behavior regardless of the entry's own recursion kind.
+        justification: |
+          Recursive `expose` forms (`::**`) are the one case where the pre-fix whole-subtree
+          behavior was already correct; this requirement is a regression guard confirming the fix
+          for the non-recursive forms above did not also narrow the recursive forms or the
+          bracket-filter-failure fallback, which must still degrade to the full subtree rather
+          than the narrower Exact/DirectChildren behavior (never silently losing content on a
+          bracket-filter failure).
+        tests:
+          - ResolveExposedScope_MembershipRecursive_ScopeIsWholeSubtree
+          - ResolveExposedScope_NamespaceRecursive_ScopeIsWholeSubtree
+          - ResolveExposedScope_BracketFilterFailure_AlwaysFallsBackToRecursive
 
       - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-RootRelevance
         title: >-

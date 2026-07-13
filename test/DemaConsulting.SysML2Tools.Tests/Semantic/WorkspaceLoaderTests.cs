@@ -3869,6 +3869,7 @@ public sealed class WorkspaceLoaderTests
                  e.TargetQualifiedName == "'11b-Safety and Security Feaure Views'::PartsTree::vehicle");
         var member = Assert.Single(view.ExposeMembers);
         Assert.Equal("@Safety and (as Safety).isMandatory", member.BracketFilterExpressionText);
+        Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.ExposeRecursionKind.NamespaceRecursive, member.RecursionKind);
     }
 
     /// <summary>

@@ -33,6 +33,7 @@ public sealed class DynamicViewSynthesizerTests
         Assert.Equal("asGeneralDiagram", viewNode!.RenderTargetName);
         Assert.Single(viewNode.ExposeMembers);
         Assert.Equal("P::Widget", viewNode.ExposeMembers[0].QualifiedName);
+        Assert.Equal(ExposeRecursionKind.MembershipRecursive, viewNode.ExposeMembers[0].RecursionKind);
         var edge = Assert.Single(viewNode.ResolvedEdges);
         Assert.Equal(SysmlEdgeKind.Expose, edge.Kind);
         Assert.Equal("P::Widget", edge.TargetQualifiedName);

@@ -84,9 +84,10 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewExposedNames
         title: >-
           AstBuilder shall capture each `expose <name>[::**[<expr>]];` member (`view` usages
-          only, in source order) as a paired `ExposeMember` — qualified-name reference text plus
-          its own bracket-filter expression text (or null when absent) — on the corresponding
-          SysmlViewNode's ExposeMembers property.
+          only, in source order) as a paired `ExposeMember` — qualified-name reference text,
+          its own bracket-filter expression text (or null when absent), and its
+          `ExposeRecursionKind` classification — on the corresponding SysmlViewNode's
+          ExposeMembers property.
         justification: |
           Capturing this data during AST construction is the prerequisite for ReferenceResolver
           to resolve each entry's qualified name into edges that GeneralViewLayoutStrategy uses
@@ -95,13 +96,38 @@ sections:
           text (rather than the earlier Phase 1 flattened, unpaired `ExposedNames`/
           `ExposeBracketFilterTexts` lists) is the Phase 2a prerequisite for
           `ExposeScopeResolver` to evaluate a bracket filter against the specific path it was
-          declared on, when a view declares more than one `expose` member.
+          declared on, when a view declares more than one `expose` member; pairing each entry's
+          recursion kind alongside it is the prerequisite for `ExposeScopeResolver` to correctly
+          distinguish exact/direct-children/whole-subtree matching per entry.
         tests:
           - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
           - WorkspaceLoader_LoadAsync_ViewUsageWithBracketedFilterExpose_RecordsExposeEdge
           - WorkspaceLoader_LoadAsync_ViewUsageWithPlainWildcardExpose_RecordsExposeEdge
           - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
           - AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ExposeRecursionKindDerivation
+        title: >-
+          AstBuilder shall classify each `expose` member's ExposeRecursionKind correctly per its
+          SysML v2 grammar form (MembershipExpose/NamespaceExpose) and recursion setting (a
+          trailing `::**`): `expose X;` as MembershipExact, `expose X::**;` as
+          MembershipRecursive, `expose X::*;` as NamespaceDirectChildren, and `expose X::*::**;`
+          as NamespaceRecursive, fixing the prior defect where `ExtractImportTarget`'s
+          namespace-import branch hard-coded its recursion bit away instead of checking for a
+          trailing `::**`.
+        justification: |
+          Per formal-26-03-02.md §8.3.26.2-4, MembershipExpose and NamespaceExpose each carry
+          their own independent `isRecursive` flag; conflating every non-bracket-filtered
+          `expose` entry into unconditional whole-subtree inclusion (the pre-fix behavior)
+          silently over-scoped every non-recursive `expose` statement in every rendered
+          diagram. Correct per-form, per-recursion classification during AST construction is
+          the prerequisite for `ExposeScopeResolver`'s corresponding scope-matching fix.
+        tests:
+          - AstBuilder_ExposeBareMembership_CapturesMembershipExact
+          - AstBuilder_ExposeRecursiveMembership_CapturesMembershipRecursive
+          - AstBuilder_ExposeNamespaceDirectChildren_CapturesNamespaceDirectChildren
+          - AstBuilder_ExposeNamespaceRecursive_CapturesNamespaceRecursive
+          - WorkspaceLoader_LoadAsync_OmgSafetyFeatureViewsFixture_ResolvesBracketedExpose
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewUsageExpose
         title: >-

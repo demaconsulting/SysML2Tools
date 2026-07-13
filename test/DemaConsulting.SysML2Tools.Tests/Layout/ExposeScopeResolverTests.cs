@@ -52,7 +52,7 @@ public sealed class ExposeScopeResolverTests
 
     /// <summary>
     ///     A resolved <c>Expose</c> edge targeting a definition, with no bracket filter, resolves to
-    ///     a scope whose <see cref="ExposedScope.PrefixSubjects"/> contains exactly that
+    ///     a scope whose <see cref="ExposedScope.Subjects"/> contains exactly that
     ///     definition's qualified name.
     /// </summary>
     [Fact]
@@ -69,14 +69,14 @@ public sealed class ExposeScopeResolverTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposeMembers = [new ExposeMember("Root::A", null)],
+            ExposeMembers = [new ExposeMember("Root::A", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
         };
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
         Assert.NotNull(scope);
-        Assert.Equal(["Root::A"], scope.PrefixSubjects);
+        Assert.Equal(["Root::A"], scope.Subjects.Select(s => s.QualifiedName));
         Assert.Empty(scope.ExplicitMembers);
         Assert.Empty(scope.Failures);
     }
@@ -107,29 +107,29 @@ public sealed class ExposeScopeResolverTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposeMembers = [new ExposeMember("Root::myVehicle", null)],
+            ExposeMembers = [new ExposeMember("Root::myVehicle", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)]
         };
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
         Assert.NotNull(scope);
-        Assert.Contains("Root::myVehicle", scope.PrefixSubjects);
-        Assert.Contains("Root::Vehicle", scope.PrefixSubjects);
+        Assert.Contains("Root::myVehicle", scope.Subjects.Select(s => s.QualifiedName));
+        Assert.Contains("Root::Vehicle", scope.Subjects.Select(s => s.QualifiedName));
     }
 
     /// <summary>An exact qualified-name match is in scope.</summary>
     [Fact]
     public void IsInSubjectScope_ExactMatch_ReturnsTrue()
     {
-        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A", new ExposedScope(["Root::A"], [])));
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A", new ExposedScope([new ExposeSubject("Root::A", ExposeRecursionKind.MembershipRecursive)], [])));
     }
 
     /// <summary>A qualified name nested under a subject's containment subtree is in scope.</summary>
     [Fact]
     public void IsInSubjectScope_SubtreeMatch_ReturnsTrue()
     {
-        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A::Child", new ExposedScope(["Root::A"], [])));
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A::Child", new ExposedScope([new ExposeSubject("Root::A", ExposeRecursionKind.MembershipRecursive)], [])));
     }
 
     /// <summary>
@@ -140,14 +140,14 @@ public sealed class ExposeScopeResolverTests
     [Fact]
     public void IsInSubjectScope_PrefixWithoutSeparator_ReturnsFalse()
     {
-        Assert.False(ExposeScopeResolver.IsInSubjectScope("Root::AB", new ExposedScope(["Root::A"], [])));
+        Assert.False(ExposeScopeResolver.IsInSubjectScope("Root::AB", new ExposedScope([new ExposeSubject("Root::A", ExposeRecursionKind.MembershipRecursive)], [])));
     }
 
     /// <summary>An unrelated qualified name is not in scope.</summary>
     [Fact]
     public void IsInSubjectScope_UnrelatedName_ReturnsFalse()
     {
-        Assert.False(ExposeScopeResolver.IsInSubjectScope("Root::B", new ExposedScope(["Root::A"], [])));
+        Assert.False(ExposeScopeResolver.IsInSubjectScope("Root::B", new ExposedScope([new ExposeSubject("Root::A", ExposeRecursionKind.MembershipRecursive)], [])));
     }
 
     /// <summary>An explicit (bracket-filter-matched) member is in scope by exact match only.</summary>
@@ -171,7 +171,7 @@ public sealed class ExposeScopeResolverTests
     [Fact]
     public void IsRootRelevantToScope_CandidateEqualsSubject_ReturnsTrue()
     {
-        Assert.True(ExposeScopeResolver.IsRootRelevantToScope("Root::A", new ExposedScope(["Root::A"], [])));
+        Assert.True(ExposeScopeResolver.IsRootRelevantToScope("Root::A", new ExposedScope([new ExposeSubject("Root::A", ExposeRecursionKind.MembershipRecursive)], [])));
     }
 
     /// <summary>
@@ -181,7 +181,7 @@ public sealed class ExposeScopeResolverTests
     [Fact]
     public void IsRootRelevantToScope_CandidateNestedInSubject_ReturnsTrue()
     {
-        Assert.True(ExposeScopeResolver.IsRootRelevantToScope("Root::A::Child", new ExposedScope(["Root::A"], [])));
+        Assert.True(ExposeScopeResolver.IsRootRelevantToScope("Root::A::Child", new ExposedScope([new ExposeSubject("Root::A", ExposeRecursionKind.MembershipRecursive)], [])));
     }
 
     /// <summary>
@@ -192,14 +192,14 @@ public sealed class ExposeScopeResolverTests
     [Fact]
     public void IsRootRelevantToScope_SubjectNestedInCandidate_ReturnsTrue()
     {
-        Assert.True(ExposeScopeResolver.IsRootRelevantToScope("Root::A", new ExposedScope(["Root::A::Child"], [])));
+        Assert.True(ExposeScopeResolver.IsRootRelevantToScope("Root::A", new ExposedScope([new ExposeSubject("Root::A::Child", ExposeRecursionKind.MembershipRecursive)], [])));
     }
 
     /// <summary>A candidate root unrelated to any exposed subject is not relevant to the scope.</summary>
     [Fact]
     public void IsRootRelevantToScope_UnrelatedCandidate_ReturnsFalse()
     {
-        Assert.False(ExposeScopeResolver.IsRootRelevantToScope("Root::B", new ExposedScope(["Root::A"], [])));
+        Assert.False(ExposeScopeResolver.IsRootRelevantToScope("Root::B", new ExposedScope([new ExposeSubject("Root::A", ExposeRecursionKind.MembershipRecursive)], [])));
     }
 
     /// <summary>An explicit (bracket-filter-matched) member is itself relevant to the scope.</summary>
@@ -306,7 +306,7 @@ public sealed class ExposeScopeResolverTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposeMembers = [new ExposeMember("Root::A", null), new ExposeMember("Root::myVehicle", null)],
+            ExposeMembers = [new ExposeMember("Root::A", null, ExposeRecursionKind.MembershipRecursive), new ExposeMember("Root::myVehicle", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges =
             [
                 new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose),
@@ -317,9 +317,9 @@ public sealed class ExposeScopeResolverTests
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
         Assert.NotNull(scope);
-        Assert.Contains("Root::A", scope.PrefixSubjects);
-        Assert.Contains("Root::myVehicle", scope.PrefixSubjects);
-        Assert.Contains("Root::Vehicle", scope.PrefixSubjects);
+        Assert.Contains("Root::A", scope.Subjects.Select(s => s.QualifiedName));
+        Assert.Contains("Root::myVehicle", scope.Subjects.Select(s => s.QualifiedName));
+        Assert.Contains("Root::Vehicle", scope.Subjects.Select(s => s.QualifiedName));
     }
 
     /// <summary>
@@ -344,7 +344,7 @@ public sealed class ExposeScopeResolverTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposeMembers = [new ExposeMember("Root::Container", "@SysML::PartUsage")],
+            ExposeMembers = [new ExposeMember("Root::Container", "@SysML::PartUsage", ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::Container", SysmlEdgeKind.Expose)]
         };
 
@@ -361,7 +361,7 @@ public sealed class ExposeScopeResolverTests
     ///     under the target's containment subtree that carry the <c>@Safety</c> metadata
     ///     annotation — the target itself and its unannotated sibling are excluded from
     ///     <see cref="ExposedScope.ExplicitMembers"/>, and the target is not added to
-    ///     <see cref="ExposedScope.PrefixSubjects"/> (no whole-subtree fallback).
+    ///     <see cref="ExposedScope.Subjects"/> (no whole-subtree fallback).
     /// </summary>
     [Fact]
     public void ResolveExposedScope_BracketFilterEvaluatesSuccessfully_NarrowsToMatchedDefinitionsOnly()
@@ -390,14 +390,14 @@ public sealed class ExposeScopeResolverTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposeMembers = [new ExposeMember("Root::Container", "@Safety")],
+            ExposeMembers = [new ExposeMember("Root::Container", "@Safety", ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::Container", SysmlEdgeKind.Expose)]
         };
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
         Assert.NotNull(scope);
-        Assert.Empty(scope.PrefixSubjects);
+        Assert.Empty(scope.Subjects);
         Assert.Equal(["Root::Container::Matched"], scope.ExplicitMembers);
         Assert.Empty(scope.Failures);
     }
@@ -405,7 +405,7 @@ public sealed class ExposeScopeResolverTests
     /// <summary>
     ///     Two <c>expose</c> entries on the same view, only one bracket-filtered, each narrow
     ///     independently: the unfiltered entry keeps its whole containment subtree
-    ///     (<see cref="ExposedScope.PrefixSubjects"/>), while the bracket-filtered entry narrows to
+    ///     (<see cref="ExposedScope.Subjects"/>), while the bracket-filtered entry narrows to
     ///     only its own matched descendant definitions (<see cref="ExposedScope.ExplicitMembers"/>) —
     ///     proving a bracket filter on one entry does not affect an unrelated entry's contribution.
     /// </summary>
@@ -439,8 +439,8 @@ public sealed class ExposeScopeResolverTests
             QualifiedName = "Root::V",
             ExposeMembers =
             [
-                new ExposeMember("Root::Plain", null),
-                new ExposeMember("Root::Container", "@Safety")
+                new ExposeMember("Root::Plain", null, ExposeRecursionKind.MembershipRecursive),
+                new ExposeMember("Root::Container", "@Safety", ExposeRecursionKind.MembershipRecursive)
             ],
             ResolvedEdges =
             [
@@ -452,7 +452,7 @@ public sealed class ExposeScopeResolverTests
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
         Assert.NotNull(scope);
-        Assert.Equal(["Root::Plain"], scope.PrefixSubjects);
+        Assert.Equal(["Root::Plain"], scope.Subjects.Select(s => s.QualifiedName));
         Assert.Equal(["Root::Container::Matched"], scope.ExplicitMembers);
         Assert.Empty(scope.Failures);
     }
@@ -460,7 +460,7 @@ public sealed class ExposeScopeResolverTests
     /// <summary>
     ///     A bracket-filter expression that fails to parse (an unsupported Phase 1 construct)
     ///     degrades gracefully to whole-subtree inclusion for that entry (via
-    ///     <see cref="ExposedScope.PrefixSubjects"/>) and records the failure (with a reason) in
+    ///     <see cref="ExposedScope.Subjects"/>) and records the failure (with a reason) in
     ///     <see cref="ExposedScope.Failures"/>, rather than crashing or silently excluding the
     ///     entry.
     /// </summary>
@@ -478,18 +478,219 @@ public sealed class ExposeScopeResolverTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposeMembers = [new ExposeMember("Root::Container", "x istype Y")],
+            ExposeMembers = [new ExposeMember("Root::Container", "x istype Y", ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::Container", SysmlEdgeKind.Expose)]
         };
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
         Assert.NotNull(scope);
-        Assert.Equal(["Root::Container"], scope.PrefixSubjects);
+        Assert.Equal(["Root::Container"], scope.Subjects.Select(s => s.QualifiedName));
         Assert.Empty(scope.ExplicitMembers);
         var failure = Assert.Single(scope.Failures);
         Assert.Equal("x istype Y", failure.ExpressionText);
         Assert.NotNull(failure.Reason);
+    }
+
+    /// <summary>
+    ///     A non-recursive <c>MembershipExact</c> expose entry (<c>expose X;</c>) resolves to a
+    ///     scope containing only the exposed subject itself — its containment subtree is not
+    ///     included.
+    /// </summary>
+    [Fact]
+    public void ResolveExposedScope_MembershipExact_ScopeIsExactOnly()
+    {
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Root::A", DefinitionKeyword = "part def" },
+                ["Root::A::Child"] = new SysmlDefinitionNode { Name = "Child", QualifiedName = "Root::A::Child", DefinitionKeyword = "part def" }
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposeMembers = [new ExposeMember("Root::A", null, ExposeRecursionKind.MembershipExact)],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
+        };
+
+        var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
+
+        Assert.NotNull(scope);
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A", scope));
+        Assert.False(ExposeScopeResolver.IsInSubjectScope("Root::A::Child", scope));
+    }
+
+    /// <summary>
+    ///     A non-recursive <c>MembershipExact</c> expose entry targeting a usage still adds the
+    ///     usage's resolved type, using the same exact-match recursion kind — the type's own
+    ///     descendants are not included either.
+    /// </summary>
+    [Fact]
+    public void ResolveExposedScope_MembershipExactUsage_TypeFallbackIsAlsoExactOnly()
+    {
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::Vehicle"] = new SysmlDefinitionNode { Name = "Vehicle", QualifiedName = "Root::Vehicle", DefinitionKeyword = "part def" },
+                ["Root::Vehicle::Engine"] = new SysmlDefinitionNode { Name = "Engine", QualifiedName = "Root::Vehicle::Engine", DefinitionKeyword = "part def" },
+                ["Root::myVehicle"] = new SysmlFeatureNode
+                {
+                    Name = "myVehicle",
+                    QualifiedName = "Root::myVehicle",
+                    FeatureTyping = "Vehicle",
+                    ResolvedEdges = [new SysmlEdge("Root::myVehicle", "Root::Vehicle", SysmlEdgeKind.Typing)]
+                }
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposeMembers = [new ExposeMember("Root::myVehicle", null, ExposeRecursionKind.MembershipExact)],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)]
+        };
+
+        var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
+
+        Assert.NotNull(scope);
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::myVehicle", scope));
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::Vehicle", scope));
+        Assert.False(ExposeScopeResolver.IsInSubjectScope("Root::Vehicle::Engine", scope));
+    }
+
+    /// <summary>
+    ///     A recursive <c>MembershipRecursive</c> expose entry (<c>expose X::**;</c>) resolves to a
+    ///     scope containing the exposed subject's entire containment subtree — unchanged whole
+    ///     subtree behavior.
+    /// </summary>
+    [Fact]
+    public void ResolveExposedScope_MembershipRecursive_ScopeIsWholeSubtree()
+    {
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Root::A", DefinitionKeyword = "part def" },
+                ["Root::A::Child"] = new SysmlDefinitionNode { Name = "Child", QualifiedName = "Root::A::Child", DefinitionKeyword = "part def" }
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposeMembers = [new ExposeMember("Root::A", null, ExposeRecursionKind.MembershipRecursive)],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
+        };
+
+        var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
+
+        Assert.NotNull(scope);
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A", scope));
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A::Child", scope));
+    }
+
+    /// <summary>
+    ///     A non-recursive <c>NamespaceDirectChildren</c> expose entry (<c>expose X::*;</c>)
+    ///     resolves to a scope containing only <c>X</c>'s direct children — not <c>X</c> itself and
+    ///     not deeper (grandchild) descendants.
+    /// </summary>
+    [Fact]
+    public void ResolveExposedScope_NamespaceDirectChildren_ScopeIsDirectChildrenOnly()
+    {
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Root::A", DefinitionKeyword = "part def" },
+                ["Root::A::Child"] = new SysmlDefinitionNode { Name = "Child", QualifiedName = "Root::A::Child", DefinitionKeyword = "part def" },
+                ["Root::A::Child::Grandchild"] = new SysmlDefinitionNode { Name = "Grandchild", QualifiedName = "Root::A::Child::Grandchild", DefinitionKeyword = "part def" }
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposeMembers = [new ExposeMember("Root::A", null, ExposeRecursionKind.NamespaceDirectChildren)],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
+        };
+
+        var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
+
+        Assert.NotNull(scope);
+        Assert.False(ExposeScopeResolver.IsInSubjectScope("Root::A", scope));
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A::Child", scope));
+        Assert.False(ExposeScopeResolver.IsInSubjectScope("Root::A::Child::Grandchild", scope));
+    }
+
+    /// <summary>
+    ///     A recursive <c>NamespaceRecursive</c> expose entry (<c>expose X::*::**;</c>) resolves to
+    ///     a scope containing <c>X</c> and its entire containment subtree — unchanged whole subtree
+    ///     behavior.
+    /// </summary>
+    [Fact]
+    public void ResolveExposedScope_NamespaceRecursive_ScopeIsWholeSubtree()
+    {
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Root::A", DefinitionKeyword = "part def" },
+                ["Root::A::Child"] = new SysmlDefinitionNode { Name = "Child", QualifiedName = "Root::A::Child", DefinitionKeyword = "part def" },
+                ["Root::A::Child::Grandchild"] = new SysmlDefinitionNode { Name = "Grandchild", QualifiedName = "Root::A::Child::Grandchild", DefinitionKeyword = "part def" }
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposeMembers = [new ExposeMember("Root::A", null, ExposeRecursionKind.NamespaceRecursive)],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
+        };
+
+        var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
+
+        Assert.NotNull(scope);
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A", scope));
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A::Child", scope));
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A::Child::Grandchild", scope));
+    }
+
+    /// <summary>
+    ///     A bracket-filtered expose entry that fails to parse falls back to whole-subtree
+    ///     inclusion regardless of the entry's own recursion kind — even a non-recursive
+    ///     <c>MembershipExact</c>-classified bracket-filter entry (a hypothetical malformed
+    ///     grammar edge case) degrades to recursive fallback, per the documented
+    ///     "don't silently lose content" fallback intent.
+    /// </summary>
+    [Fact]
+    public void ResolveExposedScope_BracketFilterFailure_AlwaysFallsBackToRecursive()
+    {
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Root::A", DefinitionKeyword = "part def" },
+                ["Root::A::Child"] = new SysmlDefinitionNode { Name = "Child", QualifiedName = "Root::A::Child", DefinitionKeyword = "part def" }
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposeMembers = [new ExposeMember("Root::A", "x istype Y", ExposeRecursionKind.NamespaceDirectChildren)],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
+        };
+
+        var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
+
+        Assert.NotNull(scope);
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A", scope));
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A::Child", scope));
+        Assert.Single(scope.Failures);
     }
 }
 

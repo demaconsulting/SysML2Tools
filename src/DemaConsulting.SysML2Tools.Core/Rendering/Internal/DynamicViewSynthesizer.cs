@@ -17,14 +17,16 @@ namespace DemaConsulting.SysML2Tools.Rendering.Internal;
 /// <para>
 /// The synthesized node is scoped to its target by manually populating <see
 /// cref="SysmlNode.ResolvedEdges"/> with a single <see cref="SysmlEdgeKind.Expose"/> edge (plus a
-/// matching <see cref="SysmlViewNode.ExposeMembers"/> entry) — the same mechanism a real,
-/// parsed <c>view def V { expose Target; }</c> produces via <c>ReferenceResolver</c>. <see
-/// cref="Layout.Internal.ExposeScopeResolver.ResolveExposedScope"/> reads only these two
-/// properties and has no notion of provenance, so it treats a synthesized node identically to a
-/// parsed one. This differs from <see cref="DiagramRenderer.SynthesizeAutoView"/>, whose node
+/// matching <see cref="SysmlViewNode.ExposeMembers"/> entry using
+/// <see cref="ExposeRecursionKind.MembershipRecursive"/>) — the same mechanism a real,
+/// parsed <c>view def V { expose Target::**; }</c> produces via <c>ReferenceResolver</c>, so
+/// that a dynamic view shows the requested target's whole containment subtree rather than the
+/// target alone. <see cref="Layout.Internal.ExposeScopeResolver.ResolveExposedScope"/> reads
+/// only these two properties and has no notion of provenance, so it treats a synthesized node
+/// identically to a parsed one. This differs from <see cref="DiagramRenderer.SynthesizeAutoView"/>, whose node
 /// carries no <c>ResolvedEdges</c> at all — that absence is what makes <c>ExposeScopeResolver</c>
 /// return a <see langword="null"/> scope (render everything); a dynamic view instead always
-/// resolves to a definite, non-null scope naming exactly the requested target.
+/// resolves to a definite, non-null scope rooted at the requested target's whole subtree.
 /// </para>
 /// <para>
 /// The synthesized view's <see cref="SysmlNode.QualifiedName"/> uses a leading <c>$</c> — a
@@ -135,7 +137,7 @@ internal static class DynamicViewSynthesizer
             Name = viewName,
             QualifiedName = viewQualifiedName,
             RenderTargetName = renderTargetName,
-            ExposeMembers = [new ExposeMember(targetQualifiedName, null)],
+            ExposeMembers = [new ExposeMember(targetQualifiedName, null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge(viewQualifiedName, targetQualifiedName, SysmlEdgeKind.Expose)],
             FilterExpressionText = filterExpressionText,
         };

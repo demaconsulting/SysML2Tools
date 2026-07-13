@@ -1061,7 +1061,7 @@ public sealed class GeneralViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposeMembers = [new ExposeMember("A", null)],
+            ExposeMembers = [new ExposeMember("A", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -1128,7 +1128,7 @@ public sealed class GeneralViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposeMembers = [new ExposeMember("myVehicle", null)],
+            ExposeMembers = [new ExposeMember("myVehicle", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);

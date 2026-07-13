@@ -356,7 +356,56 @@ public sealed class SysmlViewNode : SysmlNode
 ///     scope to the matching descendant definitions only, falling back to whole-subtree inclusion
 ///     (plus a diagnostic) when the expression fails to parse or evaluate.
 /// </param>
-public sealed record ExposeMember(string QualifiedName, string? BracketFilterExpressionText);
+/// <param name="RecursionKind">
+///     Classifies which SysML v2 <c>expose</c> grammar form and recursion setting produced this
+///     entry (<see cref="ExposeRecursionKind"/>). Consumed by <c>ExposeScopeResolver</c> to decide
+///     between an exact/direct-children match and a whole-subtree match when resolving this
+///     entry's contribution to a view's exposed scope.
+/// </param>
+public sealed record ExposeMember(
+    string QualifiedName,
+    string? BracketFilterExpressionText,
+    ExposeRecursionKind RecursionKind);
+
+/// <summary>
+///     Classifies which SysML v2 <c>expose</c> grammar form and recursion setting produced an
+///     <see cref="ExposeMember"/> entry, per formal-26-03-02.md §8.3.26.2-4: MembershipExpose
+///     (<c>expose X;</c> / <c>expose X::**;</c>) and NamespaceExpose (<c>expose X::*;</c> /
+///     <c>expose X::*::**;</c>) each carry their own independent <c>isRecursive</c> flag derived
+///     from a trailing <c>::**</c>. A bracket-filtered entry (<c>expose X::**[expr]</c>) is always
+///     one of the two *Recursive kinds — the grammar's filterPackage form is treated as always
+///     recursive by design, since that alternative is only reachable via <c>::**[filterExpr]</c>
+///     (regardless of the nested optional STAR_STAR token) — because
+///     <c>ExposeScopeResolver</c> only consults this classification for its unfiltered/fallback
+///     whole-subtree-vs-narrow behavior, never for a successfully-evaluated bracket filter's own
+///     (already-exact) <c>ExplicitMembers</c>.
+/// </summary>
+public enum ExposeRecursionKind
+{
+    /// <summary>
+    ///     MembershipExpose, non-recursive: <c>expose X;</c> — only X itself (plus, for a usage
+    ///     target, its resolved type itself — see <c>ExposeScopeResolver</c>) is in scope.
+    /// </summary>
+    MembershipExact,
+
+    /// <summary>
+    ///     MembershipExpose, recursive: <c>expose X::**;</c> — X and its entire containment
+    ///     subtree (the pre-fix, still-correct-for-this-case whole-subtree behavior).
+    /// </summary>
+    MembershipRecursive,
+
+    /// <summary>
+    ///     NamespaceExpose, non-recursive: <c>expose X::*;</c> — only X's direct (one-level)
+    ///     children, not X itself and not deeper descendants.
+    /// </summary>
+    NamespaceDirectChildren,
+
+    /// <summary>
+    ///     NamespaceExpose, recursive: <c>expose X::*::**;</c> — X and its entire containment
+    ///     subtree (the pre-fix, still-correct-for-this-case whole-subtree behavior).
+    /// </summary>
+    NamespaceRecursive,
+}
 
 /// <summary>
 ///     AST node representing a viewpoint definition.

@@ -760,7 +760,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("c1", null)],
+            ExposeMembers = [new ExposeMember("c1", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::SysA::SysC::c1", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -953,7 +953,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("SysB", null)],
+            ExposeMembers = [new ExposeMember("SysB", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::SysB", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -1025,7 +1025,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("AB", null), new ExposeMember("MuchLongerSiblingName", null)],
+            ExposeMembers = [new ExposeMember("AB", null, ExposeRecursionKind.MembershipRecursive), new ExposeMember("MuchLongerSiblingName", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges =
             [
                 new SysmlEdge("M::V", "M::AB", SysmlEdgeKind.Expose),
@@ -1055,7 +1055,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("b1", null)],
+            ExposeMembers = [new ExposeMember("b1", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::SysB::b1", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -1086,7 +1086,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("Unrelated", null)],
+            ExposeMembers = [new ExposeMember("Unrelated", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::Unrelated", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -1111,7 +1111,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("a1", null)],
+            ExposeMembers = [new ExposeMember("a1", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::SysA::a1", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
@@ -1140,7 +1140,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("a1", null), new ExposeMember("a2", null)],
+            ExposeMembers = [new ExposeMember("a1", null, ExposeRecursionKind.MembershipRecursive), new ExposeMember("a2", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges =
             [
                 new SysmlEdge("M::V", "M::SysA::a1", SysmlEdgeKind.Expose),
@@ -1179,7 +1179,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "M::V",
-            ExposeMembers = [new ExposeMember("myPart", null)],
+            ExposeMembers = [new ExposeMember("myPart", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::myPart", SysmlEdgeKind.Expose)]
         };
         var context = new ViewContext("v", workspace, viewNode);
