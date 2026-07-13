@@ -274,12 +274,10 @@ public static class FilterExpressionEvaluator
             return false;
         }
 
-        var declaration = workspace.Declarations
-            .FirstOrDefault(kvp =>
-                workspace.StdlibNames.Contains(kvp.Key) &&
-                (kvp.Key == bareMetaclassName || kvp.Key.EndsWith("::" + bareMetaclassName, StringComparison.Ordinal)))
-            .Value;
-        if (declaration is null)
+        var qualifiedName = workspace.StdlibNames
+            .FirstOrDefault(name =>
+                name == bareMetaclassName || name.EndsWith("::" + bareMetaclassName, StringComparison.Ordinal));
+        if (qualifiedName is null || !workspace.Declarations.TryGetValue(qualifiedName, out var declaration))
         {
             return false;
         }

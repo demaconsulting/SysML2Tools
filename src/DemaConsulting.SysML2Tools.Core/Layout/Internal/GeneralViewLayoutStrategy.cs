@@ -142,15 +142,15 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             : LineStyle.Solid;
 
     /// <summary>A user-defined definition together with its computed box size and supertypes.</summary>
-    /// <param name="QualifiedName"></param>
-    /// <param name="SimpleName"></param>
-    /// <param name="Keyword"></param>
-    /// <param name="SupertypeNames"></param>
-    /// <param name="Memberships"></param>
-    /// <param name="Compartments"></param>
-    /// <param name="Width"></param>
-    /// <param name="Height"></param>
-    /// <param name="Annotations"></param>
+    /// <param name="QualifiedName">The definition or usage's fully qualified name.</param>
+    /// <param name="SimpleName">The definition or usage's simple (unqualified) name.</param>
+    /// <param name="Keyword">The definition or usage keyword (e.g. <c>part</c>, <c>requirement</c>).</param>
+    /// <param name="SupertypeNames">The declared supertype names (specialization/subsetting/redefinition targets).</param>
+    /// <param name="Memberships">The owned feature memberships to render as compartment rows.</param>
+    /// <param name="Compartments">The computed compartments to render inside the box.</param>
+    /// <param name="Width">The computed box width.</param>
+    /// <param name="Height">The computed box height.</param>
+    /// <param name="Annotations">The applied annotation metadata associated with this node.</param>
     /// <param name="IsUsage">
     /// <see langword="true"/> when this box represents a <see cref="SysmlFeatureNode"/> usage
     /// (rather than a <see cref="SysmlDefinitionNode"/> definition). Used by
