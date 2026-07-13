@@ -44,8 +44,6 @@ public sealed record FilterEvaluationResult(
 /// <see langword="false"/>, and any comparison against an absent read is treated as
 /// <see langword="false"/> regardless of operator — a conservative, documented Phase 1 limitation
 /// (see <c>docs/design/sysml2-tools-core/filtering/filter-expression-evaluator.md</c>).
-/// </remarks>
-/// <remarks>
 /// A classification test (<c>@Type</c>/<c>@Pkg::Type</c>) also matches when the candidate's own
 /// AST node kind — <see cref="SysmlDefinitionNode.DefinitionKeyword"/> (e.g. <c>"part def"</c>) or
 /// <see cref="SysmlFeatureNode.FeatureKeyword"/> (e.g. <c>"part"</c>) — maps to the requested
@@ -229,12 +227,18 @@ public static class FilterExpressionEvaluator
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="bareMetaclassName"/> (e.g.
     /// <c>PartUsage</c>) matches the requested <paramref name="typeName"/>: either bare
-    /// (<c>typeName == bareMetaclassName</c>) or qualified with the canonical <c>SysML::</c>
-    /// spelling real-world filter expressions use (<c>typeName == "SysML::" + bareMetaclassName</c>).
+    /// (<c>typeName == bareMetaclassName</c>) or qualified under the <c>SysML::</c> namespace,
+    /// ending in <c>"::" + bareMetaclassName</c>. This covers both the canonical two-segment
+    /// spelling real-world filter expressions use (<c>SysML::PartUsage</c>) and the stdlib's
+    /// actual, deeper declaring package path (e.g. <c>SysML::Systems::PartUsage</c>) — a filter
+    /// written against either spelling matches the same metaclass. The <c>SysML::</c> namespace
+    /// prefix requirement keeps this from over-matching an unrelated user package that happens to
+    /// declare its own type with a colliding simple name (e.g. <c>Acme::Widgets::PartUsage</c>).
     /// </summary>
     private static bool MetaclassNameMatches(string bareMetaclassName, string typeName) =>
         typeName == bareMetaclassName ||
-        typeName == "SysML::" + bareMetaclassName;
+        (typeName.StartsWith("SysML::", StringComparison.Ordinal) &&
+            typeName.EndsWith("::" + bareMetaclassName, StringComparison.Ordinal));
 
     /// <summary>
     /// Walks the stdlib <c>specializes</c> chain starting from the stdlib <c>metadata def</c>
