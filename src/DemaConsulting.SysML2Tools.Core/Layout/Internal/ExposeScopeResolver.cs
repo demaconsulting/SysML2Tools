@@ -137,7 +137,7 @@ internal static class ExposeScopeResolver
             var candidates = workspace.Declarations
                 .Where(kvp =>
                     (kvp.Key == target || kvp.Key.StartsWith(target + "::", StringComparison.Ordinal)) &&
-                    kvp.Value is SysmlDefinitionNode or SysmlFeatureNode)
+                    (kvp.Value is SysmlDefinitionNode || (kvp.Value is SysmlFeatureNode && kvp.Value.Name is not null)))
                 .Select(kvp => kvp.Key)
                 .ToList();
             var evaluation = FilterExpressionEvaluator.Evaluate(workspace, candidates, expression);

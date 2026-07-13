@@ -256,7 +256,10 @@ public static class FilterExpressionEvaluator
     /// same-simple-name suffix lookup restricted to <see cref="SysmlWorkspace.StdlibNames"/> entries
     /// of <see cref="SysmlWorkspace.Declarations"/> (stdlib metaclasses are declared with a longer
     /// nested-package qualified name than their conventional <c>SysML::</c> spelling, e.g.
-    /// <c>SysML::Systems::PartUsage</c>). Restricting the lookup to <see cref="SysmlWorkspace.StdlibNames"/>
+    /// <c>SysML::Systems::PartUsage</c>). This lookup is precomputed once per <paramref name="workspace"/>
+    /// and cached (see <see cref="GetStdlibBareNameLookup"/>) rather than re-scanned on every
+    /// specialization-walk step, since a classification test may walk many candidates' chains
+    /// during a single filter evaluation. Restricting the lookup to <see cref="SysmlWorkspace.StdlibNames"/>
     /// keeps this sound in the presence of a user model that happens to declare its own
     /// definition/usage with a colliding simple name (e.g. a user <c>part def PartUsage;</c>): such
     /// user declarations are never candidates for the stdlib specialization walk. This is a
@@ -278,10 +281,8 @@ public static class FilterExpressionEvaluator
             return false;
         }
 
-        var qualifiedName = workspace.StdlibNames
-            .FirstOrDefault(name =>
-                name == bareMetaclassName || name.EndsWith("::" + bareMetaclassName, StringComparison.Ordinal));
-        if (qualifiedName is null || !workspace.Declarations.TryGetValue(qualifiedName, out var declaration))
+        if (!GetStdlibBareNameLookup(workspace).TryGetValue(bareMetaclassName, out var qualifiedName) ||
+            !workspace.Declarations.TryGetValue(qualifiedName, out var declaration))
         {
             return false;
         }
@@ -301,6 +302,42 @@ public static class FilterExpressionEvaluator
 
         return false;
     }
+
+    /// <summary>
+    /// A per-workspace cache of <see cref="ConformsToMetaclass"/>'s bare-simple-name → declaring
+    /// stdlib qualified-name lookup, keyed by the owning <see cref="SysmlWorkspace"/> instance so a
+    /// long-lived workspace's lookup is built at most once regardless of how many candidates or
+    /// filter evaluations consult it. <see cref="System.Runtime.CompilerServices.ConditionalWeakTable{TKey,TValue}"/>
+    /// is used (rather than a plain dictionary) so a workspace can still be garbage-collected
+    /// normally once nothing else references it.
+    /// </summary>
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<SysmlWorkspace, IReadOnlyDictionary<string, string>> StdlibBareNameLookups = new();
+
+    /// <summary>
+    /// Returns (building and caching on first use per <paramref name="workspace"/>) a dictionary
+    /// mapping each stdlib metaclass's bare simple name (e.g. <c>PartUsage</c>) to its full
+    /// declaring qualified name (e.g. <c>SysML::Systems::PartUsage</c>), restricted to
+    /// <see cref="SysmlWorkspace.StdlibNames"/> entries so a colliding user-declared simple name
+    /// is never a candidate. When two stdlib declarations share the same simple name (not expected
+    /// for the metaclass names this table covers — see <see cref="ConformsToMetaclass"/>'s
+    /// remarks), the first one encountered wins, matching the previous linear-scan behavior's
+    /// first-match semantics.
+    /// </summary>
+    private static IReadOnlyDictionary<string, string> GetStdlibBareNameLookup(SysmlWorkspace workspace) =>
+        StdlibBareNameLookups.GetValue(workspace, static ws =>
+        {
+            var lookup = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var name in ws.StdlibNames)
+            {
+                var bareName = name.Contains("::", StringComparison.Ordinal)
+                    ? name[(name.LastIndexOf("::", StringComparison.Ordinal) + 2)..]
+                    : name;
+                lookup.TryAdd(bareName, name);
+            }
+
+            return lookup;
+        });
+
 
     /// <summary>Evaluates a comparison expression: absent attribute reads always evaluate to false.</summary>
     private static bool EvaluateComparison(SysmlNode node, ComparisonFilterExpression comparison)
