@@ -333,6 +333,40 @@ that:
    local feed → restore → exercise parse→layout→render-to-SVG-in-memory and render-to-PNG (again
    proving SkiaSharp natives for `.Png` consumers).
 
+### Tool package size (confirmed: 435 MB, over NuGet.org's ~250 MB limit)
+
+Packing `DemaConsulting.SysML2Tools.Tool` locally confirmed a **434.94 MB** `.nupkg` — well past
+NuGet.org's hard size limit. Inspecting the archive found three compounding, independently
+fixable causes:
+
+1. **Native SkiaSharp debug symbols ship in the package.** `761.7 MB` (57%) of the uncompressed
+   content is `libSkiaSharp.pdb` (Windows x86/x64/arm64) — third-party native debug symbols nobody
+   debugs into. These arrive as ordinary content files from the transitive `SkiaSharp` package (via
+   `DemaConsulting.Rendering.Skia`) and are not excluded today. **Fix:** add an MSBuild target
+   (e.g. `BeforeTargets="_GetPackageFiles"` or the tool-packing equivalent) that filters
+   `**/native/*.pdb` out of the packed file list.
+2. **Full triplication from multi-targeting.** `Tool` targets `net8.0;net9.0;net10.0`, and
+   `PackAsTool` stages a complete, independent `tools/{tfm}/any/runtimes/**` tree per TFM — tripling
+   every native asset. **.NET 9 is STS and already out of support**; `.NET 8` (LTS, supported to
+   Nov 2026) and `.NET 10` (current LTS) are the only versions worth shipping. **Decision: target
+   `net10.0` only** for the `Tool` package (single TFM, maximal size reduction; `Core`/`Language`/
+   `Stdlib` remain multi-targeted `net8.0;net9.0;net10.0` since they're ordinary libraries consumed
+   by projects on any of those TFMs — this change is scoped to `Tool` only).
+3. **Untrimmed RID matrix.** The transitive `SkiaSharp` native-asset packages bundle every RID
+   SkiaSharp supports, including ones this project doesn't need to support (`linux-loongarch64`,
+   `linux-bionic-*`, `linux-musl-loongarch64`, etc.). The `Tool.csproj`'s own OS-conditioned
+   `SkiaSharp.NativeAssets.{Win32,Linux.NoDependencies,macOS}` references are effectively
+   redundant/dead — the full matrix arrives unconditionally via `DemaConsulting.Rendering.Skia`
+   regardless of host OS. **Fix:** pin an explicit, curated RID list (Windows x64/x86/arm64, Linux
+   x64/arm64 + musl x64/arm64, macOS x64/arm64) so only supported platforms are packaged.
+
+**Scope:** `src/DemaConsulting.SysML2Tools.Tool/DemaConsulting.SysML2Tools.Tool.csproj` only.
+**Visual/verification gate:** `dotnet pack` the `Tool` project and confirm the resulting
+`.nupkg` is comfortably under NuGet.org's limit (target: well under 100 MB); the packed tool must
+still install and render correctly (SVG + PNG) on at least the currently-tested OS matrix
+(Windows/Linux/macOS) — this is exactly what the "Package validation gate" tool smoke test above
+already covers, so it doubles as the regression check for this fix.
+
 ### Licensing, docs, gallery, publish
 
 - **Licensing/attribution:** `--licenses` output covering Noto Sans (SIL OFL 1.1) and other OTS;
