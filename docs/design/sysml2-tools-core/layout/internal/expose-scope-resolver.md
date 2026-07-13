@@ -18,10 +18,11 @@ parameters, and (Phase 2a) resolution output is returned as two internal record 
   the resolved scope. `PrefixSubjects` are exposed subject qualified names whose entire
   containment subtree is in scope (the pre-Phase-2a whole-subtree behavior, used for `expose`
   entries with no bracket filter and as the fallback for a bracket-filtered entry that failed to
-  parse or evaluate). `ExplicitMembers` are individual definition qualified names matched by a
-  successfully-evaluated bracket filter — exact matches only, not their own nested members unless
-  those also match. A settable `Failures` init-property (default empty) carries any bracket
-  filters that failed to parse or evaluate.
+  parse or evaluate). `ExplicitMembers` are individual qualified names — of a `SysmlDefinitionNode`
+  **or a named `SysmlFeatureNode`** (Phase 2d — widened from definitions-only, see below) —
+  matched by a successfully-evaluated bracket filter — exact matches only, not their own nested
+  members unless those also match. A settable `Failures` init-property (default empty) carries any
+  bracket filters that failed to parse or evaluate.
 - `BracketFilterFailure(string ExpressionText, string? Reason)` — one failed bracket-filter
   expression's raw source text plus a short human-readable reason, feeding
   `LayoutWarnings.ForUnevaluatedExposeBracketFilter`.
@@ -46,9 +47,11 @@ the edge's target with the `ExposeMember` it originated from (see Design below) 
 - when that entry's bracket-filter expression parses and evaluates successfully (Phase 2a), computes
   the candidate set as every `workspace.Declarations` key that is the target itself or lies in its
   containment subtree (`qn == target || qn.StartsWith(target + "::")`) *and* is a
-  `SysmlDefinitionNode` — mirroring `GeneralViewLayoutStrategy.CollectDefinitions`'s existing
-  restriction — evaluates with `FilterExpressionEvaluator.Evaluate` against that candidate set
-  unchanged, and adds the matched subset to `ExplicitMembers`;
+  `SysmlDefinitionNode` **or named `SysmlFeatureNode`** (Phase 2d — widened from
+  definitions-only so a metaclass-kind classification test like `@SysML::PartUsage` can match a
+  usage-level candidate too) — mirroring `GeneralViewLayoutStrategy.CollectDefinitions`'s
+  candidate-set restriction — evaluates with `FilterExpressionEvaluator.Evaluate` against that
+  candidate set unchanged, and adds the matched subset to `ExplicitMembers`;
 - when that entry's bracket-filter expression fails to parse or evaluate, falls back to
   whole-subtree inclusion (`PrefixSubjects`, same as the unfiltered case) and records a
   `BracketFilterFailure` with the raw expression text and a short reason, so the caller can
@@ -61,14 +64,14 @@ scoping to nothing, whole-subtree inclusion also resolves the usage's own `Typin
 `ResolvedEdges` entry (if any) and adds that type's qualified name to `PrefixSubjects` too, so both
 the usage and its type's subtree are included. This expansion only applies to whole-subtree
 inclusion — a successfully-evaluated bracket filter's `ExplicitMembers` already name the exact
-matched definitions directly.
+matched definitions/usages directly.
 
 ###### `IsInSubjectScope(string qualifiedName, ExposedScope scope)`
 
 Returns `true` when `qualifiedName` equals one of `scope.PrefixSubjects` or lies within one of
 their containment subtrees (a `"{subject}::"` prefix match, the same qualified-name-prefix idiom
 `StdlibFilter.IsStdlibElement` already uses for stdlib-prefix matching), or is an exact match of
-one of `scope.ExplicitMembers` (a bracket-filter-matched definition). Used by every strategy to
+one of `scope.ExplicitMembers` (a bracket-filter-matched definition or usage). Used by every strategy to
 decide whether a candidate element belongs in a scoped diagram.
 
 ###### `IsRootRelevantToScope(string candidateQualifiedName, ExposedScope scope)`

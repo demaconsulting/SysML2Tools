@@ -119,6 +119,42 @@ configuration are required beyond a standard .NET SDK installation.
 - A constraint-kind feature (non-null `ExpressionText`) renders its raw expression text in place
   of the generic `name : Type [multiplicity]` row shape.
 - An `"enum value"`-keyword feature compartment is titled `"enum values"`.
+- `CollectDefinitions` admits named usage-level (`SysmlFeatureNode`) candidates alongside
+  definitions (Phase 2d), so a bare or `SysML::`-qualified metaclass-kind filter
+  (`filter @PartUsage;`/`filter @SysML::PartUsage;`) renders only the matching usage-kind boxes,
+  reproducing the OMG `42.Views/ViewsExample.sysml` pattern, instead of an empty canvas.
+- With no filter present at all, usage-level candidates render as boxes too, but only when they
+  are not already shown as a compartment row of an independently-rendered nearest ancestor —
+  `RemoveRedundantNestedUsages` (Retry 1 fix; hardened to a depth-ordered cascading pass in Retry 2)
+  excludes a nested usage from standalone rendering when its immediate parent is also present in
+  the final rendered set and has not itself already been excluded, restoring the pre-Phase-2d box
+  count for models with nested usages (e.g. the gallery's `01-drone-general.sysml`) while still
+  admitting genuinely top-level or filter-surviving usages as their own boxes, and — critically —
+  never silently dropping a usage nested two or more levels deep whose intermediate parent was
+  itself excluded (that usage instead correctly survives as its own standalone box).
+- The OMG Safety feature-views fixture's exposed-vehicle-subtree scope (a whole-subtree `expose`
+  of the vehicle usage, no bracket filter) now renders a non-empty scoped diagram containing the
+  vehicle's part usages (e.g. `seatBelt`, `bumper`), where it previously rendered empty because
+  `CollectDefinitions` admitted only definitions, not usages — while still excluding
+  `Safety`/`Security` from the scoped result. These usages' immediate containing usages (`vehicle`
+  and its intermediate subassemblies) are never independently admitted into the exposed scope's
+  matched-member set, so `RemoveRedundantNestedUsages` does not remove them.
+- A usage nested directly inside an independently-rendered definition/usage is excluded from
+  standalone box rendering in the default (unfiltered, unexposed) case — the direct regression
+  reproduction requested by quality re-validation (Retry 1).
+- A nested usage whose immediate parent is excluded from the final rendered set by an active
+  metaclass filter (rather than by scope) still renders as its own standalone box, proving
+  `RemoveRedundantNestedUsages` runs after — not before — standalone filter narrowing (Retry 1).
+- The real gallery corpus model `docs/gallery/models/01-drone-general.sysml`'s `DroneGeneralView`
+  renders exactly 21 boxes, matching the checked-in `docs/gallery/svg/DroneGeneralView.svg` — the
+  automated regression guard for the 21 → 47 box-count defect found by quality re-validation
+  (Retry 1).
+- A usage nested two or more levels deep (e.g. `part def A { part b { part c; } }`) renders as its
+  own standalone box (`c`) when its intermediate parent (`b`) is itself excluded as a redundant
+  nested usage — the direct regression reproduction for the silent-data-loss defect found by
+  quality re-validation (Retry 2): exactly 2 boxes render (`A` and `c`), `b` never appears as its
+  own box, and `c` is never silently dropped merely because its immediate parent was itself
+  excluded in the same pass.
 
 ##### Test Scenarios
 
@@ -235,3 +271,36 @@ configuration are required beyond a standard .NET SDK installation.
   compartment titles
 - `GeneralViewLayoutStrategy_BuildLayout_EnumDefLiteralValues_ProducesEnumValuesCompartment`:
   `"enum value"`-keyword features are grouped under an `"enum values"` compartment title
+- `GeneralViewLayoutStrategy_BuildLayout_QualifiedPartUsageFilter_RendersOnlyPartUsages`:
+  A `filter @SysML::PartUsage;` expression renders only usage-level candidates whose own keyword
+  maps to `PartUsage`, reproducing the OMG `42.Views/ViewsExample.sysml` regression pattern against
+  a mixed part/requirement/other-usage workspace
+- `GeneralViewLayoutStrategy_BuildLayout_BarePartUsageFilter_RendersOnlyPartUsages`:
+  The bare `filter @PartUsage;` spelling matches identically to the qualified form
+- `GeneralViewLayoutStrategy_BuildLayout_NoFilter_RendersUsageLevelCandidatesToo`:
+  With no filter present, flat/top-level usage-level candidates render as boxes by default (Phase
+  2d widening); this synthetic workspace has no nesting, so `RemoveRedundantNestedUsages` (Retry 1)
+  has nothing to exclude here
+- `GeneralViewLayoutStrategy_BuildLayout_NoFilter_ExcludesUsageNestedInsideRenderedDefinition`
+  (Retry 1): a usage nested directly inside an independently-rendered definition is excluded from
+  standalone box rendering in the default (unfiltered) case — the direct regression reproduction
+  requested by quality re-validation
+- `GeneralViewLayoutStrategy_BuildLayout_MetaclassFilter_KeepsNestedUsageWhenParentExcluded`
+  (Retry 1): a nested usage whose immediate parent is excluded from the final rendered set by an
+  active metaclass filter still renders as its own standalone box, proving the dedup step runs
+  after — not before — standalone filter narrowing
+- `GeneralViewLayoutStrategy_BuildLayout_DroneGalleryModel_RendersExactly21BoxesMatchingCheckedInSvg`
+  (Retry 1): the real gallery corpus model `docs/gallery/models/01-drone-general.sysml`'s
+  `DroneGeneralView` renders exactly 21 boxes, matching the checked-in
+  `docs/gallery/svg/DroneGeneralView.svg` — the automated regression guard for the 21 → 47
+  box-count defect
+- `GeneralViewLayoutStrategy_BuildLayout_NoFilter_RendersDeeplyNestedGrandchildUsageWhenIntermediateParentExcluded`
+  (Retry 2): a 3-level nested workspace (`Root::A` definition, `Root::A::b` and `Root::A::b::c`
+  usages) renders exactly 2 boxes — `A` and `c` — with `b` correctly excluded as redundant but `c`
+  never silently dropped, proving the depth-ordered cascading dedup pass correctly treats `b` as
+  absent for `c`'s own test once `b` is itself excluded, instead of the prior single-pass,
+  pre-dedup-snapshot logic that silently lost `c` entirely
+- `GeneralViewLayoutStrategy_BuildLayout_OmgSafetyFeatureViewsFixture_ScopesToExposedVehicleSubtree`:
+  The OMG Safety feature-views fixture's exposed-vehicle-subtree scope now renders a non-empty
+  scoped diagram containing the vehicle's part usages (`seatBelt`/`bumper`), while still excluding
+  `Safety`/`Security`

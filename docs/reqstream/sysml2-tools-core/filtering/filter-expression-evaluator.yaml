@@ -124,3 +124,30 @@ sections:
           - Parse_RoundTrip_PrettyPrintedTextReparsesToEquivalentTree
           - Parse_NumericLiteralOverflow_ReturnsDiagnosticInsteadOfInfinity
           - Parse_LargeButFiniteRealLiteral_StillParsesSuccessfully
+
+      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-MetaclassKindClassificationTests
+        title: >-
+          FilterExpressionEvaluator shall also match a classification test (`@Type`/`@Pkg::Type`)
+          when the candidate's own AST node kind (its definition or feature keyword) maps to the
+          requested built-in SysML metaclass, in both bare (`@PartUsage`) and `SysML::`-qualified
+          (`@SysML::PartUsage`) spelling, honoring the stdlib's `specializes` chain so a filter
+          naming an ancestor metaclass also matches a more specific descendant kind — without
+          altering existing applied-annotation classification-test matching, which remains an
+          independent, OR-combined match path.
+        justification: |
+          Real-world SysML v2 view filters (e.g. OMG's `42.Views/ViewsExample.sysml`,
+          `filter @SysML::PartUsage;`) classify candidates by their own metaclass/kind, not by an
+          explicitly applied domain-metadata annotation — Phase 1's applied-annotation-only match
+          could never satisfy this common pattern, silently rendering such views empty instead of
+          narrowed. Supporting the bare and `SysML::`-qualified spellings together matches both
+          conventions seen in corpus filters. The specialization-conformance walk keeps a filter
+          naming a general metaclass (e.g. `@ConstraintUsage`) meaningful against more specific
+          stdlib-derived kinds (e.g. a `requirement` usage), mirroring how classification tests
+          behave against a real metaclass hierarchy rather than only exact-kind matching.
+        tests:
+          - Evaluate_BareMetaclassKind_MatchesUsage
+          - Evaluate_QualifiedMetaclassKind_MatchesUsage
+          - Evaluate_MetaclassKind_MatchesDefinition
+          - Evaluate_MetaclassKind_NonMatchingMetaclass_DoesNotMatch
+          - Evaluate_ClassificationTest_AppliedAnnotationMatchingUnaffectedByMetaclassKindAddition
+          - Evaluate_MetaclassKind_SpecializationConformance_MatchesAncestorMetaclass

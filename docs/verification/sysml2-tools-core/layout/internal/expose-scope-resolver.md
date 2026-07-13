@@ -35,6 +35,9 @@ configuration are required beyond a standard .NET SDK installation.
 - (Phase 2a) A bracket-filter expression that fails to parse or evaluate degrades gracefully to
   whole-subtree inclusion for that entry (added to `PrefixSubjects`, same as the unfiltered case)
   and records a `BracketFilterFailure` (expression text plus a reason) in `ExposedScope.Failures`.
+- (Phase 2d) A successfully-evaluated bracket-filter expression's candidate set includes named
+  usage-level (`SysmlFeatureNode`) declarations, not just `SysmlDefinitionNode`s, so a
+  metaclass-kind filter like `@SysML::PartUsage` can match a usage-level candidate.
 - `IsInSubjectScope` returns `true` for an exact qualified-name match against a `PrefixSubjects`
   entry.
 - `IsInSubjectScope` returns `true` for a qualified name nested under a `PrefixSubjects` entry (a
@@ -86,6 +89,9 @@ configuration are required beyond a standard .NET SDK installation.
 - `ResolveExposedScope_BracketFilterFailsToParse_FallsBackToWholeSubtreeAndRecordsFailure`:
   A bracket filter that fails to parse falls back to whole-subtree inclusion in `PrefixSubjects`
   and records a `BracketFilterFailure` (expression text and reason) in `Failures`
+- `ResolveExposedScope_BracketFilterMetaclassKind_MatchesUsageLevelCandidate`:
+  A successfully-evaluated bracket-filter metaclass-kind expression matches a named usage-level
+  candidate (`SysmlFeatureNode`), not just definitions
 - `IsInSubjectScope_ExactMatch_ReturnsTrue`:
   Exact qualified-name match against a `PrefixSubjects` entry is in scope
 - `IsInSubjectScope_SubtreeMatch_ReturnsTrue`:

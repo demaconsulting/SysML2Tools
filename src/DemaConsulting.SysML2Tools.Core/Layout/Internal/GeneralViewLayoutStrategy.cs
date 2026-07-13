@@ -141,7 +141,22 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             ? LineStyle.Dashed
             : LineStyle.Solid;
 
-    /// <summary>A user-defined definition together with its computed box size and supertypes.</summary>
+    /// <summary>A user-defined definition or named usage together with its computed box size and supertypes.</summary>
+    /// <param name="QualifiedName">The definition or usage's fully qualified name.</param>
+    /// <param name="SimpleName">The definition or usage's simple (unqualified) name.</param>
+    /// <param name="Keyword">The definition or usage keyword (e.g. <c>part</c>, <c>requirement</c>).</param>
+    /// <param name="SupertypeNames">The declared supertype names (specialization/subsetting/redefinition targets).</param>
+    /// <param name="Memberships">The owned feature memberships to render as compartment rows.</param>
+    /// <param name="Compartments">The computed compartments to render inside the box.</param>
+    /// <param name="Width">The computed box width.</param>
+    /// <param name="Height">The computed box height.</param>
+    /// <param name="Annotations">The applied annotation metadata associated with this node.</param>
+    /// <param name="IsUsage">
+    /// <see langword="true"/> when this box represents a <see cref="SysmlFeatureNode"/> usage
+    /// (rather than a <see cref="SysmlDefinitionNode"/> definition). Used by
+    /// <see cref="RemoveRedundantNestedUsages"/> to decide which boxes are eligible for
+    /// nested-duplicate exclusion — definitions are never excluded by that rule.
+    /// </param>
     private sealed record DefBox(
         string QualifiedName,
         string SimpleName,
@@ -151,7 +166,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         IReadOnlyList<LayoutCompartment> Compartments,
         double Width,
         double Height,
-        IReadOnlyList<SysmlAnnotation> Annotations);
+        IReadOnlyList<SysmlAnnotation> Annotations,
+        bool IsUsage);
 
     /// <summary>Where a located definition's node lives: the node itself and its owning package.</summary>
     private readonly record struct Location(LayoutGraphNode Node, string Package);
@@ -229,6 +245,21 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             }
         }
 
+        // Drop any usage-level box that would duplicate content already shown as a compartment row
+        // of its nearest still-rendered ancestor box (see RemoveRedundantNestedUsages, which
+        // processes boxes shallowest-first so that a usage excluded earlier in the same pass is
+        // treated as absent for its own children's test — cascading correctly through any nesting
+        // depth instead of silently dropping a deeper-nested usage). This must run after the
+        // standalone filter narrowing above (not before it and not inside CollectDefinitions), so
+        // that a usage whose parent was excluded by the filter — rather than by scope — is
+        // correctly kept as its own standalone box instead of being wrongly dropped by an
+        // earlier-run dedup pass that saw the parent still present in a pre-filter set.
+        defs = RemoveRedundantNestedUsages(defs);
+        if (defs.Count == 0)
+        {
+            return new LayoutTree(200.0, 100.0, []);
+        }
+
         // Group definitions by their owning package (prefix before the last "::").
         var groups = GroupByPackage(defs);
 
@@ -267,10 +298,33 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Collects every user-defined <see cref="SysmlDefinitionNode"/> from the workspace and computes
+    /// Collects every user-defined <see cref="SysmlDefinitionNode"/> (and every named
+    /// <see cref="SysmlFeatureNode"/> usage, at any nesting depth) from the workspace and computes
     /// each box's intrinsic size from its keyword and name, restricted to <paramref name="scope"/>
     /// when non-null (the view's resolved <c>expose</c> containment subtrees).
     /// </summary>
+    /// <remarks>
+    /// This method implements the first of a two-stage admit-then-dedup design (Phase 2d, see
+    /// <c>ROADMAP.md</c>'s "View <c>filter [&lt;expr&gt;];</c> expression evaluation" section):
+    /// usage-level (<see cref="SysmlFeatureNode"/>) candidates are admitted here alongside
+    /// definitions, unconditionally of nesting depth, because this method also doubles as the
+    /// filter-candidate source — a metaclass-kind classification test like
+    /// <c>filter @SysML::PartUsage;</c> is inherently about usages, not definitions, and every
+    /// admitted usage must be present here for such a filter to have anything meaningful to
+    /// narrow. This superset necessarily includes usages nested inside an already-admitted
+    /// definition/usage, which would duplicate that parent's compartment row if rendered as its own
+    /// box; the second stage, <see cref="RemoveRedundantNestedUsages"/>, runs later in
+    /// <see cref="BuildLayout"/> — after the standalone <c>filter [&lt;expr&gt;];</c> narrowing —
+    /// and removes exactly those nested usages whose nearest still-rendered ancestor is present in
+    /// the final, fully scope-and-filter-narrowed set (cascading through any nesting depth so a
+    /// deeper-nested usage is never silently dropped merely because an intermediate ancestor was
+    /// itself excluded). An unnamed <see cref="SysmlFeatureNode"/> usage (<see cref="SysmlNode.Name"/>
+    /// is <see langword="null"/>) is excluded, since it has no stable qualified name to key a box on;
+    /// an unnamed <see cref="SysmlDefinitionNode"/>, by contrast, is still admitted — it falls back to
+    /// keying its box on the declaration's own qualified name, exactly as it did before usage-level
+    /// candidates were introduced.
+    /// </remarks>
+    /// <seealso cref="RemoveRedundantNestedUsages"/>
     private static IReadOnlyList<DefBox> CollectDefinitions(
         SysmlWorkspace workspace,
         Theme theme,
@@ -280,7 +334,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         foreach (var (qualifiedName, declaration) in workspace.Declarations)
         {
-            if (declaration is not SysmlDefinitionNode def)
+            if (declaration is not (SysmlDefinitionNode or SysmlFeatureNode) ||
+                (declaration is SysmlFeatureNode && declaration.Name is null))
             {
                 continue;
             }
@@ -295,25 +350,128 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            var simpleName = def.Name ?? qualifiedName;
-            var keyword = string.IsNullOrEmpty(def.DefinitionKeyword) ? "def" : def.DefinitionKeyword;
+            var simpleName = declaration.Name ?? qualifiedName;
+            var rawKeyword = declaration switch
+            {
+                SysmlDefinitionNode def => def.DefinitionKeyword,
+                SysmlFeatureNode feature => feature.FeatureKeyword,
+                _ => string.Empty,
+            };
+            var keyword = string.IsNullOrEmpty(rawKeyword) ? "def" : rawKeyword;
 
-            // Build compartments from the definition's owned usages (attributes, ports, parts, …).
-            var compartments = BuildCompartments(def);
+            // Specialization edges (below, in BuildModelEdges) are drawn from DefBox.SupertypeNames.
+            // On a SysmlFeatureNode, SupertypeNames is populated only from a usage-level `subsets`/`:>`
+            // clause (see SysmlNode.SupertypeNames's remarks) — subsetting, not specialization — so it
+            // must not be surfaced here as a specialization target; only definition-level SupertypeNames
+            // (`part def X :> Y`) are genuine specialization targets.
+            var specializationSupertypeNames = declaration is SysmlDefinitionNode
+                ? declaration.SupertypeNames
+                : Array.Empty<string>();
 
-            var memberships = CollectMemberships(def);
+            // Build compartments from the declaration's owned usages (attributes, ports, parts, …).
+            var compartments = BuildCompartments(declaration);
+
+            var memberships = CollectMemberships(declaration);
             var (width, height) = ComputeBoxSize(simpleName, keyword, compartments, theme);
-            result.Add(new DefBox(qualifiedName, simpleName, keyword, def.SupertypeNames, memberships, compartments, width, height, def.Annotations));
+            result.Add(new DefBox(qualifiedName, simpleName, keyword, specializationSupertypeNames, memberships, compartments, width, height, declaration.Annotations, declaration is SysmlFeatureNode));
         }
 
         return result;
     }
 
     /// <summary>
-    /// Builds compartments for a definition by grouping its owned usage features by keyword and
-    /// formatting each as a <c>name : Type [n]</c> row.
+    /// Removes usage-level (<see cref="DefBox.IsUsage"/>) boxes from <paramref name="defs"/> whose
+    /// nearest still-rendered ancestor is a definition/usage that is itself independently rendered
+    /// as a box — i.e., a usage nested (directly, or transitively through one or more other
+    /// excluded usages) inside a box that already shows it as a compartment row.
     /// </summary>
-    private static IReadOnlyList<LayoutCompartment> BuildCompartments(SysmlDefinitionNode def)
+    /// <remarks>
+    /// This is the second stage of <see cref="CollectDefinitions"/>'s admit-then-dedup design.
+    /// Every node's qualified name is built as a strict <c>parent::child</c> containment chain, so
+    /// a usage's immediate-parent qualified name is recovered by stripping the qualified name's
+    /// last <c>"::"</c>-separated segment, and every ancestor is therefore strictly shallower
+    /// (fewer <c>"::"</c>-separated segments) than its descendants. Boxes are processed in
+    /// ascending depth order (fewest <c>"::"</c> occurrences first) while incrementally building an
+    /// <c>excluded</c> set, so that by the time a usage is tested, every one of its ancestors has
+    /// already been finally decided. A usage is excluded only when its immediate parent is present
+    /// in <paramref name="defs"/> <em>and has not itself already been excluded</em> earlier in this
+    /// same pass — i.e., only when the immediate parent is itself still rendered, and therefore
+    /// already shows the usage as one of its compartment rows (see <see cref="BuildCompartments"/>,
+    /// which renders a definition's direct <see cref="SysmlNode.Children"/> only, never a deeper
+    /// descendant). Conversely, when the immediate parent has itself just been excluded in this
+    /// same pass, it no longer renders anywhere, so its own compartment can no longer show this
+    /// usage — the usage is therefore not excluded, and survives as its own standalone box. This
+    /// cascades correctly through any nesting depth (two, three, or more levels of usage-in-usage
+    /// nesting all resolve in this single ordered pass), guaranteeing a deeper-nested usage is never
+    /// silently dropped merely because an intermediate ancestor between it and the nearest rendered
+    /// box was itself excluded. A top-level usage (its qualified name has no <c>"::"</c>, i.e. it
+    /// has no containing declaration) is never excluded. Definitions (<see cref="DefBox.IsUsage"/>
+    /// is <see langword="false"/>) are never excluded by this rule, preserving all pre-Phase-2d
+    /// definition-rendering behavior. The caller (<see cref="BuildLayout"/>) must invoke this after
+    /// all scope and filter narrowing has been applied to <paramref name="defs"/>, so that a usage
+    /// whose immediate parent was excluded by a metaclass filter (rather than genuinely absent from
+    /// scope) is correctly kept as its own standalone box instead of being wrongly dropped against a
+    /// pre-filter parent set.
+    /// </remarks>
+    private static IReadOnlyList<DefBox> RemoveRedundantNestedUsages(IReadOnlyList<DefBox> defs)
+    {
+        var qualifiedNames = new HashSet<string>(defs.Select(d => d.QualifiedName), StringComparer.Ordinal);
+        var excluded = new HashSet<string>(StringComparer.Ordinal);
+
+        // Process shallowest-first so that, by the time a usage is tested, its immediate parent's
+        // own exclusion decision has already been finalized (parents always have strictly fewer
+        // "::" occurrences than their descendants).
+        var ordered = defs
+            .Select((d, index) => (Box: d, Index: index))
+            .OrderBy(t => CountOccurrences(t.Box.QualifiedName, "::"))
+            .ThenBy(t => t.Index);
+
+        foreach (var (box, _) in ordered)
+        {
+            if (!box.IsUsage)
+            {
+                continue;
+            }
+
+            var separatorIndex = box.QualifiedName.LastIndexOf("::", StringComparison.Ordinal);
+            if (separatorIndex < 0)
+            {
+                continue;
+            }
+
+            var parentQualifiedName = box.QualifiedName[..separatorIndex];
+            if (qualifiedNames.Contains(parentQualifiedName) && !excluded.Contains(parentQualifiedName))
+            {
+                excluded.Add(box.QualifiedName);
+            }
+        }
+
+        return defs.Where(d => !excluded.Contains(d.QualifiedName)).ToList();
+    }
+
+    /// <summary>
+    /// Counts the number of non-overlapping occurrences of <paramref name="token"/> in
+    /// <paramref name="value"/>, used by <see cref="RemoveRedundantNestedUsages"/> as a nesting-depth
+    /// proxy for ordering (only relative shallower-before-deeper order matters, not an exact count).
+    /// </summary>
+    private static int CountOccurrences(string value, string token)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = value.IndexOf(token, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += token.Length;
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// Builds compartments for a definition or usage by grouping its owned usage features by
+    /// keyword and formatting each as a <c>name : Type [n]</c> row.
+    /// </summary>
+    private static IReadOnlyList<LayoutCompartment> BuildCompartments(SysmlNode def)
     {
         // Preserve keyword first-seen order so compartments appear in declaration order.
         var order = new List<string>();
@@ -380,7 +538,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// name, redefined-feature reference (if any), and subsetted-feature reference(s) (if any) of
     /// each owned feature that carries a type annotation, a redefinition, and/or a subsetting.
     /// </summary>
-    private static IReadOnlyList<FeatureMembership> CollectMemberships(SysmlDefinitionNode def)
+    private static IReadOnlyList<FeatureMembership> CollectMemberships(SysmlNode def)
     {
         var result = new List<FeatureMembership>();
         foreach (var child in def.Children)

@@ -29,11 +29,14 @@ sections:
           - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-AttributeReads
           - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-UnsupportedConstructDiagnostics
           - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-RoundTripPrettyPrinting
+          - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-MetaclassKindClassificationTests
         tests:
           - DiagramRenderer_RenderWorkspace_SafetyPartsView_FiltersToAnnotatedParts
           - DiagramRenderer_RenderWorkspace_MandatorySafetyPartsView_FiltersToMandatoryPart
           - GeneralViewLayoutStrategy_BuildLayout_FilterExpressionMatchesNothing_RendersEmpty
           - GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning
+          - GeneralViewLayoutStrategy_BuildLayout_QualifiedPartUsageFilter_RendersOnlyPartUsages
+          - GeneralViewLayoutStrategy_BuildLayout_BarePartUsageFilter_RendersOnlyPartUsages
 
       - id: SysML2Tools-Core-Filtering-BracketFormExposeEvaluation
         title: >-
@@ -53,7 +56,9 @@ sections:
           - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-BooleanConnectives
           - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-AttributeReads
           - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-UnsupportedConstructDiagnostics
+          - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-MetaclassKindClassificationTests
         tests:
           - ResolveExposedScope_BracketFilterEvaluatesSuccessfully_NarrowsToMatchedDefinitionsOnly
           - ResolveExposedScope_MixedFilteredAndUnfilteredEntries_NarrowsIndependently
           - ResolveExposedScope_BracketFilterFailsToParse_FallsBackToWholeSubtreeAndRecordsFailure
+          - ResolveExposedScope_BracketFilterMetaclassKind_MatchesUsageLevelCandidate

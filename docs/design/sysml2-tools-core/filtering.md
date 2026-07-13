@@ -74,6 +74,12 @@ flowchart TD
    resolved `MetadataType` edge points at the requested type, when that target ends with
    `"::Type"` for a bare-name filter, or — if the metadata type never resolved — when the raw
    `TypeReference` text itself matches, allowing graceful fallback for otherwise-usable models.
+   (Phase 2d) A classification test **also** matches when the candidate's own AST node kind (its
+   `DefinitionKeyword`/`FeatureKeyword`) maps to the requested built-in SysML metaclass name, via a
+   keyword-to-metaclass lookup table plus a bounded stdlib `specializes`-chain walk — see
+   `docs/design/sysml2-tools-core/filtering/filter-expression-evaluator.md` for the full mapping
+   table and matching semantics. This is an additional match path, evaluated alongside (not instead
+   of) the applied-annotation match above.
 6. Bare attribute reads are boolean predicates: they succeed only when the addressed metadata
    attribute exists and its captured literal kind is Boolean with value `true`. Equality and
    inequality comparisons support Boolean, Number, and String literals. A missing annotation or a
@@ -87,7 +93,11 @@ flowchart TD
    `GeneralViewLayoutStrategy.CollectDefinitions`'s existing restriction), calls `Evaluate` with
    that candidate set, and adds the matched subset to the resolved scope's `ExplicitMembers`. No
    change was required in this subsystem to support the second caller, confirming the evaluator's
-   candidate-set-agnostic design.
+   candidate-set-agnostic design. (Phase 2d) Both `ExposeScopeResolver`'s bracket-filter candidate
+   set and `GeneralViewLayoutStrategy.CollectDefinitions`'s filter-candidate/render set were
+   widened to admit named `SysmlFeatureNode` (usage-level) candidates in addition to
+   `SysmlDefinitionNode`s, since a metaclass-kind classification test (e.g.
+   `filter @SysML::PartUsage;`) is inherently about usages, not definitions.
 
 ### Design Constraints
 
@@ -112,3 +122,4 @@ flowchart TD
 | --- | --- |
 | SysML2Tools-Core-Filtering-StandaloneViewFilterEvaluation | `Parse`, `Evaluate`, and `FilterExpression.ToString()` |
 | SysML2Tools-Core-Filtering-BracketFormExposeEvaluation | `ExposeScopeResolver` reusing `Parse`/`Evaluate` |
+| SysML2Tools-Core-Filtering-FilterExpressionEvaluator-MetaclassKindClassificationTests | `MatchesMetaclassKind` |

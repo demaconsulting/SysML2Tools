@@ -95,6 +95,68 @@ Reads the attribute value and compares it against the literal using `ValuesEqual
 or absent attributes evaluate conservatively as false regardless of operator; there is no implicit
 three-valued logic or default-value synthesis in Phase 1.
 
+##### Metaclass/kind classification-test matching (Phase 2d)
+
+A classification test (`@Type`/`@Pkg::Type`) matches when *either* `FindMetadata` succeeds
+(unchanged) *or* `MatchesMetaclassKind(workspace, node, typeName)` succeeds — the two paths are
+evaluated independently and combined with a boolean OR, since both are legitimate under the OMG
+`@` classification-test semantics (metaclass membership *or* explicit domain metadata).
+
+`MatchesMetaclassKind` maps the candidate's own AST node kind — `SysmlDefinitionNode.DefinitionKeyword`
+or `SysmlFeatureNode.FeatureKeyword` — to a built-in SysML metaclass's bare (simple) name via the
+static `MetaclassNames` lookup table, then checks whether the requested `typeName` matches that
+bare name directly, or matches the canonical `SysML::`-qualified spelling (`"SysML::" + name`) —
+the spelling real-world corpus filters use (e.g. `filter @SysML::PartUsage;`), which does *not*
+literally match the stdlib's actual nested declaration path (`SysML::Systems::PartUsage`); see
+"Why bare metaclass names, not the literal stdlib path" below.
+
+`MetaclassNames` covers every definition/feature keyword this project's `AstBuilder` assigns that
+has a corresponding stdlib `metadata def` declaration in `SysML.sysml`, verified by grepping every
+`metadata def \w+Usage|\w+Definition` declaration in the stdlib and cross-checking each keyword.
+Documented known gaps (keywords with no stdlib metaclass, or deliberately not guessed): `individual
+def`; raw KerML classifier keywords (`datatype`/`class`/`struct`/`assoc`/`assoc struct`/`function`/
+`predicate`); `subject`/`actor`/`stakeholder`; bare `enum value` members; control-node keywords
+(`merge`/`decide`/`join`/`fork`); `assume constraint`/`require constraint` (not merged into the
+generic `ConstraintUsage`, to avoid over-claiming semantics not evidenced in the stdlib); `entry`/
+`do`/`exit` (not mapped to `ActionUsage`, since these are deliberately non-behavioral minimal
+captures). Also out of scope by construction: `SysmlConnectionNode` (`connection`/`allocation`/
+`binding`/`message`) and `SysmlViewNode`/`SysmlViewpointNode` (`view def`/`view`/`viewpoint def`/
+`viewpoint`) — these use dedicated node types, not `SysmlDefinitionNode`/`SysmlFeatureNode`.
+
+**Specialization-conformance walk.** When the candidate's own mapped metaclass does not match
+`typeName` exactly, `ConformsToMetaclass` walks the stdlib's `specializes` chain looking for a
+matching ancestor metaclass — e.g. a `requirement` usage's mapped metaclass (`RequirementUsage`)
+also matches `@ConstraintUsage`, since `RequirementUsage specializes ConstraintUsage` in the
+stdlib. This walk is cycle-guarded (a visited-set keyed on bare metaclass name), mirroring
+`ReferenceResolver.FindMemberInTypeHierarchy`'s existing guard pattern.
+
+**Why bare metaclass names, not the literal stdlib path, and why raw `SupertypeNames`, not
+resolved `Supertype` edges.** Two investigation findings shaped this design, both empirically
+confirmed against the compiled stdlib rather than assumed:
+
+1. Stdlib `metadata def` metaclass declarations are nested inside `package Systems` within
+   `package SysML` (`SysML.sysml`'s `standard library package SysML { ... package Systems { metadata
+   def PartUsage ... } }`), so their actual registered `SysmlWorkspace.Declarations` qualified name
+   is `SysML::Systems::PartUsage`, not the two-segment `SysML::PartUsage` real-world filter
+   expressions and this project's own `ROADMAP.md` write. `MetaclassNames`'s values are therefore
+   bare simple names (`"PartUsage"`), and matching compares the requested `typeName` against that
+   bare name or the *canonical* `"SysML::" + name` spelling directly — never against the literal,
+   longer stdlib declaration path — so `@SysML::PartUsage` matches regardless of the stdlib's
+   actual internal package nesting.
+2. `SysmlNode.ResolvedEdges` (including `SysmlEdgeKind.Supertype`) is **never populated for
+   stdlib-only nodes** — `ReferenceResolver.ResolveAll` only runs over user-file AST roots (see
+   `SysmlNode.ResolvedEdges`'s own remarks) — so a specialization walk cannot reuse resolved
+   `Supertype` edges the way ordinary user-model lookups do. `ConformsToMetaclass` instead reads
+   each stdlib metaclass declaration's raw, unresolved `SupertypeNames` text (populated
+   unconditionally by `AstBuilder` during parsing, before any resolution pass runs) and resolves
+   each simple supertype name to its declaring stdlib node by a same-simple-name suffix lookup in
+   `SysmlWorkspace.Declarations`. This is a deliberately narrow, bounded heuristic — not a general
+   reference-resolution mechanism — that assumes the stdlib's metaclass simple names are unique
+   enough for a suffix match to be unambiguous, which holds for the metaclass names this table
+   covers. This design was reached by first attempting the resolved-edge approach and confirming
+   empirically (via a probe against `StdlibProvider.GetSymbolTable()`) that it does not work for
+   stdlib nodes, rather than by assumption.
+
 #### Error Handling
 
 `FilterExpressionParser` never throws for unsupported constructs or malformed syntax. Syntax errors
@@ -198,3 +260,6 @@ lexer/recursive-descent-parser internals could violate that contract despite `Pa
 - `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-RoundTripPrettyPrinting` —
   `FilterExpression.ToString()` overrides, `FilterExpressionParser.Parse`, and
   `FilterExpressionParser.TryBuildLiteral`'s `double.IsFinite` check (numeric-literal-overflow guard)
+- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-MetaclassKindClassificationTests` —
+  `FilterExpressionEvaluator.MatchesMetaclassKind`, `MetaclassNames`, `MetaclassNameMatches`,
+  `ConformsToMetaclass` (specialization-conformance walk)

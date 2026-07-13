@@ -3,8 +3,10 @@
 ##### Purpose
 
 `GeneralViewLayoutStrategy` implements `ILayoutStrategy` to produce a General View diagram. It
-renders every user-defined definition (part, port, interface, requirement, action, and so on) as
-a keyword-labeled box, groups the boxes that belong to a package inside a folder-shaped
+renders every user-defined definition (part, port, interface, requirement, action, and so on) and
+— since Phase 2d (see `ROADMAP.md`'s "View `filter [<expr>];` expression evaluation" section) —
+every named usage-level declaration too, as a keyword-labeled box, groups the boxes that belong to
+a package inside a folder-shaped
 container, lists each definition's owned usages in compartments, and draws specialization,
 membership, attribute-typing, redefinition, subsetting, connect, allocate, dependency, and
 binding edges orthogonally between the boxes. The whole diagram — package
@@ -35,12 +37,14 @@ carries the short kind label, raw source/target reference, and human-readable re
 rendered boxes, feeding `LayoutWarnings.ForDroppedRelationshipEdges`. `FeatureMembership` (a private record) carries
 each owned feature's keyword, raw type reference (`TypeName`, nullable — a feature may declare a
 redefinition with no explicit type annotation), simple `Name`, raw
-`RedefinedFeatureName` reference, the raw `SubsettedFeatureNames` list (populated verbatim
-from `SysmlFeatureNode.SupertypeNames` — a feature's `subsets`/`:>` targets, not a new AST field),
-and `ExpressionText` (verbatim from `SysmlFeatureNode.ExpressionText`, non-null only for
-constraint-kind features such as `"require constraint"`/`"assume constraint"`/`"constraint"`);
-`CollectMemberships` includes a feature when `TypeName`, `RedefinedFeatureName`,
-`ExpressionText`, or a non-empty `SubsettedFeatureNames` is present. The private `EdgeKind`
+`RedefinedFeatureName` reference, and the raw `SubsettedFeatureNames` list (populated verbatim
+from `SysmlFeatureNode.SupertypeNames` — a feature's `subsets`/`:>` targets, not a new AST field).
+`FeatureMembership` does not itself carry an
+`ExpressionText` field — constraint-kind features' expression text (non-null only for
+`"require constraint"`/`"assume constraint"`/`"constraint"` keywords) is read directly from the
+owning `SysmlFeatureNode.ExpressionText` where needed (`BuildCompartments`), not copied into
+`FeatureMembership`. `CollectMemberships` includes a feature when `TypeName`,
+`RedefinedFeatureName`, or a non-empty `SubsettedFeatureNames` is present. The private `EdgeKind`
 enumeration classifies each edge as
 `Specialization`, `Membership`, `Typing`, `Redefinition`, `Subsetting`, `Connect`, `Allocate`,
 `Dependency`, or `Binding`; `Subsetting` is a purely view-layer classification — it does not
@@ -66,7 +70,13 @@ carries standalone `FilterExpressionText`, the method next parses it with
 `defs` to the matched subset and returning the same minimal empty canvas when that subset is empty.
 A parse failure or unsupported Phase 1 construct does not abort layout: the first parser
 diagnostic message is remembered as the warning reason and the method continues rendering the
-unfiltered resolved scope. The remaining pipeline is unchanged: definitions are grouped by package
+unfiltered resolved scope. Once scope and standalone-filter narrowing are both applied, the method
+calls `RemoveRedundantNestedUsages(defs)` (see below), which drops any usage-level box whose
+nearest still-rendered ancestor is also present in the final `defs` set — this must run after both
+narrowing steps, not before or inside `CollectDefinitions`, so a usage whose parent was excluded by
+a filter (rather than genuinely absent from scope) survives as its own standalone box. The method returns
+the same minimal empty canvas if the dedup empties `defs`. The remaining pipeline is unchanged:
+definitions are grouped by package
 with `GroupByPackage`, the specialization/membership/attribute-typing/redefinition/subsetting/
 connect/allocate/dependency/binding relationships are
 resolved into qualified-name edges (plus any dropped-edge diagnostics) with `BuildModelEdges`, the
@@ -89,12 +99,26 @@ the `LayoutTree with { Warnings = … }` record-copy idiom.
 
 ###### `CollectDefinitions(workspace, theme, scope)`
 
-Iterates `workspace.Declarations`, keeping each `SysmlDefinitionNode` that is not a
+Iterates `workspace.Declarations`, keeping each `SysmlDefinitionNode` **or named**
+`SysmlFeatureNode` (Phase 2d — a metaclass-kind classification test like
+`filter @SysML::PartUsage;` is inherently about usages, not definitions, and this method doubles
+as both the filter-candidate source and the box-rendering function for the whole diagram, so
+usages must be admitted here for such a filter to have anything meaningful to narrow; an unnamed
+feature is excluded, since it has no stable qualified name to key a box on) that is not a
 standard-library element (per `StdlibFilter.IsStdlibElement`) and, when `scope` is non-null, is
-within `scope` per `ExposeScopeResolver.IsInSubjectScope`. For each kept definition it builds the
+within `scope` per `ExposeScopeResolver.IsInSubjectScope`. This admission is unconditional of
+nesting depth — it is deliberately a superset used as the filter-candidate pool, including usages
+nested inside an already-admitted definition/usage. `BuildLayout` narrows this superset down to
+the final rendered set in two later steps: the standalone `filter [<expr>];` narrowing, then
+`RemoveRedundantNestedUsages` (Retry 1 fix, cascading depth-ordered pass hardened in Retry 2 —
+see below), which removes exactly the nested usages
+that would duplicate an already-rendered immediate parent's compartment row. For each kept
+declaration it builds the
 compartments from the owned usage features (grouped by keyword, each formatted via
 `FormatFeatureRow`), collects the typed memberships, and computes the box size from the title
-and the longest compartment row.
+and the longest compartment row. `BuildCompartments`/`CollectMemberships` take the common
+`SysmlNode` base type (not `SysmlDefinitionNode`) precisely so a usage-level candidate's owned
+features are collected identically to a definition's.
 
 Each compartment's title comes from `Pluralize(keyword)`, which special-cases a small set of
 individually-significant single-member keywords to a guillemet-wrapped stereotype form instead of
@@ -111,6 +135,52 @@ those kinds.
 features only) as its raw expression text alone (unnamed) or as `"{name}: {expr}"` (named)
 instead of the generic `"name : Type [multiplicity]"` shape used by every other feature kind,
 since a constraint's defining content is its expression, not a type/multiplicity pair.
+
+###### `RemoveRedundantNestedUsages(defs)` (Retry 1 fix; cascading depth-ordered pass hardened in Retry 2)
+
+Removes usage-level (`DefBox.IsUsage`) boxes from `defs` whose nearest still-rendered ancestor is
+also present in `defs` — i.e., a usage nested (directly, or transitively through one or more other
+excluded usages) inside a box that already shows it as a compartment row. Since every node's
+qualified name is a strict `parent::child` containment chain, every ancestor is strictly shallower
+(fewer `::`-separated segments) than its descendants, and a usage's immediate-parent qualified name
+is recovered by stripping the qualified name's last `::`-separated segment (a top-level usage, with
+no `::` in its qualified name, is never excluded). Boxes are processed in ascending depth order
+(fewest `::` occurrences first) while incrementally building an `excluded` set, so that by the time
+a usage is tested, every one of its ancestors has already been finally decided. A usage is excluded
+only when its immediate parent is present in `defs` **and has not itself already been excluded**
+earlier in this same pass — i.e., only when the immediate parent is itself still rendered, and
+therefore already shows the usage as one of the parent's compartment rows (`BuildCompartments`
+renders a definition/usage's direct `SysmlNode.Children` only — it never reaches into
+grandchildren). Conversely, when the immediate parent has itself just been excluded in this same
+pass, it no longer renders anywhere, so its own compartment can no longer show this usage — the
+usage is therefore not excluded, and survives as its own standalone box. This cascades correctly
+through any nesting depth: two, three, or more levels of usage-in-usage nesting all resolve
+correctly in this single ordered pass, so a deeper-nested usage is never silently dropped merely
+because an intermediate ancestor between it and the nearest rendered box was itself excluded.
+Definitions (`DefBox.IsUsage` is `false`) are never excluded by this rule, preserving all
+pre-Phase-2d definition-rendering behavior.
+
+This exists because `CollectDefinitions`'s usage-level widening (Phase 2d) admits every named
+usage regardless of nesting depth — necessary so a metaclass-kind filter like
+`filter @SysML::PartUsage;` has a complete candidate pool to narrow — but that superset, if
+rendered unfiltered, duplicates every nested usage already shown as a compartment row inside its
+owning definition's box (empirically, 21 → 47 rendered boxes for
+`docs/gallery/models/01-drone-general.sysml`'s `DroneGeneralView`, a real regression found by
+quality re-validation). The initial Retry 1 fix computed the "which parents are present" set once
+from the pre-dedup `defs` list and tested every usage against that single fixed snapshot; a
+subsequent quality re-validation found this silently dropped a usage nested **two or more levels**
+deep (e.g. `part def A { part b { part c; } }`), since `c`'s immediate parent `b` was present in
+the pre-removal snapshot even though `b` was itself simultaneously being excluded — `c` vanished
+from the diagram entirely, shown neither as its own box nor inside any surviving compartment. The
+current depth-ordered, incrementally-shrinking-`excluded`-set pass (Retry 2) fixes this: `b` is
+excluded before `c` is considered, so `c`'s immediate parent is no longer treated as present by the
+time `c` is tested, and `c` correctly survives as its own standalone box. `BuildLayout` calls this
+method **after** the standalone `filter [<expr>];` narrowing and **before** `GroupByPackage`, so
+the dedup sees only the truly final, fully scope-and-filter-narrowed set: a nested usage whose
+immediate parent was excluded by scope, by that filter, or by this same dedup pass (rather than
+genuinely still present and rendered) is correctly kept as its own standalone box, since it either
+duplicates a still-rendered ancestor's compartment row (and is correctly excluded) or is never
+shown anywhere else and must render standalone (and is therefore never silently lost).
 
 ###### `GroupByPackage(defs)`
 
