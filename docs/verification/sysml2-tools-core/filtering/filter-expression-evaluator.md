@@ -35,6 +35,13 @@ SDK and the repository's committed SysML fixtures.
   instead of silently discarding the trailing tokens.
 - A numeric literal that overflows `double` during parsing (producing a non-finite value) reports
   a diagnostic instead of silently round-tripping to unparsable `"Infinity"`/`"NaN"` text.
+- A classification test (`@Type`/`@Pkg::Type`) matches a candidate whose own AST node kind
+  (`DefinitionKeyword`/`FeatureKeyword`) maps to the requested built-in SysML metaclass name, in
+  both bare (`@PartUsage`) and `SysML::`-qualified (`@SysML::PartUsage`) spelling, on both a usage
+  and a definition, without affecting existing applied-annotation classification-test matching.
+- A metaclass-kind classification test for an unrelated metaclass does not match.
+- A metaclass-kind classification test also matches via the stdlib's `specializes` chain (e.g.
+  `@ConstraintUsage` matches a `RequirementUsage`-kind candidate).
 
 #### Requirement-to-Test Mapping
 
@@ -89,6 +96,13 @@ SDK and the repository's committed SysML fixtures.
   - `Parse_RoundTrip_PrettyPrintedTextReparsesToEquivalentTree`
   - `Parse_NumericLiteralOverflow_ReturnsDiagnosticInsteadOfInfinity`
   - `Parse_LargeButFiniteRealLiteral_StillParsesSuccessfully`
+- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-MetaclassKindClassificationTests`
+  - `Evaluate_BareMetaclassKind_MatchesUsage`
+  - `Evaluate_QualifiedMetaclassKind_MatchesUsage`
+  - `Evaluate_MetaclassKind_MatchesDefinition`
+  - `Evaluate_MetaclassKind_NonMatchingMetaclass_DoesNotMatch`
+  - `Evaluate_ClassificationTest_AppliedAnnotationMatchingUnaffectedByMetaclassKindAddition`
+  - `Evaluate_MetaclassKind_SpecializationConformance_MatchesAncestorMetaclass`
 
 #### Test Scenarios
 
@@ -123,3 +137,17 @@ SDK and the repository's committed SysML fixtures.
 - `Parse_NumericLiteralOverflow_ReturnsDiagnosticInsteadOfInfinity` — a numeric literal that
   overflows `double` (`3.14e400`) is reported as a diagnostic instead of silently becoming
   `Infinity`
+- `Evaluate_BareMetaclassKind_MatchesUsage` — bare `@PartUsage` matches a `part`-keyword usage via
+  its own AST node kind, with no applied annotation present
+- `Evaluate_QualifiedMetaclassKind_MatchesUsage` — `@SysML::PartUsage` matches identically to the
+  bare spelling
+- `Evaluate_MetaclassKind_MatchesDefinition` — metaclass-kind matching also applies to
+  definition-level candidates, not just usages
+- `Evaluate_MetaclassKind_NonMatchingMetaclass_DoesNotMatch` — a metaclass filter unrelated to the
+  candidate's kind does not match
+- `Evaluate_ClassificationTest_AppliedAnnotationMatchingUnaffectedByMetaclassKindAddition` —
+  existing applied-annotation classification-test matching on a usage is unaffected by the new
+  metaclass-kind OR-path
+- `Evaluate_MetaclassKind_SpecializationConformance_MatchesAncestorMetaclass` — `@ConstraintUsage`
+  matches a `requirement` usage via the stdlib's `RequirementUsage specializes ConstraintUsage`
+  chain

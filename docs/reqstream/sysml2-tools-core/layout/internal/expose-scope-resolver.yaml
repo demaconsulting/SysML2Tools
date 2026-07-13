@@ -103,3 +103,17 @@ sections:
           - IsMoreSpecificCandidate_EqualLength_FallsBackToScore_False
           - IsMoreSpecificCandidate_SameDepthSiblingsDifferentLength_ShorterWithBetterScoreWins
           - IsMoreSpecificCandidate_SameDepthSiblingsDifferentLength_ShorterWithWorseScoreLoses
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-BracketFilterUsageLevelCandidates
+        title: >-
+          When a bracket-filter expression's candidate set is computed (Phase 2a), it shall
+          include named usage-level declarations (feature usages), not only definitions, so a
+          metaclass-kind classification filter (e.g. `[@SysML::PartUsage]`) can match a usage-level
+          candidate within an exposed path's containment subtree.
+        justification: |
+          `ResolveExposedScope`'s bracket-filter candidate set mirrors
+          `GeneralViewLayoutStrategy.CollectDefinitions`'s own candidate set (Phase 2d), which was
+          widened to admit usages for the same reason: a metaclass-kind filter is inherently about
+          usages, not just definitions, and a definitions-only candidate set could never match one.
+        tests:
+          - ResolveExposedScope_BracketFilterMetaclassKind_MatchesUsageLevelCandidate

@@ -208,4 +208,159 @@ public sealed class FilterExpressionEvaluatorTests
 
         Assert.Empty(result.MatchedQualifiedNames);
     }
+
+    private const string UsageAndDefinitionSource = """
+        package Q {
+            metadata def Safety {
+            }
+
+            part def Engine {
+                part cylinder;
+            }
+
+            requirement def Req1;
+
+            part myEngine : Engine {
+                @Safety;
+            }
+
+            requirement myRequirement : Req1;
+
+            item myItem;
+        }
+        """;
+
+    /// <summary>
+    ///     Existing applied-annotation matching (<c>@Safety</c>) still works on a usage-level
+    ///     candidate, unaffected by the new metaclass-kind match path being additionally checked.
+    /// </summary>
+    [Fact]
+    public async Task Evaluate_ClassificationTest_AppliedAnnotationMatchingUnaffectedByMetaclassKindAddition()
+    {
+        var workspace = await LoadAsync(UsageAndDefinitionSource);
+        var expression = new ClassificationTestExpression("Safety");
+
+        var result = FilterExpressionEvaluator.Evaluate(
+            workspace, ["Q::myEngine", "Q::myRequirement", "Q::myItem"], expression);
+
+        Assert.Equal(["Q::myEngine"], result.MatchedQualifiedNames);
+    }
+
+    /// <summary>A bare metaclass-kind classification test matches a usage of the matching keyword.</summary>
+    [Fact]
+    public async Task Evaluate_BareMetaclassKind_MatchesUsage()
+    {
+        var workspace = await LoadAsync(UsageAndDefinitionSource);
+        var expression = new ClassificationTestExpression("PartUsage");
+
+        var result = FilterExpressionEvaluator.Evaluate(
+            workspace, ["Q::myEngine", "Q::myRequirement", "Q::myItem"], expression);
+
+        Assert.Equal(["Q::myEngine"], result.MatchedQualifiedNames);
+    }
+
+    /// <summary>A <c>SysML::</c>-qualified metaclass-kind classification test matches a usage identically to the bare form.</summary>
+    [Fact]
+    public async Task Evaluate_QualifiedMetaclassKind_MatchesUsage()
+    {
+        var workspace = await LoadAsync(UsageAndDefinitionSource);
+        var expression = new ClassificationTestExpression("SysML::PartUsage");
+
+        var result = FilterExpressionEvaluator.Evaluate(
+            workspace, ["Q::myEngine", "Q::myRequirement", "Q::myItem"], expression);
+
+        Assert.Equal(["Q::myEngine"], result.MatchedQualifiedNames);
+    }
+
+    /// <summary>A metaclass-kind classification test also matches a definition of the corresponding <c>*Definition</c> metaclass.</summary>
+    [Fact]
+    public async Task Evaluate_MetaclassKind_MatchesDefinition()
+    {
+        var workspace = await LoadAsync(UsageAndDefinitionSource);
+        var expression = new ClassificationTestExpression("SysML::PartDefinition");
+
+        var result = FilterExpressionEvaluator.Evaluate(
+            workspace, ["Q::Engine", "Q::Req1"], expression);
+
+        Assert.Equal(["Q::Engine"], result.MatchedQualifiedNames);
+    }
+
+    /// <summary>A metaclass-kind classification test for an unrelated metaclass does not match.</summary>
+    [Fact]
+    public async Task Evaluate_MetaclassKind_NonMatchingMetaclass_DoesNotMatch()
+    {
+        var workspace = await LoadAsync(UsageAndDefinitionSource);
+        var expression = new ClassificationTestExpression("RequirementUsage");
+
+        var result = FilterExpressionEvaluator.Evaluate(workspace, ["Q::myEngine"], expression);
+
+        Assert.Empty(result.MatchedQualifiedNames);
+    }
+
+    /// <summary>
+    ///     A metaclass-kind classification test also matches via the stdlib's <c>specializes</c>
+    ///     chain: a <c>requirement</c> usage's mapped metaclass (<c>RequirementUsage</c>)
+    ///     specializes <c>ConstraintUsage</c> in the stdlib, so <c>@ConstraintUsage</c> matches it
+    ///     too.
+    /// </summary>
+    [Fact]
+    public async Task Evaluate_MetaclassKind_SpecializationConformance_MatchesAncestorMetaclass()
+    {
+        var workspace = await LoadAsync(UsageAndDefinitionSource);
+        var expression = new ClassificationTestExpression("SysML::ConstraintUsage");
+
+        var result = FilterExpressionEvaluator.Evaluate(
+            workspace, ["Q::myRequirement", "Q::myEngine"], expression);
+
+        Assert.Equal(["Q::myRequirement"], result.MatchedQualifiedNames);
+    }
+
+    /// <summary>
+    ///     The specialization-conformance walk in <c>ConformsToMetaclass</c> resolves the stdlib
+    ///     metaclass declaration by simple name (see that method's remarks). A user model may
+    ///     happen to declare its own definition/usage whose simple name collides with a genuine
+    ///     stdlib metaclass name (here, a user <c>part def RequirementUsage;</c> that has nothing
+    ///     to do with the real <c>SysML::RequirementUsage</c> metaclass and does not specialize
+    ///     anything). The walk must still resolve the genuine stdlib <c>RequirementUsage</c>
+    ///     metaclass declaration — not the colliding user declaration — so
+    ///     <c>@ConstraintUsage</c> still matches a <c>requirement</c> usage via the stdlib's
+    ///     <c>RequirementUsage specializes ConstraintUsage</c> chain, unaffected by the collision.
+    /// </summary>
+    [Fact]
+    public async Task Evaluate_MetaclassKind_SpecializationConformance_UnaffectedByUserModelNameCollision()
+    {
+        var workspace = await LoadAsync(UsageAndDefinitionSourceWithCollidingUserDeclaration);
+        var expression = new ClassificationTestExpression("SysML::ConstraintUsage");
+
+        var result = FilterExpressionEvaluator.Evaluate(
+            workspace, ["Q::myRequirement", "Q::myEngine"], expression);
+
+        Assert.Equal(["Q::myRequirement"], result.MatchedQualifiedNames);
+    }
+
+    private const string UsageAndDefinitionSourceWithCollidingUserDeclaration = """
+        package Q {
+            metadata def Safety {
+            }
+
+            part def Engine {
+                part cylinder;
+            }
+
+            requirement def Req1;
+
+            part myEngine : Engine {
+                @Safety;
+            }
+
+            requirement myRequirement : Req1;
+
+            item myItem;
+
+            // Colliding user-model declaration: same simple name as the stdlib
+            // "RequirementUsage" metaclass, but an unrelated user part definition
+            // that does not specialize anything.
+            part def RequirementUsage;
+        }
+        """;
 }

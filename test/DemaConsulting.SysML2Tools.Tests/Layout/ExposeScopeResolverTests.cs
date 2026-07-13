@@ -323,6 +323,39 @@ public sealed class ExposeScopeResolverTests
     }
 
     /// <summary>
+    ///     A bracket-filtered <c>expose</c> entry's candidate set also includes usage-level
+    ///     (<see cref="SysmlFeatureNode"/>) declarations, not only <see cref="SysmlDefinitionNode"/>s
+    ///     (Phase 2d) — a metaclass-kind classification test (<c>@SysML::PartUsage</c>) can
+    ///     therefore match a part usage nested within the exposed target's containment subtree.
+    /// </summary>
+    [Fact]
+    public void ResolveExposedScope_BracketFilterMetaclassKind_MatchesUsageLevelCandidate()
+    {
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::Container"] = new SysmlDefinitionNode { Name = "Container", QualifiedName = "Root::Container", DefinitionKeyword = "part def" },
+                ["Root::Container::myPart"] = new SysmlFeatureNode { Name = "myPart", QualifiedName = "Root::Container::myPart", FeatureKeyword = "part" },
+                ["Root::Container::myRequirement"] = new SysmlFeatureNode { Name = "myRequirement", QualifiedName = "Root::Container::myRequirement", FeatureKeyword = "requirement" }
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposeMembers = [new ExposeMember("Root::Container", "@SysML::PartUsage")],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::Container", SysmlEdgeKind.Expose)]
+        };
+
+        var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
+
+        Assert.NotNull(scope);
+        Assert.Equal(["Root::Container::myPart"], scope.ExplicitMembers);
+        Assert.Empty(scope.Failures);
+    }
+
+    /// <summary>
     ///     A bracket-filtered <c>expose</c> entry (<c>expose Root::Container::**[@Safety]</c>) that
     ///     parses and evaluates successfully narrows to only the descendant <em>definitions</em>
     ///     under the target's containment subtree that carry the <c>@Safety</c> metadata

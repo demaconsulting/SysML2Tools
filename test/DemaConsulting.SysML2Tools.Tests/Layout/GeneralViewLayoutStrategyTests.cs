@@ -1205,6 +1205,303 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A workspace of mixed usage kinds (part/requirement/other), reproducing the shape of the
+    ///     OMG's <c>42.Views/ViewsExample.sysml</c> corpus example (a <c>filter</c> statement
+    ///     dominated by usage-level <c>@SysML::PartUsage</c> classification tests over a model
+    ///     with no <c>part def</c> declarations at all).
+    /// </summary>
+    private static SysmlWorkspace BuildMixedUsageKindWorkspace() => new()
+    {
+        Declarations = new Dictionary<string, SysmlNode>
+        {
+            ["Root::myPart"] = new SysmlFeatureNode { Name = "myPart", QualifiedName = "Root::myPart", FeatureKeyword = "part" },
+            ["Root::myRequirement"] = new SysmlFeatureNode { Name = "myRequirement", QualifiedName = "Root::myRequirement", FeatureKeyword = "requirement" },
+            ["Root::myAttribute"] = new SysmlFeatureNode { Name = "myAttribute", QualifiedName = "Root::myAttribute", FeatureKeyword = "attribute" }
+        }
+    };
+
+    /// <summary>
+    ///     Regression test for the OMG's own canonical <c>42.Views/ViewsExample.sysml</c> corpus
+    ///     pattern (see <c>ROADMAP.md</c>'s Phase 2d visual gate): a standalone
+    ///     <c>filter @SysML::PartUsage;</c> statement, with no <c>expose</c>, against a model with
+    ///     mixed part/requirement/attribute usages and no <c>part def</c> declarations at all,
+    ///     renders only the <c>PartUsage</c> element(s) — not empty, as it did before Phase 2d.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_QualifiedPartUsageFilter_RendersOnlyPartUsages()
+    {
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildMixedUsageKindWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            FilterExpressionText = "@SysML::PartUsage"
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        Assert.Empty(layout.Warnings);
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("myPart", labels);
+        Assert.DoesNotContain("myRequirement", labels);
+        Assert.DoesNotContain("myAttribute", labels);
+    }
+
+    /// <summary>
+    ///     The bare-spelling variant of the above (<c>filter @PartUsage;</c>) renders identically,
+    ///     confirming both the bare and <c>SysML::</c>-qualified metaclass-name spellings work.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_BarePartUsageFilter_RendersOnlyPartUsages()
+    {
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildMixedUsageKindWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            FilterExpressionText = "@PartUsage"
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        Assert.Empty(layout.Warnings);
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("myPart", labels);
+        Assert.DoesNotContain("myRequirement", labels);
+        Assert.DoesNotContain("myAttribute", labels);
+    }
+
+    /// <summary>
+    ///     A view with no <c>filter</c>/<c>expose</c> at all now renders usage-level candidates too
+    ///     (Phase 2d's <c>CollectDefinitions</c> widening), alongside pre-existing definitions —
+    ///     confirming the widened candidate set is also the default (unfiltered) render behavior,
+    ///     not merely a filter-narrowing behavior.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_NoFilter_RendersUsageLevelCandidatesToo()
+    {
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildMixedUsageKindWorkspace();
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("myPart", labels);
+        Assert.Contains("myRequirement", labels);
+        Assert.Contains("myAttribute", labels);
+    }
+
+    /// <summary>
+    ///     Retry-1 regression fix: a usage nested directly inside an independently-rendered
+    ///     definition must not also render as its own standalone box — that would duplicate the
+    ///     compartment row the usage already occupies inside the definition's box. This is the
+    ///     direct, minimal reproduction of the quality-reported 21 → 47 box-count regression on
+    ///     <c>docs/gallery/models/01-drone-general.sysml</c>'s <c>DroneGeneralView</c> (see the
+    ///     dedicated gallery-corpus regression guard test below for the full-scale case).
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_NoFilter_ExcludesUsageNestedInsideRenderedDefinition()
+    {
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::Drone"] = new SysmlDefinitionNode
+                {
+                    Name = "Drone",
+                    QualifiedName = "Root::Drone",
+                    DefinitionKeyword = "part def",
+                    Children = [new SysmlFeatureNode { Name = "airframe", QualifiedName = "Root::Drone::airframe", FeatureKeyword = "part", FeatureTyping = "Frame" }]
+                },
+                // A real workspace (built by WorkspaceLoader) registers every named nested
+                // declaration under its own qualified-name key too, not merely as a Children entry
+                // of its owner — reproducing that shape here is what actually exercises
+                // CollectDefinitions's usage-level widening for this nested usage.
+                ["Root::Drone::airframe"] = new SysmlFeatureNode { Name = "airframe", QualifiedName = "Root::Drone::airframe", FeatureKeyword = "part", FeatureTyping = "Frame" }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var rectangles = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.Rectangle).ToList();
+        Assert.Single(rectangles);
+        Assert.Equal("Drone", rectangles[0].Label);
+    }
+
+    /// <summary>
+    ///     Retry-1 regression fix: a nested usage whose immediate parent is excluded from the final
+    ///     rendered set by a metaclass filter (rather than by scope) must still render as its own
+    ///     standalone box — proving <c>RemoveRedundantNestedUsages</c> runs after (not before)
+    ///     standalone filter narrowing, so it only removes usages whose parent survived the filter.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_MetaclassFilter_KeepsNestedUsageWhenParentExcluded()
+    {
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::Container"] = new SysmlFeatureNode
+                {
+                    Name = "Container",
+                    QualifiedName = "Root::Container",
+                    FeatureKeyword = "requirement",
+                    Children = [new SysmlFeatureNode { Name = "child", QualifiedName = "Root::Container::child", FeatureKeyword = "part" }]
+                },
+                ["Root::Container::child"] = new SysmlFeatureNode { Name = "child", QualifiedName = "Root::Container::child", FeatureKeyword = "part" }
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            FilterExpressionText = "@SysML::PartUsage"
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        // "Container" may still appear as a package-folder label — GroupByPackage treats any
+        // qualified-name prefix as a folder path regardless of whether that prefix belongs to a
+        // package or an excluded definition/usage — but it must not appear as its own rendered
+        // rectangle box (which would mean the excluded metaclass-filtered-out usage was rendered
+        // after all). "child" must render as its own rectangle box.
+        var rectangleLabels = CollectBoxes(layout.Nodes)
+            .Where(b => b.Shape == BoxShape.Rectangle)
+            .Select(b => b.Label)
+            .ToList();
+        Assert.DoesNotContain("Container", rectangleLabels);
+        Assert.Contains("child", rectangleLabels);
+    }
+
+    /// <summary>
+    ///     Retry-2 regression fix: a usage nested two or more levels deep (e.g.
+    ///     <c>part def A { part b { part c; } }</c>) must not be silently dropped when its
+    ///     immediate parent is itself excluded as a redundant nested usage. Since <c>b</c> is
+    ///     excluded (its parent <c>A</c> is rendered), <c>b</c> no longer renders anywhere and its
+    ///     compartment can no longer show <c>c</c> — so <c>c</c> must survive as its own standalone
+    ///     box rather than vanishing entirely (the single-pass, pre-dedup-snapshot bug the prior
+    ///     quality re-validation found).
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_NoFilter_RendersDeeplyNestedGrandchildUsageWhenIntermediateParentExcluded()
+    {
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::A"] = new SysmlDefinitionNode
+                {
+                    Name = "A",
+                    QualifiedName = "Root::A",
+                    DefinitionKeyword = "part def",
+                    Children = [new SysmlFeatureNode { Name = "b", QualifiedName = "Root::A::b", FeatureKeyword = "part" }]
+                },
+                // A real workspace (built by WorkspaceLoader) registers every named nested
+                // declaration under its own qualified-name key too, not merely as a Children entry
+                // of its owner — reproducing that shape here is what actually exercises
+                // CollectDefinitions's usage-level widening for both nested usages.
+                ["Root::A::b"] = new SysmlFeatureNode
+                {
+                    Name = "b",
+                    QualifiedName = "Root::A::b",
+                    FeatureKeyword = "part",
+                    Children = [new SysmlFeatureNode { Name = "c", QualifiedName = "Root::A::b::c", FeatureKeyword = "part" }]
+                },
+                ["Root::A::b::c"] = new SysmlFeatureNode { Name = "c", QualifiedName = "Root::A::b::c", FeatureKeyword = "part" }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var rectangles = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.Rectangle).ToList();
+        var rectangleLabels = rectangles.Select(b => b.Label).ToList();
+        Assert.Equal(2, rectangles.Count);
+        Assert.Contains("A", rectangleLabels);
+        Assert.DoesNotContain("b", rectangleLabels);
+        Assert.Contains("c", rectangleLabels);
+    }
+
+    /// <summary>
+    ///     Real-corpus regression guard for the quality-reported 21 → 47 box-count regression: the
+    ///     project's own checked-in gallery example <c>docs/gallery/models/01-drone-general.sysml</c>
+    ///     must render exactly the 21 rectangle-shaped definition boxes matching the currently
+    ///     checked-in <c>docs/gallery/svg/DroneGeneralView.svg</c>'s <c>&lt;rect&gt;</c> count
+    ///     (independently re-counted via <c>Select-String -Pattern '&lt;rect'</c>) when laid out
+    ///     through the actual <see cref="GeneralViewLayoutStrategy"/>. Only <see cref="BoxShape.Rectangle"/>
+    ///     boxes are counted (excluding the single package folder and the Battery definition's
+    ///     documentation-annotation note box, neither of which is drawn as a checked-in <c>&lt;rect&gt;</c>
+    ///     element), matching the checked-in SVG's own count basis. This converts the quality
+    ///     agent's one-off manual <c>git stash</c> empirical check into a standing, automated test.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_DroneGalleryModel_RendersExactly21BoxesMatchingCheckedInSvg()
+    {
+        var galleryModelsRoot = FindGalleryModelsRoot();
+        if (galleryModelsRoot is null)
+        {
+            return;
+        }
+
+        var modelPath = Path.Combine(galleryModelsRoot, "01-drone-general.sysml");
+        if (!File.Exists(modelPath))
+        {
+            return;
+        }
+
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([modelPath], stdlibTable);
+        Assert.NotNull(result.Workspace);
+        var workspace = result.Workspace!;
+
+        const string viewQualifiedName = "QuadcopterDrone::DroneGeneralView";
+        var viewNode = Assert.IsType<SysmlViewNode>(workspace.Declarations[viewQualifiedName]);
+
+        var strategy = new GeneralViewLayoutStrategy();
+        var options = new RenderOptions(Themes.Light);
+        var layout = strategy.BuildLayout(new ViewContext("v", workspace, viewNode), options);
+
+        var boxes = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.Rectangle).ToList();
+        Assert.Equal(21, boxes.Count);
+    }
+
+    /// <summary>
+    ///     Finds the repository's <c>docs/gallery/models</c> directory relative to the test
+    ///     assembly, mirroring <see cref="FindSysMLModelsRoot"/>'s upward path-walk convention.
+    /// </summary>
+    private static string? FindGalleryModelsRoot()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null)
+        {
+            var candidate = Path.Combine(dir, "docs", "gallery", "models");
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     ///     A view with no <c>expose</c> statement (a null <see cref="ViewContext.ViewNode"/>, e.g.
     ///     the <c>--auto</c> synthesized view) renders identically to the pre-scoping-change
     ///     baseline: every non-stdlib definition in the workspace. This is the critical regression
@@ -1239,11 +1536,17 @@ public sealed class GeneralViewLayoutStrategyTests
     ///     into, leaving the view with zero <c>Expose</c> edges and causing
     ///     <see cref="GeneralViewLayoutStrategy"/> to silently fall back to rendering the entire
     ///     workspace. After the fix, this view's layout must be scoped to the <c>vehicle</c>
-    ///     subtree — which, in this fixture, contains no <c>part def</c> declarations (only
-    ///     usages), so the correctly-scoped rendering drops to zero boxes, strictly fewer than the
-    ///     unscoped full-workspace rendering (which still includes the unrelated
-    ///     <c>AnnotationDefinitions::Safety</c>/<c>Security</c> metadata definitions). Before the
-    ///     fix, scoped and full box counts were identical (both rendered everything).
+    ///     subtree. Since Phase 2d (see <c>ROADMAP.md</c>'s "View <c>filter [&lt;expr&gt;];</c>
+    ///     expression evaluation" section), <see cref="GeneralViewLayoutStrategy"/>'s internal
+    ///     candidate collection admits usage-level candidates too, so the `vehicle` subtree's part
+    ///     *usages* (this
+    ///     fixture declares no `part def`) render as boxes: the bracket filter
+    ///     <c>@Safety and (as Safety).isMandatory</c> narrows those usages to exactly the ones
+    ///     carrying a mandatory <c>@Safety</c> annotation (<c>seatBelt</c>, <c>bumper</c>), while
+    ///     the unrelated <c>AnnotationDefinitions::Safety</c>/<c>Security</c> metadata definitions
+    ///     — outside the <c>vehicle</c> subtree entirely — remain excluded from both renderings'
+    ///     scoped result. Before the Phase 2d fix, the correctly-scoped rendering dropped to zero
+    ///     boxes (usages were not renderable candidates at all).
     /// </summary>
     // cspell:ignore Feaure -- typo present verbatim in the real OMG corpus fixture's package name
     [Fact]
@@ -1285,16 +1588,13 @@ public sealed class GeneralViewLayoutStrategyTests
         var scoped = strategy.BuildLayout(new ViewContext("scoped", workspace, viewNode), options);
         var full = strategy.BuildLayout(new ViewContext("full", workspace), options);
 
-        // Assert: the scoped view renders strictly fewer boxes than the full workspace. In this
-        // fixture the `vehicle` subtree is built entirely from part *usages* (not `part def`
-        // declarations), which `GeneralViewLayoutStrategy.CollectDefinitions` does not render as
-        // boxes — so the correctly-scoped view renders zero boxes here, while the unscoped full
-        // workspace still renders the two unrelated `AnnotationDefinitions` metadata definitions
-        // (`Safety`, `Security`). That drop from 2 boxes to 0 is itself the regression signal:
-        // before the fix, `ResolveExposedScope` saw no `Expose` edges and fell back to rendering
-        // the entire workspace (i.e. scoped would equal full, not be strictly smaller).
+        // Assert: the scoped view renders a non-empty subset of the vehicle's mandatory-safety
+        // part usages, strictly fewer than the full workspace, and excludes the unrelated
+        // AnnotationDefinitions metadata definitions from both the scoped subset and (by name)
+        // from being conflated with the vehicle's own usages.
         var scopedBoxes = CollectBoxes(scoped.Nodes);
         var fullBoxes = CollectBoxes(full.Nodes);
+        Assert.NotEmpty(scopedBoxes);
         Assert.True(scopedBoxes.Count < fullBoxes.Count,
             $"expected scoped box count ({scopedBoxes.Count}) < full box count ({fullBoxes.Count})");
         var fullLabels = fullBoxes.Select(b => b.Label).ToList();
@@ -1303,6 +1603,8 @@ public sealed class GeneralViewLayoutStrategyTests
         var scopedLabels = scopedBoxes.Select(b => b.Label).ToList();
         Assert.DoesNotContain("Safety", scopedLabels);
         Assert.DoesNotContain("Security", scopedLabels);
+        Assert.Contains("seatBelt", scopedLabels);
+        Assert.Contains("bumper", scopedLabels);
     }
 
     /// <summary>

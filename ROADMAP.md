@@ -271,57 +271,102 @@ keyword. This part of Phase 2b remains correctly deferred (not a gap — there i
 implement). Arithmetic operators, conditional (`if`/`else`) expressions, and general feature-chain
 navigation remain deferred unchanged (zero corpus evidence in filter position).
 
-**Phase 2d — confirmed real gap, next up.** Investigating the corpus's actual dominant `@Type`
-usage (`OMG/training/42.Views/ViewsExample.sysml`: `filter @SysML::PartUsage;`) found that
-**`@Type`/`@Pkg::Type` only matches an explicitly-authored domain metadata annotation
-(`@Safety;`) today — it never matches a candidate's own built-in SysML/KerML metaclass kind**
-(`PartUsage`, `PartDefinition`, `RequirementUsage`, `RequirementDefinition`, `AttributeUsage`,
-etc.), even though every parsed element structurally *is* an instance of exactly one such
-metaclass, and this metaclass-kind test is precisely what real-world corpus `filter`/bracket
-expressions use `@SysML::PartUsage`-style syntax for. Verified empirically: a hand-built model
-with `part def Engine { @Safety; } part def Other;` and `filter @SysML::PartUsage;` renders a
-**silently empty diagram** today — no diagnostic, no warning, just nothing matches, because
-`FilterExpressionEvaluator.FindMetadata` only scans for an applied `SysmlMetadataNode` child, and
-no element carries one named `PartUsage`/`SysML::PartUsage` unless the author redundantly wrote
-`@SysML::PartUsage;` by hand. This is the real, corpus-evidenced form of "type filtering" — not
-`istype`/`hastype` — and is confirmed to affect the OMG's own canonical `42.Views` training
-example. Two coupled fixes are required:
+**Phase 2d — delivered.** Both coupled fixes landed:
 
-1. **Metaclass/kind classification-test matching.** Extend `FindMetadata` (or add a parallel
-   check) so a classification test against a recognized built-in SysML/KerML metaclass name
-   matches based on the candidate's own AST node kind — `SysmlDefinitionNode.DefinitionKeyword`
-   (e.g. `"part def"` → `PartDefinition`) / `SysmlFeatureNode.FeatureKeyword` (e.g. `"part"` →
-   `PartUsage`, `"requirement"` → `RequirementUsage`) — in addition to (not instead of) the
-   existing applied-annotation match, since both are legitimate under the OMG `@` classification-
-   test semantics (metaclass membership *or* explicit domain metadata). Needs a keyword→metaclass-
-   name mapping table covering the kinds this project's `AstBuilder` already models (part,
-   attribute, item, port, action, state, requirement, constraint, connection, interface, allocation,
-   view, viewpoint, etc., and their `def`-suffixed definition counterparts) plus their `SysML::`-
-   qualified spelling (`@SysML::PartUsage` and bare `@PartUsage` must both work, mirroring the
-   existing `EndsWith("::" + TypeName)` fallback already used for domain annotations).
-2. **Usage-level filter candidates.** `filter`/bracket-filter narrowing today restricts candidates
-   to `SysmlDefinitionNode`s only (`CollectDefinitions`'s existing restriction) — but
-   `@SysML::PartUsage`-style metaclass tests are inherently about **usages** (a `PartUsage` is a
-   usage, not a definition), so the candidate set must be extended to include usage-level nodes
-   for classification tests to have anything meaningful to match against in the common case (an
-   `expose <path>::**` subtree dominated by usages, matching the `ViewsExample.sysml` pattern).
-   Domain metadata annotations on usages (Phase 2c's original scope) are folded into this same
-   fix, since both need the same candidate-set widening.
+1. **Metaclass/kind classification-test matching.** `FilterExpressionEvaluator` now matches a
+   classification test (`@Type`/`@Pkg::Type`) when *either* the existing applied-annotation match
+   (`FindMetadata`) succeeds *or* the candidate's own AST node kind —
+   `SysmlDefinitionNode.DefinitionKeyword`/`SysmlFeatureNode.FeatureKeyword` — maps to the
+   requested metaclass, via a new `MetaclassNames` keyword→bare-metaclass-name table covering
+   every keyword this project's `AstBuilder` models that has a corresponding stdlib
+   `metadata def` declaration (part/attribute/item/port/action/state/requirement/constraint/
+   interface, and their `def`-suffixed definition counterparts). `allocation`/`view`/`viewpoint`
+   keywords are NOT in this table — they are captured by dedicated `SysmlConnectionNode`/
+   `SysmlViewNode`/`SysmlViewpointNode` node types rather than `SysmlDefinitionNode`/
+   `SysmlFeatureNode`, so they remain out of scope by construction (see known gaps below), even
+   though their stdlib metaclasses (`AllocationDefinition`/`ViewDefinition`/`ViewpointDefinition`
+   etc.) do exist. Both bare (`@PartUsage`) and `SysML::`-qualified
+   (`@SysML::PartUsage`) spellings match — note the table stores *bare* names and compares the
+   requested `typeName` against `"SysML::" + name` directly, since the stdlib's actual declared
+   qualified name (`SysML::Systems::PartUsage`) does not literally match the corpus's
+   two-segment convention, an investigation finding that shaped the table's design. The
+   specialization-conformance stretch goal (Investigation §2) was also delivered: a filter naming
+   an ancestor metaclass (e.g. `@ConstraintUsage`) also matches a more specific stdlib-derived
+   kind (e.g. a `requirement` usage, via `RequirementUsage specializes ConstraintUsage`) — walked
+   via each stdlib metaclass declaration's raw, unresolved `SupertypeNames` text (not the
+   resolved `Supertype` edge originally envisioned, since stdlib-only nodes are never passed
+   through `ReferenceResolver.ResolveAll` and so never have resolved edges), resolved to a
+   declaring stdlib node by a same-simple-name suffix lookup in `SysmlWorkspace.Declarations`, and
+   cycle-guarded with a visited-name set. This is a deliberately narrow heuristic, not a general
+   reference-resolution mechanism, and is documented as such in code.
 
-**Scope:** `SysmlNode.cs`/`AstBuilder.cs`/`ReferenceResolver.cs`/`SysmlEdge.cs` (metadata capture,
-paired `ExposeMember` model); `DemaConsulting.SysML2Tools.Core.Filtering` (Phase 1 subsystem,
-`FilterExpressionEvaluator.FindMetadata` gains metaclass-kind matching for Phase 2d);
-`ExposeScopeResolver`/`GeneralViewLayoutStrategy`'s definition-only candidate collection (both
-widen to include usage-level candidates for Phase 2d); `LayoutWarnings` (filter application,
-failure-only bracket-filter warning) — all shared by all 7 layout strategies.
-**Visual gate:** a view with a standalone `filter @Type;`-style Phase 1 statement, or a bracketed
-`expose <path>::**[<expr>]` Phase 2a statement, renders only the elements satisfying the
-predicate, with no "unevaluated"/"not yet evaluated" warning for that statement; an unsupported
-construct still falls back to the resolved scope with an explicit diagnostic. For Phase 2d
-specifically: `filter @SysML::PartUsage;` (or bare `@PartUsage`) against a model with mixed
-part/requirement/other usages renders only the `PartUsage` elements — matching the OMG's own
-`42.Views/ViewsExample.sysml` corpus pattern, which must render non-empty once this phase lands
-(add it, or an equivalent minimal repro, as a regression test/gallery check).
+   **Known, documented gaps** (a modeled keyword with no stdlib metaclass counterpart, so no entry
+   exists in `MetaclassNames` for it): `individual def`; raw KerML classifier keywords
+   (`datatype`/`class`/`struct`/`assoc`/`assoc struct`/`function`/`predicate`);
+   `subject`/`actor`/`stakeholder`; bare `enum value` members; control-node keywords
+   (`merge`/`decide`/`join`/`fork`); `assume constraint`/`require constraint` (deliberately not
+   folded into the generic `ConstraintUsage`, to avoid over-claiming semantics not evidenced in the
+   stdlib); `entry`/`do`/`exit` (deliberately not mapped to `ActionUsage`). Also out of scope by
+   construction, since these use dedicated node types rather than
+   `SysmlDefinitionNode`/`SysmlFeatureNode`: `SysmlConnectionNode` (`connection`/`allocation`/
+   `binding`/`message`) and `SysmlViewNode`/`SysmlViewpointNode` (`view def`/`view`/
+   `viewpoint def`/`viewpoint`).
+
+2. **Usage-level filter candidates.** `GeneralViewLayoutStrategy.CollectDefinitions` — which
+   doubles as both the filter-candidate source and the box-rendering function for the entire
+   General View diagram — now admits named `SysmlFeatureNode` usages alongside
+   `SysmlDefinitionNode`s (`BuildCompartments`/`CollectMemberships` were generalized from
+   `SysmlDefinitionNode` to the common `SysmlNode` base type to support this, mechanically, with
+   no logic change). `ExposeScopeResolver`'s bracket-filter candidate query was widened
+   identically. This unconditional admission **was** a real, unguarded regression in its initial
+   form: rendering every admitted usage as a standalone box, regardless of nesting depth, more
+   than doubled the box count of real corpus models (e.g. the gallery's
+   `01-drone-general.sysml`'s `DroneGeneralView`, 21 → 47 `<rect>` boxes) by duplicating nested
+   usages already shown as compartment rows inside their owning definition/usage's box — found by
+   quality re-validation and fixed in Retry 1 (see below). The OMG Safety feature-views fixture's
+   exposed-vehicle-subtree scope, previously documented as intentionally empty, now renders the
+   vehicle's part usages (still excluding `Safety`/`Security`).
+
+   **Retry 1 fix (quality regression).** Added `GeneralViewLayoutStrategy.RemoveRedundantNestedUsages`,
+   called in `BuildLayout` after the standalone `filter [<expr>];` narrowing and before
+   `GroupByPackage`: it excludes a usage-level box from standalone rendering when its immediate
+   parent's qualified name is also present in the final, fully scope-and-filter-narrowed set (i.e.,
+   the usage would duplicate content already shown in the parent's compartment row).
+   Definitions are never excluded by this rule. Re-verified `docs/gallery/models/01-drone-general.sysml`'s
+   `DroneGeneralView` renders exactly 21 boxes again, matching the checked-in
+   `docs/gallery/svg/DroneGeneralView.svg` (now a standing automated regression-guard test), while
+   the `filter @SysML::PartUsage;`/bare `@PartUsage` metaclass-kind filter tests and the OMG Safety
+   fixture test continue to pass unchanged.
+
+   **Retry 2 fix (quality regression).** A second quality re-validation found that Retry 1's
+   single-pass, snapshot-based dedup silently dropped a usage nested **two or more levels** deep
+   (e.g. `part def A { part b { part c; } }`): `c`'s immediate parent `b` was tested against the
+   pre-removal snapshot rather than the actually-surviving set, so `c` was excluded alongside `b`
+   even though `b` no longer rendered anywhere and `BuildCompartments` never shows a grandchild's
+   row — `c` vanished from the diagram entirely, not shown as its own box nor inside any surviving
+   compartment. `RemoveRedundantNestedUsages` was reworked to process usage-level boxes in
+   ascending qualified-name-depth order (fewest `::` occurrences first) while incrementally
+   building the `excluded` set, so a usage's immediate-parent presence test reflects whether the
+   parent itself survives dedup rather than merely whether it appeared in the pre-dedup snapshot.
+   This cascades correctly through any nesting depth in a single ordered pass: `b` is excluded
+   before `c` is tested, so `c`'s immediate parent is no longer "present" by the time `c` is
+   considered, and `c` correctly survives as its own standalone box. Added a new 3-level regression
+   test (`GeneralViewLayoutStrategy_BuildLayout_NoFilter_RendersDeeplyNestedGrandchildUsageWhenIntermediateParentExcluded`)
+   asserting exactly 2 rendered boxes (`A` and `c`, with `b` excluded and never silently lost).
+   Re-confirmed the existing 21-box gallery regression guard, all three Retry 1 tests, and the
+   primary `@SysML::PartUsage`/`@Safety`/OMG Safety fixture tests still pass unchanged.
+
+**Scope:** `DemaConsulting.SysML2Tools.Core.Filtering.FilterExpressionEvaluator` (new
+`MetaclassNames`/`MatchesMetaclassKind`/`MetaclassNameMatches`/`ConformsToMetaclass`, workspace
+threaded through the private evaluation recursion); `GeneralViewLayoutStrategy.CollectDefinitions`/
+`BuildCompartments`/`CollectMemberships`; `ExposeScopeResolver.ResolveExposedScope`'s bracket-filter
+candidate query.
+**Visual gate — met.** `filter @SysML::PartUsage;` (or bare `@PartUsage`) against a model with
+mixed part/requirement/other usages renders only the `PartUsage` elements — matching the OMG's own
+`42.Views/ViewsExample.sysml` corpus pattern (regression-tested in
+`GeneralViewLayoutStrategyTests`). Existing definition-level domain-metadata filtering
+(`filter @Safety;`, `filter @Safety and (as Safety).isMandatory;`) continues to work identically
+(unaffected by the new OR-combined metaclass-kind match path).
 
 ---
 

@@ -322,6 +322,39 @@ sections:
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_FilterExpressionPresent_EmitsNotYetEvaluatedWarning
 
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageLevelCandidates
+        title: >-
+          GeneralViewLayoutStrategy shall admit named usage-level declarations (feature usages),
+          not only definitions, as filter/render candidates, so a metaclass-kind classification
+          filter (e.g. `filter @SysML::PartUsage;`) that targets usages has matching candidates to
+          narrow, and shall render such a usage-level candidate as a standalone box only when it is
+          not already shown as a compartment row of an independently-rendered immediate parent.
+        justification: |
+          `CollectDefinitions` doubles as both the filter-candidate source and the box-rendering
+          function for the entire General View diagram. Real-world corpus filters (e.g. OMG's
+          `42.Views/ViewsExample.sysml`, `filter @SysML::PartUsage;`) classify by usage-level
+          metaclass/kind, which a definitions-only candidate set could never satisfy — such a view
+          would render empty rather than narrowed. Widening the candidate set to include named
+          usages is a deliberate, planned behavior change, but rendering every admitted usage
+          unconditionally (Phase 2d, before Retry 1) was itself a genuine regression: a usage
+          nested inside an already-rendered definition/usage duplicates the compartment row it
+          already occupies there, more than doubling the box count of real corpus models (e.g. the
+          gallery's `01-drone-general.sysml`, 21 → 47 boxes). `RemoveRedundantNestedUsages` (Retry
+          1, hardened to a depth-ordered cascading pass in Retry 2 to avoid silently dropping
+          usages nested two or more levels deep) restores the pre-Phase-2d default-rendering box
+          count by excluding exactly the nested usages whose nearest still-rendered ancestor is
+          also independently rendered, while still admitting usages that survive scope/filter
+          narrowing when their parent does not.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_QualifiedPartUsageFilter_RendersOnlyPartUsages
+          - GeneralViewLayoutStrategy_BuildLayout_BarePartUsageFilter_RendersOnlyPartUsages
+          - GeneralViewLayoutStrategy_BuildLayout_NoFilter_RendersUsageLevelCandidatesToo
+          - GeneralViewLayoutStrategy_BuildLayout_OmgSafetyFeatureViewsFixture_ScopesToExposedVehicleSubtree
+          - GeneralViewLayoutStrategy_BuildLayout_NoFilter_ExcludesUsageNestedInsideRenderedDefinition
+          - GeneralViewLayoutStrategy_BuildLayout_MetaclassFilter_KeepsNestedUsageWhenParentExcluded
+          - GeneralViewLayoutStrategy_BuildLayout_DroneGalleryModel_RendersExactly21BoxesMatchingCheckedInSvg
+          - GeneralViewLayoutStrategy_BuildLayout_NoFilter_RendersDeeplyNestedGrandchildUsageWhenIntermediateParentExcluded
+
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-DroppedRelationshipEdgeWarning
         title: >-
           When a Connect/Allocate/Dependency/Binding edge's endpoint fails to resolve to a
