@@ -168,6 +168,237 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Builds a workspace where <c>Sys::OperatorConsole</c> owns two nested definitions,
+    ///     <c>Sys::OperatorConsole::DisplayPanel</c> and <c>Sys::OperatorConsole::CommsHandset</c>,
+    ///     all inside package <c>Sys</c> — the fixture reproducing the real mission-control
+    ///     gallery model's duplicate-box defect (Defect A).
+    /// </summary>
+    private static SysmlWorkspace BuildNestedDefinitionWorkspace() => new()
+    {
+        Declarations = new Dictionary<string, SysmlNode>
+        {
+            ["Sys::OperatorConsole"] = new SysmlDefinitionNode
+            {
+                Name = "OperatorConsole",
+                QualifiedName = "Sys::OperatorConsole",
+                DefinitionKeyword = "part def"
+            },
+            ["Sys::OperatorConsole::DisplayPanel"] = new SysmlDefinitionNode
+            {
+                Name = "DisplayPanel",
+                QualifiedName = "Sys::OperatorConsole::DisplayPanel",
+                DefinitionKeyword = "part def"
+            },
+            ["Sys::OperatorConsole::CommsHandset"] = new SysmlDefinitionNode
+            {
+                Name = "CommsHandset",
+                QualifiedName = "Sys::OperatorConsole::CommsHandset",
+                DefinitionKeyword = "part def"
+            }
+        }
+    };
+
+    /// <summary>
+    ///     Unscoped: a definition that owns nested definitions renders exactly one box for
+    ///     itself (regression guard against the sibling-duplicate-folder defect) with its nested
+    ///     definitions placed as children of that single box, nested inside the still-present
+    ///     package folder — not as a duplicate sibling folder.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_DefinitionOwningNestedDefinitions_RendersOneContainerBoxUnscoped()
+    {
+        // Arrange: OperatorConsole owns DisplayPanel and CommsHandset, all inside package Sys, unscoped
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildNestedDefinitionWorkspace();
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: exactly one OperatorConsole box exists
+        var allBoxes = CollectBoxes(layout.Nodes);
+        var consoleBoxes = allBoxes.Where(b => b.Label == "OperatorConsole").ToList();
+        Assert.Single(consoleBoxes);
+
+        // Assert: the single OperatorConsole box's own children include DisplayPanel and CommsHandset
+        var consoleChildLabels = CollectBoxes(consoleBoxes[0].Children).Select(b => b.Label).ToList();
+        Assert.Contains("DisplayPanel", consoleChildLabels);
+        Assert.Contains("CommsHandset", consoleChildLabels);
+
+        // Assert: the Sys package folder still exists (unscoped preserves package folders), and its
+        // own direct children include the single OperatorConsole box, not DisplayPanel/CommsHandset
+        // directly.
+        var folder = allBoxes.First(b => b.Shape == BoxShape.Folder && b.Label == "Sys");
+        var folderChildLabels = folder.Children.OfType<LayoutBox>().Select(b => b.Label).ToList();
+        Assert.Contains("OperatorConsole", folderChildLabels);
+        Assert.DoesNotContain("DisplayPanel", folderChildLabels);
+        Assert.DoesNotContain("CommsHandset", folderChildLabels);
+    }
+
+    /// <summary>
+    ///     Scoped: the same nested-definition-owning fixture, but with a view exposing
+    ///     <c>Sys::OperatorConsole::**</c> (whole-subtree recursion). Still renders exactly one
+    ///     <c>OperatorConsole</c> box (no duplicate), its children still nested correctly, and —
+    ///     combined with Defect B's bare-package folder suppression — no <c>Sys</c> folder appears
+    ///     at all (its only admitted content's immediate parent, <c>OperatorConsole</c>, is itself
+    ///     an admitted definition, so <c>OperatorConsole</c> is promoted directly to root).
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_DefinitionOwningNestedDefinitions_RendersOneContainerBoxScoped()
+    {
+        // Arrange: same workspace as the unscoped test, but exposing Sys::OperatorConsole::**
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildNestedDefinitionWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Sys::V",
+            ExposeMembers = [new ExposeMember("OperatorConsole", null, ExposeRecursionKind.MembershipRecursive)],
+            ResolvedEdges = [new SysmlEdge("Sys::V", "Sys::OperatorConsole", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: exactly one OperatorConsole box exists, with DisplayPanel/CommsHandset nested
+        // as its own children.
+        var allBoxes = CollectBoxes(layout.Nodes);
+        var consoleBoxes = allBoxes.Where(b => b.Label == "OperatorConsole").ToList();
+        Assert.Single(consoleBoxes);
+        var consoleChildLabels = CollectBoxes(consoleBoxes[0].Children).Select(b => b.Label).ToList();
+        Assert.Contains("DisplayPanel", consoleChildLabels);
+        Assert.Contains("CommsHandset", consoleChildLabels);
+
+        // Assert: no Sys folder appears — OperatorConsole is promoted directly to root instead of
+        // being wrapped in a folder for its bare-package ancestor.
+        Assert.DoesNotContain(allBoxes, b => b.Shape == BoxShape.Folder);
+    }
+
+    /// <summary>
+    ///     Scoped, isolating Defect B alone (no nested-definition-owning case involved): a view
+    ///     exposing <c>Sys::*</c> (direct-children recursion) over a bare package <c>Sys</c>
+    ///     containing plain sibling definitions renders no <see cref="BoxShape.Folder"/> box
+    ///     anywhere, while the exposed definitions' boxes are present directly at the root.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_ExposedNamespaceChildren_BarePackageAncestor_NoFolderRendered()
+    {
+        // Arrange: bare package Sys with two sibling definitions, exposing Sys::* (direct children)
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Sys::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Sys::A", DefinitionKeyword = "part def" },
+                ["Sys::B"] = new SysmlDefinitionNode { Name = "B", QualifiedName = "Sys::B", DefinitionKeyword = "part def" }
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Sys::V",
+            ExposeMembers = [new ExposeMember("Sys", null, ExposeRecursionKind.NamespaceDirectChildren)],
+            ResolvedEdges = [new SysmlEdge("Sys::V", "Sys", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: no folder-shaped box exists anywhere in the result
+        var allBoxes = CollectBoxes(layout.Nodes);
+        Assert.DoesNotContain(allBoxes, b => b.Shape == BoxShape.Folder);
+
+        // Assert: the exposed definitions' boxes are present directly under the root node list
+        var rootLabels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("A", rootLabels);
+        Assert.Contains("B", rootLabels);
+    }
+
+    /// <summary>
+    ///     Explicit regression guard: with no <c>expose</c>/no <see cref="SysmlViewNode"/>, an
+    ///     ordinary bare-package case still renders a <see cref="BoxShape.Folder"/> box with the
+    ///     expected package label and expected non-definition-container children, confirming
+    ///     unscoped behavior is provably unchanged.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_Unscoped_StillRendersFullPackageFolderStructure()
+    {
+        // Arrange: two sibling definitions inside package Sys, unscoped
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Sys::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Sys::A", DefinitionKeyword = "part def" },
+                ["Sys::B"] = new SysmlDefinitionNode { Name = "B", QualifiedName = "Sys::B", DefinitionKeyword = "part def" }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a Sys folder box still exists, with A and B nested directly as its own children
+        var allBoxes = CollectBoxes(layout.Nodes);
+        var folder = allBoxes.First(b => b.Shape == BoxShape.Folder);
+        Assert.Equal("package", folder.Keyword);
+        Assert.Equal("Sys", folder.Label);
+        var folderChildLabels = CollectBoxes(folder.Children).Select(b => b.Label).ToList();
+        Assert.Contains("A", folderChildLabels);
+        Assert.Contains("B", folderChildLabels);
+    }
+
+    /// <summary>
+    ///     Mirrors the real <c>BatterySubsystemView</c> gallery scenario directly: a single
+    ///     <c>part def Battery</c> inside bare package <c>QuadcopterDrone</c>, exposed via
+    ///     <c>expose Battery;</c> (exact match, single-target expose). No <see cref="BoxShape.Folder"/>
+    ///     box exists in the result, and the <c>Battery</c> box is present directly at the root
+    ///     level — the primary Defect B correctness guard.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_ExposedDefinitionInsideBarePackage_NoAncestorFolderRendered()
+    {
+        // Arrange: Battery inside bare package QuadcopterDrone, exposing Battery exactly
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["QuadcopterDrone::Battery"] = new SysmlDefinitionNode
+                {
+                    Name = "Battery",
+                    QualifiedName = "QuadcopterDrone::Battery",
+                    DefinitionKeyword = "part def"
+                }
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "BatterySubsystemView",
+            QualifiedName = "QuadcopterDrone::BatterySubsystemView",
+            ExposeMembers = [new ExposeMember("Battery", null, ExposeRecursionKind.MembershipExact)],
+            ResolvedEdges = [new SysmlEdge("QuadcopterDrone::BatterySubsystemView", "QuadcopterDrone::Battery", SysmlEdgeKind.Expose)]
+        };
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: no folder-shaped box exists, and Battery is present directly at the root level
+        var allBoxes = CollectBoxes(layout.Nodes);
+        Assert.DoesNotContain(allBoxes, b => b.Shape == BoxShape.Folder);
+        var rootLabels = layout.Nodes.OfType<LayoutBox>().Select(b => b.Label).ToList();
+        Assert.Contains("Battery", rootLabels);
+    }
+
+    /// <summary>
     ///     BuildLayout draws a specialization edge (a <see cref="LayoutLine"/>) between a subtype
     ///     and its supertype when both are present in the workspace.
     /// </summary>

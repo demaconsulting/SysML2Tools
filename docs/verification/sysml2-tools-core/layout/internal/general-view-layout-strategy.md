@@ -24,7 +24,14 @@ configuration are required beyond a standard .NET SDK installation.
 
 - All `GeneralViewLayoutStrategyTests` pass with zero failures across all three target frameworks.
 - Each user definition appears as a box carrying its definition keyword.
-- A package's definitions appear inside a folder-shaped box labelled with the package name.
+- When the view has no resolved `expose` scope, a bare package's definitions appear inside a
+  folder-shaped box labelled with the package name.
+- A definition that owns nested definitions appears as exactly one box, with its nested
+  definitions placed inside that box (as its own `Children`) rather than as a duplicate sibling
+  container — regardless of whether the view is scoped or unscoped.
+- When the view has a resolved `expose` scope, a bare package is never rendered as a wrapping
+  folder merely because it is an ancestor of admitted content; the package's admitted items are
+  promoted directly to the diagram's root instead.
 - A definition's owned usages appear as compartment rows formatted `name : Type`.
 - A specialization yields a line with an open end marker at the supertype end.
 - A `part`-feature yields a line with a filled-diamond end marker at the owner end.
@@ -304,3 +311,25 @@ configuration are required beyond a standard .NET SDK installation.
   The OMG Safety feature-views fixture's exposed-vehicle-subtree scope now renders a non-empty
   scoped diagram containing the vehicle's part usages (`seatBelt`/`bumper`), while still excluding
   `Safety`/`Security`
+- `GeneralViewLayoutStrategy_BuildLayout_DefinitionOwningNestedDefinitions_RendersOneContainerBoxUnscoped`:
+  A definition owning nested definitions (`OperatorConsole` owning `DisplayPanel`/`CommsHandset`,
+  all inside package `Sys`, unscoped) renders exactly one `OperatorConsole` box, with
+  `DisplayPanel`/`CommsHandset` nested as its own children; the `Sys` folder still exists and its
+  own direct children are just the single `OperatorConsole` box — the Defect A regression guard
+- `GeneralViewLayoutStrategy_BuildLayout_DefinitionOwningNestedDefinitions_RendersOneContainerBoxScoped`:
+  The same nested-definition-owning fixture, scoped by an `expose Sys::OperatorConsole::**;`
+  view, still renders exactly one `OperatorConsole` box with its children correctly nested, and no
+  `Sys` folder appears at all — combining the Defect A and Defect B regression guards
+- `GeneralViewLayoutStrategy_BuildLayout_ExposedNamespaceChildren_BarePackageAncestor_NoFolderRendered`:
+  A view exposing `Sys::*` (direct-children recursion) over a bare package `Sys` with plain sibling
+  definitions renders no `BoxShape.Folder` box anywhere, with the exposed definitions promoted
+  directly to the root — the Defect B regression guard, isolated from any nested-definition case
+- `GeneralViewLayoutStrategy_BuildLayout_Unscoped_StillRendersFullPackageFolderStructure`:
+  An explicit regression guard confirming that, with no `expose`/no `ViewNode`, an ordinary
+  bare-package case still renders a `Folder`-shaped box with the expected package label and
+  expected (non-definition-container) children — unscoped behavior is provably unchanged
+- `GeneralViewLayoutStrategy_BuildLayout_ExposedDefinitionInsideBarePackage_NoAncestorFolderRendered`:
+  Mirrors the real `BatterySubsystemView` gallery scenario directly: `part def Battery` inside
+  bare package `QuadcopterDrone`, exposed via `expose Battery;` (exact match) — no folder-shaped
+  box exists and the `Battery` box is present directly at the root level, the primary Defect B
+  correctness guard

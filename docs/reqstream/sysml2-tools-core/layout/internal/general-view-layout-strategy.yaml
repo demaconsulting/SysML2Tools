@@ -23,14 +23,47 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-PackageGrouping
         title: >-
-          GeneralViewLayoutStrategy shall group the definitions that belong to a package within a
-          folder-shaped container box labeled with the package name.
+          When the view has no resolved expose scope, GeneralViewLayoutStrategy shall group the
+          definitions that belong to a bare package within a folder-shaped container box labeled
+          with the package name.
         justification: |
           Grouping a package's definitions inside a labeled folder communicates ownership and
           keeps related definitions visually together, which is essential for readable diagrams
-          of larger models.
+          of larger models, for the unscoped (whole-workspace) case where every ancestor package
+          is genuinely part of what the view renders.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_PackagedDefinitions_ProducesFolderBox
+          - GeneralViewLayoutStrategy_BuildLayout_Unscoped_StillRendersFullPackageFolderStructure
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NestedDefinitionContainment
+        title: >-
+          GeneralViewLayoutStrategy shall render a definition that owns nested definitions as a
+          single box, with its nested definitions placed inside that box rather than as a
+          duplicate sibling container.
+        justification: |
+          A definition that owns nested definitions (for example a part def containing further
+          part def declarations) is one model element and must appear as exactly one box.
+          Rendering it a second time as a separate sibling folder holding its own children is a
+          duplicate-content defect that misrepresents the model's containment structure and
+          confuses the reader.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_DefinitionOwningNestedDefinitions_RendersOneContainerBoxUnscoped
+          - GeneralViewLayoutStrategy_BuildLayout_DefinitionOwningNestedDefinitions_RendersOneContainerBoxScoped
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ScopedBarePackageFolderSuppression
+        title: >-
+          When the view has a resolved expose scope, GeneralViewLayoutStrategy shall not render a
+          bare package as a wrapping folder merely because it is an ancestor of admitted content;
+          the package's admitted items shall be promoted directly to the diagram's root instead.
+        justification: |
+          An expose statement deliberately narrows a view to specific content. Wrapping that
+          content's bare-package ancestor in a folder anyway — even though the package itself was
+          never referenced by the expose scope — draws a container the scope did not request and
+          misleadingly suggests the whole package is in view.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_DefinitionOwningNestedDefinitions_RendersOneContainerBoxScoped
+          - GeneralViewLayoutStrategy_BuildLayout_ExposedNamespaceChildren_BarePackageAncestor_NoFolderRendered
+          - GeneralViewLayoutStrategy_BuildLayout_ExposedDefinitionInsideBarePackage_NoAncestorFolderRendered
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Compartments
         title: >-

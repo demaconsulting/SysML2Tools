@@ -260,8 +260,44 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             return new LayoutTree(200.0, 100.0, []);
         }
 
-        // Group definitions by their owning package (prefix before the last "::").
-        var groups = GroupByPackage(defs);
+        // Partition the admitted definitions into two disjoint sets before grouping by package:
+        // items whose immediate parent (the qualified-name prefix before the last "::") is itself
+        // an admitted definition are diverted into childrenByParent, so they are nested recursively
+        // inside their owning definition's own box instead of being handed to GroupByPackage — which
+        // would otherwise (incorrectly) bucket them under their parent definition's own qualified
+        // name and render that parent a second time as a duplicate sibling folder (see PlaceDef).
+        // Everything else (a bare top-level item, or an item whose immediate parent is a bare
+        // package) is unaffected and flows into GroupByPackage exactly as before.
+        var defByQualified = defs.ToDictionary(d => d.QualifiedName, StringComparer.Ordinal);
+        var childrenByParent = new Dictionary<string, List<DefBox>>(StringComparer.Ordinal);
+        var packageOrRootItems = new List<DefBox>();
+
+        foreach (var def in defs)
+        {
+            var sep = def.QualifiedName.LastIndexOf("::", StringComparison.Ordinal);
+            var immediateParent = sep >= 0 ? def.QualifiedName[..sep] : string.Empty;
+
+            if (immediateParent.Length > 0 && defByQualified.ContainsKey(immediateParent))
+            {
+                if (!childrenByParent.TryGetValue(immediateParent, out var list))
+                {
+                    list = [];
+                    childrenByParent[immediateParent] = list;
+                }
+
+                list.Add(def);
+            }
+            else
+            {
+                packageOrRootItems.Add(def);
+            }
+        }
+
+        // Group the remaining (non-nested-under-a-definition) items by their owning package
+        // (prefix before the last "::"). GroupByPackage itself is unchanged; it simply never again
+        // sees an admitted definition's own qualified name as a bucket key, which is what removes
+        // the duplicate-folder symptom.
+        var groups = GroupByPackage(packageOrRootItems);
 
         // Resolve the specialization/membership/attribute-typing edge set by qualified name; the
         // graph-construction pass below drops any edge touching a definition that never received a
@@ -269,7 +305,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var (modelEdges, droppedEdges) = BuildModelEdges(defs, context.Workspace, scope is not null);
 
         // Build the single input graph: package folders as containers, definitions as leaves.
-        var (graph, truncated) = BuildGraph(groups, modelEdges, theme, options.DepthLimit);
+        var (graph, truncated) = BuildGraph(groups, childrenByParent, modelEdges, theme, options.DepthLimit, scope is not null);
 
         // Lay out the whole graph in one call: the root scope packs folders/top-level definitions by
         // reading order (containment), while each folder's own contents are ordered by their
@@ -1035,18 +1071,32 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// Builds the single input <see cref="LayoutGraph"/>: each package becomes a folder container
     /// node holding its definitions as leaves (or, when depth-truncated, a single leaf ellipsis
     /// placeholder); top-level (unpackaged) definitions become leaves directly on the root graph.
-    /// Model edges are added once every definition's node placement is known: an edge whose endpoints
-    /// share a non-empty package is added to that folder's own scope (an intra-package edge the
-    /// layered algorithm can use to order the folder's contents); every other edge — including any
-    /// crossing packages — is added at the root, referencing the descendant nodes directly, per the
-    /// lowest-common-ancestor edge convention. An edge touching a depth-truncated (unrendered)
-    /// definition has no node to reference and is dropped, exactly as before.
+    /// A definition that owns nested definitions (<paramref name="childrenByParent"/>) becomes a
+    /// genuine container in its own right — its nested definitions are placed inside its own node's
+    /// <see cref="LayoutGraphNode.Children"/> scope (recursively, to any depth) via
+    /// <see cref="PlaceDef"/>, instead of being handed to <see cref="GroupByPackage"/> a second time
+    /// under the parent's qualified name, which is what used to render the parent definition twice
+    /// (once as an empty leaf inside its own package folder, once as a duplicate sibling folder
+    /// holding its children). When <paramref name="isScoped"/> is <see langword="true"/> (the view is
+    /// narrowed by a resolved <c>expose</c> scope), a bare package is never rendered as a wrapping
+    /// folder purely because it is an ancestor of admitted content: its items are promoted directly
+    /// onto the root graph instead, exactly like top-level (unpackaged) definitions. When
+    /// <paramref name="isScoped"/> is <see langword="false"/>, every bare package still becomes a
+    /// folder, unchanged from the pre-fix behavior. Model edges are added once every definition's
+    /// node placement is known: an edge whose endpoints share the same non-empty container scope
+    /// (a package folder or a definition-as-container) is added to that scope (an intra-container
+    /// edge the layered algorithm can use to order the container's contents); every other edge —
+    /// including any crossing containers — is added at the root, referencing the descendant nodes
+    /// directly, per the lowest-common-ancestor edge convention. An edge touching a depth-truncated
+    /// (unrendered) definition has no node to reference and is dropped, exactly as before.
     /// </summary>
     private static (LayoutGraph Graph, List<TruncatedFolder> Truncated) BuildGraph(
         IReadOnlyList<(string Package, List<DefBox> Items)> groups,
+        IReadOnlyDictionary<string, List<DefBox>> childrenByParent,
         IReadOnlyList<ModelEdge> modelEdges,
         Theme theme,
-        int depthLimit)
+        int depthLimit,
+        bool isScoped)
     {
         var graph = new LayoutGraph();
 
@@ -1068,12 +1118,14 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Folder contents sit at depth 1; truncate them when the depth limit forbids that level.
         var truncateFolderContents = depthLimit > 0 && depthLimit <= 1;
 
-        // Every located definition's node and owning package, so edges can be resolved and scoped.
+        // Every located definition's node and owning container scope key, so edges can be resolved
+        // and scoped.
         var located = new Dictionary<string, Location>(StringComparer.Ordinal);
 
-        // Each non-truncated package folder's own child scope, keyed by package name, so intra-package
-        // edges can be added there instead of at the root.
-        var folderScopes = new Dictionary<string, LayoutGraph>(StringComparer.Ordinal);
+        // Each non-truncated container's own child scope, keyed by its scope key (a package name, or
+        // an admitted definition's own qualified name when it owns nested definitions), so
+        // same-container edges can be added there instead of at the root.
+        var containerScopes = new Dictionary<string, LayoutGraph>(StringComparer.Ordinal);
 
         for (var g = 0; g < groups.Count; g++)
         {
@@ -1082,12 +1134,25 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
             if (!isFolder)
             {
-                // Top-level (unpackaged) definitions become plain leaves directly on the root graph.
+                // Top-level (unpackaged) items: plain leaves directly on the root graph, recursing
+                // through PlaceDef so any of these items' own nested-definition children are still
+                // handled.
                 foreach (var def in items)
                 {
-                    var leaf = MakeDefNode(graph, def);
-                    located[def.QualifiedName] = new Location(leaf, package);
-                    AddAnnotationNote(graph, def, leaf, theme);
+                    PlaceDef(def, graph, package, childrenByParent, located, containerScopes, theme);
+                }
+
+                continue;
+            }
+
+            if (isScoped)
+            {
+                // The view is narrowed by a resolved expose scope: a bare package is never rendered
+                // as a wrapping folder purely because it is an ancestor of admitted content — promote
+                // its items directly to the root graph instead.
+                foreach (var def in items)
+                {
+                    PlaceDef(def, graph, package, childrenByParent, located, containerScopes, theme);
                 }
 
                 continue;
@@ -1118,19 +1183,17 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             folder.Keyword = "package";
             folder.TitleHeight = folderTitleHeight;
             folder.Set(CoreOptions.Algorithm, LayeredLayoutAlgorithm.AlgorithmId);
-            folderScopes[package] = folder.Children;
+            containerScopes[package] = folder.Children;
 
             foreach (var def in items)
             {
-                var leaf = MakeDefNode(folder.Children, def);
-                located[def.QualifiedName] = new Location(leaf, package);
-                AddAnnotationNote(folder.Children, def, leaf, theme);
+                PlaceDef(def, folder.Children, package, childrenByParent, located, containerScopes, theme);
             }
         }
 
         // Add every model edge whose endpoints both received a node, scoped per the
-        // lowest-common-ancestor rule: same non-empty package → that folder's own scope; otherwise the
-        // root graph, referencing the (possibly nested) endpoint nodes directly.
+        // lowest-common-ancestor rule: same non-empty container scope key → that container's own
+        // scope; otherwise the root graph, referencing the (possibly nested) endpoint nodes directly.
         var edgeId = 0;
         foreach (var edge in modelEdges)
         {
@@ -1142,8 +1205,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
             var scope = source.Package.Length > 0 &&
                 source.Package == target.Package &&
-                folderScopes.TryGetValue(source.Package, out var folderScope)
-                ? folderScope
+                containerScopes.TryGetValue(source.Package, out var containerScope)
+                ? containerScope
                 : graph;
 
             var added = scope.AddEdge($"e{edgeId++}", source.Node, target.Node);
@@ -1153,6 +1216,44 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         }
 
         return (graph, truncated);
+    }
+
+    /// <summary>
+    /// Places a single definition's node into <paramref name="targetScope"/>, then recursively
+    /// places every nested definition that owns <paramref name="def"/> as its immediate parent (see
+    /// <paramref name="childrenByParent"/>) inside <paramref name="def"/>'s own node's
+    /// <see cref="LayoutGraphNode.Children"/> scope — to any nesting depth, one level per recursive
+    /// call — instead of rendering the parent definition a second time as a duplicate sibling
+    /// folder. When <paramref name="def"/> owns nested definitions, its node's
+    /// <see cref="LayoutGraphNode.TitleHeight"/> is set to its own already-computed
+    /// <see cref="DefBox.Height"/> (which already includes the title band and every compartment row
+    /// for its own owned usages), reserving exactly that band above where its nested children begin,
+    /// and its scope key is registered in <paramref name="containerScopes"/> so intra-container edges
+    /// between its own nested children resolve to its scope rather than the root.
+    /// </summary>
+    private static void PlaceDef(
+        DefBox def,
+        LayoutGraph targetScope,
+        string packageKeyForEdgeScoping,
+        IReadOnlyDictionary<string, List<DefBox>> childrenByParent,
+        Dictionary<string, Location> located,
+        Dictionary<string, LayoutGraph> containerScopes,
+        Theme theme)
+    {
+        var node = MakeDefNode(targetScope, def);
+        located[def.QualifiedName] = new Location(node, packageKeyForEdgeScoping);
+        AddAnnotationNote(targetScope, def, node, theme);
+
+        if (childrenByParent.TryGetValue(def.QualifiedName, out var children))
+        {
+            node.TitleHeight = def.Height;
+            containerScopes[def.QualifiedName] = node.Children;
+
+            foreach (var child in children)
+            {
+                PlaceDef(child, node.Children, def.QualifiedName, childrenByParent, located, containerScopes, theme);
+            }
+        }
     }
 
     /// <summary>Creates a definition leaf node in the given scope, carrying its keyword and compartments.</summary>
