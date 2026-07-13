@@ -145,6 +145,7 @@ external services or additional configuration are required beyond a standard .NE
 | Requirement def subject/constraint | `WorkspaceLoader_LoadAsync_RequirementDefinition_CapturesSubjectAndConstraints` |
 | Requirement usage subject/constraint | `WorkspaceLoader_LoadAsync_RequirementUsage_CapturesSubjectAndConstraint` |
 | Requirement def actor/stakeholder | `WorkspaceLoader_LoadAsync_RequirementDefinition_CapturesActorAndStakeholder` |
+| Concern def/usage subject | `WorkspaceLoader_LoadAsync_ConcernDefinitionAndUsage_CapturesSubject` |
 | Standalone constraint usage | `WorkspaceLoader_LoadAsync_ConstraintUsage_CapturesExpressionText` |
 | Constraint def synthesized child | `WorkspaceLoader_LoadAsync_ConstraintDefinition_SynthesizesExpressionChild` |
 | Verify member no-hoist regression | `WorkspaceLoader_LoadAsync_RequirementVerifyMember_DoesNotHoistNestedContent` |

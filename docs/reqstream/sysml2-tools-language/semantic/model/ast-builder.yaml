@@ -388,6 +388,7 @@ sections:
           - WorkspaceLoader_LoadAsync_RequirementDefinition_CapturesSubjectAndConstraints
           - WorkspaceLoader_LoadAsync_RequirementUsage_CapturesSubjectAndConstraint
           - WorkspaceLoader_LoadAsync_RequirementDefinition_CapturesActorAndStakeholder
+          - WorkspaceLoader_LoadAsync_ConcernDefinitionAndUsage_CapturesSubject
           - Requirement_OmgCorpusFixtures_CaptureSubjectAndConstraints
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-StandaloneConstraintUsageAndDefinition

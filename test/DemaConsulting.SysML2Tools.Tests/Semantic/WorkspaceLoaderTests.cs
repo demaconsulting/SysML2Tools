@@ -4441,6 +4441,61 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A <c>concern def</c> and a <c>concern</c> usage that specializes it (mirroring the
+    ///     requirement def/usage pattern verified above, since <c>concernBody</c> reuses the same
+    ///     <c>requirementBody</c> grammar shape) also capture their <c>subject</c> member as a
+    ///     Children entry — exercising <see cref="DemaConsulting.SysML2Tools.Semantic.Model.AstBuilder.VisitConcernDefinition"/>
+    ///     and <see cref="DemaConsulting.SysML2Tools.Semantic.Model.AstBuilder.VisitConcernUsage"/>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConcernDefinitionAndUsage_CapturesSubject()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package Cn {
+                    part def Vehicle;
+
+                    concern def SafetyConcern {
+                        subject vehicle : Vehicle;
+                    }
+
+                    concern vehicleSafety : SafetyConcern {
+                        subject vehicle : Vehicle;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+
+            var concernDef = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["Cn::SafetyConcern"]);
+            Assert.Equal("concern def", concernDef.DefinitionKeyword);
+            var defSubject = Assert.Single(concernDef.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(),
+                f => f.FeatureKeyword == "subject");
+            Assert.Equal("vehicle", defSubject.Name);
+
+            var concernUsage = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(
+                result.Workspace!.Declarations["Cn::vehicleSafety"]);
+            Assert.Equal("concern", concernUsage.FeatureKeyword);
+            var usageSubject = Assert.Single(concernUsage.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(),
+                f => f.FeatureKeyword == "subject");
+            Assert.Equal("vehicle", usageSubject.Name);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     A top-level <c>constraint { expr }</c> usage (not nested in a requirement) is captured
     ///     with its raw expression text — previously entirely absent from the AST.
     /// </summary>
