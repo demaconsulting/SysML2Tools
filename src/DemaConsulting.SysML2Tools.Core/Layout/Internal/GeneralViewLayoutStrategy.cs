@@ -141,7 +141,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             ? LineStyle.Dashed
             : LineStyle.Solid;
 
-    /// <summary>A user-defined definition together with its computed box size and supertypes.</summary>
+    /// <summary>A user-defined definition or named usage together with its computed box size and supertypes.</summary>
     /// <param name="QualifiedName">The definition or usage's fully qualified name.</param>
     /// <param name="SimpleName">The definition or usage's simple (unqualified) name.</param>
     /// <param name="Keyword">The definition or usage keyword (e.g. <c>part</c>, <c>requirement</c>).</param>

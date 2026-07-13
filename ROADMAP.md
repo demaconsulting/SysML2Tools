@@ -280,16 +280,19 @@ navigation remain deferred unchanged (zero corpus evidence in filter position).
    requested metaclass, via a new `MetaclassNames` keyword→bare-metaclass-name table covering
    every keyword this project's `AstBuilder` models that has a corresponding stdlib
    `metadata def` declaration (part/attribute/item/port/action/state/requirement/constraint/
-   interface, and their `def`-suffixed definition counterparts). `allocation`/`view`/`viewpoint`
-   keywords are NOT in this table — they are captured by dedicated `SysmlConnectionNode`/
-   `SysmlViewNode`/`SysmlViewpointNode` node types rather than `SysmlDefinitionNode`/
-   `SysmlFeatureNode`, so they remain out of scope by construction (see known gaps below), even
-   though their stdlib metaclasses (`AllocationDefinition`/`ViewDefinition`/`ViewpointDefinition`
-   etc.) do exist. Both bare (`@PartUsage`) and `SysML::`-qualified
-   (`@SysML::PartUsage`) spellings match — note the table stores *bare* names and compares the
-   requested `typeName` against `"SysML::" + name` directly, since the stdlib's actual declared
-   qualified name (`SysML::Systems::PartUsage`) does not literally match the corpus's
-   two-segment convention, an investigation finding that shaped the table's design. The
+   interface, and their `def`-suffixed definition counterparts). The bare `allocation` feature
+   keyword (a connection-usage, mapping to the stdlib's `AllocationUsage` metaclass) is likewise
+   NOT in this table — it, together with `connection`/`binding`/`message`, is captured by the
+   dedicated `SysmlConnectionNode` type rather than `SysmlFeatureNode`. `view`/`viewpoint`
+   keywords are NOT in this table either — they are captured by dedicated `SysmlViewNode`/
+   `SysmlViewpointNode` node types rather than `SysmlDefinitionNode`/`SysmlFeatureNode`, so all of
+   these remain out of scope by construction (see known gaps below), even though their stdlib
+   metaclasses (`AllocationDefinition`/`AllocationUsage`/`ViewDefinition`/`ViewpointDefinition`
+   etc.) do exist. Both bare (`@PartUsage`) and `SysML::`-qualified spellings match — including
+   both the corpus's conventional two-segment form (`@SysML::PartUsage`) and the stdlib's actual,
+   deeper declaring package path (`@SysML::Systems::PartUsage`) — via a `StartsWith("SysML::")` +
+   `EndsWith("::" + name)` suffix match, so a filter written against either spelling matches the
+   same metaclass. The
    specialization-conformance stretch goal (Investigation §2) was also delivered: a filter naming
    an ancestor metaclass (e.g. `@ConstraintUsage`) also matches a more specific stdlib-derived
    kind (e.g. a `requirement` usage, via `RequirementUsage specializes ConstraintUsage`) — walked

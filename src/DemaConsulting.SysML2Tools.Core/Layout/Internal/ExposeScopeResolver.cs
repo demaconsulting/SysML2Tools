@@ -14,7 +14,7 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// The resolved qualified-name scope a view's <c>expose</c> statements restrict a diagram to,
 /// distinguishing unfiltered "whole containment subtree" exposed paths from bracket-filtered
 /// (<c>expose &lt;path&gt;::**[&lt;expr&gt;]</c>) exposed paths that narrow to specific matched
-/// descendant definitions only.
+/// descendant definitions and/or named usages only.
 /// </summary>
 /// <param name="PrefixSubjects">
 /// Exposed subject qualified names whose entire containment subtree is in scope (a
@@ -23,9 +23,9 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// failed to parse or evaluate.
 /// </param>
 /// <param name="ExplicitMembers">
-/// Individual definition qualified names matched by a successfully-evaluated bracket-filter
-/// expression — exact matches only; a matched definition's own nested members are not
-/// automatically included unless they themselves also match the filter.
+/// Individual definition or named-usage qualified names matched by a successfully-evaluated
+/// bracket-filter expression — exact matches only; a matched declaration's own nested members are
+/// not automatically included unless they themselves also match the filter.
 /// </param>
 internal sealed record ExposedScope(
     IReadOnlyList<string> PrefixSubjects,
@@ -75,7 +75,7 @@ internal static class ExposeScopeResolver
     /// scope as well, so both the usage and its type's subtree are included. This expansion only
     /// applies to whole-subtree (<see cref="ExposedScope.PrefixSubjects"/>) entries — a
     /// successfully-evaluated bracket filter's <see cref="ExposedScope.ExplicitMembers"/> already
-    /// name the exact matched definitions.
+    /// name the exact matched definitions or usages.
     /// </remarks>
     /// <param name="workspace">The workspace, used to look up each exposed target's declaration.</param>
     /// <param name="viewNode">The view's AST node, or null for the synthetic <c>--auto</c> view.</param>
@@ -176,7 +176,7 @@ internal static class ExposeScopeResolver
     /// their containment subtrees (a <c>"{subject}::"</c> prefix match, reusing the same
     /// qualified-name-prefix idiom <see cref="StdlibFilter.IsStdlibElement(string, IReadOnlySet{string})"/>
     /// already uses for stdlib-prefix matching), or is an exact match of one of <paramref name="scope"/>'s
-    /// <see cref="ExposedScope.ExplicitMembers"/> (a bracket-filter-matched definition).
+    /// <see cref="ExposedScope.ExplicitMembers"/> (a bracket-filter-matched definition or usage).
     /// </summary>
     public static bool IsInSubjectScope(string qualifiedName, ExposedScope scope) =>
         scope.PrefixSubjects.Any(subject =>
