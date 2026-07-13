@@ -150,7 +150,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         IReadOnlyList<FeatureMembership> Memberships,
         IReadOnlyList<LayoutCompartment> Compartments,
         double Width,
-        double Height);
+        double Height,
+        IReadOnlyList<SysmlAnnotation> Annotations);
 
     /// <summary>Where a located definition's node lives: the node itself and its owning package.</summary>
     private readonly record struct Location(LayoutGraphNode Node, string Package);
@@ -302,7 +303,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
             var memberships = CollectMemberships(def);
             var (width, height) = ComputeBoxSize(simpleName, keyword, compartments, theme);
-            result.Add(new DefBox(qualifiedName, simpleName, keyword, def.SupertypeNames, memberships, compartments, width, height));
+            result.Add(new DefBox(qualifiedName, simpleName, keyword, def.SupertypeNames, memberships, compartments, width, height, def.Annotations));
         }
 
         return result;
@@ -342,6 +343,14 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <summary>Formats a usage feature as a compartment row: <c>name : Type [n]</c>.</summary>
     private static string FormatFeatureRow(SysmlFeatureNode feature)
     {
+        // A constraint-kind feature's payload is a boolean expression, not a type reference — show
+        // its raw expression text instead of the generic "name : Type [multiplicity]" shape. Unnamed
+        // (the corpus-dominant case) shows the expression alone; named shows "name: expression".
+        if (feature.ExpressionText is { Length: > 0 } expr)
+        {
+            return feature.Name is { Length: > 0 } exprName ? $"{exprName}: {expr}" : expr;
+        }
+
         var name = feature.Name ?? string.Empty;
         var typing = feature.FeatureTyping is { Length: > 0 } t ? $" : {t}" : string.Empty;
         var multiplicity = feature.Multiplicity is { Length: > 0 } m ? $" {m}" : string.Empty;
@@ -353,6 +362,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     private static string Pluralize(string keyword) => keyword switch
     {
         "ref" => "references",
+
+        // Stereotype-style titles, per the OMG spec's Graphical Notation chapter conventions —
+        // reusing this file's existing guillemet convention already established for edge midpoint
+        // labels (e.g. "«allocate»" in BuildModelEdges), the dominant existing precedent for
+        // stereotype-style text in this renderer. A requirement conventionally has exactly one
+        // subject, so "subject" stays singular rather than pluralizing.
+        "subject" => "«subject»",
+        "assume constraint" => "«assume constraint»",
+        "require constraint" => "«require constraint»",
+        "constraint" => "«constraint»",
         _ => keyword + "s",
     };
 
@@ -910,6 +929,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 {
                     var leaf = MakeDefNode(graph, def);
                     located[def.QualifiedName] = new Location(leaf, package);
+                    AddAnnotationNote(graph, def, leaf, theme);
                 }
 
                 continue;
@@ -946,6 +966,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             {
                 var leaf = MakeDefNode(folder.Children, def);
                 located[def.QualifiedName] = new Location(leaf, package);
+                AddAnnotationNote(folder.Children, def, leaf, theme);
             }
         }
 
@@ -985,6 +1006,81 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         node.Keyword = def.Keyword;
         node.Compartments = def.Compartments;
         return node;
+    }
+
+    /// <summary>
+    /// Emits a companion <see cref="BoxShape.Note"/> node (plus a plain connecting edge) for a
+    /// definition that carries <c>comment</c>/<c>doc</c> annotations, in the same scope the
+    /// definition's own node was just added to (folder or root — mirrors the existing per-package
+    /// folder scoping already used for def nodes and model edges). Implemented as an ordinary
+    /// <see cref="LayoutGraph"/> node/edge (rather than a post-layout coordinate-decoration pass
+    /// like <see cref="DecorateTruncatedFolders"/>) so the existing
+    /// <see cref="LayeredLayoutAlgorithm"/>/<see cref="ContainmentLayoutAlgorithm"/> can position
+    /// and route it automatically — a deliberate departure from the ROADMAP's suggested "adapt
+    /// <c>StateTransitionViewLayoutStrategy.AddInitialMarker</c>'s marker-plus-line pattern": that
+    /// pattern manipulates raw <c>Rect</c>/<c>LayoutNode</c> coordinates after a simpler,
+    /// non-graph-based layout pass specific to state diagrams, which does not exist in this
+    /// strategy's architecture (a single <see cref="LayoutGraph"/> handed once to
+    /// <see cref="HierarchicalLayoutAlgorithm.Apply"/>). Emitting the note as an ordinary graph
+    /// node/edge is consistent with how every other box/edge in this file is already produced, and
+    /// lower-risk than hand-computing satellite coordinates in a graph-based layout model that was
+    /// not designed for post-hoc absolute placement. Does nothing when the definition has no
+    /// annotations.
+    /// </summary>
+    private static void AddAnnotationNote(LayoutGraph scope, DefBox def, LayoutGraphNode defNode, Theme theme)
+    {
+        if (def.Annotations.Count == 0)
+        {
+            return;
+        }
+
+        var text = BuildNoteText(def.Annotations);
+        var (width, height, lines) = ComputeNoteBoxSize(text, theme);
+
+        var note = scope.AddNode($"note:{def.QualifiedName}", width, height);
+        note.Shape = BoxShape.Note;
+        note.Compartments = [new LayoutCompartment(null, lines)];
+
+        var edge = scope.AddEdge($"note-edge:{def.QualifiedName}", note, defNode);
+        edge.TargetEnd = EndMarkerStyle.None;
+        edge.LineStyle = LineStyle.Solid;
+    }
+
+    /// <summary>
+    /// Combines an element's comment/documentation annotations into a single note's text: one note
+    /// box per annotated element, not one per annotation, to avoid uncontrolled box proliferation
+    /// for well-annotated elements — matches this renderer's existing "one compartment per
+    /// keyword, not per feature" aggregation philosophy already used in <see cref="BuildCompartments"/>.
+    /// Multiple annotations are concatenated with a blank-line separator.
+    /// </summary>
+    private static string BuildNoteText(IReadOnlyList<SysmlAnnotation> annotations) =>
+        string.Join("\n\n", annotations.Select(a => a.Text.Trim()));
+
+    /// <summary>
+    /// Computes the intrinsic size of a note box from its already-combined text (see
+    /// <see cref="BuildNoteText"/>), analogous to <see cref="ComputeBoxSize"/> but simpler — a
+    /// note has no title/keyword band, only its own body text rendered as a single untitled
+    /// compartment's rows. Sizing splits on the text's own newlines only; no word-wrap algorithm
+    /// is applied (this codebase's <c>DemaConsulting.Rendering</c> dependency has no
+    /// text-measurement primitive supporting wrapping elsewhere either), so an unusually long
+    /// single line renders wide — an accepted minimal-implementation limitation.
+    /// </summary>
+    private static (double Width, double Height, IReadOnlyList<string> Lines) ComputeNoteBoxSize(string text, Theme theme)
+    {
+        var lines = text.Split('\n');
+
+        var width = MinBoxWidth;
+        foreach (var line in lines)
+        {
+            width = Math.Max(width, (line.Length * theme.FontSizeBody * CharWidthFactor) + (3.0 * theme.LabelPadding));
+        }
+
+        var height = BoxMetrics.TitleAreaHeight(theme, hasLabel: false, hasKeyword: false)
+            + theme.LabelPadding
+            + (lines.Length * (theme.LabelPadding + theme.FontSizeBody))
+            + theme.LabelPadding;
+
+        return (width, height, lines);
     }
 
     /// <summary>

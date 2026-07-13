@@ -163,6 +163,17 @@ public sealed class SysmlFeatureNode : SysmlNode
     ///     Gets the multiplicity text (e.g., "[4]", "[0..*]"), or null when unspecified.
     /// </summary>
     public string? Multiplicity { get; init; }
+
+    /// <summary>
+    ///     Gets the raw expression text of a <c>constraint</c>/<c>assume constraint</c>/
+    ///     <c>require constraint</c> feature's calculation body (or, for the reference form of a
+    ///     requirement constraint, the raw reference text of the constraint it points to), or
+    ///     null for features that are not a constraint expression. Captured verbatim, unparsed
+    ///     (mirroring the <see cref="SysmlTransitionNode.Guard"/> raw-text-capture precedent) —
+    ///     never evaluated, consistent with this unit's "do not model expression trees" scope
+    ///     boundary.
+    /// </summary>
+    public string? ExpressionText { get; init; }
 }
 
 /// <summary>

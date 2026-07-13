@@ -361,7 +361,83 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <inheritdoc/>
     public override SysmlNode? VisitEnumerationDefinition(SysMLv2Parser.EnumerationDefinitionContext context)
     {
-        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "enum def");
+        var decl = context.definitionDeclaration();
+        var name = GetDeclaredName(decl?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var qualifiedName = QualifyName(name);
+        var supertypeNames = GetSubclassificationSupertypes(decl?.subclassificationPart());
+
+        // Collect the enumeration body (literal values) as children, mirroring VisitStateDefinition.
+        // enumerationBody is NOT a single wrapping rule (unlike stateDefBody/definitionBody/
+        // requirementBody) — it directly alternates (annotatingMember | enumerationUsageMember)*
+        // with two distinct context types and no shared wrapper, so recovering source-order
+        // interleaving of annotations vs. literal values requires walking the raw ANTLR child
+        // list (see CollectEnumerationBodyChildren) rather than passing a single typed accessor
+        // array to CollectChildren, as every other body construct in this file does.
+        _namespaceStack.Add(name);
+        var (children, annotations) = CollectEnumerationBodyChildren(context.enumerationBody());
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+
+        return new SysmlDefinitionNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            DefinitionKeyword = "enum def",
+            SupertypeNames = supertypeNames,
+            Children = children,
+            Annotations = annotations,
+        };
+    }
+
+    /// <summary>
+    ///     Collects an <c>enumerationBody</c>'s child nodes (literal values and any interleaved
+    ///     comment/documentation annotations), preserving source order. <c>enumerationBody</c> is
+    ///     a narrow, deliberate exception to this file's usual "pass a single typed accessor array
+    ///     to <see cref="CollectChildren"/>" convention: its grammar rule
+    ///     (<c>LBRACE ( annotatingMember | enumerationUsageMember )* RBRACE</c>) alternates two
+    ///     distinct child context types with no shared wrapping rule (unlike
+    ///     <c>stateBodyItem</c>/<c>definitionBodyItem</c>/<c>requirementBodyItem</c>, which are
+    ///     always wrapped in one rule per body element), so there is no single typed accessor that
+    ///     yields the interleaved sequence. Walking <c>context.children</c> directly (the raw
+    ///     ANTLR child list, filtering out the <c>LBRACE</c>/<c>RBRACE</c> terminals) recovers that
+    ///     order without inventing a new collection mechanism — each remaining child is delegated
+    ///     to the existing generic <see cref="CollectChildren(IEnumerable{Antlr4.Runtime.Tree.IParseTree})"/>.
+    /// </summary>
+    private (IReadOnlyList<SysmlNode> Children, IReadOnlyList<SysmlAnnotation> Annotations)
+        CollectEnumerationBodyChildren(SysMLv2Parser.EnumerationBodyContext? body)
+    {
+        if (body is null)
+        {
+            return (Array.Empty<SysmlNode>(), Array.Empty<SysmlAnnotation>());
+        }
+
+        var members = new List<Antlr4.Runtime.Tree.IParseTree>();
+        for (var i = 0; i < body.ChildCount; i++)
+        {
+            // Filter to ParserRuleContext to drop the LBRACE/RBRACE terminals — only
+            // annotatingMember/enumerationUsageMember contexts should reach CollectChildren.
+            if (body.GetChild(i) is Antlr4.Runtime.ParserRuleContext member)
+            {
+                members.Add(member);
+            }
+        }
+
+        return CollectChildren(members);
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitEnumeratedValue(SysMLv2Parser.EnumeratedValueContext context)
+    {
+        // enumeratedValue: ENUM? usage — the exact same usage rule wrapped by
+        // VisitEnumerationUsage/VisitPartUsage/etc., so BuildUsageNode is reused as-is. "enum
+        // value" (not the bare "enum" keyword used by VisitEnumerationUsage) keeps an `enum def`'s
+        // literal-value compartment title ("enum values", via Pluralize's default keyword + "s"
+        // fallback) distinct from a definition's enum-typed attribute usages.
+        return BuildUsageNode(context.usage(), "enum value");
     }
 
     /// <inheritdoc/>
@@ -704,19 +780,118 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <inheritdoc/>
     public override SysmlNode? VisitConstraintDefinition(SysMLv2Parser.ConstraintDefinitionContext context)
     {
-        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "constraint def");
+        var decl = context.definitionDeclaration();
+        var name = GetDeclaredName(decl?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var qualifiedName = QualifyName(name);
+        var supertypeNames = GetSubclassificationSupertypes(decl?.subclassificationPart());
+
+        // Synthesize one child SysmlFeatureNode (Name = null, FeatureKeyword = "constraint")
+        // representing the definition's own calculationBody expression, so the definition's
+        // constraint expression renders through the same Children-driven compartment mechanism
+        // (GeneralViewLayoutStrategy.BuildCompartments) used for every other feature-kind
+        // compartment, rather than adding a second, definition-level-only expression-text field
+        // and a matching special-cased rendering path.
+        var expressionText = context.calculationBody()?.GetText();
+        IReadOnlyList<SysmlNode> children = expressionText is null
+            ? Array.Empty<SysmlNode>()
+            :
+            [
+                new SysmlFeatureNode
+                {
+                    FeatureKeyword = "constraint",
+                    ExpressionText = expressionText,
+                },
+            ];
+
+        return new SysmlDefinitionNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            DefinitionKeyword = "constraint def",
+            SupertypeNames = supertypeNames,
+            Children = children,
+        };
     }
 
     /// <inheritdoc/>
     public override SysmlNode? VisitRequirementDefinition(SysMLv2Parser.RequirementDefinitionContext context)
     {
-        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "requirement def");
+        var decl = context.definitionDeclaration();
+        var name = GetDeclaredName(decl?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var qualifiedName = QualifyName(name);
+        var supertypeNames = GetSubclassificationSupertypes(decl?.subclassificationPart());
+        var body = context.requirementBody();
+
+        // Collect the requirement body (subject/constraint/actor/stakeholder members, plus any
+        // ordinary definitionBodyItem alternatives) as children, mirroring VisitStateDefinition.
+        // requirementBody IS a single wrapping rule (requirementBodyItem), unlike enumerationBody,
+        // so the generic CollectChildren works unmodified here.
+        _namespaceStack.Add(name);
+        var (children, annotations) = CollectChildren(body?.requirementBodyItem() ?? []);
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+
+        // VerifiedRequirementNames is still populated by the separate manual-walk mechanism
+        // (FindVerificationMembers), unaffected by now also collecting Children.
+        var verifiedRequirementNames = body is not null
+            ? FindVerificationMembers(body)
+            : Array.Empty<string>();
+
+        return new SysmlDefinitionNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            DefinitionKeyword = "requirement def",
+            SupertypeNames = supertypeNames,
+            VerifiedRequirementNames = verifiedRequirementNames,
+            Children = children,
+            Annotations = annotations,
+        };
     }
 
     /// <inheritdoc/>
     public override SysmlNode? VisitConcernDefinition(SysMLv2Parser.ConcernDefinitionContext context)
     {
-        return BuildDefinitionFromDeclaration(context.definitionDeclaration(), "concern def");
+        // concernDefinition's body is also requirementBody (grammar-confirmed identical shape to
+        // requirementDefinition), so it gets the same full body-collecting treatment.
+        var decl = context.definitionDeclaration();
+        var name = GetDeclaredName(decl?.identification());
+        if (name is null)
+        {
+            return null;
+        }
+
+        var qualifiedName = QualifyName(name);
+        var supertypeNames = GetSubclassificationSupertypes(decl?.subclassificationPart());
+        var body = context.requirementBody();
+
+        _namespaceStack.Add(name);
+        var (children, annotations) = CollectChildren(body?.requirementBodyItem() ?? []);
+        _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+
+        var verifiedRequirementNames = body is not null
+            ? FindVerificationMembers(body)
+            : Array.Empty<string>();
+
+        return new SysmlDefinitionNode
+        {
+            Name = name,
+            QualifiedName = qualifiedName,
+            DefinitionKeyword = "concern def",
+            SupertypeNames = supertypeNames,
+            VerifiedRequirementNames = verifiedRequirementNames,
+            Children = children,
+            Annotations = annotations,
+        };
     }
 
     /// <inheritdoc/>
@@ -911,13 +1086,29 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <inheritdoc/>
     public override SysmlNode? VisitRequirementUsage(SysMLv2Parser.RequirementUsageContext context)
     {
-        // Minimal capture: name/qualified-name only, so that named requirement usages (the common
-        // real-world satisfy/verify target pattern) become resolvable symbols. Subject/constraint/
-        // actor compartment members remain unvisited, consistent with existing scope discipline
-        // for specialized bodies (see BuildDefinitionFromDeclaration).
+        // Name/qualified-name capture, so that named requirement usages (the common real-world
+        // satisfy/verify target pattern) become resolvable symbols. Also collects the requirement
+        // body's subject/constraint/actor/stakeholder compartment members as Children — the
+        // dominant real-corpus idiom (a named requirement usage specializing a requirement def and
+        // supplying its own subject/assume-constraint body) nests these inside a requirement
+        // *usage*, not only inside a requirement definition's own body, so both must be collected
+        // for the "compartment depth" goal to be met for the corpus's idiomatic shape.
         var name = GetDeclaredName(context.constraintUsageDeclaration()?.usageDeclaration()?.identification());
+        var body = context.requirementBody();
 
-        var verifiedRequirementNames = context.requirementBody() is { } body
+        if (name is not null)
+        {
+            _namespaceStack.Add(name);
+        }
+
+        var (children, annotations) = CollectChildren(body?.requirementBodyItem() ?? []);
+
+        if (name is not null)
+        {
+            _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+        }
+
+        var verifiedRequirementNames = body is not null
             ? FindVerificationMembers(body)
             : Array.Empty<string>();
 
@@ -927,7 +1118,178 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             QualifiedName = name is not null ? QualifyName(name) : null,
             FeatureKeyword = "requirement",
             VerifiedRequirementNames = verifiedRequirementNames,
+            Children = children,
+            Annotations = annotations,
         };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitConcernUsage(SysMLv2Parser.ConcernUsageContext context)
+    {
+        // concernUsage: occurrenceUsagePrefix CONCERN constraintUsageDeclaration requirementBody —
+        // identical shape to requirementUsage, so the same name + VerifiedRequirementNames +
+        // Children capture applies here (see VisitRequirementUsage).
+        var name = GetDeclaredName(context.constraintUsageDeclaration()?.usageDeclaration()?.identification());
+        var body = context.requirementBody();
+
+        if (name is not null)
+        {
+            _namespaceStack.Add(name);
+        }
+
+        var (children, annotations) = CollectChildren(body?.requirementBodyItem() ?? []);
+
+        if (name is not null)
+        {
+            _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
+        }
+
+        var verifiedRequirementNames = body is not null
+            ? FindVerificationMembers(body)
+            : Array.Empty<string>();
+
+        return new SysmlFeatureNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            FeatureKeyword = "concern",
+            VerifiedRequirementNames = verifiedRequirementNames,
+            Children = children,
+            Annotations = annotations,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitSubjectUsage(SysMLv2Parser.SubjectUsageContext context)
+    {
+        // subjectUsage: SUBJECT usageExtensionKeyword* usage — reuses the same usage rule as
+        // VisitPartUsage/VisitEnumerationUsage/etc., so BuildUsageNode is reused as-is. No
+        // override needed for VisitSubjectMember itself — default ANTLR VisitChildren dispatch
+        // already descends through memberPrefix (null-returning) into subjectUsage.
+        return BuildUsageNode(context.usage(), "subject");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitActorUsage(SysMLv2Parser.ActorUsageContext context)
+    {
+        // actorUsage: ACTOR usageExtensionKeyword* usage — same trivial reuse as VisitSubjectUsage.
+        return BuildUsageNode(context.usage(), "actor");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitStakeholderUsage(SysMLv2Parser.StakeholderUsageContext context)
+    {
+        // stakeholderUsage: STAKEHOLDER usageExtensionKeyword* usage — same trivial reuse.
+        return BuildUsageNode(context.usage(), "stakeholder");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitRequirementConstraintMember(SysMLv2Parser.RequirementConstraintMemberContext context)
+    {
+        // Must override at the member level (not requirementConstraintUsage) because the emitted
+        // FeatureKeyword ("assume constraint" vs. "require constraint") depends on the sibling
+        // requirementKind (ASSUME/REQUIRE token), which only this member context exposes.
+        var keyword = context.requirementKind()?.REQUIRE() is not null ? "require constraint" : "assume constraint";
+        return BuildConstraintFeatureNode(context.requirementConstraintUsage(), keyword);
+    }
+
+    /// <summary>
+    ///     Builds a constraint-kind <see cref="SysmlFeatureNode"/> (<c>FeatureKeyword</c> of
+    ///     <c>"assume constraint"</c>/<c>"require constraint"</c>/<c>"constraint"</c>) from a
+    ///     <c>requirementConstraintUsage</c>, handling both grammar alternatives.
+    /// </summary>
+    /// <remarks>
+    ///     Alternative 1 (<c>ownedReferenceSubsetting featureSpecializationPart? requirementBody</c>)
+    ///     is a <em>reference</em> to an existing named constraint (e.g. <c>assume
+    ///     myOtherConstraint;</c>): the raw reference text is captured into
+    ///     <see cref="SysmlFeatureNode.ExpressionText"/> — a raw reference, not an evaluated
+    ///     expression, when this constraint form is used — and its own nested
+    ///     <c>requirementBody</c> is not recursed into (out of scope). Alternative 2
+    ///     (<c>(usageExtensionKeyword* CONSTRAINT | usageExtensionKeyword+)
+    ///     constraintUsageDeclaration calculationBody</c>, the corpus-dominant inline form, e.g.
+    ///     <c>require constraint { massActual &lt;= massReqd }</c>) captures the declared name
+    ///     (usually anonymous per corpus) and the raw, unparsed, brace-included
+    ///     <c>calculationBody</c> text into <see cref="SysmlFeatureNode.ExpressionText"/> —
+    ///     mirroring <see cref="VisitTransitionUsage"/>'s <c>Guard</c> raw-text-capture precedent.
+    ///     No <c>Children</c> are collected in either case — calculation-body internals
+    ///     (<c>calculationBodyItem</c>/<c>actionBodyItem</c> control nodes) are explicitly out of
+    ///     scope per this unit's "do not model expression trees" boundary.
+    /// </remarks>
+    private SysmlFeatureNode? BuildConstraintFeatureNode(
+        SysMLv2Parser.RequirementConstraintUsageContext? usage, string keyword)
+    {
+        if (usage is null)
+        {
+            return null;
+        }
+
+        if (usage.ownedReferenceSubsetting() is { } reference)
+        {
+            return new SysmlFeatureNode
+            {
+                FeatureKeyword = keyword,
+                ExpressionText = reference.GetText(),
+            };
+        }
+
+        var name = GetDeclaredName(usage.constraintUsageDeclaration()?.usageDeclaration()?.identification());
+        var expressionText = usage.calculationBody()?.GetText();
+
+        return new SysmlFeatureNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            FeatureKeyword = keyword,
+            ExpressionText = expressionText,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitConstraintUsage(SysMLv2Parser.ConstraintUsageContext context)
+    {
+        // constraintUsage: occurrenceUsagePrefix CONSTRAINT constraintUsageDeclaration
+        // calculationBody — a top-level, non-nested-in-requirement `constraint { expr }` usage.
+        // Previously entirely absent from this file (no override at all), so such a usage
+        // vanished with zero AST trace. Minimal capture: name (usually anonymous per corpus) plus
+        // the raw calculationBody expression text.
+        var name = GetDeclaredName(context.constraintUsageDeclaration()?.usageDeclaration()?.identification());
+        var expressionText = context.calculationBody()?.GetText();
+
+        return new SysmlFeatureNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            FeatureKeyword = "constraint",
+            ExpressionText = expressionText,
+        };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitRequirementVerificationMember(
+        SysMLv2Parser.RequirementVerificationMemberContext context)
+    {
+        // Newly-required safeguard: now that VisitRequirementDefinition/VisitConcernDefinition
+        // call CollectChildren over requirementBodyItems, ANTLR's default VisitChildren dispatch
+        // would, for the first time, recurse into a `verify` member's own nested requirementBody
+        // (e.g. a nested subjectMember/constraint) — content that would otherwise incorrectly
+        // bubble up and be added as a child of the OUTER enclosing requirement, via the aggregate-
+        // last-non-null default dispatch behavior. A `verify` member's target is already captured
+        // separately by FindVerificationMembers (VerifiedRequirementNames), so this override
+        // short-circuits to null to suppress the now-newly-reachable recursive descent. Do not
+        // remove this override without re-verifying that CollectChildren no longer walks
+        // requirementBodyItem, since removing it would silently corrupt an enclosing requirement's
+        // Children with spuriously-hoisted nested content.
+        return null;
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitFramedConcernMember(SysMLv2Parser.FramedConcernMemberContext context)
+    {
+        // Same safeguard as VisitRequirementVerificationMember above: a `frame` member's nested
+        // concern/calculationBody content is explicitly out of scope and must not be spuriously
+        // hoisted onto the enclosing requirement's Children now that requirementBodyItems are
+        // collected. See that override's remarks for the full rationale.
+        return null;
     }
 
     /// <summary>

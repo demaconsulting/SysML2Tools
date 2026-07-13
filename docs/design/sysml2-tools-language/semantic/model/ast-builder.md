@@ -40,6 +40,15 @@ stack with `::` to form the fully-qualified name.
 | `VisitForkNode` | `ForkNodeContext` | `SysmlFeatureNode` (`FeatureKeyword = "fork"`) |
 | `VisitAcceptNode` | `AcceptNodeContext` | `SysmlFeatureNode` (`FeatureKeyword = "accept"`) |
 | `VisitSendNode` | `SendNodeContext` | `SysmlFeatureNode` (`FeatureKeyword = "send"`) |
+| `VisitEnumeratedValue` | `EnumeratedValueContext` | `SysmlFeatureNode` (`FeatureKeyword = "enum value"`) |
+| `VisitSubjectUsage` | `SubjectUsageContext` | `SysmlFeatureNode` (`FeatureKeyword = "subject"`) |
+| `VisitActorUsage` | `ActorUsageContext` | `SysmlFeatureNode` (`FeatureKeyword = "actor"`) |
+| `VisitStakeholderUsage` | `StakeholderUsageContext` | `SysmlFeatureNode` (`FeatureKeyword = "stakeholder"`) |
+| `VisitRequirementConstraintMember` | `RequirementConstraintMemberContext` | require/assume constraint feature |
+| `VisitConstraintUsage` | `ConstraintUsageContext` | `SysmlFeatureNode` (`"constraint"`, `ExpressionText` set) |
+| `VisitConstraintDefinition` | `ConstraintDefinitionContext` | def + synthesized `"constraint"` child feature |
+| `VisitRequirementVerificationMember` | `RequirementVerificationMemberContext` | `null` (suppresses hoisting) |
+| `VisitFramedConcernMember` | `FramedConcernMemberContext` | `null` (suppresses hoisting) |
 
 `GetDeclaredName(IdentificationContext)` handles the three grammar alternatives:
 
@@ -228,11 +237,20 @@ direct `qualifiedName()` child (which is null for this alternative). `VisitImpor
 `ExtractExposedNames` both call this one helper rather than duplicating the extraction logic, per
 the Copy-Paste Programming anti-pattern guidance in coding-principles.md.
 
-`VisitRequirementUsage` performs a minimal capture (name/qualified-name only, so named
-requirement usages become resolvable symbols) and additionally invokes `FindVerificationMembers`
-against its own `requirementBody()` (when present) to populate `VerifiedRequirementNames` —
-covering the case where a `verify` member appears directly inside a `requirement { }` usage
-body.
+`VisitRequirementUsage` and `VisitConcernUsage` push a namespace scope (when named) and call
+`CollectChildren(body?.requirementBodyItem() ?? [])` in addition to their existing name/qualified-
+name capture, so a requirement/concern *usage*'s own `subject`/`actor`/`stakeholder`/constraint
+members are captured as `Children` — not only a requirement/concern *definition*'s. This is a
+deliberate extension beyond a literal reading of "definitions only": the dominant idiom in the
+real OMG training corpus (e.g. `test/SysMLModels/OMG/training/32.Requirements/
+RequirementUsages.sysml`) nests `subject`/`assume constraint` inside a requirement usage that
+specializes a requirement def (`requirement <'1.1'> fullVehicleMassLimit :
+VehicleMassLimitationRequirement { subject vehicle : Vehicle; assume constraint { ... } }`), not
+inside the def's own body — without extending usages, this compartment-depth work would not
+manifest for the corpus's actual idiomatic shape. `VisitRequirementUsage` additionally invokes
+`FindVerificationMembers` against its own `requirementBody()` (when present) to populate
+`VerifiedRequirementNames` — covering the case where a `verify` member appears directly inside a
+`requirement { }` usage body.
 
 `FindVerificationMembers(IParseTree root)` / `CollectVerificationMembers(IParseTree, List<string>)`
 / `ExtractVerifiedRequirementName(RequirementVerificationUsageContext?)` are a narrow, additive
@@ -249,9 +267,75 @@ placeholder form's feature typing (`verify requirement <name> : <Type>;`, via th
 `VisitAnalysisCaseDefinition`, `VisitVerificationCaseDefinition` (via an optional
 `specializedBody` parameter added to the shared `BuildDefinitionFromDeclaration`, defaulting to
 `null` for backward compatibility with callers that don't have a specialized body to scan), and
-`VisitRequirementUsage` (via its own `requirementBody()`). This walk is safe from double-counting
-because nothing else in `AstBuilder` currently visits into `requirementBody`/`caseBody`
-subtrees.
+`VisitRequirementUsage`/`VisitConcernUsage` (via their own `requirementBody()`).
+
+**Enumeration literal values.** `VisitEnumerationDefinition` pushes a namespace scope and calls a
+dedicated `CollectEnumerationBodyChildren(EnumerationBodyContext?)` helper, rather than
+`CollectChildren` directly: `enumerationBody` uniquely alternates `annotatingMember |
+enumerationUsageMember` directly (`LBRACE ( annotatingMember | enumerationUsageMember )*
+RBRACE`), unlike every other body rule in this unit (`definitionBody`/`requirementBody`/
+`stateBody`/`actionBody`), which wrap their alternatives in a single intermediate rule that
+`CollectChildren` can iterate directly. `CollectEnumerationBodyChildren` walks the body's raw
+`context.children`, filters to `Antlr4.Runtime.ParserRuleContext` instances (dropping the
+`LBRACE`/`RBRACE` terminal nodes), and delegates the filtered list to the existing
+`CollectChildren` — a narrow, documented exception rather than a generalization of
+`CollectChildren` itself. `VisitEnumeratedValue` builds a usage node via the existing
+`BuildUsageNode` helper with `FeatureKeyword = "enum value"` (distinct from the bare `"enum"`
+keyword used by `VisitEnumerationUsage`, to avoid a compartment-title collision), covering all
+three literal forms observed in the OMG corpus: bare (`enum green;`), value-assignment
+(`A = 4.0;`), and redefinition-body (`unclassified { :>> code = "..."; }`) — the assigned value
+expression itself is not parsed in any form, an accepted minimal-capture gap.
+
+**Requirement subject, actor, stakeholder, and constraint members.** `VisitRequirementDefinition`
+and `VisitConcernDefinition` push a namespace scope and call
+`CollectChildren(body?.requirementBodyItem() ?? [])`, mirroring `VisitStateUsage`'s existing
+push-scope/body-collect/register pattern; `VisitSubjectUsage`, `VisitActorUsage`, and
+`VisitStakeholderUsage` each build a minimal usage node (via `BuildUsageNode`) with
+`FeatureKeyword` `"subject"`, `"actor"`, `"stakeholder"` respectively.
+`VisitRequirementConstraintMember` reads `context.requirementKind()?.REQUIRE()` to choose between
+`"require constraint"` and `"assume constraint"` (defaulting to `"assume constraint"` when
+neither `ASSUME` nor `REQUIRE` is present — the grammar treats `requirementKind` as optional), and
+delegates to a new `BuildConstraintFeatureNode(RequirementConstraintUsageContext?, string
+keyword)` helper. That helper handles both `requirementConstraintUsage` grammar alternatives: the
+reference form (`ownedReferenceSubsetting featureSpecializationPart? requirementBody`, whose raw
+referenced-name text is captured into `ExpressionText`) and the inline form
+(`(usageExtensionKeyword* CONSTRAINT | usageExtensionKeyword+) constraintUsageDeclaration
+calculationBody`, whose name comes from `constraintUsageDeclaration()?.usageDeclaration()?
+.identification()` and whose raw `calculationBody().GetText()` is captured into
+`ExpressionText`). A nested `doc` inside a constraint's own `calculationBody` (as seen in the
+corpus's `assume constraint { doc /* ... */ ... }` idiom) is intentionally **not** captured —
+constraint bodies are captured only as raw expression text, with no nested-member traversal;
+this is a deliberate, accepted scope boundary rather than an oversight.
+
+**Standalone constraint usage and definition.** `VisitConstraintUsage` (previously entirely
+absent) captures a top-level `constraint { expr }` usage's name and raw
+`calculationBody()?.GetText()` into `ExpressionText`, with `FeatureKeyword = "constraint"`.
+`VisitConstraintDefinition` no longer delegates to the generic `BuildDefinitionFromDeclaration`
+(which has no way to expose a `constraintDefinition`'s own body, since that body is a
+`calculationBody`, not a `definitionBody`); it instead builds the definition's name/qualified-
+name/supertypes directly and synthesizes a single child `SysmlFeatureNode { FeatureKeyword =
+"constraint", ExpressionText = context.calculationBody()?.GetText() }`, reusing the same
+`"constraint"`-keyword/`ExpressionText` shape as a nested requirement constraint so
+`GeneralViewLayoutStrategy` can render both uniformly.
+
+**Verify/frame null-suppression safeguard.** Once `VisitRequirementDefinition`,
+`VisitConcernDefinition`, `VisitRequirementUsage`, and `VisitConcernUsage` began calling
+`CollectChildren` over `requirementBodyItem`, ANTLR's default last-non-null-wins
+`AggregateResult` dispatch would, for the first time, recurse into a nested `verify`/`frame`
+member's own `requirementBody` — since `requirementVerificationMember` and `framedConcernMember`
+are themselves `requirementBodyItem` alternatives with their own nested bodies that can contain
+real content (e.g. a nested `subjectMember`) — and incorrectly bubble that nested content up as
+if it were a direct child of the *outer* enclosing requirement/concern, rather than staying
+scoped to the inner `verify`/`frame` member. `VisitRequirementVerificationMember` and
+`VisitFramedConcernMember` now explicitly return `null`, short-circuiting that recursive descent;
+the verify member's own target is still captured separately and correctly via the pre-existing
+`FindVerificationMembers`/`VerifiedRequirementNames` mechanism above, which is unaffected by this
+change since it performs its own independent tree walk rather than relying on `CollectChildren`.
+
+Note: unlike the transition-related walk in `FindVerificationMembers` above, this per-body
+`CollectChildren(requirementBodyItem())` traversal is *not* immune to double-counting by
+construction — it is precisely because it now visits into `requirementBody`/`caseBody` subtrees
+that the null-suppression safeguard above is required.
 
 `VisitStateUsage` additionally calls `ExtractFeatureTyping(decl?.featureSpecializationPart())` and
 sets the result on the constructed `SysmlFeatureNode`'s `FeatureTyping` property — previously this

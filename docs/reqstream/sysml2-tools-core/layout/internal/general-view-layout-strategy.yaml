@@ -390,3 +390,47 @@ sections:
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_UnresolvableRedefinition_ProducesNoEdge
           - GeneralViewLayoutStrategy_BuildLayout_SelfReferentialRedefinition_ProducesNoEdge
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AnnotationNote
+        title: >-
+          GeneralViewLayoutStrategy shall render one `BoxShape.Note` box per annotated
+          definition, connected to the definition's box by a plain solid line with no end
+          marker, containing the definition's Documentation/Comment annotation text (multiple
+          annotations concatenated with a blank-line separator into a single note), and shall
+          emit no note box for a definition with no annotations.
+        justification: |
+          The ROADMAP's "Annotating elements" gap: `comment`/`doc` annotations were already
+          captured into SysmlNode.Annotations by AstBuilder but never rendered anywhere in the
+          General View, silently discarding real model content. `AddAnnotationNote` implements
+          this as an ordinary `LayoutGraph` node/edge pair added during the same single-pass
+          `BuildGraph` traversal that builds each definition's own box — a deliberate,
+          documented deviation from a literal post-layout marker-decoration approach (as used
+          by `AddInitialMarker` in the State Transition View), chosen because this strategy
+          builds its entire graph in one pass with no separate decoration phase. One note per
+          annotated element (not one note per annotation) keeps the diagram from fragmenting
+          into many small boxes when an element has both a `doc` and one or more `comment`s.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_AnnotatedDefinition_EmitsNoteBox
+          - GeneralViewLayoutStrategy_BuildLayout_UnannotatedDefinition_EmitsNoNoteBox
+          - GeneralViewLayoutStrategy_BuildLayout_MultipleAnnotations_ProduceOneNoteBox
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-RequirementConstraintCompartments
+        title: >-
+          GeneralViewLayoutStrategy's Pluralize helper shall title a "subject", "assume
+          constraint", "require constraint", or "constraint" feature compartment with the
+          guillemet-wrapped stereotype form («subject», «assume constraint», «require
+          constraint», «constraint») rather than the generic pluralized-keyword form, and
+          FormatFeatureRow shall render a feature with a non-empty ExpressionText as its raw
+          expression text (optionally prefixed with "name: ") instead of the generic "name :
+          Type [multiplicity]" shape.
+        justification: |
+          These compartment kinds are new to AstBuilder's output (subject/actor/stakeholder/
+          constraint members, enum literal values) and the plain pluralized-keyword default
+          ("subjects", "assume constraints", ...) does not match the stereotype convention this
+          file already applies to other individually-significant single-member compartments
+          (e.g. the pre-existing `«allocate»` edge-label convention reused here), nor would a
+          generic name/type row correctly convey a constraint's actual expression content.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_RequirementSubject_UsesGuillemetTitle
+          - GeneralViewLayoutStrategy_BuildLayout_ConstraintFeatures_ShowExpressionText
+          - GeneralViewLayoutStrategy_BuildLayout_EnumDefLiteralValues_ProducesEnumValuesCompartment

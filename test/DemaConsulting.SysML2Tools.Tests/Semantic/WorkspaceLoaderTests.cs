@@ -4239,6 +4239,438 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     An <c>enum def</c> with bare literal values captures each as an "enum value" feature,
+    ///     with an implicit source-order-preserving <c>enumerationBody</c> traversal.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_EnumDefinition_BareLiterals_CapturesEnumValues()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package E {
+                    enum def TrafficLightColor {
+                        enum green;
+                        enum yellow;
+                        enum red;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            var color = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["E::TrafficLightColor"]);
+            var values = color.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
+                .Where(f => f.FeatureKeyword == "enum value")
+                .Select(f => f.Name)
+                .ToList();
+            Assert.Equal(["green", "yellow", "red"], values);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     An <c>enum def</c> with the value-assignment form (<c>A = 4.0;</c>) still captures each
+    ///     literal's name (the assigned value expression is not parsed, an accepted minimal-
+    ///     capture gap).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_EnumDefinition_ValueAssignmentForm_CapturesNames()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package E {
+                    private import ScalarValues::Real;
+                    enum def GradePoints :> Real {
+                        A = 4.0;
+                        B = 3.0;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            var grades = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["E::GradePoints"]);
+            var values = grades.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
+                .Where(f => f.FeatureKeyword == "enum value")
+                .Select(f => f.Name)
+                .ToList();
+            Assert.Equal(["A", "B"], values);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A requirement definition captures its <c>doc</c>, <c>subject</c>,
+    ///     <c>require constraint</c>, and <c>assume constraint</c> members as Children/Annotations.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RequirementDefinition_CapturesSubjectAndConstraints()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package R {
+                    private import ScalarValues::Real;
+
+                    part def Vehicle {
+                        attribute dryMass : Real;
+                    }
+
+                    requirement def MassLimitationRequirement {
+                        doc /* The actual mass shall be less than or equal to the required mass. */
+                        attribute massActual : Real;
+                        attribute massReqd : Real;
+                        require constraint { massActual <= massReqd }
+                    }
+
+                    requirement def VehicleMassLimitationRequirement :> MassLimitationRequirement {
+                        subject vehicle : Vehicle;
+                        assume constraint { vehicle.dryMass > 0 }
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+
+            var massLimitation = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["R::MassLimitationRequirement"]);
+            Assert.Contains(massLimitation.Annotations,
+                a => a.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlAnnotationKind.Documentation);
+            var requireConstraint = Assert.Single(massLimitation.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(),
+                f => f.FeatureKeyword == "require constraint");
+            Assert.Contains("massActual", requireConstraint.ExpressionText);
+            Assert.Contains("massReqd", requireConstraint.ExpressionText);
+
+            var vehicleRequirement = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["R::VehicleMassLimitationRequirement"]);
+            var subject = Assert.Single(vehicleRequirement.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(),
+                f => f.FeatureKeyword == "subject");
+            Assert.Equal("vehicle", subject.Name);
+            Assert.Equal("Vehicle", subject.FeatureTyping);
+
+            var assumeConstraint = Assert.Single(vehicleRequirement.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(),
+                f => f.FeatureKeyword == "assume constraint");
+            Assert.Contains("dryMass", assumeConstraint.ExpressionText);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A requirement usage (not only a requirement definition) that specializes a requirement
+    ///     def and supplies its own <c>subject</c>/<c>assume constraint</c> body also captures
+    ///     those members as Children — the dominant real-corpus idiom.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RequirementUsage_CapturesSubjectAndConstraint()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package R {
+                    private import ScalarValues::Real;
+
+                    part def Vehicle {
+                        attribute fuelMass : Real;
+                    }
+
+                    requirement def VehicleMassLimitationRequirement;
+
+                    requirement fullVehicleMassLimit : VehicleMassLimitationRequirement {
+                        subject vehicle : Vehicle;
+                        assume constraint {
+                            vehicle.fuelMass == 0
+                        }
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            var usage = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(
+                result.Workspace!.Declarations["R::fullVehicleMassLimit"]);
+
+            var subject = Assert.Single(usage.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(),
+                f => f.FeatureKeyword == "subject");
+            Assert.Equal("vehicle", subject.Name);
+
+            var assumeConstraint = Assert.Single(usage.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(),
+                f => f.FeatureKeyword == "assume constraint");
+            Assert.Contains("fuelMass", assumeConstraint.ExpressionText);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>concern def</c> and a <c>concern</c> usage that specializes it (mirroring the
+    ///     requirement def/usage pattern verified above, since <c>concernBody</c> reuses the same
+    ///     <c>requirementBody</c> grammar shape) also capture their <c>subject</c> member as a
+    ///     Children entry — exercising <see cref="DemaConsulting.SysML2Tools.Semantic.Model.AstBuilder.VisitConcernDefinition"/>
+    ///     and <see cref="DemaConsulting.SysML2Tools.Semantic.Model.AstBuilder.VisitConcernUsage"/>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConcernDefinitionAndUsage_CapturesSubject()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package Cn {
+                    part def Vehicle;
+
+                    concern def SafetyConcern {
+                        subject vehicle : Vehicle;
+                    }
+
+                    concern vehicleSafety : SafetyConcern {
+                        subject vehicle : Vehicle;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+
+            var concernDef = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["Cn::SafetyConcern"]);
+            Assert.Equal("concern def", concernDef.DefinitionKeyword);
+            var defSubject = Assert.Single(concernDef.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(),
+                f => f.FeatureKeyword == "subject");
+            Assert.Equal("vehicle", defSubject.Name);
+
+            var concernUsage = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(
+                result.Workspace!.Declarations["Cn::vehicleSafety"]);
+            Assert.Equal("concern", concernUsage.FeatureKeyword);
+            var usageSubject = Assert.Single(concernUsage.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(),
+                f => f.FeatureKeyword == "subject");
+            Assert.Equal("vehicle", usageSubject.Name);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A top-level <c>constraint { expr }</c> usage (not nested in a requirement) is captured
+    ///     with its raw expression text — previously entirely absent from the AST.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConstraintUsage_CapturesExpressionText()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package C {
+                    constraint massCheck {
+                        1 == 1
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            var constraint = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(
+                result.Workspace!.Declarations["C::massCheck"]);
+            Assert.Equal("constraint", constraint.FeatureKeyword);
+            Assert.Contains("1==1", constraint.ExpressionText);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>constraint def</c> synthesizes one child feature node capturing its own
+    ///     calculation-body expression text, reusing the same <c>Children</c>-driven compartment
+    ///     mechanism as a nested requirement constraint.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConstraintDefinition_SynthesizesExpressionChild()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package C {
+                    constraint def MassCheck {
+                        1 == 1
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            var def = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["C::MassCheck"]);
+            var expressionChild = Assert.Single(def.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>());
+            Assert.Equal("constraint", expressionChild.FeatureKeyword);
+            Assert.Contains("1==1", expressionChild.ExpressionText);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Actor and stakeholder usages nested in a requirement definition's body are captured,
+    ///     mirroring the subject capture pattern.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RequirementDefinition_CapturesActorAndStakeholder()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package R {
+                    part def Driver;
+                    part def Owner;
+
+                    requirement def DriveRequirement {
+                        actor driver : Driver;
+                        stakeholder owner : Owner;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            var req = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["R::DriveRequirement"]);
+            var features = req.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>().ToList();
+
+            var actor = Assert.Single(features, f => f.FeatureKeyword == "actor");
+            Assert.Equal("driver", actor.Name);
+            Assert.Equal("Driver", actor.FeatureTyping);
+
+            var stakeholder = Assert.Single(features, f => f.FeatureKeyword == "stakeholder");
+            Assert.Equal("owner", stakeholder.Name);
+            Assert.Equal("Owner", stakeholder.FeatureTyping);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A <c>verify</c> member's nested content (its own <c>requirementBody</c>) is not
+    ///     spuriously hoisted onto the enclosing requirement definition's <c>Children</c> — a
+    ///     regression guard for the null-suppression safeguard in
+    ///     <c>VisitRequirementVerificationMember</c>. Its target is still captured separately via
+    ///     <c>VerifiedRequirementNames</c>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RequirementVerifyMember_DoesNotHoistNestedContent()
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package R {
+                    part def Vehicle;
+
+                    requirement def TargetRequirement {
+                        subject shouldNotAppear : Vehicle;
+                    }
+
+                    requirement def CheckMass {
+                        subject checkSubject : Vehicle;
+                        verify requirement notHoisted : TargetRequirement {
+                            subject alsoShouldNotAppear : Vehicle;
+                        }
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            var checkMass = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace!.Declarations["R::CheckMass"]);
+
+            // The verify member's own nested subject must not appear anywhere in CheckMass's
+            // Children — neither as a direct child nor spuriously flattened into one. The
+            // enclosing requirement's own legitimate "checkSubject" subject must still be present.
+            var subjects = checkMass.Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
+                .Where(f => f.FeatureKeyword == "subject")
+                .ToList();
+            var subject = Assert.Single(subjects);
+            Assert.Equal("checkSubject", subject.Name);
+            Assert.DoesNotContain(checkMass.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(),
+                f => f.Name is "notHoisted" or "alsoShouldNotAppear");
+
+            // The verify target is still captured via VerifiedRequirementNames.
+            Assert.Contains("TargetRequirement", checkMass.VerifiedRequirementNames);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     Finds the test/SysMLModels directory relative to the test assembly.
     /// </summary>
     private static string? FindSysMLModelsRoot()

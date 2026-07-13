@@ -21,7 +21,9 @@ box title and folder-tab geometry come from `BoxMetrics` in `DemaConsulting.Rend
 `GeneralViewLayoutStrategy` has no instance state; all input arrives through the `BuildLayout`
 parameters. Layout constants (`MinBoxWidth`, `CharWidthFactor`) are declared as `private const`
 fields. Private records carry intermediate data: `DefBox` (a user definition with its computed
-size, keyword, supertype names, memberships, and compartments), `ModelEdge` (a resolved
+size, keyword, supertype names, memberships, compartments, and `Annotations` — the definition's
+own `SysmlNode.Annotations` list, threaded through by `CollectDefinitions` so `AddAnnotationNote`
+(below) can render them without a second workspace lookup), `ModelEdge` (a resolved
 specialization/membership/attribute-typing/redefinition/subsetting/connect/allocate/dependency/
 binding relationship expressed by qualified name, together with its target end marker, edge kind,
 and an optional midpoint label), `Location` (a located definition's
@@ -33,10 +35,13 @@ carries the short kind label, raw source/target reference, and human-readable re
 rendered boxes, feeding `LayoutWarnings.ForDroppedRelationshipEdges`. `FeatureMembership` (a private record) carries
 each owned feature's keyword, raw type reference (`TypeName`, nullable — a feature may declare a
 redefinition with no explicit type annotation), simple `Name`, raw
-`RedefinedFeatureName` reference, and the raw `SubsettedFeatureNames` list (populated verbatim
-from `SysmlFeatureNode.SupertypeNames` — a feature's `subsets`/`:>` targets, not a new AST field);
-`CollectMemberships` includes a feature when `TypeName`, `RedefinedFeatureName`, or a non-empty
-`SubsettedFeatureNames` is present. The private `EdgeKind` enumeration classifies each edge as
+`RedefinedFeatureName` reference, the raw `SubsettedFeatureNames` list (populated verbatim
+from `SysmlFeatureNode.SupertypeNames` — a feature's `subsets`/`:>` targets, not a new AST field),
+and `ExpressionText` (verbatim from `SysmlFeatureNode.ExpressionText`, non-null only for
+constraint-kind features such as `"require constraint"`/`"assume constraint"`/`"constraint"`);
+`CollectMemberships` includes a feature when `TypeName`, `RedefinedFeatureName`,
+`ExpressionText`, or a non-empty `SubsettedFeatureNames` is present. The private `EdgeKind`
+enumeration classifies each edge as
 `Specialization`, `Membership`, `Typing`, `Redefinition`, `Subsetting`, `Connect`, `Allocate`,
 `Dependency`, or `Binding`; `Subsetting` is a purely view-layer classification — it does not
 correspond to a public `SysmlEdgeKind` — reusing `SupertypeNames` and the same owner-resolution
@@ -87,9 +92,25 @@ the `LayoutTree with { Warnings = … }` record-copy idiom.
 Iterates `workspace.Declarations`, keeping each `SysmlDefinitionNode` that is not a
 standard-library element (per `StdlibFilter.IsStdlibElement`) and, when `scope` is non-null, is
 within `scope` per `ExposeScopeResolver.IsInSubjectScope`. For each kept definition it builds the
-compartments from the owned usage features (grouped by keyword, each formatted as a
-`name : Type [n]` row), collects the typed memberships, and computes the box size from the title
+compartments from the owned usage features (grouped by keyword, each formatted via
+`FormatFeatureRow`), collects the typed memberships, and computes the box size from the title
 and the longest compartment row.
+
+Each compartment's title comes from `Pluralize(keyword)`, which special-cases a small set of
+individually-significant single-member keywords to a guillemet-wrapped stereotype form instead of
+the generic pluralized-keyword default: `"subject"` → `"«subject»"`, `"assume constraint"` →
+`"«assume constraint»"`, `"require constraint"` → `"«require constraint»"`, and `"constraint"` →
+`"«constraint»"`. This reuses the exact guillemet convention already established elsewhere in this
+file for the `«allocate»` edge midpoint label (see `BuildModelEdges`), rather than inventing a new
+one. Every other keyword introduced alongside this work — `"enum value"` (rendered as the
+compartment title `"enum values"`), `"actor"`, `"stakeholder"` — falls through to the generic
+pluralized-keyword default, matching the OMG spec figures' own compartment-heading conventions for
+those kinds.
+
+`FormatFeatureRow` renders a feature with a non-null, non-empty `ExpressionText` (constraint-kind
+features only) as its raw expression text alone (unnamed) or as `"{name}: {expr}"` (named)
+instead of the generic `"name : Type [multiplicity]"` shape used by every other feature kind,
+since a constraint's defining content is its expression, not a type/multiplicity pair.
 
 ###### `GroupByPackage(defs)`
 
@@ -243,6 +264,33 @@ map to reference and is silently dropped, exactly as before.
 
 Adds one definition as a leaf node to the given scope (the root graph or a folder's `Children`),
 carrying its `Label`, `Shape = Rectangle`, `Keyword`, and `Compartments`.
+
+###### `AddAnnotationNote(scope, def, defNode, theme)`
+
+Called immediately after `MakeDefNode` for every definition (both top-level and folder-scoped),
+this no-ops when `def.Annotations` is empty; otherwise it adds one `BoxShape.Note` node (id
+`note:{qualifiedName}`) to the same `scope` as `defNode`, plus a plain solid edge with no end
+marker (id `note-edge:{qualifiedName}`, `TargetEnd = EndMarkerStyle.None`) from the note to the
+definition. `BuildNoteText` concatenates every annotation's trimmed text with a blank-line
+separator, so **one note box renders per annotated element**, never one box per individual
+`comment`/`doc` — a definition with both a `doc` and two `comment`s still gets a single note.
+`ComputeNoteBoxSize` sizes the note from the longest line and total line count using
+`BoxMetrics.TitleAreaHeight(theme, hasLabel: false, hasKeyword: false)` for the (title-less) top
+band plus per-line height and padding — deliberately simpler than the full `ComputeBoxSize` used
+for definition boxes, since a note has no title/keyword band. The note's single
+`LayoutCompartment` carries `Title = null` and one row per line of the concatenated text; no
+`Label`/`Keyword` is set on the note node itself, matching conventional UML/SysML note rendering
+(body text only).
+
+This is implemented as ordinary `LayoutGraph` nodes and edges added during the same
+single-pass `BuildGraph`/`CollectDefinitions` traversal that builds each definition's own box — a
+deliberate, documented deviation from a literal "post-layout marker decoration" approach (the
+pattern used by, e.g., `StateTransitionViewLayoutStrategy.AddInitialMarker`, which stamps a marker
+onto an already-placed box after layout completes). This strategy has no equivalent
+post-layout decoration phase — its entire graph, including folder containers and truncated-folder
+placeholders, is built in one `BuildGraph` pass before layout ever runs — so adding the note as an
+ordinary graph node/edge pair up front is the natural fit, and lets the layout engine route and
+position it like any other element rather than requiring bespoke placement math.
 
 ###### `DecorateTruncatedFolders(tree, graph, truncated, theme)`
 

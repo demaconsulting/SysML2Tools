@@ -69,16 +69,45 @@ gallery currently shows.
 **Depends on:** "Additional relationship edges (General View)" above (needs the new edge kinds
 implemented first).
 
-### Annotating elements & compartment depth
+### Annotating elements & compartment depth — delivered
 
-- Render **Documentation/Comment** notes as `BoxShape.Note` (folded-corner) nodes attached to
-  their annotated element.
-- Extend compartments to spec depth: enumeration values, constraint bodies, requirement
-  `subject`/`constraints`/`doc`, and a documentation compartment on definitions/usages.
+**Delivered.** `AstBuilder` now captures every content kind this item scoped: `VisitEnumeratedValue`
+builds an `"enum value"`-keyword feature for each `enum def` literal (bare, value-assignment, and
+redefinition-body forms), via a dedicated `CollectEnumerationBodyChildren` helper (needed because
+`enumerationBody` uniquely alternates `annotatingMember`/`enumerationUsageMember` directly rather
+than wrapping them in a single rule). `VisitRequirementDefinition`/`VisitConcernDefinition` and —
+extending beyond a literal reading of this item, since the dominant real-corpus idiom nests these
+inside a requirement/concern *usage* rather than a definition — `VisitRequirementUsage`/
+`VisitConcernUsage` now capture `subject`/`actor`/`stakeholder` members (`VisitSubjectUsage`/
+`VisitActorUsage`/`VisitStakeholderUsage`) and `require constraint`/`assume constraint` members
+(`VisitRequirementConstraintMember`/`BuildConstraintFeatureNode`, capturing the raw expression text
+into a new `SysmlFeatureNode.ExpressionText` field mirroring `SysmlTransitionNode.Guard`).
+`VisitConstraintUsage` (previously entirely absent) and a rewritten `VisitConstraintDefinition`
+capture standalone/definition-level constraint expressions the same way. A newly-introduced
+`VisitRequirementVerificationMember`/`VisitFramedConcernMember` null-suppression safeguard
+prevents a `verify`/`frame` member's own nested body from being spuriously hoisted onto the
+enclosing requirement's `Children` now that body-collection reaches into `requirementBodyItem`.
 
-**Scope:** semantic exposure of doc/comment + compartment content; `GeneralViewLayoutStrategy`
-and renderers; possibly `LayoutLabel`/compartment tweaks.
-**Visual gate:** a documented requirement/part renders its note and full compartments.
+`GeneralViewLayoutStrategy` now reads `Annotations`: `AddAnnotationNote` emits one `BoxShape.Note`
+box per annotated definition (concatenating multiple `Documentation`/`Comment` annotations into a
+single note, documented as a deliberate choice) connected by a plain solid line with no end
+marker — implemented as ordinary `LayoutGraph` nodes/edges added during the existing single-pass
+`BuildGraph` traversal, a documented deviation from a literal post-layout marker-decoration
+approach (no equivalent decoration phase exists in this strategy). `Pluralize` titles
+`"subject"`/`"assume constraint"`/`"require constraint"`/`"constraint"` compartments with the
+guillemet stereotype form (reusing the pre-existing `«allocate»` edge-label convention), and
+`FormatFeatureRow` renders a constraint-kind feature's raw expression text in place of the generic
+`name : Type [multiplicity]` row shape.
+
+The Quadcopter Drone gallery model (`docs/gallery/models/01-drone-general.sysml`) was extended
+with a `doc`-annotated `Battery`, an `enum def FlightMode` with literal values, and a
+`FlightTimeRequirement` with a `subject`/`require constraint` body, and regenerated.
+
+**Explicitly deferred (not delivered here):** full expression-tree modeling of constraint bodies
+(raw text capture only); a nested `doc` annotation inside a constraint's own `calculationBody`
+(e.g. `assume constraint { doc /* ... */ ... }`, seen in the OMG training corpus) is intentionally
+not captured — an accepted scope boundary, not an oversight; any other view kind besides General
+View.
 
 ### Action Flow View: control-node/successor AST correctness + fork/join/decision/merge shapes — delivered
 

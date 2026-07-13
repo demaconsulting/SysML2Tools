@@ -44,6 +44,15 @@ standalone `dependency FlightController to Battery;` statement demonstrates the
 same dashed open-chevron line without a label, used for general OMG
 dependency relationships.
 
+`Battery`'s `doc /* ... */` annotation demonstrates the `BoxShape.Note`
+(folded-corner) box rendered for a documented element, connected to its box by
+a plain solid line. `FlightMode` is now an `enum def` with literal values
+(`idle`/`manual`/`autonomous`), demonstrating the `enum values` compartment.
+`FlightTimeRequirement` gains a `subject`/`require constraint` body,
+demonstrating the stereotype-titled `«subject»`/`«require constraint»`
+compartments (a constraint compartment shows its raw expression text rather
+than a `name : Type` row).
+
 Model: [`models/01-drone-general.sysml`](models/01-drone-general.sysml) ·
 SVG: [`svg/DroneGeneralView.svg`](svg/DroneGeneralView.svg)
 
