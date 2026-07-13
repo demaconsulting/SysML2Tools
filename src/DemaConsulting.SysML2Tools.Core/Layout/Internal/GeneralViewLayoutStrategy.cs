@@ -318,8 +318,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// and removes exactly those nested usages whose nearest still-rendered ancestor is present in
     /// the final, fully scope-and-filter-narrowed set (cascading through any nesting depth so a
     /// deeper-nested usage is never silently dropped merely because an intermediate ancestor was
-    /// itself excluded). An unnamed feature (<see cref="SysmlNode.Name"/> is
-    /// <see langword="null"/>) is excluded, since it has no stable qualified name to key a box on.
+    /// itself excluded). An unnamed <see cref="SysmlFeatureNode"/> usage (<see cref="SysmlNode.Name"/>
+    /// is <see langword="null"/>) is excluded, since it has no stable qualified name to key a box on;
+    /// an unnamed <see cref="SysmlDefinitionNode"/>, by contrast, is still admitted — it falls back to
+    /// keying its box on the declaration's own qualified name, exactly as it did before usage-level
+    /// candidates were introduced.
     /// </remarks>
     /// <seealso cref="RemoveRedundantNestedUsages"/>
     private static IReadOnlyList<DefBox> CollectDefinitions(
@@ -331,7 +334,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         foreach (var (qualifiedName, declaration) in workspace.Declarations)
         {
-            if (declaration is not (SysmlDefinitionNode or SysmlFeatureNode) || declaration.Name is null)
+            if (declaration is not (SysmlDefinitionNode or SysmlFeatureNode) ||
+                (declaration is SysmlFeatureNode && declaration.Name is null))
             {
                 continue;
             }
@@ -355,12 +359,21 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             };
             var keyword = string.IsNullOrEmpty(rawKeyword) ? "def" : rawKeyword;
 
+            // Specialization edges (below, in BuildModelEdges) are drawn from DefBox.SupertypeNames.
+            // On a SysmlFeatureNode, SupertypeNames is populated only from a usage-level `subsets`/`:>`
+            // clause (see SysmlNode.SupertypeNames's remarks) — subsetting, not specialization — so it
+            // must not be surfaced here as a specialization target; only definition-level SupertypeNames
+            // (`part def X :> Y`) are genuine specialization targets.
+            var specializationSupertypeNames = declaration is SysmlDefinitionNode
+                ? declaration.SupertypeNames
+                : Array.Empty<string>();
+
             // Build compartments from the declaration's owned usages (attributes, ports, parts, …).
             var compartments = BuildCompartments(declaration);
 
             var memberships = CollectMemberships(declaration);
             var (width, height) = ComputeBoxSize(simpleName, keyword, compartments, theme);
-            result.Add(new DefBox(qualifiedName, simpleName, keyword, declaration.SupertypeNames, memberships, compartments, width, height, declaration.Annotations, declaration is SysmlFeatureNode));
+            result.Add(new DefBox(qualifiedName, simpleName, keyword, specializationSupertypeNames, memberships, compartments, width, height, declaration.Annotations, declaration is SysmlFeatureNode));
         }
 
         return result;
