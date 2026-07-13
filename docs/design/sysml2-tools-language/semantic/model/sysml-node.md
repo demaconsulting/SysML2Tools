@@ -88,6 +88,12 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   `ReferenceResolver` into a `SysmlEdgeKind.Redefinition` edge, and rendered by
   `GeneralViewLayoutStrategy` as a hollow-triangle-crossbar marker.
 - `Multiplicity` — the multiplicity text (e.g., `"[4]"`, `"[0..*]"`), or null when unspecified.
+- `ExpressionText` — the raw expression text of a constraint-kind feature's calculation body or
+  referenced constraint name (e.g. `"require constraint"`, `"assume constraint"`, `"constraint"`
+  keywords), or null for every other feature kind. Mirrors `SysmlTransitionNode.Guard`'s
+  raw-text-only capture; no expression-tree modeling is attempted. Rendered by
+  `GeneralViewLayoutStrategy.FormatFeatureRow` in place of the generic `name : Type
+  [multiplicity]` row shape when non-null.
 
 `SysmlConnectionNode` adds:
 

@@ -72,6 +72,26 @@ external services or additional configuration are required beyond a standard .NE
   unresolved-reference diagnostics for `start`/`off`/`starting`/`on`, and produces the exact
   expected declared-state and resolved-transition counts, including entry/do/exit action feature
   nodes on the `on` state.
+- `VisitEnumeratedValue` captures each `enum def` literal (bare, value-assignment, and
+  redefinition-body forms) as an `"enum value"`-keyword feature, in source order, via the
+  dedicated `CollectEnumerationBodyChildren` helper.
+- `VisitRequirementDefinition`/`VisitConcernDefinition` capture `subject`/`actor`/`stakeholder`/
+  `require constraint`/`assume constraint` members as `Children`; `VisitRequirementUsage`/
+  `VisitConcernUsage` capture the same members when nested in a requirement/concern *usage*
+  instead of a definition (the dominant real-corpus idiom).
+- A `require constraint`/`assume constraint` member's `ExpressionText` captures its raw
+  calculation-body expression text, for both the reference form and the inline form.
+- `VisitConstraintUsage` (previously entirely absent) captures a top-level `constraint { expr }`
+  usage's raw expression text; `VisitConstraintDefinition` synthesizes one child feature node
+  carrying its own calculation-body expression text.
+- A `verify`/`frame` member's own nested `requirementBody` content is not spuriously hoisted onto
+  the enclosing requirement/concern's `Children`, while the verify target itself remains captured
+  via `VerifiedRequirementNames` — a regression guard for the null-suppression safeguard.
+- The real OMG corpus fixtures `training/06.EnumerationDefinitions/EnumerationDefinitions-{1,2}.
+  sysml`, `training/32.Requirements/RequirementDefinitions.sysml` and `RequirementUsages.sysml`,
+  and `examples/CommentExamples/Comments.sysml`/`training/01.Packages/DocumentationExample.sysml`
+  parse with no error diagnostics and produce the expected enum-value/subject/constraint/
+  annotation captures.
 
 ##### Test Scenarios
 
@@ -120,3 +140,14 @@ external services or additional configuration are required beyond a standard .NE
 | Named control nodes keep declared name | `WorkspaceLoader_LoadAsync_NamedControlNodes_KeepDeclaredName` |
 | Guarded/default succession | `WorkspaceLoader_LoadAsync_GuardedAndDefaultActionTargetSuccession_ExtractTargets` |
 | Fork/join/decision/merge OMG fixtures + incoming | `ControlNode_OmgCorpusFixture_ResolvesForkJoinDecisionMerge` |
+| Enum def bare literals | `WorkspaceLoader_LoadAsync_EnumDefinition_BareLiterals_CapturesEnumValues` |
+| Enum def value-assignment form | `WorkspaceLoader_LoadAsync_EnumDefinition_ValueAssignmentForm_CapturesNames` |
+| Requirement def subject/constraint | `WorkspaceLoader_LoadAsync_RequirementDefinition_CapturesSubjectAndConstraints` |
+| Requirement usage subject/constraint | `WorkspaceLoader_LoadAsync_RequirementUsage_CapturesSubjectAndConstraint` |
+| Requirement def actor/stakeholder | `WorkspaceLoader_LoadAsync_RequirementDefinition_CapturesActorAndStakeholder` |
+| Standalone constraint usage | `WorkspaceLoader_LoadAsync_ConstraintUsage_CapturesExpressionText` |
+| Constraint def synthesized child | `WorkspaceLoader_LoadAsync_ConstraintDefinition_SynthesizesExpressionChild` |
+| Verify member no-hoist regression | `WorkspaceLoader_LoadAsync_RequirementVerifyMember_DoesNotHoistNestedContent` |
+| Enum def OMG corpus fixtures | `Enumeration_OmgCorpusFixtures_CaptureAllLiteralForms` |
+| Requirement OMG corpus fixtures | `Requirement_OmgCorpusFixtures_CaptureSubjectAndConstraints` |
+| Comment/documentation OMG corpus fixtures | `CommentAndDocumentation_OmgCorpusFixtures_CaptureAnnotations` |

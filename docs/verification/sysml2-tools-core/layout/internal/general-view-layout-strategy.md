@@ -110,6 +110,15 @@ configuration are required beyond a standard .NET SDK installation.
   `LayoutTree.Warnings` (defense-in-depth diagnostic) — except an unresolved-endpoint drop caused
   solely by the endpoint falling outside an active `expose` scope narrowing, which is expected
   behavior and produces no warning.
+- Every definition with one or more `Documentation`/`Comment` annotations gets exactly one
+  `BoxShape.Note` box, connected to the definition's own box by a plain solid line with no end
+  marker; a definition with no annotations gets no note box.
+- A `"subject"`/`"assume constraint"`/`"require constraint"`/`"constraint"`-keyword feature
+  compartment is titled with the guillemet-wrapped stereotype form (e.g. `«subject»`), not the
+  generic pluralized-keyword default.
+- A constraint-kind feature (non-null `ExpressionText`) renders its raw expression text in place
+  of the generic `name : Type [multiplicity]` row shape.
+- An `"enum value"`-keyword feature compartment is titled `"enum values"`.
 
 ##### Test Scenarios
 
@@ -210,3 +219,19 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_SelfReferentialSubsetting_ProducesNoEdge`:
   A self-referential subsetting reference (resolving back to the subtype's own owning definition)
   produces no edge
+- `GeneralViewLayoutStrategy_BuildLayout_AnnotatedDefinition_EmitsNoteBox`:
+  A definition with a `Documentation`/`Comment` annotation gets a `BoxShape.Note` box connected by
+  a plain solid line with no end marker
+- `GeneralViewLayoutStrategy_BuildLayout_UnannotatedDefinition_EmitsNoNoteBox`:
+  A definition with no annotations gets no note box (regression guard)
+- `GeneralViewLayoutStrategy_BuildLayout_MultipleAnnotations_ProduceOneNoteBox`:
+  A definition with multiple `Documentation`/`Comment` annotations gets exactly one note box, with
+  every annotation's text concatenated into it
+- `GeneralViewLayoutStrategy_BuildLayout_RequirementSubject_UsesGuillemetTitle`:
+  A `"subject"`-keyword feature compartment is titled `«subject»`, not the generic pluralized form
+- `GeneralViewLayoutStrategy_BuildLayout_ConstraintFeatures_ShowExpressionText`:
+  `"require constraint"`/`"assume constraint"` features render their raw `ExpressionText` instead
+  of a `name : Type [multiplicity]` row, under `«require constraint»`/`«assume constraint»`
+  compartment titles
+- `GeneralViewLayoutStrategy_BuildLayout_EnumDefLiteralValues_ProducesEnumValuesCompartment`:
+  `"enum value"`-keyword features are grouped under an `"enum values"` compartment title

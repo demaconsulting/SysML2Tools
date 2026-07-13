@@ -337,3 +337,91 @@ sections:
           - WorkspaceLoader_LoadAsync_AnonymousControlNodes_SynthesizeNames
           - WorkspaceLoader_LoadAsync_NamedControlNodes_KeepDeclaredName
           - ControlNode_OmgCorpusFixture_ResolvesForkJoinDecisionMerge
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-EnumerationValues
+        title: >-
+          AstBuilder shall build a SysmlFeatureNode (FeatureKeyword "enum value") for each
+          `enumeratedValue` in an `enum def`'s body, in source order, regardless of whether the
+          literal uses the bare form, the value-assignment form, or the redefinition-body form.
+        justification: |
+          `enumerationBody` uniquely alternates `annotatingMember | enumerationUsageMember`
+          directly rather than wrapping them in a single rule (unlike `definitionBody`'s
+          `definitionBodyItem` or `requirementBody`'s `requirementBodyItem`), so the generic
+          `CollectChildren` helper cannot be applied to it directly. A dedicated
+          `CollectEnumerationBodyChildren` helper walks the body's raw `context.children`,
+          filtering to parser-rule children before delegating to `CollectChildren`, so `enum
+          def` compartments render their literal values instead of always appearing empty.
+        tests:
+          - WorkspaceLoader_LoadAsync_EnumDefinition_BareLiterals_CapturesEnumValues
+          - WorkspaceLoader_LoadAsync_EnumDefinition_ValueAssignmentForm_CapturesNames
+          - Enumeration_OmgCorpusFixtures_CaptureAllLiteralForms
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-RequirementSubjectAndConstraints
+        title: >-
+          AstBuilder shall capture a requirement/concern definition's or usage's `subject`,
+          `actor`, and `stakeholder` members as minimal SysmlFeatureNodes (FeatureKeyword
+          "subject", "actor", "stakeholder"), and its `require constraint`/`assume constraint`
+          members as SysmlFeatureNodes (FeatureKeyword "require constraint"/"assume
+          constraint") whose ExpressionText captures the constraint's raw expression text.
+        justification: |
+          Requirement definitions previously delegated to the generic
+          BuildDefinitionFromDeclaration helper, which never collected a requirementBody's
+          Children at all — subject/actor/stakeholder/constraint members were always silently
+          dropped, defeating the compartment-depth goal for the view's most detailed element
+          kind. VisitRequirementDefinition and VisitConcernDefinition now push a namespace
+          scope and call CollectChildren over requirementBody().requirementBodyItem(),
+          mirroring VisitStateUsage's existing push-scope/body-collect/register pattern.
+          Because the real OMG training corpus's dominant idiom nests `subject`/`assume
+          constraint` inside a requirement *usage* that specializes a requirement def (not
+          inside a `requirement def` body), VisitRequirementUsage and VisitConcernUsage are
+          also extended to collect Children the same way — a deliberate extension beyond a
+          literal *Definition-only reading of the ROADMAP item, without which the
+          compartment-depth goal would not manifest for the corpus's actual idiomatic shape.
+          BuildConstraintFeatureNode handles both requirementConstraintUsage grammar
+          alternatives: the reference form (captures the referenced constraint's name into
+          ExpressionText) and the inline `CONSTRAINT constraintUsageDeclaration
+          calculationBody` form (captures the raw calculationBody().GetText()). A nested `doc`
+          inside a constraint's own calculationBody (as seen in the corpus's `assume
+          constraint { doc /* ... */ ... }` idiom) is intentionally NOT captured — constraint
+          bodies are captured only as raw expression text, with no nested-member traversal.
+        tests:
+          - WorkspaceLoader_LoadAsync_RequirementDefinition_CapturesSubjectAndConstraints
+          - WorkspaceLoader_LoadAsync_RequirementUsage_CapturesSubjectAndConstraint
+          - WorkspaceLoader_LoadAsync_RequirementDefinition_CapturesActorAndStakeholder
+          - Requirement_OmgCorpusFixtures_CaptureSubjectAndConstraints
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-StandaloneConstraintUsageAndDefinition
+        title: >-
+          AstBuilder shall build a SysmlFeatureNode (FeatureKeyword "constraint") for a
+          top-level `constraint { expr }` usage, capturing its raw calculation-body expression
+          text into ExpressionText, and shall synthesize the same shape as a single child
+          feature of a `constraint def`'s own SysmlDefinitionNode.
+        justification: |
+          VisitConstraintUsage was previously entirely absent from AstBuilder — a standalone
+          `constraint` usage (not nested inside a requirement) produced no AST node at all.
+          VisitConstraintDefinition previously delegated to BuildDefinitionFromDeclaration,
+          which builds name/qualifiedName/supertypes correctly for a `constraint def` but has
+          no way to expose the definition's own calculationBody (constraintDefinition's body is
+          a calculationBody, not a definitionBody), so it is now rewritten to synthesize a
+          single "constraint"-keyword child feature node carrying that raw expression text.
+        tests:
+          - WorkspaceLoader_LoadAsync_ConstraintUsage_CapturesExpressionText
+          - WorkspaceLoader_LoadAsync_ConstraintDefinition_SynthesizesExpressionChild
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-RequirementVerifyFrameNoHoist
+        title: >-
+          AstBuilder shall not hoist a requirementVerificationMember's or framedConcernMember's
+          own nested body content onto the enclosing requirement/concern's Children.
+        justification: |
+          Once VisitRequirementDefinition/VisitConcernDefinition/VisitRequirementUsage/
+          VisitConcernUsage began calling CollectChildren over requirementBodyItem (needed to
+          capture subject/constraint members), ANTLR's default last-non-null-wins dispatch
+          would, for the first time, recurse into a nested `verify`/`frame` member's own
+          requirementBody and incorrectly bubble its content up as if it were a direct child of
+          the *outer* enclosing requirement. VisitRequirementVerificationMember and
+          VisitFramedConcernMember now explicitly return null, short-circuiting that recursive
+          descent; the verify target itself remains captured separately via the existing
+          FindVerificationMembers/VerifiedRequirementNames mechanism, unaffected by this
+          change.
+        tests:
+          - WorkspaceLoader_LoadAsync_RequirementVerifyMember_DoesNotHoistNestedContent
