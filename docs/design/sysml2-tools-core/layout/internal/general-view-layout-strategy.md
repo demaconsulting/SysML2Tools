@@ -37,9 +37,9 @@ carries the short kind label, raw source/target reference, and human-readable re
 rendered boxes, feeding `LayoutWarnings.ForDroppedRelationshipEdges`. `FeatureMembership` (a private record) carries
 each owned feature's keyword, raw type reference (`TypeName`, nullable — a feature may declare a
 redefinition with no explicit type annotation), simple `Name`, raw
-`RedefinedFeatureName` reference, the raw `SubsettedFeatureNames` list (populated verbatim
-from `SysmlFeatureNode.SupertypeNames` — a feature's `subsets`/`:>` targets, not a new AST field),
-and the raw `SubsettedFeatureNames` list. `FeatureMembership` does not itself carry an
+`RedefinedFeatureName` reference, and the raw `SubsettedFeatureNames` list (populated verbatim
+from `SysmlFeatureNode.SupertypeNames` — a feature's `subsets`/`:>` targets, not a new AST field).
+`FeatureMembership` does not itself carry an
 `ExpressionText` field — constraint-kind features' expression text (non-null only for
 `"require constraint"`/`"assume constraint"`/`"constraint"` keywords) is read directly from the
 owning `SysmlFeatureNode.ExpressionText` where needed (`BuildCompartments`), not copied into
