@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -50,10 +50,18 @@
   <!-- Runtime Dependencies -->
   <ItemGroup>
     <PackageReference Include="DemaConsulting.TestResults" Version="1.9.0" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.148.0" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.148.0" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
-    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="4.148.0" Condition="$([MSBuild]::IsOSPlatform('macOS'))" />
   </ItemGroup>
+
+  <!-- Curated, semicolon-delimited set of RIDs whose native SkiaSharp assets are kept in the
+       published tool. All other RIDs shipped transitively by SkiaSharp's NativeAssets packages
+       are trimmed by the TrimPublishedNativeAssets target below, since a dotnet global tool
+       cannot be built with <RuntimeIdentifiers> (that triggers per-RID package splitting and
+       breaks packing with NU5017).
+       Note: SkiaSharp.NativeAssets.macOS ships a single universal dylib under RID "osx" (not
+       split into osx-x64/osx-arm64), so only "osx" is listed for macOS. -->
+  <PropertyGroup>
+    <SupportedNativeAssetRids>;win-x64;win-x86;win-arm64;linux-x64;linux-arm64;linux-musl-x64;linux-musl-arm64;osx;</SupportedNativeAssetRids>
+  </PropertyGroup>
 
   <!-- Build Tool Dependencies -->
   <ItemGroup>
@@ -98,5 +106,42 @@
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\Icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
+
+  <!--
+    Trims the published/packed output down to the native SkiaSharp assets this tool actually
+    supports, dramatically reducing the packed NuGet tool size (see ROADMAP.md "Tool package
+    size").
+
+    Native ".pdb" debug symbol files and non-curated RID folders arrive unconditionally as part
+    of the publish output (via DemaConsulting.Rendering.Skia's transitive SkiaSharp dependency,
+    which resolves native assets for every RID regardless of build host OS). These files are NOT
+    Content/None pack items, so hooking BeforeTargets="_GetPackageFiles" (filtering
+    Content/None) has no effect on them - they are built directly from
+    @(ResolvedFileToPublish)/@(_PublishFiles) by the PackTool SDK targets.
+
+    This target must run AfterTargets="ComputeResolvedFilesToPublishList" - the target that
+    populates @(ResolvedFileToPublish) - so the removals happen before publish output is copied
+    and before "dotnet pack" consumes it. This dependency on internal/undocumented SDK target
+    and item names (ComputeResolvedFilesToPublishList, ResolvedFileToPublish) could break in a
+    future .NET SDK release; if package size regresses unexpectedly after an SDK upgrade, verify
+    this target still fires and still matches the expected paths.
+  -->
+  <Target Name="TrimPublishedNativeAssets" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <!-- Remove native debug symbol (.pdb) files - never needed at runtime. -->
+      <ResolvedFileToPublish
+        Remove="@(ResolvedFileToPublish)"
+        Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').Contains('/native/'))
+                   and $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').EndsWith('.pdb'))" />
+
+      <!-- Remove "runtimes/<rid>/..." entries for RIDs not in the curated
+           $(SupportedNativeAssetRids) allowlist declared above. The RID segment is the path
+           component immediately after "runtimes/" (e.g. "runtimes/linux-arm/native/..." -> "linux-arm"). -->
+      <ResolvedFileToPublish
+        Remove="@(ResolvedFileToPublish)"
+        Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').StartsWith('runtimes/'))
+                   and !$(SupportedNativeAssetRids.Contains(';$([System.String]::Copy(`%(ResolvedFileToPublish.RelativePath)`).Replace(`\`, `/`).Split(`/`)[1]);'))" />
+    </ItemGroup>
+  </Target>
 
 </Project>

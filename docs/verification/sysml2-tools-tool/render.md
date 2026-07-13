@@ -6,12 +6,12 @@ The Render subsystem is verified using unit tests in
 `test/DemaConsulting.SysML2Tools.Tool.Tests/Render/RenderSubsystemTests.cs`.
 Tests invoke `Program.RunAsync` with controlled `Context` instances and assert
 on context output and exit code. File-writing scenarios use a temporary directory
-(`Path.GetTempPath()`). Tests run against all three target frameworks.
+(`Path.GetTempPath()`). Tests run against the tool's target framework.
 
 ### Test Environment
 
 - Framework: xUnit v3
-- Target frameworks: net8.0, net9.0, net10.0
+- Target framework: net10.0
 - Test project: `DemaConsulting.SysML2Tools.Tool.Tests`
 - Dependencies: `DemaConsulting.SysML2Tools.Tool` (internal access via `InternalsVisibleTo`)
 

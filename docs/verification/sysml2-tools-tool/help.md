@@ -12,12 +12,12 @@ The Help subsystem is verified using unit/integration tests in two files under
 `HelpArgumentParser.Parse` directly (parser-only tests), and `Context.Create` +
 `Program.RunAsync` (end-to-end tests), asserting on captured console output, exit code, and
 byte-for-byte parity between `help <command>[<verb>]` and `<command> [<verb>] --help`. Tests
-run against all three target frameworks.
+run against the tool's target framework.
 
 #### Test Environment
 
 - Framework: xUnit v3
-- Target frameworks: net8.0, net9.0, net10.0
+- Target framework: net10.0
 - Test project: `DemaConsulting.SysML2Tools.Tool.Tests`
 - Dependencies: `DemaConsulting.SysML2Tools.Tool` (internal access via `InternalsVisibleTo`)
 

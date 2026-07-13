@@ -313,7 +313,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
-        dotnet-version: ['8.x', '9.x', '10.x']
+        dotnet-version: ['10.x']
 
     steps:
       # === INSTALL DEPENDENCIES ===
