@@ -259,33 +259,69 @@ the previous whole-subtree behavior for that entry, with `LayoutWarnings.ForUnev
 now warning only on that failure (mirroring `ForUnevaluatedFilter`'s existing failure-only
 pattern) instead of unconditionally warning whenever any bracket filter was merely present.
 
-**Phase 2b — deferred (zero corpus evidence):** the Phase 1-excluded construct list —
-`istype`/`hastype`/`all`, arithmetic operators, conditional (`if`/`else`) expressions, and general
-feature-chain navigation (attribute/feature reads not anchored by an `(as Type)` cast). Each
-currently produces a clear, non-crashing "unsupported filter construct" diagnostic rather than
-silently doing nothing. Across all 251 OMG corpus files sampled during Phase 2 planning, every
-real `filter`/bracket-form-`expose` expression already fell within the Phase 1/2a supported
-subset — there is no observed real-world need to implement these constructs yet, so they remain
-deferred until a concrete corpus example demonstrates a need.
+**Phase 2b — narrowed (bare `istype`/`hastype` confirmed not applicable):** the grammar
+(`SysMLv2Parser.g4`'s `ownedExpression`) only defines `istype`/`hastype` as **binary** postfix
+operators requiring an explicit left operand (`ownedExpression (ISTYPE|HASTYPE) typeReference`,
+e.g. the corpus's `engine istype '6CylEngine'`) — there is no bare/self-referential form, unlike
+`@Type`'s genuine prefix production (`(AT_SIGN|AT_AT) typeReference`). A `filter`/bracket-filter
+predicate has no bound variable to serve as that left operand, so `istype`/`hastype` are not
+expressible in filter-expression position at all under the actual SysML v2 grammar — confirmed
+by grep across the full 251-file OMG corpus finding zero `filter`/`expose[...]` usages of either
+keyword. This part of Phase 2b remains correctly deferred (not a gap — there is nothing to
+implement). Arithmetic operators, conditional (`if`/`else`) expressions, and general feature-chain
+navigation remain deferred unchanged (zero corpus evidence in filter position).
 
-**Phase 2c — deferred (no current consumer):** metadata annotations on **usages** (as opposed to
-definitions) are captured in the semantic model (`SysmlMetadataNode` is attached wherever
-`metadataFeature` appears), but filter/bracket-filter narrowing only evaluates classification
-tests/attribute reads against `SysmlDefinitionNode` candidates (matching
-`CollectDefinitions`'s/`ExposeScopeResolver`'s existing definition-only restriction) — extending
-evaluation to usage-level candidates is future work. Today, only `GeneralViewLayoutStrategy` uses
-definition-scoped filter candidates at all; no other view kind or consumer currently needs
-usage-level candidate filtering, so there is no concrete driver to implement it yet.
+**Phase 2d — confirmed real gap, next up.** Investigating the corpus's actual dominant `@Type`
+usage (`OMG/training/42.Views/ViewsExample.sysml`: `filter @SysML::PartUsage;`) found that
+**`@Type`/`@Pkg::Type` only matches an explicitly-authored domain metadata annotation
+(`@Safety;`) today — it never matches a candidate's own built-in SysML/KerML metaclass kind**
+(`PartUsage`, `PartDefinition`, `RequirementUsage`, `RequirementDefinition`, `AttributeUsage`,
+etc.), even though every parsed element structurally *is* an instance of exactly one such
+metaclass, and this metaclass-kind test is precisely what real-world corpus `filter`/bracket
+expressions use `@SysML::PartUsage`-style syntax for. Verified empirically: a hand-built model
+with `part def Engine { @Safety; } part def Other;` and `filter @SysML::PartUsage;` renders a
+**silently empty diagram** today — no diagnostic, no warning, just nothing matches, because
+`FilterExpressionEvaluator.FindMetadata` only scans for an applied `SysmlMetadataNode` child, and
+no element carries one named `PartUsage`/`SysML::PartUsage` unless the author redundantly wrote
+`@SysML::PartUsage;` by hand. This is the real, corpus-evidenced form of "type filtering" — not
+`istype`/`hastype` — and is confirmed to affect the OMG's own canonical `42.Views` training
+example. Two coupled fixes are required:
+
+1. **Metaclass/kind classification-test matching.** Extend `FindMetadata` (or add a parallel
+   check) so a classification test against a recognized built-in SysML/KerML metaclass name
+   matches based on the candidate's own AST node kind — `SysmlDefinitionNode.DefinitionKeyword`
+   (e.g. `"part def"` → `PartDefinition`) / `SysmlFeatureNode.FeatureKeyword` (e.g. `"part"` →
+   `PartUsage`, `"requirement"` → `RequirementUsage`) — in addition to (not instead of) the
+   existing applied-annotation match, since both are legitimate under the OMG `@` classification-
+   test semantics (metaclass membership *or* explicit domain metadata). Needs a keyword→metaclass-
+   name mapping table covering the kinds this project's `AstBuilder` already models (part,
+   attribute, item, port, action, state, requirement, constraint, connection, interface, allocation,
+   view, viewpoint, etc., and their `def`-suffixed definition counterparts) plus their `SysML::`-
+   qualified spelling (`@SysML::PartUsage` and bare `@PartUsage` must both work, mirroring the
+   existing `EndsWith("::" + TypeName)` fallback already used for domain annotations).
+2. **Usage-level filter candidates.** `filter`/bracket-filter narrowing today restricts candidates
+   to `SysmlDefinitionNode`s only (`CollectDefinitions`'s existing restriction) — but
+   `@SysML::PartUsage`-style metaclass tests are inherently about **usages** (a `PartUsage` is a
+   usage, not a definition), so the candidate set must be extended to include usage-level nodes
+   for classification tests to have anything meaningful to match against in the common case (an
+   `expose <path>::**` subtree dominated by usages, matching the `ViewsExample.sysml` pattern).
+   Domain metadata annotations on usages (Phase 2c's original scope) are folded into this same
+   fix, since both need the same candidate-set widening.
 
 **Scope:** `SysmlNode.cs`/`AstBuilder.cs`/`ReferenceResolver.cs`/`SysmlEdge.cs` (metadata capture,
 paired `ExposeMember` model); `DemaConsulting.SysML2Tools.Core.Filtering` (Phase 1 subsystem,
-reused unchanged for Phase 2a); `ExposeScopeResolver` (Phase 2a bracket-filter evaluation, shared
-by all 7 layout strategies); `GeneralViewLayoutStrategy`/`LayoutWarnings` (filter application,
-failure-only bracket-filter warning).
+`FilterExpressionEvaluator.FindMetadata` gains metaclass-kind matching for Phase 2d);
+`ExposeScopeResolver`/`GeneralViewLayoutStrategy`'s definition-only candidate collection (both
+widen to include usage-level candidates for Phase 2d); `LayoutWarnings` (filter application,
+failure-only bracket-filter warning) — all shared by all 7 layout strategies.
 **Visual gate:** a view with a standalone `filter @Type;`-style Phase 1 statement, or a bracketed
 `expose <path>::**[<expr>]` Phase 2a statement, renders only the elements satisfying the
 predicate, with no "unevaluated"/"not yet evaluated" warning for that statement; an unsupported
-construct still falls back to the resolved scope with an explicit diagnostic.
+construct still falls back to the resolved scope with an explicit diagnostic. For Phase 2d
+specifically: `filter @SysML::PartUsage;` (or bare `@PartUsage`) against a model with mixed
+part/requirement/other usages renders only the `PartUsage` elements — matching the OMG's own
+`42.Views/ViewsExample.sysml` corpus pattern, which must render non-empty once this phase lands
+(add it, or an equivalent minimal repro, as a regression test/gallery check).
 
 ---
 
