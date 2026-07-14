@@ -291,9 +291,9 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 For every layout strategy (not just the General View), a view's body `expose <...>;` statements
 now scope the rendered diagram to the union of the exposed entries' resolved scopes — an exact
 match, direct children only, or the entire containment subtree, depending on each entry's SysML
-v2 `expose` grammar form and recursion setting (`expose X;`/`expose X::**;`/`expose
-X::*;`/`expose X::*::**;`) — instead of always rendering the full workspace; a view with no
-`expose` statement continues to render
+v2 `expose` grammar form and recursion setting (`expose X;`/`expose X::**;`/`expose X::*;`/
+`expose X::*::**;`) — instead of always rendering the full workspace; a view with no `expose`
+statement continues to render
 the full workspace. `render asTreeDiagram;` and `render asInterconnectionDiagram;` now select
 the Browser View and Interconnection View layout strategies respectively, taking precedence over
 the name/supertype heuristic; other `render` targets (`asElementTable`, `asTextualNotation`, an
