@@ -2,6 +2,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+using System.Reflection;
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.SysML2Tools.Layout.Internal;
@@ -2616,6 +2617,80 @@ public sealed class GeneralViewLayoutStrategyTests
         // Assert: the folder carries a "+2 more…" ellipsis label reporting its two hidden definitions
         var indicator = Assert.IsType<LayoutLabel>(Assert.Single(folder.Children));
         Assert.Equal("+2 more\u2026", indicator.Text);
+    }
+
+    /// <summary>
+    ///     Regression test (reflection-based, since the recursive worker is private) for the
+    ///     reviewer-confirmed pairing bug in <c>GeneralViewLayoutStrategy</c>'s recursive
+    ///     <c>DecorateTruncated</c> worker: it previously matched each placed <see cref="LayoutBox"/>
+    ///     against a scope's <see cref="LayoutGraphNode"/> list using a single shared loop index, but
+    ///     a scope's placed node list can intersperse <see cref="LayoutLine"/> entries (routed
+    ///     intra-scope edges) among its boxes at arbitrary positions — every <see cref="LayoutLine"/>
+    ///     encountered before a box permanently shifted the box-to-graph-node pairing by one, so the
+    ///     wrong <see cref="LayoutGraphNode"/> (and therefore the wrong truncation/hidden-count
+    ///     decoration) got matched to each subsequent box. This test builds a minimal fixture with
+    ///     one <see cref="LayoutLine"/> placed before two <see cref="LayoutBox"/> entries, only the
+    ///     second of which corresponds to a truncated <see cref="LayoutGraphNode"/>, and invokes the
+    ///     private recursive worker directly via reflection — there is no public seam to reach it, and
+    ///     reproducing this box/line ordering deterministically through the public
+    ///     <c>BuildLayout</c>/<c>DemaConsulting.Rendering</c> layout-algorithm pipeline is not
+    ///     practical since box/line placement ordering is an internal detail of that external
+    ///     package. With the fix, the leading line no longer perturbs the pairing: the first box
+    ///     (matching the non-truncated node) is left unchanged, and only the second box (matching the
+    ///     truncated node) is decorated with the ellipsis label.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_DecorateTruncated_LineBeforeBoxes_DoesNotBreakBoxToNodePairing()
+    {
+        // Arrange: two graph nodes at this scope — nodeA (kept) and nodeB (truncated, hiding 3 items)
+        var graph = new LayoutGraph();
+        var nodeA = graph.AddNode("A", 100, 60);
+        var nodeB = graph.AddNode("B", 100, 60);
+
+        // A placed line (an intra-scope routed edge) appears before either box in the placed-node list
+        var line = new LayoutLine(
+            Waypoints: [],
+            SourceEnd: EndMarkerStyle.None,
+            TargetEnd: EndMarkerStyle.None,
+            LineStyle: LineStyle.Solid,
+            MidpointLabel: null);
+
+        var boxA = new LayoutBox(
+            X: 0, Y: 0, Width: 100, Height: 60, Label: "A", Depth: 1, Shape: BoxShape.Rectangle,
+            Compartments: [], Children: [], Keyword: null, RoundedCornerRadius: null,
+            FolderTabWidth: null, FolderTabHeight: null, ContentInsetLeft: 0, ContentInsetRight: 0,
+            ContentInsetTop: 0, ContentInsetBottom: 0, CenterTitle: false);
+        var boxB = boxA with { Label = "B" };
+
+        var placed = new List<LayoutNode> { line, boxA, boxB };
+        var graphNodes = new List<LayoutGraphNode> { nodeA, nodeB };
+        var hiddenByNode = new Dictionary<LayoutGraphNode, (int HiddenCount, double TitleOffset)>
+        {
+            [nodeB] = (3, 0.0)
+        };
+
+        var method = typeof(GeneralViewLayoutStrategy)
+            .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
+            .Single(m => m.Name == "DecorateTruncated" && m.GetParameters().Length == 4
+                         && m.GetParameters()[0].ParameterType == typeof(IReadOnlyList<LayoutNode>));
+
+        // Act
+        var result = (List<LayoutNode>)method.Invoke(
+            null, [placed, graphNodes, hiddenByNode, Themes.Light])!;
+
+        // Assert: the leading line is preserved untouched
+        Assert.Same(line, result[0]);
+
+        // Assert: boxA (paired with the non-truncated nodeA) is unchanged — not decorated
+        var resultBoxA = Assert.IsType<LayoutBox>(result[1]);
+        Assert.Equal("A", resultBoxA.Label);
+        Assert.Empty(resultBoxA.Children);
+
+        // Assert: boxB (paired with the truncated nodeB) carries the "+3 more…" ellipsis decoration
+        var resultBoxB = Assert.IsType<LayoutBox>(result[2]);
+        Assert.Equal("B", resultBoxB.Label);
+        var indicatorB = Assert.IsType<LayoutLabel>(Assert.Single(resultBoxB.Children));
+        Assert.Equal("+3 more\u2026", indicatorB.Text);
     }
 }
 

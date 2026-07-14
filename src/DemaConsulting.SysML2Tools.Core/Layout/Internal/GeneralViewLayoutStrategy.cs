@@ -1443,11 +1443,19 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Recursive worker for <see cref="DecorateTruncated(LayoutTree, LayoutGraph, IReadOnlyList{TruncatedContainer}, Theme)"/>:
-    /// walks one graph scope's placed nodes, positionally matched by index against that same scope's
-    /// <see cref="LayoutGraph.Nodes"/> (the leaf algorithm at any compound-graph scope, root or
-    /// nested, emits one box per node in that scope's own <c>Nodes</c> order — <see cref="LayoutBox"/>
-    /// carries no <c>Id</c> to match by instead), decorating any box whose matching graph node is a
-    /// recorded truncation and recursing into every other container box's own children.
+    /// walks one graph scope's placed nodes, matching each <see cref="LayoutBox"/> encountered (in
+    /// order) against that same scope's <see cref="LayoutGraph.Nodes"/> (in order) — the leaf
+    /// algorithm at any compound-graph scope, root or nested, emits exactly one box per node in
+    /// that scope's own <c>Nodes</c> order, but may also intersperse <see cref="LayoutLine"/>
+    /// entries for that scope's own routed edges among those boxes at arbitrary positions (see
+    /// e.g. <c>LayeredPlacement</c>'s <c>tree.Nodes.OfType&lt;LayoutBox&gt;()</c>/
+    /// <c>OfType&lt;LayoutLine&gt;()</c> filtering elsewhere in this codebase) — so the two lists
+    /// are matched by tracking a separate box-only cursor into <paramref name="graphNodes"/>
+    /// (advanced only when a <see cref="LayoutBox"/> is actually encountered), rather than by a
+    /// single shared index, which would fall out of sync permanently after the first interspersed line.
+    /// <see cref="LayoutBox"/> carries no <c>Id</c> to match by directly, so this relative-order
+    /// pairing is the only mechanism available. Decorates any box whose matching graph node is a
+    /// recorded truncation and recurses into every other container box's own children.
     /// </summary>
     private static List<LayoutNode> DecorateTruncated(
         IReadOnlyList<LayoutNode> nodes,
@@ -1456,14 +1464,17 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         Theme theme)
     {
         var result = new List<LayoutNode>(nodes);
-        for (var i = 0; i < graphNodes.Count && i < result.Count; i++)
+        var graphIndex = 0;
+        for (var i = 0; i < result.Count && graphIndex < graphNodes.Count; i++)
         {
             if (result[i] is not LayoutBox box)
             {
                 continue;
             }
 
-            if (hiddenByNode.TryGetValue(graphNodes[i], out var hidden))
+            var graphNode = graphNodes[graphIndex++];
+
+            if (hiddenByNode.TryGetValue(graphNode, out var hidden))
             {
                 var indicator = new LayoutLabel(
                     X: box.X + theme.LabelPadding,
@@ -1479,9 +1490,9 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            if (graphNodes[i].HasChildren && box.Children.Count > 0)
+            if (graphNode.HasChildren && box.Children.Count > 0)
             {
-                var decoratedChildren = DecorateTruncated(box.Children, graphNodes[i].Children.Nodes, hiddenByNode, theme);
+                var decoratedChildren = DecorateTruncated(box.Children, graphNode.Children.Nodes, hiddenByNode, theme);
                 result[i] = box with { Children = decoratedChildren };
             }
         }

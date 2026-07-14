@@ -22,17 +22,34 @@ internal static class TestSysmlViewNodeExtensions
 {
     /// <summary>
     ///     Populates <paramref name="view"/>'s <see cref="SysmlViewNode.ResolvedExposeMembers"/> by
-    ///     zipping its <see cref="SysmlViewNode.ExposeMembers"/> (in order) with its resolved
+    ///     pairing its <see cref="SysmlViewNode.ExposeMembers"/> (in order) with its resolved
     ///     <see cref="SysmlEdgeKind.Expose"/> edge targets (in order), and returns the same instance
     ///     for fluent chaining in object-initializer-style test setup.
     /// </summary>
     /// <param name="view">The view node to populate.</param>
     /// <returns>The same <paramref name="view"/> instance, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    ///     Thrown when the number of <see cref="SysmlViewNode.ExposeMembers"/> does not exactly
+    ///     match the number of resolved <see cref="SysmlEdgeKind.Expose"/> edges — this helper's
+    ///     documented 1:1 contract is violated, and silently pairing a mismatched or truncated
+    ///     count via <c>Zip</c> could mask a broken test fixture behind an incorrect pairing rather
+    ///     than failing fast.
+    /// </exception>
     public static SysmlViewNode WithResolvedExposeMembers(this SysmlViewNode view)
     {
         var targets = view.ResolvedEdges
             .Where(edge => edge.Kind == SysmlEdgeKind.Expose)
-            .Select(edge => edge.TargetQualifiedName);
+            .Select(edge => edge.TargetQualifiedName)
+            .ToList();
+
+        if (targets.Count != view.ExposeMembers.Count)
+        {
+            throw new InvalidOperationException(
+                $"WithResolvedExposeMembers requires a 1:1 pairing: {view.ExposeMembers.Count} " +
+                $"ExposeMembers but {targets.Count} resolved Expose edges. Use a mismatched " +
+                "fixture built by hand (see ExposeScopeResolverTests) instead of this helper if " +
+                "that is the scenario under test.");
+        }
 
         view.ResolvedExposeMembers = view.ExposeMembers
             .Zip(targets, (member, target) => (Member: member, ResolvedQualifiedName: target))
