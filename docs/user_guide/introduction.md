@@ -340,8 +340,10 @@ Here `expose myVehicle;` names a **usage** (`myVehicle : Vehicle`), not a `def`,
 non-recursive (`MembershipExact`). The tool resolves `myVehicle`'s own `Typing` edge to find the
 definition it is typed by (`Vehicle`), and adds that resolved type to the scope too — using the
 **same** exact-match (not whole-subtree) recursion kind, since the usage's own expose was itself
-Confirmed by hand-rendering this exact fixture: the tree contains the `myVehicle` row and the `Vehicle` row, but neither `Vehicle`'s own `engine`/`wheel` parts nor `Engine`'s `cylinder` are included,
-because exact-match scoping does not pull in either exposed name's descendants.
+non-recursive. Confirmed by hand-rendering this exact fixture: the tree contains the `myVehicle`
+row and the `Vehicle` row, but neither `Vehicle`'s own `engine`/`wheel` parts nor `Engine`'s
+`cylinder` are included, because exact-match scoping does not pull in either exposed name's
+descendants.
 
 To render `myVehicle`'s and `Vehicle`'s full nested structure instead, expose recursively —
 `expose myVehicle::**;` — which scopes to the union of `myVehicle`'s and `Vehicle`'s entire
