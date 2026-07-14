@@ -38,9 +38,12 @@ configuration are required beyond a standard .NET SDK installation.
 - A non-recursive `MembershipExact` `expose X;` entry resolves to a scope containing only `X`
   itself — not its containment subtree — and, for a usage target, adds the resolved type using
   the same exact-match recursion kind (itself only, not the type's subtree either).
-- A recursive `MembershipRecursive`/`NamespaceRecursive` `expose X::**;`/`expose X::*::**;` entry
-  continues to resolve to a scope containing `X` and its entire containment subtree, unchanged
-  from before this fix.
+- A recursive `MembershipRecursive` `expose X::**;` entry continues to resolve to a scope
+  containing `X` and its entire containment subtree, unchanged from before this fix.
+- A recursive `NamespaceRecursive` `expose X::*::**;` entry resolves to a scope containing `X`'s
+  entire containment subtree at every depth, but excludes `X` itself — mirroring the
+  non-recursive `NamespaceDirectChildren` exclusion of `X`, just extended to all descendants
+  rather than direct children only.
 - A non-recursive `NamespaceDirectChildren` `expose X::*;` entry resolves to a scope containing
   only `X`'s direct (one-level) children — not `X` itself and not deeper descendants.
 - A bracket-filter expression that fails to parse or evaluate always falls back to whichever
@@ -112,9 +115,14 @@ configuration are required beyond a standard .NET SDK installation.
 - `ResolveExposedScope_NamespaceDirectChildren_ScopeIsDirectChildrenOnly`:
   A non-recursive `NamespaceDirectChildren` entry scopes to only the exposed subject's direct
   children — not the subject itself and not deeper descendants
-- `ResolveExposedScope_NamespaceRecursive_ScopeIsWholeSubtree`:
-  A recursive `NamespaceRecursive` entry scopes to the exposed subject and its entire containment
-  subtree — unchanged whole-subtree behavior
+- `ResolveExposedScope_NamespaceRecursive_ScopeIsDescendantsOnlyExcludingSubject`:
+  A recursive `NamespaceRecursive` entry scopes to the exposed subject's entire containment
+  subtree at every depth, excluding the subject itself
+- `ResolveExposedScope_NamespaceRecursiveOnDefinition_ExcludesDefinitionItselfIncludesDescendants`:
+  A `NamespaceRecursive` entry targeting a definition (not a bare package) excludes the
+  definition's own box from the resolved scope while including all descendants at any depth,
+  contrasted with an equivalent `MembershipRecursive` entry on the same fixture which does
+  include the definition itself
 - `ResolveExposedScope_BracketFilterFailure_AlwaysFallsBackToRecursive`:
   A bracket-filter parse failure on an entry classified as `NamespaceDirectChildren` still falls
   back to whole-subtree (Recursive) inclusion, never the narrower direct-children behavior

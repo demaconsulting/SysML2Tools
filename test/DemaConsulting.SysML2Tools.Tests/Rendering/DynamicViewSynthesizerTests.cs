@@ -2,6 +2,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+using DemaConsulting.SysML2Tools.Layout.Internal;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
@@ -37,6 +38,50 @@ public sealed class DynamicViewSynthesizerTests
         var edge = Assert.Single(viewNode.ResolvedEdges);
         Assert.Equal(SysmlEdgeKind.Expose, edge.Kind);
         Assert.Equal("P::Widget", edge.TargetQualifiedName);
+
+        // ExposeScopeResolver.ResolveExposedScope reads ResolvedExposeMembers (not
+        // ResolvedEdges/ExposeMembers directly) to resolve a view's scope — this must be
+        // populated too, or a dynamic view silently renders unscoped (the full workspace)
+        // instead of narrowed to the requested target.
+        var resolvedMember = Assert.Single(viewNode.ResolvedExposeMembers);
+        Assert.Equal("P::Widget", resolvedMember.Member.QualifiedName);
+        Assert.Equal(ExposeRecursionKind.MembershipRecursive, resolvedMember.Member.RecursionKind);
+        Assert.Equal("P::Widget", resolvedMember.ResolvedQualifiedName);
+    }
+
+    /// <summary>
+    ///     Regression test: a synthesized dynamic view must actually narrow the rendered scope to
+    ///     the requested target's subtree via <see cref="ExposeScopeResolver.ResolveExposedScope"/>,
+    ///     not silently fall back to rendering the entire unscoped workspace. This guards against a
+    ///     previous regression where <c>DynamicViewSynthesizer</c> populated the (now-superseded)
+    ///     <see cref="SysmlViewNode.ExposeMembers"/>/<see cref="SysmlNode.ResolvedEdges"/> pair but
+    ///     not <see cref="SysmlViewNode.ResolvedExposeMembers"/>, which
+    ///     <see cref="ExposeScopeResolver.ResolveExposedScope"/> actually reads.
+    /// </summary>
+    [Fact]
+    public void Synthesize_ResolveExposedScope_NarrowsToTargetSubtreeOnly()
+    {
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Widget"] = new SysmlDefinitionNode { Name = "Widget", QualifiedName = "P::Widget", DefinitionKeyword = "part def" },
+                ["P::Widget::Nested"] = new SysmlDefinitionNode { Name = "Nested", QualifiedName = "P::Widget::Nested", DefinitionKeyword = "part def" },
+                ["P::Unrelated"] = new SysmlDefinitionNode { Name = "Unrelated", QualifiedName = "P::Unrelated", DefinitionKeyword = "part def" }
+            }
+        };
+
+        var viewNode = DiagramRenderer.SynthesizeDynamicView(workspace, "general", "P::Widget", null, out var diagnostic);
+
+        Assert.Null(diagnostic);
+        Assert.NotNull(viewNode);
+
+        var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode!);
+
+        Assert.NotNull(scope);
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("P::Widget", scope));
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("P::Widget::Nested", scope));
+        Assert.False(ExposeScopeResolver.IsInSubjectScope("P::Unrelated", scope));
     }
 
     /// <summary>A "grid" dynamic view targeting any resolvable non-stdlib definition succeeds.</summary>

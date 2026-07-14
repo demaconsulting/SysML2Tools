@@ -16,17 +16,22 @@ namespace DemaConsulting.SysML2Tools.Rendering.Internal;
 /// <remarks>
 /// <para>
 /// The synthesized node is scoped to its target by manually populating <see
-/// cref="SysmlNode.ResolvedEdges"/> with a single <see cref="SysmlEdgeKind.Expose"/> edge (plus a
-/// matching <see cref="SysmlViewNode.ExposeMembers"/> entry using
-/// <see cref="ExposeRecursionKind.MembershipRecursive"/>) — the same mechanism a real,
-/// parsed <c>view V { expose Target::**; }</c> usage produces via <c>ReferenceResolver</c>, so
-/// that a dynamic view shows the requested target's whole containment subtree rather than the
-/// target alone. <see cref="Layout.Internal.ExposeScopeResolver.ResolveExposedScope"/> reads
-/// only these two properties and has no notion of provenance, so it treats a synthesized node
-/// identically to a parsed one. This differs from <see cref="DiagramRenderer.SynthesizeAutoView"/>, whose node
-/// carries no <c>ResolvedEdges</c> at all — that absence is what makes <c>ExposeScopeResolver</c>
-/// return a <see langword="null"/> scope (render everything); a dynamic view instead always
-/// resolves to a definite, non-null scope rooted at the requested target's whole subtree.
+/// cref="SysmlViewNode.ResolvedExposeMembers"/> with a single entry pairing a synthesized
+/// <see cref="SysmlViewNode.ExposeMembers"/> member (using
+/// <see cref="ExposeRecursionKind.MembershipRecursive"/>) with the target's own qualified name —
+/// the same shape <c>ReferenceResolver</c> produces for a real, parsed
+/// <c>view V { expose Target::**; }</c> usage, so that a dynamic view shows the requested
+/// target's whole containment subtree rather than the target alone. The matching
+/// <see cref="SysmlEdgeKind.Expose"/> edge on <see cref="SysmlNode.ResolvedEdges"/> is also
+/// populated in parallel, for parity with a parsed view and for other <c>SysmlEdgeKind.Expose</c>
+/// consumers (e.g. impact analysis, the <c>query</c> command's reverse-lookup index), but
+/// <see cref="Layout.Internal.ExposeScopeResolver.ResolveExposedScope"/> itself reads only
+/// <see cref="SysmlViewNode.ResolvedExposeMembers"/> and has no notion of provenance, so it
+/// treats a synthesized node identically to a parsed one. This differs from <see cref="DiagramRenderer.SynthesizeAutoView"/>, whose node
+/// carries no <c>ResolvedExposeMembers</c>/<c>ResolvedEdges</c> at all — that absence is what
+/// makes <c>ExposeScopeResolver</c> return a <see langword="null"/> scope (render everything); a
+/// dynamic view instead always resolves to a definite, non-null scope rooted at the requested
+/// target's whole subtree.
 /// </para>
 /// <para>
 /// The synthesized view's <see cref="SysmlNode.QualifiedName"/> uses a leading <c>$</c> — a
@@ -132,13 +137,15 @@ internal static class DynamicViewSynthesizer
 
         var viewName = "$" + (target.Name ?? targetQualifiedName);
 
+        var syntheticExposeMember = new ExposeMember(targetQualifiedName, null, ExposeRecursionKind.MembershipRecursive);
         var viewNode = new SysmlViewNode
         {
             Name = viewName,
             QualifiedName = viewQualifiedName,
             RenderTargetName = renderTargetName,
-            ExposeMembers = [new ExposeMember(targetQualifiedName, null, ExposeRecursionKind.MembershipRecursive)],
+            ExposeMembers = [syntheticExposeMember],
             ResolvedEdges = [new SysmlEdge(viewQualifiedName, targetQualifiedName, SysmlEdgeKind.Expose)],
+            ResolvedExposeMembers = [(syntheticExposeMember, targetQualifiedName)],
             FilterExpressionText = filterExpressionText,
         };
 

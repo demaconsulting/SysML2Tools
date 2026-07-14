@@ -100,10 +100,10 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-RecursiveWholeSubtreeUnchanged
         title: >-
           ExposeScopeResolver.ResolveExposedScope shall continue to resolve a recursive
-          MembershipExpose entry (expose X::**;) or recursive NamespaceExpose entry
-          (expose X::*::**;) to a scope containing X and its entire containment subtree, and a
-          bracket-filtered entry that fails to parse or evaluate shall continue to fall back to
-          this same whole-subtree behavior regardless of the entry's own recursion kind.
+          MembershipExpose entry (expose X::**;) to a scope containing X and its entire
+          containment subtree, and a bracket-filtered entry that fails to parse or evaluate shall
+          continue to fall back to this same whole-subtree behavior regardless of the entry's own
+          recursion kind.
         justification: |
           Recursive `expose` forms (`::**`) are the one case where the pre-fix whole-subtree
           behavior was already correct; this requirement is a regression guard confirming the fix
@@ -113,8 +113,24 @@ sections:
           bracket-filter failure).
         tests:
           - ResolveExposedScope_MembershipRecursive_ScopeIsWholeSubtree
-          - ResolveExposedScope_NamespaceRecursive_ScopeIsWholeSubtree
           - ResolveExposedScope_BracketFilterFailure_AlwaysFallsBackToRecursive
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-NamespaceRecursiveExcludesSubject
+        title: >-
+          ExposeScopeResolver.ResolveExposedScope shall resolve a recursive NamespaceExpose entry
+          (expose X::*::**;) to a scope containing X's entire containment subtree excluding X
+          itself, mirroring the non-recursive NamespaceExpose (expose X::*;) exclusion of X but
+          extending it to descendants at every depth rather than direct children only.
+        justification: |
+          Per the OMG SysML v2 specification, a NamespaceExpose never includes the namespace
+          being exposed, regardless of whether the recursive (`::**`) or direct-children-only
+          (`::*`) form is used — only MembershipExpose (`expose X;`/`expose X::**;`) includes the
+          subject itself. A prior implementation incorrectly treated NamespaceRecursive
+          identically to MembershipRecursive (including the subject); this requirement guards
+          against that regression recurring.
+        tests:
+          - ResolveExposedScope_NamespaceRecursive_ScopeIsDescendantsOnlyExcludingSubject
+          - ResolveExposedScope_NamespaceRecursiveOnDefinition_ExcludesDefinitionItselfIncludesDescendants
 
       - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-RootRelevance
         title: >-
