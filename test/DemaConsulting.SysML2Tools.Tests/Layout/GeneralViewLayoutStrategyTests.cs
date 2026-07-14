@@ -2490,5 +2490,132 @@ public sealed class GeneralViewLayoutStrategyTests
         var box = CollectBoxes(layout.Nodes).First(b => b.Label == "FlightMode");
         Assert.Contains(box.Compartments, c => c.Title == "enum values" && c.Rows.Contains("manual") && c.Rows.Contains("auto"));
     }
+
+    /// <summary>
+    ///     Builds a workspace where package <c>Sys</c> contains <c>Sys::Outer</c>, which owns one
+    ///     nested definition <c>Sys::Outer::Inner</c> — a 2-level-deep nested-definition-containment
+    ///     structure (folder contents at depth 1, <c>Outer</c>'s own nested child at depth 2), used
+    ///     by the <see cref="RenderOptions.DepthLimit"/> nested-definition-containment truncation
+    ///     regression tests.
+    /// </summary>
+    private static SysmlWorkspace BuildTwoLevelNestedDefinitionWorkspace() => new()
+    {
+        Declarations = new Dictionary<string, SysmlNode>
+        {
+            ["Sys::Outer"] = new SysmlDefinitionNode
+            {
+                Name = "Outer",
+                QualifiedName = "Sys::Outer",
+                DefinitionKeyword = "part def"
+            },
+            ["Sys::Outer::Inner"] = new SysmlDefinitionNode
+            {
+                Name = "Inner",
+                QualifiedName = "Sys::Outer::Inner",
+                DefinitionKeyword = "part def"
+            }
+        }
+    };
+
+    /// <summary>
+    ///     Regression test for the reviewer-confirmed bug: previously <see cref="RenderOptions.DepthLimit"/>
+    ///     only capped package-folder-contents nesting (<c>truncateFolderContents</c>), never
+    ///     nested-definition containment introduced by <c>PlaceDef</c>'s own recursion — so a
+    ///     <c>DepthLimit</c> that should cap all nesting had no effect once a definition owned a
+    ///     nested definition. With the fix, a <c>DepthLimit</c> of 2 over the 2-level-deep
+    ///     <c>Outer</c>/<c>Inner</c> nested-definition-containment fixture truncates the innermost
+    ///     level (<c>Inner</c>, <c>Outer</c>'s own nested child, at depth 2): <c>Outer</c>'s own box
+    ///     is still rendered normally, but in place of an <c>Inner</c> box its own
+    ///     <see cref="LayoutBox.Children"/> carries a single "+1 more…" ellipsis
+    ///     <see cref="LayoutLabel"/>, mirroring how a depth-truncated package folder's contents are
+    ///     already reported.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_NestedDefinitionContainment_DepthLimitTruncatesInnerLevel()
+    {
+        // Arrange: Sys::Outer owns Sys::Outer::Inner, DepthLimit = 2
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildTwoLevelNestedDefinitionWorkspace();
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light, DepthLimit: 2);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: Outer's own box still renders, but Inner does not appear as a box anywhere
+        var allBoxes = CollectBoxes(layout.Nodes);
+        var outerBox = allBoxes.Single(b => b.Label == "Outer");
+        Assert.DoesNotContain(allBoxes, b => b.Label == "Inner");
+
+        // Assert: Outer's own Children carries a single placeholder box standing in for the
+        // truncated Inner definition, itself decorated with a "+1 more…" ellipsis label — mirroring
+        // how a depth-truncated package folder's own placed box is decorated, one nesting level
+        // deeper.
+        var placeholder = Assert.IsType<LayoutBox>(Assert.Single(outerBox.Children));
+        var indicator = Assert.IsType<LayoutLabel>(Assert.Single(placeholder.Children));
+        Assert.Equal("+1 more\u2026", indicator.Text);
+    }
+
+    /// <summary>
+    ///     Regression guard: <see cref="RenderOptions.DepthLimit"/> == 0 (unlimited) still renders
+    ///     full nested-definition-containment depth unchanged — the fix must not truncate anything
+    ///     when no depth limit is requested.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_NestedDefinitionContainment_DepthLimitZero_RendersFullDepth()
+    {
+        // Arrange: same Outer/Inner fixture, but with the default unlimited DepthLimit
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildTwoLevelNestedDefinitionWorkspace();
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: both Outer and Inner render as full boxes, Inner nested as Outer's own child, and
+        // no ellipsis placeholder label appears anywhere.
+        var allBoxes = CollectBoxes(layout.Nodes);
+        var outerBox = allBoxes.Single(b => b.Label == "Outer");
+        var innerBox = Assert.IsType<LayoutBox>(Assert.Single(outerBox.Children));
+        Assert.Equal("Inner", innerBox.Label);
+    }
+
+    /// <summary>
+    ///     Regression guard: unrelated to nested-definition containment, a <see cref="RenderOptions.DepthLimit"/>
+    ///     of 1 still truncates a plain package folder's own contents exactly as before the fix
+    ///     (<c>truncateFolderContents</c> in <c>BuildGraph</c>), proving the nested-definition-containment
+    ///     fix did not regress the pre-existing package-folder-contents truncation path.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_PackageFolderContents_DepthLimitOne_StillTruncatesFolder()
+    {
+        // Arrange: package Sys with two sibling definitions (no definition-containment nesting),
+        // DepthLimit = 1
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Sys::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Sys::A", DefinitionKeyword = "part def" },
+                ["Sys::B"] = new SysmlDefinitionNode { Name = "B", QualifiedName = "Sys::B", DefinitionKeyword = "part def" }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light, DepthLimit: 1);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the folder is present but neither A nor B renders as an individual box
+        var allBoxes = CollectBoxes(layout.Nodes);
+        var folder = allBoxes.Single(b => b.Shape == BoxShape.Folder);
+        Assert.Equal("Sys", folder.Label);
+        Assert.DoesNotContain(allBoxes, b => b.Label is "A" or "B");
+
+        // Assert: the folder carries a "+2 more…" ellipsis label reporting its two hidden definitions
+        var indicator = Assert.IsType<LayoutLabel>(Assert.Single(folder.Children));
+        Assert.Equal("+2 more\u2026", indicator.Text);
+    }
 }
 
