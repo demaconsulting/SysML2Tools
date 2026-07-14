@@ -256,7 +256,7 @@ public sealed class GeneralViewLayoutStrategyTests
             QualifiedName = "Sys::V",
             ExposeMembers = [new ExposeMember("OperatorConsole", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Sys::V", "Sys::OperatorConsole", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -302,7 +302,7 @@ public sealed class GeneralViewLayoutStrategyTests
             QualifiedName = "Sys::V",
             ExposeMembers = [new ExposeMember("Sys", null, ExposeRecursionKind.NamespaceDirectChildren)],
             ResolvedEdges = [new SysmlEdge("Sys::V", "Sys", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -384,7 +384,7 @@ public sealed class GeneralViewLayoutStrategyTests
             QualifiedName = "QuadcopterDrone::BatterySubsystemView",
             ExposeMembers = [new ExposeMember("Battery", null, ExposeRecursionKind.MembershipExact)],
             ResolvedEdges = [new SysmlEdge("QuadcopterDrone::BatterySubsystemView", "QuadcopterDrone::Battery", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -1294,7 +1294,7 @@ public sealed class GeneralViewLayoutStrategyTests
             QualifiedName = "Root::V",
             ExposeMembers = [new ExposeMember("A", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -1361,7 +1361,7 @@ public sealed class GeneralViewLayoutStrategyTests
             QualifiedName = "Root::V",
             ExposeMembers = [new ExposeMember("myVehicle", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 

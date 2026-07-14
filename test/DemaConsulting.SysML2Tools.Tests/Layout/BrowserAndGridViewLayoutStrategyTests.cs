@@ -144,7 +144,7 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
             QualifiedName = "Root::V",
             ExposeMembers = [new ExposeMember("A", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -197,7 +197,7 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
             QualifiedName = "Root::V",
             ExposeMembers = [new ExposeMember("myVehicle", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -229,7 +229,7 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
                 new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose),
                 new SysmlEdge("Root::V", "Root::B", SysmlEdgeKind.Expose)
             ]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -269,7 +269,7 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
             QualifiedName = "Root::V",
             ExposeMembers = [new ExposeMember("Sub", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A::Sub", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -303,7 +303,7 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
             QualifiedName = "Root::V",
             ExposeMembers = [new ExposeMember("A", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -355,7 +355,7 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
             QualifiedName = "Root::V",
             ExposeMembers = [new ExposeMember("myVehicle", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -386,7 +386,7 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
                 new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose),
                 new SysmlEdge("Root::V", "Root::B", SysmlEdgeKind.Expose)
             ]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 

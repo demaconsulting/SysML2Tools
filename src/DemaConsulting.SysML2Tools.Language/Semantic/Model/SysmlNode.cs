@@ -321,6 +321,26 @@ public sealed class SysmlViewNode : SysmlNode
     public IReadOnlyList<string> GetExposedNames() => ExposeMembers.Select(m => m.QualifiedName).ToList();
 
     /// <summary>
+    ///     Gets each <see cref="ExposeMember"/> paired directly with its own resolved qualified
+    ///     name, populated by <see cref="ReferenceResolver"/> for every <c>ExposeMembers</c> entry
+    ///     that successfully resolves (in the same relative order, skipping entries that fail to
+    ///     resolve without inserting a placeholder). Unlike re-deriving this pairing from
+    ///     <see cref="SysmlNode.ResolvedEdges"/>'s <see cref="SysmlEdgeKind.Expose"/> edges by
+    ///     forward-scanning and loose-matching raw reference text against resolved qualified names
+    ///     (ambiguous when an earlier entry fails to resolve but its raw text happens to be a
+    ///     suffix of a later entry's resolved target), this list unambiguously identifies which
+    ///     specific <see cref="ExposeMember"/> object produced each resolved qualified name, so
+    ///     <c>ExposeScopeResolver</c> can read each resolved target's own
+    ///     <see cref="ExposeMember.BracketFilterExpressionText"/>/<see cref="ExposeMember.RecursionKind"/>
+    ///     correctly. Empty when the view has no <c>expose</c> members or none resolved. The
+    ///     <see cref="SysmlEdgeKind.Expose"/> edges on <see cref="SysmlNode.ResolvedEdges"/> are
+    ///     still populated in parallel and retain their existing role (e.g. impact analysis, the
+    ///     <c>query</c> command's reverse-lookup index).
+    /// </summary>
+    public IReadOnlyList<(ExposeMember Member, string ResolvedQualifiedName)> ResolvedExposeMembers { get; set; } =
+        Array.Empty<(ExposeMember Member, string ResolvedQualifiedName)>();
+
+    /// <summary>
     ///     Gets the raw source text of this view's <c>filter [&lt;expression&gt;];</c> statement
     ///     (from <c>elementFilterMember().ownedExpression().GetText()</c>), or
     ///     <see langword="null"/> when the view declares no filter member. Captured verbatim only
@@ -401,8 +421,10 @@ public enum ExposeRecursionKind
     NamespaceDirectChildren,
 
     /// <summary>
-    ///     NamespaceExpose, recursive: <c>expose X::*::**;</c> — X and its entire containment
-    ///     subtree (the pre-fix, still-correct-for-this-case whole-subtree behavior).
+    ///     NamespaceExpose, recursive: <c>expose X::*::**;</c> — X's descendants at any depth
+    ///     (not just direct children), but never X itself: per formal-26-03-02.md §8.3.26.4, a
+    ///     NamespaceExpose exposes the subject's own Memberships (its members), and a namespace is
+    ///     never a member of itself regardless of the recursive flag.
     /// </summary>
     NamespaceRecursive,
 }

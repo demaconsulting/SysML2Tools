@@ -181,8 +181,10 @@ entire workspace:
     subtree**: `X` plus every declaration whose qualified name is `X` or is contained within it.
   - `expose X::*;` (bare NamespaceExpose) — scopes to only `X`'s **direct (one-level) children**,
     not `X` itself and not deeper descendants.
-  - `expose X::*::**;` (recursive NamespaceExpose) — scopes to `X` **and its entire containment
-    subtree**, the same whole-subtree behavior as recursive MembershipExpose.
+  - `expose X::*::**;` (recursive NamespaceExpose) — like `expose X::*;`, still **excludes `X`
+    itself** (a NamespaceExpose only ever exposes `X`'s Memberships — its members — never `X` as
+    a member of itself), but additionally includes descendants beyond direct children, at any
+    depth — unlike `NamespaceDirectChildren`, which stops at one level.
 
   If `X` does not resolve to any declaration in the workspace (for example, a typo), the tool
   falls back to rendering the full workspace for that view — but now also reports a diagnostic

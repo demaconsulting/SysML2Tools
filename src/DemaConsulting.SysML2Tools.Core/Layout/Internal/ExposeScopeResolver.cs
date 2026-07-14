@@ -98,11 +98,8 @@ internal static class ExposeScopeResolver
     /// <returns>The resolved <see cref="ExposedScope"/>, or null when no scoping applies.</returns>
     public static ExposedScope? ResolveExposedScope(SysmlWorkspace workspace, SysmlViewNode? viewNode)
     {
-        var exposedTargets = viewNode?.ResolvedEdges
-            .Where(edge => edge.Kind == SysmlEdgeKind.Expose)
-            .Select(edge => edge.TargetQualifiedName)
-            .ToList();
-        if (exposedTargets is not { Count: > 0 })
+        var resolvedExposeMembers = viewNode?.ResolvedExposeMembers;
+        if (resolvedExposeMembers is not { Count: > 0 })
         {
             return null;
         }
@@ -111,32 +108,15 @@ internal static class ExposeScopeResolver
         var explicitMembers = new List<string>();
         var failures = new List<BracketFilterFailure>();
 
-        // Re-pair each resolved Expose edge's target with the ExposeMember it originated from, so
-        // a bracket-filtered entry's expression can be evaluated against its own containment
-        // subtree only — not the view's other, unrelated expose entries. ReferenceResolver builds
-        // one edge per successfully-resolved ExposeMember in source order (skipping entries that
-        // failed to resolve, without emitting an edge for them), so a forward scan that skips
-        // non-matching entries reliably re-establishes the pairing even when an earlier entry
-        // failed to resolve.
-        var members = viewNode!.ExposeMembers;
-        var memberIndex = 0;
-        foreach (var target in exposedTargets)
+        // Each entry directly pairs a resolved qualified name with the specific ExposeMember it
+        // originated from (populated by ReferenceResolver), so a bracket-filtered entry's
+        // expression is always evaluated against its own containment subtree only -- not the
+        // view's other, unrelated expose entries. This avoids re-deriving the pairing later via
+        // ambiguous raw-text matching against resolved targets.
+        foreach (var (member, target) in resolvedExposeMembers)
         {
-            ExposeMember? member = null;
-            while (memberIndex < members.Count)
-            {
-                var candidate = members[memberIndex];
-                memberIndex++;
-                if (candidate.QualifiedName == target ||
-                    target.EndsWith("::" + candidate.QualifiedName, StringComparison.Ordinal))
-                {
-                    member = candidate;
-                    break;
-                }
-            }
-
-            var bracketFilterText = member?.BracketFilterExpressionText;
-            var recursionKind = member?.RecursionKind ?? ExposeRecursionKind.MembershipRecursive;
+            var bracketFilterText = member.BracketFilterExpressionText;
+            var recursionKind = member.RecursionKind;
             if (bracketFilterText is not { Length: > 0 })
             {
                 AddSubject(workspace, target, recursionKind, subjects);
@@ -205,12 +185,16 @@ internal static class ExposeScopeResolver
     /// <paramref name="scope"/>'s <see cref="ExposedScope.Subjects"/> per that subject's own
     /// <see cref="ExposeRecursionKind"/>:
     /// <list type="bullet">
-    /// <item><description><see cref="ExposeRecursionKind.MembershipRecursive"/>/
-    /// <see cref="ExposeRecursionKind.NamespaceRecursive"/>: the subject itself or lies within its
-    /// containment subtree (a <c>"{subject}::"</c> prefix match, reusing the same
-    /// qualified-name-prefix idiom
+    /// <item><description><see cref="ExposeRecursionKind.MembershipRecursive"/>: the subject
+    /// itself or lies within its containment subtree (a <c>"{subject}::"</c> prefix match, reusing
+    /// the same qualified-name-prefix idiom
     /// <see cref="StdlibFilter.IsStdlibElement(string, IReadOnlySet{string})"/> already uses for
     /// stdlib-prefix matching).</description></item>
+    /// <item><description><see cref="ExposeRecursionKind.NamespaceRecursive"/>: lies within the
+    /// subject's containment subtree at any depth — never the subject itself. Per
+    /// formal-26-03-02.md §8.3.26.4, a NamespaceExpose exposes the subject's Memberships (its
+    /// members), and a namespace is never a member of itself, regardless of the recursive
+    /// flag.</description></item>
     /// <item><description><see cref="ExposeRecursionKind.MembershipExact"/>: the subject itself
     /// only, exact match.</description></item>
     /// <item><description><see cref="ExposeRecursionKind.NamespaceDirectChildren"/>: a direct
@@ -223,8 +207,10 @@ internal static class ExposeScopeResolver
     public static bool IsInSubjectScope(string qualifiedName, ExposedScope scope) =>
         scope.Subjects.Any(subject => subject.Recursion switch
         {
-            ExposeRecursionKind.MembershipRecursive or ExposeRecursionKind.NamespaceRecursive =>
+            ExposeRecursionKind.MembershipRecursive =>
                 qualifiedName == subject.QualifiedName ||
+                qualifiedName.StartsWith(subject.QualifiedName + "::", StringComparison.Ordinal),
+            ExposeRecursionKind.NamespaceRecursive =>
                 qualifiedName.StartsWith(subject.QualifiedName + "::", StringComparison.Ordinal),
             ExposeRecursionKind.MembershipExact => qualifiedName == subject.QualifiedName,
             ExposeRecursionKind.NamespaceDirectChildren => IsDirectChildOf(qualifiedName, subject.QualifiedName),

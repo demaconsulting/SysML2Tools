@@ -315,7 +315,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
             QualifiedName = "SM::V",
             ExposeMembers = [new ExposeMember("MachineB", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("SM::V", "SM::MachineB", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -343,7 +343,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
             QualifiedName = "SM::V",
             ExposeMembers = [new ExposeMember("b1", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("SM::V", "SM::MachineB::b1", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -416,7 +416,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
             QualifiedName = "SM::V",
             ExposeMembers = [new ExposeMember("b1", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("SM::V", "SM::MachineA::MachineB::b1", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -442,7 +442,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
             QualifiedName = "SM::V",
             ExposeMembers = [new ExposeMember("Unrelated", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("SM::V", "SM::Unrelated", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -470,7 +470,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
             QualifiedName = "SM::V",
             ExposeMembers = [new ExposeMember("s1", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("SM::V", "SM::MachineA::s1", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -510,7 +510,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
             QualifiedName = "SM::V",
             ExposeMembers = [new ExposeMember("myMachine", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("SM::V", "SM::myMachine", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 

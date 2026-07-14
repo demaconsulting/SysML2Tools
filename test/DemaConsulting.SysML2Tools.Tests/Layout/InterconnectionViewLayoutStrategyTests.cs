@@ -762,7 +762,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
             QualifiedName = "M::V",
             ExposeMembers = [new ExposeMember("c1", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::SysA::SysC::c1", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -955,7 +955,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
             QualifiedName = "M::V",
             ExposeMembers = [new ExposeMember("SysB", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::SysB", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -1031,7 +1031,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
                 new SysmlEdge("M::V", "M::AB", SysmlEdgeKind.Expose),
                 new SysmlEdge("M::V", "M::MuchLongerSiblingName", SysmlEdgeKind.Expose)
             ]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -1057,7 +1057,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
             QualifiedName = "M::V",
             ExposeMembers = [new ExposeMember("b1", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::SysB::b1", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -1088,7 +1088,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
             QualifiedName = "M::V",
             ExposeMembers = [new ExposeMember("Unrelated", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::Unrelated", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -1113,7 +1113,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
             QualifiedName = "M::V",
             ExposeMembers = [new ExposeMember("a1", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::SysA::a1", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -1146,7 +1146,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
                 new SysmlEdge("M::V", "M::SysA::a1", SysmlEdgeKind.Expose),
                 new SysmlEdge("M::V", "M::SysA::a2", SysmlEdgeKind.Expose)
             ]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -1181,7 +1181,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
             QualifiedName = "M::V",
             ExposeMembers = [new ExposeMember("myPart", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("M::V", "M::myPart", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 

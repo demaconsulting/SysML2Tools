@@ -17,6 +17,17 @@ namespace DemaConsulting.SysML2Tools.Tests.Layout;
 public sealed class ExposeScopeResolverTests
 {
     /// <summary>
+    ///     Builds the <see cref="SysmlViewNode.ResolvedExposeMembers"/> pairing for test fixtures
+    ///     where each <see cref="ExposeMember"/>'s raw <see cref="ExposeMember.QualifiedName"/> is
+    ///     already the fully-resolved qualified name (i.e. every member resolves to itself, in
+    ///     order) — the common case for every test in this file except the dedicated re-pairing
+    ///     regression test, which builds its own mismatched pairing explicitly.
+    /// </summary>
+    private static IReadOnlyList<(ExposeMember Member, string ResolvedQualifiedName)> ResolvedMembers(
+        params ExposeMember[] members) =>
+        members.Select(m => (m, m.QualifiedName)).ToList();
+
+    /// <summary>
     ///     A null <c>ViewNode</c> (the synthetic <c>--auto</c> view) resolves to <c>null</c> scope,
     ///     meaning "no scoping applies" — every non-stdlib element is included.
     /// </summary>
@@ -72,6 +83,7 @@ public sealed class ExposeScopeResolverTests
             ExposeMembers = [new ExposeMember("Root::A", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
         };
+        viewNode.ResolvedExposeMembers = ResolvedMembers(viewNode.ExposeMembers.ToArray());
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
@@ -110,6 +122,7 @@ public sealed class ExposeScopeResolverTests
             ExposeMembers = [new ExposeMember("Root::myVehicle", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)]
         };
+        viewNode.ResolvedExposeMembers = ResolvedMembers(viewNode.ExposeMembers.ToArray());
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
@@ -313,6 +326,7 @@ public sealed class ExposeScopeResolverTests
                 new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)
             ]
         };
+        viewNode.ResolvedExposeMembers = ResolvedMembers(viewNode.ExposeMembers.ToArray());
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
@@ -347,6 +361,7 @@ public sealed class ExposeScopeResolverTests
             ExposeMembers = [new ExposeMember("Root::Container", "@SysML::PartUsage", ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::Container", SysmlEdgeKind.Expose)]
         };
+        viewNode.ResolvedExposeMembers = ResolvedMembers(viewNode.ExposeMembers.ToArray());
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
@@ -393,6 +408,7 @@ public sealed class ExposeScopeResolverTests
             ExposeMembers = [new ExposeMember("Root::Container", "@Safety", ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::Container", SysmlEdgeKind.Expose)]
         };
+        viewNode.ResolvedExposeMembers = ResolvedMembers(viewNode.ExposeMembers.ToArray());
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
@@ -448,6 +464,7 @@ public sealed class ExposeScopeResolverTests
                 new SysmlEdge("Root::V", "Root::Container", SysmlEdgeKind.Expose)
             ]
         };
+        viewNode.ResolvedExposeMembers = ResolvedMembers(viewNode.ExposeMembers.ToArray());
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
@@ -481,6 +498,7 @@ public sealed class ExposeScopeResolverTests
             ExposeMembers = [new ExposeMember("Root::Container", "x istype Y", ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::Container", SysmlEdgeKind.Expose)]
         };
+        viewNode.ResolvedExposeMembers = ResolvedMembers(viewNode.ExposeMembers.ToArray());
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
@@ -515,6 +533,7 @@ public sealed class ExposeScopeResolverTests
             ExposeMembers = [new ExposeMember("Root::A", null, ExposeRecursionKind.MembershipExact)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
         };
+        viewNode.ResolvedExposeMembers = ResolvedMembers(viewNode.ExposeMembers.ToArray());
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
@@ -553,6 +572,7 @@ public sealed class ExposeScopeResolverTests
             ExposeMembers = [new ExposeMember("Root::myVehicle", null, ExposeRecursionKind.MembershipExact)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)]
         };
+        viewNode.ResolvedExposeMembers = ResolvedMembers(viewNode.ExposeMembers.ToArray());
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
@@ -585,6 +605,7 @@ public sealed class ExposeScopeResolverTests
             ExposeMembers = [new ExposeMember("Root::A", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
         };
+        viewNode.ResolvedExposeMembers = ResolvedMembers(viewNode.ExposeMembers.ToArray());
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
@@ -617,6 +638,7 @@ public sealed class ExposeScopeResolverTests
             ExposeMembers = [new ExposeMember("Root::A", null, ExposeRecursionKind.NamespaceDirectChildren)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
         };
+        viewNode.ResolvedExposeMembers = ResolvedMembers(viewNode.ExposeMembers.ToArray());
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
@@ -628,11 +650,12 @@ public sealed class ExposeScopeResolverTests
 
     /// <summary>
     ///     A recursive <c>NamespaceRecursive</c> expose entry (<c>expose X::*::**;</c>) resolves to
-    ///     a scope containing <c>X</c> and its entire containment subtree — unchanged whole subtree
-    ///     behavior.
+    ///     a scope containing <c>X</c>'s descendants at any depth — but never <c>X</c> itself, per
+    ///     formal-26-03-02.md §8.3.26.4 (a NamespaceExpose exposes the subject's own Memberships,
+    ///     and a namespace is never a member of itself regardless of the recursive flag).
     /// </summary>
     [Fact]
-    public void ResolveExposedScope_NamespaceRecursive_ScopeIsWholeSubtree()
+    public void ResolveExposedScope_NamespaceRecursive_ScopeIsDescendantsOnlyExcludingSubject()
     {
         var workspace = new SysmlWorkspace
         {
@@ -650,11 +673,12 @@ public sealed class ExposeScopeResolverTests
             ExposeMembers = [new ExposeMember("Root::A", null, ExposeRecursionKind.NamespaceRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
         };
+        viewNode.ResolvedExposeMembers = ResolvedMembers(viewNode.ExposeMembers.ToArray());
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
         Assert.NotNull(scope);
-        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A", scope));
+        Assert.False(ExposeScopeResolver.IsInSubjectScope("Root::A", scope));
         Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A::Child", scope));
         Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A::Child::Grandchild", scope));
     }
@@ -684,13 +708,123 @@ public sealed class ExposeScopeResolverTests
             ExposeMembers = [new ExposeMember("Root::A", "x istype Y", ExposeRecursionKind.NamespaceDirectChildren)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
         };
+        viewNode.ResolvedExposeMembers = ResolvedMembers(viewNode.ExposeMembers.ToArray());
 
         var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
         Assert.NotNull(scope);
-        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A", scope));
+        Assert.False(ExposeScopeResolver.IsInSubjectScope("Root::A", scope));
         Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::A::Child", scope));
         Assert.Single(scope.Failures);
+    }
+
+    /// <summary>
+    ///     Regression test for the reviewer-flagged re-pairing ambiguity on PR #36: a view with
+    ///     <c>expose A;</c> where <c>A</c> does <em>not</em> resolve (a typo/nonexistent name, so no
+    ///     <see cref="SysmlViewNode.ResolvedExposeMembers"/> entry is produced for it) followed by
+    ///     <c>expose X::A;</c> which <em>does</em> resolve, where <c>X::A</c> happens to share its
+    ///     simple name with the unresolved first entry. The two entries also have different
+    ///     <see cref="ExposeRecursionKind"/>s (<c>MembershipExact</c> vs. <c>NamespaceRecursive</c>)
+    ///     so a wrong pairing would be observably different in the resolved scope. Because
+    ///     <see cref="ReferenceResolver"/> now populates <see cref="SysmlViewNode.ResolvedExposeMembers"/>
+    ///     directly (one entry per successfully-resolved member, correctly skipping the unresolved
+    ///     first entry without leaving a placeholder), the resolved scope correctly reflects
+    ///     <c>X::A</c>'s own <see cref="ExposeRecursionKind.NamespaceRecursive"/> semantics — not the
+    ///     unresolved first entry's <see cref="ExposeRecursionKind.MembershipExact"/>.
+    /// </summary>
+    [Fact]
+    public void ResolveExposedScope_EarlierUnresolvedEntrySuffixOfLaterResolvedTarget_PairsCorrectly()
+    {
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::X"] = new SysmlDefinitionNode { Name = "X", QualifiedName = "Root::X", DefinitionKeyword = "part def" },
+                ["Root::X::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Root::X::A", DefinitionKeyword = "part def" },
+                ["Root::X::A::Child"] = new SysmlDefinitionNode { Name = "Child", QualifiedName = "Root::X::A::Child", DefinitionKeyword = "part def" }
+            }
+        };
+
+        // "expose A;" never resolves (A does not exist), so ReferenceResolver produces no
+        // ResolvedExposeMembers entry for it -- only the "expose X::A::**;" entry resolves.
+        var unresolvedMember = new ExposeMember("A", null, ExposeRecursionKind.MembershipExact);
+        var resolvedMember = new ExposeMember("X::A", null, ExposeRecursionKind.NamespaceRecursive);
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposeMembers = [unresolvedMember, resolvedMember],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::X::A", SysmlEdgeKind.Expose)],
+            ResolvedExposeMembers = [(resolvedMember, "Root::X::A")]
+        };
+
+        var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
+
+        Assert.NotNull(scope);
+
+        // If the resolved edge were wrongly paired with the unresolved "A" (MembershipExact) entry,
+        // "Root::X::A" itself would be in scope but its descendant "Root::X::A::Child" would not.
+        // The correct pairing (NamespaceRecursive) excludes "Root::X::A" itself but includes its
+        // descendant at any depth.
+        Assert.False(ExposeScopeResolver.IsInSubjectScope("Root::X::A", scope));
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::X::A::Child", scope));
+    }
+
+    /// <summary>
+    ///     Regression test for Bug 2: a <c>NamespaceRecursive</c> expose entry
+    ///     (<c>expose SomeDefinition::*::**;</c>) targeting a <see cref="SysmlDefinitionNode"/>
+    ///     directly (not a bare package) excludes the definition's own box from the resolved scope,
+    ///     while all of its descendants at any depth (not just direct children) are included.
+    ///     Contrasted with an equivalent <c>MembershipRecursive</c> entry
+    ///     (<c>expose SomeDefinition::**;</c>) on the same fixture, which <em>does</em> include the
+    ///     definition itself.
+    /// </summary>
+    [Fact]
+    public void ResolveExposedScope_NamespaceRecursiveOnDefinition_ExcludesDefinitionItselfIncludesDescendants()
+    {
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::SomeDefinition"] = new SysmlDefinitionNode { Name = "SomeDefinition", QualifiedName = "Root::SomeDefinition", DefinitionKeyword = "part def" },
+                ["Root::SomeDefinition::Nested"] = new SysmlDefinitionNode { Name = "Nested", QualifiedName = "Root::SomeDefinition::Nested", DefinitionKeyword = "part def" },
+                ["Root::SomeDefinition::Nested::Deep"] = new SysmlDefinitionNode { Name = "Deep", QualifiedName = "Root::SomeDefinition::Nested::Deep", DefinitionKeyword = "part def" }
+            }
+        };
+
+        var namespaceRecursiveMember = new ExposeMember("Root::SomeDefinition", null, ExposeRecursionKind.NamespaceRecursive);
+        var namespaceViewNode = new SysmlViewNode
+        {
+            Name = "V1",
+            QualifiedName = "Root::V1",
+            ExposeMembers = [namespaceRecursiveMember],
+            ResolvedEdges = [new SysmlEdge("Root::V1", "Root::SomeDefinition", SysmlEdgeKind.Expose)]
+        };
+        namespaceViewNode.ResolvedExposeMembers = ResolvedMembers(namespaceViewNode.ExposeMembers.ToArray());
+
+        var namespaceScope = ExposeScopeResolver.ResolveExposedScope(workspace, namespaceViewNode);
+
+        Assert.NotNull(namespaceScope);
+        Assert.False(ExposeScopeResolver.IsInSubjectScope("Root::SomeDefinition", namespaceScope));
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::SomeDefinition::Nested", namespaceScope));
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::SomeDefinition::Nested::Deep", namespaceScope));
+
+        var membershipRecursiveMember = new ExposeMember("Root::SomeDefinition", null, ExposeRecursionKind.MembershipRecursive);
+        var membershipViewNode = new SysmlViewNode
+        {
+            Name = "V2",
+            QualifiedName = "Root::V2",
+            ExposeMembers = [membershipRecursiveMember],
+            ResolvedEdges = [new SysmlEdge("Root::V2", "Root::SomeDefinition", SysmlEdgeKind.Expose)]
+        };
+        membershipViewNode.ResolvedExposeMembers = ResolvedMembers(membershipViewNode.ExposeMembers.ToArray());
+
+        var membershipScope = ExposeScopeResolver.ResolveExposedScope(workspace, membershipViewNode);
+
+        Assert.NotNull(membershipScope);
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::SomeDefinition", membershipScope));
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::SomeDefinition::Nested", membershipScope));
+        Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::SomeDefinition::Nested::Deep", membershipScope));
     }
 }
 
