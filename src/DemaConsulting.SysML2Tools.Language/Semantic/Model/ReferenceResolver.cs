@@ -507,17 +507,30 @@ internal sealed class ReferenceResolver
         var prefix = resolvedNamespace + "::";
         var suffix = "::" + name;
         string? best = null;
+        var bestDepth = int.MaxValue;
         foreach (var qualifiedName in _symbolTable.Symbols.Keys)
         {
             if (!qualifiedName.StartsWith(prefix, StringComparison.Ordinal) ||
-                !qualifiedName.EndsWith(suffix, StringComparison.Ordinal))
+                !qualifiedName.EndsWith(suffix, StringComparison.Ordinal) ||
+                qualifiedName.Length < prefix.Length + suffix.Length)
             {
                 continue;
             }
 
-            if (best is null || qualifiedName.Length < best.Length)
+            // Depth is the number of intermediate "::"-separated segments between
+            // resolvedNamespace and name — count separators in the portion of qualifiedName
+            // strictly between the matched prefix and suffix, not raw string length (segment
+            // names vary in length, so a deeper match can have a shorter qualified-name string
+            // than a shallower one). The length guard above excludes the exact one-level match
+            // "prefix + name" (already handled by the direct-candidate check before this method
+            // is called), where prefix and suffix overlap and slicing out a "middle" would
+            // otherwise be an invalid (negative-length) range.
+            var middle = qualifiedName[prefix.Length..^suffix.Length];
+            var depth = middle.Length == 0 ? 0 : middle.Split("::").Length;
+            if (depth < bestDepth)
             {
                 best = qualifiedName;
+                bestDepth = depth;
             }
         }
 

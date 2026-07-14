@@ -454,7 +454,68 @@ public sealed class WorkspaceLoaderTests
         }
     }
 
-    // Level 12d: Unqualified name resolves via recursive membership import, including the
+    // Level 12d: Ambiguous recursive wildcard match resolves to the shallowest namespace depth,
+    // not the shortest qualified-name string
+    /// <summary>
+    ///     When two namespaces at different nesting depths under a recursive wildcard import's
+    ///     target both declare a same-named member, resolution must prefer the genuinely
+    ///     shallowest (least-nested) match — measured by the number of intermediate namespace
+    ///     segments, not by comparing raw qualified-name string length. This uses deliberately
+    ///     long package names at the shallow depth and short ones at the deep depth so a
+    ///     length-based tie-break (an easy mistake) would pick the wrong one.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RecursiveWildcardImport_AmbiguousMatch_PrefersShallowestDepth()
+    {
+        // Arrange — Foo is declared twice under A: once one level down in a namespace with a
+        // deliberately long name (shallow, but long string), and once three levels down through
+        // short-named namespaces (deep, but short string). The shallow one must win.
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package TestNs {
+                    package A {
+                        package AVeryLongIntermediateNamespaceName {
+                            part def Foo;
+                        }
+                        package B {
+                            package C {
+                                package D {
+                                    part def Foo {}
+                                }
+                            }
+                        }
+                    }
+                }
+                package Consumer {
+                    import TestNs::A::*::**;
+
+                    part def Uses {
+                        part f : Foo;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            var index = result.Workspace!.Index;
+
+            // Assert — "Foo" resolves as a Typing edge to the shallower (one-level-deep) match,
+            // not the deeper-but-shorter-string one.
+            Assert.Contains(index.GetOutgoingEdges("Consumer::Uses::f"),
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Typing &&
+                     e.TargetQualifiedName == "TestNs::A::AVeryLongIntermediateNamespaceName::Foo");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    // Level 12e: Unqualified name resolves via recursive membership import, including the
     // imported member's own name
     /// <summary>
     ///     A recursive <em>membership</em> import (<c>import X::Y::**;</c>, as distinct from the
