@@ -196,6 +196,15 @@ public sealed class SysmlImportNode : SysmlNode
     public bool IsWildcard { get; init; }
 
     /// <summary>
+    ///     Gets a value indicating whether this import is recursive — derived from a trailing
+    ///     <c>::**</c> on a namespace-import wildcard (<c>import X::*::**;</c>), which per the
+    ///     KerML/SysML v2 grammar imports members of <c>X</c> and every namespace nested within it
+    ///     at any depth, not just <c>X</c>'s direct members. <see langword="false"/> for a plain
+    ///     <c>import X::*;</c> (direct members only) or any non-wildcard import.
+    /// </summary>
+    public bool IsRecursive { get; init; }
+
+    /// <summary>
     ///     Gets the raw source text of this import's bracketed filter expression (from
     ///     <c>expose &lt;path&gt;::**[&lt;expr&gt;]</c>'s <c>filterPackageMember().ownedExpression().GetText()</c>),
     ///     or <see langword="null"/> when the import declares no bracket filter. Captured verbatim

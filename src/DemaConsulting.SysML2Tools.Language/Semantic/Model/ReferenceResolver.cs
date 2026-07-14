@@ -440,6 +440,19 @@ internal sealed class ReferenceResolver
                 resolvedName = candidate;
                 return true;
             }
+
+            // Recursive wildcard import (`import X::*::**;`) additionally reaches members of any
+            // namespace nested within X at any depth, not just X's own direct members — e.g.
+            // `import VersionMark::*::**;` should let an unqualified `CliSubsystem` resolve to
+            // `VersionMark::Cli::CliSubsystem` even though `Cli` is a nested package, not X itself.
+            // Prefer the least-nested match for determinism when more than one namespace at
+            // different depths happens to declare a same-named member.
+            if (wildcard.IsRecursive &&
+                FindRecursiveWildcardMatch(resolvedNamespace, name) is { Length: > 0 } recursiveMatch)
+            {
+                resolvedName = recursiveMatch;
+                return true;
+            }
         }
 
         // Step 4: Explicit named imports — for each `import X::Y` where Y == name,
@@ -466,6 +479,36 @@ internal sealed class ReferenceResolver
 
         resolvedName = string.Empty;
         return false;
+    }
+
+    /// <summary>
+    ///     Searches the symbol table for a member named <paramref name="name"/> declared in any
+    ///     namespace nested (at any depth) within <paramref name="resolvedNamespace"/>, for
+    ///     resolving a recursive wildcard import's (<c>import X::*::**;</c>) unqualified
+    ///     references. Returns the shallowest (least-nested) match when more than one namespace at
+    ///     different depths declares a same-named member, and <see cref="string.Empty"/> when no
+    ///     match exists.
+    /// </summary>
+    private string FindRecursiveWildcardMatch(string resolvedNamespace, string name)
+    {
+        var prefix = resolvedNamespace + "::";
+        var suffix = "::" + name;
+        string? best = null;
+        foreach (var qualifiedName in _symbolTable.Symbols.Keys)
+        {
+            if (!qualifiedName.StartsWith(prefix, StringComparison.Ordinal) ||
+                !qualifiedName.EndsWith(suffix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (best is null || qualifiedName.Length < best.Length)
+            {
+                best = qualifiedName;
+            }
+        }
+
+        return best ?? string.Empty;
     }
 
     /// <summary>
