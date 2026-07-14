@@ -51,19 +51,19 @@
   <rect x="629.12" y="214.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
   <rect x="699.12" y="214.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
   <path d="M 633.12 218.00 L 703.12 218.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
-  <rect x="32.00" y="191.00" width="159.56" height="76.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
-  <text x="111.78" y="203.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="111.78" y="222.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">psu : PowerSupply</text>
-  <rect x="915.12" y="191.00" width="159.56" height="76.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
-  <text x="994.90" y="203.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="994.90" y="222.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">storage : Storage</text>
-  <rect x="187.56" y="248.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <rect x="32.00" y="181.00" width="159.56" height="96.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="111.78" y="193.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="111.78" y="212.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">psu : PowerSupply</text>
+  <rect x="915.12" y="181.00" width="159.56" height="96.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="994.90" y="193.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="994.90" y="212.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">storage : Storage</text>
+  <rect x="187.56" y="243.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
   <rect x="257.56" y="192.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
-  <path d="M 191.56 252.00 L 197.56 252.00 A 4.00 4.00 0 0 0 201.56 248.00 L 201.56 200.00 A 4.00 4.00 0 0 1 205.56 196.00 L 261.56 196.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
-  <rect x="187.56" y="258.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
-  <rect x="911.12" y="258.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
-  <path d="M 191.56 262.00 L 197.56 262.00 A 4.00 4.00 0 0 1 201.56 266.00 L 201.56 286.00 A 4.00 4.00 0 0 0 205.56 290.00 L 851.12 290.00 A 4.00 4.00 0 0 0 855.12 286.00 L 855.12 266.00 A 4.00 4.00 0 0 1 859.12 262.00 L 915.12 262.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <path d="M 191.56 247.00 L 197.56 247.00 A 4.00 4.00 0 0 0 201.56 243.00 L 201.56 200.00 A 4.00 4.00 0 0 1 205.56 196.00 L 261.56 196.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="187.56" y="263.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <rect x="911.12" y="263.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <path d="M 191.56 267.00 L 197.56 267.00 A 4.00 4.00 0 0 1 201.56 271.00 L 201.56 286.00 A 4.00 4.00 0 0 0 205.56 290.00 L 851.12 290.00 A 4.00 4.00 0 0 0 855.12 286.00 L 855.12 271.00 A 4.00 4.00 0 0 1 859.12 267.00 L 915.12 267.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
   <rect x="841.12" y="192.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
-  <rect x="911.12" y="248.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
-  <path d="M 845.12 196.00 L 851.12 196.00 A 4.00 4.00 0 0 1 855.12 200.00 L 855.12 248.00 A 4.00 4.00 0 0 0 859.12 252.00 L 915.12 252.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="911.12" y="243.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <path d="M 845.12 196.00 L 851.12 196.00 A 4.00 4.00 0 0 1 855.12 200.00 L 855.12 243.00 A 4.00 4.00 0 0 0 859.12 247.00 L 915.12 247.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
 </svg>
