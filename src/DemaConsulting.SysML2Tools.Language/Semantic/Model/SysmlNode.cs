@@ -380,12 +380,16 @@ public sealed class SysmlViewNode : SysmlNode
 ///     Classifies which SysML v2 <c>expose</c> grammar form and recursion setting produced this
 ///     entry (<see cref="ExposeRecursionKind"/>). Consumed by <c>ExposeScopeResolver</c> to decide
 ///     between an exact/direct-children match and a whole-subtree match when resolving this
-///     entry's contribution to a view's exposed scope.
+///     entry's contribution to a view's exposed scope. Defaults to
+///     <see cref="ExposeRecursionKind.MembershipRecursive"/> — the pre-existing whole-subtree
+///     scoping behavior — so external code constructing an <see cref="ExposeMember"/> via the
+///     previous two-argument form continues to compile and behave exactly as before this
+///     parameter was added.
 /// </param>
 public sealed record ExposeMember(
     string QualifiedName,
     string? BracketFilterExpressionText,
-    ExposeRecursionKind RecursionKind);
+    ExposeRecursionKind RecursionKind = ExposeRecursionKind.MembershipRecursive);
 
 /// <summary>
 ///     Classifies which SysML v2 <c>expose</c> grammar form and recursion setting produced an
