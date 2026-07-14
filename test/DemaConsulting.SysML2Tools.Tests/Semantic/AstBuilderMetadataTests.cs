@@ -22,7 +22,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_BareMetadataAnnotation_CapturesMetadataNode()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -62,7 +62,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_MetadataAnnotationWithBooleanAttribute_CapturesLiteralValue()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -107,7 +107,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_MetadataAnnotation_ResolvesTypeReference()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -149,7 +149,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_MetadataAnnotation_UnresolvedType_ProducesWarning()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -186,7 +186,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_ExposeBracketFilter_CapturesRawText()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -235,7 +235,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -296,7 +296,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_ExposeBareMembership_CapturesMembershipExact()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -337,7 +337,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_ExposeRecursiveMembership_CapturesMembershipRecursive()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -378,7 +378,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_ExposeNamespaceDirectChildren_CapturesNamespaceDirectChildren()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -411,13 +411,13 @@ public sealed class AstBuilderMetadataTests
 
     /// <summary>
     ///     A recursive namespace <c>expose X::*::**;</c> (NamespaceExpose, recursive) captures
-    ///     <see cref="ExposeRecursionKind.NamespaceRecursive"/> — <c>X</c> and its entire
-    ///     containment subtree are in scope.
+    ///     <see cref="ExposeRecursionKind.NamespaceRecursive"/> — <c>X</c>'s entire containment
+    ///     subtree is in scope, excluding <c>X</c> itself.
     /// </summary>
     [Fact]
     public async Task AstBuilder_ExposeNamespaceRecursive_CapturesNamespaceRecursive()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
