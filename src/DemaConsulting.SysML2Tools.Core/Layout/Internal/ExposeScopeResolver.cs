@@ -86,10 +86,12 @@ internal static class ExposeScopeResolver
     /// usage's own containment subtree is typically empty — the real content lives under its
     /// type's subtree. To avoid silently scoping to nothing, this also resolves the usage's own
     /// <see cref="SysmlEdgeKind.Typing"/> edge (if any) and adds that type's qualified name to the
-    /// scope as well, so both the usage and its type's subtree are included. This expansion only
-    /// applies to non-exact-only subjects — a
-    /// successfully-evaluated bracket filter's <see cref="ExposedScope.ExplicitMembers"/> already
-    /// name the exact matched definitions or usages.
+    /// scope as well, using the same recursion kind for both — so both the usage and its type's
+    /// subtree are included, with the recursion kind (exact/direct-children/whole-subtree)
+    /// controlling whether the type's own descendants are also in scope. This expansion applies to
+    /// every <see cref="ExposedScope.Subjects"/> entry regardless of recursion kind — it never
+    /// applies to <see cref="ExposedScope.ExplicitMembers"/>, since a successfully-evaluated
+    /// bracket filter's matches already name the exact matched definitions or usages.
     /// </remarks>
     /// <param name="workspace">The workspace, used to look up each exposed target's declaration.</param>
     /// <param name="viewNode">The view's AST node, or null for the synthetic <c>--auto</c> view.</param>

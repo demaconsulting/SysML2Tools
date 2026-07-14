@@ -19,7 +19,7 @@ namespace DemaConsulting.SysML2Tools.Rendering.Internal;
 /// cref="SysmlNode.ResolvedEdges"/> with a single <see cref="SysmlEdgeKind.Expose"/> edge (plus a
 /// matching <see cref="SysmlViewNode.ExposeMembers"/> entry using
 /// <see cref="ExposeRecursionKind.MembershipRecursive"/>) — the same mechanism a real,
-/// parsed <c>view def V { expose Target::**; }</c> produces via <c>ReferenceResolver</c>, so
+/// parsed <c>view V { expose Target::**; }</c> usage produces via <c>ReferenceResolver</c>, so
 /// that a dynamic view shows the requested target's whole containment subtree rather than the
 /// target alone. <see cref="Layout.Internal.ExposeScopeResolver.ResolveExposedScope"/> reads
 /// only these two properties and has no notion of provenance, so it treats a synthesized node

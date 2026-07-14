@@ -1086,9 +1086,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// node placement is known: an edge whose endpoints share the same non-empty container scope
     /// (a package folder or a definition-as-container) is added to that scope (an intra-container
     /// edge the layered algorithm can use to order the container's contents); every other edge —
-    /// including any crossing containers — is added at the root, referencing the descendant nodes
-    /// directly, per the lowest-common-ancestor edge convention. An edge touching a depth-truncated
-    /// (unrendered) definition has no node to reference and is dropped, exactly as before.
+    /// including one whose endpoints sit in different containers, even when one container is nested
+    /// inside the other — is added at the root, referencing the descendant nodes directly (this is
+    /// an exact container-scope-key match, not a genuine lowest-common-ancestor search). An edge
+    /// touching a depth-truncated (unrendered) definition has no node to reference and is dropped,
+    /// exactly as before.
     /// </summary>
     private static (LayoutGraph Graph, List<TruncatedFolder> Truncated) BuildGraph(
         IReadOnlyList<(string Package, List<DefBox> Items)> groups,
@@ -1191,9 +1193,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             }
         }
 
-        // Add every model edge whose endpoints both received a node, scoped per the
-        // lowest-common-ancestor rule: same non-empty container scope key → that container's own
-        // scope; otherwise the root graph, referencing the (possibly nested) endpoint nodes directly.
+        // Add every model edge whose endpoints both received a node: an edge whose endpoints share
+        // the same non-empty container scope key is scoped to that container's own scope; every
+        // other edge — including one whose endpoints sit in different containers, even when one
+        // container is nested inside the other — is added at the root graph instead (an exact
+        // scope-key match, not a genuine lowest-common-ancestor search).
         var edgeId = 0;
         foreach (var edge in modelEdges)
         {
