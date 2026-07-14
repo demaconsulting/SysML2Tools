@@ -2,6 +2,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+using System.Reflection;
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.SysML2Tools.Layout.Internal;
@@ -165,6 +166,237 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.NotNull(folder);
         Assert.Equal("package", folder!.Keyword);
         Assert.Equal("Sys", folder.Label);
+    }
+
+    /// <summary>
+    ///     Builds a workspace where <c>Sys::OperatorConsole</c> owns two nested definitions,
+    ///     <c>Sys::OperatorConsole::DisplayPanel</c> and <c>Sys::OperatorConsole::CommsHandset</c>,
+    ///     all inside package <c>Sys</c> — the fixture reproducing the real mission-control
+    ///     gallery model's duplicate-box defect (Defect A).
+    /// </summary>
+    private static SysmlWorkspace BuildNestedDefinitionWorkspace() => new()
+    {
+        Declarations = new Dictionary<string, SysmlNode>
+        {
+            ["Sys::OperatorConsole"] = new SysmlDefinitionNode
+            {
+                Name = "OperatorConsole",
+                QualifiedName = "Sys::OperatorConsole",
+                DefinitionKeyword = "part def"
+            },
+            ["Sys::OperatorConsole::DisplayPanel"] = new SysmlDefinitionNode
+            {
+                Name = "DisplayPanel",
+                QualifiedName = "Sys::OperatorConsole::DisplayPanel",
+                DefinitionKeyword = "part def"
+            },
+            ["Sys::OperatorConsole::CommsHandset"] = new SysmlDefinitionNode
+            {
+                Name = "CommsHandset",
+                QualifiedName = "Sys::OperatorConsole::CommsHandset",
+                DefinitionKeyword = "part def"
+            }
+        }
+    };
+
+    /// <summary>
+    ///     Unscoped: a definition that owns nested definitions renders exactly one box for
+    ///     itself (regression guard against the sibling-duplicate-folder defect) with its nested
+    ///     definitions placed as children of that single box, nested inside the still-present
+    ///     package folder — not as a duplicate sibling folder.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_DefinitionOwningNestedDefinitions_RendersOneContainerBoxUnscoped()
+    {
+        // Arrange: OperatorConsole owns DisplayPanel and CommsHandset, all inside package Sys, unscoped
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildNestedDefinitionWorkspace();
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: exactly one OperatorConsole box exists
+        var allBoxes = CollectBoxes(layout.Nodes);
+        var consoleBoxes = allBoxes.Where(b => b.Label == "OperatorConsole").ToList();
+        Assert.Single(consoleBoxes);
+
+        // Assert: the single OperatorConsole box's own children include DisplayPanel and CommsHandset
+        var consoleChildLabels = CollectBoxes(consoleBoxes[0].Children).Select(b => b.Label).ToList();
+        Assert.Contains("DisplayPanel", consoleChildLabels);
+        Assert.Contains("CommsHandset", consoleChildLabels);
+
+        // Assert: the Sys package folder still exists (unscoped preserves package folders), and its
+        // own direct children include the single OperatorConsole box, not DisplayPanel/CommsHandset
+        // directly.
+        var folder = allBoxes.First(b => b.Shape == BoxShape.Folder && b.Label == "Sys");
+        var folderChildLabels = folder.Children.OfType<LayoutBox>().Select(b => b.Label).ToList();
+        Assert.Contains("OperatorConsole", folderChildLabels);
+        Assert.DoesNotContain("DisplayPanel", folderChildLabels);
+        Assert.DoesNotContain("CommsHandset", folderChildLabels);
+    }
+
+    /// <summary>
+    ///     Scoped: the same nested-definition-owning fixture, but with a view exposing
+    ///     <c>Sys::OperatorConsole::**</c> (whole-subtree recursion). Still renders exactly one
+    ///     <c>OperatorConsole</c> box (no duplicate), its children still nested correctly, and —
+    ///     combined with Defect B's bare-package folder suppression — no <c>Sys</c> folder appears
+    ///     at all (its only admitted content's immediate parent, <c>OperatorConsole</c>, is itself
+    ///     an admitted definition, so <c>OperatorConsole</c> is promoted directly to root).
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_DefinitionOwningNestedDefinitions_RendersOneContainerBoxScoped()
+    {
+        // Arrange: same workspace as the unscoped test, but exposing Sys::OperatorConsole::**
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildNestedDefinitionWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Sys::V",
+            ExposeMembers = [new ExposeMember("OperatorConsole", null, ExposeRecursionKind.MembershipRecursive)],
+            ResolvedEdges = [new SysmlEdge("Sys::V", "Sys::OperatorConsole", SysmlEdgeKind.Expose)]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: exactly one OperatorConsole box exists, with DisplayPanel/CommsHandset nested
+        // as its own children.
+        var allBoxes = CollectBoxes(layout.Nodes);
+        var consoleBoxes = allBoxes.Where(b => b.Label == "OperatorConsole").ToList();
+        Assert.Single(consoleBoxes);
+        var consoleChildLabels = CollectBoxes(consoleBoxes[0].Children).Select(b => b.Label).ToList();
+        Assert.Contains("DisplayPanel", consoleChildLabels);
+        Assert.Contains("CommsHandset", consoleChildLabels);
+
+        // Assert: no Sys folder appears — OperatorConsole is promoted directly to root instead of
+        // being wrapped in a folder for its bare-package ancestor.
+        Assert.DoesNotContain(allBoxes, b => b.Shape == BoxShape.Folder);
+    }
+
+    /// <summary>
+    ///     Scoped, isolating Defect B alone (no nested-definition-owning case involved): a view
+    ///     exposing <c>Sys::*</c> (direct-children recursion) over a bare package <c>Sys</c>
+    ///     containing plain sibling definitions renders no <see cref="BoxShape.Folder"/> box
+    ///     anywhere, while the exposed definitions' boxes are present directly at the root.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_ExposedNamespaceChildren_BarePackageAncestor_NoFolderRendered()
+    {
+        // Arrange: bare package Sys with two sibling definitions, exposing Sys::* (direct children)
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Sys::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Sys::A", DefinitionKeyword = "part def" },
+                ["Sys::B"] = new SysmlDefinitionNode { Name = "B", QualifiedName = "Sys::B", DefinitionKeyword = "part def" }
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Sys::V",
+            ExposeMembers = [new ExposeMember("Sys", null, ExposeRecursionKind.NamespaceDirectChildren)],
+            ResolvedEdges = [new SysmlEdge("Sys::V", "Sys", SysmlEdgeKind.Expose)]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: no folder-shaped box exists anywhere in the result
+        var allBoxes = CollectBoxes(layout.Nodes);
+        Assert.DoesNotContain(allBoxes, b => b.Shape == BoxShape.Folder);
+
+        // Assert: the exposed definitions' boxes are present directly under the root node list
+        var rootLabels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains("A", rootLabels);
+        Assert.Contains("B", rootLabels);
+    }
+
+    /// <summary>
+    ///     Explicit regression guard: with no <c>expose</c>/no <see cref="SysmlViewNode"/>, an
+    ///     ordinary bare-package case still renders a <see cref="BoxShape.Folder"/> box with the
+    ///     expected package label and expected non-definition-container children, confirming
+    ///     unscoped behavior is provably unchanged.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_Unscoped_StillRendersFullPackageFolderStructure()
+    {
+        // Arrange: two sibling definitions inside package Sys, unscoped
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Sys::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Sys::A", DefinitionKeyword = "part def" },
+                ["Sys::B"] = new SysmlDefinitionNode { Name = "B", QualifiedName = "Sys::B", DefinitionKeyword = "part def" }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: a Sys folder box still exists, with A and B nested directly as its own children
+        var allBoxes = CollectBoxes(layout.Nodes);
+        var folder = allBoxes.First(b => b.Shape == BoxShape.Folder);
+        Assert.Equal("package", folder.Keyword);
+        Assert.Equal("Sys", folder.Label);
+        var folderChildLabels = CollectBoxes(folder.Children).Select(b => b.Label).ToList();
+        Assert.Contains("A", folderChildLabels);
+        Assert.Contains("B", folderChildLabels);
+    }
+
+    /// <summary>
+    ///     Mirrors the real <c>BatterySubsystemView</c> gallery scenario directly: a single
+    ///     <c>part def Battery</c> inside bare package <c>QuadcopterDrone</c>, exposed via
+    ///     <c>expose Battery;</c> (exact match, single-target expose). No <see cref="BoxShape.Folder"/>
+    ///     box exists in the result, and the <c>Battery</c> box is present directly at the root
+    ///     level — the primary Defect B correctness guard.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_ExposedDefinitionInsideBarePackage_NoAncestorFolderRendered()
+    {
+        // Arrange: Battery inside bare package QuadcopterDrone, exposing Battery exactly
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["QuadcopterDrone::Battery"] = new SysmlDefinitionNode
+                {
+                    Name = "Battery",
+                    QualifiedName = "QuadcopterDrone::Battery",
+                    DefinitionKeyword = "part def"
+                }
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "BatterySubsystemView",
+            QualifiedName = "QuadcopterDrone::BatterySubsystemView",
+            ExposeMembers = [new ExposeMember("Battery", null, ExposeRecursionKind.MembershipExact)],
+            ResolvedEdges = [new SysmlEdge("QuadcopterDrone::BatterySubsystemView", "QuadcopterDrone::Battery", SysmlEdgeKind.Expose)]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: no folder-shaped box exists, and Battery is present directly at the root level
+        var allBoxes = CollectBoxes(layout.Nodes);
+        Assert.DoesNotContain(allBoxes, b => b.Shape == BoxShape.Folder);
+        var rootLabels = layout.Nodes.OfType<LayoutBox>().Select(b => b.Label).ToList();
+        Assert.Contains("Battery", rootLabels);
     }
 
     /// <summary>
@@ -1061,9 +1293,9 @@ public sealed class GeneralViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposeMembers = [new ExposeMember("A", null)],
+            ExposeMembers = [new ExposeMember("A", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::A", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -1128,9 +1360,9 @@ public sealed class GeneralViewLayoutStrategyTests
         {
             Name = "V",
             QualifiedName = "Root::V",
-            ExposeMembers = [new ExposeMember("myVehicle", null)],
+            ExposeMembers = [new ExposeMember("myVehicle", null, ExposeRecursionKind.MembershipRecursive)],
             ResolvedEdges = [new SysmlEdge("Root::V", "Root::myVehicle", SysmlEdgeKind.Expose)]
-        };
+        }.WithResolvedExposeMembers();
         var context = new ViewContext("v", workspace, viewNode);
         var options = new RenderOptions(Themes.Light);
 
@@ -2258,6 +2490,207 @@ public sealed class GeneralViewLayoutStrategyTests
         // Assert
         var box = CollectBoxes(layout.Nodes).First(b => b.Label == "FlightMode");
         Assert.Contains(box.Compartments, c => c.Title == "enum values" && c.Rows.Contains("manual") && c.Rows.Contains("auto"));
+    }
+
+    /// <summary>
+    ///     Builds a workspace where package <c>Sys</c> contains <c>Sys::Outer</c>, which owns one
+    ///     nested definition <c>Sys::Outer::Inner</c> — a 2-level-deep nested-definition-containment
+    ///     structure (folder contents at depth 1, <c>Outer</c>'s own nested child at depth 2), used
+    ///     by the <see cref="RenderOptions.DepthLimit"/> nested-definition-containment truncation
+    ///     regression tests.
+    /// </summary>
+    private static SysmlWorkspace BuildTwoLevelNestedDefinitionWorkspace() => new()
+    {
+        Declarations = new Dictionary<string, SysmlNode>
+        {
+            ["Sys::Outer"] = new SysmlDefinitionNode
+            {
+                Name = "Outer",
+                QualifiedName = "Sys::Outer",
+                DefinitionKeyword = "part def"
+            },
+            ["Sys::Outer::Inner"] = new SysmlDefinitionNode
+            {
+                Name = "Inner",
+                QualifiedName = "Sys::Outer::Inner",
+                DefinitionKeyword = "part def"
+            }
+        }
+    };
+
+    /// <summary>
+    ///     Regression test for the reviewer-confirmed bug: previously <see cref="RenderOptions.DepthLimit"/>
+    ///     only capped package-folder-contents nesting (<c>truncateFolderContents</c>), never
+    ///     nested-definition containment introduced by <c>PlaceDef</c>'s own recursion — so a
+    ///     <c>DepthLimit</c> that should cap all nesting had no effect once a definition owned a
+    ///     nested definition. With the fix, a <c>DepthLimit</c> of 2 over the 2-level-deep
+    ///     <c>Outer</c>/<c>Inner</c> nested-definition-containment fixture truncates the innermost
+    ///     level (<c>Inner</c>, <c>Outer</c>'s own nested child, at depth 2): <c>Outer</c>'s own box
+    ///     is still rendered normally, but in place of an <c>Inner</c> box its own
+    ///     <see cref="LayoutBox.Children"/> carries a single "+1 more…" ellipsis
+    ///     <see cref="LayoutLabel"/>, mirroring how a depth-truncated package folder's contents are
+    ///     already reported.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_NestedDefinitionContainment_DepthLimitTruncatesInnerLevel()
+    {
+        // Arrange: Sys::Outer owns Sys::Outer::Inner, DepthLimit = 2
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildTwoLevelNestedDefinitionWorkspace();
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light, DepthLimit: 2);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: Outer's own box still renders, but Inner does not appear as a box anywhere
+        var allBoxes = CollectBoxes(layout.Nodes);
+        var outerBox = allBoxes.Single(b => b.Label == "Outer");
+        Assert.DoesNotContain(allBoxes, b => b.Label == "Inner");
+
+        // Assert: Outer's own Children carries a single placeholder box standing in for the
+        // truncated Inner definition, itself decorated with a "+1 more…" ellipsis label — mirroring
+        // how a depth-truncated package folder's own placed box is decorated, one nesting level
+        // deeper.
+        var placeholder = Assert.IsType<LayoutBox>(Assert.Single(outerBox.Children));
+        var indicator = Assert.IsType<LayoutLabel>(Assert.Single(placeholder.Children));
+        Assert.Equal("+1 more\u2026", indicator.Text);
+    }
+
+    /// <summary>
+    ///     Regression guard: <see cref="RenderOptions.DepthLimit"/> == 0 (unlimited) still renders
+    ///     full nested-definition-containment depth unchanged — the fix must not truncate anything
+    ///     when no depth limit is requested.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_NestedDefinitionContainment_DepthLimitZero_RendersFullDepth()
+    {
+        // Arrange: same Outer/Inner fixture, but with the default unlimited DepthLimit
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildTwoLevelNestedDefinitionWorkspace();
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: both Outer and Inner render as full boxes, Inner nested as Outer's own child, and
+        // no ellipsis placeholder label appears anywhere.
+        var allBoxes = CollectBoxes(layout.Nodes);
+        var outerBox = allBoxes.Single(b => b.Label == "Outer");
+        var innerBox = Assert.IsType<LayoutBox>(Assert.Single(outerBox.Children));
+        Assert.Equal("Inner", innerBox.Label);
+    }
+
+    /// <summary>
+    ///     Regression guard: unrelated to nested-definition containment, a <see cref="RenderOptions.DepthLimit"/>
+    ///     of 1 still truncates a plain package folder's own contents exactly as before the fix
+    ///     (<c>truncateFolderContents</c> in <c>BuildGraph</c>), proving the nested-definition-containment
+    ///     fix did not regress the pre-existing package-folder-contents truncation path.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_PackageFolderContents_DepthLimitOne_StillTruncatesFolder()
+    {
+        // Arrange: package Sys with two sibling definitions (no definition-containment nesting),
+        // DepthLimit = 1
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Sys::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "Sys::A", DefinitionKeyword = "part def" },
+                ["Sys::B"] = new SysmlDefinitionNode { Name = "B", QualifiedName = "Sys::B", DefinitionKeyword = "part def" }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light, DepthLimit: 1);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the folder is present but neither A nor B renders as an individual box
+        var allBoxes = CollectBoxes(layout.Nodes);
+        var folder = allBoxes.Single(b => b.Shape == BoxShape.Folder);
+        Assert.Equal("Sys", folder.Label);
+        Assert.DoesNotContain(allBoxes, b => b.Label is "A" or "B");
+
+        // Assert: the folder carries a "+2 more…" ellipsis label reporting its two hidden definitions
+        var indicator = Assert.IsType<LayoutLabel>(Assert.Single(folder.Children));
+        Assert.Equal("+2 more\u2026", indicator.Text);
+    }
+
+    /// <summary>
+    ///     Regression test (reflection-based, since the recursive worker is private) for the
+    ///     reviewer-confirmed pairing bug in <c>GeneralViewLayoutStrategy</c>'s recursive
+    ///     <c>DecorateTruncated</c> worker: it previously matched each placed <see cref="LayoutBox"/>
+    ///     against a scope's <see cref="LayoutGraphNode"/> list using a single shared loop index, but
+    ///     a scope's placed node list can intersperse <see cref="LayoutLine"/> entries (routed
+    ///     intra-scope edges) among its boxes at arbitrary positions — every <see cref="LayoutLine"/>
+    ///     encountered before a box permanently shifted the box-to-graph-node pairing by one, so the
+    ///     wrong <see cref="LayoutGraphNode"/> (and therefore the wrong truncation/hidden-count
+    ///     decoration) got matched to each subsequent box. This test builds a minimal fixture with
+    ///     one <see cref="LayoutLine"/> placed before two <see cref="LayoutBox"/> entries, only the
+    ///     second of which corresponds to a truncated <see cref="LayoutGraphNode"/>, and invokes the
+    ///     private recursive worker directly via reflection — there is no public seam to reach it, and
+    ///     reproducing this box/line ordering deterministically through the public
+    ///     <c>BuildLayout</c>/<c>DemaConsulting.Rendering</c> layout-algorithm pipeline is not
+    ///     practical since box/line placement ordering is an internal detail of that external
+    ///     package. With the fix, the leading line no longer perturbs the pairing: the first box
+    ///     (matching the non-truncated node) is left unchanged, and only the second box (matching the
+    ///     truncated node) is decorated with the ellipsis label.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_DecorateTruncated_LineBeforeBoxes_DoesNotBreakBoxToNodePairing()
+    {
+        // Arrange: two graph nodes at this scope — nodeA (kept) and nodeB (truncated, hiding 3 items)
+        var graph = new LayoutGraph();
+        var nodeA = graph.AddNode("A", 100, 60);
+        var nodeB = graph.AddNode("B", 100, 60);
+
+        // A placed line (an intra-scope routed edge) appears before either box in the placed-node list
+        var line = new LayoutLine(
+            Waypoints: [],
+            SourceEnd: EndMarkerStyle.None,
+            TargetEnd: EndMarkerStyle.None,
+            LineStyle: LineStyle.Solid,
+            MidpointLabel: null);
+
+        var boxA = new LayoutBox(
+            X: 0, Y: 0, Width: 100, Height: 60, Label: "A", Depth: 1, Shape: BoxShape.Rectangle,
+            Compartments: [], Children: [], Keyword: null, RoundedCornerRadius: null,
+            FolderTabWidth: null, FolderTabHeight: null, ContentInsetLeft: 0, ContentInsetRight: 0,
+            ContentInsetTop: 0, ContentInsetBottom: 0, CenterTitle: false);
+        var boxB = boxA with { Label = "B" };
+
+        var placed = new List<LayoutNode> { line, boxA, boxB };
+        var graphNodes = new List<LayoutGraphNode> { nodeA, nodeB };
+        var hiddenByNode = new Dictionary<LayoutGraphNode, (int HiddenCount, double TitleOffset)>
+        {
+            [nodeB] = (3, 0.0)
+        };
+
+        var method = typeof(GeneralViewLayoutStrategy)
+            .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
+            .Single(m => m.Name == "DecorateTruncated" && m.GetParameters().Length == 4
+                         && m.GetParameters()[0].ParameterType == typeof(IReadOnlyList<LayoutNode>));
+
+        // Act
+        var result = (List<LayoutNode>)method.Invoke(
+            null, [placed, graphNodes, hiddenByNode, Themes.Light])!;
+
+        // Assert: the leading line is preserved untouched
+        Assert.Same(line, result[0]);
+
+        // Assert: boxA (paired with the non-truncated nodeA) is unchanged — not decorated
+        var resultBoxA = Assert.IsType<LayoutBox>(result[1]);
+        Assert.Equal("A", resultBoxA.Label);
+        Assert.Empty(resultBoxA.Children);
+
+        // Assert: boxB (paired with the truncated nodeB) carries the "+3 more…" ellipsis decoration
+        var resultBoxB = Assert.IsType<LayoutBox>(result[2]);
+        Assert.Equal("B", resultBoxB.Label);
+        var indicatorB = Assert.IsType<LayoutLabel>(Assert.Single(resultBoxB.Children));
+        Assert.Equal("+3 more\u2026", indicatorB.Text);
     }
 }
 

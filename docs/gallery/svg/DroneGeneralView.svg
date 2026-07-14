@@ -76,7 +76,6 @@
   <text x="1411.76" y="764.22" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">output : PowerPort</text>
   <path d="M 44.00 465.07 L 626.32 465.07 L 642.32 481.07 L 642.32 531.07 L 44.00 531.07 Z" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
   <path d="M 626.32 465.07 L 626.32 481.07 L 642.32 481.07" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
-  <line x1="44.00" y1="465.07" x2="642.32" y2="465.07" stroke="#1A1A2E" stroke-width="1.50"/>
   <text x="50.00" y="477.07" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Rechargeable lithium-polymer battery pack supplying the drone's</text>
   <text x="50.00" y="495.07" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">             * flight controller, motors, and sensor bus via the PowerPort</text>
   <text x="50.00" y="513.07" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">             * interface. Demonstrates the BoxShape.Note annotation rendering.</text>

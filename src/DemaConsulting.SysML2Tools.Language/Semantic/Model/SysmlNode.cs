@@ -321,6 +321,26 @@ public sealed class SysmlViewNode : SysmlNode
     public IReadOnlyList<string> GetExposedNames() => ExposeMembers.Select(m => m.QualifiedName).ToList();
 
     /// <summary>
+    ///     Gets each <see cref="ExposeMember"/> paired directly with its own resolved qualified
+    ///     name, populated by <see cref="ReferenceResolver"/> for every <c>ExposeMembers</c> entry
+    ///     that successfully resolves (in the same relative order, skipping entries that fail to
+    ///     resolve without inserting a placeholder). Unlike re-deriving this pairing from
+    ///     <see cref="SysmlNode.ResolvedEdges"/>'s <see cref="SysmlEdgeKind.Expose"/> edges by
+    ///     forward-scanning and loose-matching raw reference text against resolved qualified names
+    ///     (ambiguous when an earlier entry fails to resolve but its raw text happens to be a
+    ///     suffix of a later entry's resolved target), this list unambiguously identifies which
+    ///     specific <see cref="ExposeMember"/> object produced each resolved qualified name, so
+    ///     <c>ExposeScopeResolver</c> can read each resolved target's own
+    ///     <see cref="ExposeMember.BracketFilterExpressionText"/>/<see cref="ExposeMember.RecursionKind"/>
+    ///     correctly. Empty when the view has no <c>expose</c> members or none resolved. The
+    ///     <see cref="SysmlEdgeKind.Expose"/> edges on <see cref="SysmlNode.ResolvedEdges"/> are
+    ///     still populated in parallel and retain their existing role (e.g. impact analysis, the
+    ///     <c>query</c> command's reverse-lookup index).
+    /// </summary>
+    public IReadOnlyList<(ExposeMember Member, string ResolvedQualifiedName)> ResolvedExposeMembers { get; set; } =
+        Array.Empty<(ExposeMember Member, string ResolvedQualifiedName)>();
+
+    /// <summary>
     ///     Gets the raw source text of this view's <c>filter [&lt;expression&gt;];</c> statement
     ///     (from <c>elementFilterMember().ownedExpression().GetText()</c>), or
     ///     <see langword="null"/> when the view declares no filter member. Captured verbatim only
@@ -356,7 +376,62 @@ public sealed class SysmlViewNode : SysmlNode
 ///     scope to the matching descendant definitions only, falling back to whole-subtree inclusion
 ///     (plus a diagnostic) when the expression fails to parse or evaluate.
 /// </param>
-public sealed record ExposeMember(string QualifiedName, string? BracketFilterExpressionText);
+/// <param name="RecursionKind">
+///     Classifies which SysML v2 <c>expose</c> grammar form and recursion setting produced this
+///     entry (<see cref="ExposeRecursionKind"/>). Consumed by <c>ExposeScopeResolver</c> to decide
+///     between an exact/direct-children match and a whole-subtree match when resolving this
+///     entry's contribution to a view's exposed scope. Defaults to
+///     <see cref="ExposeRecursionKind.MembershipRecursive"/> — the pre-existing whole-subtree
+///     scoping behavior — so external code constructing an <see cref="ExposeMember"/> via the
+///     previous two-argument form continues to compile and behave exactly as before this
+///     parameter was added.
+/// </param>
+public sealed record ExposeMember(
+    string QualifiedName,
+    string? BracketFilterExpressionText,
+    ExposeRecursionKind RecursionKind = ExposeRecursionKind.MembershipRecursive);
+
+/// <summary>
+///     Classifies which SysML v2 <c>expose</c> grammar form and recursion setting produced an
+///     <see cref="ExposeMember"/> entry, per formal-26-03-02.md §8.3.26.2-4: MembershipExpose
+///     (<c>expose X;</c> / <c>expose X::**;</c>) and NamespaceExpose (<c>expose X::*;</c> /
+///     <c>expose X::*::**;</c>) each carry their own independent <c>isRecursive</c> flag derived
+///     from a trailing <c>::**</c>. A bracket-filtered entry (<c>expose X::**[expr]</c>) is always
+///     one of the two *Recursive kinds — the grammar's filterPackage form is treated as always
+///     recursive by design, since that alternative is only reachable via <c>::**[filterExpr]</c>
+///     (regardless of the nested optional STAR_STAR token) — because
+///     <c>ExposeScopeResolver</c> only consults this classification for its unfiltered/fallback
+///     whole-subtree-vs-narrow behavior, never for a successfully-evaluated bracket filter's own
+///     (already-exact) <c>ExplicitMembers</c>.
+/// </summary>
+public enum ExposeRecursionKind
+{
+    /// <summary>
+    ///     MembershipExpose, non-recursive: <c>expose X;</c> — only X itself (plus, for a usage
+    ///     target, its resolved type itself — see <c>ExposeScopeResolver</c>) is in scope.
+    /// </summary>
+    MembershipExact,
+
+    /// <summary>
+    ///     MembershipExpose, recursive: <c>expose X::**;</c> — X and its entire containment
+    ///     subtree (the pre-fix, still-correct-for-this-case whole-subtree behavior).
+    /// </summary>
+    MembershipRecursive,
+
+    /// <summary>
+    ///     NamespaceExpose, non-recursive: <c>expose X::*;</c> — only X's direct (one-level)
+    ///     children, not X itself and not deeper descendants.
+    /// </summary>
+    NamespaceDirectChildren,
+
+    /// <summary>
+    ///     NamespaceExpose, recursive: <c>expose X::*::**;</c> — X's descendants at any depth
+    ///     (not just direct children), but never X itself: per formal-26-03-02.md §8.3.26.4, a
+    ///     NamespaceExpose exposes the subject's own Memberships (its members), and a namespace is
+    ///     never a member of itself regardless of the recursive flag.
+    /// </summary>
+    NamespaceRecursive,
+}
 
 /// <summary>
 ///     AST node representing a viewpoint definition.

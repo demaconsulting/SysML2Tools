@@ -12,17 +12,21 @@ each maintaining its own copy, so every view kind honors `expose` scoping identi
 ##### Data Model
 
 `ExposeScopeResolver` is a static class with no instance state; input arrives through method
-parameters, and (Phase 2a) resolution output is returned as two internal record types:
+parameters, and resolution output is returned as three internal record types:
 
-- `ExposedScope(IReadOnlyList<string> PrefixSubjects, IReadOnlyList<string> ExplicitMembers)` —
-  the resolved scope. `PrefixSubjects` are exposed subject qualified names whose entire
-  containment subtree is in scope (the pre-Phase-2a whole-subtree behavior, used for `expose`
-  entries with no bracket filter and as the fallback for a bracket-filtered entry that failed to
-  parse or evaluate). `ExplicitMembers` are individual qualified names — of a `SysmlDefinitionNode`
-  **or a named `SysmlFeatureNode`** (Phase 2d — widened from definitions-only, see below) —
-  matched by a successfully-evaluated bracket filter — exact matches only, not their own nested
-  members unless those also match. A settable `Failures` init-property (default empty) carries any
-  bracket filters that failed to parse or evaluate.
+- `ExposedScope(IReadOnlyList<ExposeSubject> Subjects, IReadOnlyList<string> ExplicitMembers)` —
+  the resolved scope. `Subjects` are exposed subject qualified names, each paired with the
+  `ExposeRecursionKind` that governs how it matches a candidate qualified name (see
+  `IsInSubjectScope` below) — derived from each `expose` entry's own SysML v2 grammar form
+  (MembershipExpose/NamespaceExpose) and recursion setting (a trailing `::**`), and forced to
+  whichever *Recursive variant matches the entry's form for the fallback path (a bracket-filtered
+  entry that failed to parse or evaluate). `ExplicitMembers` are individual qualified names — of a
+  `SysmlDefinitionNode` **or a named `SysmlFeatureNode`** (Phase 2d — widened from
+  definitions-only, see below) — matched by a successfully-evaluated bracket filter — exact
+  matches only, not their own nested members unless those also match. A settable `Failures`
+  init-property (default empty) carries any bracket filters that failed to parse or evaluate.
+- `ExposeSubject(string QualifiedName, ExposeRecursionKind Recursion)` — one resolved `expose`
+  subject qualified name paired with the recursion kind governing how it matches candidates.
 - `BracketFilterFailure(string ExpressionText, string? Reason)` — one failed bracket-filter
   expression's raw source text plus a short human-readable reason, feeding
   `LayoutWarnings.ForUnevaluatedExposeBracketFilter`.
@@ -31,19 +35,19 @@ parameters, and (Phase 2a) resolution output is returned as two internal record 
 
 ###### `ResolveExposedScope(SysmlWorkspace workspace, SysmlViewNode? viewNode)`
 
-Resolves the qualified-name containment-subtree scope a view's `expose` statements restrict the
-diagram to — the only content-scoping mechanism a view has (`render <target>;` names a
-rendering style/format, e.g. `asTreeDiagram`/`asElementTable`, per the SysML v2 grammar, never
-content, so `RenderTargetName` never affects this decision). Returns `null` — meaning "render
-everything", the pre-scoping behavior — whenever the view has no resolved `Expose`-kind
-`ResolvedEdges` entries: covering a `null` `viewNode` (the `--auto` synthesized view, which never
-carries expose/render/filter data), a view with no `expose` statement, and a view whose every
-`expose` entry failed to resolve, uniformly. Otherwise, for each resolved `Expose` edge, re-pairs
-the edge's target with the `ExposeMember` it originated from (see Design below) and:
+Resolves the qualified-name scope a view's `expose` statements restrict the diagram to — the only
+content-scoping mechanism a view has (`render <target>;` names a rendering style/format, e.g.
+`asTreeDiagram`/`asElementTable`, per the SysML v2 grammar, never content, so `RenderTargetName`
+never affects this decision). Returns `null` — meaning "render everything", the pre-scoping
+behavior — whenever the view has no resolved `Expose`-kind `ResolvedEdges` entries: covering a
+`null` `viewNode` (the `--auto` synthesized view, which never carries expose/render/filter data), a
+view with no `expose` statement, and a view whose every `expose` entry failed to resolve,
+uniformly. Otherwise, for each resolved `Expose` edge, re-pairs the edge's target with the
+`ExposeMember` it originated from (see Design below) and:
 
-- when that entry carries no bracket-filter expression, adds the target (and, for a usage target,
-  its resolved type — see the usage-to-type fallback below) to `PrefixSubjects`, unchanged from
-  Phase 1;
+- when that entry carries no bracket-filter expression, calls `AddSubject` with the entry's own
+  `ExposeRecursionKind` — adding the target (and, for a usage target, its resolved type — see the
+  usage-to-type fallback below) as an `ExposeSubject` classified by that kind;
 - when that entry's bracket-filter expression parses and evaluates successfully (Phase 2a), computes
   the candidate set as every `workspace.Declarations` key that is the target itself or lies in its
   containment subtree (`qn == target || qn.StartsWith(target + "::")`) *and* is a
@@ -52,27 +56,39 @@ the edge's target with the `ExposeMember` it originated from (see Design below) 
   usage-level candidate too) — mirroring `GeneralViewLayoutStrategy.CollectDefinitions`'s
   candidate-set restriction — evaluates with `FilterExpressionEvaluator.Evaluate` against that
   candidate set unchanged, and adds the matched subset to `ExplicitMembers`;
-- when that entry's bracket-filter expression fails to parse or evaluate, falls back to
-  whole-subtree inclusion (`PrefixSubjects`, same as the unfiltered case) and records a
+- when that entry's bracket-filter expression fails to parse or evaluate, falls back to calling
+  `AddSubject` with whichever *Recursive variant matches the entry's form (never the narrower
+  Exact/DirectChildren kind, regardless of the entry's own classification) and records a
   `BracketFilterFailure` with the raw expression text and a short reason, so the caller can
   degrade gracefully instead of silently losing the exposed path's content.
 
 When an exposed target resolves to a `SysmlFeatureNode` (a usage, e.g.
 `part myVehicle : Vehicle;`) rather than a `SysmlDefinitionNode`, the usage's own containment
 subtree is typically empty — the real content lives under its type's subtree. To avoid silently
-scoping to nothing, whole-subtree inclusion also resolves the usage's own `Typing`-kind
-`ResolvedEdges` entry (if any) and adds that type's qualified name to `PrefixSubjects` too, so both
-the usage and its type's subtree are included. This expansion only applies to whole-subtree
-inclusion — a successfully-evaluated bracket filter's `ExplicitMembers` already name the exact
-matched definitions/usages directly.
+scoping to nothing, `AddSubject` also resolves the usage's own `Typing`-kind `ResolvedEdges` entry
+(if any) and adds that type's qualified name as an `ExposeSubject`, **using the same recursion
+kind** as the usage's own subject — so a non-recursive (`MembershipExact`) usage expose adds the
+type exact-match only, not its subtree, while a recursive usage expose adds the type with
+whole-subtree matching, same as before this fix. This expansion only applies to `Subjects` — a
+successfully-evaluated bracket filter's `ExplicitMembers` already name the exact matched
+definitions/usages directly.
 
 ###### `IsInSubjectScope(string qualifiedName, ExposedScope scope)`
 
-Returns `true` when `qualifiedName` equals one of `scope.PrefixSubjects` or lies within one of
-their containment subtrees (a `"{subject}::"` prefix match, the same qualified-name-prefix idiom
-`StdlibFilter.IsStdlibElement` already uses for stdlib-prefix matching), or is an exact match of
-one of `scope.ExplicitMembers` (a bracket-filter-matched definition or usage). Used by every strategy to
-decide whether a candidate element belongs in a scoped diagram.
+Returns `true` when `qualifiedName` matches one of `scope.Subjects` per that subject's own
+`ExposeRecursionKind`:
+
+- `MembershipRecursive`/`NamespaceRecursive` — `qualifiedName` equals the subject or lies within
+  its containment subtree (a `"{subject}::"` prefix match, the same qualified-name-prefix idiom
+  `StdlibFilter.IsStdlibElement` already uses for stdlib-prefix matching) — the unchanged
+  whole-subtree behavior from before this fix.
+- `MembershipExact` — `qualifiedName` equals the subject exactly, and nothing else.
+- `NamespaceDirectChildren` — `qualifiedName` is a direct (one-level) child of the subject only,
+  via a private `IsDirectChildOf` helper (`StartsWith(subject + "::")` **and** the remainder
+  contains no further `"::"`) — not the subject itself, not a deeper descendant.
+
+or is an exact match of one of `scope.ExplicitMembers` (a bracket-filter-matched definition or
+usage). Used by every strategy to decide whether a candidate element belongs in a scoped diagram.
 
 ###### `IsRootRelevantToScope(string candidateQualifiedName, ExposedScope scope)`
 
@@ -80,11 +96,15 @@ Returns `true` when `candidateQualifiedName` (a candidate single-root diagram ro
 definition `InterconnectionViewLayoutStrategy`, `StateTransitionViewLayoutStrategy`,
 `ActionFlowViewLayoutStrategy`, or `SequenceViewLayoutStrategy` would otherwise pick by its own
 heuristic) is related to the resolved `expose` scope in `scope`, in either containment
-direction — checked against both `scope.PrefixSubjects` and `scope.ExplicitMembers`: the candidate
-itself is an exposed subject or matched member, the candidate lies within an exposed subject's
-containment subtree, or an exposed subject/matched member lies within the candidate's own
-containment subtree (the common "expose an inner state/action/part/lifeline of the root" case).
-This method identifies the *set* of scope-relevant candidates only — because SysML v2 definitions
+direction — checked against both `scope.Subjects.Select(s => s.QualifiedName)` and
+`scope.ExplicitMembers`: the candidate itself is an exposed subject or matched member, the
+candidate lies within an exposed subject's containment subtree, or an exposed subject/matched
+member lies within the candidate's own containment subtree (the common "expose an inner
+state/action/part/lifeline of the root" case). This anchor-qualified-name containment check is
+unaffected by each subject's `ExposeRecursionKind` — root-candidate relevance only needs to find
+the right root to render, independent of whether the final in-scope set (decided separately by
+`IsInSubjectScope`) is the full subtree, a single exact member, or one level of children. This
+method identifies the *set* of scope-relevant candidates only — because SysML v2 definitions
 may nest, an ancestor and one of its nested descendant definitions can both be relevant to the same
 resolved scope. Disambiguating among multiple relevant candidates is delegated to
 `IsMoreSpecificCandidate`, not decided by this method.

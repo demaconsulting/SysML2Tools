@@ -147,24 +147,33 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   rendered scope. Reserved for a possible future capability that selects among rendering-style
   strategies — see the project ROADMAP.
 - `ExposeMembers` — each `expose <name>[::**[<expr>]];` member in a `view` usage's body, in
-  source order, paired as an `ExposeMember(string QualifiedName, string? BracketFilterExpressionText)`
-  record — the qualified-name reference text plus that specific entry's own bracket-filter
-  expression text, or null when the entry carries none. Empty when no `expose` members are
-  present (and always empty for a `view def` definition — `expose` is only valid grammar inside a
-  `view` usage's body). Extracted by `AstBuilder.ExtractExposedNames`, sharing the same
-  `ExtractImportTarget` helper `VisitImportRule` uses for plain `import`. `GetExposedNames()`
-  projects each entry's `QualifiedName` as a computed convenience list (a method rather than a
-  property, since a property returning a freshly-projected collection trips SonarAnalyzer S2365).
-  Each entry's `QualifiedName` is independently resolved by `ReferenceResolver` into a
-  `SysmlEdgeKind.Expose` edge, or an unresolved-reference diagnostic (and no edge) for that
-  entry. `GeneralViewLayoutStrategy` (via the shared `ExposeScopeResolver`) uses this to scope a
-  rendered diagram, and (Phase 2a) re-pairs each resolved edge back to its originating
-  `ExposeMember` to evaluate that entry's own `BracketFilterExpressionText`, if any, against that
-  entry's own containment subtree. Phase 1 originally captured each entry's bracket-filter text on
-  a separate, unpaired, flattened `ExposeBracketFilterTexts` list alongside an equally flattened
-  `ExposedNames` list, making it impossible to tell which exposed path a given bracket filter
-  belonged to when a view declared more than one `expose` member; `ExposeMembers` fixes this
-  defect by pairing the two together at capture time.
+  source order, paired as an
+  `ExposeMember(string QualifiedName, string? BracketFilterExpressionText, ExposeRecursionKind RecursionKind)`
+  record — the qualified-name reference text, that specific entry's own bracket-filter expression
+  text (or null when the entry carries none), and an `ExposeRecursionKind` classifying which SysML
+  v2 `expose` grammar form (MembershipExpose/NamespaceExpose) and recursion setting (a trailing
+  `::**`) produced the entry: `MembershipExact` (`expose X;`), `MembershipRecursive`
+  (`expose X::**;`), `NamespaceDirectChildren` (`expose X::*;`), or `NamespaceRecursive`
+  (`expose X::*::**;`) — a bracket-filtered entry is always classified as one of the two
+  *Recursive variants (matching its form), since `ExposeScopeResolver` only consults this
+  classification for its unfiltered/fallback whole-subtree-vs-narrow behavior, never for a
+  successfully-evaluated bracket filter's own already-exact `ExplicitMembers`. Empty when no
+  `expose` members are present (and always empty for a `view def` definition — `expose` is only
+  valid grammar inside a `view` usage's body). Extracted by `AstBuilder.ExtractExposedNames`,
+  sharing the same `ExtractImportTarget` helper `VisitImportRule` uses for plain `import`.
+  `GetExposedNames()` projects each entry's `QualifiedName` as a computed convenience list (a
+  method rather than a property, since a property returning a freshly-projected collection trips
+  SonarAnalyzer S2365). Each entry's `QualifiedName` is independently resolved by
+  `ReferenceResolver` into a `SysmlEdgeKind.Expose` edge, or an unresolved-reference diagnostic
+  (and no edge) for that entry. `GeneralViewLayoutStrategy` (via the shared `ExposeScopeResolver`)
+  uses this to scope a rendered diagram, and (Phase 2a) re-pairs each resolved edge back to its
+  originating `ExposeMember` to evaluate that entry's own `BracketFilterExpressionText`, if any,
+  against that entry's own containment subtree, and to read its `RecursionKind` to decide between
+  exact/direct-children/whole-subtree matching. Phase 1 originally captured each entry's
+  bracket-filter text on a separate, unpaired, flattened `ExposeBracketFilterTexts` list alongside
+  an equally flattened `ExposedNames` list, making it impossible to tell which exposed path a given
+  bracket filter belonged to when a view declared more than one `expose` member; `ExposeMembers`
+  fixes this defect by pairing the two (and now, the recursion kind) together at capture time.
 - `FilterExpressionText` — the raw source text of the view's `filter [<expr>];` member's
   bracketed expression, or null when absent. Captured verbatim by `AstBuilder` (using the
   original token spacing, not `RuleContext.GetText()`'s whitespace-stripped form) and never

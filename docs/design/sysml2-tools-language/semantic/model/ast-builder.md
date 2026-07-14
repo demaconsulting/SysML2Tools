@@ -213,29 +213,52 @@ whitespace so the Filtering subsystem can re-lex it faithfully rather than recei
 `ExtractExposedNames(IEnumerable<ViewBodyItemContext> bodyItems)` collects one `ExposeMember`
 per `expose <name>;` member in source order, reusing the shared `ExtractImportTarget` helper (see
 below) against each `expose` member's wrapped `namespaceImport()`/`membershipImport()` — the
-identical grammar shape `import` uses. When an `expose` member uses the dominant corpus form
-`qualifiedName::**[<expr>]`, the same helper also returns the bracketed filter expression's
-original source text, which `ExtractExposedNames` pairs together with that same entry's qualified
-name into a single `ExposeMember(QualifiedName, BracketFilterExpressionText)` record — rather than
+identical grammar shape `import` uses. It captures `isNamespaceForm = expose.namespaceExpose() is
+not null` (which grammar alternative — `namespaceExpose`/`membershipExpose` — matched) *before*
+calling `ExtractImportTarget`, since the call site already knows this from its own branch, and
+takes the helper's 4th tuple element (`isRecursive`) to classify the entry's `ExposeRecursionKind`
+via the four-way truth table: bracket-filtered entries (`hasBracketFilter`) always map to whichever
+*Recursive variant matches `isNamespaceForm`; non-bracket-filtered entries map
+`(isNamespaceForm, isRecursive)` to `MembershipExact`/`MembershipRecursive`/
+`NamespaceDirectChildren`/`NamespaceRecursive` directly. When an `expose` member uses the dominant
+corpus form `qualifiedName::**[<expr>]`, the same helper also returns the bracketed filter
+expression's original source text, which `ExtractExposedNames` pairs together with that same
+entry's qualified name and recursion kind into a single
+`ExposeMember(QualifiedName, BracketFilterExpressionText, RecursionKind)` record — rather than
 appending the qualified name and the bracket-filter text to two separate, unpaired flattened lists
 (the earlier Phase 1 shape) — so a view with more than one `expose` member never loses track of
 which bracket filter belongs to which exposed path. `ExposeScopeResolver` (Phase 2a) depends on
-this pairing to evaluate each entry's bracket filter against that entry's own containment subtree.
+this pairing to evaluate each entry's bracket filter against that entry's own containment subtree,
+and (per this fix) reads each entry's `RecursionKind` to decide between exact/direct-children/
+whole-subtree matching.
 
 `ExtractImportTarget(NamespaceImportContext?, MembershipImportContext?)` is a shared helper
-extracted from `VisitImportRule`'s previously inline logic, returning the extracted
-qualified/dotted name text and whether the reference is a wildcard, for either the
-namespace-import form (`qualifiedName::*`, always a wildcard), the membership-import form
-(`qualifiedName`, optionally `::**`), or the bracketed-filter form nested inside a
-namespace-import (`qualifiedName::**[<filterExpr>]`) — the dominant `expose` shape in the real
-OMG corpus (e.g. `expose vehicle::**[@Safety];`). The grammar nests the qualified name two levels
-deeper for that third form: `namespaceImport -> filterPackage -> filterPackageImportDeclaration ->
+extracted from `VisitImportRule`'s previously inline logic, returning a 4-tuple: the extracted
+qualified/dotted name text, whether the reference is a wildcard (`IsWildcard`, unchanged — still
+consumed verbatim by `VisitImportRule` for plain `import`, whose behavior this fix does not
+alter), the bracket-filter expression text (if any), and (added by this fix) `IsRecursive` —
+whether the entry is recursive, derived from a trailing `::**` per branch: for the direct
+namespace-import form (`qualifiedName::*`), `namespaceImport.STAR_STAR()` (previously ignored —
+the pre-fix bug hard-coded this branch's recursion bit away); for either bracketed-filter
+sub-form, always `true` (bracket-filtered forms are treated as always recursive by design, since
+the grammar only reaches the bracket-filter alternative via `::**[filterExpr]` — the
+recursive/wildcard token always precedes the bracket); for the membership-import form
+(`qualifiedName` optionally `::**`), the same `STAR_STAR()` check `IsWildcard` already computed
+for that branch (already correct, just
+previously unexposed as its own named field). This covers either the namespace-import form
+(`qualifiedName::*`, always a wildcard), the membership-import form (`qualifiedName`, optionally
+`::**`), or the bracketed-filter form nested inside a namespace-import
+(`qualifiedName::**[<filterExpr>]`) — the dominant `expose` shape in the real OMG corpus (e.g.
+`expose vehicle::**[@Safety];`). The grammar nests the qualified name two levels deeper for that
+third form: `namespaceImport -> filterPackage -> filterPackageImportDeclaration ->
 (membershipImport | namespaceImportDirect)`. `ExtractImportTarget` descends into
 `filterPackage().filterPackageImportDeclaration()` and extracts the qualified name from whichever
 of `membershipImport()`/`namespaceImportDirect()` is present there, rather than only checking the
 direct `qualifiedName()` child (which is null for this alternative). `VisitImportRule` and
 `ExtractExposedNames` both call this one helper rather than duplicating the extraction logic, per
-the Copy-Paste Programming anti-pattern guidance in coding-principles.md.
+the Copy-Paste Programming anti-pattern guidance in coding-principles.md; `VisitImportRule`
+ignores the 4th (`IsRecursive`) element via a discard, since plain `import` has no analogous
+recursion-kind concept and its behavior is unchanged by this fix.
 
 `VisitRequirementUsage` and `VisitConcernUsage` push a namespace scope (when named) and call
 `CollectChildren(body?.requirementBodyItem() ?? [])` in addition to their existing name/qualified-

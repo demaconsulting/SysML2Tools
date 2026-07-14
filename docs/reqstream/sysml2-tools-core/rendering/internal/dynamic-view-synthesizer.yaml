@@ -76,15 +76,17 @@ sections:
         title: >-
           DynamicViewSynthesizer shall construct a synthesized view node with a reserved,
           collision-checked qualified name, a RenderTargetName set to the resolved token, a
-          single Expose edge and ExposeMembers entry scoping the view to exactly the requested
-          target, and a FilterExpressionText passed through unchanged from --filter, reporting a
-          diagnostic instead of silently overwriting an existing declaration on the rare name
-          collision.
+          single Expose edge and ExposeMembers entry (using ExposeRecursionKind.MembershipRecursive)
+          scoping the view to the requested target's whole containment subtree, and a
+          FilterExpressionText passed through unchanged from --filter, reporting a diagnostic
+          instead of silently overwriting an existing declaration on the rare name collision.
         justification: |
-          Scoping the synthesized view to exactly its target (rather than the whole workspace,
-          as SynthesizeAutoView does) is the key behavior that makes a dynamic view usable for a
-          large model. The reserved, collision-checked name prevents any possibility of
-          corrupting an existing declaration.
+          Scoping the synthesized view to the target's containment subtree (rather than the
+          whole workspace, as SynthesizeAutoView does) is the key behavior that makes a dynamic
+          view usable for a large model — showing the requested element together with its full
+          nested context, matching the intended "inspect this element and everything under it"
+          use case. The reserved, collision-checked name prevents any possibility of corrupting
+          an existing declaration.
         tests:
           - Synthesize_FilterExpression_PassedThroughUnchanged
           - Synthesize_NoFilterExpression_ResultsInNullFilterExpressionText

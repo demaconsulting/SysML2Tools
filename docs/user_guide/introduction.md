@@ -170,21 +170,35 @@ view kind applies), `expose` now scopes the rendered diagram instead of always r
 entire workspace:
 
 - `expose <name>;` (valid only inside a named `view` usage's body, not a `view def`
-  definition's body) — scopes the diagram to the union of every exposed name's containment
-  subtree: `<name>` plus every declaration whose qualified name is `<name>` or is contained
-  within it (a containment-subtree match, not just the exact element). If `<name>` does not
-  resolve to any declaration in the workspace (for example, a typo), the tool falls back to
-  rendering the full workspace for that view — but now also reports a diagnostic identifying the
-  unresolved name, so the mistake is visible instead of silently rendering everything with no
-  signal. The bracket-filter form `expose <path>::**[<expr>];` is now (Phase 2a) **evaluated**
-  using the same supported subset described below for standalone `filter <expr>;`: when the
-  bracketed expression parses and evaluates successfully, that entry narrows to only the matched
-  descendant definitions within `<path>`'s own containment subtree, instead of the whole
-  subtree — each `expose` entry in a view is evaluated independently, so one bracket-filtered
-  entry's narrowing never affects any other `expose` entry in the same view. A bracket
-  expression that fails to parse or falls outside the supported subset degrades gracefully to
-  the previous whole-subtree behavior for that entry, with a diagnostic identifying the failed
-  expression and reason.
+  definition's body) — per the SysML v2 grammar, `expose` has four distinct forms with
+  independent scoping behavior, driven by whether the grammar alternative is
+  MembershipExpose or NamespaceExpose and whether a trailing `::**` requests recursion:
+  - `expose X;` (bare MembershipExpose) — scopes to **`X` itself only**, not its containment
+    subtree. If `X` resolves to a usage (e.g. `part myVehicle : Vehicle;`) rather than a
+    definition, its resolved type (`Vehicle`) is also included, itself only (not the type's
+    subtree either).
+  - `expose X::**;` (recursive MembershipExpose) — scopes to `X` **and its entire containment
+    subtree**: `X` plus every declaration whose qualified name is `X` or is contained within it.
+  - `expose X::*;` (bare NamespaceExpose) — scopes to only `X`'s **direct (one-level) children**,
+    not `X` itself and not deeper descendants.
+  - `expose X::*::**;` (recursive NamespaceExpose) — like `expose X::*;`, still **excludes `X`
+    itself** (a NamespaceExpose only ever exposes `X`'s Memberships — its members — never `X` as
+    a member of itself), but additionally includes descendants beyond direct children, at any
+    depth — unlike `NamespaceDirectChildren`, which stops at one level.
+
+  If `X` does not resolve to any declaration in the workspace (for example, a typo), the tool
+  falls back to rendering the full workspace for that view — but now also reports a diagnostic
+  identifying the unresolved name, so the mistake is visible instead of silently rendering
+  everything with no signal. The bracket-filter form `expose <path>::**[<expr>];` is now
+  (Phase 2a) **evaluated** using the same supported subset described below for standalone
+  `filter <expr>;`: when the bracketed expression parses and evaluates successfully, that entry
+  narrows to only the matched descendant definitions within `<path>`'s own containment
+  subtree, instead of the whole subtree — each `expose` entry in a view is evaluated
+  independently, so one bracket-filtered entry's narrowing never affects any other `expose`
+  entry in the same view. A bracket expression that fails to parse or falls outside the
+  supported subset degrades gracefully to whole-subtree inclusion for that entry (regardless of
+  whether the entry's own form was otherwise non-recursive), with a diagnostic identifying the
+  failed expression and reason.
 - `render <target>;` — per the SysML v2 grammar, this names a rendering style/format (e.g.
   `asTreeDiagram`, `asElementTable`). `render asTreeDiagram;`, `render
   asInterconnectionDiagram;`, `render asGeneralDiagram;`, `render asStateTransitionDiagram;`,
@@ -255,7 +269,7 @@ of confusion, so it is worth stating plainly:
 | `render <renderingKind>;` | Selects a rendering style — see "View Body Statements" above. Never scopes content. |
 | `filter <expr>;` | Narrows scope (Phase 1, and Phase 2a per bracketed `expose`); unsupported falls back unfiltered. |
 
-### Example A: exposing a definition to scope down to a subsystem
+### Example A: exposing a definition — exact vs. recursive
 
 ```sysml
 package Vehicle {
@@ -272,16 +286,30 @@ package Vehicle {
         expose Engine;
         render asTreeDiagram;
     }
+
+    view EngineRecursiveView {
+        expose Engine::**;
+        render asTreeDiagram;
+    }
 }
 ```
 
-`EngineOnlyView` declares `render asTreeDiagram;`, so it renders via `BrowserViewLayoutStrategy`
-as an indented tree of rows rather than the General View's nested boxes. It renders **only** the
-`Engine` definition's containment subtree (`Engine` and its `cylinder` part) — `Vehicle`,
-`myVehicle`, and `wheel` are excluded entirely. Removing the `expose Engine;` statement (leaving
-only `render asTreeDiagram;`, or an empty view body) renders the **full workspace** instead:
-`render` never narrows the scope, only `expose` does — `BrowserViewLayoutStrategy` honors
-`expose` scoping identically to every other layout strategy.
+Both views declare `render asTreeDiagram;`, so they render via `BrowserViewLayoutStrategy` as an
+indented tree of rows rather than the General View's nested boxes. `render` never narrows the
+scope, only `expose` does — `BrowserViewLayoutStrategy` honors `expose` scoping identically to
+every other layout strategy.
+
+- `EngineOnlyView`'s bare `expose Engine;` is non-recursive (`MembershipExact`): it renders
+  **only the `Engine` definition itself** — `cylinder` is **not** included, since a bare
+  `expose X;` no longer implies the whole containment subtree. Confirmed by hand-rendering this
+  exact fixture: the tree contains a single row, `Engine`.
+- `EngineRecursiveView`'s `expose Engine::**;` is recursive (`MembershipRecursive`): it renders
+  `Engine`'s **entire containment subtree** — `Engine` and its `cylinder` part (two rows) — the
+  unchanged whole-subtree behavior from before this fix.
+
+In both views, `Vehicle`, `myVehicle`, and `wheel` are excluded entirely, since neither `Engine`
+nor its subtree contains them. Removing the `expose` statement (leaving only `render
+asTreeDiagram;`, or an empty view body) renders the **full workspace** instead.
 
 > **Note:** `expose` targets are qualified names (`::`-separated), not dotted member-access
 > chains. `expose myVehicle.engine;` is a **syntax error**, not merely an unresolved reference —
@@ -308,19 +336,27 @@ package Vehicle {
 }
 ```
 
-Here `expose myVehicle;` names a **usage** (`myVehicle : Vehicle`), not a `def`. The tool
-resolves `myVehicle`'s own `Typing` edge to find the definition it is typed by (`Vehicle`), and
-scopes the diagram to the union of `myVehicle`'s and `Vehicle`'s containment subtrees. This view
-also declares `render asTreeDiagram;`, so — like Example A — it renders via
-`BrowserViewLayoutStrategy` as an indented tree of rows. The rendered tree therefore includes
-`Vehicle` (with its `engine` and `wheel` parts) and, because `engine` is typed by `Engine`, the
-`Engine` definition (with its `cylinder` part) as well.
+Here `expose myVehicle;` names a **usage** (`myVehicle : Vehicle`), not a `def`, and is
+non-recursive (`MembershipExact`). The tool resolves `myVehicle`'s own `Typing` edge to find the
+definition it is typed by (`Vehicle`), and adds that resolved type to the scope too — using the
+**same** exact-match (not whole-subtree) recursion kind, since the usage's own expose was itself
+non-recursive. Confirmed by hand-rendering this exact fixture: the tree contains the `myVehicle`
+row and the `Vehicle` row, but neither `Vehicle`'s own `engine`/`wheel` parts nor `Engine`'s
+`cylinder` are included, because exact-match scoping does not pull in either exposed name's
+descendants.
 
-Contrast this with `expose Vehicle;` (exposing the **definition** directly, as in Example A):
-that scopes straight to `Vehicle`'s own containment subtree without needing to resolve any
-`Typing` edge, since a definition's subtree is already the thing being scoped to. Exposing a
-usage takes one extra hop — through the usage's type reference — to arrive at the same kind of
-definition subtree that exposing a `def` reaches directly.
+To render `myVehicle`'s and `Vehicle`'s full nested structure instead, expose recursively —
+`expose myVehicle::**;` — which scopes to the union of `myVehicle`'s and `Vehicle`'s entire
+containment subtrees (unchanged whole-subtree behavior), including `engine`, `wheel`, and (via
+`engine`'s own type) `Engine`'s `cylinder` part.
+
+Contrast this with `expose Vehicle;` (exposing the **definition** directly): that scopes to just
+`Vehicle` itself (exact match), without needing to resolve any `Typing` edge, since a
+definition's own qualified name is already the exact-match subject. Exposing a usage takes one
+extra hop — through the usage's type reference — to add the same kind of definition to the scope
+that exposing a `def` reaches directly; in both cases, recursion (`::**`) is what controls
+whether descendants are included, independent of whether the initial target was a usage or a
+definition.
 
 ## Depth Limiting
 

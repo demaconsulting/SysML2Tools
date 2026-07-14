@@ -70,13 +70,16 @@ Performs four steps, in order, short-circuiting to a diagnostic on the first fai
      the rare case where it is already present (e.g., a repeat `Synthesize` call against the same
      workspace instance for the same target).
    - `RenderTargetName` set to the resolved token from step 1.
-   - A single-entry `ExposeMembers` list (`[new ExposeMember(targetQualifiedName, null)]`) and
+   - A single-entry `ExposeMembers` list (`[new ExposeMember(targetQualifiedName, null,
+     ExposeRecursionKind.MembershipRecursive)]`) and
      matching single-entry `ResolvedEdges` list (`[new SysmlEdge(viewQualifiedName,
      targetQualifiedName, SysmlEdgeKind.Expose)]`) — the same two properties a real, parsed
-     `view def V { expose Target; }` produces via `ReferenceResolver`, so
+     `view def V { expose Target::**; }` produces via `ReferenceResolver`, so
      `ExposeScopeResolver.ResolveExposedScope` (which reads only these two properties, with no
-     notion of provenance) scopes the rendered diagram to exactly the requested target. This is
-     the key difference from `DiagramRenderer.SynthesizeAutoView`, whose synthesized node carries
+     notion of provenance) scopes the rendered diagram to the requested target's whole
+     containment subtree (matching the pre-fix behavior for dynamic/ad-hoc views, which are
+     intended to show the full context around a requested element rather than the element
+     alone). This is the key difference from `DiagramRenderer.SynthesizeAutoView`, whose synthesized node carries
      no `ResolvedEdges` at all — that absence is what makes `ExposeScopeResolver` return a
      `null` scope (render everything); a dynamic view instead always resolves to a definite,
      non-null scope.

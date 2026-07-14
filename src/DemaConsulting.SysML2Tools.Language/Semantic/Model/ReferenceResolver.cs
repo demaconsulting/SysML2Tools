@@ -795,30 +795,39 @@ internal sealed class ReferenceResolver
             }
         }
 
-        // Views resolve only GetExposedNames() (a view's expose members) into Expose edges; each
-        // entry is resolved independently, and an unresolved entry produces the Warning diagnostic
-        // below with no edge. RenderTargetName (a view's render member) names a rendering style or
-        // format, not a content-scoping subject -- per the SysML v2 grammar it never refers to
-        // model content, so ReferenceResolver never inspects it: no edge is produced and no
-        // diagnostic is emitted for it, mirroring how FilterExpressionText (raw source text, not a
-        // reference) is also intentionally never touched here.
+        // Views resolve each ExposeMembers entry independently into an Expose edge (unresolved
+        // entries produce the Warning diagnostic below with no edge) -- iterating ExposeMembers
+        // directly (rather than the flattened GetExposedNames() projection) lets each resolved
+        // qualified name be paired unambiguously with the specific ExposeMember object it came
+        // from, via ResolvedExposeMembers, instead of leaving callers to re-derive that pairing
+        // later from raw-text matching (which is ambiguous whenever an earlier entry fails to
+        // resolve but its raw text is a suffix of a later entry's resolved target). RenderTargetName
+        // (a view's render member) names a rendering style or format, not a content-scoping subject
+        // -- per the SysML v2 grammar it never refers to model content, so ReferenceResolver never
+        // inspects it: no edge is produced and no diagnostic is emitted for it, mirroring how
+        // FilterExpressionText (raw source text, not a reference) is also intentionally never
+        // touched here.
         if (node is SysmlViewNode view)
         {
-            foreach (var exposedName in view.GetExposedNames())
+            var resolvedExposeMembers = new List<(ExposeMember Member, string ResolvedQualifiedName)>();
+            foreach (var member in view.ExposeMembers)
             {
-                if (TryResolve(exposedName, namespaceStack, imports, out var resolvedExposed))
+                if (TryResolve(member.QualifiedName, namespaceStack, imports, out var resolvedExposed))
                 {
                     nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedExposed, SysmlEdgeKind.Expose));
+                    resolvedExposeMembers.Add((member, resolvedExposed));
                 }
-                else if (resolvedInFile.Add(exposedName))
+                else if (resolvedInFile.Add(member.QualifiedName))
                 {
                     _diagnostics.Add(new SysmlDiagnostic(
                         filePath,
                         0, 0,
                         DiagnosticSeverity.Warning,
-                        $"Unresolved reference: '{exposedName}'"));
+                        $"Unresolved reference: '{member.QualifiedName}'"));
                 }
             }
+
+            view.ResolvedExposeMembers = resolvedExposeMembers;
         }
 
         // Metadata annotations (SysmlMetadataNode, a Children entry of the element it annotates)

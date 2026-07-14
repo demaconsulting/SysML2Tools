@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="950.92" height="428.00" viewBox="0 0 950.92 428.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="950.92" height="532.00" viewBox="0 0 950.92 532.00">
   <defs>
     <marker id="line-end-open-chevron" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polyline points="0 0, 10 3.5, 0 7" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
@@ -30,52 +30,52 @@
       <feComposite in="SourceGraphic" operator="over"/>
     </filter>
   </defs>
-  <rect x="0.00" y="0.00" width="950.92" height="428.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="0.00" y="0.00" width="950.92" height="532.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
   <text x="475.46" y="12.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
   <text x="475.46" y="31.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Workstation</text>
-  <rect x="538.48" y="76.00" width="110.00" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <rect x="538.48" y="76.00" width="110.00" height="76.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
   <text x="593.48" y="88.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
   <text x="593.48" y="107.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">cpu : Cpu</text>
-  <rect x="802.76" y="103.50" width="116.16" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
-  <text x="860.84" y="115.50" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="860.84" y="134.50" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">memory : Ram</text>
-  <rect x="538.48" y="346.00" width="133.52" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
-  <text x="605.24" y="358.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="605.24" y="377.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">graphics : Gpu</text>
-  <rect x="538.48" y="186.00" width="124.84" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
-  <text x="600.90" y="198.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="600.90" y="217.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">storage : Ssd</text>
-  <rect x="32.00" y="273.50" width="159.56" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
-  <text x="111.78" y="285.50" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="111.78" y="304.50" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">psu : PowerSupply</text>
-  <rect x="538.48" y="266.00" width="194.28" height="50.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
-  <text x="635.62" y="278.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="635.62" y="297.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">network : NetworkCard</text>
-  <rect x="261.56" y="168.00" width="176.92" height="86.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
-  <text x="350.02" y="180.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
-  <text x="350.02" y="199.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">board : Motherboard</text>
-  <rect x="434.48" y="174.00" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <rect x="534.48" y="97.00" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <path d="M 438.48 178.00 L 444.48 178.00 A 4.00 4.00 0 0 0 448.48 174.00 L 448.48 105.00 A 4.00 4.00 0 0 1 452.48 101.00 L 538.48 101.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
-  <rect x="434.48" y="190.50" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <rect x="798.76" y="139.50" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <path d="M 438.48 194.50 L 460.48 194.50 A 4.00 4.00 0 0 0 464.48 190.50 L 464.48 160.00 A 4.00 4.00 0 0 1 468.48 156.00 L 738.76 156.00 A 4.00 4.00 0 0 0 742.76 152.00 L 742.76 147.50 A 4.00 4.00 0 0 1 746.76 143.50 L 802.76 143.50" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
-  <rect x="434.48" y="240.00" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <rect x="534.48" y="352.00" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <path d="M 438.48 244.00 L 444.48 244.00 A 4.00 4.00 0 0 1 448.48 248.00 L 448.48 352.00 A 4.00 4.00 0 0 0 452.48 356.00 L 538.48 356.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
-  <rect x="434.48" y="207.00" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <rect x="534.48" y="207.00" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <path d="M 438.48 211.00 L 538.48 211.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
-  <rect x="434.48" y="223.50" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <rect x="534.48" y="287.00" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <path d="M 438.48 227.50 L 460.48 227.50 A 4.00 4.00 0 0 1 464.48 231.50 L 464.48 287.00 A 4.00 4.00 0 0 0 468.48 291.00 L 538.48 291.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
-  <rect x="187.56" y="279.50" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <rect x="257.56" y="207.00" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <path d="M 191.56 283.50 L 197.56 283.50 A 4.00 4.00 0 0 0 201.56 279.50 L 201.56 215.00 A 4.00 4.00 0 0 1 205.56 211.00 L 261.56 211.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
-  <rect x="187.56" y="309.50" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <rect x="534.48" y="382.00" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <path d="M 191.56 313.50 L 197.56 313.50 A 4.00 4.00 0 0 1 201.56 317.50 L 201.56 382.00 A 4.00 4.00 0 0 0 205.56 386.00 L 538.48 386.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
-  <rect x="644.48" y="97.00" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <rect x="798.76" y="109.50" width="8.00" height="8.00" fill="#1A1A2E"/>
-  <path d="M 648.48 101.00 L 738.76 101.00 A 4.00 4.00 0 0 1 742.76 105.00 L 742.76 109.50 A 4.00 4.00 0 0 0 746.76 113.50 L 802.76 113.50" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="802.76" y="110.67" width="116.16" height="76.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="860.84" y="122.67" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="860.84" y="141.67" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">memory : Ram</text>
+  <rect x="538.48" y="424.00" width="133.52" height="76.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="605.24" y="436.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="605.24" y="455.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">graphics : Gpu</text>
+  <rect x="538.48" y="212.00" width="124.84" height="76.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="600.90" y="224.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="600.90" y="243.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">storage : Ssd</text>
+  <rect x="32.00" y="316.94" width="159.56" height="76.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="111.78" y="328.94" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="111.78" y="347.94" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">psu : PowerSupply</text>
+  <rect x="538.48" y="318.00" width="194.28" height="76.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="635.62" y="330.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="635.62" y="349.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">network : NetworkCard</text>
+  <rect x="261.56" y="242.72" width="176.92" height="76.00" fill="#EEF4FF" stroke="#1A1A2E" stroke-width="1.50" rx="8.00" ry="8.00"/>
+  <text x="350.02" y="254.72" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part»</text>
+  <text x="350.02" y="273.72" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">board : Motherboard</text>
+  <rect x="434.48" y="296.72" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <rect x="534.48" y="138.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <path d="M 438.48 300.72 L 444.48 300.72 A 4.00 4.00 0 0 0 448.48 296.72 L 448.48 146.00 A 4.00 4.00 0 0 1 452.48 142.00 L 538.48 142.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="434.48" y="300.72" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <rect x="798.76" y="177.67" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <path d="M 438.48 304.72 L 460.48 304.72 A 4.00 4.00 0 0 0 464.48 300.72 L 464.48 186.00 A 4.00 4.00 0 0 1 468.48 182.00 L 742.60 182.00 A 0.16 0.16 0 0 0 742.76 181.84 L 742.76 181.84 A 0.16 0.16 0 0 1 742.92 181.67 L 802.76 181.67" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="434.48" y="312.72" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <rect x="534.48" y="481.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <path d="M 438.48 316.72 L 460.48 316.72 A 4.00 4.00 0 0 1 464.48 320.72 L 464.48 481.00 A 4.00 4.00 0 0 0 468.48 485.00 L 538.48 485.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="434.48" y="304.72" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <rect x="534.48" y="274.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <path d="M 438.48 308.72 L 476.48 308.72 A 4.00 4.00 0 0 0 480.48 304.72 L 480.48 282.00 A 4.00 4.00 0 0 1 484.48 278.00 L 538.48 278.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="434.48" y="308.72" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <rect x="534.48" y="380.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <path d="M 438.48 312.72 L 476.48 312.72 A 4.00 4.00 0 0 1 480.48 316.72 L 480.48 380.00 A 4.00 4.00 0 0 0 484.48 384.00 L 538.48 384.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="187.56" y="373.94" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <rect x="257.56" y="304.72" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <path d="M 191.56 377.94 L 197.56 377.94 A 4.00 4.00 0 0 0 201.56 373.94 L 201.56 312.72 A 4.00 4.00 0 0 1 205.56 308.72 L 261.56 308.72" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="187.56" y="383.94" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <rect x="534.48" y="491.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <path d="M 191.56 387.94 L 197.56 387.94 A 4.00 4.00 0 0 1 201.56 391.94 L 201.56 425.15 A 4.00 4.00 0 0 0 205.56 429.15 L 444.48 429.15 A 4.00 4.00 0 0 1 448.48 433.15 L 448.48 491.00 A 4.00 4.00 0 0 0 452.48 495.00 L 538.48 495.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+  <rect x="644.48" y="138.00" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <rect x="798.76" y="167.67" width="8.00" height="8.00" fill="#1A1A2E" stroke="#FFFFFF" stroke-width="1.00"/>
+  <path d="M 648.48 142.00 L 738.76 142.00 A 4.00 4.00 0 0 1 742.76 146.00 L 742.76 167.67 A 4.00 4.00 0 0 0 746.76 171.67 L 802.76 171.67" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
 </svg>

@@ -22,7 +22,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_BareMetadataAnnotation_CapturesMetadataNode()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -62,7 +62,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_MetadataAnnotationWithBooleanAttribute_CapturesLiteralValue()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -107,7 +107,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_MetadataAnnotation_ResolvesTypeReference()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -149,7 +149,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_MetadataAnnotation_UnresolvedType_ProducesWarning()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -186,7 +186,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_ExposeBracketFilter_CapturesRawText()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -217,6 +217,7 @@ public sealed class AstBuilderMetadataTests
             var member = Assert.Single(viewNode.ExposeMembers);
             Assert.Equal("P", member.QualifiedName);
             Assert.Equal("@Safety", member.BracketFilterExpressionText);
+            Assert.Equal(ExposeRecursionKind.NamespaceRecursive, member.RecursionKind);
         }
         finally
         {
@@ -234,7 +235,7 @@ public sealed class AstBuilderMetadataTests
     [Fact]
     public async Task AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath()
     {
-        var tempFile = Path.GetTempFileName() + ".sysml";
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
         {
             await File.WriteAllTextAsync(
@@ -270,10 +271,12 @@ public sealed class AstBuilderMetadataTests
             var chassisMember = viewNode.ExposeMembers[0];
             Assert.Equal("Chassis", chassisMember.QualifiedName);
             Assert.Null(chassisMember.BracketFilterExpressionText);
+            Assert.Equal(ExposeRecursionKind.MembershipExact, chassisMember.RecursionKind);
 
             var engineMember = viewNode.ExposeMembers[1];
             Assert.Equal("Engine", engineMember.QualifiedName);
             Assert.Equal("@Safety", engineMember.BracketFilterExpressionText);
+            Assert.Equal(ExposeRecursionKind.NamespaceRecursive, engineMember.RecursionKind);
 
             // GetExposedNames() remains the flat qualified-name projection consumed by
             // ReferenceResolver, unaffected by which entries carry a bracket filter.
@@ -284,4 +287,165 @@ public sealed class AstBuilderMetadataTests
             File.Delete(tempFile);
         }
     }
+
+    /// <summary>
+    ///     A bare <c>expose X;</c> (MembershipExpose, non-recursive) captures
+    ///     <see cref="ExposeRecursionKind.MembershipExact"/> — only <c>X</c> itself is in scope,
+    ///     not its containment subtree.
+    /// </summary>
+    [Fact]
+    public async Task AstBuilder_ExposeBareMembership_CapturesMembershipExact()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(
+                tempFile,
+                """
+                package P {
+                    part def Engine;
+
+                    view V {
+                        expose Engine;
+                    }
+                }
+                """,
+                TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            Assert.True(result.Workspace!.Declarations.TryGetValue("P::V", out var view));
+            var viewNode = Assert.IsType<SysmlViewNode>(view);
+            var member = Assert.Single(viewNode.ExposeMembers);
+            Assert.Equal("Engine", member.QualifiedName);
+            Assert.Null(member.BracketFilterExpressionText);
+            Assert.Equal(ExposeRecursionKind.MembershipExact, member.RecursionKind);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A recursive <c>expose X::**;</c> (MembershipExpose, recursive) captures
+    ///     <see cref="ExposeRecursionKind.MembershipRecursive"/> — <c>X</c> and its entire
+    ///     containment subtree are in scope.
+    /// </summary>
+    [Fact]
+    public async Task AstBuilder_ExposeRecursiveMembership_CapturesMembershipRecursive()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(
+                tempFile,
+                """
+                package P {
+                    part def Engine;
+
+                    view V {
+                        expose Engine::**;
+                    }
+                }
+                """,
+                TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            Assert.True(result.Workspace!.Declarations.TryGetValue("P::V", out var view));
+            var viewNode = Assert.IsType<SysmlViewNode>(view);
+            var member = Assert.Single(viewNode.ExposeMembers);
+            Assert.Equal("Engine", member.QualifiedName);
+            Assert.Null(member.BracketFilterExpressionText);
+            Assert.Equal(ExposeRecursionKind.MembershipRecursive, member.RecursionKind);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A non-recursive namespace <c>expose X::*;</c> (NamespaceExpose, non-recursive) captures
+    ///     <see cref="ExposeRecursionKind.NamespaceDirectChildren"/> — only <c>X</c>'s direct
+    ///     children are in scope, not <c>X</c> itself and not deeper descendants.
+    /// </summary>
+    [Fact]
+    public async Task AstBuilder_ExposeNamespaceDirectChildren_CapturesNamespaceDirectChildren()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(
+                tempFile,
+                """
+                package P {
+                    view V {
+                        expose P::*;
+                    }
+                }
+                """,
+                TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            Assert.True(result.Workspace!.Declarations.TryGetValue("P::V", out var view));
+            var viewNode = Assert.IsType<SysmlViewNode>(view);
+            var member = Assert.Single(viewNode.ExposeMembers);
+            Assert.Equal("P", member.QualifiedName);
+            Assert.Null(member.BracketFilterExpressionText);
+            Assert.Equal(ExposeRecursionKind.NamespaceDirectChildren, member.RecursionKind);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A recursive namespace <c>expose X::*::**;</c> (NamespaceExpose, recursive) captures
+    ///     <see cref="ExposeRecursionKind.NamespaceRecursive"/> — <c>X</c>'s entire containment
+    ///     subtree is in scope, excluding <c>X</c> itself.
+    /// </summary>
+    [Fact]
+    public async Task AstBuilder_ExposeNamespaceRecursive_CapturesNamespaceRecursive()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(
+                tempFile,
+                """
+                package P {
+                    view V {
+                        expose P::*::**;
+                    }
+                }
+                """,
+                TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            Assert.True(result.Workspace!.Declarations.TryGetValue("P::V", out var view));
+            var viewNode = Assert.IsType<SysmlViewNode>(view);
+            var member = Assert.Single(viewNode.ExposeMembers);
+            Assert.Equal("P", member.QualifiedName);
+            Assert.Null(member.BracketFilterExpressionText);
+            Assert.Equal(ExposeRecursionKind.NamespaceRecursive, member.RecursionKind);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
 }
+

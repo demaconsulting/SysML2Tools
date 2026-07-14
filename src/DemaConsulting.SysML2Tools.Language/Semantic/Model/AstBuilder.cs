@@ -2028,12 +2028,23 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 continue;
             }
 
-            var (qn, _, bracketFilterText) = ExtractImportTarget(
+            var isNamespaceForm = expose.namespaceExpose() is not null;
+            var (qn, _, bracketFilterText, isRecursive) = ExtractImportTarget(
                 expose.namespaceExpose()?.namespaceImport(),
                 expose.membershipExpose()?.membershipImport());
             if (qn is { Length: > 0 })
             {
-                members.Add(new ExposeMember(qn, bracketFilterText));
+                var hasBracketFilter = bracketFilterText is not null;
+                var recursionKind = (isNamespaceForm, isRecursive, hasBracketFilter) switch
+                {
+                    (true, _, true) => ExposeRecursionKind.NamespaceRecursive,
+                    (false, _, true) => ExposeRecursionKind.MembershipRecursive,
+                    (true, true, false) => ExposeRecursionKind.NamespaceRecursive,
+                    (true, false, false) => ExposeRecursionKind.NamespaceDirectChildren,
+                    (false, true, false) => ExposeRecursionKind.MembershipRecursive,
+                    (false, false, false) => ExposeRecursionKind.MembershipExact,
+                };
+                members.Add(new ExposeMember(qn, bracketFilterText, recursionKind));
             }
         }
 
@@ -2070,7 +2081,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             return null;
         }
 
-        var (qn, isWildcard, bracketFilterText) = ExtractImportTarget(decl.namespaceImport(), decl.membershipImport());
+        var (qn, isWildcard, bracketFilterText, _) = ExtractImportTarget(decl.namespaceImport(), decl.membershipImport());
         if (qn is null)
         {
             return null;
@@ -2099,9 +2110,12 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <param name="membershipImport">The membership-import alternative, or null when not this form.</param>
     /// <returns>
     ///     The extracted qualified/dotted name text (or null when neither alternative yielded
-    ///     text) and whether the import/expose is a wildcard.
+    ///     text), whether the import/expose is a wildcard, the bracket-filter expression text (if
+    ///     any), and whether this entry is recursive (derived from a trailing <c>::**</c>, or
+    ///     always true for bracket-filtered forms by design, since the grammar only reaches that
+    ///     alternative via <c>::**[filterExpr]</c>).
     /// </returns>
-    private static (string? QualifiedName, bool IsWildcard, string? BracketFilterExpressionText) ExtractImportTarget(
+    private static (string? QualifiedName, bool IsWildcard, string? BracketFilterExpressionText, bool IsRecursive) ExtractImportTarget(
         SysMLv2Parser.NamespaceImportContext? namespaceImport,
         SysMLv2Parser.MembershipImportContext? membershipImport)
     {
@@ -2111,7 +2125,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             var qn = namespaceImport.qualifiedName()?.GetText();
             if (qn is { Length: > 0 })
             {
-                return (qn, true, null);
+                return (qn, true, null, namespaceImport.STAR_STAR() is not null);
             }
 
             // Bracketed-filter form: qualifiedName::**[filterExpr] — the dominant expose form in
@@ -2123,6 +2137,10 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             // filterPackageMember (multiple bracket filters chained on one path are extremely
             // rare; the first is representative); it is paired with its ExposeMember by
             // ExtractExposedNames and evaluated per-entry by ExposeScopeResolver (Phase 2a).
+            // Bracket-filtered forms are always treated as recursive (IsRecursive: true)
+            // regardless of the nested optional STAR_STAR token — the grammar's filterPackage
+            // form is treated as always recursive by design (the grammar only reaches this
+            // alternative via ::**[filterExpr]).
             var filterPackage = namespaceImport.filterPackage();
             var bracketFilterText = filterPackage?.filterPackageMember()?.FirstOrDefault()?.ownedExpression() is { } bracketExpr
                 ? GetOriginalText(bracketExpr)
@@ -2136,7 +2154,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                     var filterQn = filterMembershipImport.qualifiedName()?.GetText();
                     if (filterQn is { Length: > 0 })
                     {
-                        return (filterQn, filterMembershipImport.STAR_STAR() is not null, bracketFilterText);
+                        return (filterQn, filterMembershipImport.STAR_STAR() is not null, bracketFilterText, true);
                     }
                 }
 
@@ -2146,7 +2164,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                     var directQn = namespaceImportDirect.qualifiedName()?.GetText();
                     if (directQn is { Length: > 0 })
                     {
-                        return (directQn, true, bracketFilterText);
+                        return (directQn, true, bracketFilterText, true);
                     }
                 }
             }
@@ -2159,11 +2177,12 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             var qn = membershipImport.qualifiedName()?.GetText();
             if (qn is { Length: > 0 })
             {
-                return (qn, membershipImport.STAR_STAR() is not null, null);
+                var isRecursive = membershipImport.STAR_STAR() is not null;
+                return (qn, isRecursive, null, isRecursive);
             }
         }
 
-        return (null, false, null);
+        return (null, false, null, false);
     }
 
     /// <inheritdoc/>

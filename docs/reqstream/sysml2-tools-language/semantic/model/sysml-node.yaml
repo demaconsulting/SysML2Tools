@@ -44,9 +44,10 @@ sections:
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewExposedNames
         title: >-
           SysmlViewNode shall expose ExposeMembers: each `expose <name>[::**[<expr>]];` member's
-          qualified-name reference text paired with its own bracket-filter expression text (or
-          null when the entry carries no bracket filter), in source order; GetExposedNames()
-          shall return the qualified name of each entry as a computed convenience projection.
+          qualified-name reference text, its own bracket-filter expression text (or null when the
+          entry carries no bracket filter), and its `ExposeRecursionKind` classification, in
+          source order; GetExposedNames() shall return the qualified name of each entry as a
+          computed convenience projection.
         justification: |
           Making a view's `expose` statements user-observable data is the prerequisite for
           ReferenceResolver, which resolves GetExposedNames() into `Expose`-kind edges that
@@ -56,12 +57,19 @@ sections:
           bracket filter belonged to when a view declared more than one `expose` member; Phase 2a
           fixes this by pairing each entry's path and bracket-filter text together as a single
           `ExposeMember`, the prerequisite for `ExposeScopeResolver` to evaluate each entry's
-          bracket filter against that entry's own containment subtree.
+          bracket filter against that entry's own containment subtree. This fix additionally adds
+          the `ExposeRecursionKind` classification, the prerequisite for `ExposeScopeResolver` to
+          correctly distinguish exact/direct-children/whole-subtree matching per entry instead of
+          unconditionally treating every entry as whole-subtree.
         tests:
           - WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge
           - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
           - AstBuilder_ExposeBracketFilter_CapturesRawText
           - AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath
+          - AstBuilder_ExposeBareMembership_CapturesMembershipExact
+          - AstBuilder_ExposeRecursiveMembership_CapturesMembershipRecursive
+          - AstBuilder_ExposeNamespaceDirectChildren_CapturesNamespaceDirectChildren
+          - AstBuilder_ExposeNamespaceRecursive_CapturesNamespaceRecursive
 
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewFilterExpression
         title: >-

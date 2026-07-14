@@ -31,10 +31,17 @@ external services or additional configuration are required beyond a standard .NE
   the corresponding `SysmlViewNode`, and leaves both null for a view with an empty body.
 - `VisitViewUsage` (a named `view` usage, not a `view def` definition) captures the same
   render/filter members plus `expose <name>;` members, producing a `SysmlViewNode` with
-  populated `ExposeMembers` (each entry pairing its qualified-name reference text with its own
-  bracket-filter expression text, or null when absent). This also makes every named `view`
-  usage its own renderable declaration, an intentional capability addition beyond `expose`
-  capture alone (see the ast-builder design doc).
+  populated `ExposeMembers` (each entry pairing its qualified-name reference text, its own
+  bracket-filter expression text (or null when absent), and its `ExposeRecursionKind`
+  classification). This also makes every named `view` usage its own renderable declaration, an
+  intentional capability addition beyond `expose` capture alone (see the ast-builder design
+  doc).
+- Each `expose` member is classified into the correct `ExposeRecursionKind` per its grammar form
+  and recursion setting: a bare `expose X;` as `MembershipExact`, a recursive `expose X::**;` as
+  `MembershipRecursive`, a bare namespace `expose X::*;` as `NamespaceDirectChildren`, and a
+  recursive namespace `expose X::*::**;` as `NamespaceRecursive` — fixing the prior defect where
+  the namespace-import branch's recursion bit was hard-coded away instead of checking for a
+  trailing `::**`.
 - `BuildUsageNode` captures a feature's redefinition reference on `RedefinedFeatureName` for both
   the `redefines` keyword form and the `:>>` operator form, for both a bare simple name and a
   qualified `Owner::feature` form (captured verbatim, unresolved), and leaves it null for a
@@ -109,6 +116,11 @@ external services or additional configuration are required beyond a standard .NE
 | `VisitViewUsage` expose capture | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | `VisitViewUsage` bracket-filter capture | `AstBuilder_ExposeBracketFilter_CapturesRawText` |
 | Bracket filter paired to entry | `AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath` |
+| Bare MembershipExpose classification | `AstBuilder_ExposeBareMembership_CapturesMembershipExact` |
+| Recursive MembershipExpose classification | `AstBuilder_ExposeRecursiveMembership_CapturesMembershipRecursive` |
+| Bare NamespaceExpose classification | `AstBuilder_ExposeNamespaceDirectChildren_CapturesNamespaceDirectChildren` |
+| Recursive NamespaceExpose classification | `AstBuilder_ExposeNamespaceRecursive_CapturesNamespaceRecursive` |
+| Bracket-filtered classification | `WorkspaceLoader_LoadAsync_OmgSafetyFeatureViewsFixture_ResolvesBracketedExpose` |
 | `VisitViewUsage` renderable declaration | `RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages` |
 | Empty view body regression guard | `WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty` |
 | Redefinition, `redefines` keyword | `WorkspaceLoader_LoadAsync_RedefinesKeyword_CapturesRedefinedFeatureName` |

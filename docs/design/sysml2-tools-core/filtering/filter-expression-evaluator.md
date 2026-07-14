@@ -234,7 +234,7 @@ lexer/recursive-descent-parser internals could violate that contract despite `Pa
   `BracketFilterExpressionText` with `FilterExpressionParser.Parse`, evaluates successful ASTs
   with `FilterExpressionEvaluator.Evaluate` against that entry's own containment-subtree
   candidate set, adds matches to the resolved `ExposedScope.ExplicitMembers`, and falls back to
-  whole-subtree inclusion (`PrefixSubjects`) plus a recorded `BracketFilterFailure` on parse or
+  whole-subtree inclusion (`Subjects`) plus a recorded `BracketFilterFailure` on parse or
   evaluation failure. No change was required in this unit to support this second caller.
 - `FilterExpressionParserTests` and `FilterExpressionEvaluatorTests` exercise the parser,
   pretty-printer, and evaluator directly.

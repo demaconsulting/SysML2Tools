@@ -62,8 +62,10 @@ SVG: [`svg/DroneGeneralView.svg`](svg/DroneGeneralView.svg)
 
 The same `01-drone-general.sysml` model also declares a second, named `view` usage
 that adds an `expose Battery;` statement. Instead of the full workspace, the diagram
-is scoped to just the `Battery` definition's containment subtree — demonstrating
-that `expose` (not `render`) is what controls diagram content scope. See the user
+is scoped to just the `Battery` definition — with no wrapping `QuadcopterDrone` folder,
+since the bare package `QuadcopterDrone` was never itself named by the `expose` statement,
+only `Battery` was — demonstrating that `expose` (not `render`) is what controls diagram
+content scope. See the user
 guide's [Expose vs. Render](../user_guide/introduction.md#expose-vs-render-worked-examples)
 section for the full explanation and more worked examples.
 
@@ -233,6 +235,70 @@ Model: [`models/09-motor-controller-multi-port.sysml`](models/09-motor-controlle
 SVG: [`svg/MotorRigInterconnectionView.svg`](svg/MotorRigInterconnectionView.svg)
 
 ![Motor Rig Interconnection View](png/MotorRigInterconnectionView.png)
+
+---
+
+## 10. Expose Recursion Semantics — Mission Control Hierarchy
+
+Shows all four `expose` recursion forms side by side on the same nested-package model
+(`GroundSegment` contains a `RadioNetwork` sub-package with `Uplink`/`Downlink`, plus
+`OperatorConsole` — itself owning nested `DisplayPanel`/`CommsHandset` definitions — and
+a sibling leaf `ThermalRegulator`). See the user guide's
+[Expose Recursion Semantics](../user_guide/introduction.md#expose-vs-render-worked-examples)
+section for the full grammar/semantics explanation.
+
+`OperatorConsoleExactView` (`expose GroundSegment::OperatorConsole;`, MembershipExact — no
+`::**`) exposes only `OperatorConsole` itself; its nested `DisplayPanel`/`CommsHandset`
+are excluded.
+
+Model: [`models/10-mission-control-expose-recursion.sysml`](models/10-mission-control-expose-recursion.sysml)
+(`OperatorConsoleExactView`) · SVG: [`svg/OperatorConsoleExactView.svg`](svg/OperatorConsoleExactView.svg)
+
+![Operator Console Exact View](png/OperatorConsoleExactView.png)
+
+`OperatorConsoleDeepView` (`expose GroundSegment::OperatorConsole::**;`,
+MembershipRecursive) exposes `OperatorConsole` and its entire containment subtree:
+`DisplayPanel` and `CommsHandset` are now included too.
+
+Model: [`models/10-mission-control-expose-recursion.sysml`](models/10-mission-control-expose-recursion.sysml)
+(`OperatorConsoleDeepView`) · SVG: [`svg/OperatorConsoleDeepView.svg`](svg/OperatorConsoleDeepView.svg)
+
+![Operator Console Deep View](png/OperatorConsoleDeepView.png)
+
+`GroundSegmentDirectChildrenView` (`expose GroundSegment::*;`, NamespaceDirectChildren)
+exposes only `GroundSegment`'s direct members, one level deep: `OperatorConsole` and
+`ThermalRegulator` appear, but neither `OperatorConsole`'s own nested definitions nor
+`RadioNetwork`'s nested `Uplink`/`Downlink` (both two levels below `GroundSegment`) do —
+and `GroundSegment` itself is not included either.
+
+Model: [`models/10-mission-control-expose-recursion.sysml`](models/10-mission-control-expose-recursion.sysml)
+(`GroundSegmentDirectChildrenView`) ·
+SVG: [`svg/GroundSegmentDirectChildrenView.svg`](svg/GroundSegmentDirectChildrenView.svg)
+
+![Ground Segment Direct Children View](png/GroundSegmentDirectChildrenView.png)
+
+`GroundSegmentRecursiveView` (`expose GroundSegment::*::**;`, NamespaceRecursive) exposes
+every descendant of `GroundSegment`, recursively — `OperatorConsole`, `DisplayPanel`,
+`CommsHandset`, `ThermalRegulator`, `Uplink`, and `Downlink` all appear. `RadioNetwork`
+is a bare `package`, not a definition, so it is never itself rendered as a box; its members
+`Uplink`/`Downlink` are in scope and render as flat top-level boxes with no `RadioNetwork`
+wrapper. `GroundSegment` (also a bare package) is excluded from scope and, like
+`RadioNetwork`, shows no folder either.
+
+Model: [`models/10-mission-control-expose-recursion.sysml`](models/10-mission-control-expose-recursion.sysml)
+(`GroundSegmentRecursiveView`) · SVG: [`svg/GroundSegmentRecursiveView.svg`](svg/GroundSegmentRecursiveView.svg)
+
+![Ground Segment Recursive View](png/GroundSegmentRecursiveView.png)
+
+> **Note:** the `GroundSegment` folder from section 10's unscoped `MissionControlGeneralView`
+> does **not** appear in any of the four scoped views above (`OperatorConsoleExactView`,
+> `OperatorConsoleDeepView`, `GroundSegmentDirectChildrenView`, `GroundSegmentRecursiveView`).
+> `GroundSegment` is a bare package — it is never itself admitted content, only an ancestor of
+> whatever content each `expose` statement actually names — so once a view is scoped, General
+> View no longer wraps that content in a folder for an ancestor the scope never referenced.
+> The same fix applies to section 1b above: the `QuadcopterDrone` folder no longer appears
+> around `Battery` in `BatterySubsystemView`, since `QuadcopterDrone` itself was never exposed —
+> only `Battery` was.
 
 ---
 

@@ -98,8 +98,8 @@
 
   <!-- Rendering output packages: the SVG renderer and the SkiaSharp raster renderers -->
   <ItemGroup>
-    <PackageReference Include="DemaConsulting.Rendering.Svg" Version="0.1.0-beta.6" />
-    <PackageReference Include="DemaConsulting.Rendering.Skia" Version="0.1.0-beta.6" />
+    <PackageReference Include="DemaConsulting.Rendering.Svg" Version="0.1.0-beta.7" />
+    <PackageReference Include="DemaConsulting.Rendering.Skia" Version="0.1.0-beta.7" />
   </ItemGroup>
 
   <ItemGroup>
