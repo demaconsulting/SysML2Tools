@@ -56,8 +56,8 @@
     <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Language\DemaConsulting.SysML2Tools.Language.csproj" />
     <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Stdlib\DemaConsulting.SysML2Tools.Stdlib.csproj" />
     <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Core\DemaConsulting.SysML2Tools.Core.csproj" />
-    <PackageReference Include="DemaConsulting.Rendering.Svg" Version="0.1.0-beta.7" />
-    <PackageReference Include="DemaConsulting.Rendering.Skia" Version="0.1.0-beta.7" />
+    <PackageReference Include="DemaConsulting.Rendering.Svg" Version="0.1.0-beta.8" />
+    <PackageReference Include="DemaConsulting.Rendering.Skia" Version="0.1.0-beta.8" />
   </ItemGroup>
 
   <!-- SkiaSharp Native Assets -->
