@@ -454,6 +454,61 @@ public sealed class WorkspaceLoaderTests
         }
     }
 
+    // Level 12d: Unqualified name resolves via recursive membership import, including the
+    // imported member's own name
+    /// <summary>
+    ///     A recursive <em>membership</em> import (<c>import X::Y::**;</c>, as distinct from the
+    ///     recursive namespace-import form covered by the previous test) must bring both the
+    ///     explicitly named member <c>Y</c> itself into scope by its own short name, and every
+    ///     name declared in a namespace nested under <c>Y</c> at any depth. This is a distinct
+    ///     grammar shape from <c>import X::*::**;</c>: there, <c>X</c> is a containing namespace
+    ///     being wildcard-searched and is never itself a name being imported, whereas here <c>Y</c>
+    ///     is the explicit membership-import target and must resolve by its own name too.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnqualifiedNameViaRecursiveMembershipImport_ResolvesWithoutWarning()
+    {
+        // Arrange — A is a nested package directly under TestNs; Foo lives one level further
+        // down, inside A's own Sub1 sub-package. Consumer uses a recursive membership import
+        // targeting A itself and references both A and Foo by short name.
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package TestNs {
+                    package A {
+                        package Sub1 {
+                            part def Foo;
+                        }
+                    }
+                }
+                package Consumer {
+                    import TestNs::A::**;
+
+                    part def UsesA {
+                        part a : A;
+                        part f : Foo;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert — both "A" (the membership-import target itself) and "Foo" (A's nested
+            // descendant) resolve without warning.
+            Assert.NotNull(result.Workspace);
+            Assert.DoesNotContain(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     (d.Message.Contains("'A'") || d.Message.Contains("Foo")));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     // Level 12c: Non-recursive wildcard import must NOT reach nested-namespace members
     /// <summary>
     ///     A plain (non-recursive) wildcard import (<c>import X::*;</c>) must only bring X's own

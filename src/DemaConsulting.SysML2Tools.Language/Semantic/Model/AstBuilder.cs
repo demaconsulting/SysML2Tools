@@ -2093,6 +2093,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             ImportedNames = [qn],
             IsWildcard = isWildcard,
             IsRecursive = isRecursive,
+            IsMembershipImport = decl.membershipImport() is not null,
             BracketFilterExpressionText = bracketFilterText,
         };
     }

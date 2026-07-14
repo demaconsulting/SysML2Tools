@@ -441,6 +441,19 @@ internal sealed class ReferenceResolver
                 return true;
             }
 
+            // A recursive *membership* import (`import X::Y::**;`) brings Y itself into scope by
+            // its own short name — not just Y's nested descendants — since Y is the explicit
+            // membership-import target, not merely a containing namespace being wildcard-searched.
+            // e.g. `import VersionMark::Cli::**;` should let an unqualified `Cli` reference resolve
+            // to `VersionMark::Cli` itself, in addition to reaching Cli's own nested members below.
+            if (wildcard.IsMembershipImport &&
+                LastSegment(resolvedNamespace) == name &&
+                _symbolTable.Contains(resolvedNamespace))
+            {
+                resolvedName = resolvedNamespace;
+                return true;
+            }
+
             // Recursive wildcard import (`import X::*::**;`) additionally reaches members of any
             // namespace nested within X at any depth, not just X's own direct members — e.g.
             // `import VersionMark::*::**;` should let an unqualified `CliSubsystem` resolve to
@@ -509,6 +522,17 @@ internal sealed class ReferenceResolver
         }
 
         return best ?? string.Empty;
+    }
+
+    /// <summary>
+    ///     Returns the final <c>::</c>-separated segment of a qualified name (e.g.
+    ///     <c>"VersionMark::Cli"</c> → <c>"Cli"</c>), or the whole string when it contains no
+    ///     <c>::</c> separator.
+    /// </summary>
+    private static string LastSegment(string qualifiedName)
+    {
+        var lastSep = qualifiedName.LastIndexOf("::", StringComparison.Ordinal);
+        return lastSep >= 0 ? qualifiedName[(lastSep + 2)..] : qualifiedName;
     }
 
     /// <summary>
