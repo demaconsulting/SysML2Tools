@@ -196,6 +196,28 @@ public sealed class SysmlImportNode : SysmlNode
     public bool IsWildcard { get; init; }
 
     /// <summary>
+    ///     Gets a value indicating whether this import is recursive — derived from a trailing
+    ///     <c>::**</c> on a namespace-import wildcard (<c>import X::*::**;</c>), which per the
+    ///     KerML/SysML v2 grammar imports members of <c>X</c> and every namespace nested within it
+    ///     at any depth, not just <c>X</c>'s direct members. <see langword="false"/> for a plain
+    ///     <c>import X::*;</c> (direct members only) or any non-wildcard import.
+    /// </summary>
+    public bool IsRecursive { get; init; }
+
+    /// <summary>
+    ///     Gets a value indicating whether this import was parsed from the membership-import
+    ///     grammar form (<c>import X::Y;</c> or its recursive <c>import X::Y::**;</c> variant, where
+    ///     <c>ImportedNamespace</c> is the fully-qualified path to the specific member <c>Y</c>)
+    ///     rather than the namespace-import wildcard form (<c>import X::*;</c> or
+    ///     <c>import X::*::**;</c>, where <c>ImportedNamespace</c> is the containing namespace whose
+    ///     members are being imported). This distinction matters for recursive resolution: a
+    ///     recursive membership import must additionally bring <c>Y</c> itself into scope by its
+    ///     own short name (in addition to <c>Y</c>'s nested descendants), whereas a recursive
+    ///     namespace import must not — <c>X</c> itself was never a name being imported.
+    /// </summary>
+    public bool IsMembershipImport { get; init; }
+
+    /// <summary>
     ///     Gets the raw source text of this import's bracketed filter expression (from
     ///     <c>expose &lt;path&gt;::**[&lt;expr&gt;]</c>'s <c>filterPackageMember().ownedExpression().GetText()</c>),
     ///     or <see langword="null"/> when the import declares no bracket filter. Captured verbatim

@@ -2081,7 +2081,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             return null;
         }
 
-        var (qn, isWildcard, bracketFilterText, _) = ExtractImportTarget(decl.namespaceImport(), decl.membershipImport());
+        var (qn, isWildcard, bracketFilterText, isRecursive) = ExtractImportTarget(decl.namespaceImport(), decl.membershipImport());
         if (qn is null)
         {
             return null;
@@ -2092,6 +2092,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             ImportedNamespace = qn,
             ImportedNames = [qn],
             IsWildcard = isWildcard,
+            IsRecursive = isRecursive,
+            IsMembershipImport = decl.membershipImport() is not null,
             BracketFilterExpressionText = bracketFilterText,
         };
     }

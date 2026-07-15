@@ -440,6 +440,32 @@ internal sealed class ReferenceResolver
                 resolvedName = candidate;
                 return true;
             }
+
+            // A recursive *membership* import (`import X::Y::**;`) brings Y itself into scope by
+            // its own short name — not just Y's nested descendants — since Y is the explicit
+            // membership-import target, not merely a containing namespace being wildcard-searched.
+            // e.g. `import VersionMark::Cli::**;` should let an unqualified `Cli` reference resolve
+            // to `VersionMark::Cli` itself, in addition to reaching Cli's own nested members below.
+            if (wildcard.IsMembershipImport &&
+                LastSegment(resolvedNamespace) == name &&
+                _symbolTable.Contains(resolvedNamespace))
+            {
+                resolvedName = resolvedNamespace;
+                return true;
+            }
+
+            // Recursive wildcard import (`import X::*::**;`) additionally reaches members of any
+            // namespace nested within X at any depth, not just X's own direct members — e.g.
+            // `import VersionMark::*::**;` should let an unqualified `CliSubsystem` resolve to
+            // `VersionMark::Cli::CliSubsystem` even though `Cli` is a nested package, not X itself.
+            // Prefer the least-nested match for determinism when more than one namespace at
+            // different depths happens to declare a same-named member.
+            if (wildcard.IsRecursive &&
+                FindRecursiveWildcardMatch(resolvedNamespace, name) is { Length: > 0 } recursiveMatch)
+            {
+                resolvedName = recursiveMatch;
+                return true;
+            }
         }
 
         // Step 4: Explicit named imports — for each `import X::Y` where Y == name,
@@ -466,6 +492,60 @@ internal sealed class ReferenceResolver
 
         resolvedName = string.Empty;
         return false;
+    }
+
+    /// <summary>
+    ///     Searches the symbol table for a member named <paramref name="name"/> declared in any
+    ///     namespace nested (at any depth) within <paramref name="resolvedNamespace"/>, for
+    ///     resolving a recursive wildcard import's (<c>import X::*::**;</c>) unqualified
+    ///     references. Returns the shallowest (least-nested) match when more than one namespace at
+    ///     different depths declares a same-named member, and <see cref="string.Empty"/> when no
+    ///     match exists.
+    /// </summary>
+    private string FindRecursiveWildcardMatch(string resolvedNamespace, string name)
+    {
+        var prefix = resolvedNamespace + "::";
+        var suffix = "::" + name;
+        string? best = null;
+        var bestDepth = int.MaxValue;
+        foreach (var qualifiedName in _symbolTable.Symbols.Keys)
+        {
+            if (!qualifiedName.StartsWith(prefix, StringComparison.Ordinal) ||
+                !qualifiedName.EndsWith(suffix, StringComparison.Ordinal) ||
+                qualifiedName.Length < prefix.Length + suffix.Length)
+            {
+                continue;
+            }
+
+            // Depth is the number of intermediate "::"-separated segments between
+            // resolvedNamespace and name — count separators in the portion of qualifiedName
+            // strictly between the matched prefix and suffix, not raw string length (segment
+            // names vary in length, so a deeper match can have a shorter qualified-name string
+            // than a shallower one). The length guard above excludes the exact one-level match
+            // "prefix + name" (already handled by the direct-candidate check before this method
+            // is called), where prefix and suffix overlap and slicing out a "middle" would
+            // otherwise be an invalid (negative-length) range.
+            var middle = qualifiedName[prefix.Length..^suffix.Length];
+            var depth = middle.Length == 0 ? 0 : middle.Split("::").Length;
+            if (depth < bestDepth)
+            {
+                best = qualifiedName;
+                bestDepth = depth;
+            }
+        }
+
+        return best ?? string.Empty;
+    }
+
+    /// <summary>
+    ///     Returns the final <c>::</c>-separated segment of a qualified name (e.g.
+    ///     <c>"VersionMark::Cli"</c> → <c>"Cli"</c>), or the whole string when it contains no
+    ///     <c>::</c> separator.
+    /// </summary>
+    private static string LastSegment(string qualifiedName)
+    {
+        var lastSep = qualifiedName.LastIndexOf("::", StringComparison.Ordinal);
+        return lastSep >= 0 ? qualifiedName[(lastSep + 2)..] : qualifiedName;
     }
 
     /// <summary>

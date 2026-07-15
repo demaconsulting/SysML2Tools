@@ -397,6 +397,229 @@ public sealed class WorkspaceLoaderTests
         }
     }
 
+    // Level 12b: Unqualified name resolves via recursive wildcard import
+    /// <summary>
+    ///     A recursive wildcard import (<c>import X::*::**;</c>) must reach members declared in
+    ///     namespaces nested at any depth under <c>X</c>, not just <c>X</c>'s own direct members.
+    ///     This mirrors the official OMG conformance construct in
+    ///     <c>test/SysMLModels/OMG/examples/SimpleTests/ImportTest.sysml</c> (<c>private import
+    ///     Pkg211::*::**;</c>), which previously parsed without error but never actually resolved
+    ///     nested-namespace references — the OMG corpus sweep only checks for parse errors, never
+    ///     resolution correctness, so this gap went uncaught.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnqualifiedNameViaRecursiveWildcardImport_ResolvesWithoutWarning()
+    {
+        // Arrange — Foo and Bar each live two namespace levels below package A, in the
+        // nested Sub1 and Sub2 sub-packages respectively. Consumer uses a recursive
+        // wildcard import targeting A and references both by short name.
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package TestNs {
+                    package A {
+                        package Sub1 {
+                            part def Foo;
+                        }
+                        package Sub2 {
+                            part def Bar;
+                        }
+                    }
+                }
+                package Consumer {
+                    import TestNs::A::*::**;
+
+                    part def UsesBoth {
+                        part f : Foo;
+                        part b : Bar;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert — "Foo" and "Bar" both resolve via the recursive wildcard import, even
+            // though they're nested two levels below the imported namespace.
+            Assert.NotNull(result.Workspace);
+            Assert.DoesNotContain(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     (d.Message.Contains("Foo") || d.Message.Contains("Bar")));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    // Level 12d: Ambiguous recursive wildcard match resolves to the shallowest namespace depth,
+    // not the shortest qualified-name string
+    /// <summary>
+    ///     When two namespaces at different nesting depths under a recursive wildcard import's
+    ///     target both declare a same-named member, resolution must prefer the genuinely
+    ///     shallowest (least-nested) match — measured by the number of intermediate namespace
+    ///     segments, not by comparing raw qualified-name string length. This uses deliberately
+    ///     long package names at the shallow depth and short ones at the deep depth so a
+    ///     length-based tie-break (an easy mistake) would pick the wrong one.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RecursiveWildcardImport_AmbiguousMatch_PrefersShallowestDepth()
+    {
+        // Arrange — Foo is declared twice under A: once one level down in a namespace with a
+        // deliberately long name (shallow, but long string), and once three levels down through
+        // short-named namespaces (deep, but short string). The shallow one must win.
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package TestNs {
+                    package A {
+                        package AVeryLongIntermediateNamespaceName {
+                            part def Foo;
+                        }
+                        package B {
+                            package C {
+                                package D {
+                                    part def Foo {}
+                                }
+                            }
+                        }
+                    }
+                }
+                package Consumer {
+                    import TestNs::A::*::**;
+
+                    part def Uses {
+                        part f : Foo;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            var index = result.Workspace!.Index;
+
+            // Assert — "Foo" resolves as a Typing edge to the shallower (one-level-deep) match,
+            // not the deeper-but-shorter-string one.
+            Assert.Contains(index.GetOutgoingEdges("Consumer::Uses::f"),
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Typing &&
+                     e.TargetQualifiedName == "TestNs::A::AVeryLongIntermediateNamespaceName::Foo");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    // Level 12e: Unqualified name resolves via recursive membership import, including the
+    // imported member's own name
+    /// <summary>
+    ///     A recursive <em>membership</em> import (<c>import X::Y::**;</c>, as distinct from the
+    ///     recursive namespace-import form covered by the previous test) must bring both the
+    ///     explicitly named member <c>Y</c> itself into scope by its own short name, and every
+    ///     name declared in a namespace nested under <c>Y</c> at any depth. This is a distinct
+    ///     grammar shape from <c>import X::*::**;</c>: there, <c>X</c> is a containing namespace
+    ///     being wildcard-searched and is never itself a name being imported, whereas here <c>Y</c>
+    ///     is the explicit membership-import target and must resolve by its own name too.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnqualifiedNameViaRecursiveMembershipImport_ResolvesWithoutWarning()
+    {
+        // Arrange — A is a nested package directly under TestNs; Foo lives one level further
+        // down, inside A's own Sub1 sub-package. Consumer uses a recursive membership import
+        // targeting A itself and references both A and Foo by short name.
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package TestNs {
+                    package A {
+                        package Sub1 {
+                            part def Foo;
+                        }
+                    }
+                }
+                package Consumer {
+                    import TestNs::A::**;
+
+                    part def UsesA {
+                        part a : A;
+                        part f : Foo;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert — both "A" (the membership-import target itself) and "Foo" (A's nested
+            // descendant) resolve without warning.
+            Assert.NotNull(result.Workspace);
+            Assert.DoesNotContain(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     (d.Message.Contains("'A'") || d.Message.Contains("Foo")));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    // Level 12c: Non-recursive wildcard import must NOT reach nested-namespace members
+    /// <summary>
+    ///     A plain (non-recursive) wildcard import (<c>import X::*;</c>) must only bring X's own
+    ///     direct members into scope — it must NOT reach members declared in namespaces nested
+    ///     under X. This is the control case proving the recursive-descent fallback added for
+    ///     <c>import X::*::**;</c> is correctly gated on <c>IsRecursive</c> and doesn't leak into
+    ///     the plain wildcard-import path.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_UnqualifiedNameViaPlainWildcardImport_DoesNotReachNestedNamespace()
+    {
+        // Arrange — Foo lives in the nested Sub1 sub-package, but Consumer only uses a
+        // plain (non-recursive) wildcard import targeting A.
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package TestNs {
+                    package A {
+                        package Sub1 {
+                            part def Foo;
+                        }
+                    }
+                }
+                package Consumer {
+                    import TestNs::A::*;
+
+                    part def Uses {
+                        part f : Foo;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert — "Foo" must NOT resolve; a non-recursive wildcard import doesn't reach
+            // into nested namespaces, so this must still produce an Unresolved reference warning.
+            Assert.NotNull(result.Workspace);
+            Assert.Contains(result.Diagnostics,
+                d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
+                     d.Message.Contains("Foo"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     // Level 13: Explicit named import resolves short name
     /// <summary>
     ///     A part def that specializes a type using only its short name, where that type is
