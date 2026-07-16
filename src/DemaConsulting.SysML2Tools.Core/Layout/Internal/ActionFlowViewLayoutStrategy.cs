@@ -85,11 +85,15 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         // Place action boxes with the layered algorithm flowing top-to-bottom (down). Each action
         // becomes a node and each succession a directed edge; the algorithm's cycle-breaking stage
         // makes the (possibly cyclic) flow graph acyclic, so it tolerates back edges. Self-loops are
-        // already excluded by ResolveSuccessions (it keeps only from != to).
+        // already excluded by ResolveSuccessions (it keeps only from != to). MergeParallelEdges is
+        // disabled so AddSuccessionEdges' 1:1 edgePolylines[e] indexing (see its own remarks) stays
+        // valid: with merging enabled, a back edge sharing a node pair with a forward edge (a cycle)
+        // collapses onto one shared line, leaving fewer routed lines than input successions.
         var placed = LayeredPlacement.Place(
             actions.Select(a => (a.Width, a.Height)).ToList(),
             edges,
-            LayoutFlowDirection.Down);
+            LayoutFlowDirection.Down,
+            mergeParallelEdges: false);
 
         // Compute the top-left of the content bounding box over the real action nodes and the screen
         // offset that normalizes it into the canvas, reserving a marker band at the top (start) and

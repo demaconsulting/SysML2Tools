@@ -4,6 +4,7 @@
 
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
+using DemaConsulting.Rendering.Layout;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -93,8 +94,13 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
         var scope = ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode);
 
+        // Index of candidate container definitions (non-stdlib part defs with at least one part child).
+        // Built before FindRoot so root-selection can resolve which candidates are themselves used as
+        // another candidate's nested part type (see FindRoot's composition-graph-root preference).
+        var defsByName = BuildDefinitionIndex(context.Workspace);
+
         // Choose the part definition whose internals to show.
-        var root = FindRoot(context.Workspace, scope);
+        var root = FindRoot(context.Workspace, scope, defsByName);
         if (root is null)
         {
             return new LayoutTree(200.0, 100.0, []);
@@ -106,9 +112,6 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         {
             return new LayoutTree(200.0, 100.0, []);
         }
-
-        // Index of candidate container definitions (non-stdlib part defs with at least one part child).
-        var defsByName = BuildDefinitionIndex(context.Workspace);
 
         // Lay out the root's interior, recursing into any container parts.
         var visited = new HashSet<string>(StringComparer.Ordinal);
@@ -140,9 +143,11 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Lays out the interior of one definition: collects its parts (recursing into container
-    /// parts), places them with the bundled layered algorithm, and emits one rounded
-    /// box per part plus a port pair and connector line per connection — all positioned relative to
-    /// the container's own top-left origin <c>(0, 0)</c>.
+    /// parts), places them with the "auto" layout algorithm — which classifies parts by connectivity
+    /// and packs disconnected/singleton parts via the containment algorithm while routing connected
+    /// groups through the bundled layered algorithm — and emits one rounded box per part plus a port
+    /// pair and connector line per connection, all positioned relative to the container's own
+    /// top-left origin <c>(0, 0)</c>.
     /// </summary>
     /// <param name="def">The definition whose interior to lay out.</param>
     /// <param name="theme">The active rendering theme.</param>
@@ -165,6 +170,19 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var partIndex = BuildPartIndex(parts);
         var pairs = ResolveConnections(def, partIndex);
 
+        return LayOutInteriorWithConnections(parts, pairs, theme, depth);
+    }
+
+    /// <summary>
+    /// Lays out a definition's parts when at least one connection exists between them, delegating
+    /// placement and orthogonal edge routing to the bundled layered algorithm.
+    /// </summary>
+    private static InteriorLayout LayOutInteriorWithConnections(
+        IReadOnlyList<PartItem> parts,
+        IReadOnlyList<ConnPair> pairs,
+        Theme theme,
+        int depth)
+    {
         var nodeSizes = parts.Select(p => (p.Width, p.Height, HasLabel: true, HasKeyword: true)).ToList();
 
         var portEdges = pairs
@@ -267,27 +285,35 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Finds the part definition whose interior to render: the non-stdlib <c>part def</c>
-    /// with the most connections, falling back to the one with the most part usages. When
+    /// Finds the part definition whose interior to render: among scope-relevant candidates, prefers
+    /// the composition-graph root — a candidate that is not itself referenced as another candidate's
+    /// own nested <c>part</c> feature type — falling back to the non-stdlib <c>part def</c> with the
+    /// most connections (then most part usages) when no single such root exists. When
     /// <paramref name="scope"/> is non-null (the view's resolved <c>expose</c> containment-subtree
     /// scope), candidates are first restricted to those relevant to the scope via
     /// <see cref="ExposeScopeResolver.IsRootRelevantToScope"/> — the candidate itself is an exposed
     /// subject, lies within an exposed subject's subtree, or an exposed subject lies within the
-    /// candidate's own subtree; because a nested definition and its ancestor can both be
-    /// scope-relevant, ties among relevant candidates are then broken by specificity (deepest/longest
-    /// qualified name wins) via <see cref="ExposeScopeResolver.IsMoreSpecificCandidate"/>, with the
-    /// connections/parts heuristic used only to break ties between equally specific candidates. When
-    /// no candidate is scope-relevant, no root is chosen (an empty canvas results, matching the
-    /// existing null-root path). When <paramref name="scope"/> is <see langword="null"/>, selection is
-    /// the plain connections/parts heuristic, unchanged.
+    /// candidate's own subtree. A broad expose (e.g. an entire namespace recursively) makes every
+    /// definition in it scope-relevant, so preferring the one candidate nothing else composes is what
+    /// actually identifies "the" root — a plain specificity/qualified-name-depth comparison cannot,
+    /// since sibling leaf definitions are equally specific to each other regardless of which one
+    /// happens to be the true top of the tree. When one or more candidates qualify as composition-graph
+    /// roots — including the case of several disjoint composition trees all independently exposed at
+    /// once — selection narrows to just that set, and ties among them (or among the full candidate
+    /// set, when none qualify — e.g. a cyclic composition graph where every candidate is someone's
+    /// child) are broken by specificity (deepest/longest qualified name wins) via
+    /// <see cref="ExposeScopeResolver.IsMoreSpecificCandidate"/>, with the connections/parts heuristic
+    /// used only to break ties between equally specific candidates. When no candidate is
+    /// scope-relevant, no root is chosen (an empty canvas results, matching the existing null-root
+    /// path). When <paramref name="scope"/> is <see langword="null"/>, selection is the plain
+    /// connections/parts heuristic, unchanged.
     /// </summary>
-    private static SysmlDefinitionNode? FindRoot(SysmlWorkspace workspace, ExposedScope? scope)
+    private static SysmlDefinitionNode? FindRoot(
+        SysmlWorkspace workspace,
+        ExposedScope? scope,
+        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName)
     {
-        SysmlDefinitionNode? best = null;
-        string? bestQualifiedName = null;
-        var bestConnections = -1;
-        var bestParts = -1;
-
+        var candidates = new List<(string QualifiedName, SysmlDefinitionNode Def, int Connections, int Parts)>();
         foreach (var (qualifiedName, node) in workspace.Declarations)
         {
             if (node is not SysmlDefinitionNode def || def.DefinitionKeyword != "part def")
@@ -307,6 +333,47 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
             var connections = def.Children.OfType<SysmlConnectionNode>().Count();
             var partCount = def.Children.OfType<SysmlFeatureNode>().Count(f => f.FeatureKeyword == "part");
+            candidates.Add((qualifiedName, def, connections, partCount));
+        }
+
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        // Every candidate that some other candidate's own nested part feature resolves to as its
+        // type — i.e. every candidate that is a child in the composition graph, not its top.
+        var usedAsChildType = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (_, def, _, _) in candidates)
+        {
+            foreach (var feature in def.Children.OfType<SysmlFeatureNode>())
+            {
+                if (feature.FeatureKeyword != "part")
+                {
+                    continue;
+                }
+
+                if (ResolveByTyping(feature.FeatureTyping, defsByName)?.QualifiedName is { Length: > 0 } usedName)
+                {
+                    usedAsChildType.Add(usedName);
+                }
+            }
+        }
+
+        // A true composition-graph root must itself compose something (Parts > 0); otherwise an
+        // unrelated orphan leaf definition (composes nothing, is composed by nothing) would also
+        // qualify as "unused," and could then win the specificity tie-break below purely by having
+        // a longer qualified name, even though it has no interior worth rendering at all.
+        var topCandidates = candidates.Where(c => c.Parts > 0 && !usedAsChildType.Contains(c.QualifiedName)).ToList();
+        var pool = topCandidates.Count > 0 ? topCandidates : candidates;
+
+        SysmlDefinitionNode? best = null;
+        string? bestQualifiedName = null;
+        var bestConnections = -1;
+        var bestParts = -1;
+
+        foreach (var (qualifiedName, def, connections, partCount) in pool)
+        {
             var scoreBetter = connections > bestConnections || (connections == bestConnections && partCount > bestParts);
             var isBetter = scope is not null
                 ? ExposeScopeResolver.IsMoreSpecificCandidate(qualifiedName, bestQualifiedName, scoreBetter)
@@ -328,11 +395,18 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// Collects the nested part usages of a definition, sized for rendering. A part whose type
     /// resolves to a container definition (a non-stdlib <c>part def</c> with its own internal parts,
     /// not already on the recursion path) is laid out recursively and sized to fit its interior;
-    /// every other part is sized intrinsically as a leaf. When <paramref name="scope"/> is non-null,
-    /// a part feature whose own <c>QualifiedName</c> fails
-    /// <see cref="ExposeScopeResolver.IsInSubjectScope"/> is skipped; the same absolute
-    /// <paramref name="scope"/> list is passed unchanged into recursive container calls, since
-    /// subject qualified names are absolute and need no re-resolution at deeper nesting levels.
+    /// every other part is sized intrinsically as a leaf. When <paramref name="scope"/> is non-null
+    /// <em>and <paramref name="depth"/> is 0</em> (the root definition's own direct part usages), a
+    /// part feature whose own <c>QualifiedName</c> fails <see cref="ExposeScopeResolver.IsInSubjectScope"/>
+    /// is skipped — this lets a narrow <c>expose</c> (e.g. one specific subsystem, not the whole
+    /// system) select which of the root's own branches to draw. Scope is <em>not</em> re-applied to
+    /// any deeper recursive call (<paramref name="depth"/> &gt; 0): per the InterconnectionView
+    /// definition (SysML v2 spec §9.2.20.2.6), an interconnection diagram presents "exposed features
+    /// as nodes, nested features as nested nodes" — once a part has been included as a node, its own
+    /// composed structure must always be shown recursively, regardless of whether that structure
+    /// happens to be declared in a different namespace than the one named in the view's <c>expose</c>
+    /// statement (namespace location and composition structure are independent in SysML v2 — a part
+    /// def's own nested parts are not themselves separate members of the exposed namespace).
     /// </summary>
     private static IReadOnlyList<PartItem> CollectParts(
         SysmlDefinitionNode root,
@@ -350,7 +424,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            if (scope is not null && feature.QualifiedName is { Length: > 0 } fqn &&
+            if (depth == 0 && scope is not null && feature.QualifiedName is { Length: > 0 } fqn &&
                 !ExposeScopeResolver.IsInSubjectScope(fqn, scope))
             {
                 continue;
@@ -361,8 +435,11 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             if (TryResolveContainer(feature.FeatureTyping, defsByName, visited, out var childDef))
             {
                 // Container part: lay out its interior bottom-up and treat it as an atomic node.
+                // Scope is intentionally not carried into this recursive call — see the remarks
+                // above on why nested composition structure is always shown once its owning part
+                // has been included, regardless of the exposed namespace scope.
                 var childVisited = new HashSet<string>(visited, StringComparer.Ordinal) { childDef.QualifiedName! };
-                var inner = LayOutInterior(childDef, theme, depth + 1, defsByName, childVisited, scope);
+                var inner = LayOutInterior(childDef, theme, depth + 1, defsByName, childVisited, scope: null);
                 result.Add(new PartItem(name, "part", feature.FeatureTyping, inner.Width, inner.Height, inner.Content));
             }
             else
@@ -425,28 +502,38 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         out SysmlDefinitionNode childDef)
     {
         childDef = null!;
-        if (string.IsNullOrEmpty(typing))
-        {
-            return false;
-        }
-
-        if (!defsByName.TryGetValue(typing, out var def))
-        {
-            var sep = typing.LastIndexOf("::", StringComparison.Ordinal);
-            var simple = sep >= 0 ? typing[(sep + 2)..] : typing;
-            if (!defsByName.TryGetValue(simple, out def))
-            {
-                return false;
-            }
-        }
-
-        if (def.QualifiedName is null || visited.Contains(def.QualifiedName))
+        var def = ResolveByTyping(typing, defsByName);
+        if (def?.QualifiedName is null || visited.Contains(def.QualifiedName))
         {
             return false;
         }
 
         childDef = def;
         return true;
+    }
+
+    /// <summary>
+    /// Resolves a feature typing reference to its definition by qualified name, falling back to
+    /// simple (last-segment) name if no qualified match exists. Returns <see langword="null"/> if
+    /// neither form resolves.
+    /// </summary>
+    private static SysmlDefinitionNode? ResolveByTyping(
+        string? typing,
+        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName)
+    {
+        if (string.IsNullOrEmpty(typing))
+        {
+            return null;
+        }
+
+        if (defsByName.TryGetValue(typing, out var def))
+        {
+            return def;
+        }
+
+        var sep = typing.LastIndexOf("::", StringComparison.Ordinal);
+        var simple = sep >= 0 ? typing[(sep + 2)..] : typing;
+        return defsByName.TryGetValue(simple, out def) ? def : null;
     }
 
     /// <summary>Builds a name → index lookup for the nested parts.</summary>

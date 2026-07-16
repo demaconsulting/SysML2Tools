@@ -76,12 +76,16 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
         // Place state boxes with the layered algorithm flowing top-to-bottom (down). Non-self
         // transitions become directed edges; the algorithm's cycle-breaking stage makes the (cyclic)
-        // state graph acyclic, so it tolerates back edges and loops.
+        // state graph acyclic, so it tolerates back edges and loops. MergeParallelEdges is disabled so
+        // AddTransitions' 1:1 edgePolylines[e] indexing (see its own remarks) stays valid: with merging
+        // enabled, a back edge sharing a node pair with a forward edge (a cycle) collapses onto one
+        // shared line, leaving fewer routed lines than input transitions.
         var flowTransitions = transitions.Where(t => t.Source != t.Target).ToList();
         var placed = LayeredPlacement.Place(
             states.Select(s => (s.Width, s.Height)).ToList(),
             flowTransitions.Select(t => (t.Source, t.Target)).ToList(),
-            LayoutFlowDirection.Down);
+            LayoutFlowDirection.Down,
+            mergeParallelEdges: false);
 
         // Compute the top-left of the content bounding box over the real state nodes and the screen
         // offset that normalizes it into the canvas (leaving room at the top for the initial marker).

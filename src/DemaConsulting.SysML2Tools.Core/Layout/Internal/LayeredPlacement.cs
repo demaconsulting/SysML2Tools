@@ -98,13 +98,16 @@ internal static class LayeredPlacement
     /// <param name="direction">Primary flow direction for the layered layout.</param>
     /// <param name="mergeParallelEdges">
     /// Whether multiple edges between the same pair of nodes are merged into a single routed
-    /// connector. Defaults to <see langword="true"/> (the library's own default and this method's
-    /// original, unconditional behavior), which keeps every pre-existing call site — including
-    /// <c>ActionFlowViewLayoutStrategy</c> and <c>StateTransitionViewLayoutStrategy</c> — byte-for-byte
-    /// unchanged. Pass <see langword="false"/> to have every parallel edge preserved as its own
-    /// independently-routed connector (see <see cref="CoreOptions.MergeParallelEdges"/>), which
-    /// <c>InterconnectionViewLayoutStrategy</c> requests so distinct SysML connections between the same
-    /// two parts never collapse onto one shared route.
+    /// connector. Defaults to <see langword="true"/> (the library's own default). Pass
+    /// <see langword="false"/> to have every parallel edge preserved as its own independently-routed
+    /// connector (see <see cref="CoreOptions.MergeParallelEdges"/>). Every current caller —
+    /// <c>ActionFlowViewLayoutStrategy</c>, <c>StateTransitionViewLayoutStrategy</c>, and
+    /// <c>InterconnectionViewLayoutStrategy</c> — passes <see langword="false"/>: each treats
+    /// <see cref="PlacedLayout.EdgePolylines"/> as 1:1 with <paramref name="edges"/> by index, which
+    /// only holds when no two edges are collapsed onto one shared line. Leaving the parameter's
+    /// default at <see langword="true"/> for a caller whose edges can be cyclic or parallel (e.g. a
+    /// back edge sharing a node pair with a forward edge) will corrupt that indexing — collapsing
+    /// yields fewer entries in <see cref="PlacedLayout.EdgePolylines"/> than <paramref name="edges"/>.
     /// </param>
     /// <returns>The placed rectangles, routed polylines, and overall content size.</returns>
     /// <exception cref="ArgumentNullException">
@@ -256,6 +259,7 @@ internal static class LayeredPlacement
 
         graph.Set(CoreOptions.Direction, direction);
         graph.Set(CoreOptions.MergeParallelEdges, false);
+        graph.Set(CoreOptions.Algorithm, AutoLayoutAlgorithm.AlgorithmId);
 
         var tree = LayoutEngine.Layout(graph);
 

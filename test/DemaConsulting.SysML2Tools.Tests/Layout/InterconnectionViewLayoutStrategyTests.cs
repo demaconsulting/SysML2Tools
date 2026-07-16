@@ -1190,4 +1190,216 @@ public sealed class InterconnectionViewLayoutStrategyTests
         var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
         Assert.Equal("SysB", container.Label);
     }
+
+    /// <summary>
+    ///     Builds a workspace where the root system definition (<c>Root::NsA::System</c>) composes a
+    ///     subsystem (<c>Root::NsB::Sub</c>) via a typed <c>part</c> feature, and that subsystem in
+    ///     turn composes two of its own nested units — but the subsystem lives in a <em>different</em>
+    ///     namespace than the root, so the subsystem's own part features' qualified names
+    ///     (<c>Root::NsB::Sub::unit1</c>/<c>unit2</c>) fall outside the <c>Root::NsA::System::</c>
+    ///     prefix. This is the exact shape that reproduced the VersionMark bug: composition structure
+    ///     and namespace/file organization are independent in SysML v2, so a re-applied expose-scope
+    ///     namespace-prefix check at recursion depth &gt; 0 incorrectly hid a genuinely nested part's
+    ///     own interior.
+    /// </summary>
+    private static SysmlWorkspace BuildCrossNamespaceCompositionWorkspace()
+    {
+        var subsystem = new SysmlDefinitionNode
+        {
+            Name = "Sub",
+            QualifiedName = "Root::NsB::Sub",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "unit1", QualifiedName = "Root::NsB::Sub::unit1", FeatureKeyword = "part", FeatureTyping = "Unit" },
+                new SysmlFeatureNode { Name = "unit2", QualifiedName = "Root::NsB::Sub::unit2", FeatureKeyword = "part", FeatureTyping = "Unit" }
+            ]
+        };
+        var system = new SysmlDefinitionNode
+        {
+            Name = "System",
+            QualifiedName = "Root::NsA::System",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "sub", QualifiedName = "Root::NsA::System::sub", FeatureKeyword = "part", FeatureTyping = "Sub" }
+            ]
+        };
+        return new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::NsA::System"] = system,
+                ["Root::NsB::Sub"] = subsystem
+            }
+        };
+    }
+
+    /// <summary>
+    ///     Regression test (SysML v2 spec §9.2.20.2.6, "nested features as nested nodes"): when the
+    ///     view exposes only the root definition recursively (<c>expose Root::NsA::System::**;</c>),
+    ///     the root's nested subsystem part still renders its own nested units, even though the
+    ///     subsystem is declared in a different namespace than the root's exposed subject and its own
+    ///     part features' qualified names fall outside the root subject's namespace prefix. Before
+    ///     the fix, the same expose scope was re-applied unchanged at every recursion depth, so the
+    ///     subsystem's own parts were incorrectly filtered out and rendered as an empty box.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeRootOnly_NestedSubsystemInDifferentNamespace_RendersItsOwnUnits()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildCrossNamespaceCompositionWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposeMembers = [new ExposeMember("Root::NsA::System", null, ExposeRecursionKind.MembershipRecursive)],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root::NsA::System", SysmlEdgeKind.Expose)]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
+        Assert.Equal("System", container.Label);
+
+        // The subsystem's own nested units render as nested part boxes, not an empty container.
+        var subBox = FindPartBox(layout, "sub : Sub");
+        var nestedLabels = CollectBoxes(subBox.Children).Select(b => b.Label).ToList();
+        Assert.Contains(nestedLabels, l => l is not null && l.Contains("unit1", StringComparison.Ordinal));
+        Assert.Contains(nestedLabels, l => l is not null && l.Contains("unit2", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     Builds a workspace with a genuine two-tier composition root (<c>Root::NsA::System</c>
+    ///     composes <c>Root::NsB::Sub</c> via a typed <c>part</c> feature) alongside an unrelated
+    ///     orphan definition (<c>Root::NsC::Deeply::Nested::OrphanLeaf</c>) that has a deeper
+    ///     qualified name than <c>System</c> but composes nothing and is composed by nothing.
+    /// </summary>
+    private static SysmlWorkspace BuildBroadNamespaceWorkspace()
+    {
+        var system = new SysmlDefinitionNode
+        {
+            Name = "System",
+            QualifiedName = "Root::NsA::System",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "sub", QualifiedName = "Root::NsA::System::sub", FeatureKeyword = "part", FeatureTyping = "Sub" }
+            ]
+        };
+        var sub = new SysmlDefinitionNode { Name = "Sub", QualifiedName = "Root::NsB::Sub", DefinitionKeyword = "part def" };
+        var orphanLeaf = new SysmlDefinitionNode
+        {
+            Name = "OrphanLeaf",
+            QualifiedName = "Root::NsC::Deeply::Nested::OrphanLeaf",
+            DefinitionKeyword = "part def"
+        };
+        return new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Root::NsA::System"] = system,
+                ["Root::NsB::Sub"] = sub,
+                ["Root::NsC::Deeply::Nested::OrphanLeaf"] = orphanLeaf
+            }
+        };
+    }
+
+    /// <summary>
+    ///     Regression test: exposing an entire namespace recursively (<c>expose Root::**;</c>) makes
+    ///     every definition it contains scope-relevant, including an unrelated orphan leaf definition
+    ///     with a deeper qualified name than the genuine composition root. <c>FindRoot</c> must select
+    ///     <c>System</c> — the one candidate nothing else composes and that itself composes
+    ///     something — rather than <c>OrphanLeaf</c>, which the old pure qualified-name-depth
+    ///     specificity tie-break would have picked purely for having more <c>"::"</c> segments,
+    ///     despite composing and being composed by nothing (the exact "arbitrary root" bug diagnosed
+    ///     against the real VersionMark model).
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeWholeNamespace_SelectsGenuineCompositionRootNotDeepestOrphan()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildBroadNamespaceWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposeMembers = [new ExposeMember("Root", null, ExposeRecursionKind.NamespaceRecursive)],
+            ResolvedEdges = [new SysmlEdge("Root::V", "Root", SysmlEdgeKind.Expose)]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
+        Assert.Equal("System", container.Label);
+    }
+
+    /// <summary>
+    ///     Regression test: a part def whose parts have no connections between them (a common case
+    ///     for a top-level system composed purely of independent subsystems) must be packed into a
+    ///     compact multi-row/column grid via the containment-packing algorithm, not stacked into a
+    ///     single tall vertical column. Reproduces the shape of the real VersionMark model that
+    ///     surfaced the bug: nine unconnected peer parts. (Fewer than about nine same-sized minimum-
+    ///     width parts is not actually enough for the packer's area-based width budget to clear the
+    ///     two-column threshold — this part count is the smallest that reliably demonstrates the
+    ///     fix rather than an artifact of the packer's own sizing heuristic.) A degenerate single-
+    ///     column layout would place every box at a distinct X (or Y) coordinate; the containment-
+    ///     packed layout instead reuses coordinates across rows/columns.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_UnconnectedPeerParts_PacksIntoCompactGridNotSingleColumn()
+    {
+        // Arrange: a System part def with nine unconnected parts (no SysmlConnectionNode children).
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var system = new SysmlDefinitionNode
+        {
+            Name = "System",
+            QualifiedName = "M::System",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "p1", QualifiedName = "M::System::p1", FeatureKeyword = "part", FeatureTyping = "P1" },
+                new SysmlFeatureNode { Name = "p2", QualifiedName = "M::System::p2", FeatureKeyword = "part", FeatureTyping = "P2" },
+                new SysmlFeatureNode { Name = "p3", QualifiedName = "M::System::p3", FeatureKeyword = "part", FeatureTyping = "P3" },
+                new SysmlFeatureNode { Name = "p4", QualifiedName = "M::System::p4", FeatureKeyword = "part", FeatureTyping = "P4" },
+                new SysmlFeatureNode { Name = "p5", QualifiedName = "M::System::p5", FeatureKeyword = "part", FeatureTyping = "P5" },
+                new SysmlFeatureNode { Name = "p6", QualifiedName = "M::System::p6", FeatureKeyword = "part", FeatureTyping = "P6" },
+                new SysmlFeatureNode { Name = "p7", QualifiedName = "M::System::p7", FeatureKeyword = "part", FeatureTyping = "P7" },
+                new SysmlFeatureNode { Name = "p8", QualifiedName = "M::System::p8", FeatureKeyword = "part", FeatureTyping = "P8" },
+                new SysmlFeatureNode { Name = "p9", QualifiedName = "M::System::p9", FeatureKeyword = "part", FeatureTyping = "P9" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["M::System"] = system }
+        };
+        var context = new ViewContext("SystemInterconnectionView", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: nine non-overlapping part boxes, no connector lines (nothing to route).
+        var parts = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
+        Assert.Equal(9, parts.Count);
+        Assert.Empty(CollectLines(layout.Nodes));
+        for (var i = 0; i < parts.Count; i++)
+        {
+            for (var j = i + 1; j < parts.Count; j++)
+            {
+                Assert.False(Overlaps(parts[i], parts[j]), $"{parts[i].Label} overlaps {parts[j].Label}");
+            }
+        }
+
+        // Assert: packed into more than one row and more than one column — a degenerate single
+        // vertical column would have six distinct Y values and a single shared X value.
+        var distinctX = parts.Select(p => p.X).Distinct().Count();
+        var distinctY = parts.Select(p => p.Y).Distinct().Count();
+        Assert.True(distinctX > 1, "Expected parts to span more than one column, not a single vertical column.");
+        Assert.True(distinctY < parts.Count, "Expected some parts to share a row, not one row per part.");
+    }
 }
