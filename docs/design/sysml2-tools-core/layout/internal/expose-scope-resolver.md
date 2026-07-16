@@ -90,6 +90,29 @@ Returns `true` when `qualifiedName` matches one of `scope.Subjects` per that sub
 or is an exact match of one of `scope.ExplicitMembers` (a bracket-filter-matched definition or
 usage). Used by every strategy to decide whether a candidate element belongs in a scoped diagram.
 
+###### `MatchesUnlimitedSubject(string qualifiedName, ExposedScope scope)`
+
+A narrower sibling of `IsInSubjectScope`, added for `InterconnectionViewLayoutStrategy`'s per-branch
+depth-limited recursion (see
+`docs/design/sysml2-tools-core/layout/internal/interconnection-view-layout-strategy.md`'s
+*Per-Branch Depth-Limited Recursion* section). Returns `true` only when `qualifiedName` matches one
+of `scope.Subjects` (by the same equals-or-subtree-prefix / direct-child rule `IsInSubjectScope`
+uses per recursion kind) **and** that specific matched subject's own `ExposeRecursionKind` is
+`MembershipRecursive` or `NamespaceRecursive` — i.e. only ever `true` for a match against an
+unlimited-depth (`expose X::**;` / `expose X::*::**;`) subject. It never returns `true` via
+`scope.ExplicitMembers` (a bracket-filter match is always exact-only, regardless of any subject's
+recursion kind elsewhere in the same scope) and never returns `true` merely because *some other*,
+unrelated subject in `scope.Subjects` happens to be recursive — only the specific subject that
+`qualifiedName` itself matches is considered. Unlike `IsInSubjectScope` (which answers "is this
+qualified name in scope at all, considering every subject's own recursion kind together"), this
+method deliberately does **not** re-derive its answer from `IsInSubjectScope`'s combined `bool`
+result: the caller needs to know not just *whether* `qualifiedName` is in scope, but specifically
+*which* subject matched it and *that* subject's own recursion kind — information `IsInSubjectScope`
+does not expose. When `qualifiedName` matches more than one subject with different recursion kinds
+(possible when two overlapping `expose` statements both name an ancestor of the same feature), this
+method returns `true` if *any* matched subject is recursive — most-permissive-wins, the same
+inclusive-OR semantics `IsInSubjectScope` itself already uses across subjects.
+
 ###### `IsRootRelevantToScope(string candidateQualifiedName, ExposedScope scope)`
 
 Returns `true` when `candidateQualifiedName` (a candidate single-root diagram root, e.g. the

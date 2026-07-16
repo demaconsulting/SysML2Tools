@@ -167,10 +167,10 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposeScopingRecursionDepthLimit
         title: >-
-          When the resolved expose scope has no subject with unlimited-depth recursion (i.e. every
-          subject is MembershipExact and/or NamespaceDirectChildren), InterconnectionViewLayoutStrategy
-          shall limit interior expansion to the selected root's (or top-level scoped feature's) own
-          direct part children, rendering any deeper container part as an intrinsic-sized leaf box
+          For a resolved expose scope subject with no unlimited-depth recursion (MembershipExact
+          or NamespaceDirectChildren), InterconnectionViewLayoutStrategy shall limit interior
+          expansion of the branch matched by that subject to its own direct part children,
+          rendering any deeper container part in that branch as an intrinsic-sized leaf box
           instead of recursing into its own interior.
         justification: |
           A non-recursive `expose` form (`expose X;` / `expose X::*;`) asks for only the named
@@ -178,19 +178,44 @@ sections:
           depth-limiting existed, the resolved scope's filter was applied only at depth 0 and every
           included part's interior was then expanded unconditionally regardless of whether the
           `expose` statement itself was recursive, silently over-rendering one extra level of nested
-          parts the user never asked for. This requirement is deliberately implemented as a single
-          diagram-wide decision (`HasUnlimitedRecursion`, computed once from the resolved scope's
-          `Subjects`), not a per-subject or per-composition-branch decision: a scope that combines a
-          recursive subject with a non-recursive subject uses unlimited recursion for the whole
-          diagram, which is a known, documented, and sanctioned simplification (see the design
-          documentation's "Depth-Limited Recursion" section). A scope with at least one recursive
-          subject, or no scope at all (including the `--auto` view), continues to recurse fully at
-          every depth, unchanged.
+          parts the user never asked for. This decision is made independently per composition
+          branch (see the design documentation's "Per-Branch Depth-Limited Recursion" section, and
+          the ExposeScopingPerBranchRecursionIndependence requirement below for the mixed-subject
+          case): a feature matching only non-recursive subjects has its own branch depth-limited,
+          regardless of whether some *other* subject in the same scope is recursive. A branch whose
+          feature matches at least one recursive subject, or the whole diagram when there is no
+          scope at all (including the `--auto` view), continues to recurse fully at every depth,
+          unchanged.
         tests:
           - InterconnectionView_BuildLayout_ExposeNonRecursiveSubjects_DoesNotRecurseIntoNestedPartsInterior
           - InterconnectionView_BuildLayout_ExposeRootOnly_NestedSubsystemInDifferentNamespace_RendersItsOwnUnits
           - InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_ContainerFeature_RendersAsLeaf
           - InterconnectionView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PerBranchRecursionIndependence
+        title: >-
+          When a resolved expose scope combines a subject with unlimited-depth recursion
+          (MembershipRecursive or NamespaceRecursive) and a subject with no recursion
+          (MembershipExact or NamespaceDirectChildren), InterconnectionViewLayoutStrategy shall
+          decide interior-expansion depth independently for each top-level branch — fully
+          recursing the branch matched by the recursive subject while depth-limiting the branch
+          matched only by the non-recursive subject — rather than applying one diagram-wide
+          decision to every branch.
+        justification: |
+          An earlier implementation of the ExposeScopingRecursionDepthLimit requirement computed a
+          single diagram-wide `unlimitedRecursion` boolean from the resolved scope's `Subjects` as a
+          whole, so a scope such as `expose SystemDef::**; expose OtherDef;` applied unlimited
+          recursion to the *entire* diagram, including parts reached only via the non-recursive
+          `OtherDef` subject — over-collapsing a branch the user explicitly asked to keep
+          depth-limited. This requirement replaces that diagram-wide simplification with a
+          per-branch decision (see `ExposeScopeResolver.MatchesUnlimitedSubject` and the design
+          documentation's "Per-Branch Depth-Limited Recursion" section): each top-level feature's
+          own matched subject (not the scope's `Subjects` collection as a whole) determines that
+          feature's own branch recursion depth, and that decision is threaded unchanged to every
+          descendant of the branch, never re-derived by qualified-name matching past depth 0 (since
+          composition-path depth and namespace-declaration depth are independent axes in SysML v2).
+        tests:
+          - InterconnectionView_BuildLayout_ExposeMixedRecursion_OnlyRecursiveBranchRecurses
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NoExposeFallback
         title: >-
@@ -334,3 +359,26 @@ sections:
         tests:
           - InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NoMatchingFeature_ReturnsMinimalCanvas
           - InterconnectionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-TopLevelOwnerScopedConnections
+        title: >-
+          When the no-single-root scoped fallback collects top-level parts from two or more
+          different containing definitions that happen to share a simple part name,
+          InterconnectionViewLayoutStrategy shall resolve each definition's own connections only
+          against that definition's own top-level parts, never against a same-named top-level part
+          collected from a different containing definition.
+        justification: |
+          A connection's endpoints are only meaningful relative to its own containing definition's
+          direct children. Before this fix, `ResolveTopLevelConnections` built one flat
+          `Dictionary<string, int>` simple-name index from every top-level part collected across
+          the entire workspace scan; when two different containing definitions each declared a
+          same-named part (e.g. both `part logger : Logger;`), `TryAdd` silently kept only the
+          first occurrence, so a connection declared inside the *other* definition resolved against
+          the wrong definition's part — producing a bogus edge, or silently dropping the intended
+          one. Grouping collected top-level parts by their own `OwnerQualifiedName` (tracked by
+          `CollectTopLevelScopedParts` from each matched feature's own containing definition, not
+          re-derived by simple-name matching) and resolving each definition's own connections only
+          against its own owner-restricted index eliminates this cross-owner name collision, without
+          changing the unrelated single-root `BuildPartIndex`/`ResolveConnections` path at all.
+        tests:
+          - InterconnectionView_BuildLayout_TopLevelNameCollisionAcrossOwners_ResolvesOwnConnection

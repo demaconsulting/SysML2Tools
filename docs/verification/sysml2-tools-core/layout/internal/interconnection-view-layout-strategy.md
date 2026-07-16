@@ -51,6 +51,24 @@ recursion is unchanged, a regression guard proving the depth-limiting gate never
 resolved scope has an unlimited-depth subject. The pre-existing null-`ViewNode` test additionally
 pins down that `HasUnlimitedRecursion` evaluates to `true` whenever no scope is resolved at all.
 
+A dedicated per-branch test exercises a scope combining a recursive subject with a non-recursive
+sibling subject in the same view (two sibling `part` features under one root, `a` exposed via a
+`MembershipRecursive` subject and `b` exposed via a `MembershipExact` subject, each typed by its own
+two-nested-part container definition): it asserts `a`'s branch fully recurses (both of its nested
+parts appear as boxes) while `b`'s branch, in the very same diagram, renders as a leaf with no
+nested boxes — proving the recursion decision is made independently per top-level branch rather
+than once for the whole diagram, replacing the earlier global-boolean simplification's behavior for
+this exact shape.
+
+A dedicated fallback test exercises the owner-scoped top-level connection resolution fix: two
+different `part def`s (each exposed as independent top-level scoped features via their own
+`NamespaceDirectChildren` subject, so `FindRoot` selects no root and the boxless fallback fires)
+each declare a same-named `part logger : ...;` plus one other own part, and each declares its own
+connection between its own `logger` and its own other part; the test asserts the connector
+belonging to the first definition's own connection is geometrically anchored to that definition's
+own `logger`/other boxes and never to the second definition's same-named `logger` box — the
+pre-fix collision this owner-scoped grouping resolves.
+
 ##### Test Environment
 
 Tests run via `dotnet test` against net8.0, net9.0, and net10.0. No external services, files, or
@@ -131,6 +149,15 @@ configuration are required beyond a standard .NET SDK installation.
 - When the resolved `expose` scope has at least one subject with unlimited-depth recursion
   (`MembershipRecursive` or `NamespaceRecursive`), or there is no scope at all, interior recursion
   remains fully unbounded at every depth, unchanged from before this depth-limiting was introduced.
+- When a resolved `expose` scope combines a recursive subject with a non-recursive sibling subject
+  in the same view, the branch matched by the recursive subject fully recurses while the branch
+  matched only by the non-recursive subject stays depth-limited to its own direct children, in the
+  same diagram — the recursion decision is made independently per top-level branch, not once for
+  the whole diagram.
+- When the no-single-root scoped fallback collects top-level parts from two different containing
+  definitions that happen to declare a same-named part, each definition's own connection resolves
+  against that definition's own top-level parts only — never against a same-named top-level part
+  collected from the other containing definition.
 
 ##### Test Scenarios
 
@@ -168,3 +195,5 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NestedTopLevelFeatureExcluded_NotDuplicated` | Dedup |
 | `InterconnectionView_BuildLayout_ExposeNonRecursiveSubjects_DoesNotRecurseIntoNestedPartsInterior` | Depth limit |
 | `InterconnectionView_BuildLayout_ExposeRootOnly_NestedSubsystemInDifferentNamespace_RendersItsOwnUnits` | Unchanged |
+| `InterconnectionView_BuildLayout_ExposeMixedRecursion_OnlyRecursiveBranchRecurses` | Per-branch |
+| `InterconnectionView_BuildLayout_TopLevelNameCollisionAcrossOwners_ResolvesOwnConnection` | Owner-scoped |

@@ -3,8 +3,8 @@
 ##### Verification Approach
 
 `ExposeScopeResolver` is verified through direct unit tests in `ExposeScopeResolverTests` that
-call `ResolveExposedScope`, `IsInSubjectScope`, `IsRootRelevantToScope`, and
-`IsMoreSpecificCandidate` directly with synthetic `SysmlWorkspace`/`SysmlViewNode` inputs and
+call `ResolveExposedScope`, `IsInSubjectScope`, `MatchesUnlimitedSubject`, `IsRootRelevantToScope`,
+and `IsMoreSpecificCandidate` directly with synthetic `SysmlWorkspace`/`SysmlViewNode` inputs and
 assert on the returned `ExposedScope` (Phase 2a: `Subjects`/`ExplicitMembers`/`Failures`,
 replacing the earlier flat qualified-name-list shape) or boolean result. No mocking is required;
 every method is a pure function over its parameters.
@@ -62,6 +62,15 @@ configuration are required beyond a standard .NET SDK installation.
 - (Phase 2a) `IsInSubjectScope` returns `true` for an exact qualified-name match against an
   `ExplicitMembers` entry, and `false` for one of that entry's own descendants — an
   `ExplicitMembers` match is exact-only, not a subtree match.
+- `MatchesUnlimitedSubject` returns `true` for a qualified name matching a `Subjects` entry (exact
+  or subtree) whose own recursion kind is `MembershipRecursive`, and likewise for a subtree match
+  against a `NamespaceRecursive` entry.
+- `MatchesUnlimitedSubject` returns `false` for a qualified name matching a `Subjects` entry whose
+  own recursion kind is `MembershipExact` or `NamespaceDirectChildren` — matching a non-recursive
+  subject never signals unlimited recursion, even though the qualified name is otherwise in scope.
+- `MatchesUnlimitedSubject` returns `false` for a qualified name that matches only an
+  `ExplicitMembers` entry (never via explicit members, regardless of any subject's recursion kind
+  elsewhere in the same scope) and for an unrelated qualified name.
 - `IsRootRelevantToScope` returns `true` when the candidate equals a `Subjects` entry.
 - `IsRootRelevantToScope` returns `true` when the candidate is nested within a `Subjects`
   entry.
@@ -141,6 +150,21 @@ configuration are required beyond a standard .NET SDK installation.
   Exact qualified-name match against an `ExplicitMembers` entry is in scope
 - `IsInSubjectScope_ExplicitMemberDescendant_ReturnsFalse`:
   A descendant of an `ExplicitMembers` entry is not automatically in scope (exact match only)
+- `MatchesUnlimitedSubject_MembershipRecursiveSelf_ReturnsTrue`:
+  Exact match against a `MembershipRecursive` subject matches the unlimited-recursion predicate
+- `MatchesUnlimitedSubject_MembershipRecursiveSubtree_ReturnsTrue`:
+  Subtree match against a `MembershipRecursive` subject matches the unlimited-recursion predicate
+- `MatchesUnlimitedSubject_NamespaceRecursiveSubtree_ReturnsTrue`:
+  Subtree match against a `NamespaceRecursive` subject matches the unlimited-recursion predicate
+- `MatchesUnlimitedSubject_MembershipExact_ReturnsFalse`:
+  Match against a `MembershipExact` subject does not match the unlimited-recursion predicate
+- `MatchesUnlimitedSubject_NamespaceDirectChildren_ReturnsFalse`:
+  Match against a `NamespaceDirectChildren` subject does not match the unlimited-recursion
+  predicate
+- `MatchesUnlimitedSubject_ExplicitMembersOnly_ReturnsFalse`:
+  A match found only via `ExplicitMembers` never matches the unlimited-recursion predicate
+- `MatchesUnlimitedSubject_UnrelatedName_ReturnsFalse`:
+  An unrelated qualified name does not match the unlimited-recursion predicate
 - `IsRootRelevantToScope_CandidateEqualsSubject_ReturnsTrue`:
   Candidate equal to a `Subjects` entry is relevant
 - `IsRootRelevantToScope_CandidateNestedInSubject_ReturnsTrue`:
