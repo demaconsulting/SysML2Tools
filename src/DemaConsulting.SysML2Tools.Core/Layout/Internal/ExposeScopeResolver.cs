@@ -219,6 +219,42 @@ internal static class ExposeScopeResolver
         scope.ExplicitMembers.Contains(qualifiedName, StringComparer.Ordinal);
 
     /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="qualifiedName"/> matches one of
+    /// <paramref name="scope"/>'s <see cref="ExposedScope.Subjects"/> whose own
+    /// <see cref="ExposeSubject.Recursion"/> kind carries unlimited-depth recursion —
+    /// <see cref="ExposeRecursionKind.MembershipRecursive"/> or
+    /// <see cref="ExposeRecursionKind.NamespaceRecursive"/> — using that subject's same
+    /// per-kind containment rule as <see cref="IsInSubjectScope"/>. This is a distinct, narrower
+    /// predicate from <see cref="IsInSubjectScope"/>: the latter decides <em>whether</em> a
+    /// qualified name is in scope at all (any subject kind, plus bracket-filtered
+    /// <see cref="ExposedScope.ExplicitMembers"/>), while this method decides <em>how far</em> a
+    /// branch that is already known to be in scope should recurse — a caller
+    /// (<see cref="InterconnectionViewLayoutStrategy"/>) needs to know not just that a feature
+    /// matched, but specifically which subject matched it and whether that subject's own recursion
+    /// kind means the matched branch's interior should expand without a depth limit. A
+    /// <see cref="ExposedScope.ExplicitMembers"/> match (a bracket-filter result) is never
+    /// unlimited — bracket filters name exact matched declarations only, never a containment
+    /// subtree, so they never contribute to this predicate.
+    /// </summary>
+    /// <param name="qualifiedName">The candidate qualified name.</param>
+    /// <param name="scope">The resolved <c>expose</c> scope.</param>
+    /// <returns>
+    /// <see langword="true"/> when <paramref name="qualifiedName"/> matches a subject whose
+    /// recursion kind is <see cref="ExposeRecursionKind.MembershipRecursive"/> or
+    /// <see cref="ExposeRecursionKind.NamespaceRecursive"/>; otherwise <see langword="false"/>.
+    /// </returns>
+    public static bool MatchesUnlimitedSubject(string qualifiedName, ExposedScope scope) =>
+        scope.Subjects.Any(subject => subject.Recursion switch
+        {
+            ExposeRecursionKind.MembershipRecursive =>
+                qualifiedName == subject.QualifiedName ||
+                qualifiedName.StartsWith(subject.QualifiedName + "::", StringComparison.Ordinal),
+            ExposeRecursionKind.NamespaceRecursive =>
+                qualifiedName.StartsWith(subject.QualifiedName + "::", StringComparison.Ordinal),
+            _ => false,
+        });
+
+    /// <summary>
     /// Returns <see langword="true"/> when <paramref name="qualifiedName"/> is a direct (one-level)
     /// child of <paramref name="container"/> — starts with <c>"{container}::"</c> and the
     /// remainder after that prefix contains no further <c>"::"</c> separator. Not satisfied by

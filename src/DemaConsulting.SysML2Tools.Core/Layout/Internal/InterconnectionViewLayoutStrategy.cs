@@ -40,11 +40,14 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// parts) is a strict no-op: the recursion never fires and the output is identical to the
 /// non-recursive layout. Recursion is driven here, at the strategy level, because container detection
 /// is a semantic-model concern the model-independent algorithm cannot see. This recursion is
-/// unconditional only when the resolved <c>expose</c> scope has no depth limit — i.e. it contains at
-/// least one subject with unlimited-depth recursion, or there is no scope at all (see
-/// <see cref="HasUnlimitedRecursion"/>); otherwise, under a purely non-recursive scope, expansion
-/// stops after the root's own direct part children (depth 0) and any deeper container renders as an
-/// intrinsic-sized leaf box instead of recursing further.
+/// unconditional only for a part's own branch when that branch was matched into the resolved
+/// <c>expose</c> scope by a subject with no depth limit — i.e. a subject with unlimited-depth
+/// recursion (see <see cref="ExposeScopeResolver.MatchesUnlimitedSubject"/>) — or when there is no
+/// scope at all. This decision is made per branch, not once for the whole diagram: a scope
+/// combining a recursive subject (e.g. <c>expose X::**;</c>) with a non-recursive subject (e.g.
+/// <c>expose Y;</c>) recurses fully into <c>X</c>'s branch while <c>Y</c>'s branch stops expanding
+/// after its own direct part children (depth 0), rendering any deeper container in <c>Y</c>'s branch
+/// as an intrinsic-sized leaf box instead of recursing further.
 /// </para>
 /// <para>
 /// Not every resolved <c>expose</c> scope names a single <c>part def</c> worth treating as "the"
@@ -54,7 +57,12 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// <c>part</c> feature usages, those features are rendered as boxless nodes side by side (via
 /// <see cref="CollectTopLevelScopedParts"/>) instead of the diagram falling back to an empty canvas
 /// — each one recursing into its own interior exactly as a normal nested container part would,
-/// reusing <see cref="BuildPartItem"/> so the container-vs-leaf logic is never duplicated.
+/// reusing <see cref="BuildPartItem"/> so the container-vs-leaf logic is never duplicated. Because
+/// these boxless top-level parts may be declared inside different containing definitions, any
+/// connection between them is resolved against only its own declaring definition's own children
+/// (see <see cref="ResolveTopLevelConnections"/>'s remarks) — never a single flat cross-workspace
+/// name index, which would silently collide when two different definitions each declare a
+/// same-simple-named part.
 /// </para>
 /// </remarks>
 internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
@@ -86,6 +94,26 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         IReadOnlyList<LayoutNode>? InnerContent);
 
     /// <summary>
+    /// One top-level scoped feature collected by <see cref="CollectTopLevelScopedParts"/>, pairing
+    /// its laid-out <see cref="Part"/> with the qualified name of the definition that directly owns
+    /// it (its containing <c>part def</c>), so <see cref="ResolveTopLevelConnections"/> can group
+    /// top-level parts by owner and resolve each definition's own connections against only its own
+    /// children — never a flat cross-workspace name index, which would silently collide when two
+    /// different definitions each own a same-simple-named part (see <see cref="OwnerQualifiedName"/>).
+    /// </summary>
+    /// <param name="Part">The collected part's laid-out box data.</param>
+    /// <param name="OwnerQualifiedName">
+    /// The qualified name of the <c>part def</c> that directly declares this feature — the feature's
+    /// own qualified name with its last <c>"::"</c>-separated segment removed — or
+    /// <see langword="null"/> when the feature's qualified name has no <c>"::"</c> separator at all
+    /// (declared at the absolute root namespace with no containing definition; such a feature cannot
+    /// be the endpoint of any connection resolved by <see cref="ResolveTopLevelConnections"/>, since
+    /// connections are only ever children of an actual <see cref="SysmlDefinitionNode"/>, matching
+    /// pre-existing behavior for this shape).
+    /// </param>
+    private sealed record TopLevelPart(PartItem Part, string? OwnerQualifiedName);
+
+    /// <summary>
     /// A resolved binary connection between two nested-part indices, together with the port-name
     /// label for each end (the dotted-reference remainder after the resolved part, e.g.
     /// <c>"encoder"</c> for <c>StepperMotorX.encoder</c>), or <see langword="null"/> when the
@@ -109,10 +137,6 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
         var scope = ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode);
 
-        // Whether interior recursion should be unconditionally unlimited for this whole diagram —
-        // see HasUnlimitedRecursion's own remarks for the rationale and its documented limitation.
-        var unlimitedRecursion = HasUnlimitedRecursion(scope);
-
         // Index of candidate container definitions (non-stdlib part defs with at least one part child).
         // Built before FindRoot so root-selection can resolve which candidates are themselves used as
         // another candidate's nested part type (see FindRoot's composition-graph-root preference).
@@ -132,11 +156,11 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             // preserved unchanged.
             if (scope is not null)
             {
-                var topLevelParts = CollectTopLevelScopedParts(context.Workspace, scope, theme, defsByName, unlimitedRecursion);
-                if (topLevelParts.Count > 0)
+                var topLevelEntries = CollectTopLevelScopedParts(context.Workspace, scope, theme, defsByName);
+                if (topLevelEntries.Count > 0)
                 {
-                    var partIndex = BuildPartIndex(topLevelParts);
-                    var pairs = ResolveTopLevelConnections(defsByName, partIndex, scope);
+                    var topLevelParts = topLevelEntries.Select(e => e.Part).ToList();
+                    var pairs = ResolveTopLevelConnections(defsByName, topLevelEntries, scope);
                     var layout = LayOutInteriorWithConnections(
                         topLevelParts, pairs, theme, boxDepth: 0, reserveTitleArea: false);
                     return new LayoutTree(layout.Width, layout.Height, layout.Content);
@@ -160,7 +184,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             visited.Add(root.QualifiedName);
         }
 
-        var interior = LayOutInterior(root, theme, depth: 0, defsByName, visited, scope, unlimitedRecursion);
+        var interior = LayOutInterior(root, theme, depth: 0, defsByName, visited, scope, ancestorUnlimitedRecursion: null);
 
         // Container box for the root part definition. The root sits at the same origin (0, 0)
         // that interior.Content is already positioned relative to, so the interior content is
@@ -197,11 +221,13 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <param name="scope">
     /// The view's resolved <c>expose</c> containment-subtree scope, or null when no scoping applies.
     /// </param>
-    /// <param name="unlimitedRecursion">
-    /// Whether interior recursion is unconditionally unlimited for this diagram — computed once by
-    /// <see cref="HasUnlimitedRecursion"/> from <paramref name="scope"/> and threaded unchanged
-    /// through every recursive call so the whole diagram shares one depth-limiting decision. See
-    /// <see cref="BuildPartItem"/>'s remarks for how this actually gates recursion.
+    /// <param name="ancestorUnlimitedRecursion">
+    /// The already-decided per-branch unlimited-recursion flag inherited from the ancestor call that
+    /// recursed into this definition, or <see langword="null"/> only for the true top-of-recursion
+    /// call from <see cref="BuildLayout"/>'s root path (<paramref name="depth"/> is always 0 in that
+    /// case). When non-null, it is propagated unchanged — the decision is made once, per branch, at
+    /// depth 0 (see <see cref="CollectParts"/>), and every deeper recursive call simply inherits it;
+    /// see <see cref="BuildPartItem"/>'s remarks for how this actually gates recursion.
     /// </param>
     /// <returns>The laid-out interior size and content.</returns>
     private static InteriorLayout LayOutInterior(
@@ -211,9 +237,9 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
         ISet<string> visited,
         ExposedScope? scope,
-        bool unlimitedRecursion)
+        bool? ancestorUnlimitedRecursion)
     {
-        var parts = CollectParts(def, theme, depth, defsByName, visited, scope, unlimitedRecursion);
+        var parts = CollectParts(def, theme, depth, defsByName, visited, scope, ancestorUnlimitedRecursion);
         var partIndex = BuildPartIndex(parts);
         var pairs = ResolveConnections(def, partIndex);
 
@@ -351,27 +377,32 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Returns <see langword="true"/> when interior recursion should be unconditionally unlimited —
-    /// either because <paramref name="scope"/> is <see langword="null"/> (no <c>expose</c> statement
-    /// resolved for this view / the synthetic <c>--auto</c> view, unchanged pre-scoping behavior), or
-    /// because at least one of its <see cref="ExposedScope.Subjects"/> carries a recursion kind
-    /// meaning "unlimited depth" (<see cref="ExposeRecursionKind.MembershipRecursive"/> or
-    /// <see cref="ExposeRecursionKind.NamespaceRecursive"/>). This is a single, diagram-wide decision
-    /// computed once (in <see cref="BuildLayout"/>) and threaded unchanged through every recursive
-    /// call — it is never re-evaluated per feature or per composition branch. This is a deliberate
-    /// simplification: a scope that combines a recursive subject (e.g. <c>expose X::**;</c>) with a
-    /// non-recursive subject (e.g. <c>expose Y;</c>) uses unlimited recursion for the <em>whole</em>
-    /// diagram, even for parts reached only via the non-recursive subject — precisely attributing
-    /// recursion depth to "which subject caused this part to be included" would require carrying
-    /// subject provenance through every part-collection call site, which is a materially larger
-    /// change reserved for a future iteration if this simplification proves insufficient in
-    /// practice.
+    /// Returns <see langword="true"/> when interior recursion should be unconditionally unlimited for
+    /// an entire diagram — either because <paramref name="scope"/> is <see langword="null"/> (no
+    /// <c>expose</c> statement resolved for this view / the synthetic <c>--auto</c> view, unchanged
+    /// pre-scoping behavior), or because at least one of its <see cref="ExposedScope.Subjects"/>
+    /// carries a recursion kind meaning "unlimited depth"
+    /// (<see cref="ExposeRecursionKind.MembershipRecursive"/> or
+    /// <see cref="ExposeRecursionKind.NamespaceRecursive"/>).
     /// </summary>
+    /// <remarks>
+    /// This diagram-wide check is no longer the primary recursion gate — that decision is now made
+    /// per branch, at depth 0, by <see cref="CollectParts"/> via
+    /// <see cref="ExposeScopeResolver.MatchesUnlimitedSubject"/>, which knows specifically which
+    /// subject matched each feature into scope (so a scope combining a recursive subject, e.g.
+    /// <c>expose X::**;</c>, with a non-recursive subject, e.g. <c>expose Y;</c>, correctly recurses
+    /// only <c>X</c>'s branch while <c>Y</c>'s branch stays depth-limited to itself — superseding the
+    /// earlier "known limitation" where this method's diagram-wide answer was applied to the whole
+    /// diagram regardless of which subject actually matched a given part). This method now serves
+    /// only as the conservative fallback <see cref="CollectParts"/> uses for the rare edge case of a
+    /// depth-0 feature that carries no qualified name at all — a shape with no specific subject to
+    /// attribute the decision to, so the diagram-wide answer is used instead, matching the
+    /// pre-per-branch behavior for that one edge case.
+    /// </remarks>
     /// <param name="scope">The view's resolved <c>expose</c> containment-subtree scope, or null.</param>
     /// <returns>
     /// <see langword="true"/> when interior recursion is unlimited for the whole diagram;
-    /// <see langword="false"/> when the resolved scope has no unlimited-depth subject, meaning
-    /// interior expansion must stop at depth 0 (see <see cref="BuildPartItem"/>).
+    /// <see langword="false"/> when the resolved scope has no unlimited-depth subject.
     /// </returns>
     private static bool HasUnlimitedRecursion(ExposedScope? scope) =>
         scope is null ||
@@ -498,11 +529,30 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// exposed namespace (namespace-declaration location and composition/usage depth are
     /// independent axes in SysML v2), so re-matching a deeper qualified name against the scope would
     /// be incorrect. Instead, whether a container part's interior is expanded at all past depth 0 is
-    /// governed purely by <paramref name="unlimitedRecursion"/> (see <see cref="BuildPartItem"/>):
-    /// when the resolved scope has no subject with unlimited-depth recursion, every part is included
-    /// as a node, but interior expansion stops at depth 0 and each deeper container renders as an
-    /// intrinsic-sized leaf box instead of recursing further.
+    /// decided per branch: at depth 0, each feature's own branch-unlimited-recursion decision is
+    /// computed once (via <see cref="DetermineBranchUnlimitedRecursion"/>, from
+    /// <paramref name="ancestorUnlimitedRecursion"/> when already known — i.e. this is itself a
+    /// recursive call from an ancestor branch — or freshly derived from which specific subject
+    /// matched this feature otherwise) and then propagated unchanged to every one of that feature's
+    /// own descendants (see <see cref="BuildPartItem"/>). A scope combining a recursive subject
+    /// (e.g. <c>expose X::**;</c>) with a non-recursive subject (e.g. <c>expose Y;</c>) therefore
+    /// correctly recurses only the branch matched by the recursive subject, while the branch matched
+    /// only by the non-recursive subject stays depth-limited to itself — superseding the earlier
+    /// diagram-wide simplification.
     /// </summary>
+    /// <param name="root">The definition whose direct part children to collect.</param>
+    /// <param name="theme">The active rendering theme.</param>
+    /// <param name="depth">Nesting depth of this call (0 for the root definition's own children).</param>
+    /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
+    /// <param name="visited">Qualified names already on the recursion path, guarding against cycles.</param>
+    /// <param name="scope">
+    /// The view's resolved <c>expose</c> containment-subtree scope, or null when no scoping applies.
+    /// </param>
+    /// <param name="ancestorUnlimitedRecursion">
+    /// The already-decided per-branch unlimited-recursion flag inherited from an ancestor call, or
+    /// <see langword="null"/> only at the true top of recursion (<paramref name="depth"/> is always 0
+    /// in that case). See <see cref="LayOutInterior"/>'s remarks.
+    /// </param>
     private static IReadOnlyList<PartItem> CollectParts(
         SysmlDefinitionNode root,
         Theme theme,
@@ -510,7 +560,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
         ISet<string> visited,
         ExposedScope? scope,
-        bool unlimitedRecursion)
+        bool? ancestorUnlimitedRecursion)
     {
         var result = new List<PartItem>();
         foreach (var feature in root.Children.OfType<SysmlFeatureNode>())
@@ -526,10 +576,37 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
+            var unlimitedRecursion = ancestorUnlimitedRecursion ?? DetermineBranchUnlimitedRecursion(feature, scope);
             result.Add(BuildPartItem(feature, theme, depth, defsByName, visited, unlimitedRecursion));
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Decides, for one depth-0 feature, whether its own branch's interior recursion is
+    /// unconditionally unlimited: <see langword="true"/> when <paramref name="scope"/> is
+    /// <see langword="null"/> (no <c>expose</c> scoping at all — unchanged unconditional recursion);
+    /// otherwise, when the feature carries a qualified name, whether it matches a subject with
+    /// unlimited-depth recursion via <see cref="ExposeScopeResolver.MatchesUnlimitedSubject"/> — the
+    /// specific subject that matched this feature into scope, not the scope as a whole. Falls back to
+    /// the conservative diagram-wide <see cref="HasUnlimitedRecursion"/> check only for the rare edge
+    /// case of a feature with no qualified name at all, since there is then no specific subject to
+    /// attribute the decision to.
+    /// </summary>
+    /// <param name="feature">The depth-0 part feature usage being collected.</param>
+    /// <param name="scope">The view's resolved <c>expose</c> containment-subtree scope, or null.</param>
+    /// <returns>Whether this feature's own branch should recurse without a depth limit.</returns>
+    private static bool DetermineBranchUnlimitedRecursion(SysmlFeatureNode feature, ExposedScope? scope)
+    {
+        if (scope is null)
+        {
+            return true;
+        }
+
+        return feature.QualifiedName is { Length: > 0 } fqn
+            ? ExposeScopeResolver.MatchesUnlimitedSubject(fqn, scope)
+            : HasUnlimitedRecursion(scope);
     }
 
     /// <summary>
@@ -548,16 +625,14 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
     /// <param name="visited">Qualified names already on the recursion path, guarding against cycles.</param>
     /// <param name="unlimitedRecursion">
-    /// Whether interior recursion is unconditionally unlimited for this diagram — computed once, in
-    /// <see cref="BuildLayout"/>, from the resolved <c>expose</c> scope's
-    /// <see cref="ExposedScope.Subjects"/> via <see cref="HasUnlimitedRecursion"/>. When
-    /// <see langword="false"/>, a container part's own interior is never expanded — it always
-    /// renders as an intrinsic-sized leaf box, regardless of <paramref name="depth"/>. This method
-    /// is only ever invoked at <c>depth == 0</c> (directly, from <see cref="CollectParts"/> or
-    /// <see cref="CollectTopLevelScopedParts"/>) or via its own recursive <see cref="LayOutInterior"/>
-    /// call below, which is itself gated by this same flag — so gating solely on
-    /// <paramref name="unlimitedRecursion"/> (without also re-checking <paramref name="depth"/>) is
-    /// sufficient and equivalent to "stop expanding past depth 0".
+    /// This branch's already-decided unlimited-recursion flag — computed once at depth 0 by
+    /// <see cref="CollectParts"/> (via <see cref="DetermineBranchUnlimitedRecursion"/>) or
+    /// <see cref="CollectTopLevelScopedParts"/>, from which specific subject matched this branch's
+    /// own top-of-branch feature into scope, and propagated unchanged to every descendant of that
+    /// feature (this method's own recursive <see cref="LayOutInterior"/> call below passes it on as
+    /// <c>ancestorUnlimitedRecursion</c>, never re-deriving it). When <see langword="false"/>, a
+    /// container part's own interior is never expanded — it always renders as an intrinsic-sized
+    /// leaf box, regardless of <paramref name="depth"/>.
     /// </param>
     /// <returns>The built <see cref="PartItem"/>, container or leaf.</returns>
     private static PartItem BuildPartItem(
@@ -575,10 +650,11 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             // Container part: lay out its interior bottom-up and treat it as an atomic node.
             // Scope is intentionally not carried into this recursive call — see the remarks on
             // CollectParts for why nested composition structure's own qualified name is never
-            // re-checked against scope; unlimitedRecursion (already true here) is threaded through
-            // unchanged so the whole diagram continues to share one depth-limiting decision.
+            // re-checked against scope; unlimitedRecursion (already decided for this branch) is
+            // threaded through unchanged as the ancestor's decision so every descendant of this
+            // branch shares the same depth-limiting decision.
             var childVisited = new HashSet<string>(visited, StringComparer.Ordinal) { childDef.QualifiedName! };
-            var inner = LayOutInterior(childDef, theme, depth + 1, defsByName, childVisited, scope: null, unlimitedRecursion);
+            var inner = LayOutInterior(childDef, theme, depth + 1, defsByName, childVisited, scope: null, ancestorUnlimitedRecursion: unlimitedRecursion);
             return new PartItem(name, "part", feature.FeatureTyping, inner.Width, inner.Height, inner.Content);
         }
 
@@ -603,23 +679,17 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <param name="scope">The view's resolved <c>expose</c> containment-subtree scope.</param>
     /// <param name="theme">The active rendering theme.</param>
     /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
-    /// <param name="unlimitedRecursion">
-    /// Whether interior recursion is unconditionally unlimited for this diagram — computed once, in
-    /// <see cref="BuildLayout"/>, and forwarded to <see cref="BuildPartItem"/> unchanged so this
-    /// boxless fallback path applies the exact same depth-limiting decision as the normal
-    /// container-rooted path.
-    /// </param>
     /// <returns>
-    /// The matched top-level parts, each recursively laid out via <see cref="BuildPartItem"/> exactly
-    /// as a normal nested container part would be, in <paramref name="workspace"/>'s declaration
-    /// order. Empty when no non-stdlib <c>part</c> feature satisfies the scope.
+    /// The matched top-level parts paired with their owning definition's qualified name, each
+    /// recursively laid out via <see cref="BuildPartItem"/> exactly as a normal nested container part
+    /// would be, in <paramref name="workspace"/>'s declaration order. Empty when no non-stdlib
+    /// <c>part</c> feature satisfies the scope.
     /// </returns>
-    private static IReadOnlyList<PartItem> CollectTopLevelScopedParts(
+    private static IReadOnlyList<TopLevelPart> CollectTopLevelScopedParts(
         SysmlWorkspace workspace,
         ExposedScope scope,
         Theme theme,
-        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
-        bool unlimitedRecursion)
+        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName)
     {
         var matched = new List<SysmlFeatureNode>();
         foreach (var (qualifiedName, node) in workspace.Declarations)
@@ -652,14 +722,34 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                         !matchedNames.Any(other => other != fqn && fqn.StartsWith(other + "::", StringComparison.Ordinal)))
             .ToList();
 
-        var result = new List<PartItem>();
+        var result = new List<TopLevelPart>();
         foreach (var feature in topLevel)
         {
             var visited = new HashSet<string>(StringComparer.Ordinal);
-            result.Add(BuildPartItem(feature, theme, depth: 0, defsByName, visited, unlimitedRecursion));
+            var unlimitedRecursion = DetermineBranchUnlimitedRecursion(feature, scope);
+            var part = BuildPartItem(feature, theme, depth: 0, defsByName, visited, unlimitedRecursion);
+            result.Add(new TopLevelPart(part, OwnerQualifiedNameOf(feature.QualifiedName)));
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Derives a feature's owning definition's qualified name by stripping the last
+    /// <c>"::"</c>-separated segment of its own qualified name — see <see cref="TopLevelPart"/>'s
+    /// remarks for why this string-derivation is sufficient without a dedicated parent pointer.
+    /// </summary>
+    /// <param name="qualifiedName">The feature's own qualified name, or null.</param>
+    /// <returns>The owning definition's qualified name, or null when it cannot be derived.</returns>
+    private static string? OwnerQualifiedNameOf(string? qualifiedName)
+    {
+        if (qualifiedName is not { Length: > 0 })
+        {
+            return null;
+        }
+
+        var sep = qualifiedName.LastIndexOf("::", StringComparison.Ordinal);
+        return sep >= 0 ? qualifiedName[..sep] : null;
     }
 
     /// <summary>
@@ -672,18 +762,62 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// part set — an incidental connection between unrelated parts must never be surfaced just
     /// because it happens to share a name with one of the rendered top-level features.
     /// </summary>
+    /// <remarks>
+    /// A connection's endpoints are only meaningful relative to its own containing definition's
+    /// direct children — two different containing definitions may each declare a same-simple-named
+    /// part (e.g. both have <c>part logger : Logger;</c>). A single flat cross-workspace name index
+    /// built from every collected top-level part (as a naive <see cref="BuildPartIndex"/> call would)
+    /// would silently keep only the first such part under that name, causing bogus or dropped
+    /// connections for every other definition sharing the name. Instead, this groups
+    /// <paramref name="topLevelParts"/> by <see cref="TopLevelPart.OwnerQualifiedName"/> into a
+    /// per-owner name → index map (<c>byOwner</c>, keyed against the overall <paramref name="topLevelParts"/>
+    /// list position, matching the part ordering the caller lays out), then resolves each definition's
+    /// own connections only against its own restricted, unambiguous index — never the flat union.
+    /// </remarks>
     /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
-    /// <param name="partIndex">Name → index lookup for the collected top-level parts.</param>
+    /// <param name="topLevelParts">
+    /// The top-level parts collected by <see cref="CollectTopLevelScopedParts"/>, each paired with
+    /// its owning definition's qualified name.
+    /// </param>
     /// <param name="scope">The view's resolved <c>expose</c> containment-subtree scope.</param>
     /// <returns>The resolved connection pairs between top-level parts, if any.</returns>
     private static IReadOnlyList<ConnPair> ResolveTopLevelConnections(
         IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
-        Dictionary<string, int> partIndex,
+        IReadOnlyList<TopLevelPart> topLevelParts,
         ExposedScope scope)
     {
+        // Group the collected top-level parts by their owning definition, building each owner's own
+        // restricted simple-name → overall-list-index map so same-simple-named parts owned by
+        // different definitions can never collide.
+        var byOwner = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+        for (var i = 0; i < topLevelParts.Count; i++)
+        {
+            var owner = topLevelParts[i].OwnerQualifiedName;
+            if (owner is null)
+            {
+                continue;
+            }
+
+            if (!byOwner.TryGetValue(owner, out var ownerIndex))
+            {
+                ownerIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+                byOwner[owner] = ownerIndex;
+            }
+
+            ownerIndex.TryAdd(topLevelParts[i].Part.Name, i);
+        }
+
         var pairs = new List<ConnPair>();
         foreach (var def in defsByName.Values.Distinct())
         {
+            if (def.QualifiedName is not { Length: > 0 } ownerName || !byOwner.TryGetValue(ownerName, out var partIndex))
+            {
+                // This definition owns no collected top-level part, so none of its own connections
+                // could possibly resolve to a top-level part; skip it rather than resolving against
+                // an unrelated (or the wrong) owner's index.
+                continue;
+            }
+
             foreach (var conn in def.Children.OfType<SysmlConnectionNode>())
             {
                 if (conn.QualifiedName is not { Length: > 0 } fqn || !ExposeScopeResolver.IsInSubjectScope(fqn, scope))
