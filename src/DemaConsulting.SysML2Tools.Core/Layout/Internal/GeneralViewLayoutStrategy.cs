@@ -23,10 +23,12 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// Every definition and package folder is expressed as a single <see cref="LayoutGraph"/> — packages
 /// as <see cref="BoxShape.Folder"/>-shaped container nodes, definitions as leaf nodes carrying their
 /// <see cref="LayoutGraphNode.Keyword"/> and <see cref="LayoutGraphNode.Compartments"/> — and the
-/// whole graph is placed with a single <see cref="HierarchicalLayoutAlgorithm.Apply"/> call: the root
-/// scope packs package folders and top-level definitions by reading order
-/// (<see cref="ContainmentLayoutAlgorithm"/>), while each folder's own contents are ordered by their
-/// intra-package edges with the bundled layered algorithm (<see cref="LayeredLayoutAlgorithm"/>). All
+/// whole graph is placed with a single <see cref="LayoutAlgorithmBase.Apply(LayoutGraph)"/> call via
+/// <see cref="AutoLayoutAlgorithm"/>: root-scope folders/top-level definitions are classified by
+/// connectivity, with connected groups routed through the bundled layered algorithm
+/// (<see cref="LayeredLayoutAlgorithm"/>) and disconnected/singleton nodes packed by reading order
+/// (<see cref="ContainmentLayoutAlgorithm"/>), while each folder's own contents are always ordered by
+/// their intra-package edges with the layered algorithm. All
 /// box sizing (title bands, compartment rows) remains this strategy's responsibility, since the
 /// layout stage is theme-agnostic. Standard-library declarations are excluded via
 /// <see cref="StdlibFilter"/>. <see cref="RenderOptions.DepthLimit"/> caps nesting depth
@@ -323,12 +325,14 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Build the single input graph: package folders as containers, definitions as leaves.
         var (graph, truncated) = BuildGraph(groups, childrenByParent, modelEdges, theme, options.DepthLimit, scope is not null);
 
-        // Lay out the whole graph in one call: the root scope packs folders/top-level definitions by
-        // reading order (containment), while each folder's own contents are ordered by their
-        // intra-package edges with the layered algorithm — selected per folder node, per the
-        // established per-container-algorithm convention.
-        var rootOptions = LayoutOptions.ForAlgorithm(ContainmentLayoutAlgorithm.AlgorithmId);
-        var tree = new HierarchicalLayoutAlgorithm().Apply(graph, rootOptions);
+        // Lay out the whole graph in one call, delegating root-scope algorithm selection to "auto":
+        // it classifies the root's own folders/top-level definitions by connectivity, routing
+        // connected groups through the layered algorithm and packing disconnected/singleton nodes by
+        // reading order (containment) — the same per-container-algorithm convention this strategy
+        // already applies per folder, just resolved automatically at the root instead of being pinned
+        // to a single fixed algorithm for every root-scope node regardless of its own connectivity.
+        graph.Set(CoreOptions.Algorithm, AutoLayoutAlgorithm.AlgorithmId);
+        var tree = LayoutEngine.Layout(graph);
 
         // Stamp the "+N more…" ellipsis label onto each truncated folder's or truncated
         // definition's placed box. The leaf algorithm emits one box per node in Nodes order at
@@ -1359,7 +1363,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// pattern manipulates raw <c>Rect</c>/<c>LayoutNode</c> coordinates after a simpler,
     /// non-graph-based layout pass specific to state diagrams, which does not exist in this
     /// strategy's architecture (a single <see cref="LayoutGraph"/> handed once to
-    /// <see cref="HierarchicalLayoutAlgorithm.Apply"/>). Emitting the note as an ordinary graph
+    /// <see cref="LayoutAlgorithmBase.Apply(LayoutGraph)"/>). Emitting the note as an ordinary graph
     /// node/edge is consistent with how every other box/edge in this file is already produced, and
     /// lower-risk than hand-computing satellite coordinates in a graph-based layout model that was
     /// not designed for post-hoc absolute placement. Does nothing when the definition has no

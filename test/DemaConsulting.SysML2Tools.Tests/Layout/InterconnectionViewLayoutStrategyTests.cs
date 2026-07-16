@@ -1337,4 +1337,69 @@ public sealed class InterconnectionViewLayoutStrategyTests
         var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
         Assert.Equal("System", container.Label);
     }
+
+    /// <summary>
+    ///     Regression test: a part def whose parts have no connections between them (a common case
+    ///     for a top-level system composed purely of independent subsystems) must be packed into a
+    ///     compact multi-row/column grid via the containment-packing algorithm, not stacked into a
+    ///     single tall vertical column. Reproduces the shape of the real VersionMark model that
+    ///     surfaced the bug: nine unconnected peer parts. (Fewer than about nine same-sized minimum-
+    ///     width parts is not actually enough for the packer's area-based width budget to clear the
+    ///     two-column threshold — this part count is the smallest that reliably demonstrates the
+    ///     fix rather than an artifact of the packer's own sizing heuristic.) A degenerate single-
+    ///     column layout would place every box at a distinct X (or Y) coordinate; the containment-
+    ///     packed layout instead reuses coordinates across rows/columns.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_UnconnectedPeerParts_PacksIntoCompactGridNotSingleColumn()
+    {
+        // Arrange: a System part def with nine unconnected parts (no SysmlConnectionNode children).
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var system = new SysmlDefinitionNode
+        {
+            Name = "System",
+            QualifiedName = "M::System",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "p1", QualifiedName = "M::System::p1", FeatureKeyword = "part", FeatureTyping = "P1" },
+                new SysmlFeatureNode { Name = "p2", QualifiedName = "M::System::p2", FeatureKeyword = "part", FeatureTyping = "P2" },
+                new SysmlFeatureNode { Name = "p3", QualifiedName = "M::System::p3", FeatureKeyword = "part", FeatureTyping = "P3" },
+                new SysmlFeatureNode { Name = "p4", QualifiedName = "M::System::p4", FeatureKeyword = "part", FeatureTyping = "P4" },
+                new SysmlFeatureNode { Name = "p5", QualifiedName = "M::System::p5", FeatureKeyword = "part", FeatureTyping = "P5" },
+                new SysmlFeatureNode { Name = "p6", QualifiedName = "M::System::p6", FeatureKeyword = "part", FeatureTyping = "P6" },
+                new SysmlFeatureNode { Name = "p7", QualifiedName = "M::System::p7", FeatureKeyword = "part", FeatureTyping = "P7" },
+                new SysmlFeatureNode { Name = "p8", QualifiedName = "M::System::p8", FeatureKeyword = "part", FeatureTyping = "P8" },
+                new SysmlFeatureNode { Name = "p9", QualifiedName = "M::System::p9", FeatureKeyword = "part", FeatureTyping = "P9" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["M::System"] = system }
+        };
+        var context = new ViewContext("SystemInterconnectionView", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: nine non-overlapping part boxes, no connector lines (nothing to route).
+        var parts = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
+        Assert.Equal(9, parts.Count);
+        Assert.Empty(CollectLines(layout.Nodes));
+        for (var i = 0; i < parts.Count; i++)
+        {
+            for (var j = i + 1; j < parts.Count; j++)
+            {
+                Assert.False(Overlaps(parts[i], parts[j]), $"{parts[i].Label} overlaps {parts[j].Label}");
+            }
+        }
+
+        // Assert: packed into more than one row and more than one column — a degenerate single
+        // vertical column would have six distinct Y values and a single shared X value.
+        var distinctX = parts.Select(p => p.X).Distinct().Count();
+        var distinctY = parts.Select(p => p.Y).Distinct().Count();
+        Assert.True(distinctX > 1, "Expected parts to span more than one column, not a single vertical column.");
+        Assert.True(distinctY < parts.Count, "Expected some parts to share a row, not one row per part.");
+    }
 }

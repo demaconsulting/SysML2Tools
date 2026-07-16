@@ -4,6 +4,7 @@
 
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
+using DemaConsulting.Rendering.Layout;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -142,9 +143,11 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Lays out the interior of one definition: collects its parts (recursing into container
-    /// parts), places them with the bundled layered algorithm, and emits one rounded
-    /// box per part plus a port pair and connector line per connection — all positioned relative to
-    /// the container's own top-left origin <c>(0, 0)</c>.
+    /// parts), places them with the "auto" layout algorithm — which classifies parts by connectivity
+    /// and packs disconnected/singleton parts via the containment algorithm while routing connected
+    /// groups through the bundled layered algorithm — and emits one rounded box per part plus a port
+    /// pair and connector line per connection, all positioned relative to the container's own
+    /// top-left origin <c>(0, 0)</c>.
     /// </summary>
     /// <param name="def">The definition whose interior to lay out.</param>
     /// <param name="theme">The active rendering theme.</param>
@@ -167,6 +170,19 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var partIndex = BuildPartIndex(parts);
         var pairs = ResolveConnections(def, partIndex);
 
+        return LayOutInteriorWithConnections(parts, pairs, theme, depth);
+    }
+
+    /// <summary>
+    /// Lays out a definition's parts when at least one connection exists between them, delegating
+    /// placement and orthogonal edge routing to the bundled layered algorithm.
+    /// </summary>
+    private static InteriorLayout LayOutInteriorWithConnections(
+        IReadOnlyList<PartItem> parts,
+        IReadOnlyList<ConnPair> pairs,
+        Theme theme,
+        int depth)
+    {
         var nodeSizes = parts.Select(p => (p.Width, p.Height, HasLabel: true, HasKeyword: true)).ToList();
 
         var portEdges = pairs
