@@ -258,11 +258,13 @@ sections:
           boxes overlap and every package folder stays clear of the others.
         justification: |
           The whole General View is expressed as a single input LayoutGraph — package folders as
-          container nodes, definitions as leaves — and placed with one
-          HierarchicalLayoutAlgorithm.Apply call: the root scope packs folders and top-level
-          definitions by reading order (ContainmentLayoutAlgorithm), while each folder's own
-          contents are ordered by their intra-package edges with the bundled layered algorithm
-          (LayeredLayoutAlgorithm). Delegating the whole placement, including cross-container edge
+          container nodes, definitions as leaves — and placed with one LayoutEngine.Layout call
+          via the "auto" meta-algorithm (AutoLayoutAlgorithm): the root scope classifies folders
+          and top-level definitions by connectivity, routing connected groups through the bundled
+          layered algorithm (LayeredLayoutAlgorithm) and packing disconnected/singleton nodes by
+          reading order (ContainmentLayoutAlgorithm), while each folder's own contents are always
+          ordered by their intra-package edges with the layered algorithm. Delegating the whole
+          placement, including cross-container edge
           anchoring, to Rendering's own engine gives the General View ELK-style box placement and
           orthogonal edge routing without SysML2Tools duplicating any layout logic. The observable
           guarantee that matters to readers is that boxes and folders never overlap, regardless of

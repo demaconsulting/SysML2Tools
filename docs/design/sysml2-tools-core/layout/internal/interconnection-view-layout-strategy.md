@@ -24,8 +24,12 @@ container size and content produced by laying out one definition's interior).
 
 Entry point. Resolves the view's `expose` scope via `ExposeScopeResolver.ResolveExposedScope`,
 selects the root part definition via `FindRoot(workspace, scope)`, builds the container-definition
-index via `BuildDefinitionIndex`, lays out the root's interior via `LayOutInterior` (threading
-`scope` through every recursive call), and assembles the root container box with the interior
+index via `BuildDefinitionIndex`, lays out the root's interior via `LayOutInterior` (applying
+`scope`'s namespace-prefix filter only at the root's own direct children, depth 0; every deeper
+recursive call passes `scope: null` so a nested container's own interior always shows its full
+composition structure regardless of which namespace it — or the view's exposed subject — happens to
+be declared in, since composition structure and namespace/file organization are independent in
+SysML v2), and assembles the root container box with the interior
 content nested as that box's own `Children` (mirroring the nesting `MakePartBox` already uses for a
 container part, so the root box is never a bare sibling of its own content) into the `LayoutTree`.
 Returns a minimal 200×100 empty `LayoutTree` when no root or no parts are found.

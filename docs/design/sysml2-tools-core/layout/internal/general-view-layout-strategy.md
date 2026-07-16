@@ -14,11 +14,13 @@ membership, attribute-typing, redefinition, subsetting, connect, allocate, depen
 binding edges orthogonally between the boxes. The whole diagram — package
 folders, definition-as-container boxes, and plain definitions alike — is expressed as a single
 `DemaConsulting.Rendering` `LayoutGraph`
-and placed with one `HierarchicalLayoutAlgorithm.Apply` call: the root scope packs package folders
-and top-level definitions by reading order (`ContainmentLayoutAlgorithm`), while each container's
-own contents (a folder's or a nested-owning-definition's) are ordered by their intra-container
-edges with the bundled layered algorithm
-(`LayeredLayoutAlgorithm`). All box sizing (title bands, compartment rows) remains this strategy's
+and placed with one `LayoutEngine.Layout` call via the `"auto"` meta-algorithm
+(`AutoLayoutAlgorithm`): the root scope classifies package folders and top-level definitions by
+connectivity, routing connected groups through the bundled layered algorithm
+(`LayeredLayoutAlgorithm`) and packing disconnected/singleton nodes by reading order
+(`ContainmentLayoutAlgorithm`), while each container's own contents (a folder's or a
+nested-owning-definition's) are always ordered by their intra-container edges with the layered
+algorithm. All box sizing (title bands, compartment rows) remains this strategy's
 responsibility, since the layout stage in `DemaConsulting.Rendering.Layout` is theme-agnostic;
 box title and folder-tab geometry come from `BoxMetrics` in `DemaConsulting.Rendering.Abstractions`.
 
@@ -92,11 +94,12 @@ connect/allocate/dependency/binding relationships are
 resolved into qualified-name edges (plus any dropped-edge diagnostics) with `BuildModelEdges`, the
 single input `LayoutGraph` is built
 with `BuildGraph` (passed `childrenByParent` and whether the view has a resolved scope), and the
-whole graph is placed with one
-`HierarchicalLayoutAlgorithm().Apply(graph, LayoutOptions.ForAlgorithm("containment"))` call —
-passing the desired root-scope leaf algorithm through the options parameter (not
-`graph.Set(CoreOptions.Algorithm, …)`) so a caller going through `LayoutEngine.Layout(graph)` later
-is never misled into skipping the hierarchical engine. When any package folder or
+whole graph is placed with one `LayoutEngine.Layout(graph)` call after setting
+`graph.Set(CoreOptions.Algorithm, AutoLayoutAlgorithm.AlgorithmId)` — delegating root-scope
+algorithm selection to `"auto"`, which classifies the root's own folders/top-level definitions by
+connectivity (routing connected groups through the layered algorithm and packing
+disconnected/singleton nodes via containment) rather than pinning every root-scope node to a single
+fixed algorithm regardless of its own connectivity. When any package folder or
 nested-definition-containing definition was depth-truncated, `DecorateTruncated` stamps each
 truncated container's "+N more…" ellipsis label onto its placed box. Finally, the returned tree's `Warnings` concatenates
 `LayoutWarnings.ForUnevaluatedFilter` (only when standalone filter parsing/evaluation failed),
@@ -481,9 +484,9 @@ produces valid geometry, so no crossing warnings are emitted.
   inputs.
 - `LayoutGraph`, `LayoutGraphNode`, `LayoutGraphEdge`, and `CoreOptions` (`DemaConsulting.Rendering`) —
   the input graph model and its well-known cascading options.
-- `HierarchicalLayoutAlgorithm`, `ContainmentLayoutAlgorithm`, `LayeredLayoutAlgorithm`, and
-  `LayoutOptions` (`DemaConsulting.Rendering.Layout`) — the layout engine and the bundled leaf
-  algorithms it delegates to per scope.
+- `AutoLayoutAlgorithm`, `ContainmentLayoutAlgorithm`, `LayeredLayoutAlgorithm`, and `LayoutEngine`
+  (`DemaConsulting.Rendering.Layout`) — the layout engine and the bundled leaf algorithms it
+  delegates to per scope.
 - `BoxMetrics` (`DemaConsulting.Rendering.Abstractions`) — box title-area and folder-tab geometry.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode` (Semantic subsystem) — model input;
