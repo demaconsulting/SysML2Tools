@@ -1272,6 +1272,53 @@ public sealed class InterconnectionViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     When the resolved <c>expose</c> scope is purely non-recursive — here <c>expose
+    ///     Root::NsA::System;</c> plus <c>expose Root::NsA::System::*;</c>, i.e. one
+    ///     <see cref="ExposeRecursionKind.MembershipExact"/> subject and one
+    ///     <see cref="ExposeRecursionKind.NamespaceDirectChildren"/> subject, with <em>no</em> subject
+    ///     carrying unlimited-depth recursion — <c>HasUnlimitedRecursion</c> evaluates to
+    ///     <see langword="false"/>, so interior expansion stops at depth 0: the root's own direct part
+    ///     child (<c>sub : Sub</c>) still renders as its own box, but that box carries no nested
+    ///     <c>unit1</c>/<c>unit2</c> boxes of its own, even though <c>Sub</c> has its own nested parts.
+    ///     This is the fix-targeting scenario: contrast with
+    ///     <see cref="InterconnectionView_BuildLayout_ExposeRootOnly_NestedSubsystemInDifferentNamespace_RendersItsOwnUnits"/>,
+    ///     which uses a recursive subject on the same workspace shape and must retain full recursion.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeNonRecursiveSubjects_DoesNotRecurseIntoNestedPartsInterior()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildCrossNamespaceCompositionWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposeMembers =
+            [
+                new ExposeMember("Root::NsA::System", null, ExposeRecursionKind.MembershipExact),
+                new ExposeMember("Root::NsA::System", null, ExposeRecursionKind.NamespaceDirectChildren)
+            ],
+            ResolvedEdges =
+            [
+                new SysmlEdge("Root::V", "Root::NsA::System", SysmlEdgeKind.Expose),
+                new SysmlEdge("Root::V", "Root::NsA::System", SysmlEdgeKind.Expose)
+            ]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
+        Assert.Equal("System", container.Label);
+
+        // The subsystem itself still renders as a box, but as a leaf — its own unit1/unit2 interior
+        // is never drawn under a non-recursive scope.
+        var subBox = FindPartBox(layout, "sub : Sub");
+        Assert.Empty(CollectBoxes(subBox.Children));
+    }
+
+    /// <summary>
     ///     Builds a workspace with a genuine two-tier composition root (<c>Root::NsA::System</c>
     ///     composes <c>Root::NsB::Sub</c> via a typed <c>part</c> feature) alongside an unrelated
     ///     orphan definition (<c>Root::NsC::Deeply::Nested::OrphanLeaf</c>) that has a deeper
@@ -1508,16 +1555,20 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
     /// <summary>
     ///     When the exposed namespace's direct-child part is itself typed by a <c>part def</c> that
-    ///     has its own nested parts, the single top-level box's own <c>Children</c> contain the
-    ///     nested part boxes — proving the boxless top-level fallback reuses the same recursive
-    ///     container detection (<c>BuildPartItem</c>) as every other nested part, rather than
-    ///     duplicating a shallow copy of that logic.
+    ///     has its own nested parts, the resolved scope here is purely non-recursive
+    ///     (<c>NamespaceDirectChildren</c>, i.e. <c>expose NsRoot::*;</c>, with no recursive subject),
+    ///     so <c>HasUnlimitedRecursion</c> is <see langword="false"/> and interior expansion must stop
+    ///     at depth 0: the single top-level box renders as an intrinsic-sized leaf with no nested part
+    ///     boxes of its own, even though its type (<c>Motherboard</c>) has its own <c>cpu</c>/
+    ///     <c>chipset</c> parts. This also proves the boxless top-level fallback
+    ///     (<c>CollectTopLevelScopedParts</c>) shares the exact same depth-limiting gate as the normal
+    ///     container-rooted path, since both funnel through the same <c>BuildPartItem</c>.
     /// </summary>
     [Fact]
-    public void InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_TopLevelFeatureIsContainer_RecursesInterior()
+    public void InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_ContainerFeature_RendersAsLeaf()
     {
         // Arrange: NsRoot::board : Motherboard { cpu, chipset, connect cpu to chipset } — two levels
-        // deep — exposed via "expose NsRoot::*;" (NamespaceDirectChildren).
+        // deep — exposed via "expose NsRoot::*;" (NamespaceDirectChildren, non-recursive).
         var strategy = new InterconnectionViewLayoutStrategy();
         var motherboard = new SysmlDefinitionNode
         {
@@ -1559,13 +1610,13 @@ public sealed class InterconnectionViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: exactly one top-level box (no frame), and its own Children hold the nested
-        // cpu/chipset part boxes recursed via the shared BuildPartItem logic.
+        // Assert: exactly one top-level box (no frame), and it carries no nested part boxes — the
+        // non-recursive scope limits expansion to depth 0, so board's own cpu/chipset interior is
+        // never drawn.
         var topBox = Assert.Single(layout.Nodes.OfType<LayoutBox>());
         Assert.Contains("board", topBox.Label, StringComparison.Ordinal);
-        var nestedLabels = CollectBoxes(topBox.Children).Select(b => b.Label).ToList();
-        Assert.Contains(nestedLabels, l => l is not null && l.Contains("cpu", StringComparison.Ordinal));
-        Assert.Contains(nestedLabels, l => l is not null && l.Contains("chipset", StringComparison.Ordinal));
+        var nestedBoxes = CollectBoxes(topBox.Children).ToList();
+        Assert.Empty(nestedBoxes);
     }
 
     /// <summary>
