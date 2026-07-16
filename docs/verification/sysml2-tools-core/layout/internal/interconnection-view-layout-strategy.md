@@ -27,6 +27,19 @@ heuristic. A further test confirms every left/right port sits below its own box'
 reservation activates for it. No mocking is required; the strategy depends only on the in-memory
 model, `LayeredPlacement`, and render options.
 
+A dedicated set of tests exercises the no-single-root scoped fallback: a workspace shaped exactly
+like the reported bug (a namespace-like `part def` whose only nested content is a single `part`
+feature usage, exposed via `expose Namespace::*;`) asserts the previously-empty canvas now renders
+that feature directly, with no frame for the enclosing namespace anywhere in the tree; a two-sibling
+variant asserts two independent top-level parts render as two non-overlapping top-level boxes; a
+container-typed top-level feature variant asserts the recursion into its own nested parts still
+fires (proving `BuildPartItem` is shared, not duplicated); a connection-between-top-level-parts
+variant asserts a connector is drawn when the connection's own qualified name is itself in scope;
+and a nested-qualified-name variant asserts a matched feature nested under another matched
+feature's own qualified name is excluded from the top-level set (not duplicated). A final
+regression test pins down the preserved empty-canvas fallback when the scope matches no `part`
+feature at all.
+
 ##### Test Environment
 
 Tests run via `dotnet test` against net8.0, net9.0, and net10.0. No external services, files, or
@@ -85,6 +98,20 @@ configuration are required beyond a standard .NET SDK installation.
   connection count — the layered algorithm's automatic title-vs-side-port reservation, activated by
   flagging every part node `HasLabel: true, HasKeyword: true`, keeps ports clear of the box's own
   "«keyword» / name : type" header row.
+- When `FindRoot` selects no root but the resolved `expose` scope directly includes a top-level
+  `part` feature usage (e.g. `expose Namespace::*;` where `Namespace` is only a `part def` with one
+  nested `part`), that feature renders directly as a boxless node — `LayoutTree.Nodes` holds exactly
+  one box, with no frame labeled for the enclosing namespace anywhere in the tree.
+- Two independent top-level scoped parts render as two non-overlapping top-level boxes with no
+  wrapping frame.
+- A top-level scoped feature that is itself typed by a container definition still recurses into its
+  own nested parts, which appear as that top-level box's own `Children`.
+- A connection between two top-level scoped parts is drawn as a connector line when the connection's
+  own qualified name is itself within the resolved scope.
+- A matched top-level feature whose qualified name is nested under another matched feature's own
+  qualified name is excluded from the top-level set (not duplicated as its own separate node).
+- When the resolved `expose` scope matches no `part` feature usage at all, the pre-existing minimal
+  empty canvas is returned unchanged.
 
 ##### Test Scenarios
 
@@ -114,3 +141,9 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
 | `InterconnectionView_BuildLayout_ExposeInnerPartOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested wins |
 | `InterconnectionView_BuildLayout_ExposeBothSameDepthSiblings_ScoreBreaksTieNotLength` | Score breaks the tie |
+| `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NoRootDef_RendersTopLevelFeatureWithoutFrame` | Alone |
+| `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_TwoTopLevelParts_ArrangesSideBySideNoFrame` | 2 boxes |
+| `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_TopLevelFeatureIsContainer_RecursesInterior` | Nested |
+| `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NoMatchingFeature_ReturnsMinimalCanvas` | No match |
+| `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_ConnectionBetweenTopLevelFeatures_DrawsEdge` | Linked |
+| `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NestedTopLevelFeatureExcluded_NotDuplicated` | Dedup |

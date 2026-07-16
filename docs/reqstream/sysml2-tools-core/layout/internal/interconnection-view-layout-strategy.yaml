@@ -251,3 +251,56 @@ sections:
           part.
         tests:
           - InterconnectionView_BuildLayout_PartWithPorts_PortsNeverOverlapBoxTitleArea
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedTopLevelFeatureFallback
+        title: >-
+          When no candidate root definition is scope-relevant but the resolved expose scope
+          directly includes one or more top-level part feature usages, InterconnectionViewLayoutStrategy
+          shall render those features as boxless nodes side by side instead of an empty canvas,
+          recursing into each feature's own interior exactly as a normal nested container part
+          would.
+        justification: |
+          Per SysML v2 spec §8.3.26.11 and §9.2.20.2.6, an InterconnectionView's exposed content
+          need not be a single definition — a scope such as `expose PublishingSubsystem::*;` where
+          `PublishingSubsystem` is itself only a namespace-like `part def` with a single nested
+          `part` feature usage names something concrete to draw even though no single `part def`
+          qualifies as "the" root. Before this fallback, `FindRoot` returning no root always
+          produced a totally empty canvas in this shape, silently discarding a valid diagram. Boxless
+          side-by-side placement (reusing the same `LayeredPlacement.PlaceWithPorts` containment
+          packing every other case already uses) and reusing the same container-vs-leaf recursion
+          `CollectParts` uses for every other nested part (via the shared `BuildPartItem` helper)
+          avoids duplicating any layout or recursion logic for this fallback.
+        tests:
+          - InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NoRootDef_RendersTopLevelFeatureWithoutFrame
+          - InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_TwoTopLevelParts_ArrangesSideBySideNoFrame
+          - InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_TopLevelFeatureIsContainer_RecursesInterior
+          - InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NestedTopLevelFeatureExcluded_NotDuplicated
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedTopLevelFeatureFallbackConnections
+        title: >-
+          When two or more boxless top-level parts are connected by a connection whose own
+          qualified name is itself within the resolved expose scope, InterconnectionViewLayoutStrategy
+          shall draw a connector between them; otherwise no edges are drawn for the fallback.
+        justification: |
+          A connector between two top-level exposed features is a rare but valid shape a resolved
+          `expose` scope can name; if it is itself resolvable and in scope, it must be drawn so the
+          diagram does not silently omit a relationship the model actually declares. This reuses the
+          same endpoint-resolution logic (`ResolveEndpoint`) as every other connection in this
+          strategy.
+        tests:
+          - InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_ConnectionBetweenTopLevelFeatures_DrawsEdge
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedTopLevelFeatureFallbackEmptyCanvas
+        title: >-
+          When no candidate root definition is scope-relevant and the resolved expose scope
+          matches no part feature usage, InterconnectionViewLayoutStrategy shall return the
+          existing minimal empty canvas, unchanged.
+        justification: |
+          The no-single-root scoped fallback must never regress the pre-existing empty-canvas
+          behavior for a scope (or absence of scope) that genuinely names nothing concrete to
+          draw — for example a scope whose only member is a non-part feature. Preserving the exact
+          `new LayoutTree(200.0, 100.0, [])` result in that case keeps every other unit that
+          consumes an Interconnection View's `LayoutTree` unaffected.
+        tests:
+          - InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NoMatchingFeature_ReturnsMinimalCanvas
+          - InterconnectionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas

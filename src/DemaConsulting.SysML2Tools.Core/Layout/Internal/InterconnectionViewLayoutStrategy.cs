@@ -41,6 +41,16 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// non-recursive layout. Recursion is driven here, at the strategy level, because container detection
 /// is a semantic-model concern the model-independent algorithm cannot see.
 /// </para>
+/// <para>
+/// Not every resolved <c>expose</c> scope names a single <c>part def</c> worth treating as "the"
+/// subject: per SysML v2 §8.3.26.11/§9.2.20.2.6, an InterconnectionView's exposed content can be one
+/// or more concrete feature usages directly, with no enclosing definition of its own. When
+/// <see cref="FindRoot"/> selects no root but the scope directly includes one or more top-level
+/// <c>part</c> feature usages, those features are rendered as boxless nodes side by side (via
+/// <see cref="CollectTopLevelScopedParts"/>) instead of the diagram falling back to an empty canvas
+/// — each one recursing into its own interior exactly as a normal nested container part would,
+/// reusing <see cref="BuildPartItem"/> so the container-vs-leaf logic is never duplicated.
+/// </para>
 /// </remarks>
 internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 {
@@ -103,6 +113,27 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var root = FindRoot(context.Workspace, scope, defsByName);
         if (root is null)
         {
+            // No single part def qualifies as "the" root. Per SysML v2 §8.3.26.11/§9.2.20.2.6, an
+            // InterconnectionView's subject need not be one definition — when the resolved expose
+            // scope directly names one or more concrete part feature usages, render those as
+            // boxless nodes side by side (via the same sensible existing layout helper,
+            // LayeredPlacement.PlaceWithPorts, used for every other case) instead of falling back to
+            // a totally empty canvas. When there is nothing concrete to draw either (no scope at
+            // all, or a scope that matches no part feature), the existing empty-canvas fallback is
+            // preserved unchanged.
+            if (scope is not null)
+            {
+                var topLevelParts = CollectTopLevelScopedParts(context.Workspace, scope, theme, defsByName);
+                if (topLevelParts.Count > 0)
+                {
+                    var partIndex = BuildPartIndex(topLevelParts);
+                    var pairs = ResolveTopLevelConnections(defsByName, partIndex, scope);
+                    var layout = LayOutInteriorWithConnections(
+                        topLevelParts, pairs, theme, boxDepth: 0, reserveTitleArea: false);
+                    return new LayoutTree(layout.Width, layout.Height, layout.Content);
+                }
+            }
+
             return new LayoutTree(200.0, 100.0, []);
         }
 
@@ -170,18 +201,35 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var partIndex = BuildPartIndex(parts);
         var pairs = ResolveConnections(def, partIndex);
 
-        return LayOutInteriorWithConnections(parts, pairs, theme, depth);
+        return LayOutInteriorWithConnections(parts, pairs, theme, boxDepth: depth + 1);
     }
 
     /// <summary>
     /// Lays out a definition's parts when at least one connection exists between them, delegating
     /// placement and orthogonal edge routing to the bundled layered algorithm.
     /// </summary>
+    /// <param name="parts">The parts to place.</param>
+    /// <param name="pairs">The resolved connections between the parts.</param>
+    /// <param name="theme">The active rendering theme.</param>
+    /// <param name="boxDepth">
+    /// The <see cref="LayoutBox.Depth"/> to stamp on each placed part's own box (not the
+    /// container's — the caller passes its own container depth, plus one, for a normal nested
+    /// interior; the no-single-root fallback in <see cref="BuildLayout"/> passes <c>0</c> directly
+    /// since there is no enclosing container box at all in that path).
+    /// </param>
+    /// <param name="reserveTitleArea">
+    /// Whether to reserve a title band above the placed content, as a normal container box's own
+    /// title requires. <see langword="true"/> (the default) for every existing container-interior
+    /// caller; <see langword="false"/> only for the no-single-root boxless fallback in
+    /// <see cref="BuildLayout"/>, where there is no enclosing frame/title to make room for — the
+    /// returned size is then just the bounding box of the placed content plus normal padding.
+    /// </param>
     private static InteriorLayout LayOutInteriorWithConnections(
         IReadOnlyList<PartItem> parts,
         IReadOnlyList<ConnPair> pairs,
         Theme theme,
-        int depth)
+        int boxDepth,
+        bool reserveTitleArea = true)
     {
         var nodeSizes = parts.Select(p => (p.Width, p.Height, HasLabel: true, HasKeyword: true)).ToList();
 
@@ -205,8 +253,10 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         // independently-routed connector instead of collapsing onto one shared route.
         var placed = LayeredPlacement.PlaceWithPorts(nodeSizes, portEdges, LayoutFlowDirection.Right);
 
-        // Shift placed content down/right to sit inside the container box.
-        var titleArea = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true);
+        // Shift placed content down/right to sit inside the container box. When there is no
+        // enclosing container (the boxless top-level fallback), no title band is reserved, so the
+        // top offset collapses to the same padding-only inset used on every other side.
+        var titleArea = reserveTitleArea ? BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true) : 0.0;
         var offsetX = theme.LabelPadding * 2.0;
         var offsetY = titleArea + (theme.LabelPadding * 2.0);
 
@@ -233,7 +283,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         for (var i = 0; i < parts.Count; i++)
         {
             var r = placed.Rects[i];
-            content.Add(MakePartBox(parts[i], new Rect(r.X + offsetX, r.Y + offsetY, r.Width, r.Height), depth + 1));
+            content.Add(MakePartBox(parts[i], new Rect(r.X + offsetX, r.Y + offsetY, r.Width, r.Height), boxDepth));
         }
 
         // One port pair and one connector line per connection. The algorithm returns exactly one
@@ -430,27 +480,156 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            var name = feature.Name ?? feature.FeatureTyping ?? "part";
-
-            if (TryResolveContainer(feature.FeatureTyping, defsByName, visited, out var childDef))
-            {
-                // Container part: lay out its interior bottom-up and treat it as an atomic node.
-                // Scope is intentionally not carried into this recursive call — see the remarks
-                // above on why nested composition structure is always shown once its owning part
-                // has been included, regardless of the exposed namespace scope.
-                var childVisited = new HashSet<string>(visited, StringComparer.Ordinal) { childDef.QualifiedName! };
-                var inner = LayOutInterior(childDef, theme, depth + 1, defsByName, childVisited, scope: null);
-                result.Add(new PartItem(name, "part", feature.FeatureTyping, inner.Width, inner.Height, inner.Content));
-            }
-            else
-            {
-                // Leaf part: intrinsic size, no nested content.
-                var (width, height) = ComputePartSize(name, feature.FeatureTyping, theme);
-                result.Add(new PartItem(name, "part", feature.FeatureTyping, width, height, null));
-            }
+            result.Add(BuildPartItem(feature, theme, depth, defsByName, visited));
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Builds a single nested part usage's <see cref="PartItem"/>, recursing into its interior when
+    /// the part's type resolves to a container definition (a non-stdlib <c>part def</c> with its own
+    /// internal parts, not already on the recursion path) and computing an intrinsic leaf size
+    /// otherwise. Extracted from <see cref="CollectParts"/> so the same container-vs-leaf recursion
+    /// is reused verbatim by <see cref="CollectTopLevelScopedParts"/> — the boxless top-level
+    /// fallback path must lay out each top-level feature exactly as a normal nested part would be,
+    /// per the "no duplicated logic" coding principle.
+    /// </summary>
+    /// <param name="feature">The part feature usage to build a <see cref="PartItem"/> for.</param>
+    /// <param name="theme">The active rendering theme.</param>
+    /// <param name="depth">Nesting depth of the feature's own container box (0 for a top-level part).</param>
+    /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
+    /// <param name="visited">Qualified names already on the recursion path, guarding against cycles.</param>
+    /// <returns>The built <see cref="PartItem"/>, container or leaf.</returns>
+    private static PartItem BuildPartItem(
+        SysmlFeatureNode feature,
+        Theme theme,
+        int depth,
+        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        ISet<string> visited)
+    {
+        var name = feature.Name ?? feature.FeatureTyping ?? "part";
+
+        if (TryResolveContainer(feature.FeatureTyping, defsByName, visited, out var childDef))
+        {
+            // Container part: lay out its interior bottom-up and treat it as an atomic node.
+            // Scope is intentionally not carried into this recursive call — see the remarks on
+            // CollectParts for why nested composition structure is always shown once its owning
+            // part has been included, regardless of the exposed namespace scope.
+            var childVisited = new HashSet<string>(visited, StringComparer.Ordinal) { childDef.QualifiedName! };
+            var inner = LayOutInterior(childDef, theme, depth + 1, defsByName, childVisited, scope: null);
+            return new PartItem(name, "part", feature.FeatureTyping, inner.Width, inner.Height, inner.Content);
+        }
+
+        // Leaf part: intrinsic size, no nested content.
+        var (width, height) = ComputePartSize(name, feature.FeatureTyping, theme);
+        return new PartItem(name, "part", feature.FeatureTyping, width, height, null);
+    }
+
+    /// <summary>
+    /// Collects every top-level <c>part</c> feature usage the resolved <c>expose</c> scope directly
+    /// includes, for the no-single-root fallback path: <see cref="FindRoot"/> found no <c>part def</c>
+    /// worth rendering as a container, but the scope itself names one or more concrete features to
+    /// draw. Per SysML v2 spec §9.2.20.2.6 ("exposed features as nodes, nested features as nested
+    /// nodes") and §8.3.26.11 (an InterconnectionView's subject need not be a single definition),
+    /// each matching feature is rendered directly as its own top-level node rather than the diagram
+    /// falling back to an empty canvas.
+    /// </summary>
+    /// <param name="workspace">The workspace, scanned for every non-stdlib <c>part</c> feature usage.</param>
+    /// <param name="scope">The view's resolved <c>expose</c> containment-subtree scope.</param>
+    /// <param name="theme">The active rendering theme.</param>
+    /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
+    /// <returns>
+    /// The matched top-level parts, each recursively laid out via <see cref="BuildPartItem"/> exactly
+    /// as a normal nested container part would be, in <paramref name="workspace"/>'s declaration
+    /// order. Empty when no non-stdlib <c>part</c> feature satisfies the scope.
+    /// </returns>
+    private static IReadOnlyList<PartItem> CollectTopLevelScopedParts(
+        SysmlWorkspace workspace,
+        ExposedScope scope,
+        Theme theme,
+        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName)
+    {
+        var matched = new List<SysmlFeatureNode>();
+        foreach (var (qualifiedName, node) in workspace.Declarations)
+        {
+            if (node is not SysmlFeatureNode feature || feature.FeatureKeyword != "part")
+            {
+                continue;
+            }
+
+            if (StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
+            {
+                continue;
+            }
+
+            if (!ExposeScopeResolver.IsInSubjectScope(qualifiedName, scope))
+            {
+                continue;
+            }
+
+            matched.Add(feature);
+        }
+
+        // Exclude any matched feature nested ("::"-prefixed) under another matched feature's own
+        // qualified name: it is already reachable as that ancestor's own nested part (rendered via
+        // the recursive BuildPartItem call below), so it must not also appear as its own separate
+        // top-level node.
+        var matchedNames = matched.Select(f => f.QualifiedName).Where(n => n is { Length: > 0 }).ToHashSet(StringComparer.Ordinal);
+        var topLevel = matched
+            .Where(f => f.QualifiedName is not { Length: > 0 } fqn ||
+                        !matchedNames.Any(other => other != fqn && fqn.StartsWith(other + "::", StringComparison.Ordinal)))
+            .ToList();
+
+        var result = new List<PartItem>();
+        foreach (var feature in topLevel)
+        {
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            result.Add(BuildPartItem(feature, theme, depth: 0, defsByName, visited));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Resolves connections between the boxless top-level parts collected by
+    /// <see cref="CollectTopLevelScopedParts"/>, reusing <see cref="ResolveEndpoint"/> verbatim.
+    /// Unlike <see cref="ResolveConnections"/> (which only looks at one definition's own direct
+    /// children), a top-level connection may be declared inside any definition in the workspace, so
+    /// every definition's connections are scanned; a connection is only drawn when its own
+    /// <c>QualifiedName</c> is itself in scope <em>and</em> both endpoints resolve into the top-level
+    /// part set — an incidental connection between unrelated parts must never be surfaced just
+    /// because it happens to share a name with one of the rendered top-level features.
+    /// </summary>
+    /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
+    /// <param name="partIndex">Name → index lookup for the collected top-level parts.</param>
+    /// <param name="scope">The view's resolved <c>expose</c> containment-subtree scope.</param>
+    /// <returns>The resolved connection pairs between top-level parts, if any.</returns>
+    private static IReadOnlyList<ConnPair> ResolveTopLevelConnections(
+        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        Dictionary<string, int> partIndex,
+        ExposedScope scope)
+    {
+        var pairs = new List<ConnPair>();
+        foreach (var def in defsByName.Values.Distinct())
+        {
+            foreach (var conn in def.Children.OfType<SysmlConnectionNode>())
+            {
+                if (conn.QualifiedName is not { Length: > 0 } fqn || !ExposeScopeResolver.IsInSubjectScope(fqn, scope))
+                {
+                    continue;
+                }
+
+                var (a, labelA) = ResolveEndpoint(conn.EndpointA, partIndex);
+                var (b, labelB) = ResolveEndpoint(conn.EndpointB, partIndex);
+                if (a >= 0 && b >= 0 && a != b)
+                {
+                    pairs.Add(new ConnPair(a, b, labelA, labelB));
+                }
+            }
+        }
+
+        return pairs;
     }
 
     /// <summary>

@@ -245,9 +245,10 @@ internal static class ExposeScopeResolver
     /// <see cref="StateTransitionViewLayoutStrategy"/>, <see cref="ActionFlowViewLayoutStrategy"/>, or
     /// <see cref="SequenceViewLayoutStrategy"/> would otherwise pick by its own heuristic) is related
     /// to the resolved <c>expose</c> scope in <paramref name="scope"/>, in either containment
-    /// direction: the candidate itself is an exposed subject/matched member, the candidate lies
-    /// within an exposed subject's containment subtree, or an exposed subject/matched member lies
-    /// within the candidate's own containment subtree (the common "expose an inner
+    /// direction: the candidate itself is an exposed subject/matched member (subject to the same
+    /// per-recursion-kind self-exclusion <see cref="IsInSubjectScope"/> applies — see below), the
+    /// candidate lies within an exposed subject's containment subtree, or an exposed subject/matched
+    /// member lies within the candidate's own containment subtree (the common "expose an inner
     /// state/action/part/lifeline of the root" case).
     /// </summary>
     /// <remarks>
@@ -258,6 +259,17 @@ internal static class ExposeScopeResolver
     /// must break the tie themselves; the single-root <c>FindRoot</c> strategies do so via
     /// <see cref="IsMoreSpecificCandidate"/>, which prefers the most deeply nested relevant candidate
     /// over the plain per-strategy score.
+    /// <para>
+    /// The "candidate equals the subject" direction only applies when the subject's
+    /// <see cref="ExposeSubject.Recursion"/> kind actually includes the subject itself
+    /// (<see cref="ExposeRecursionKind.MembershipRecursive"/> or
+    /// <see cref="ExposeRecursionKind.MembershipExact"/>). Per formal-26-03-02.md §8.3.26.4, a
+    /// NamespaceExpose (<see cref="ExposeRecursionKind.NamespaceRecursive"/> and
+    /// <see cref="ExposeRecursionKind.NamespaceDirectChildren"/>) exposes the subject's
+    /// Memberships — its members — not the subject itself, so a candidate that is only reachable
+    /// via "candidate == subject" for a namespace-form subject must not be treated as root-relevant;
+    /// otherwise the excluded subject would still be drawn as the diagram's outer box.
+    /// </para>
     /// </remarks>
     /// <param name="candidateQualifiedName">The candidate root definition's qualified name.</param>
     /// <param name="scope">The resolved <c>expose</c> scope.</param>
@@ -267,12 +279,33 @@ internal static class ExposeScopeResolver
     /// </returns>
     public static bool IsRootRelevantToScope(string candidateQualifiedName, ExposedScope scope)
     {
-        bool RelevantTo(string subject) =>
-            candidateQualifiedName == subject ||
-            candidateQualifiedName.StartsWith(subject + "::", StringComparison.Ordinal) ||
-            subject.StartsWith(candidateQualifiedName + "::", StringComparison.Ordinal);
+        bool RelevantToSubject(ExposeSubject subject)
+        {
+            var subjectName = subject.QualifiedName;
 
-        return scope.Subjects.Select(s => s.QualifiedName).Any(RelevantTo) || scope.ExplicitMembers.Any(RelevantTo);
+            // Containment in either direction is always relevant, regardless of recursion kind:
+            // the candidate descending from the subject, or an exposed subject/feature nested
+            // inside the candidate.
+            if (candidateQualifiedName.StartsWith(subjectName + "::", StringComparison.Ordinal) ||
+                subjectName.StartsWith(candidateQualifiedName + "::", StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            // "candidate == subject" is only relevant when this subject's recursion kind actually
+            // includes the subject itself in scope -- NamespaceRecursive/NamespaceDirectChildren
+            // exclude the subject (see remarks), so an excluded subject must not be root-relevant
+            // purely by virtue of matching itself.
+            return candidateQualifiedName == subjectName &&
+                subject.Recursion is ExposeRecursionKind.MembershipRecursive or ExposeRecursionKind.MembershipExact;
+        }
+
+        bool RelevantToMember(string member) =>
+            candidateQualifiedName == member ||
+            candidateQualifiedName.StartsWith(member + "::", StringComparison.Ordinal) ||
+            member.StartsWith(candidateQualifiedName + "::", StringComparison.Ordinal);
+
+        return scope.Subjects.Any(RelevantToSubject) || scope.ExplicitMembers.Any(RelevantToMember);
     }
 
     /// <summary>

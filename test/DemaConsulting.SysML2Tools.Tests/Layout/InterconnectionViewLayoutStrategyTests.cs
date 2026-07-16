@@ -1402,4 +1402,372 @@ public sealed class InterconnectionViewLayoutStrategyTests
         Assert.True(distinctX > 1, "Expected parts to span more than one column, not a single vertical column.");
         Assert.True(distinctY < parts.Count, "Expected some parts to share a row, not one row per part.");
     }
+
+    /// <summary>
+    ///     Regression test for the reported crash/empty-diagram bug: a view exposing a namespace's
+    ///     direct children (<c>expose PublishingSubsystem::*;</c>) where <c>PublishingSubsystem</c>
+    ///     is itself only a namespace-like <c>part def</c> with a single nested <c>part</c> feature
+    ///     usage (<c>markdownFormatter</c>) typed by a leaf <c>part def</c>. <c>FindRoot</c> selects
+    ///     no root (<c>PublishingSubsystem</c> is excluded from self-matching by the
+    ///     <c>NamespaceDirectChildren</c> recursion kind), so before this fix the diagram rendered
+    ///     as a totally empty canvas. Now the exposed direct-child feature renders directly as a
+    ///     single boxless leaf node, with no <c>PublishingSubsystem</c>-labeled frame anywhere.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NoRootDef_RendersTopLevelFeatureWithoutFrame()
+    {
+        // Arrange: PublishingSubsystem::markdownFormatter : MarkdownFormatter (a leaf part def),
+        // exposed via "expose PublishingSubsystem::*;" (NamespaceDirectChildren, no trailing "::**").
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var publishingSubsystem = new SysmlDefinitionNode
+        {
+            Name = "PublishingSubsystem",
+            QualifiedName = "M::PublishingSubsystem",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode
+                {
+                    Name = "markdownFormatter",
+                    QualifiedName = "M::PublishingSubsystem::markdownFormatter",
+                    FeatureKeyword = "part",
+                    FeatureTyping = "MarkdownFormatter"
+                }
+            ]
+        };
+        var markdownFormatter = new SysmlDefinitionNode
+        {
+            Name = "MarkdownFormatter",
+            QualifiedName = "M::MarkdownFormatter",
+            DefinitionKeyword = "part def"
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["M::PublishingSubsystem"] = publishingSubsystem,
+                ["M::PublishingSubsystem::markdownFormatter"] = publishingSubsystem.Children[0],
+                ["M::MarkdownFormatter"] = markdownFormatter
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposeMembers = [new ExposeMember("PublishingSubsystem", null, ExposeRecursionKind.NamespaceDirectChildren)],
+            ResolvedEdges = [new SysmlEdge("M::V", "M::PublishingSubsystem", SysmlEdgeKind.Expose)]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: exactly one box overall (no PublishingSubsystem frame anywhere), a leaf/interior
+        // rounded box labeled "markdownFormatter : MarkdownFormatter" with keyword "part".
+        var boxes = CollectBoxes(layout.Nodes).ToList();
+        var box = Assert.Single(boxes);
+        Assert.Equal("part", box.Keyword);
+        Assert.Contains("markdownFormatter", box.Label, StringComparison.Ordinal);
+        Assert.Equal(BoxShape.RoundedRectangle, box.Shape);
+        Assert.DoesNotContain(boxes, b => b.Label is not null && b.Label.Contains("PublishingSubsystem", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     Two independent top-level <c>part</c> feature usages that are both direct children of a
+    ///     common exposed namespace render as two separate boxless nodes placed side by side (via
+    ///     the shared <c>LayeredPlacement.PlaceWithPorts</c> containment-packing algorithm), with no
+    ///     wrapping frame and no overlap between them.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_TwoTopLevelParts_ArrangesSideBySideNoFrame()
+    {
+        // Arrange: NsRoot::widgetA and NsRoot::widgetB, each typed by an unrelated leaf part def,
+        // exposed via "expose NsRoot::*;" (NamespaceDirectChildren).
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildTwoTopLevelPartsWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposeMembers = [new ExposeMember("NsRoot", null, ExposeRecursionKind.NamespaceDirectChildren)],
+            ResolvedEdges = [new SysmlEdge("M::V", "NsRoot", SysmlEdgeKind.Expose)]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: exactly two top-level boxes (no wrapping frame), and they do not overlap.
+        Assert.Equal(2, layout.Nodes.Count);
+        var boxes = layout.Nodes.OfType<LayoutBox>().ToList();
+        Assert.Equal(2, boxes.Count);
+        Assert.False(Overlaps(boxes[0], boxes[1]), "the two top-level boxes overlap");
+    }
+
+    /// <summary>
+    ///     When the exposed namespace's direct-child part is itself typed by a <c>part def</c> that
+    ///     has its own nested parts, the single top-level box's own <c>Children</c> contain the
+    ///     nested part boxes — proving the boxless top-level fallback reuses the same recursive
+    ///     container detection (<c>BuildPartItem</c>) as every other nested part, rather than
+    ///     duplicating a shallow copy of that logic.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_TopLevelFeatureIsContainer_RecursesInterior()
+    {
+        // Arrange: NsRoot::board : Motherboard { cpu, chipset, connect cpu to chipset } — two levels
+        // deep — exposed via "expose NsRoot::*;" (NamespaceDirectChildren).
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var motherboard = new SysmlDefinitionNode
+        {
+            Name = "Motherboard",
+            QualifiedName = "M::Motherboard",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "cpu", QualifiedName = "M::Motherboard::cpu", FeatureKeyword = "part", FeatureTyping = "Cpu" },
+                new SysmlFeatureNode { Name = "chipset", QualifiedName = "M::Motherboard::chipset", FeatureKeyword = "part", FeatureTyping = "Chipset" },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "cpu", EndpointB = "chipset" }
+            ]
+        };
+        var board = new SysmlFeatureNode
+        {
+            Name = "board",
+            QualifiedName = "NsRoot::board",
+            FeatureKeyword = "part",
+            FeatureTyping = "Motherboard"
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["NsRoot::board"] = board,
+                ["M::Motherboard"] = motherboard
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposeMembers = [new ExposeMember("NsRoot", null, ExposeRecursionKind.NamespaceDirectChildren)],
+            ResolvedEdges = [new SysmlEdge("M::V", "NsRoot", SysmlEdgeKind.Expose)]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: exactly one top-level box (no frame), and its own Children hold the nested
+        // cpu/chipset part boxes recursed via the shared BuildPartItem logic.
+        var topBox = Assert.Single(layout.Nodes.OfType<LayoutBox>());
+        Assert.Contains("board", topBox.Label, StringComparison.Ordinal);
+        var nestedLabels = CollectBoxes(topBox.Children).Select(b => b.Label).ToList();
+        Assert.Contains(nestedLabels, l => l is not null && l.Contains("cpu", StringComparison.Ordinal));
+        Assert.Contains(nestedLabels, l => l is not null && l.Contains("chipset", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     Pins down the preserved existing empty-canvas fallback (requirement: no regression): when
+    ///     the resolved <c>expose</c> scope matches no <c>part</c> feature at all (its only member
+    ///     is a non-part feature), <c>FindRoot</c> still returns no root, and
+    ///     <c>CollectTopLevelScopedParts</c> returns an empty list, so the diagram falls back to the
+    ///     unchanged minimal canvas rather than the new boxless-nodes path.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NoMatchingFeature_ReturnsMinimalCanvas()
+    {
+        // Arrange: NsRoot::onlyAttribute is an "attribute" feature, not a "part" — no part
+        // feature is a direct child of the exposed namespace.
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var onlyAttribute = new SysmlFeatureNode
+        {
+            Name = "onlyAttribute",
+            QualifiedName = "NsRoot::onlyAttribute",
+            FeatureKeyword = "attribute",
+            FeatureTyping = "String"
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["NsRoot::onlyAttribute"] = onlyAttribute }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposeMembers = [new ExposeMember("NsRoot", null, ExposeRecursionKind.NamespaceDirectChildren)],
+            ResolvedEdges = [new SysmlEdge("M::V", "NsRoot", SysmlEdgeKind.Expose)]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: unchanged minimal-canvas fallback.
+        Assert.Empty(layout.Nodes);
+    }
+
+    /// <summary>
+    ///     A connector declared between two top-level scoped part features is still drawn when the
+    ///     connector's own qualified name is itself in scope and both endpoints resolve into the
+    ///     top-level part set (requirement: "if a connector is itself resolvable and in scope, draw
+    ///     it").
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_ConnectionBetweenTopLevelFeatures_DrawsEdge()
+    {
+        // Arrange: NsRoot { widgetA, widgetB, connect widgetA to widgetB } — the connection's own
+        // qualified name is a direct child of NsRoot, so it too satisfies the NamespaceDirectChildren
+        // scope alongside its two endpoints.
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildTwoTopLevelPartsWithConnectionWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposeMembers = [new ExposeMember("NsRoot", null, ExposeRecursionKind.NamespaceDirectChildren)],
+            ResolvedEdges = [new SysmlEdge("M::V", "NsRoot", SysmlEdgeKind.Expose)]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: two top-level boxes, connected by exactly one connector line.
+        Assert.Equal(2, layout.Nodes.OfType<LayoutBox>().Count());
+        Assert.Single(CollectLines(layout.Nodes));
+    }
+
+    /// <summary>
+    ///     A matched feature whose own qualified name is itself nested (<c>"::"</c>-prefixed) under
+    ///     another matched feature's qualified name is excluded from the top-level set — it is
+    ///     already reachable as that ancestor's own nested content, so it must not also be
+    ///     duplicated as its own separate top-level node.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NestedTopLevelFeatureExcluded_NotDuplicated()
+    {
+        // Arrange: an exotic scope shape where both "NsRoot::widgetA" (the exposed subject itself,
+        // MembershipRecursive so self-matches) and "NsRoot::widgetA::sub" (nested under it by
+        // qualified-name prefix alone) satisfy IsInSubjectScope for the same subject.
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var widgetA = new SysmlFeatureNode
+        {
+            Name = "widgetA",
+            QualifiedName = "NsRoot::widgetA",
+            FeatureKeyword = "part",
+            FeatureTyping = "WidgetA"
+        };
+        var sub = new SysmlFeatureNode
+        {
+            Name = "sub",
+            QualifiedName = "NsRoot::widgetA::sub",
+            FeatureKeyword = "part",
+            FeatureTyping = "SubPart"
+        };
+        var widgetADef = new SysmlDefinitionNode { Name = "WidgetA", QualifiedName = "M::WidgetA", DefinitionKeyword = "part def" };
+        var subPartDef = new SysmlDefinitionNode { Name = "SubPart", QualifiedName = "M::SubPart", DefinitionKeyword = "part def" };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["NsRoot::widgetA"] = widgetA,
+                ["NsRoot::widgetA::sub"] = sub,
+                ["M::WidgetA"] = widgetADef,
+                ["M::SubPart"] = subPartDef
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposeMembers = [new ExposeMember("widgetA", null, ExposeRecursionKind.MembershipRecursive)],
+            ResolvedEdges = [new SysmlEdge("M::V", "NsRoot::widgetA", SysmlEdgeKind.Expose)]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: only the outer (ancestor) feature appears as a top-level box; "sub" is not
+        // duplicated as its own separate top-level node.
+        var topBoxes = layout.Nodes.OfType<LayoutBox>().ToList();
+        var topBox = Assert.Single(topBoxes);
+        Assert.Contains("widgetA", topBox.Label, StringComparison.Ordinal);
+        Assert.DoesNotContain("sub", topBox.Label, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Builds a workspace with two independent top-level parts (<c>NsRoot::widgetA</c> and
+    ///     <c>NsRoot::widgetB</c>), each typed by its own unrelated leaf <c>part def</c>, and no
+    ///     connection between them.
+    /// </summary>
+    private static SysmlWorkspace BuildTwoTopLevelPartsWorkspace()
+    {
+        var widgetA = new SysmlFeatureNode { Name = "widgetA", QualifiedName = "NsRoot::widgetA", FeatureKeyword = "part", FeatureTyping = "WidgetA" };
+        var widgetB = new SysmlFeatureNode { Name = "widgetB", QualifiedName = "NsRoot::widgetB", FeatureKeyword = "part", FeatureTyping = "WidgetB" };
+        var widgetADef = new SysmlDefinitionNode { Name = "WidgetA", QualifiedName = "M::WidgetA", DefinitionKeyword = "part def" };
+        var widgetBDef = new SysmlDefinitionNode { Name = "WidgetB", QualifiedName = "M::WidgetB", DefinitionKeyword = "part def" };
+        return new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["NsRoot::widgetA"] = widgetA,
+                ["NsRoot::widgetB"] = widgetB,
+                ["M::WidgetA"] = widgetADef,
+                ["M::WidgetB"] = widgetBDef
+            }
+        };
+    }
+
+    /// <summary>
+    ///     Builds the same two-top-level-parts shape as <see cref="BuildTwoTopLevelPartsWorkspace"/>,
+    ///     but with both features and a connector between them nested as children of a common
+    ///     <c>NsRoot</c> <c>part def</c> container — so the connector's own qualified name
+    ///     (<c>NsRoot::conn1</c>) is itself a direct child of the exposed namespace, and the
+    ///     container is scanned by <c>ResolveTopLevelConnections</c> via <c>BuildDefinitionIndex</c>
+    ///     without itself qualifying as the diagram's single root (excluded from self-matching by
+    ///     the <c>NamespaceDirectChildren</c> recursion kind, same as <c>PublishingSubsystem</c>
+    ///     above).
+    /// </summary>
+    private static SysmlWorkspace BuildTwoTopLevelPartsWithConnectionWorkspace()
+    {
+        var widgetADef = new SysmlDefinitionNode { Name = "WidgetA", QualifiedName = "M::WidgetA", DefinitionKeyword = "part def" };
+        var widgetBDef = new SysmlDefinitionNode { Name = "WidgetB", QualifiedName = "M::WidgetB", DefinitionKeyword = "part def" };
+        var nsRoot = new SysmlDefinitionNode
+        {
+            Name = "NsRoot",
+            QualifiedName = "NsRoot",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "widgetA", QualifiedName = "NsRoot::widgetA", FeatureKeyword = "part", FeatureTyping = "WidgetA" },
+                new SysmlFeatureNode { Name = "widgetB", QualifiedName = "NsRoot::widgetB", FeatureKeyword = "part", FeatureTyping = "WidgetB" },
+                new SysmlConnectionNode
+                {
+                    Name = "conn1",
+                    QualifiedName = "NsRoot::conn1",
+                    ConnectionKeyword = "connection",
+                    EndpointA = "widgetA",
+                    EndpointB = "widgetB"
+                }
+            ]
+        };
+        return new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["NsRoot"] = nsRoot,
+                ["NsRoot::widgetA"] = nsRoot.Children[0],
+                ["NsRoot::widgetB"] = nsRoot.Children[1],
+                ["NsRoot::conn1"] = nsRoot.Children[2],
+                ["M::WidgetA"] = widgetADef,
+                ["M::WidgetB"] = widgetBDef
+            }
+        };
+    }
 }
