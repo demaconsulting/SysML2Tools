@@ -385,9 +385,12 @@ diagnostics, so the returned `LayoutTree` carries no layout-quality warnings.
   `DemaConsulting.Rendering.Layout`.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 - `ExposeScopeResolver` (Layout Internal subsystem) — `ResolveExposedScope`,
-  `IsRootRelevantToScope`, and `IsInSubjectScope` supply the shared `expose`-scoping used by
-  `BuildLayout`, `FindRoot`, and `CollectParts`; `ExposedScope.Subjects`' recursion kinds also drive
-  `HasUnlimitedRecursion`'s depth-limiting decision.
+  `IsRootRelevantToScope`, `IsInSubjectScope`, and `IsMoreSpecificCandidate` supply the shared
+  `expose`-scoping used by `BuildLayout`, `FindRoot`, and `CollectParts`; `MatchesUnlimitedSubject`
+  (via `DetermineBranchUnlimitedRecursion`) is the primary per-branch depth-limiting gate, deciding
+  once per depth-0/top-level branch whether that branch's specific matching subject is recursive,
+  with `HasUnlimitedRecursion` retained only as the depth-0 fallback when no qualified name is
+  available to match against a subject.
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode`, `SysmlConnectionNode` (Semantic subsystem) — model input.
 - The `LayoutTree`, `LayoutBox`, `LayoutPort`, and `LayoutLine` data types
   (`DemaConsulting.Rendering`).
