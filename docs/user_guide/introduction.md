@@ -245,6 +245,18 @@ single `part def` qualifies as "the" root — those feature usages render direct
 with no enclosing frame around them. A scope that matches neither a root definition nor any
 top-level `part` feature usage still renders the empty diagram described above.
 
+Also specifically for the Interconnection View: when a nested part's own type is itself a
+container (a `part def` with its own nested parts), how deep the diagram recurses into that
+part's own interior depends on whether the resolved `expose` scope is recursive. A scope
+containing at least one recursive form (`expose X::**;` or `expose X::*::**;`), or no `expose`
+statement at all, recurses fully — every nested container's own interior is shown, at any depth.
+A scope containing **only** non-recursive forms (`expose X;` and/or `expose X::*;`, with no
+recursive form present anywhere in the view) limits expansion to the selected root's (or
+top-level scoped feature's) own direct part children: a deeper nested part still renders as its
+own box, but its own interior is not drawn. For example, `expose System; expose System::*;`
+shows `System`'s direct part children as boxes, but does not expand into any of those parts' own
+nested structure, even if their types have one — whereas `expose System::**;` shows every level.
+
 Named `view Name { ... }` usages (not just `view def` declarations) are also now recognized as
 their own renderable declarations: a workspace containing both `view def` declarations and named
 `view` usages surfaces both kinds as views the `render` command discovers and renders.

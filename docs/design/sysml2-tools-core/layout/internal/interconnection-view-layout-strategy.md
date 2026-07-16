@@ -23,18 +23,51 @@ container size and content produced by laying out one definition's interior).
 ###### `BuildLayout(ViewContext context, RenderOptions options)`
 
 Entry point. Resolves the view's `expose` scope via `ExposeScopeResolver.ResolveExposedScope`,
-selects the root part definition via `FindRoot(workspace, scope)`, builds the container-definition
-index via `BuildDefinitionIndex`, lays out the root's interior via `LayOutInterior` (applying
-`scope`'s namespace-prefix filter only at the root's own direct children, depth 0; every deeper
-recursive call passes `scope: null` so a nested container's own interior always shows its full
-composition structure regardless of which namespace it — or the view's exposed subject — happens to
-be declared in, since composition structure and namespace/file organization are independent in
-SysML v2), and assembles the root container box with the interior
+computes a single diagram-wide `unlimitedRecursion` boolean via `HasUnlimitedRecursion(scope)` (see
+_Depth-Limited Recursion_ below), selects the root part definition via `FindRoot(workspace, scope)`,
+builds the container-definition index via `BuildDefinitionIndex`, lays out the root's interior via
+`LayOutInterior` (applying `scope`'s namespace-prefix filter only at the root's own direct children,
+depth 0; every deeper recursive call passes `scope: null`, since a nested container's own interior's
+membership in the exposed scope is never re-derived from its own qualified name — composition
+structure and namespace/file organization are independent in SysML v2 — but whether that deeper
+interior is expanded **at all** is gated by `unlimitedRecursion`, threaded unchanged through every
+recursive call), and assembles the root container box with the interior
 content nested as that box's own `Children` (mirroring the nesting `MakePartBox` already uses for a
 container part, so the root box is never a bare sibling of its own content) into the `LayoutTree`.
 When `FindRoot` selects no root, falls back to the **no-single-root scoped fallback** described
 below when the resolved scope directly includes one or more top-level `part` feature usages;
 otherwise returns a minimal 200×100 empty `LayoutTree`.
+
+###### Depth-Limited Recursion (`HasUnlimitedRecursion`)
+
+`HasUnlimitedRecursion(scope)` returns `true` — meaning interior recursion is unconditionally
+unlimited for the **whole diagram** — when `scope` is `null` (no `expose` statement resolved for
+this view, including the synthesized `--auto` view) or when at least one of `scope.Subjects` carries
+`ExposeRecursionKind.MembershipRecursive` or `ExposeRecursionKind.NamespaceRecursive` (i.e. an
+`expose X::**;` or `expose X::*::**;` form). It returns `false` only when every resolved subject is
+non-recursive (`MembershipExact` and/or `NamespaceDirectChildren` — `expose X;` and/or
+`expose X::*;` forms, with no recursive subject at all). This single boolean, computed once in
+`BuildLayout` from the resolved scope's `Subjects`, is threaded unchanged through
+`LayOutInterior`, `CollectParts`, `BuildPartItem`, and `CollectTopLevelScopedParts` — it is never
+recomputed per feature or per composition branch.
+
+When `unlimitedRecursion` is `false`, `BuildPartItem` still includes every part reached at depth 0
+as its own node, but never recurses into a container part's own interior past that point: a deeper
+container renders as an intrinsic-sized leaf box (its own `«part» name : Type` box, with no nested
+children drawn), rather than always expanding fully. When `unlimitedRecursion` is `true` (including
+every `scope is null` case), behavior is completely unchanged from before this depth-limiting was
+introduced — recursion is unconditional at every depth.
+
+**Known simplification and its limitation.** This is a deliberate global (diagram-wide), not
+per-subject or per-composition-branch, decision. A scope that combines a recursive subject with a
+non-recursive subject — e.g. `expose SystemDef::**; expose OtherDef;` in the same view — uses
+**unlimited recursion for the entire diagram**, even for parts reached only via the non-recursive
+subject. Precisely attributing "which subject caused this part to be included" would require
+carrying subject provenance through every part-collection call site (`CollectParts` →
+`BuildPartItem` → `TryResolveContainer`), none of which currently track _why_ a part was reached —
+a materially larger change than this feature makes. This is a known, sanctioned simplification
+rather than a silent gap; it is documented here, in the `HasUnlimitedRecursion` XmlDoc, and in the
+corresponding requirement's justification text.
 
 ###### No-single-root scoped fallback (`CollectTopLevelScopedParts`, `ResolveTopLevelConnections`)
 
@@ -48,14 +81,16 @@ drawing. Before this fallback existed, `FindRoot` returning `null` always produc
 canvas in this shape, even though the scope named something concrete.
 
 When `FindRoot` returns `null` and a scope is resolved, `BuildLayout` calls
-`CollectTopLevelScopedParts(workspace, scope, theme, defsByName)`, which scans
+`CollectTopLevelScopedParts(workspace, scope, theme, defsByName, unlimitedRecursion)`, which scans
 `workspace.Declarations` for every non-standard-library `SysmlFeatureNode` with
 `FeatureKeyword == "part"` whose qualified name satisfies `ExposeScopeResolver.IsInSubjectScope`,
 excludes any matched feature that is itself nested (`"::"`-prefixed) under another matched
 feature's own qualified name (it is already reachable as that ancestor's own nested part, so must
 not also be duplicated as a separate top-level node), and builds a `PartItem` for each survivor via
 `BuildPartItem` — the same container-vs-leaf recursion `CollectParts` uses for every other nested
-part, extracted so the logic is never duplicated. When at least one top-level part is found,
+part, extracted so the logic is never duplicated, and gated by the same `unlimitedRecursion` flag
+so this boxless fallback path applies the identical depth-limiting decision as the normal
+container-rooted path. When at least one top-level part is found,
 `BuildPartIndex` and `ResolveTopLevelConnections` (a `ResolveConnections` analogue that scans every
 definition's own connections, since a top-level connection may be declared inside any definition in
 the workspace, keeping only a connection whose own qualified name is itself in scope and whose
@@ -68,13 +103,20 @@ boxes (and any ports/lines) directly as top-level siblings, instead of the usual
 container box. When `CollectTopLevelScopedParts` returns no parts (no scope, or a scope matching no
 `part` feature), the original minimal 200×100 empty canvas is preserved unchanged.
 
-###### `BuildPartItem(feature, theme, depth, defsByName, visited)`
+###### `BuildPartItem(feature, theme, depth, defsByName, visited, unlimitedRecursion)`
 
 Extracted from `CollectParts`'s per-feature loop body: resolves the feature's `FeatureTyping`
 against `defsByName` via `TryResolveContainer`, recursing into `LayOutInterior` at `depth + 1` for a
-container part (with the resolved child's qualified name added to a copy of `visited`, and
-`scope: null` — nested composition structure is never re-scoped, matching `CollectParts`'s own
-documented recursion behavior) or computing an intrinsic leaf size via `ComputePartSize` otherwise.
+container part **only when `unlimitedRecursion` is `true`** (with the resolved child's qualified
+name added to a copy of `visited`, and `scope: null` — nested composition structure's own membership
+is never re-derived from its own qualified name, matching `CollectParts`'s own documented recursion
+behavior) or computing an intrinsic leaf size via `ComputePartSize` otherwise — which happens both
+when the feature's type does not resolve to a container, and, unconditionally, whenever
+`unlimitedRecursion` is `false` (a container part still renders as its own node; only its interior
+expansion is suppressed). This method is only ever invoked at `depth == 0` directly (from
+`CollectParts` or `CollectTopLevelScopedParts`) or via its own `unlimitedRecursion`-gated recursive
+`LayOutInterior` call, so gating solely on `unlimitedRecursion` (without separately re-checking
+`depth`) is sufficient to limit expansion to "depth 0 only" under a non-recursive scope.
 Both `CollectParts` (depth > 0 or an already-scope-filtered depth-0 feature) and
 `CollectTopLevelScopedParts` (a scope-matched top-level feature, always at `depth: 0`) call this one
 method, so the container-vs-leaf recursion is defined exactly once.
@@ -105,10 +147,12 @@ node by its parent, which is laid out with the **same** flat placement.
   (`TryResolveContainer`); a part whose type resolves to a container, and whose type is not already
   on the recursion path, is a container, and every other part is a leaf.
 - **Recursion.** A container part is laid out by calling `LayOutInterior` on its type definition at
-  `depth + 1`, with the type's qualified name added to a `visited` set. The returned interior size
-  becomes the part's atomic box size, and the returned interior content becomes its
-  `InnerContent`. A `visited` qualified-name set guards against self- or mutually-referential types
-  (cycle parts are treated as leaves), guaranteeing termination.
+  `depth + 1`, with the type's qualified name added to a `visited` set — but only when
+  `unlimitedRecursion` is `true` (see _Depth-Limited Recursion_ above); when `false`, expansion
+  never proceeds past depth 0 and a deeper container is instead sized as an intrinsic leaf. The
+  returned interior size becomes the part's atomic box size, and the returned interior content
+  becomes its `InnerContent`. A `visited` qualified-name set guards against self- or
+  mutually-referential types (cycle parts are treated as leaves), guaranteeing termination.
 - **Sizing.** Each level reserves the same title area and insets used by the root:
   `offsetX = LabelPadding × 2`, `offsetY = TitleAreaHeight(hasLabel, hasKeyword) + LabelPadding × 2`,
   `containerWidth = TotalWidth + offsetX × 2`, and
@@ -190,15 +234,15 @@ relevant), the most specific (deepest/longest qualified name) relevant candidate
 `ExposeScopeResolver.IsMoreSpecificCandidate`, with the connections/parts tie-break used only to
 break ties among equally specific candidates; this ordering does not apply when `scope` is `null`.
 
-###### `CollectParts(root, theme)` and `ResolveConnections(root, partIndex)`
+###### `CollectParts` and `ResolveConnections(root, partIndex)`
 
 `CollectParts` gathers the root's nested `part` usages, sizing each box from its `name : Type`
-label, additionally excluding — when a scope is resolved — any part feature whose qualified name
-fails `ExposeScopeResolver.IsInSubjectScope`. `ResolveConnections` maps each binary connection's
-dotted endpoint references to nested-part indices and port-name labels via `ResolveEndpoint`
-(matching the first dotted segment against the (possibly narrowed) part names and capturing any
-remaining segment as the port label — see _Cross-boundary resolution_ above), keeping only
-distinct, resolvable pairs; a connection whose endpoint was excluded by scoping simply fails to
+label, additionally excluding — when a scope is resolved and `depth == 0` — any part feature whose
+qualified name fails `ExposeScopeResolver.IsInSubjectScope`. `ResolveConnections` maps each binary
+connection's dotted endpoint references to nested-part indices and port-name labels via
+`ResolveEndpoint` (matching the first dotted segment against the (possibly narrowed) part names and
+capturing any remaining segment as the port label — see _Cross-boundary resolution_ above), keeping
+only distinct, resolvable pairs; a connection whose endpoint was excluded by scoping simply fails to
 resolve and is dropped by this existing endpoint-lookup logic — no separate edge-side scoping is
 needed.
 
@@ -206,8 +250,10 @@ needed.
 
 Because this strategy renders exactly one selected root's interior, scoping cannot narrow a
 workspace-wide collection the way `GridViewLayoutStrategy` and `BrowserViewLayoutStrategy` do;
-instead it restricts **which root is selected** and then narrows **which of that root's parts are
-shown**. `FindRoot` only considers candidates `ExposeScopeResolver.IsRootRelevantToScope` accepts,
+instead it restricts **which root is selected**, then narrows **which of that root's parts are
+shown**, and finally — via `HasUnlimitedRecursion`/`unlimitedRecursion` (see _Depth-Limited
+Recursion_ above) — governs **how deep into each shown part's own interior the diagram recurses**.
+`FindRoot` only considers candidates `ExposeScopeResolver.IsRootRelevantToScope` accepts,
 so exposing the current heuristic root itself, an inner part of it, or a definition that itself
 contains the heuristic default all correctly select a root, while exposing an unrelated
 definition yields no root and thus the minimal empty canvas. When more than one candidate is
@@ -220,7 +266,17 @@ the selected root's own part features to those within the resolved scope (via
 whose endpoint did not resolve" behavior transparently drops any connection touching an excluded
 part — no new edge-side logic was required. A view with no `expose` statement (including the
 synthesized `--auto` view, whose `ViewNode` is `null`) resolves no scope, so `FindRoot` considers
-every candidate and `CollectParts` keeps every part, unchanged from the pre-scoping behavior.
+every candidate, `CollectParts` keeps every part, and `unlimitedRecursion` is always `true` —
+completely unchanged from the pre-scoping behavior.
+
+Once a root is selected and its direct parts are narrowed, `unlimitedRecursion` decides whether the
+diagram continues to recurse into each shown part's own composed interior at all: when the resolved
+scope contains at least one subject with unlimited-depth recursion (`expose X::**;` /
+`expose X::*::**;`), or there is no scope at all, every container part fully expands its own nested
+parts, unbounded in depth — identical to today's behavior before this depth-limiting was
+introduced. When the resolved scope is purely non-recursive (only `expose X;` and/or
+`expose X::*;` forms), expansion stops after the root's own direct part children: a deeper container
+part still renders as its own box, but with no nested children of its own drawn inside it.
 
 ###### Placement and routing
 
@@ -257,7 +313,8 @@ diagnostics, so the returned `LayoutTree` carries no layout-quality warnings.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 - `ExposeScopeResolver` (Layout Internal subsystem) — `ResolveExposedScope`,
   `IsRootRelevantToScope`, and `IsInSubjectScope` supply the shared `expose`-scoping used by
-  `BuildLayout`, `FindRoot`, and `CollectParts`.
+  `BuildLayout`, `FindRoot`, and `CollectParts`; `ExposedScope.Subjects`' recursion kinds also drive
+  `HasUnlimitedRecursion`'s depth-limiting decision.
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode`, `SysmlConnectionNode` (Semantic subsystem) — model input.
 - The `LayoutTree`, `LayoutBox`, `LayoutPort`, and `LayoutLine` data types
   (`DemaConsulting.Rendering`).

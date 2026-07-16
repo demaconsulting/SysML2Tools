@@ -165,6 +165,33 @@ sections:
           - InterconnectionView_BuildLayout_ExposeSinglePart_NarrowsToThatPart
           - InterconnectionView_BuildLayout_ExposeMultipleParts_UnionsBothSubtrees
 
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposeScopingRecursionDepthLimit
+        title: >-
+          When the resolved expose scope has no subject with unlimited-depth recursion (i.e. every
+          subject is MembershipExact and/or NamespaceDirectChildren), InterconnectionViewLayoutStrategy
+          shall limit interior expansion to the selected root's (or top-level scoped feature's) own
+          direct part children, rendering any deeper container part as an intrinsic-sized leaf box
+          instead of recursing into its own interior.
+        justification: |
+          A non-recursive `expose` form (`expose X;` / `expose X::*;`) asks for only the named
+          scope's own direct children — not its entire composition subtree. Before this
+          depth-limiting existed, the resolved scope's filter was applied only at depth 0 and every
+          included part's interior was then expanded unconditionally regardless of whether the
+          `expose` statement itself was recursive, silently over-rendering one extra level of nested
+          parts the user never asked for. This requirement is deliberately implemented as a single
+          diagram-wide decision (`HasUnlimitedRecursion`, computed once from the resolved scope's
+          `Subjects`), not a per-subject or per-composition-branch decision: a scope that combines a
+          recursive subject with a non-recursive subject uses unlimited recursion for the whole
+          diagram, which is a known, documented, and sanctioned simplification (see the design
+          documentation's "Depth-Limited Recursion" section). A scope with at least one recursive
+          subject, or no scope at all (including the `--auto` view), continues to recurse fully at
+          every depth, unchanged.
+        tests:
+          - InterconnectionView_BuildLayout_ExposeNonRecursiveSubjects_DoesNotRecurseIntoNestedPartsInterior
+          - InterconnectionView_BuildLayout_ExposeRootOnly_NestedSubsystemInDifferentNamespace_RendersItsOwnUnits
+          - InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_ContainerFeature_RendersAsLeaf
+          - InterconnectionView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged
+
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NoExposeFallback
         title: >-
           When a view's ViewContext carries no resolved Expose edge — including a null ViewNode
@@ -257,8 +284,8 @@ sections:
           When no candidate root definition is scope-relevant but the resolved expose scope
           directly includes one or more top-level part feature usages, InterconnectionViewLayoutStrategy
           shall render those features as boxless nodes side by side instead of an empty canvas,
-          recursing into each feature's own interior exactly as a normal nested container part
-          would.
+          applying the same depth-limited interior expansion (see the
+          ExposeScopingRecursionDepthLimit requirement) as the normal container-rooted path.
         justification: |
           Per SysML v2 spec §8.3.26.11 and §9.2.20.2.6, an InterconnectionView's exposed content
           need not be a single definition — a scope such as `expose PublishingSubsystem::*;` where
@@ -269,11 +296,14 @@ sections:
           side-by-side placement (reusing the same `LayeredPlacement.PlaceWithPorts` containment
           packing every other case already uses) and reusing the same container-vs-leaf recursion
           `CollectParts` uses for every other nested part (via the shared `BuildPartItem` helper)
-          avoids duplicating any layout or recursion logic for this fallback.
+          avoids duplicating any layout or recursion logic for this fallback — including whether
+          that recursion is depth-limited: a top-level feature exposed by a purely non-recursive
+          scope renders as a leaf with no nested interior drawn, exactly like a depth-limited nested
+          container part would.
         tests:
           - InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NoRootDef_RendersTopLevelFeatureWithoutFrame
           - InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_TwoTopLevelParts_ArrangesSideBySideNoFrame
-          - InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_TopLevelFeatureIsContainer_RecursesInterior
+          - InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_ContainerFeature_RendersAsLeaf
           - InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NestedTopLevelFeatureExcluded_NotDuplicated
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedTopLevelFeatureFallbackConnections
