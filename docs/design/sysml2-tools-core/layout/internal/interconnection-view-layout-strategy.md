@@ -32,7 +32,64 @@ be declared in, since composition structure and namespace/file organization are 
 SysML v2), and assembles the root container box with the interior
 content nested as that box's own `Children` (mirroring the nesting `MakePartBox` already uses for a
 container part, so the root box is never a bare sibling of its own content) into the `LayoutTree`.
-Returns a minimal 200×100 empty `LayoutTree` when no root or no parts are found.
+When `FindRoot` selects no root, falls back to the **no-single-root scoped fallback** described
+below when the resolved scope directly includes one or more top-level `part` feature usages;
+otherwise returns a minimal 200×100 empty `LayoutTree`.
+
+###### No-single-root scoped fallback (`CollectTopLevelScopedParts`, `ResolveTopLevelConnections`)
+
+Not every resolved `expose` scope names a single `part def` worth treating as "the" subject of the
+diagram: per SysML v2 spec §8.3.26.11 (an InterconnectionView's subject need not be one definition)
+and §9.2.20.2.6 ("exposed features as nodes, nested features as nested nodes"), the exposed content
+can be one or more concrete `part` feature usages directly, with no enclosing definition of its own
+— e.g. `expose PublishingSubsystem::*;` where `PublishingSubsystem` is itself only a namespace-like
+`part def` whose sole nested `part markdownFormatter : MarkdownFormatter;` is the only thing worth
+drawing. Before this fallback existed, `FindRoot` returning `null` always produced a totally empty
+canvas in this shape, even though the scope named something concrete.
+
+When `FindRoot` returns `null` and a scope is resolved, `BuildLayout` calls
+`CollectTopLevelScopedParts(workspace, scope, theme, defsByName)`, which scans
+`workspace.Declarations` for every non-standard-library `SysmlFeatureNode` with
+`FeatureKeyword == "part"` whose qualified name satisfies `ExposeScopeResolver.IsInSubjectScope`,
+excludes any matched feature that is itself nested (`"::"`-prefixed) under another matched
+feature's own qualified name (it is already reachable as that ancestor's own nested part, so must
+not also be duplicated as a separate top-level node), and builds a `PartItem` for each survivor via
+`BuildPartItem` — the same container-vs-leaf recursion `CollectParts` uses for every other nested
+part, extracted so the logic is never duplicated. When at least one top-level part is found,
+`BuildPartIndex` and `ResolveTopLevelConnections` (a `ResolveConnections` analogue that scans every
+definition's own connections, since a top-level connection may be declared inside any definition in
+the workspace, keeping only a connection whose own qualified name is itself in scope and whose
+endpoints both resolve into the top-level part set) resolve any connections between the top-level
+parts, and `LayOutInteriorWithConnections` is called directly with `boxDepth: 0` and
+`reserveTitleArea: false` — producing boxless top-level nodes placed side by side by the same
+`LayeredPlacement.PlaceWithPorts` containment-packing algorithm used everywhere else, with no
+enclosing frame/title reserved. The resulting `LayoutTree.Nodes` therefore holds the placed part
+boxes (and any ports/lines) directly as top-level siblings, instead of the usual single root
+container box. When `CollectTopLevelScopedParts` returns no parts (no scope, or a scope matching no
+`part` feature), the original minimal 200×100 empty canvas is preserved unchanged.
+
+###### `BuildPartItem(feature, theme, depth, defsByName, visited)`
+
+Extracted from `CollectParts`'s per-feature loop body: resolves the feature's `FeatureTyping`
+against `defsByName` via `TryResolveContainer`, recursing into `LayOutInterior` at `depth + 1` for a
+container part (with the resolved child's qualified name added to a copy of `visited`, and
+`scope: null` — nested composition structure is never re-scoped, matching `CollectParts`'s own
+documented recursion behavior) or computing an intrinsic leaf size via `ComputePartSize` otherwise.
+Both `CollectParts` (depth > 0 or an already-scope-filtered depth-0 feature) and
+`CollectTopLevelScopedParts` (a scope-matched top-level feature, always at `depth: 0`) call this one
+method, so the container-vs-leaf recursion is defined exactly once.
+
+###### `LayOutInteriorWithConnections(parts, pairs, theme, boxDepth, reserveTitleArea = true)`
+
+Places `parts` and routes `pairs` via `LayeredPlacement.PlaceWithPorts`, unchanged from before this
+feature except for two now-parameterized behaviors that previously assumed an enclosing container
+box always exists: `boxDepth` is stamped directly onto each placed part's own `LayoutBox.Depth`
+(the existing `LayOutInterior` call site passes `depth + 1`, preserving today's exact depth
+numbering; the no-single-root fallback passes `0` directly, since there is no enclosing container
+box in that path at all), and `reserveTitleArea` (default `true`, unchanged for every existing
+caller) gates whether a title band is reserved above the placed content — `false` only for the
+boxless fallback, where there is no enclosing frame/title to make room for, so the returned size is
+just the bounding box of the placed content plus normal padding on every side.
 
 ###### Recursive nested layout (`LayOutInterior`, `CollectParts`, `BuildDefinitionIndex`)
 
@@ -184,9 +241,11 @@ container so every connector waypoint is enclosed, without ever moving a box.
 ##### Error Handling
 
 Null `context` or `options` arguments throw `ArgumentNullException`. The absence of an eligible
-part definition or of nested parts is not an error: the method returns the minimal empty canvas.
-Connectors that cannot be routed cleanly are still drawn; this strategy does not itself construct
-`LayoutWarnings` diagnostics, so the returned `LayoutTree` carries no layout-quality warnings.
+part definition or of nested parts is not an error: the method returns the minimal empty canvas,
+unless the resolved scope directly includes one or more top-level `part` feature usages, in which
+case the no-single-root scoped fallback renders those instead (see above). Connectors that cannot
+be routed cleanly are still drawn; this strategy does not itself construct `LayoutWarnings`
+diagnostics, so the returned `LayoutTree` carries no layout-quality warnings.
 
 ##### Dependencies
 

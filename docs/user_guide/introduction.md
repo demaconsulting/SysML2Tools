@@ -237,6 +237,14 @@ children (parts, states, actions, or lifelines) to those within the resolved sco
 no `expose` statement (including the `--auto`-synthesized view) renders unchanged, exactly as
 before this scoping behavior was introduced, for every view kind.
 
+For an Interconnection View specifically, a scope that names no single root definition is not
+always an empty diagram: when the scope directly includes one or more concrete top-level `part`
+feature usages instead — for example `expose Subsystem::*;` where `Subsystem` is itself only a
+namespace-like `part def` whose only nested content is a single `part` feature usage, so no
+single `part def` qualifies as "the" root — those feature usages render directly, side by side,
+with no enclosing frame around them. A scope that matches neither a root definition nor any
+top-level `part` feature usage still renders the empty diagram described above.
+
 Named `view Name { ... }` usages (not just `view def` declarations) are also now recognized as
 their own renderable declarations: a workspace containing both `view def` declarations and named
 `view` usages surfaces both kinds as views the `render` command discovers and renders.
