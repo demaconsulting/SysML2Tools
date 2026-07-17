@@ -32,13 +32,42 @@ like the reported bug (a namespace-like `part def` whose only nested content is 
 feature usage, exposed via `expose Namespace::*;`) asserts the previously-empty canvas now renders
 that feature directly, with no frame for the enclosing namespace anywhere in the tree; a two-sibling
 variant asserts two independent top-level parts render as two non-overlapping top-level boxes; a
-container-typed top-level feature variant asserts the recursion into its own nested parts still
-fires (proving `BuildPartItem` is shared, not duplicated); a connection-between-top-level-parts
-variant asserts a connector is drawn when the connection's own qualified name is itself in scope;
-and a nested-qualified-name variant asserts a matched feature nested under another matched
-feature's own qualified name is excluded from the top-level set (not duplicated). A final
-regression test pins down the preserved empty-canvas fallback when the scope matches no `part`
-feature at all.
+container-typed top-level feature variant asserts the same depth-limiting gate as the normal
+container-rooted path applies here too (the top-level feature renders as a leaf box with no nested
+children, since the scope exercised is purely non-recursive), proving `BuildPartItem` is shared, not
+duplicated; a connection-between-top-level-parts variant asserts a connector is drawn when the
+connection's own qualified name is itself in scope; and a nested-qualified-name variant asserts a
+matched feature nested under another matched feature's own qualified name is excluded from the
+top-level set (not duplicated). A final regression test pins down the preserved empty-canvas
+fallback when the scope matches no `part` feature at all.
+
+A further pair of tests exercises the depth-limiting recursion gate directly on a two-tier
+cross-namespace composition (a root `part def` composing a subsystem `part def` which itself
+composes two nested units): exposing the root with a purely non-recursive scope (one
+`MembershipExact` subject and one `NamespaceDirectChildren` subject, no recursive subject) confirms
+the subsystem still renders as its own box but with no nested unit boxes drawn inside it — the
+fix-targeting scenario; exposing the same shape with a `MembershipRecursive` subject confirms full
+recursion is unchanged, a regression guard proving the depth-limiting gate never engages when the
+resolved scope has an unlimited-depth subject. The pre-existing null-`ViewNode` test additionally
+pins down that `HasUnlimitedRecursion` evaluates to `true` whenever no scope is resolved at all.
+
+A dedicated per-branch test exercises a scope combining a recursive subject with a non-recursive
+sibling subject in the same view (two sibling `part` features under one root, `a` exposed via a
+`MembershipRecursive` subject and `b` exposed via a `MembershipExact` subject, each typed by its own
+two-nested-part container definition): it asserts `a`'s branch fully recurses (both of its nested
+parts appear as boxes) while `b`'s branch, in the very same diagram, renders as a leaf with no
+nested boxes — proving the recursion decision is made independently per top-level branch rather
+than once for the whole diagram, replacing the earlier global-boolean simplification's behavior for
+this exact shape.
+
+A dedicated fallback test exercises the owner-scoped top-level connection resolution fix: two
+different `part def`s (each exposed as independent top-level scoped features via their own
+`NamespaceDirectChildren` subject, so `FindRoot` selects no root and the boxless fallback fires)
+each declare a same-named `part logger : ...;` plus one other own part, and each declares its own
+connection between its own `logger` and its own other part; the test asserts the connector
+belonging to the first definition's own connection is geometrically anchored to that definition's
+own `logger`/other boxes and never to the second definition's same-named `logger` box — the
+pre-fix collision this owner-scoped grouping resolves.
 
 ##### Test Environment
 
@@ -104,14 +133,31 @@ configuration are required beyond a standard .NET SDK installation.
   one box, with no frame labeled for the enclosing namespace anywhere in the tree.
 - Two independent top-level scoped parts render as two non-overlapping top-level boxes with no
   wrapping frame.
-- A top-level scoped feature that is itself typed by a container definition still recurses into its
-  own nested parts, which appear as that top-level box's own `Children`.
+- A top-level scoped feature that is itself typed by a container definition, exposed by a purely
+  non-recursive scope, renders as an intrinsic-sized leaf box — its own nested parts are not drawn
+  — applying the same depth-limiting gate as the normal container-rooted path.
 - A connection between two top-level scoped parts is drawn as a connector line when the connection's
   own qualified name is itself within the resolved scope.
 - A matched top-level feature whose qualified name is nested under another matched feature's own
   qualified name is excluded from the top-level set (not duplicated as its own separate node).
 - When the resolved `expose` scope matches no `part` feature usage at all, the pre-existing minimal
   empty canvas is returned unchanged.
+- When the resolved `expose` scope has no subject with unlimited-depth recursion (only
+  `MembershipExact` and/or `NamespaceDirectChildren` subjects), a nested container part beyond the
+  root's own direct children renders as an intrinsic-sized leaf box with no nested children of its
+  own, even though its type has its own composed interior.
+- When the resolved `expose` scope has at least one subject with unlimited-depth recursion
+  (`MembershipRecursive` or `NamespaceRecursive`), or there is no scope at all, interior recursion
+  remains fully unbounded at every depth, unchanged from before this depth-limiting was introduced.
+- When a resolved `expose` scope combines a recursive subject with a non-recursive sibling subject
+  in the same view, the branch matched by the recursive subject fully recurses while the branch
+  matched only by the non-recursive subject stays depth-limited to its own direct children, in the
+  same diagram — the recursion decision is made independently per top-level branch, not once for
+  the whole diagram.
+- When the no-single-root scoped fallback collects top-level parts from two different containing
+  definitions that happen to declare a same-named part, each definition's own connection resolves
+  against that definition's own top-level parts only — never against a same-named top-level part
+  collected from the other containing definition.
 
 ##### Test Scenarios
 
@@ -143,7 +189,11 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_ExposeBothSameDepthSiblings_ScoreBreaksTieNotLength` | Score breaks the tie |
 | `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NoRootDef_RendersTopLevelFeatureWithoutFrame` | Alone |
 | `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_TwoTopLevelParts_ArrangesSideBySideNoFrame` | 2 boxes |
-| `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_TopLevelFeatureIsContainer_RecursesInterior` | Nested |
+| `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_ContainerFeature_RendersAsLeaf` | Leaf |
 | `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NoMatchingFeature_ReturnsMinimalCanvas` | No match |
 | `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_ConnectionBetweenTopLevelFeatures_DrawsEdge` | Linked |
 | `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NestedTopLevelFeatureExcluded_NotDuplicated` | Dedup |
+| `InterconnectionView_BuildLayout_ExposeNonRecursiveSubjects_DoesNotRecurseIntoNestedPartsInterior` | Depth limit |
+| `InterconnectionView_BuildLayout_ExposeRootOnly_NestedSubsystemInDifferentNamespace_RendersItsOwnUnits` | Unchanged |
+| `InterconnectionView_BuildLayout_ExposeMixedRecursion_OnlyRecursiveBranchRecurses` | Per-branch |
+| `InterconnectionView_BuildLayout_TopLevelNameCollisionAcrossOwners_ResolvesOwnConnection` | Owner-scoped |

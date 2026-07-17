@@ -180,6 +180,80 @@ public sealed class ExposeScopeResolverTests
         Assert.False(ExposeScopeResolver.IsInSubjectScope("Root::A::Matched::Nested", new ExposedScope([], ["Root::A::Matched"])));
     }
 
+    /// <summary>
+    ///     A feature exactly matching a <see cref="ExposeRecursionKind.MembershipRecursive" /> subject
+    ///     matches the unlimited-recursion predicate.
+    /// </summary>
+    [Fact]
+    public void MatchesUnlimitedSubject_MembershipRecursiveSelf_ReturnsTrue()
+    {
+        Assert.True(ExposeScopeResolver.MatchesUnlimitedSubject("Root::A",
+            new ExposedScope([new ExposeSubject("Root::A", ExposeRecursionKind.MembershipRecursive)], [])));
+    }
+
+    /// <summary>
+    ///     A feature nested under a <see cref="ExposeRecursionKind.MembershipRecursive" /> subject's
+    ///     containment subtree matches the unlimited-recursion predicate.
+    /// </summary>
+    [Fact]
+    public void MatchesUnlimitedSubject_MembershipRecursiveSubtree_ReturnsTrue()
+    {
+        Assert.True(ExposeScopeResolver.MatchesUnlimitedSubject("Root::A::Child",
+            new ExposedScope([new ExposeSubject("Root::A", ExposeRecursionKind.MembershipRecursive)], [])));
+    }
+
+    /// <summary>
+    ///     A feature nested under a <see cref="ExposeRecursionKind.NamespaceRecursive" /> subject's
+    ///     containment subtree matches the unlimited-recursion predicate.
+    /// </summary>
+    [Fact]
+    public void MatchesUnlimitedSubject_NamespaceRecursiveSubtree_ReturnsTrue()
+    {
+        Assert.True(ExposeScopeResolver.MatchesUnlimitedSubject("Root::A::Child",
+            new ExposedScope([new ExposeSubject("Root::A", ExposeRecursionKind.NamespaceRecursive)], [])));
+    }
+
+    /// <summary>
+    ///     A feature matching only a <see cref="ExposeRecursionKind.MembershipExact" /> subject does
+    ///     not match the unlimited-recursion predicate (exact/non-recursive expose).
+    /// </summary>
+    [Fact]
+    public void MatchesUnlimitedSubject_MembershipExact_ReturnsFalse()
+    {
+        Assert.False(ExposeScopeResolver.MatchesUnlimitedSubject("Root::A",
+            new ExposedScope([new ExposeSubject("Root::A", ExposeRecursionKind.MembershipExact)], [])));
+    }
+
+    /// <summary>
+    ///     A feature matching only a <see cref="ExposeRecursionKind.NamespaceDirectChildren" /> subject
+    ///     does not match the unlimited-recursion predicate (only direct children, not recursive).
+    /// </summary>
+    [Fact]
+    public void MatchesUnlimitedSubject_NamespaceDirectChildren_ReturnsFalse()
+    {
+        Assert.False(ExposeScopeResolver.MatchesUnlimitedSubject("Root::A::Child",
+            new ExposedScope([new ExposeSubject("Root::A", ExposeRecursionKind.NamespaceDirectChildren)], [])));
+    }
+
+    /// <summary>
+    ///     An explicit (bracket-filter-matched) member is never considered an unlimited-recursion
+    ///     match, even if it happens to equal an explicit-members entry — <c>MatchesUnlimitedSubject</c>
+    ///     only ever considers <see cref="ExposedScope.Subjects" />, never <see cref="ExposedScope.ExplicitMembers" />.
+    /// </summary>
+    [Fact]
+    public void MatchesUnlimitedSubject_ExplicitMembersOnly_ReturnsFalse()
+    {
+        Assert.False(ExposeScopeResolver.MatchesUnlimitedSubject("Root::A::Matched", new ExposedScope([], ["Root::A::Matched"])));
+    }
+
+    /// <summary>An unrelated qualified name does not match the unlimited-recursion predicate.</summary>
+    [Fact]
+    public void MatchesUnlimitedSubject_UnrelatedName_ReturnsFalse()
+    {
+        Assert.False(ExposeScopeResolver.MatchesUnlimitedSubject("Root::B",
+            new ExposedScope([new ExposeSubject("Root::A", ExposeRecursionKind.MembershipRecursive)], [])));
+    }
+
     /// <summary>A candidate root that is itself an exposed subject is relevant to the scope.</summary>
     [Fact]
     public void IsRootRelevantToScope_CandidateEqualsSubject_ReturnsTrue()

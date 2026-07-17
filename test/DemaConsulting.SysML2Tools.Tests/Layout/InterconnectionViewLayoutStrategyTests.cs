@@ -1272,6 +1272,149 @@ public sealed class InterconnectionViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     When the resolved <c>expose</c> scope is purely non-recursive — here <c>expose
+    ///     Root::NsA::System;</c> plus <c>expose Root::NsA::System::*;</c>, i.e. one
+    ///     <see cref="ExposeRecursionKind.MembershipExact"/> subject and one
+    ///     <see cref="ExposeRecursionKind.NamespaceDirectChildren"/> subject, with <em>no</em> subject
+    ///     carrying unlimited-depth recursion — <c>HasUnlimitedRecursion</c> evaluates to
+    ///     <see langword="false"/>, so interior expansion stops at depth 0: the root's own direct part
+    ///     child (<c>sub : Sub</c>) still renders as its own box, but that box carries no nested
+    ///     <c>unit1</c>/<c>unit2</c> boxes of its own, even though <c>Sub</c> has its own nested parts.
+    ///     This is the fix-targeting scenario: contrast with
+    ///     <see cref="InterconnectionView_BuildLayout_ExposeRootOnly_NestedSubsystemInDifferentNamespace_RendersItsOwnUnits"/>,
+    ///     which uses a recursive subject on the same workspace shape and must retain full recursion.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeNonRecursiveSubjects_DoesNotRecurseIntoNestedPartsInterior()
+    {
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildCrossNamespaceCompositionWorkspace();
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Root::V",
+            ExposeMembers =
+            [
+                new ExposeMember("Root::NsA::System", null, ExposeRecursionKind.MembershipExact),
+                new ExposeMember("Root::NsA::System", null, ExposeRecursionKind.NamespaceDirectChildren)
+            ],
+            ResolvedEdges =
+            [
+                new SysmlEdge("Root::V", "Root::NsA::System", SysmlEdgeKind.Expose),
+                new SysmlEdge("Root::V", "Root::NsA::System", SysmlEdgeKind.Expose)
+            ]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        var layout = strategy.BuildLayout(context, options);
+
+        var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
+        Assert.Equal("System", container.Label);
+
+        // The subsystem itself still renders as a box, but as a leaf — its own unit1/unit2 interior
+        // is never drawn under a non-recursive scope.
+        var subBox = FindPartBox(layout, "sub : Sub");
+        Assert.Empty(CollectBoxes(subBox.Children));
+    }
+
+    /// <summary>
+    ///     Regression test for the per-branch recursion fix: when the resolved <c>expose</c> scope
+    ///     combines a subject with unlimited-depth recursion (<c>expose System::a::**;</c>, i.e.
+    ///     <see cref="ExposeRecursionKind.MembershipRecursive"/> on the root's own <c>a</c> feature)
+    ///     with a subject that has no depth limit at all (<c>expose System::b;</c>, i.e.
+    ///     <see cref="ExposeRecursionKind.MembershipExact"/> on the root's own <c>b</c> feature), only
+    ///     the branch matched by the recursive subject fully recurses — <c>a</c>'s own nested parts
+    ///     (<c>a1</c>/<c>a2</c>) render as nested boxes — while the branch matched only by the
+    ///     non-recursive subject stays depth-limited to itself: <c>b</c> still renders as its own box,
+    ///     but as a leaf, even though its type (<c>SubB</c>) has its own nested parts (<c>b1</c>/
+    ///     <c>b2</c>). Before the fix, a single diagram-wide <c>unlimitedRecursion</c> boolean meant
+    ///     the presence of the recursive subject on <c>a</c> would have also (incorrectly) unlocked
+    ///     full recursion for <c>b</c>'s branch.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ExposeMixedRecursion_OnlyRecursiveBranchRecurses()
+    {
+        // Arrange: System { a : SubA { a1, a2 }, b : SubB { b1, b2 } }, exposed via one recursive
+        // subject on "a" and one exact (non-recursive) subject on "b".
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var subA = new SysmlDefinitionNode
+        {
+            Name = "SubA",
+            QualifiedName = "SubA",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a1", QualifiedName = "SubA::a1", FeatureKeyword = "part", FeatureTyping = "UnitA1" },
+                new SysmlFeatureNode { Name = "a2", QualifiedName = "SubA::a2", FeatureKeyword = "part", FeatureTyping = "UnitA2" }
+            ]
+        };
+        var subB = new SysmlDefinitionNode
+        {
+            Name = "SubB",
+            QualifiedName = "SubB",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "b1", QualifiedName = "SubB::b1", FeatureKeyword = "part", FeatureTyping = "UnitB1" },
+                new SysmlFeatureNode { Name = "b2", QualifiedName = "SubB::b2", FeatureKeyword = "part", FeatureTyping = "UnitB2" }
+            ]
+        };
+        var system = new SysmlDefinitionNode
+        {
+            Name = "System",
+            QualifiedName = "System",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a", QualifiedName = "System::a", FeatureKeyword = "part", FeatureTyping = "SubA" },
+                new SysmlFeatureNode { Name = "b", QualifiedName = "System::b", FeatureKeyword = "part", FeatureTyping = "SubB" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["System"] = system,
+                ["SubA"] = subA,
+                ["SubB"] = subB
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "System::V",
+            ExposeMembers =
+            [
+                new ExposeMember("System::a", null, ExposeRecursionKind.MembershipRecursive),
+                new ExposeMember("System::b", null, ExposeRecursionKind.MembershipExact)
+            ],
+            ResolvedEdges =
+            [
+                new SysmlEdge("System::V", "System::a", SysmlEdgeKind.Expose),
+                new SysmlEdge("System::V", "System::b", SysmlEdgeKind.Expose)
+            ]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the root's own two direct children both render, but only "a"'s branch recurses.
+        var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
+        Assert.Equal("System", container.Label);
+
+        var aBox = FindPartBox(layout, "a : SubA");
+        var aNestedLabels = CollectBoxes(aBox.Children).Select(b => b.Label).ToList();
+        Assert.Contains(aNestedLabels, l => l is not null && l.Contains("a1", StringComparison.Ordinal));
+        Assert.Contains(aNestedLabels, l => l is not null && l.Contains("a2", StringComparison.Ordinal));
+
+        var bBox = FindPartBox(layout, "b : SubB");
+        Assert.Empty(CollectBoxes(bBox.Children));
+    }
+
+    /// <summary>
     ///     Builds a workspace with a genuine two-tier composition root (<c>Root::NsA::System</c>
     ///     composes <c>Root::NsB::Sub</c> via a typed <c>part</c> feature) alongside an unrelated
     ///     orphan definition (<c>Root::NsC::Deeply::Nested::OrphanLeaf</c>) that has a deeper
@@ -1508,16 +1651,20 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
     /// <summary>
     ///     When the exposed namespace's direct-child part is itself typed by a <c>part def</c> that
-    ///     has its own nested parts, the single top-level box's own <c>Children</c> contain the
-    ///     nested part boxes — proving the boxless top-level fallback reuses the same recursive
-    ///     container detection (<c>BuildPartItem</c>) as every other nested part, rather than
-    ///     duplicating a shallow copy of that logic.
+    ///     has its own nested parts, the resolved scope here is purely non-recursive
+    ///     (<c>NamespaceDirectChildren</c>, i.e. <c>expose NsRoot::*;</c>, with no recursive subject),
+    ///     so <c>HasUnlimitedRecursion</c> is <see langword="false"/> and interior expansion must stop
+    ///     at depth 0: the single top-level box renders as an intrinsic-sized leaf with no nested part
+    ///     boxes of its own, even though its type (<c>Motherboard</c>) has its own <c>cpu</c>/
+    ///     <c>chipset</c> parts. This also proves the boxless top-level fallback
+    ///     (<c>CollectTopLevelScopedParts</c>) shares the exact same depth-limiting gate as the normal
+    ///     container-rooted path, since both funnel through the same <c>BuildPartItem</c>.
     /// </summary>
     [Fact]
-    public void InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_TopLevelFeatureIsContainer_RecursesInterior()
+    public void InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_ContainerFeature_RendersAsLeaf()
     {
         // Arrange: NsRoot::board : Motherboard { cpu, chipset, connect cpu to chipset } — two levels
-        // deep — exposed via "expose NsRoot::*;" (NamespaceDirectChildren).
+        // deep — exposed via "expose NsRoot::*;" (NamespaceDirectChildren, non-recursive).
         var strategy = new InterconnectionViewLayoutStrategy();
         var motherboard = new SysmlDefinitionNode
         {
@@ -1559,13 +1706,13 @@ public sealed class InterconnectionViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: exactly one top-level box (no frame), and its own Children hold the nested
-        // cpu/chipset part boxes recursed via the shared BuildPartItem logic.
+        // Assert: exactly one top-level box (no frame), and it carries no nested part boxes — the
+        // non-recursive scope limits expansion to depth 0, so board's own cpu/chipset interior is
+        // never drawn.
         var topBox = Assert.Single(layout.Nodes.OfType<LayoutBox>());
         Assert.Contains("board", topBox.Label, StringComparison.Ordinal);
-        var nestedLabels = CollectBoxes(topBox.Children).Select(b => b.Label).ToList();
-        Assert.Contains(nestedLabels, l => l is not null && l.Contains("cpu", StringComparison.Ordinal));
-        Assert.Contains(nestedLabels, l => l is not null && l.Contains("chipset", StringComparison.Ordinal));
+        var nestedBoxes = CollectBoxes(topBox.Children).ToList();
+        Assert.Empty(nestedBoxes);
     }
 
     /// <summary>
@@ -1770,4 +1917,132 @@ public sealed class InterconnectionViewLayoutStrategyTests
             }
         };
     }
+
+    /// <summary>
+    ///     Regression test for the owner-scoped top-level connection resolution fix: two different
+    ///     containing <c>part def</c>s (<c>SubsystemA</c>, <c>SubsystemB</c>) each declare their own
+    ///     <c>logger</c>-simple-named part feature, and both subsystems' own direct children are
+    ///     exposed as separate top-level scoped features (via one <c>NamespaceDirectChildren</c>
+    ///     subject per subsystem, so neither subsystem itself qualifies as the diagram's single
+    ///     root — see <see cref="InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_ConnectionBetweenTopLevelFeatures_DrawsEdge"/>
+    ///     for the same self-exclusion mechanism). <c>SubsystemA</c> also declares a connection
+    ///     between its own <c>logger</c> and <c>sensor</c> parts. <c>SubsystemB</c>'s own <c>logger</c>
+    ///     is declared first in <see cref="SysmlWorkspace.Declarations"/> enumeration order, so a flat
+    ///     simple-name index built across all four collected top-level parts (the pre-fix
+    ///     <c>BuildPartIndex</c>-of-everything approach) would resolve <c>SubsystemA</c>'s connection
+    ///     endpoint <c>"logger"</c> to <c>SubsystemB</c>'s <c>logger</c> instead of its own — a bogus
+    ///     cross-owner connector. The fix must resolve the connection against only <c>SubsystemA</c>'s
+    ///     own restricted index, drawing exactly one connector, between <c>SubsystemA</c>'s own
+    ///     <c>logger</c> and <c>sensor</c> boxes.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_TopLevelNameCollisionAcrossOwners_ResolvesOwnConnection()
+    {
+        // Arrange: SubsystemB { logger : LoggerB, other : OtherB } declared first, then
+        // SubsystemA { logger : LoggerA, sensor : SensorA, connect logger to sensor }. Both exposed
+        // via "expose SubsystemA::*;" and "expose SubsystemB::*;" (NamespaceDirectChildren), so
+        // neither subsystem def itself is root-relevant (self-excluded by that recursion kind) and
+        // FindRoot selects no root, falling to the boxless top-level path.
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var subsystemB = new SysmlDefinitionNode
+        {
+            Name = "SubsystemB",
+            QualifiedName = "SubsystemB",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "logger", QualifiedName = "SubsystemB::logger", FeatureKeyword = "part", FeatureTyping = "LoggerB" },
+                new SysmlFeatureNode { Name = "other", QualifiedName = "SubsystemB::other", FeatureKeyword = "part", FeatureTyping = "OtherB" },
+                new SysmlConnectionNode
+                {
+                    Name = "connB",
+                    QualifiedName = "SubsystemB::connB",
+                    ConnectionKeyword = "connection",
+                    EndpointA = "logger",
+                    EndpointB = "other"
+                }
+            ]
+        };
+        var subsystemA = new SysmlDefinitionNode
+        {
+            Name = "SubsystemA",
+            QualifiedName = "SubsystemA",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "logger", QualifiedName = "SubsystemA::logger", FeatureKeyword = "part", FeatureTyping = "LoggerA" },
+                new SysmlFeatureNode { Name = "sensor", QualifiedName = "SubsystemA::sensor", FeatureKeyword = "part", FeatureTyping = "SensorA" },
+                new SysmlConnectionNode
+                {
+                    Name = "conn1",
+                    QualifiedName = "SubsystemA::conn1",
+                    ConnectionKeyword = "connection",
+                    EndpointA = "logger",
+                    EndpointB = "sensor"
+                }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["SubsystemB"] = subsystemB,
+                ["SubsystemB::logger"] = subsystemB.Children[0],
+                ["SubsystemB::other"] = subsystemB.Children[1],
+                ["SubsystemA"] = subsystemA,
+                ["SubsystemA::logger"] = subsystemA.Children[0],
+                ["SubsystemA::sensor"] = subsystemA.Children[1],
+                ["SubsystemA::conn1"] = subsystemA.Children[2]
+            }
+        };
+        var viewNode = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "M::V",
+            ExposeMembers =
+            [
+                new ExposeMember("SubsystemA", null, ExposeRecursionKind.NamespaceDirectChildren),
+                new ExposeMember("SubsystemB", null, ExposeRecursionKind.NamespaceDirectChildren)
+            ],
+            ResolvedEdges =
+            [
+                new SysmlEdge("M::V", "SubsystemA", SysmlEdgeKind.Expose),
+                new SysmlEdge("M::V", "SubsystemB", SysmlEdgeKind.Expose)
+            ]
+        }.WithResolvedExposeMembers();
+        var context = new ViewContext("v", workspace, viewNode);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: four top-level boxes (both subsystems' own two parts), exactly two connectors (one
+        // per subsystem's own connection), and SubsystemA's connector connects SubsystemA's own
+        // logger and sensor boxes — not SubsystemB's logger box.
+        Assert.Equal(4, layout.Nodes.OfType<LayoutBox>().Count());
+        var lines = CollectLines(layout.Nodes).ToList();
+        Assert.Equal(2, lines.Count);
+
+        var loggerABox = FindPartBox(layout, "logger : LoggerA");
+        var sensorABox = FindPartBox(layout, "sensor : SensorA");
+        var loggerBBox = FindPartBox(layout, "logger : LoggerB");
+        var otherBBox = FindPartBox(layout, "other : OtherB");
+
+        // The connector linking SubsystemA's own logger and sensor boxes must exist, and must not
+        // instead link SubsystemB's logger box (the pre-fix bogus cross-owner connection).
+        var subsystemAConnector = lines.SingleOrDefault(l => LineTouchesBox(l, loggerABox) && LineTouchesBox(l, sensorABox));
+        Assert.NotNull(subsystemAConnector);
+        Assert.False(LineTouchesBox(subsystemAConnector, loggerBBox), "connector must not also touch SubsystemB's logger box");
+        Assert.False(LineTouchesBox(subsystemAConnector, otherBBox), "connector must not also touch SubsystemB's other box");
+    }
+
+    /// <summary>
+    ///     Determines whether either end of <paramref name="line"/>'s waypoints falls within
+    ///     <paramref name="box"/>'s bounds (with a small tolerance for port placement on the box's
+    ///     own border), used to identify which rendered box a connector actually terminates at.
+    /// </summary>
+    private static bool LineTouchesBox(LayoutLine line, LayoutBox box, double tolerance = 5.0) =>
+        line.Waypoints.Any(p =>
+            p.X >= box.X - tolerance && p.X <= box.X + box.Width + tolerance &&
+            p.Y >= box.Y - tolerance && p.Y <= box.Y + box.Height + tolerance);
 }

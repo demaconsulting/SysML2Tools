@@ -185,3 +185,29 @@ sections:
           usages, not just definitions, and a definitions-only candidate set could never match one.
         tests:
           - ResolveExposedScope_BracketFilterMetaclassKind_MatchesUsageLevelCandidate
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-UnlimitedSubjectMatch
+        title: >-
+          ExposeScopeResolver.MatchesUnlimitedSubject shall return true for a qualified name that
+          matches a scope subject (by IsInSubjectScope's own equals-or-subtree-prefix or
+          direct-child rule per that subject's recursion kind) whose own ExposeRecursionKind is
+          MembershipRecursive or NamespaceRecursive, and false for a match against any other
+          recursion kind, a match found only via ExplicitMembers, or an unrelated qualified name.
+        justification: |
+          InterconnectionViewLayoutStrategy's per-branch depth-limited recursion (see that unit's
+          ExposeScopingPerBranchRecursionIndependence requirement) needs to know, for a specific
+          matched feature, not just whether it is in scope at all (IsInSubjectScope's combined
+          answer across every subject) but specifically whether the subject that matched it is
+          itself recursive — information IsInSubjectScope does not expose, since it deliberately
+          answers only a single combined in/out-of-scope boolean. Without this narrower predicate,
+          a per-branch recursion decision could only be approximated by re-deriving from
+          IsInSubjectScope, which cannot distinguish "matched a recursive subject" from "matched a
+          non-recursive subject", the exact distinction per-branch recursion depends on.
+        tests:
+          - MatchesUnlimitedSubject_MembershipRecursiveSelf_ReturnsTrue
+          - MatchesUnlimitedSubject_MembershipRecursiveSubtree_ReturnsTrue
+          - MatchesUnlimitedSubject_NamespaceRecursiveSubtree_ReturnsTrue
+          - MatchesUnlimitedSubject_MembershipExact_ReturnsFalse
+          - MatchesUnlimitedSubject_NamespaceDirectChildren_ReturnsFalse
+          - MatchesUnlimitedSubject_ExplicitMembersOnly_ReturnsFalse
+          - MatchesUnlimitedSubject_UnrelatedName_ReturnsFalse
