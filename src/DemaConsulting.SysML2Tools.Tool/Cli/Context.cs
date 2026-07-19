@@ -86,12 +86,6 @@ internal sealed class Context : IDisposable
     public int HeadingDepth { get; private init; } = 1;
 
     /// <summary>
-    ///     Gets the maximum diagram render depth; <see langword="null"/> means unlimited.
-    ///     Supplied via <c>--depth</c> and passed through directly (not clamped to 6).
-    /// </summary>
-    public int? MaxRenderDepth { get; private init; }
-
-    /// <summary>
     ///     Gets the parsed options for the <c>lint</c> command; <see langword="null"/> unless
     ///     <see cref="Command"/> is <see cref="SysmlCommand.Lint"/>.
     /// </summary>
@@ -173,7 +167,7 @@ internal sealed class Context : IDisposable
                 break;
 
             case SysmlCommand.Query:
-                queryOptions = QueryArgumentParser.Parse(global.CommandArgs, global.Help, global.MaxRenderDepth);
+                queryOptions = QueryArgumentParser.Parse(global.CommandArgs, global.Help);
                 break;
 
             case SysmlCommand.Export:
@@ -205,7 +199,6 @@ internal sealed class Context : IDisposable
             Validate = global.Validate,
             ResultsFile = global.ResultsFile,
             HeadingDepth = global.HeadingDepth,
-            MaxRenderDepth = global.MaxRenderDepth,
             Command = global.Command,
             Lint = lintOptions,
             Render = renderOptions,

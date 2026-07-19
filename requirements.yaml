@@ -53,6 +53,7 @@ includes:
   - docs/reqstream/sysml2-tools-tool/self-test/validation.yaml
   - docs/reqstream/sysml2-tools-tool/utilities.yaml
   - docs/reqstream/sysml2-tools-tool/utilities/path-helpers.yaml
+  - docs/reqstream/sysml2-tools-tool/utilities/qualified-name-shortener.yaml
   - docs/reqstream/sysml2-tools-tool/platform-requirements.yaml
   - docs/reqstream/ots/antlr4.yaml
   - docs/reqstream/ots/dema-rendering.yaml

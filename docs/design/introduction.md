@@ -130,10 +130,19 @@ system, subsystem, and unit levels:
     `RenderCommand.PrintHelp`, `QueryCommand.PrintGeneralHelp`/`PrintVerbHelp`)
     - **HelpCommand** (Unit) — parses the optional target command/verb and dispatches to that
       command's help-printing method
+  - **Query** (Subsystem) — query command implementation: resolves a workspace, runs one of the
+    query verbs (`uses`, `used-by`, `dependencies`, `impact`, `describe`, `hierarchy`,
+    `requirements`, `interface`, `connections`, `states`, `list`, `find`) against it, and renders
+    the result as a Markdown or JSON `QueryResult`
+    - **QueryCommand** (Unit) — delegates glob pattern resolution to `GlobFileCollector`, loads
+      workspace with stdlib seed, dispatches to `QueryEngine` and `QueryResultRenderer`
   - **SelfTest** (Subsystem) — self-validation test runner
     - **Validation** (Unit) — self-validation test runner
   - **Utilities** (Subsystem) — shared utilities
     - **PathHelpers** (Unit) — safe path combination utilities
+    - **QualifiedNameShortener** (Unit) — strips the longest common leading `::`-segment prefix
+      shared across a pool of qualified names, used by the `query dependencies` verb's Markdown
+      rendering
 
 **OTS Dependencies:**
 

@@ -239,7 +239,7 @@ Examples:
 
 - `Add support for custom report headers`
 - `Fix crash when results file path is invalid`
-- `Update documentation for --report-depth option`
+- `Update documentation for --walk-depth option`
 - `Refactor argument parsing for better testability`
 
 ## Pull Request Process

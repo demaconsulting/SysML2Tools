@@ -60,10 +60,15 @@ self-testing, and uses `PathHelpers` to construct safe temporary file paths.
 - *Type*: CLI.
 - *Role*: Consumer (the host environment invokes the system with command-line arguments).
 - *Contract*: Accepts arguments `-v`/`--version`, `-?`/`-h`/`--help`, `--silent`, `--validate`,
-  `--results <file>`, `--result <file>` (legacy alias for `--results`), `--depth <n>`, and
-  `--log <file>`. Accepts `lint <patterns...>` as a subcommand that invokes lint mode. Accepts
-  `query <verb> [options] <patterns...>` (11 verbs; `--element`/`-e`, `--format`,
-  `--direction`, `--kind`, `--name`, `--include-stdlib` options). Accepts
+  `--results <file>`, `--result <file>` (legacy alias for `--results`), `--depth <n>` (Markdown
+  heading depth, shared by `--validate` and `query`), `--heading <text>` (Markdown heading text
+  override, shared by `query`), and `--log <file>`. Accepts `lint <patterns...>` as a subcommand
+  that invokes lint mode. Accepts `render [options] <patterns...>` (`--walk-depth <n>` controls
+  diagram-nesting depth) as a subcommand that renders diagrams. Accepts `help [subcommand]` as a
+  subcommand (equivalent to `--help`/`-?`/`-h`) that prints general or per-subcommand usage
+  text. Accepts `query <verb> [options] <patterns...>` (12 verbs; `--element`/`-e`, `--format`,
+  `--direction`, `--kind`, `--name`, `--include-stdlib`, `--walk-depth` (bounded-traversal depth,
+  meaningful only for the `impact` verb) options). Accepts
   `export [options] <patterns...>` (`--format json|jsonl`, `--output <file>`,
   `--include-stdlib` options) which dumps the resolved semantic model (declarations, edges,
   diagnostics) as JSON or JSON Lines. Returns

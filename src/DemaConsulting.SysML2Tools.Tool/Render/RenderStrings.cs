@@ -68,9 +68,6 @@ internal static class RenderStrings
     /// <summary>Gets the --filter option line.</summary>
     public static string Render_OptionFilter => ResourceManager.GetString(nameof(Render_OptionFilter))!;
 
-    /// <summary>Gets the first line of the --depth cross-reference note.</summary>
-    public static string Render_DepthNote1 => ResourceManager.GetString(nameof(Render_DepthNote1))!;
-
-    /// <summary>Gets the second line of the --depth cross-reference note.</summary>
-    public static string Render_DepthNote2 => ResourceManager.GetString(nameof(Render_DepthNote2))!;
+    /// <summary>Gets the --walk-depth option line.</summary>
+    public static string Render_OptionWalkDepth => ResourceManager.GetString(nameof(Render_OptionWalkDepth))!;
 }

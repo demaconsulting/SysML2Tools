@@ -70,6 +70,9 @@
   <data name="Query_VerbUsedBy" xml:space="preserve">
     <value>  used-by        List the elements that use a given element</value>
   </data>
+  <data name="Query_VerbDependencies" xml:space="preserve">
+    <value>  dependencies   Report an element's outgoing and incoming dependencies as prose</value>
+  </data>
   <data name="Query_VerbImpact" xml:space="preserve">
     <value>  impact         Report the transitive impact of a change to a given element</value>
   </data>
@@ -115,14 +118,23 @@
   <data name="Query_GeneralOptionFormat3" xml:space="preserve">
     <value>                                --format (svg/png)</value>
   </data>
+  <data name="Query_GeneralOptionWalkDepth1" xml:space="preserve">
+    <value>  --walk-depth &lt;#&gt;             Maximum impact-walk depth ('impact' verb only);</value>
+  </data>
+  <data name="Query_GeneralOptionWalkDepth2" xml:space="preserve">
+    <value>                                default: unlimited</value>
+  </data>
   <data name="Query_GeneralOptionDepth1" xml:space="preserve">
-    <value>  --depth &lt;#&gt;                  Maximum impact-walk depth ('impact' verb only); note</value>
+    <value>  --depth &lt;#&gt;                  Markdown heading depth (1-6, default: 1); Markdown</value>
   </data>
   <data name="Query_GeneralOptionDepth2" xml:space="preserve">
-    <value>                                this is the same flag as the 'render' command's</value>
+    <value>                                output only, no effect on --format json</value>
   </data>
-  <data name="Query_GeneralOptionDepth3" xml:space="preserve">
-    <value>                                diagram nesting --depth</value>
+  <data name="Query_GeneralOptionHeading1" xml:space="preserve">
+    <value>  --heading &lt;text&gt;             Custom Markdown heading text, replacing the default</value>
+  </data>
+  <data name="Query_GeneralOptionHeading2" xml:space="preserve">
+    <value>                                '# query &lt;verb&gt;[: &lt;element&gt;]' text (Markdown only)</value>
   </data>
   <data name="Query_GeneralOptionDirection" xml:space="preserve">
     <value>  --direction up|down|both     Traversal direction ('hierarchy' verb only)</value>
@@ -143,10 +155,13 @@
     <value>workspace (e.g., 'query list --kind "part def"'), then pass those qualified names to</value>
   </data>
   <data name="Query_WorkflowNote3" xml:space="preserve">
-    <value>element-scoped verbs (uses, used-by, impact, describe, hierarchy, requirements,</value>
+    <value>element-scoped verbs (uses, used-by, dependencies, impact, describe, hierarchy, requirements,</value>
   </data>
   <data name="Query_WorkflowNote4" xml:space="preserve">
     <value>interface, connections, states) via --element.</value>
+  </data>
+  <data name="Query_WorkflowNote5" xml:space="preserve">
+    <value>Example: 'query describe --element Pkg::Foo --depth 2 --heading "Foo Report" file.sysml' embeds the report as a '##' heading titled "Foo Report" instead of the default '# query describe: Pkg::Foo'.</value>
   </data>
   <data name="Query_VerbUsageWithElement" xml:space="preserve">
     <value>Usage: sysml2tools query {0} --element &lt;name&gt; [options] &lt;files...&gt;</value>
@@ -157,8 +172,8 @@
   <data name="Query_OptionElementRequired" xml:space="preserve">
     <value>  --element &lt;name&gt;, -e &lt;name&gt;  Qualified name of the target element (required)</value>
   </data>
-  <data name="Query_OptionDepthImpact" xml:space="preserve">
-    <value>  --depth &lt;#&gt;                   Maximum impact-walk depth (default: unlimited)</value>
+  <data name="Query_OptionWalkDepthImpact" xml:space="preserve">
+    <value>  --walk-depth &lt;#&gt;              Maximum impact-walk depth (default: unlimited)</value>
   </data>
   <data name="Query_OptionDirectionHierarchy" xml:space="preserve">
     <value>  --direction up|down|both      Traversal direction (default: both)</value>
@@ -172,6 +187,12 @@
   <data name="Query_OptionFormatVerb" xml:space="preserve">
     <value>  --format markdown|json        Output format (default: markdown)</value>
   </data>
+  <data name="Query_OptionDepthVerb" xml:space="preserve">
+    <value>  --depth &lt;#&gt;                   Markdown heading depth (1-6, default: 1)</value>
+  </data>
+  <data name="Query_OptionHeadingVerb" xml:space="preserve">
+    <value>  --heading &lt;text&gt;              Custom Markdown heading text (default: auto-generated)</value>
+  </data>
   <data name="Query_OptionIncludeStdlibVerb" xml:space="preserve">
     <value>  --include-stdlib              Include OMG standard library elements in results</value>
   </data>
@@ -184,8 +205,11 @@
   <data name="Query_Example_UsedBy" xml:space="preserve">
     <value>  sysml2tools query used-by --element VehicleDefinitions::Wheel test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
   </data>
+  <data name="Query_Example_Dependencies" xml:space="preserve">
+    <value>  sysml2tools query dependencies --element VehicleDefinitions::Vehicle test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
+  </data>
   <data name="Query_Example_Impact" xml:space="preserve">
-    <value>  sysml2tools query impact --element VehicleDefinitions::Axle --depth 2 test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
+    <value>  sysml2tools query impact --element VehicleDefinitions::Axle --walk-depth 2 test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
   </data>
   <data name="Query_Example_Describe" xml:space="preserve">
     <value>  sysml2tools query describe --element VehicleUsages::vehicle_C1 test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
@@ -216,5 +240,14 @@
   </data>
   <data name="Query_SchemaHint_Json" xml:space="preserve">
     <value>JSON output: { "Verb", "Element", "Summary": [...], "Entries": [{ "QualifiedName", "Kind", "Detail", "Notes": [] }] }, entries sorted by QualifiedName.</value>
+  </data>
+  <data name="Query_SchemaHint_Markdown_Dependencies" xml:space="preserve">
+    <value>Markdown output: a heading, then bullet-prose combining outgoing and incoming references ('- Depends on **Name** (kind)' / '- Used by **Name** (kind)'); qualified names are shortened by stripping their common prefix. No table is rendered for this verb.</value>
+  </data>
+  <data name="Query_SchemaHint_Json_Dependencies" xml:space="preserve">
+    <value>JSON output: { "Verb", "Element", "Summary": [...], "Entries": [{ "QualifiedName", "Kind", "Detail", "Direction": "Outgoing"|"Incoming", "Notes": [] }] }, fully-qualified (unshortened); outgoing entries listed before incoming entries.</value>
+  </data>
+  <data name="Query_OptionWalkDepthIgnoredDependencies" xml:space="preserve">
+    <value>  --walk-depth &lt;#&gt;              Accepted but ignored (this verb reports direct references only, not bounded traversal)</value>
   </data>
 </root>

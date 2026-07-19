@@ -280,11 +280,11 @@ public class RenderSubsystemTests
     }
 
     /// <summary>
-    ///     RenderCommand renders with --depth 1 and the SVG output contains an ellipsis
+    ///     RenderCommand renders with --walk-depth 1 and the SVG output contains an ellipsis
     ///     character indicating that children were truncated at depth limit.
     /// </summary>
     [Fact]
-    public async Task RenderSubsystem_WithDepth_LimitsNesting()
+    public async Task RenderSubsystem_WithWalkDepth_LimitsNesting()
     {
         // Arrange: write a SysML model with a view and part defs; create temp output dir
         var tempDir = Path.Combine(Path.GetTempPath(), $"render_depth_{Guid.NewGuid():N}");
@@ -300,9 +300,9 @@ public class RenderSubsystemTests
             using var outWriter = new StringWriter();
             Console.SetOut(outWriter);
 
-            // Act: render with depth=1 to trigger the ellipsis truncation
+            // Act: render with walk-depth=1 to trigger the ellipsis truncation
             using var context = Context.Create(
-                ["render", "--format", "svg", "--depth", "1", "--output", outputDir, tempFile]);
+                ["render", "--format", "svg", "--walk-depth", "1", "--output", outputDir, tempFile]);
             await Program.RunAsync(context);
 
             // Assert: SVG output exists and contains the ellipsis marker

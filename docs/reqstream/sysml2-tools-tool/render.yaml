@@ -82,12 +82,12 @@ sections:
       - id: SysML2Tools-Tool-Render-DepthLimit
         title: >-
           The render command shall limit diagram nesting depth to the value supplied via
-          --depth, replacing truncated children with an ellipsis indicator.
+          --walk-depth, replacing truncated children with an ellipsis indicator.
         justification: |
           A depth limit prevents overly complex diagrams when large models have deep
           nesting. An ellipsis marker tells the reader that content was omitted.
         tests:
-          - RenderSubsystem_WithDepth_LimitsNesting
+          - RenderSubsystem_WithWalkDepth_LimitsNesting
 
       - id: SysML2Tools-Tool-Render-AllViewsExport
         title: >-

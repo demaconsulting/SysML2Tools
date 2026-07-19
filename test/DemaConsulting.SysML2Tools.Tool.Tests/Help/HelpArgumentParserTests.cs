@@ -36,6 +36,7 @@ public class HelpArgumentParserTests
     [
         "uses",
         "used-by",
+        "dependencies",
         "impact",
         "describe",
         "hierarchy",
@@ -105,7 +106,7 @@ public class HelpArgumentParserTests
 
     /// <summary>
     ///     'help query &lt;verb&gt;' sets both TargetCommand and TargetVerb for every one of the
-    ///     11 recognized verbs.
+    ///     12 recognized verbs.
     /// </summary>
     [Theory]
     [MemberData(nameof(QueryVerbTokens))]

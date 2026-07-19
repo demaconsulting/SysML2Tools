@@ -116,13 +116,10 @@
     <value>  --results &lt;file&gt;           Write validation results to file (.trx or .xml)</value>
   </data>
   <data name="TopLevel_OptionDepth1" xml:space="preserve">
-    <value>  --depth &lt;#&gt;                Set heading depth (1–6) and diagram render depth</value>
+    <value>  --depth &lt;#&gt;                Set heading depth (1–6) for validation output and</value>
   </data>
   <data name="TopLevel_OptionDepth2" xml:space="preserve">
-    <value>                             (default: 1); for the query command's 'impact' verb,</value>
-  </data>
-  <data name="TopLevel_OptionDepth3" xml:space="preserve">
-    <value>                             --depth instead bounds the impact-walk depth</value>
+    <value>                             for the query command's Markdown reports (default: 1)</value>
   </data>
   <data name="TopLevel_OptionLog" xml:space="preserve">
     <value>  --log &lt;file&gt;               Write output to log file</value>

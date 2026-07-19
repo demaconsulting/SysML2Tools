@@ -104,15 +104,11 @@ is tested by `Context_Create_DepthFlag_ZeroValue_ThrowsArgumentException`.
 
 **Context_Create_DepthFlag_ExceedsMaxValue_ThrowsArgumentException**: *(replaced)*
 `Context.Create` with `["--depth", "7"]` no longer throws; this scenario is superseded by
-`Context_Create_DepthFlag_ExceedsMaxValue_SetsMaxRenderDepth`.
+`Context_Create_DepthFlag_ExceedsMaxValue_ClampsHeadingDepth`.
 
-**Context_Create_DepthFlag_ExceedsMaxValue_SetsMaxRenderDepth**: `Context.Create` is called
-with `["--depth", "7"]`; `HeadingDepth` is 6 (clamped) and `MaxRenderDepth` is 7 (raw).
-This scenario is tested by `Context_Create_DepthFlag_ExceedsMaxValue_SetsMaxRenderDepth`.
-
-**Context_Create_DepthFlag_SetsMaxRenderDepth**: `Context.Create` is called with
-`["--depth", "3"]`; `HeadingDepth` is 3 and `MaxRenderDepth` is 3. This scenario is tested
-by `Context_Create_DepthFlag_SetsMaxRenderDepth`.
+**Context_Create_DepthFlag_ExceedsMaxValue_ClampsHeadingDepth**: `Context.Create` is called
+with `["--depth", "7"]`; `HeadingDepth` is 6 (clamped). This scenario is tested by
+`Context_Create_DepthFlag_ExceedsMaxValue_ClampsHeadingDepth`.
 
 **Context_Create_ViewFlag_SetsViewName**: `Context.Create` is called with
 `["render", "--view", "MyView"]`; `Render.ViewName` equals `"MyView"`. This scenario is tested by
@@ -149,7 +145,7 @@ scenario is tested by `Context_WriteError_WritesToLogFile`.
 scenario is tested by `Context_Create_LogFlag_InvalidPath_ThrowsInvalidOperationException`.
 
 **Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb**: `Context.Create` is called with
-`["query", <token>, "--element", "Pkg::Foo"]` for each of the 11 recognized verb tokens;
+`["query", <token>, "--element", "Pkg::Foo"]` for each of the 12 recognized verb tokens;
 `Command` equals `SysmlCommand.Query` and `Query.Verb` matches the token. This scenario is
 tested by the `[Theory]` `Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb`.
 
@@ -199,10 +195,11 @@ tested by `Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat`.
 with `["query", "list", "--format", "json"]`; `Query.Format` equals `"json"`. This scenario
 is tested by `Context_Create_QueryCommand_WithFormatJson_SetsQueryFormat`.
 
-**Context_Create_QueryCommand_WithDepthFlag_SetsQueryDepth**: `Context.Create` is called with
-`["query", "impact", "--element", "Pkg::Foo", "--depth", "3"]`; `Query.Depth` equals 3 and
-`MaxRenderDepth` equals 3 (same underlying parsed value). This scenario is tested by
-`Context_Create_QueryCommand_WithDepthFlag_SetsQueryDepth`.
+**Context_Create_QueryCommand_WithWalkDepthFlag_SetsQueryWalkDepth**: `Context.Create` is called with
+`["query", "impact", "--element", "Pkg::Foo", "--walk-depth", "3"]`; `Query.WalkDepth` equals 3
+and `HeadingDepth` remains 1 (default), confirming `--walk-depth` and the global `--depth` are
+distinct, unrelated flags. This scenario is tested by
+`Context_Create_QueryCommand_WithWalkDepthFlag_SetsQueryWalkDepth`.
 
 **Context_Create_QueryCommand_WithFiles_SetsQueryFilesNotTopLevelFiles**: `Context.Create` is
 called with `["query", "list", "*.sysml"]`; `Query.Files` contains `"*.sysml"` while

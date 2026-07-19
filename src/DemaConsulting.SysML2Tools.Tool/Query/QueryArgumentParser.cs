@@ -34,11 +34,18 @@ namespace DemaConsulting.SysML2Tools.Query;
 ///     instead); when no verb is present and <c>--help</c> was not requested, a clear
 ///     <see cref="ArgumentException"/> is thrown rather than leaving the command in a silent
 ///     null/None state. Remaining tokens recognize <c>--element</c>/<c>-e</c>, <c>--direction</c>,
-///     <c>--kind</c>, <c>--name</c>, <c>--include-stdlib</c>, and <c>--format</c>, plus positional
-///     file glob patterns; any other <c>-</c>-prefixed token is rejected so that flags belonging to
+///     <c>--kind</c>, <c>--name</c>, <c>--include-stdlib</c>, <c>--format</c>,
+///     <c>--walk-depth</c>, and <c>--heading</c>, plus positional file glob patterns;
+///     any other <c>-</c>-prefixed token is rejected so that flags belonging to
 ///     other commands (e.g., <c>--auto</c>, <c>--output</c>) are never silently accepted.
 ///     <c>--format</c>'s value is captured raw and validated later by
 ///     <see cref="QueryCommand.RunAsync"/>, exactly as it already was before this refactor.
+///     <c>--walk-depth</c> (impact-walk depth, unbounded) is a command-scoped flag parsed here,
+///     distinct from the global <c>--depth</c> flag (Markdown heading depth, read directly from
+///     <see cref="Cli.Context.HeadingDepth"/> by <see cref="QueryCommand.RunAsync"/>, not parsed
+///     by this class). <c>--heading</c> (custom Markdown heading text) is also recognized here;
+///     both <c>--depth</c> and <c>--heading</c> are Markdown-output-only and have no effect on
+///     <c>--format json</c>.
 /// </remarks>
 internal static class QueryArgumentParser
 {
@@ -53,10 +60,6 @@ internal static class QueryArgumentParser
     ///     <see langword="true"/> when the global <c>--help</c>/<c>-h</c>/<c>-?</c> flag was
     ///     supplied; suppresses the "verb is required" error when no verb token is present.
     /// </param>
-    /// <param name="depth">
-    ///     The global <c>--depth</c> value (shared with <c>render</c>'s diagram depth), threaded
-    ///     through into <see cref="QueryOptions.Depth"/>.
-    /// </param>
     /// <returns>
     ///     The parsed <see cref="QueryOptions"/>, or <see langword="null"/> when no verb token was
     ///     supplied and <paramref name="helpRequested"/> is <see langword="true"/> (e.g.,
@@ -67,7 +70,7 @@ internal static class QueryArgumentParser
     ///     <see langword="false"/>; when the first token is not a recognized verb; or when an
     ///     unrecognized flag is supplied.
     /// </exception>
-    public static QueryOptions? Parse(IReadOnlyList<string> commandArgs, bool helpRequested, int? depth)
+    public static QueryOptions? Parse(IReadOnlyList<string> commandArgs, bool helpRequested)
     {
         // The verb is a required structural first argument, validated strictly here rather than
         // lazily inferred by a shared default case.
@@ -98,6 +101,8 @@ internal static class QueryArgumentParser
         string? kind = null;
         string? nameFilter = null;
         string? format = null;
+        int? walkDepth = null;
+        string? heading = null;
         var includeStdlib = false;
         var files = new List<string>();
 
@@ -132,6 +137,16 @@ internal static class QueryArgumentParser
                         arg, commandArgs, ref index, "a format argument (markdown or json)");
                     break;
 
+                case "--walk-depth":
+                    walkDepth = CliArgumentHelpers.GetRequiredIntArgument(
+                        arg, commandArgs, ref index, "an impact-walk depth argument", 1);
+                    break;
+
+                case "--heading":
+                    heading = CliArgumentHelpers.GetRequiredStringArgument(
+                        arg, commandArgs, ref index, "a heading text argument");
+                    break;
+
                 case "--include-stdlib":
                     includeStdlib = true;
                     break;
@@ -153,11 +168,12 @@ internal static class QueryArgumentParser
             Verb = verb,
             Element = element,
             Format = format,
-            Depth = depth,
+            WalkDepth = walkDepth,
             Direction = direction,
             Kind = kind,
             NameFilter = nameFilter,
             IncludeStdlib = includeStdlib,
+            Heading = heading,
             Files = files
         };
     }

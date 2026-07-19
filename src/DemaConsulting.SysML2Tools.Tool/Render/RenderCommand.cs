@@ -133,7 +133,7 @@ internal static class RenderCommand
 
         // Render all views in the workspace (or the selected view when --view is specified)
         var diagramRenderer = new DiagramRenderer();
-        var renderOptions = new RenderOptions(Themes.Light, DepthLimit: context.MaxRenderDepth ?? 0);
+        var renderOptions = new RenderOptions(Themes.Light, DepthLimit: options.WalkDepth ?? 0);
         var outputs = diagramRenderer.RenderWorkspace(
             loadResult.Workspace, renderer, renderOptions, viewFilter: effectiveViewFilter);
 
@@ -332,8 +332,7 @@ internal static class RenderCommand
         context.WriteLine(RenderStrings.Render_OptionViewType);
         context.WriteLine(RenderStrings.Render_OptionViewTarget);
         context.WriteLine(RenderStrings.Render_OptionFilter);
+        context.WriteLine(RenderStrings.Render_OptionWalkDepth);
         context.WriteLine("");
-        context.WriteLine(RenderStrings.Render_DepthNote1);
-        context.WriteLine(RenderStrings.Render_DepthNote2);
     }
 }

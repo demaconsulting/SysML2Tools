@@ -24,7 +24,7 @@ using DemaConsulting.SysML2Tools.Semantic.Model;
 namespace DemaConsulting.SysML2Tools.Query;
 
 /// <summary>
-///     Implements the real analysis logic for all 11 <see cref="QueryVerb"/> operations, each as
+///     Implements the real analysis logic for all 12 <see cref="QueryVerb"/> operations, each as
 ///     a static method taking the loaded <see cref="SysmlWorkspace"/>, the resolved target
 ///     <see cref="SysmlNode"/> (<see langword="null"/> only for <see cref="List(SysmlWorkspace,QueryOptions)"/>/
 ///     <see cref="Find"/>), and the parsed <see cref="QueryOptions"/>, and returning a uniform
@@ -125,8 +125,37 @@ internal static class QueryEngine
     }
 
     /// <summary>
+    ///     Combines <see cref="Uses"/> (outgoing) and <see cref="UsedBy"/> (incoming) for a given
+    ///     element into one result, tagging each entry's <see cref="QueryResultEntry.Direction"/>
+    ///     accordingly, so the caller doesn't need to run two separate queries or duplicate the
+    ///     underlying edge-traversal logic.
+    /// </summary>
+    /// <param name="workspace">The loaded workspace.</param>
+    /// <param name="element">The target element.</param>
+    /// <param name="options">The parsed query options.</param>
+    /// <returns>The query result.</returns>
+    public static QueryResult Dependencies(SysmlWorkspace workspace, SysmlNode element, QueryOptions options)
+    {
+        var qualifiedName = QualifiedNameOf(element, options);
+
+        var usesResult = Uses(workspace, element, options);
+        var usedByResult = UsedBy(workspace, element, options);
+
+        var entries = new List<QueryResultEntry>();
+        entries.AddRange(usesResult.Entries.Select(e => e with { Direction = QueryEntryDirection.Outgoing }));
+        entries.AddRange(usedByResult.Entries.Select(e => e with { Direction = QueryEntryDirection.Incoming }));
+
+        return new QueryResult
+        {
+            Verb = "dependencies",
+            Element = qualifiedName,
+            Entries = entries
+        };
+    }
+
+    /// <summary>
     ///     Reports the transitive "blast radius" of a change to a given element: the transitive
-    ///     closure of <see cref="UsedBy"/>, bounded by <see cref="QueryOptions.Depth"/> when
+    ///     closure of <see cref="UsedBy"/>, bounded by <see cref="QueryOptions.WalkDepth"/> when
     ///     specified (unlimited otherwise).
     /// </summary>
     /// <param name="workspace">The loaded workspace.</param>
@@ -141,7 +170,7 @@ internal static class QueryEngine
         var frontier = new List<string> { qualifiedName };
         var depth = 0;
 
-        while (frontier.Count > 0 && (options.Depth is not { } maxDepth || depth < maxDepth))
+        while (frontier.Count > 0 && (options.WalkDepth is not { } maxDepth || depth < maxDepth))
         {
             depth++;
             var next = new List<string>();
@@ -175,7 +204,7 @@ internal static class QueryEngine
             frontier = next;
         }
 
-        var depthSuffix = options.Depth is { } d ? $" (depth <= {d})" : string.Empty;
+        var depthSuffix = options.WalkDepth is { } d ? $" (depth <= {d})" : string.Empty;
         return new QueryResult
         {
             Verb = "impact",

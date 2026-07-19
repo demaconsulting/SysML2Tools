@@ -4,7 +4,7 @@
 # PURPOSE:
 # - Define requirements for the DemaConsulting.SysML2Tools.Tool Query subsystem
 # - QueryCommand implements the CLI query verb dispatcher (QueryVerb/QueryOptions support it)
-# - QueryEngine implements the 11 verbs' real analysis logic against the semantic model
+# - QueryEngine implements the 12 verbs' real analysis logic against the semantic model
 # - QueryResult/QueryResultRenderer/QueryResultSerializerContext implement the shared,
 #   verb-agnostic Markdown/JSON output layer
 # - Requirements describe observable behavior of the query command's parsing, validation,
@@ -16,8 +16,8 @@ sections:
       - id: SysML2Tools-Tool-Query-VerbGrammar
         title: >-
           The query command shall accept a verb token immediately following `query` and
-          recognize the 11 verbs uses, used-by, impact, describe, hierarchy, requirements,
-          interface, connections, states, list, and find.
+          recognize the 12 verbs uses, used-by, dependencies, impact, describe, hierarchy,
+          requirements, interface, connections, states, list, and find.
         justification: |
           A fixed, positional verb vocabulary keeps the query grammar simple and predictable
           for both human and AI-assisted callers, matching the verb set already fixed by
@@ -94,6 +94,7 @@ sections:
           - Query_MarkdownAndJsonFormats_AgreeOnEntryContentAndOrder
           - RenderMarkdown_UnorderedEntries_SortsByQualifiedNameOrdinal
           - RenderJson_UnorderedEntries_SortsByQualifiedNameOrdinal
+          - RenderJson_NonDependenciesVerb_DirectionFieldOmittedFromOutput
 
       - id: SysML2Tools-Tool-Query-StdlibFilter
         title: >-
@@ -140,10 +141,55 @@ sections:
         tests:
           - UsedBy_ReportsIncomingReferences
 
+      - id: SysML2Tools-Tool-Query-Dependencies
+        title: >-
+          The dependencies verb shall combine the uses (outgoing) and used-by (incoming)
+          results for the same target element into a single result, tagging each entry's
+          Direction field (Outgoing/Incoming) accordingly, and shall render its Markdown
+          output as prose bullets ("Depends on"/"Used by") grouped by direction rather than
+          the shared table used by every other verb; --depth/--heading shall apply to its
+          heading exactly as they do for every other verb.
+        justification: |
+          A combined, prose-rendered "what does this depend on, and what depends on it"
+          view is a distinct documentation-embedding need (e.g., a "Dependencies" section
+          in a generated design document) from the tabular verbs; reusing the uses/used-by
+          methods avoids duplicating the underlying edge-traversal logic, and confining the
+          Direction field's JSON serialization to only-when-non-null (via
+          JsonIgnore(WhenWritingNull)) keeps every other verb's JSON output unaffected.
+        tests:
+          - Dependencies_CombinesOutgoingAndIncoming_ReportsBothDirections
+          - Dependencies_NoOutgoingReferences_ReportsProseLineInsteadOfBulletList
+          - Dependencies_NoIncomingReferences_ReportsProseLineInsteadOfBulletList
+          - Dependencies_MarkdownOutput_ContainsNoTable
+          - RenderMarkdown_DependenciesVerb_RendersBulletProseNotTable
+          - RenderMarkdown_DependenciesVerb_EmptyOutgoingAndIncoming_ReportsBothProseLines
+          - RenderJson_DependenciesVerb_IncludesDirectionField
+          - RenderJson_NonDependenciesVerb_DirectionFieldOmittedFromOutput
+          - Dependencies_DepthAndHeadingOptions_ApplyToHeadingLikeOtherVerbs
+
+      - id: SysML2Tools-Tool-Query-DependenciesNameShortening
+        title: >-
+          The dependencies verb's Markdown output shall shorten every name (the subject
+          element plus every entry's qualified name) by the longest leading "::"-segment
+          prefix shared across that combined pool, applied identically to the subject
+          sentence and both bullet groups, while its JSON output (and every other verb's
+          Markdown and JSON output) remains fully qualified and unaffected.
+        justification: |
+          A "Dependencies" prose section frequently relates several elements from the same
+          package hierarchy; repeating a long shared package prefix on every bullet and in
+          the subject sentence adds noise without adding information. Reusing the standalone
+          QualifiedNameShortener utility (see the Utilities subsystem) keeps this compaction
+          logic verb/format-agnostic and confined to the one Markdown-only rendering path
+          that already special-cases dependencies, so no other verb or output format is
+          affected.
+        tests:
+          - RenderMarkdown_DependenciesVerb_NoCommonPrefix_LeavesNamesFullyQualified
+          - RenderJson_DependenciesVerb_NamesRemainFullyQualified
+
       - id: SysML2Tools-Tool-Query-Impact
         title: >-
           The impact verb shall compute the transitive closure of used-by edges from the
-          target element, optionally bounded by --depth, cycle-guarded against infinite
+          target element, optionally bounded by --walk-depth, cycle-guarded against infinite
           loops.
         justification: |
           A single-hop used-by view understates true blast radius for deeply-referenced
@@ -256,7 +302,7 @@ sections:
 
       - id: SysML2Tools-Tool-Query-Help
         title: >-
-          The query command shall render general help listing all 11 verbs when invoked as
+          The query command shall render general help listing all 12 verbs when invoked as
           `query --help` with no verb, and verb-specific help when invoked as
           `query <verb> --help`, in both cases without requiring --element.
         justification: |
@@ -280,6 +326,26 @@ sections:
           - ResxResource_EveryKey_ResolvesToNonEmptyText
           - ResxResource_KeysAndAccessorProperties_AreInBidirectionalParity
 
+      - id: SysML2Tools-Tool-Query-ReportHeading
+        title: >-
+          The query command shall accept --depth (the global heading-depth flag, an integer
+          1-6, default 1) and --heading (custom text) options controlling the Markdown
+          output's top heading depth and text, with no effect on --format json output.
+        justification: |
+          Embedding query output into larger generated Markdown reports (e.g., appending a
+          query result under an existing document section) requires the ability to align
+          the heading depth with the surrounding document and to give the section a
+          document-specific title, matching the Depth/Heading precedent already
+          established by the ReviewMark and SarifMark CLIs.
+        tests:
+          - Context_Create_QueryCommand_WithoutHeading_LeavesHeadingNull
+          - Context_Create_QueryCommand_WithHeadingFlag_SetsHeading
+          - RenderMarkdown_DefaultArguments_ProducesUnchangedTopLevelHeading
+          - RenderMarkdown_CustomDepth_UsesThatManyHeadingHashes
+          - RenderMarkdown_CustomHeading_ReplacesAutoGeneratedText
+          - RenderMarkdown_CustomDepthAndHeading_CombinesBothOverrides
+          - QuerySubsystem_FormatJson_UnaffectedByDepthOrHeading
+
       - id: SysML2Tools-Tool-Query-HelpEnrichment
         title: >-
           Verb-specific help (`query <verb> --help`) shall include one real example
@@ -288,7 +354,7 @@ sections:
           include a "typical workflow" note recommending `list`/`find` before element-scoped
           verbs.
         justification: |
-          A fixed vocabulary of 11 verbs with deeply-nested qualified-name arguments is hard
+          A fixed vocabulary of 12 verbs with deeply-nested qualified-name arguments is hard
           to use from help text alone; a real, runnable example per verb and an explicit
           discovery-first workflow tip make the CLI directly usable without external
           documentation, especially for AI-assisted callers.

@@ -74,6 +74,7 @@ public class QuerySubsystemTests
     {
         { "uses", "Model::Mid" },
         { "used-by", "Model::Root" },
+        { "dependencies", "Model::Mid" },
         { "impact", "Model::Root" },
         { "describe", "Model::Mid" },
         { "hierarchy", "Model::Mid" },
@@ -86,7 +87,7 @@ public class QuerySubsystemTests
     };
 
     /// <summary>
-    ///     Each of the 11 verbs, given a valid element (where required) and a loadable workspace,
+    ///     Each of the 12 verbs, given a valid element (where required) and a loadable workspace,
     ///     dispatches to real <c>QueryEngine</c> logic and produces exit code 0.
     /// </summary>
     [Theory]
@@ -120,6 +121,7 @@ public class QuerySubsystemTests
     [Theory]
     [InlineData("uses")]
     [InlineData("used-by")]
+    [InlineData("dependencies")]
     [InlineData("impact")]
     [InlineData("describe")]
     [InlineData("hierarchy")]
@@ -217,6 +219,23 @@ public class QuerySubsystemTests
 
         Assert.Equal(0, exitCode);
         Assert.Contains("\"Verb\": \"list\"", output);
+    }
+
+    /// <summary>
+    ///     '--format json' output is byte-identical whether or not '--depth'/'--heading' are
+    ///     supplied, since those options only affect Markdown rendering.
+    /// </summary>
+    [Fact]
+    public async Task QuerySubsystem_FormatJson_UnaffectedByDepthOrHeading()
+    {
+        var (withoutFlags, exitCodeWithout) = await QueryTestFixtures.RunQueryAsync(
+            Fixture, "list", "--format", "json");
+        var (withFlags, exitCodeWith) = await QueryTestFixtures.RunQueryAsync(
+            Fixture, "list", "--format", "json", "--depth", "5", "--heading", "Custom Heading");
+
+        Assert.Equal(0, exitCodeWithout);
+        Assert.Equal(0, exitCodeWith);
+        Assert.Equal(withoutFlags, withFlags);
     }
 
     /// <summary>
@@ -339,7 +358,8 @@ public class QuerySubsystemTests
     [Theory]
     [InlineData("uses", "query uses --element VehicleDefinitions::Vehicle")]
     [InlineData("used-by", "query used-by --element VehicleDefinitions::Wheel")]
-    [InlineData("impact", "query impact --element VehicleDefinitions::Axle --depth 2")]
+    [InlineData("dependencies", "query dependencies --element VehicleDefinitions::Vehicle")]
+    [InlineData("impact", "query impact --element VehicleDefinitions::Axle --walk-depth 2")]
     [InlineData("describe", "query describe --element VehicleUsages::vehicle_C1")]
     [InlineData("hierarchy", "query hierarchy --element VehicleUsages::vehicle_C3 --direction up")]
     [InlineData("requirements", "query requirements --element VehicleUsages::vehicle_C1")]
@@ -365,8 +385,16 @@ public class QuerySubsystemTests
             // Assert
             var output = outWriter.ToString();
             Assert.Contains(expectedExampleSubstring, output);
-            Assert.Contains("Qualified Name", output);
-            Assert.Contains("QualifiedName", output);
+            if (verbToken == "dependencies")
+            {
+                Assert.Contains("Depends on", output);
+                Assert.Contains("Direction", output);
+            }
+            else
+            {
+                Assert.Contains("Qualified Name", output);
+                Assert.Contains("QualifiedName", output);
+            }
         }
         finally
         {

@@ -25,7 +25,7 @@ namespace DemaConsulting.SysML2Tools.Tests.Help;
 /// <summary>
 ///     End-to-end subsystem tests for the <c>help</c> command, exercised via
 ///     <see cref="Context.Create"/> + <see cref="Program.RunAsync"/>. Verifies bare <c>help</c>,
-///     per-command help, per-verb help for all 11 <c>query</c> verbs, unknown-command/verb
+///     per-command help, per-verb help for all 12 <c>query</c> verbs, unknown-command/verb
 ///     handling, parity between <c>help &lt;command&gt;</c> and <c>&lt;command&gt; --help</c>, and
 ///     the <c>--silent</c> interaction.
 /// </summary>
@@ -40,6 +40,7 @@ public class HelpSubsystemTests
     [
         "uses",
         "used-by",
+        "dependencies",
         "impact",
         "describe",
         "hierarchy",
@@ -55,6 +56,7 @@ public class HelpSubsystemTests
     [
         "uses",
         "used-by",
+        "dependencies",
         "impact",
         "describe",
         "hierarchy",
@@ -144,7 +146,7 @@ public class HelpSubsystemTests
     }
 
     /// <summary>
-    ///     'help query' (no verb) produces query-distinguishing content — an overview of all 11
+    ///     'help query' (no verb) produces query-distinguishing content — an overview of all 12
     ///     verbs — and matches 'query --help'.
     /// </summary>
     [Fact]
@@ -162,7 +164,7 @@ public class HelpSubsystemTests
     }
 
     /// <summary>
-    ///     'help query &lt;verb&gt;' matches 'query &lt;verb&gt; --help' for every one of the 11
+    ///     'help query &lt;verb&gt;' matches 'query &lt;verb&gt; --help' for every one of the 12
     ///     verbs, and mentions that verb's real flags where applicable.
     /// </summary>
     [Theory]
@@ -179,7 +181,7 @@ public class HelpSubsystemTests
         switch (verb)
         {
             case "impact":
-                Assert.Contains("--depth", helpOutput);
+                Assert.Contains("--walk-depth", helpOutput);
                 break;
 
             case "hierarchy":

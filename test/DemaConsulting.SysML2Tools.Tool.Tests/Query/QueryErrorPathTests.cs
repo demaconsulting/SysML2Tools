@@ -76,6 +76,18 @@ public class QueryErrorPathTests
     }
 
     /// <summary>
+    ///     A non-integer --walk-depth value throws ArgumentException naming the flag, mirroring
+    ///     the existing --format validation style.
+    /// </summary>
+    [Fact]
+    public void Query_WalkDepthInvalidValue_ThrowsArgumentException()
+    {
+        var exception = Assert.Throws<ArgumentException>(
+            () => Context.Create(["query", "impact", "--element", "Pkg::Foo", "--walk-depth", "abc", "file.sysml"]));
+        Assert.Contains("--walk-depth", exception.Message);
+    }
+
+    /// <summary>
     ///     A file with a syntax error still loads best-effort (matching 'lint'/'render'): parse
     ///     diagnostics are reported, and 'list' still runs against whatever declarations were
     ///     successfully registered.

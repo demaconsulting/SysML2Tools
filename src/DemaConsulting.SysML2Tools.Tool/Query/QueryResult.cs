@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Text.Json.Serialization;
+
 namespace DemaConsulting.SysML2Tools.Query;
 
 /// <summary>
@@ -26,7 +28,7 @@ namespace DemaConsulting.SysML2Tools.Query;
 /// </summary>
 /// <remarks>
 ///     A single shared shape (rather than one result type per verb) allows one non-duplicated
-///     rendering layer to serve all 11 verbs: <see cref="Summary"/> carries free-form narrative
+///     rendering layer to serve all 12 verbs: <see cref="Summary"/> carries free-form narrative
 ///     lines (e.g. <c>describe</c>'s kind/supertypes/annotations), and <see cref="Entries"/>
 ///     carries the tabular list of related elements every verb ultimately reports.
 /// </remarks>
@@ -86,4 +88,27 @@ internal sealed record QueryResultEntry
     ///     verbs that need to attach more than one piece of extra context to a single entry.
     /// </summary>
     public IReadOnlyList<string> Notes { get; init; } = [];
+
+    /// <summary>
+    ///     Gets the traversal direction of this entry relative to the queried element. Only
+    ///     populated by the <c>dependencies</c> verb (which combines <c>uses</c>/<c>used-by</c>
+    ///     results); <see langword="null"/> for every other verb. Omitted from JSON output
+    ///     entirely when <see langword="null"/>, so this addition does not change the JSON
+    ///     shape of any other verb.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public QueryEntryDirection? Direction { get; init; }
+}
+
+/// <summary>
+///     The traversal direction of a <see cref="QueryResultEntry"/> relative to the queried
+///     element, populated only by the <c>dependencies</c> verb.
+/// </summary>
+internal enum QueryEntryDirection
+{
+    /// <summary>The entry is an element the queried element depends on (an outgoing reference).</summary>
+    Outgoing,
+
+    /// <summary>The entry is an element that depends on the queried element (an incoming reference).</summary>
+    Incoming
 }

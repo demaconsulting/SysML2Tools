@@ -106,9 +106,6 @@ internal static class ProgramStrings
     /// <summary>Gets the second line of the --depth option description.</summary>
     public static string TopLevel_OptionDepth2 => ResourceManager.GetString(nameof(TopLevel_OptionDepth2))!;
 
-    /// <summary>Gets the third line of the --depth option description.</summary>
-    public static string TopLevel_OptionDepth3 => ResourceManager.GetString(nameof(TopLevel_OptionDepth3))!;
-
     /// <summary>Gets the --log option line.</summary>
     public static string TopLevel_OptionLog => ResourceManager.GetString(nameof(TopLevel_OptionLog))!;
 

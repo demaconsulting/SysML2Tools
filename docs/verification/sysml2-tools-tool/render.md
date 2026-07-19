@@ -31,7 +31,7 @@ on context output and exit code. File-writing scenarios use a temporary director
 - Output files written to `--output` directory
 - No output files written when workspace has no views
 - Informational message written when workspace has no views
-- `--depth 1` produces SVG output containing the ellipsis character `"…"`
+- `--walk-depth 1` produces SVG output containing the ellipsis character `"…"`
 - Multiple views without `--view` renders every declared view, producing one output file per
   view, exit code 0
 - Two views whose display names sanitize to the same output file name (declared in different
@@ -122,9 +122,9 @@ directory.
 Verifies that a model with no view declarations produces no output files and an
 informational message.
 
-#### RenderSubsystem_WithDepth_LimitsNesting
+#### RenderSubsystem_WithWalkDepth_LimitsNesting
 
-Verifies that `--depth 1` causes the SVG output to contain the ellipsis character `"…"`,
+Verifies that `--walk-depth 1` causes the SVG output to contain the ellipsis character `"…"`,
 confirming that child part-def boxes were replaced by the depth-limit indicator.
 
 #### RenderSubsystem_MultipleViews_NoViewFlag_RendersAllViews

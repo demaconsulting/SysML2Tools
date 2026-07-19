@@ -21,7 +21,7 @@
 namespace DemaConsulting.SysML2Tools.Tests.Query;
 
 /// <summary>
-///     Primary integration suite for the 11 real <c>query</c> verb implementations: each test
+///     Primary integration suite for the 12 real <c>query</c> verb implementations: each test
 ///     builds a small, fully-controlled inline SysML fixture and asserts on the resulting
 ///     Markdown output produced end-to-end through <see cref="Program.RunAsync"/>.
 /// </summary>
@@ -76,7 +76,97 @@ public class QueryVerbsTests
     }
 
     /// <summary>
-    ///     'impact' with --depth 1 only reaches direct incoming references, not their own
+    ///     'dependencies' combines 'uses' (outgoing) and 'used-by' (incoming) for one element
+    ///     into a single prose result: a "Depends on" bullet for each outgoing reference and a
+    ///     "Used by" bullet for each incoming reference.
+    /// </summary>
+    [Fact]
+    public async Task Dependencies_CombinesOutgoingAndIncoming_ReportsBothDirections()
+    {
+        const string sysml = """
+            package Model {
+                part def Vehicle;
+                part def Car specializes Vehicle;
+                part def Truck specializes Car;
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "dependencies", "--element", "Model::Car");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Depends on **Vehicle** (supertype)", output);
+        Assert.Contains("Used by **Truck** (supertype)", output);
+    }
+
+    /// <summary>
+    ///     'dependencies' reports a single prose line (instead of a bullet list) when the
+    ///     target element has no outgoing references.
+    /// </summary>
+    [Fact]
+    public async Task Dependencies_NoOutgoingReferences_ReportsProseLineInsteadOfBulletList()
+    {
+        const string sysml = """
+            package Model {
+                part def Vehicle;
+                part def Car specializes Vehicle;
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "dependencies", "--element", "Model::Vehicle");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Vehicle has no outgoing references.", output);
+        Assert.DoesNotContain("Depends on", output);
+    }
+
+    /// <summary>
+    ///     'dependencies' reports a single prose line (instead of a bullet list) when no other
+    ///     element references the target element.
+    /// </summary>
+    [Fact]
+    public async Task Dependencies_NoIncomingReferences_ReportsProseLineInsteadOfBulletList()
+    {
+        const string sysml = """
+            package Model {
+                part def Vehicle;
+                part def Car specializes Vehicle;
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "dependencies", "--element", "Model::Car");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("No elements reference Car.", output);
+        Assert.DoesNotContain("Used by", output);
+    }
+
+    /// <summary>
+    ///     'dependencies' renders its body as prose bullets, never a Markdown table, unlike
+    ///     every other verb.
+    /// </summary>
+    [Fact]
+    public async Task Dependencies_MarkdownOutput_ContainsNoTable()
+    {
+        const string sysml = """
+            package Model {
+                part def Vehicle;
+                part def Car specializes Vehicle;
+                part def Truck specializes Vehicle;
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "dependencies", "--element", "Model::Car");
+
+        Assert.Equal(0, exitCode);
+        Assert.DoesNotContain("| Qualified Name | Kind | Detail |", output);
+    }
+
+    /// <summary>
+    ///     'impact' with --walk-depth 1 only reaches direct incoming references, not their own
     ///     incoming references.
     /// </summary>
     [Fact]
@@ -91,7 +181,7 @@ public class QueryVerbsTests
             """;
 
         var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
-            sysml, "impact", "--element", "Model::Root", "--depth", "1");
+            sysml, "impact", "--element", "Model::Root", "--walk-depth", "1");
 
         Assert.Equal(0, exitCode);
         Assert.Contains("Model::Mid", output);
@@ -99,7 +189,7 @@ public class QueryVerbsTests
     }
 
     /// <summary>
-    ///     'impact' with no --depth reaches the full transitive closure.
+    ///     'impact' with no --walk-depth reaches the full transitive closure.
     /// </summary>
     [Fact]
     public async Task Impact_Unbounded_ReachesTransitiveClosure()

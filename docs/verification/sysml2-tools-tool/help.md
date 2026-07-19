@@ -27,9 +27,9 @@ run against the tool's target framework.
   to "No command specified".
 - `help lint`/`help render` produce output identical to `lint --help`/`render --help`
   respectively, each containing that command's distinguishing usage text.
-- `help query` (no verb) produces output identical to `query --help`, listing all 11 verbs.
+- `help query` (no verb) produces output identical to `query --help`, listing all 12 verbs.
 - `help query <verb>` produces output identical to `query <verb> --help`, for every one of
-  the 11 verbs, each mentioning that verb's real flags (e.g., `--depth` for `impact`,
+  the 12 verbs, each mentioning that verb's real flags (e.g., `--walk-depth` for `impact`,
   `--direction` for `hierarchy`, `--kind`/`--name` for `list`/`find`, `--element` for every
   other verb).
 - `help <unknown-command>` and `help query <unknown-verb>` throw a graceful
@@ -41,7 +41,7 @@ run against the tool's target framework.
 - Existing `-h`/`-?`/`--help` regression tests (`ProgramTests.cs`) continue to pass
   unmodified, confirming no regression in the pre-existing global-flag behavior.
 - `HelpArgumentParser.Parse` in isolation: no arguments → both fields null; `lint`/`render`/
-  `query` (no verb) → `TargetCommand` set; `query` + each of the 11 verbs → `TargetVerb` set;
+  `query` (no verb) → `TargetCommand` set; `query` + each of the 12 verbs → `TargetVerb` set;
   unknown target/verb/extra token → `ArgumentException`.
 
 #### Test Scenarios
@@ -56,8 +56,8 @@ leaves `TargetCommand`/`TargetVerb` both null.
 **`HelpArgumentParser_Parse_QueryNoVerb_SetsTargetCommandQueryOnly`**: Each of the three
 recognized target commands sets `TargetCommand` accordingly with `TargetVerb` null.
 
-**`HelpArgumentParser_Parse_QueryWithVerb_SetsTargetVerb`** (theory, 11 cases): For each of
-the 11 recognized query verb tokens, `help query <verb>` sets both `TargetCommand` (`"query"`)
+**`HelpArgumentParser_Parse_QueryWithVerb_SetsTargetVerb`** (theory, 12 cases): For each of
+the 12 recognized query verb tokens, `help query <verb>` sets both `TargetCommand` (`"query"`)
 and `TargetVerb` (the verb token).
 
 **`HelpArgumentParser_Parse_UnknownTargetCommand_ThrowsArgumentException`**: An unrecognized
@@ -90,11 +90,11 @@ branch returns before `RunToolLogicAsync`'s default arm could run.
 containing that command's distinguishing usage substring.
 
 **`HelpSubsystem_HelpQuery_MatchesQueryHelpFlag`**: `help query` (no verb) produces output
-identical to `query --help`, containing all 11 verb tokens.
+identical to `query --help`, containing all 12 verb tokens.
 
-**`HelpSubsystem_HelpQueryVerb_MatchesQueryVerbHelpFlag`** (theory, 11 cases): For each verb,
+**`HelpSubsystem_HelpQueryVerb_MatchesQueryVerbHelpFlag`** (theory, 12 cases): For each verb,
 `help query <verb>` produces output identical to `query <verb> --help`, containing the verb's
-usage line and its real flag(s) (`--depth` for `impact`; `--direction` for `hierarchy`;
+usage line and its real flag(s) (`--walk-depth` for `impact`; `--direction` for `hierarchy`;
 `--kind`/`--name` for `list`/`find`; `--element` for every other verb).
 
 **`HelpSubsystem_HelpUnknownCommand_ThrowsArgumentException`** /

@@ -105,4 +105,14 @@ internal sealed record RenderCommandOptions
     ///     handled today).
     /// </remarks>
     public string? FilterExpression { get; init; }
+
+    /// <summary>
+    ///     Gets the maximum diagram nesting depth limit, supplied via <c>--walk-depth</c>;
+    ///     <see langword="null"/> means unlimited.
+    /// </summary>
+    /// <remarks>
+    ///     Command-scoped (parsed locally by <see cref="RenderArgumentParser"/>); unrelated to the
+    ///     <c>query</c> command's own <c>--walk-depth</c> flag (impact-walk depth).
+    /// </remarks>
+    public int? WalkDepth { get; init; }
 }

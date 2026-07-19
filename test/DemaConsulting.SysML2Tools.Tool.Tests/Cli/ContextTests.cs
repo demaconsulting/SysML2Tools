@@ -318,32 +318,16 @@ public class ContextTests
 
     /// <summary>
     ///     Test creating a context with --depth flag and value exceeding maximum (6) does not throw;
-    ///     it sets MaxRenderDepth to the raw value and clamps HeadingDepth to 6.
+    ///     it clamps HeadingDepth to 6.
     /// </summary>
     [Fact]
-    public void Context_Create_DepthFlag_ExceedsMaxValue_SetsMaxRenderDepth()
+    public void Context_Create_DepthFlag_ExceedsMaxValue_ClampsHeadingDepth()
     {
         // Act: execute the operation being tested
         using var context = Context.Create(["--depth", "7"]);
 
-        // Assert: HeadingDepth is clamped to 6; MaxRenderDepth preserves the raw value
+        // Assert: HeadingDepth is clamped to 6
         Assert.Equal(6, context.HeadingDepth);
-        Assert.Equal(7, context.MaxRenderDepth);
-        Assert.Equal(0, context.ExitCode);
-    }
-
-    /// <summary>
-    ///     Test creating a context with --depth 3 sets both HeadingDepth and MaxRenderDepth.
-    /// </summary>
-    [Fact]
-    public void Context_Create_DepthFlag_SetsMaxRenderDepth()
-    {
-        // Act: execute the operation being tested
-        using var context = Context.Create(["--depth", "3"]);
-
-        // Assert: both properties reflect the supplied depth
-        Assert.Equal(3, context.HeadingDepth);
-        Assert.Equal(3, context.MaxRenderDepth);
         Assert.Equal(0, context.ExitCode);
     }
 
@@ -755,12 +739,13 @@ public class ContextTests
     }
 
     /// <summary>
-    ///     Test creating a context with the query command and each of the 11 verb tokens sets
+    ///     Test creating a context with the query command and each of the 12 verb tokens sets
     ///     Command to SysmlCommand.Query and Query.Verb to the matching enum value.
     /// </summary>
     [Theory]
     [InlineData("uses")]
     [InlineData("used-by")]
+    [InlineData("dependencies")]
     [InlineData("impact")]
     [InlineData("describe")]
     [InlineData("hierarchy")]
@@ -926,19 +911,48 @@ public class ContextTests
     }
 
     /// <summary>
-    ///     Test creating a context with the query command and --depth sets Query.Depth without
-    ///     disturbing MaxRenderDepth's meaning for render.
+    ///     Test creating a context with the query command and --walk-depth sets Query.WalkDepth
+    ///     without affecting the global --depth/HeadingDepth flow.
     /// </summary>
     [Fact]
-    public void Context_Create_QueryCommand_WithDepthFlag_SetsQueryDepth()
+    public void Context_Create_QueryCommand_WithWalkDepthFlag_SetsQueryWalkDepth()
     {
         // Act: execute the operation being tested
-        using var context = Context.Create(["query", "impact", "--element", "Pkg::Foo", "--depth", "3"]);
+        using var context = Context.Create(["query", "impact", "--element", "Pkg::Foo", "--walk-depth", "3"]);
 
         // Assert: verify expected behavior
         Assert.NotNull(context.Query);
-        Assert.Equal(3, context.Query.Depth);
-        Assert.Equal(3, context.MaxRenderDepth);
+        Assert.Equal(3, context.Query.WalkDepth);
+        Assert.Equal(1, context.HeadingDepth);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and no --heading leaves the property
+    ///     null (default behavior unchanged).
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithoutHeading_LeavesHeadingNull()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "list"]);
+
+        // Assert: verify expected behavior
+        Assert.NotNull(context.Query);
+        Assert.Null(context.Query.Heading);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and --heading sets Query.Heading.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithHeadingFlag_SetsHeading()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "list", "--heading", "Custom Heading"]);
+
+        // Assert: verify expected behavior
+        Assert.NotNull(context.Query);
+        Assert.Equal("Custom Heading", context.Query.Heading);
     }
 
     /// <summary>
