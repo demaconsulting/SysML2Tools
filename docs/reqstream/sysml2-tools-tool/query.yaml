@@ -202,7 +202,8 @@ sections:
       - id: SysML2Tools-Tool-Query-Describe
         title: >-
           The describe verb shall report the target element's own kind, qualified name,
-          resolved supertypes, typing, annotations (comments/documentation), and direct
+          resolved supertypes, typing, annotations (comments/documentation), applied
+          metadata annotations (type reference and attribute values), and direct
           children.
         justification: |
           A single-element "fact sheet" is the most common starting point for model
@@ -211,6 +212,11 @@ sections:
           - Describe_ReportsKindSupertypesAnnotationsAndChildren
           - Describe_MultiLineComment_CollapsesToSingleSummaryLine
           - Describe_CommentsFixture_ReportsAnnotations
+          - Describe_BareMetadataAnnotation_ReportsMetadataTypeLineOnly
+          - Describe_MetadataWithScalarAttributes_ReportsOnePerAttributeLine
+          - Describe_MetadataWithUnsupportedListAttribute_FallsBackToRawText
+          - Describe_MultipleMetadataAnnotations_ReportsEachIndependently
+          - Describe_FormatJson_IncludesMetadataInSummaryArray
 
       - id: SysML2Tools-Tool-Query-Hierarchy
         title: >-

@@ -41,7 +41,9 @@ framework.
   (non-tabular) Markdown result, with the merged entries' `Direction` field
   (`Outgoing`/`Incoming`) populated only for this verb; `impact` respects `--walk-depth`
   bounding and computes the full transitive closure
-  when unbounded; `describe` reports kind, resolved supertypes, and child count;
+  when unbounded; `describe` reports kind, resolved supertypes, child count, and applied
+  metadata annotations (type reference and attribute values, falling back to raw text for
+  non-scalar values);
   `hierarchy` respects `--direction up`/`down`/`both`; `requirements` reports
   satisfy/verify/allocate edges; `interface` reports ports/typed features and excludes
   plain attributes; `connections` reports resolved feature-chain endpoints with the
@@ -167,6 +169,21 @@ list; that an element with no incoming references reports the single `"No elemen
 reference {Element}."` prose line instead of a bullet list; and that the rendered Markdown
 never contains the `"| Qualified Name | Kind | Detail |"` table header used by every other
 verb. Satisfies `SysML2Tools-Tool-Query-Dependencies`.
+
+**`Describe_BareMetadataAnnotation_ReportsMetadataTypeLineOnly`**,
+**`Describe_MetadataWithScalarAttributes_ReportsOnePerAttributeLine`**,
+**`Describe_MetadataWithUnsupportedListAttribute_FallsBackToRawText`**,
+**`Describe_MultipleMetadataAnnotations_ReportsEachIndependently`**,
+**`Describe_FormatJson_IncludesMetadataInSummaryArray`**: Verify, end-to-end, that
+`describe` surfaces applied `metadata` annotations (`SysmlMetadataNode` entries in
+`element.Children`) as additive `Summary` lines: a bare annotation with no attributes
+reports a single `"Metadata {Type}"` line with no trailing attribute suffix; scalar
+boolean/number/string attributes each report their own `"Metadata {Type}.{Attribute}:
+{value}"` line; a non-scalar (list-valued) attribute falls back to its verbatim raw source
+text rather than being dropped; multiple metadata annotations applied to the same element
+each report independently, with neither overwriting the other; and `--format json` carries
+the same `"Metadata ..."` lines in the JSON `Summary` array as the Markdown output. Satisfies
+`SysML2Tools-Tool-Query-Describe`.
 
 ##### QueryRenderingTests.cs
 
