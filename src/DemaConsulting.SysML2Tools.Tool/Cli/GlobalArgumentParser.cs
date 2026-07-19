@@ -48,7 +48,6 @@ internal static class GlobalArgumentParser
         string? resultsFile = null;
         string? logFile = null;
         var headingDepth = 1;
-        int? maxRenderDepth = null;
         var command = SysmlCommand.None;
         var commandArgs = new List<string>();
 
@@ -89,7 +88,6 @@ internal static class GlobalArgumentParser
                 case "--depth":
                     var depth = CliArgumentHelpers.GetRequiredIntArgument(arg, args, ref index, "a heading depth argument", 1);
                     headingDepth = Math.Clamp(depth, 1, 6);
-                    maxRenderDepth = depth;
                     break;
 
                 // The command token is only recognized on its first occurrence; once a command
@@ -132,7 +130,6 @@ internal static class GlobalArgumentParser
             ResultsFile = resultsFile,
             LogFile = logFile,
             HeadingDepth = headingDepth,
-            MaxRenderDepth = maxRenderDepth,
             Command = command,
             CommandArgs = commandArgs
         };

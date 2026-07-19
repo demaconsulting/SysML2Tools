@@ -88,10 +88,7 @@
   <data name="Render_OptionFilter" xml:space="preserve">
     <value>  --filter &lt;expr&gt;    Filter expression for a dynamic view (requires --view-type and --view-target)</value>
   </data>
-  <data name="Render_DepthNote1" xml:space="preserve">
-    <value>The global --depth option also bounds diagram nesting depth for this command</value>
-  </data>
-  <data name="Render_DepthNote2" xml:space="preserve">
-    <value>(see 'sysml2tools --help').</value>
+  <data name="Render_OptionWalkDepth" xml:space="preserve">
+    <value>  --walk-depth &lt;#&gt;   Limit rendered nesting depth; truncated parts show '+N more…'</value>
   </data>
 </root>

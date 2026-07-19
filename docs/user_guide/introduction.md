@@ -390,12 +390,12 @@ definition.
 
 ## Depth Limiting
 
-Use `--depth <n>` to limit the nesting depth rendered. Parts beyond the limit are replaced
+Use `--walk-depth <n>` to limit the nesting depth rendered. Parts beyond the limit are replaced
 with an ellipsis footer (`+N more…`). Silent omission is never used — truncation is always
 visible in the output.
 
 ```bash
-sysml2tools render model.sysml --output out --depth 3
+sysml2tools render model.sysml --output out --walk-depth 3
 ```
 
 ## Output Formats
@@ -411,7 +411,7 @@ Windows, Linux, and macOS.
 # Querying
 
 The `query` command loads a workspace, resolves the semantic model, and answers
-model-comprehension and analysis questions via 11 verbs. Every verb accepts
+model-comprehension and analysis questions via 12 verbs. Every verb accepts
 `--format markdown` (default) or `--format json`, and `--include-stdlib` to include
 standard-library elements (excluded by default). Output is always sorted alphabetically by
 qualified name, regardless of format, for stable and reproducible results.
@@ -428,8 +428,11 @@ sysml2tools query uses --element Model::Vehicle "src/**/*.sysml"
 # What depends on this element? (incoming edges)
 sysml2tools query used-by --element Model::Engine "src/**/*.sysml"
 
+# Combined "Dependencies" section prose: what it depends on, and what depends on it
+sysml2tools query dependencies --element Model::Engine "src/**/*.sysml"
+
 # Transitive blast radius of a change, optionally bounded
-sysml2tools query impact --element Model::Engine --depth 2 "src/**/*.sysml"
+sysml2tools query impact --element Model::Engine --walk-depth 2 "src/**/*.sysml"
 
 # A single-element "fact sheet": kind, supertypes, typing, annotations, children
 sysml2tools query describe --element Model::Vehicle "src/**/*.sysml"
@@ -452,13 +455,16 @@ sysml2tools query states --element Model::VehicleStates "src/**/*.sysml"
 # Enumerate elements matching a kind and/or name substring
 sysml2tools query list --kind requirement "src/**/*.sysml"
 sysml2tools query find --name Engine "src/**/*.sysml" --format json
+
+# Embed the report under a custom heading (e.g., when appending to a larger document)
+sysml2tools query describe --element Model::Vehicle --depth 2 --heading "Vehicle Report" "src/**/*.sysml"
 ```
 
 ## Query Output Formats
 
 | Format | Flag | Notes |
 | --- | --- | --- |
-| Markdown | default, or `--format markdown` | Heading, summary bullets, table — readable by humans and LLMs |
+| Markdown | default, or `--format markdown` | Heading, summary bullets, table (prose bullets for `dependencies`) |
 | JSON | `--format json` | Source-generated (AOT-safe) serialization of the same result shape |
 
 Markdown and JSON renderings of the same query always contain the same qualified names in
@@ -470,7 +476,8 @@ the same order, so either format can be relied on for automated comparisons.
 | --- | --- | --- |
 | `uses` | yes | What does this element depend on? |
 | `used-by` | yes | What depends on this element? |
-| `impact` | yes | What is transitively affected by a change (`--depth` to bound)? |
+| `dependencies` | yes | What does this element depend on, and what depends on it (combined, as prose)? |
+| `impact` | yes | What is transitively affected by a change (`--walk-depth` to bound)? |
 | `describe` | yes | What is this element (kind, supertypes, typing, annotations, children)? |
 | `hierarchy` | yes | What is the supertype/subtype tree (`--direction up`\|`down`\|`both`)? |
 | `requirements` | yes | What satisfy/verify/allocate relationships involve this element? |
@@ -479,6 +486,20 @@ the same order, so either format can be relied on for automated comparisons.
 | `states` | yes | What states and transitions does this element contain? |
 | `list` | no | Enumerate elements, optionally filtered by `--kind`/`--name` |
 | `find` | no | Search elements — requires `--kind` and/or `--name` |
+
+## `query` Options
+
+| Option | Description |
+| --- | --- |
+| `--element <name>`, `-e <name>` | Qualified name of the target element; required for every verb except `list`/`find` |
+| `--format markdown\|json` | Output format (default: `markdown`); distinct from `render`'s `--format` (`svg`/`png`) |
+| `--walk-depth <#>` | Maximum impact-walk depth (`impact` verb only) |
+| `--direction up\|down\|both` | Traversal direction (`hierarchy` verb only) |
+| `--kind <kind>` | Element-kind filter (`list`/`find` verbs only) |
+| `--name <substring>` | Name substring filter (`list`/`find` verbs only) |
+| `--include-stdlib` | Include OMG standard library elements in results |
+| `--depth <#>` | Markdown heading depth (1-6, default: 1); Markdown output only, no effect on `--format json` |
+| `--heading <text>` | Replaces default `# query <verb>[: <element>]`; Markdown only, no effect on JSON |
 
 # Exporting
 

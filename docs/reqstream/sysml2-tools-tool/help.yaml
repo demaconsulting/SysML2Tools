@@ -46,9 +46,9 @@ sections:
       - id: SysML2Tools-Tool-Help-QueryOverview
         title: >-
           The help command, invoked as `help query` with no verb, shall print an overview of
-          all 11 query verbs with one-line summaries, identical to `query --help`.
+          all 12 query verbs with one-line summaries, identical to `query --help`.
         justification: |
-          `query` has substantially more surface area (11 verbs) than `lint`/`render`;
+          `query` has substantially more surface area (12 verbs) than `lint`/`render`;
           a verb overview lets users discover the full verb vocabulary before drilling into
           any one verb's specific flags.
         tests:
@@ -56,12 +56,12 @@ sections:
 
       - id: SysML2Tools-Tool-Help-QueryVerbHelp
         title: >-
-          The help command, invoked as `help query <verb>` for any of the 11 recognized
+          The help command, invoked as `help query <verb>` for any of the 12 recognized
           verbs, shall print that verb's exact syntax, flags, and usage, identical to
           `query <verb> --help`.
         justification: |
           Each verb has a distinct flag set (e.g., `--direction` for hierarchy, `--kind`/
-          `--name` for list/find, `--depth` for impact); verb-specific help is required for
+          `--name` for list/find, `--walk-depth` for impact); verb-specific help is required for
           users to discover the correct flags for the verb they intend to run.
         tests:
           - HelpSubsystem_HelpQueryVerb_MatchesQueryVerbHelpFlag

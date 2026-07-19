@@ -26,11 +26,12 @@ namespace DemaConsulting.SysML2Tools.Cli;
 ///     arguments for the selected command's dedicated parser to interpret.
 /// </summary>
 /// <remarks>
-///     <c>--depth</c> is deliberately included here (not scoped to <c>render</c>'s parser alone)
-///     because it must remain usable with no command at all (feeding <see cref="Context.HeadingDepth"/>
-///     during self-validation), in addition to feeding <c>render</c>'s diagram depth and <c>query</c>'s
-///     <c>impact</c>-walk depth. See <c>docs/design/sysml2-tools-tool/cli/context.md</c> for the
-///     full rationale.
+///     <c>--depth</c> is deliberately included here (not scoped to any single command's parser)
+///     because it must remain usable with no command at all, feeding <see cref="Context.HeadingDepth"/>
+///     for the self-validation report heading (<c>--validate</c>). It also feeds <c>query</c>'s
+///     Markdown report heading depth. It is unrelated to the per-command <c>--walk-depth</c> flag
+///     (impact-walk/diagram-nesting depth), which <c>query</c> and <c>render</c> parse locally.
+///     See <c>docs/design/sysml2-tools-tool/cli/context.md</c> for the full rationale.
 /// </remarks>
 internal sealed record GlobalArguments
 {
@@ -68,11 +69,6 @@ internal sealed record GlobalArguments
     ///     Gets the heading depth for markdown output; valid range 1–6, default 1.
     /// </summary>
     public int HeadingDepth { get; init; } = 1;
-
-    /// <summary>
-    ///     Gets the maximum diagram/impact-walk render depth; <see langword="null"/> means unlimited.
-    /// </summary>
-    public int? MaxRenderDepth { get; init; }
 
     /// <summary>
     ///     Gets the top-level command selected by the user.

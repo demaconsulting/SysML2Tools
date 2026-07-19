@@ -50,6 +50,9 @@ internal static class QueryStrings
     /// <summary>Gets the 'used-by' verb summary line.</summary>
     public static string Query_VerbUsedBy => ResourceManager.GetString(nameof(Query_VerbUsedBy))!;
 
+    /// <summary>Gets the 'dependencies' verb summary line.</summary>
+    public static string Query_VerbDependencies => ResourceManager.GetString(nameof(Query_VerbDependencies))!;
+
     /// <summary>Gets the 'impact' verb summary line.</summary>
     public static string Query_VerbImpact => ResourceManager.GetString(nameof(Query_VerbImpact))!;
 
@@ -95,14 +98,23 @@ internal static class QueryStrings
     /// <summary>Gets the third line of the general --format option description.</summary>
     public static string Query_GeneralOptionFormat3 => ResourceManager.GetString(nameof(Query_GeneralOptionFormat3))!;
 
+    /// <summary>Gets the first line of the general --walk-depth option description.</summary>
+    public static string Query_GeneralOptionWalkDepth1 => ResourceManager.GetString(nameof(Query_GeneralOptionWalkDepth1))!;
+
+    /// <summary>Gets the second line of the general --walk-depth option description.</summary>
+    public static string Query_GeneralOptionWalkDepth2 => ResourceManager.GetString(nameof(Query_GeneralOptionWalkDepth2))!;
+
     /// <summary>Gets the first line of the general --depth option description.</summary>
     public static string Query_GeneralOptionDepth1 => ResourceManager.GetString(nameof(Query_GeneralOptionDepth1))!;
 
     /// <summary>Gets the second line of the general --depth option description.</summary>
     public static string Query_GeneralOptionDepth2 => ResourceManager.GetString(nameof(Query_GeneralOptionDepth2))!;
 
-    /// <summary>Gets the third line of the general --depth option description.</summary>
-    public static string Query_GeneralOptionDepth3 => ResourceManager.GetString(nameof(Query_GeneralOptionDepth3))!;
+    /// <summary>Gets the first line of the general --heading option description.</summary>
+    public static string Query_GeneralOptionHeading1 => ResourceManager.GetString(nameof(Query_GeneralOptionHeading1))!;
+
+    /// <summary>Gets the second line of the general --heading option description.</summary>
+    public static string Query_GeneralOptionHeading2 => ResourceManager.GetString(nameof(Query_GeneralOptionHeading2))!;
 
     /// <summary>Gets the general --direction option line.</summary>
     public static string Query_GeneralOptionDirection => ResourceManager.GetString(nameof(Query_GeneralOptionDirection))!;
@@ -128,6 +140,9 @@ internal static class QueryStrings
     /// <summary>Gets the fourth line of the "typical workflow" note.</summary>
     public static string Query_WorkflowNote4 => ResourceManager.GetString(nameof(Query_WorkflowNote4))!;
 
+    /// <summary>Gets the fifth line of the "typical workflow" note (a --depth/--heading example).</summary>
+    public static string Query_WorkflowNote5 => ResourceManager.GetString(nameof(Query_WorkflowNote5))!;
+
     /// <summary>Gets the verb-specific usage format string used when the verb requires --element.</summary>
     public static string Query_VerbUsageWithElement => ResourceManager.GetString(nameof(Query_VerbUsageWithElement))!;
 
@@ -137,8 +152,8 @@ internal static class QueryStrings
     /// <summary>Gets the required --element option line shown in verb-specific help.</summary>
     public static string Query_OptionElementRequired => ResourceManager.GetString(nameof(Query_OptionElementRequired))!;
 
-    /// <summary>Gets the --depth option line shown for the 'impact' verb.</summary>
-    public static string Query_OptionDepthImpact => ResourceManager.GetString(nameof(Query_OptionDepthImpact))!;
+    /// <summary>Gets the --walk-depth option line shown for the 'impact' verb.</summary>
+    public static string Query_OptionWalkDepthImpact => ResourceManager.GetString(nameof(Query_OptionWalkDepthImpact))!;
 
     /// <summary>Gets the --direction option line shown for the 'hierarchy' verb.</summary>
     public static string Query_OptionDirectionHierarchy => ResourceManager.GetString(nameof(Query_OptionDirectionHierarchy))!;
@@ -152,6 +167,12 @@ internal static class QueryStrings
     /// <summary>Gets the --format option line shown in verb-specific help.</summary>
     public static string Query_OptionFormatVerb => ResourceManager.GetString(nameof(Query_OptionFormatVerb))!;
 
+    /// <summary>Gets the --depth option line shown in verb-specific help.</summary>
+    public static string Query_OptionDepthVerb => ResourceManager.GetString(nameof(Query_OptionDepthVerb))!;
+
+    /// <summary>Gets the --heading option line shown in verb-specific help.</summary>
+    public static string Query_OptionHeadingVerb => ResourceManager.GetString(nameof(Query_OptionHeadingVerb))!;
+
     /// <summary>Gets the --include-stdlib option line shown in verb-specific help.</summary>
     public static string Query_OptionIncludeStdlibVerb => ResourceManager.GetString(nameof(Query_OptionIncludeStdlibVerb))!;
 
@@ -163,6 +184,9 @@ internal static class QueryStrings
 
     /// <summary>Gets the example invocation line for the 'used-by' verb.</summary>
     public static string Query_Example_UsedBy => ResourceManager.GetString(nameof(Query_Example_UsedBy))!;
+
+    /// <summary>Gets the example invocation line for the 'dependencies' verb.</summary>
+    public static string Query_Example_Dependencies => ResourceManager.GetString(nameof(Query_Example_Dependencies))!;
 
     /// <summary>Gets the example invocation line for the 'impact' verb.</summary>
     public static string Query_Example_Impact => ResourceManager.GetString(nameof(Query_Example_Impact))!;
@@ -197,10 +221,19 @@ internal static class QueryStrings
     /// <summary>Gets the JSON output-shape schema hint, shared by every verb.</summary>
     public static string Query_SchemaHint_Json => ResourceManager.GetString(nameof(Query_SchemaHint_Json))!;
 
+    /// <summary>Gets the Markdown output-shape schema hint specific to the 'dependencies' verb's bullet-prose rendering.</summary>
+    public static string Query_SchemaHint_Markdown_Dependencies => ResourceManager.GetString(nameof(Query_SchemaHint_Markdown_Dependencies))!;
+
+    /// <summary>Gets the JSON output-shape schema hint specific to the 'dependencies' verb (includes the Direction field).</summary>
+    public static string Query_SchemaHint_Json_Dependencies => ResourceManager.GetString(nameof(Query_SchemaHint_Json_Dependencies))!;
+
+    /// <summary>Gets the --walk-depth no-op note shown for the 'dependencies' verb.</summary>
+    public static string Query_OptionWalkDepthIgnoredDependencies => ResourceManager.GetString(nameof(Query_OptionWalkDepthIgnoredDependencies))!;
+
     /// <summary>
     ///     Gets the resx-sourced example invocation line for the given verb via the matching
     ///     per-verb property above, so <see cref="Query.QueryCommand.PrintVerbHelp"/> can add
-    ///     example support with a single call site instead of an 11-arm switch of its own.
+    ///     example support with a single call site instead of a 12-arm switch of its own.
     /// </summary>
     /// <param name="verb">The verb to get the example invocation for.</param>
     /// <returns>The example invocation line for <paramref name="verb"/>.</returns>
@@ -211,6 +244,7 @@ internal static class QueryStrings
         {
             QueryVerb.Uses => Query_Example_Uses,
             QueryVerb.UsedBy => Query_Example_UsedBy,
+            QueryVerb.Dependencies => Query_Example_Dependencies,
             QueryVerb.Impact => Query_Example_Impact,
             QueryVerb.Describe => Query_Example_Describe,
             QueryVerb.Hierarchy => Query_Example_Hierarchy,

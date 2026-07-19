@@ -902,6 +902,20 @@ reviews:
       - "src/**/Utilities/PathHelpers.cs"
       - "test/**/Utilities/PathHelpersTests.cs"
 
+  - id: SysML2Tools-Tool-Utilities-QualifiedNameShortener
+    title: Review of SysML2 Tools QualifiedNameShortener unit implementation
+    context:
+      - docs/design/sysml2-tools-tool.md
+      - docs/reqstream/sysml2-tools-tool.yaml
+      - docs/design/sysml2-tools-tool/utilities.md
+      - docs/reqstream/sysml2-tools-tool/utilities.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-tool/utilities/qualified-name-shortener.yaml"
+      - "docs/design/sysml2-tools-tool/utilities/qualified-name-shortener.md"
+      - "docs/verification/sysml2-tools-tool/utilities/qualified-name-shortener.md"
+      - "src/**/Utilities/QualifiedNameShortener.cs"
+      - "test/**/Utilities/QualifiedNameShortenerTests.cs"
+
   - id: SysML2Tools-Tool-Lint
     title: Review of SysML2 Tools Lint subsystem architecture and interfaces
     context:

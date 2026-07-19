@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 using System.Text.Json;
+using DemaConsulting.SysML2Tools.Utilities;
 
 namespace DemaConsulting.SysML2Tools.Query;
 
@@ -26,7 +27,7 @@ namespace DemaConsulting.SysML2Tools.Query;
 ///     Shared, non-duplicated rendering layer for <see cref="QueryResult"/>: two pure methods
 ///     converting the uniform result shape into Markdown lines or a JSON string. Every
 ///     <see cref="QueryCommand"/> verb arm renders through this type instead of formatting its
-///     own output, guaranteeing consistent, deterministically-ordered output across all 11
+///     own output, guaranteeing consistent, deterministically-ordered output across all 12
 ///     verbs.
 /// </summary>
 internal static class QueryResultRenderer
@@ -34,17 +35,34 @@ internal static class QueryResultRenderer
     /// <summary>
     ///     Renders a <see cref="QueryResult"/> as Markdown lines: a heading, an optional summary
     ///     bullet list, then a compact table of entries sorted by
-    ///     <see cref="QueryResultEntry.QualifiedName"/> (ordinal).
+    ///     <see cref="QueryResultEntry.QualifiedName"/> (ordinal). The <c>dependencies</c> verb
+    ///     is the sole exception: after the heading, its entries are rendered as prose bullets
+    ///     (see <see cref="RenderDependenciesBody"/>) rather than a table.
     /// </summary>
     /// <param name="result">The result to render.</param>
+    /// <param name="depth">
+    ///     The Markdown heading depth (number of leading <c>#</c> characters), sourced from the
+    ///     global <c>--depth</c> flag (<see cref="Cli.Context.HeadingDepth"/>). Defaults to 1 (a
+    ///     top-level <c>#</c> heading); expected to be pre-validated to the range 1-6 by the
+    ///     caller (<see cref="Cli.GlobalArgumentParser"/>).
+    /// </param>
+    /// <param name="heading">
+    ///     A custom heading text, supplied via <c>query</c>'s own <c>--heading</c> flag, replacing
+    ///     the auto-generated <c>"query {verb}[: {element}]"</c> text. Defaults to
+    ///     <see langword="null"/>, which uses the auto-generated text.
+    /// </param>
     /// <returns>The Markdown output, one line per list entry.</returns>
-    public static IReadOnlyList<string> RenderMarkdown(QueryResult result)
+    public static IReadOnlyList<string> RenderMarkdown(
+        QueryResult result, int depth = 1, string? heading = null)
     {
+        var headingPrefix = new string('#', depth);
+        var headingText = heading ?? (result.Element is not null
+            ? $"query {result.Verb}: {result.Element}"
+            : $"query {result.Verb}");
+
         var lines = new List<string>
         {
-            result.Element is not null
-                ? $"# query {result.Verb}: {result.Element}"
-                : $"# query {result.Verb}",
+            $"{headingPrefix} {headingText}",
             ""
         };
 
@@ -56,6 +74,22 @@ internal static class QueryResultRenderer
             }
 
             lines.Add("");
+        }
+
+        if (result.Verb == "dependencies")
+        {
+            var sortedEntries = SortEntries(result.Entries);
+            var element = result.Element ?? "";
+
+            // Shorten every name in this result together - the subject element plus both
+            // directions' entries - so the subject sentence and every bullet agree on the same
+            // stripped prefix instead of each being shortened independently
+            var pool = new List<string> { element };
+            pool.AddRange(sortedEntries.Select(e => e.QualifiedName));
+            var shortened = QualifiedNameShortener.Shorten(pool);
+
+            lines.AddRange(RenderDependenciesBody(sortedEntries, element, shortened));
+            return lines;
         }
 
         var sorted = SortEntries(result.Entries);
@@ -98,6 +132,72 @@ internal static class QueryResultRenderer
     /// <returns>A new, sorted list.</returns>
     private static List<QueryResultEntry> SortEntries(IReadOnlyList<QueryResultEntry> entries) =>
         [.. entries.OrderBy(e => e.QualifiedName, StringComparer.Ordinal)];
+
+    /// <summary>
+    ///     Renders the <c>dependencies</c> verb's body as prose bullets rather than a table: an
+    ///     intro sentence plus one "Depends on" bullet per outgoing entry (or a single "has no
+    ///     outgoing references" line when there are none), then symmetrically an intro sentence
+    ///     plus one "Used by" bullet per incoming entry (or a single "No elements reference"
+    ///     line when there are none).
+    /// </summary>
+    /// <param name="sortedEntries">
+    ///     The merged <c>uses</c>/<c>used-by</c> entries, already sorted by
+    ///     <see cref="QueryResultEntry.QualifiedName"/> (ordinal); filtering this list by
+    ///     <see cref="QueryResultEntry.Direction"/> preserves that order within each group.
+    /// </param>
+    /// <param name="element">The qualified name of the queried element.</param>
+    /// <param name="shortened">
+    ///     A map from each original qualified name (the queried element plus every entry's
+    ///     <see cref="QueryResultEntry.QualifiedName"/>) to its <see cref="QualifiedNameShortener"/>
+    ///     -shortened form, applied to the subject sentence and every bullet so the whole body
+    ///     agrees on the same stripped common prefix.
+    /// </param>
+    /// <returns>The Markdown lines for the dependencies body.</returns>
+    private static IReadOnlyList<string> RenderDependenciesBody(
+        IReadOnlyList<QueryResultEntry> sortedEntries,
+        string element,
+        IReadOnlyDictionary<string, string> shortened)
+    {
+        var outgoing = sortedEntries.Where(e => e.Direction == QueryEntryDirection.Outgoing).ToList();
+        var incoming = sortedEntries.Where(e => e.Direction == QueryEntryDirection.Incoming).ToList();
+        var shortElement = shortened.GetValueOrDefault(element, element);
+
+        var lines = new List<string>();
+
+        if (outgoing.Count == 0)
+        {
+            lines.Add($"{shortElement} has no outgoing references.");
+        }
+        else
+        {
+            lines.Add($"{shortElement} references the following elements:");
+            lines.Add("");
+            foreach (var entry in outgoing)
+            {
+                var shortName = shortened.GetValueOrDefault(entry.QualifiedName, entry.QualifiedName);
+                lines.Add($"- Depends on **{shortName}** ({entry.Kind})");
+            }
+        }
+
+        lines.Add("");
+
+        if (incoming.Count == 0)
+        {
+            lines.Add($"No elements reference {shortElement}.");
+        }
+        else
+        {
+            lines.Add($"The following elements reference {shortElement}:");
+            lines.Add("");
+            foreach (var entry in incoming)
+            {
+                var shortName = shortened.GetValueOrDefault(entry.QualifiedName, entry.QualifiedName);
+                lines.Add($"- Used by **{shortName}** ({entry.Kind})");
+            }
+        }
+
+        return lines;
+    }
 
     /// <summary>
     ///     Combines an entry's <see cref="QueryResultEntry.Detail"/> and

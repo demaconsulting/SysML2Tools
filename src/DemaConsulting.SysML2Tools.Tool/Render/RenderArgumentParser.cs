@@ -28,14 +28,16 @@ namespace DemaConsulting.SysML2Tools.Render;
 /// </summary>
 /// <remarks>
 ///     Recognizes only <c>--output</c>, <c>--format</c>, <c>--view</c>, <c>--auto</c>,
-///     <c>--view-type</c>, <c>--view-target</c>, and <c>--filter</c>, plus positional file glob
-///     patterns. Any other <c>-</c>-prefixed token is rejected so that flags belonging to other
-///     commands (e.g., <c>--kind</c>, <c>--element</c>) are never silently accepted.
-///     <c>--format</c>'s value is captured raw and validated later by
+///     <c>--view-type</c>, <c>--view-target</c>, <c>--filter</c>, and <c>--walk-depth</c>, plus
+///     positional file glob patterns. Any other <c>-</c>-prefixed token is rejected so that flags
+///     belonging to other commands (e.g., <c>--kind</c>, <c>--element</c>) are never silently
+///     accepted. <c>--format</c>'s value is captured raw and validated later by
 ///     <see cref="RenderCommand.RunAsync"/>, matching the <c>query</c> command's validation style.
 ///     <c>--view-type</c>, <c>--view-target</c>, and <c>--filter</c> are likewise captured raw
 ///     here — mutual-exclusion and value validation happen entirely in
-///     <see cref="RenderCommand.RunAsync"/>.
+///     <see cref="RenderCommand.RunAsync"/>. <c>--walk-depth</c> (diagram nesting depth limit) is
+///     a command-scoped flag, unrelated to the global <c>--depth</c> flag (Markdown heading depth,
+///     used by <c>--validate</c> and <c>query</c>).
 /// </remarks>
 internal static class RenderArgumentParser
 {
@@ -60,6 +62,7 @@ internal static class RenderArgumentParser
         string? viewType = null;
         string? viewTarget = null;
         string? filterExpression = null;
+        int? walkDepth = null;
         var files = new List<string>();
 
         var index = 0;
@@ -102,6 +105,11 @@ internal static class RenderArgumentParser
                         arg, commandArgs, ref index, "a filter expression argument");
                     break;
 
+                case "--walk-depth":
+                    walkDepth = CliArgumentHelpers.GetRequiredIntArgument(
+                        arg, commandArgs, ref index, "a diagram nesting depth argument", 1);
+                    break;
+
                 default:
                     if (arg.StartsWith("-", StringComparison.Ordinal))
                     {
@@ -123,6 +131,7 @@ internal static class RenderArgumentParser
             ViewType = viewType,
             ViewTarget = viewTarget,
             FilterExpression = filterExpression,
+            WalkDepth = walkDepth,
             Files = files
         };
     }

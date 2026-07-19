@@ -39,7 +39,7 @@ namespace DemaConsulting.SysML2Tools.Tests.Resources;
 ///     cannot silently drift apart.
 /// </summary>
 /// <remarks>
-///     The eleven query example-invocation keys (<c>Query_Example_*</c>) are additionally
+///     The twelve query example-invocation keys (<c>Query_Example_*</c>) are additionally
 ///     exposed through <c>QueryStrings.GetExample(QueryVerb)</c>, but they still each have a
 ///     dedicated <c>public static string</c> property (see <c>QueryStrings.cs</c>), so the
 ///     bidirectional parity check below requires no special-casing for them.

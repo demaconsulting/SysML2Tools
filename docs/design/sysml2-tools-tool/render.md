@@ -23,9 +23,9 @@ No instance state. All data flows through the `Context` parameter and local vari
 - Input: `Context.Render` (a `RenderCommandOptions` populated by `RenderArgumentParser`) —
   file patterns (`Files`), format (`Format`), output path (`OutputDirectory`), view filter
   (`ViewName`), auto-view flag (`AutoView`), dynamic-view kind (`ViewType`), dynamic-view target
-  (`ViewTarget`), dynamic-view filter expression (`FilterExpression`); plus
-  `Context.MaxRenderDepth` (render depth, parsed globally — see
-  `docs/design/sysml2-tools-tool/cli/context.md`)
+  (`ViewTarget`), dynamic-view filter expression (`FilterExpression`), and maximum diagram
+  nesting depth (`WalkDepth`, command-scoped — parsed by `RenderArgumentParser`, unrelated to
+  the global `--depth` flag; see `docs/design/sysml2-tools-tool/cli/context.md`)
 - Intermediate: `SysmlLoadResult` — workspace and diagnostics from `WorkspaceLoader`
 - Output: files written to `OutputDirectory` via `File.Create`
 
@@ -84,7 +84,7 @@ Entry point for the render command. Steps:
    throws only once the command actually runs. Selects `PngRenderer` when `format` equals
    `"png"`; `SvgRenderer` otherwise.
 9. Calls `DiagramRenderer.RenderWorkspace` passing
-   `new RenderOptions(Themes.Light, DepthLimit: context.MaxRenderDepth ?? 0)` and
+   `new RenderOptions(Themes.Light, DepthLimit: options.WalkDepth ?? 0)` and
    `viewFilter: effectiveViewFilter` (the synthesized dynamic view's name when one was
    synthesized in step 5; `options.ViewName` unchanged otherwise).
 10. Writes a "No views found" message and returns when `outputs` is empty.
@@ -92,9 +92,9 @@ Entry point for the render command. Steps:
     it via `Directory.CreateDirectory`, and writes each `RenderOutput.Data` stream to a
     file named `RenderOutput.SuggestedFileName`.
 
-**`PrintHelp(Context context)`**: Prints `render`'s usage line and its seven flags (`--output`,
-`--format`, `--view`, `--auto`, `--view-type`, `--view-target`, `--filter`), plus a note about
-the shared global `--depth` option. This is the single source of truth for both `render --help`
+**`PrintHelp(Context context)`**: Prints `render`'s usage line and its eight flags (`--output`,
+`--format`, `--view`, `--auto`, `--view-type`, `--view-target`, `--filter`, `--walk-depth`).
+This is the single source of truth for both `render --help`
 (dispatched from `Program.RunAsync`'s command-aware help block) and `help render` (dispatched
 from `Help.HelpCommand.Run`); neither entry point duplicates the help text. Every line printed
 by `PrintHelp` is sourced from `RenderStrings`, a hand-written, culture-aware `ResourceManager`

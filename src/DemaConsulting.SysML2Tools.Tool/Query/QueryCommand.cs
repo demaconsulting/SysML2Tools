@@ -30,7 +30,7 @@ namespace DemaConsulting.SysML2Tools.Query;
 
 /// <summary>
 ///     Implements the <c>query</c> command: loads a SysML v2 workspace and dispatches to one of
-///     eleven model-analysis verbs implemented by <see cref="QueryEngine"/>, rendering the result
+///     twelve model-analysis verbs implemented by <see cref="QueryEngine"/>, rendering the result
 ///     via <see cref="QueryResultRenderer"/> as Markdown (default) or JSON.
 /// </summary>
 internal static class QueryCommand
@@ -138,6 +138,7 @@ internal static class QueryCommand
         {
             QueryVerb.Uses => QueryEngine.Uses(workspace, element!, options),
             QueryVerb.UsedBy => QueryEngine.UsedBy(workspace, element!, options),
+            QueryVerb.Dependencies => QueryEngine.Dependencies(workspace, element!, options),
             QueryVerb.Impact => QueryEngine.Impact(workspace, element!, options),
             QueryVerb.Describe => QueryEngine.Describe(workspace, element!, options),
             QueryVerb.Hierarchy => QueryEngine.Hierarchy(workspace, element!, options),
@@ -158,7 +159,8 @@ internal static class QueryCommand
         }
         else
         {
-            foreach (var line in QueryResultRenderer.RenderMarkdown(result))
+            foreach (var line in QueryResultRenderer.RenderMarkdown(
+                         result, context.HeadingDepth, options.Heading))
             {
                 context.WriteLine(line);
             }
@@ -176,6 +178,7 @@ internal static class QueryCommand
         context.WriteLine(QueryStrings.Query_VerbsHeader);
         context.WriteLine(QueryStrings.Query_VerbUses);
         context.WriteLine(QueryStrings.Query_VerbUsedBy);
+        context.WriteLine(QueryStrings.Query_VerbDependencies);
         context.WriteLine(QueryStrings.Query_VerbImpact);
         context.WriteLine(QueryStrings.Query_VerbDescribe);
         context.WriteLine(QueryStrings.Query_VerbHierarchy);
@@ -192,9 +195,12 @@ internal static class QueryCommand
         context.WriteLine(QueryStrings.Query_GeneralOptionFormat1);
         context.WriteLine(QueryStrings.Query_GeneralOptionFormat2);
         context.WriteLine(QueryStrings.Query_GeneralOptionFormat3);
+        context.WriteLine(QueryStrings.Query_GeneralOptionWalkDepth1);
+        context.WriteLine(QueryStrings.Query_GeneralOptionWalkDepth2);
         context.WriteLine(QueryStrings.Query_GeneralOptionDepth1);
         context.WriteLine(QueryStrings.Query_GeneralOptionDepth2);
-        context.WriteLine(QueryStrings.Query_GeneralOptionDepth3);
+        context.WriteLine(QueryStrings.Query_GeneralOptionHeading1);
+        context.WriteLine(QueryStrings.Query_GeneralOptionHeading2);
         context.WriteLine(QueryStrings.Query_GeneralOptionDirection);
         context.WriteLine(QueryStrings.Query_GeneralOptionKind);
         context.WriteLine(QueryStrings.Query_GeneralOptionName);
@@ -204,6 +210,7 @@ internal static class QueryCommand
         context.WriteLine(QueryStrings.Query_WorkflowNote2);
         context.WriteLine(QueryStrings.Query_WorkflowNote3);
         context.WriteLine(QueryStrings.Query_WorkflowNote4);
+        context.WriteLine(QueryStrings.Query_WorkflowNote5);
     }
 
     /// <summary>
@@ -230,7 +237,11 @@ internal static class QueryCommand
         switch (verb)
         {
             case QueryVerb.Impact:
-                context.WriteLine(QueryStrings.Query_OptionDepthImpact);
+                context.WriteLine(QueryStrings.Query_OptionWalkDepthImpact);
+                break;
+
+            case QueryVerb.Dependencies:
+                context.WriteLine(QueryStrings.Query_OptionWalkDepthIgnoredDependencies);
                 break;
 
             case QueryVerb.Hierarchy:
@@ -245,12 +256,22 @@ internal static class QueryCommand
         }
 
         context.WriteLine(QueryStrings.Query_OptionFormatVerb);
+        context.WriteLine(QueryStrings.Query_OptionDepthVerb);
+        context.WriteLine(QueryStrings.Query_OptionHeadingVerb);
         context.WriteLine(QueryStrings.Query_OptionIncludeStdlibVerb);
         context.WriteLine("");
         context.WriteLine(QueryStrings.Query_ExampleHeader);
         context.WriteLine(QueryStrings.GetExample(verb));
         context.WriteLine("");
-        context.WriteLine(QueryStrings.Query_SchemaHint_Markdown);
-        context.WriteLine(QueryStrings.Query_SchemaHint_Json);
+        if (verb == QueryVerb.Dependencies)
+        {
+            context.WriteLine(QueryStrings.Query_SchemaHint_Markdown_Dependencies);
+            context.WriteLine(QueryStrings.Query_SchemaHint_Json_Dependencies);
+        }
+        else
+        {
+            context.WriteLine(QueryStrings.Query_SchemaHint_Markdown);
+            context.WriteLine(QueryStrings.Query_SchemaHint_Json);
+        }
     }
 }

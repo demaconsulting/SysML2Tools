@@ -23,7 +23,7 @@ framework.
 
 #### Acceptance Criteria
 
-- All 11 verb tokens parse to the matching `QueryVerb` and dispatch to real `QueryEngine`
+- All 12 verb tokens parse to the matching `QueryVerb` and dispatch to real `QueryEngine`
   logic, producing exit code 0 for valid input.
 - An unrecognized verb token produces an `ArgumentException` naming the bad token.
 - `--element`/`-e` is required for every verb except `list`/`find`; omitting it for a verb
@@ -32,15 +32,31 @@ framework.
 - `list`/`find` succeed without `--element`.
 - `--format markdown` and `--format json` both parse and render without error; an
   unrecognized `--format` value produces an `ArgumentException`.
+- `--depth` (global flag, 1-6, default 1) and `--heading` (default: auto-generated text)
+  control the Markdown output's top heading depth/text without affecting `--format json`
+  output (byte-identical JSON with/without the flags).
 - Each verb's output correctly reflects the underlying model for representative inline
   fixtures: `uses` reports outgoing supertype/typing/import edges; `used-by` reports the
-  reverse; `impact` respects `--depth` bounding and computes the full transitive closure
+  reverse; `dependencies` combines `uses`/`used-by` for one element into a single prose
+  (non-tabular) Markdown result, with the merged entries' `Direction` field
+  (`Outgoing`/`Incoming`) populated only for this verb; `impact` respects `--walk-depth`
+  bounding and computes the full transitive closure
   when unbounded; `describe` reports kind, resolved supertypes, and child count;
   `hierarchy` respects `--direction up`/`down`/`both`; `requirements` reports
   satisfy/verify/allocate edges; `interface` reports ports/typed features and excludes
   plain attributes; `connections` reports resolved feature-chain endpoints with the
   connector's keyword; `states` reports states and guarded transitions; `list`/`find`
   respect `--kind`/`--name` filtering.
+- `dependencies` reports the merged `uses`/`used-by` result as bullet-prose Markdown (not a
+  table), with entries' `Direction` field populated (`Outgoing`/`Incoming`) only for this
+  verb; JSON output for every other verb is unaffected (no `Direction` key present when
+  `null`).
+- `dependencies`'s Markdown output shortens every name (the subject element plus every entry's
+  qualified name) by the longest shared leading `::`-segment prefix across that combined pool,
+  via `Utilities.QualifiedNameShortener.Shorten`, applied identically to the subject sentence
+  and both bullet groups; when the pool shares no common prefix, names remain fully qualified.
+  JSON output for `dependencies` (and every other verb) is unaffected — `QualifiedName`/
+  `Element` values remain fully qualified in JSON regardless of this Markdown-only behavior.
 - Markdown and JSON renderings of the same `QueryResult` contain the same qualified names
   in the same (alphabetical, ordinal) order.
 - `--include-stdlib` toggles whether stdlib-seeded elements appear in results.
@@ -67,14 +83,14 @@ framework.
 
 ##### QuerySubsystemTests.cs
 
-**`QuerySubsystem_AnyVerb_WithValidInput_DispatchesToRealLogic`** (theory, 11 cases):
+**`QuerySubsystem_AnyVerb_WithValidInput_DispatchesToRealLogic`** (theory, 12 cases):
 Verifies that each verb, given `--element` when required (and `--kind` for `find`), against
 a small shared fixture covering every verb's target element, produces exit code 0 and
 output containing `query {verb}`.
 
 ##### QuerySubsystem_ElementRequiredVerb_MissingElement_ThrowsArgumentException
 
-Verifies that omitting `--element` for any of the 9 verbs that require it (all except
+Verifies that omitting `--element` for any of the 10 verbs that require it (all except
 `list`/`find`) throws an `ArgumentException` mentioning `--element`.
 
 ##### QuerySubsystem_ListVerb_NoElementNoFiles_ReportsNoInputFilesError / QuerySubsystem_FindVerb_NoElementNoFiles_ReportsNoInputFilesError
@@ -114,9 +130,9 @@ Verifies that `query --help` (no verb) includes the "typical workflow" note text
 actually rendered, not merely present in the resx file. Satisfies
 `SysML2Tools-Tool-Query-HelpEnrichment`.
 
-##### QuerySubsystem_QueryVerbHelp_MentionsExampleInvocationAndSchemaHints (theory, 11 cases)
+##### QuerySubsystem_QueryVerbHelp_MentionsExampleInvocationAndSchemaHints (theory, 12 cases)
 
-Verifies that `query <verb> --help`, for every one of the 11 verbs, contains that verb's
+Verifies that `query <verb> --help`, for every one of the 12 verbs, contains that verb's
 real example-invocation substring (drawn from the `VehicleExample` fixture, per the
 planning report's verified enrichment content) and the shared Markdown/JSON schema-hint
 substrings (`"Qualified Name"` for Markdown, `"QualifiedName"` for JSON — matching the real
@@ -128,7 +144,7 @@ invocation during implementation). Satisfies `SysML2Tools-Tool-Query-HelpEnrichm
 For the `QueryStrings` resource base name/accessor pair (one of four covered by these theory
 tests), every key discovered in `Query/QueryStrings.resx`'s invariant-culture resource set
 resolves to non-null/non-empty text via `ResourceManager`, and every such key (including the
-11 `Query_Example_*` keys, each backed by its own accessor property) has a matching
+12 `Query_Example_*` keys, each backed by its own accessor property) has a matching
 `public static string` property on `QueryStrings` (and vice versa). Satisfies
 `SysML2Tools-Tool-Query-LocalizableHelpText`.
 
@@ -137,8 +153,20 @@ resolves to non-null/non-empty text via `ResourceManager`, and every such key (i
 One or more `[Fact]`/`[Theory]` methods per verb, each using a small inline `.sysml`
 fixture written to a temp file and run end-to-end via `Context.Create` +
 `Program.RunAsync`, asserting on captured stdout content: qualified names of expected
-entries, edge/kind labels, `--depth`/`--direction` bounding, annotation text, and
+entries, edge/kind labels, `--walk-depth`/`--direction` bounding, annotation text, and
 `--include-stdlib` on/off behavior.
+
+**`Dependencies_CombinesOutgoingAndIncoming_ReportsBothDirections`**,
+**`Dependencies_NoOutgoingReferences_ReportsProseLineInsteadOfBulletList`**,
+**`Dependencies_NoIncomingReferences_ReportsProseLineInsteadOfBulletList`**,
+**`Dependencies_MarkdownOutput_ContainsNoTable`**: Verify, end-to-end, that `dependencies`
+reports both a "Depends on" bullet (outgoing) and a "Used by" bullet (incoming) for an
+element with both directions populated; that an element with no outgoing references
+reports the single `"{Element} has no outgoing references."` prose line instead of a bullet
+list; that an element with no incoming references reports the single `"No elements
+reference {Element}."` prose line instead of a bullet list; and that the rendered Markdown
+never contains the `"| Qualified Name | Kind | Detail |"` table header used by every other
+verb. Satisfies `SysML2Tools-Tool-Query-Dependencies`.
 
 ##### QueryRenderingTests.cs
 
@@ -147,6 +175,46 @@ Direct unit tests of `QueryResultRenderer.RenderMarkdown`/`RenderJson` against h
 correctness, `Detail`/`Notes` rendering, and JSON round-trip via
 `QueryResultSerializerContext`. Plus one end-to-end test confirming Markdown and JSON
 outputs for the same query contain the same qualified names in the same order.
+
+**`RenderMarkdown_DefaultArguments_ProducesUnchangedTopLevelHeading`**,
+**`RenderMarkdown_CustomDepth_UsesThatManyHeadingHashes`**,
+**`RenderMarkdown_CustomHeading_ReplacesAutoGeneratedText`**,
+**`RenderMarkdown_CustomDepthAndHeading_CombinesBothOverrides`**: Verify that
+`RenderMarkdown`'s default arguments produce the unchanged single `#` heading; that a custom
+`depth` changes the number of leading `#` characters; that a custom `heading`
+replaces the auto-generated heading text entirely (no merging with verb/element info); and
+that both overrides combine correctly when supplied together.
+
+**`RenderMarkdown_DependenciesVerb_RendersBulletProseNotTable`**,
+**`RenderMarkdown_DependenciesVerb_EmptyOutgoingAndIncoming_ReportsBothProseLines`**,
+**`RenderJson_DependenciesVerb_IncludesDirectionField`**,
+**`RenderJson_NonDependenciesVerb_DirectionFieldOmittedFromOutput`**,
+**`Dependencies_DepthAndHeadingOptions_ApplyToHeadingLikeOtherVerbs`**: Unit-test
+`dependencies`'s prose-bullet rendering directly against a hand-built, intentionally
+unordered `QueryResult` (confirming per-direction ordinal sorting and the exact bullet/intro
+text, now using shortened names since the fixture's subject and entries share the common
+leading segment `"Model"`); confirm the both-directions-empty edge case reports both prose
+lines with no bullets and no `"_No entries._"` fallback; confirm `RenderJson` includes a
+populated `Direction` field (`Outgoing`/`Incoming`) for `dependencies` entries; confirm — the
+critical regression test — that `RenderJson` for a non-`dependencies` verb (`uses`) never
+contains the substring `"Direction"` in its JSON output, proving the `[JsonIgnore(Condition =
+JsonIgnoreCondition.WhenWritingNull)]` attribute keeps every other verb's JSON output
+unaffected by the new field; and confirm `--depth`/`--heading` apply to `dependencies`'s
+heading line exactly like every other verb (now asserting the shortened bullet text). Satisfies
+`SysML2Tools-Tool-Query-Dependencies`.
+
+**`RenderMarkdown_DependenciesVerb_NoCommonPrefix_LeavesNamesFullyQualified`**: Confirms that
+when the subject element and its entries share no common leading segment (different top-level
+packages), `dependencies`'s Markdown output leaves every name fully qualified in both the
+subject sentence and the bullets. Satisfies
+`SysML2Tools-Tool-Query-DependenciesNameShortening`.
+
+**`RenderJson_DependenciesVerb_NamesRemainFullyQualified`**: Explicit before/after regression
+test — for a single hand-built `dependencies` `QueryResult` whose subject and entries share the
+common leading segment `"Model"` (which Markdown shortens), confirms that `RenderJson`'s output
+for the very same result keeps every `QualifiedName`/`Element` value fully qualified, proving
+the shortening applies only to `RenderMarkdown`. Satisfies
+`SysML2Tools-Tool-Query-DependenciesNameShortening`.
 
 ##### QueryOmgFixtureTests.cs
 
@@ -165,11 +233,17 @@ fixture test `QueryVerbsTests.States_ReportsStatesAndGuardedTransitions` (using 
 `transition first X if G then Y;` syntax) validates both `"state"` and `"transition"` entry
 kinds together and is unaffected by the gap.
 
+##### QuerySubsystem_FormatJson_UnaffectedByDepthOrHeading (QuerySubsystemTests.cs)
+
+Verifies that `--format json` output is byte-identical whether or not `--depth`/
+`--heading` are also supplied, confirming those two options are Markdown-output-only.
+
 ##### QueryErrorPathTests.cs
 
 Covers: element not found (`context.WriteError` message contains "not found in the
 workspace", exit code 1); `find` without `--kind`/`--name` (`ArgumentException`);
-unsupported `--format` value (`ArgumentException`); a file with parse errors (diagnostics
+unsupported `--format` value (`ArgumentException`); a non-integer `--walk-depth` value
+(`ArgumentException` naming `--walk-depth`); a file with parse errors (diagnostics
 reported, command completes best-effort); no input files supplied (exit code 1); a file
 pattern that matches no file on disk (`context.WriteError` message contains "no files
 matched", exit code 1, regression test for the glob-expansion bug fix — see
@@ -179,7 +253,7 @@ multiple files instead of being treated as a literal, never-matching file name).
 
 ##### Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb (ContextTests.cs)
 
-Verifies, for each of the 11 verb tokens, that `Context.Create(["query", token, "--element",
+Verifies, for each of the 12 verb tokens, that `Context.Create(["query", token, "--element",
 "Pkg::Foo"])` sets `Command` to `SysmlCommand.Query` and `Query.Verb` to the matching value.
 
 ##### Context_Create_QueryCommand_UnknownVerb_ThrowsArgumentException (ContextTests.cs)
@@ -214,10 +288,18 @@ Verifies that `--format markdown`/`--format json` populate `Query.Format`, and t
 interpreted independently of render's `--format` (they are separate typed properties, not a
 shared field).
 
-##### Context_Create_QueryCommand_WithDepthFlag_SetsQueryDepth (ContextTests.cs)
+##### Context_Create_QueryCommand_WithWalkDepthFlag_SetsQueryWalkDepth (ContextTests.cs)
 
-Verifies that `--depth 3` populates both `Query.Depth` and `MaxRenderDepth` (the same
-underlying parsed value, interpreted independently by `query` vs `render`).
+Verifies that `--walk-depth 3` populates `Query.WalkDepth` without affecting the global
+`Context.HeadingDepth` (which remains at its default of 1, since `--walk-depth` and
+`--depth` are distinct, unrelated flags).
+
+##### Context_Create_QueryCommand_WithoutHeading_LeavesHeadingNull (ContextTests.cs)
+
+##### Context_Create_QueryCommand_WithHeadingFlag_SetsHeading (ContextTests.cs)
+
+Verifies that `--heading` defaults to `null` when not supplied, and populates
+`Query.Heading` when supplied.
 
 ##### Context_Create_QueryCommand_WithFiles_SetsQueryFilesNotTopLevelFiles (ContextTests.cs)
 

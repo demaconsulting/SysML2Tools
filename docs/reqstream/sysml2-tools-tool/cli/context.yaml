@@ -42,18 +42,6 @@ sections:
           - Context_Create_DepthFlag_NonIntegerValue_ThrowsArgumentException
           - Context_Create_DepthFlag_ZeroValue_ThrowsArgumentException
 
-      - id: SysML2Tools-Tool-Context-MaxRenderDepth
-        title: >-
-          The Context class shall expose the raw --depth value as MaxRenderDepth (int?)
-          without clamping, so that render commands can apply an unlimited depth limit.
-        justification: |
-          HeadingDepth is clamped to the valid markdown heading range (1–6), but diagram
-          render depth is unbounded. Separating the two allows callers to apply each
-          independently.
-        tests:
-          - Context_Create_DepthFlag_SetsMaxRenderDepth
-          - Context_Create_DepthFlag_ExceedsMaxValue_SetsMaxRenderDepth
-
       - id: SysML2Tools-Tool-Context-ViewName
         title: >-
           The Context class shall parse the --view flag into the ViewName property and
@@ -157,8 +145,10 @@ sections:
           - Context_Create_QueryCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue
           - Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat
           - Context_Create_QueryCommand_WithFormatJson_SetsQueryFormat
-          - Context_Create_QueryCommand_WithDepthFlag_SetsQueryDepth
+          - Context_Create_QueryCommand_WithWalkDepthFlag_SetsQueryWalkDepth
           - Context_Create_QueryCommand_WithFiles_SetsQueryFilesNotTopLevelFiles
+          - Context_Create_QueryCommand_WithoutHeading_LeavesHeadingNull
+          - Context_Create_QueryCommand_WithHeadingFlag_SetsHeading
 
       - id: SysML2Tools-Tool-Context-CommandScoping
         title: >-

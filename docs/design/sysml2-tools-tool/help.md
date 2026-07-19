@@ -12,7 +12,7 @@ It provides three cooperating types:
 - `HelpArgumentParser` — parses the arguments following the `help` command token: an optional
   first token naming the target command, followed — only when the target is `query` — by an
   optional second token naming the verb, re-validated via `QueryVerbParsing.Parse` rather than
-  duplicating the 11-verb vocabulary.
+  duplicating the 12-verb vocabulary.
 - `HelpCommand` — pure dispatch. `Run(Context)` never authors help text itself; it delegates to
   the single source of truth for each command's help text: `Program.PrintTopLevelHelp`,
   `LintCommand.PrintHelp`, `RenderCommand.PrintHelp`, or
@@ -102,7 +102,7 @@ help text. Authors no help text of its own.
 - Unrecognized target command (`help bogus`): `ArgumentException` (thrown by
   `HelpArgumentParser.Parse`) listing the three valid targets.
 - Unrecognized query verb (`help query bogus`): `ArgumentException` (thrown by
-  `QueryVerbParsing.Parse`, reused as-is) listing all 11 valid verb tokens.
+  `QueryVerbParsing.Parse`, reused as-is) listing all 12 valid verb tokens.
 - Extra/`-`-prefixed trailing token: `ArgumentException` naming the bad token and the `help`
   command.
 - All three cases propagate to `Program.Main`'s existing `ArgumentException` handler, which

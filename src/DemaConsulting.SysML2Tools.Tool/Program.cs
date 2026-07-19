@@ -225,7 +225,6 @@ internal static class Program
         context.WriteLine(ProgramStrings.TopLevel_OptionResults);
         context.WriteLine(ProgramStrings.TopLevel_OptionDepth1);
         context.WriteLine(ProgramStrings.TopLevel_OptionDepth2);
-        context.WriteLine(ProgramStrings.TopLevel_OptionDepth3);
         context.WriteLine(ProgramStrings.TopLevel_OptionLog);
         context.WriteLine(ProgramStrings.TopLevel_OptionOutput);
         context.WriteLine(ProgramStrings.TopLevel_OptionFormat1);

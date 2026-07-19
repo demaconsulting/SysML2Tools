@@ -24,7 +24,7 @@ namespace DemaConsulting.SysML2Tools.Query;
 ///     Immutable set of options parsed for one <c>query</c> command invocation.
 /// </summary>
 /// <remarks>
-///     Every field is shared across all 11 <see cref="QueryVerb"/> values so that a single
+///     Every field is shared across all 12 <see cref="QueryVerb"/> values so that a single
 ///     <see cref="Cli.Context"/> parsing pass can build one instance regardless of which verb
 ///     was supplied; not every field is meaningful for every verb (see the per-field remarks
 ///     below and the verb-grammar table in
@@ -58,14 +58,24 @@ internal sealed record QueryOptions
     public string? Format { get; init; }
 
     /// <summary>
-    ///     Gets the maximum traversal depth, supplied via <c>--depth</c>.
+    ///     Gets the maximum impact-walk traversal depth, supplied via <c>--walk-depth</c>.
     /// </summary>
     /// <remarks>
     ///     Only meaningful for <see cref="QueryVerb.Impact"/>, where it bounds the transitive
-    ///     impact walk. This reuses the same <c>--depth</c> flag as the <c>render</c> command
-    ///     (diagram nesting depth); <see langword="null"/> means unlimited.
+    ///     impact walk; <see langword="null"/> means unlimited. Command-scoped (parsed locally by
+    ///     <see cref="QueryArgumentParser"/>); unrelated to the <c>render</c> command's own
+    ///     <c>--walk-depth</c> flag.
     /// </remarks>
-    public int? Depth { get; init; }
+    public int? WalkDepth { get; init; }
+
+    /// <summary>
+    ///     Gets the custom Markdown heading text, supplied via <c>--heading</c>.
+    /// </summary>
+    /// <remarks>
+    ///     Markdown output only; has no effect on <c>--format json</c>. <see langword="null"/>
+    ///     means the auto-generated <c>"query {verb}[: {element}]"</c> text is used instead.
+    /// </remarks>
+    public string? Heading { get; init; }
 
     /// <summary>
     ///     Gets the traversal direction, supplied via <c>--direction</c>.

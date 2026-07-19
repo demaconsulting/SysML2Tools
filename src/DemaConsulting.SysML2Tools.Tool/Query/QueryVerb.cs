@@ -21,7 +21,7 @@
 namespace DemaConsulting.SysML2Tools.Query;
 
 /// <summary>
-///     Identifies one of the eleven model-analysis operations supported by the
+///     Identifies one of the twelve model-analysis operations supported by the
 ///     <c>query</c> command.
 /// </summary>
 internal enum QueryVerb
@@ -31,6 +31,12 @@ internal enum QueryVerb
 
     /// <summary>Lists the elements that use a given element (its incoming dependencies).</summary>
     UsedBy,
+
+    /// <summary>
+    ///     Combines <see cref="Uses"/> and <see cref="UsedBy"/> for a given element into one
+    ///     prose-rendered result: what it depends on, and what depends on it.
+    /// </summary>
+    Dependencies,
 
     /// <summary>Reports the transitive set of elements affected by a change to a given element.</summary>
     Impact,
@@ -74,6 +80,7 @@ internal static class QueryVerbParsing
     [
         "uses",
         "used-by",
+        "dependencies",
         "impact",
         "describe",
         "hierarchy",
@@ -101,6 +108,7 @@ internal static class QueryVerbParsing
         {
             "uses" => QueryVerb.Uses,
             "used-by" => QueryVerb.UsedBy,
+            "dependencies" => QueryVerb.Dependencies,
             "impact" => QueryVerb.Impact,
             "describe" => QueryVerb.Describe,
             "hierarchy" => QueryVerb.Hierarchy,
@@ -128,6 +136,7 @@ internal static class QueryVerbParsing
         {
             QueryVerb.Uses => "uses",
             QueryVerb.UsedBy => "used-by",
+            QueryVerb.Dependencies => "dependencies",
             QueryVerb.Impact => "impact",
             QueryVerb.Describe => "describe",
             QueryVerb.Hierarchy => "hierarchy",

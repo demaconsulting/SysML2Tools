@@ -1,0 +1,31 @@
+---
+# Software Unit Requirements for the QualifiedNameShortener Class
+#
+# The QualifiedNameShortener class strips the longest shared leading "::"-segment
+# prefix from a pool of qualified names, always retaining each name's own leaf
+# segment, so Markdown-oriented renderers can present related names more compactly.
+
+sections:
+  - title: QualifiedNameShortener Unit Requirements
+    requirements:
+      - id: Template-QualifiedNameShortener-CommonPrefix
+        title: >-
+          The QualifiedNameShortener class shall strip the longest leading "::"-segment
+          prefix shared by every name in a supplied pool of qualified names, always
+          retaining each name's own leaf segment.
+        justification: |
+          A pool of related qualified names (e.g., a query subject and its dependencies)
+          often shares a long common package prefix that adds no distinguishing value to
+          a reader; stripping that shared prefix - while never discarding a name's own
+          leaf segment - makes Markdown-oriented output more compact without losing
+          information.
+        tests:
+          - QualifiedNameShortener_Shorten_OneSharedLeadingSegment_StripsThatSegment
+          - QualifiedNameShortener_Shorten_NoCommonPrefix_LeavesNamesUnchanged
+          - QualifiedNameShortener_Shorten_SingleNamePool_LeavesNameUnchanged
+          - QualifiedNameShortener_Shorten_AllIdenticalNames_KeepsLeafSegment
+          - QualifiedNameShortener_Shorten_DeeperCommonPrefix_StripsAllSharedSegments
+          - QualifiedNameShortener_Shorten_ShortestNameBoundsCap_RetainsShortestNamesLeaf
+          - QualifiedNameShortener_Shorten_NullPool_ThrowsArgumentNullException
+          - QualifiedNameShortener_Shorten_NullEntryInPool_ThrowsArgumentNullException
+          - QualifiedNameShortener_Shorten_DuplicateNamesInPool_ReturnsOneEntryPerDistinctName
