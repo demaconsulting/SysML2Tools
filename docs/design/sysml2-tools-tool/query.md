@@ -38,7 +38,7 @@ re-resolving anything; `QueryEngine` is a pure read-only consumer of the workspa
 | `used-by` | yes | `Index.GetIncomingEdges(qn)` |
 | `dependencies` | yes | Merges `QueryEngine.Uses` + `QueryEngine.UsedBy` (no separate traversal) |
 | `impact` | yes | Breadth-first transitive closure over `used-by`, cycle-guarded, bounded by `--walk-depth` |
-| `describe` | yes | Node's own kind, resolved supertypes, typing, annotations, children |
+| `describe` | yes | Node's own kind, resolved supertypes, typing, annotations, applied metadata, children |
 | `hierarchy` | yes | Recursive `Supertype` edge walk, direction-controlled, cycle-guarded |
 | `requirements` | yes | `Satisfy`/`Verify`/`Allocate` edges where the element is source or target |
 | `interface` | yes | Direct `Children` that are ports or have a non-null `FeatureTyping` |
@@ -55,9 +55,15 @@ Entry shapes, one row per verb:
   its own intro sentences instead — see **Output Model** below).
 - `impact`: qn of every element transitively affected by a change to the target.
 - `describe`: direct `Children` as entries (child qn, `Kind` = child's kind); the node's
-  own kind/supertypes/typing/annotations/child-count appear in `Summary`, not `Entries`.
-  Supertypes are resolved via outgoing `Supertype` edges, falling back to raw
-  `SupertypeNames` only when no resolved edge exists.
+  own kind/supertypes/typing/annotations/applied-metadata/child-count appear in `Summary`,
+  not `Entries`. Supertypes are resolved via outgoing `Supertype` edges, falling back to raw
+  `SupertypeNames` only when no resolved edge exists. Applied `metadata` annotations (captured
+  as `SysmlMetadataNode` entries in `element.Children`, per `SysmlNode.cs`) are rendered as one
+  `"Metadata {TypeReference}"` line per bare annotation (no attributes), or one
+  `"Metadata {TypeReference}.{Attribute}: {value}"` line per attribute otherwise; boolean values
+  render as `true`/`false`, numbers via invariant-culture formatting, strings unquoted, and any
+  non-scalar (list/expression) value falls back to its verbatim raw source text so the value is
+  never silently dropped.
 - `hierarchy`: qn, `Kind` = `"supertype"` or `"subtype"`; `--direction up` walks outgoing
   `Supertype` edges, `down` walks incoming, `both` unions them.
 - `requirements`: other-side qn, `Kind` = edge kind label, `Detail` = direction arrow.

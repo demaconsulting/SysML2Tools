@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Globalization;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
 
@@ -216,7 +217,8 @@ internal static class QueryEngine
 
     /// <summary>
     ///     Describes a single element in detail: kind, qualified name, supertypes, typing,
-    ///     annotations (comments/documentation), and a list of its direct children.
+    ///     annotations (comments/documentation), applied metadata annotations (type and attribute
+    ///     values), and a list of its direct children.
     /// </summary>
     /// <param name="workspace">The loaded workspace.</param>
     /// <param name="element">The target element.</param>
@@ -255,6 +257,20 @@ internal static class QueryEngine
             summary.Add($"{annotation.Kind}: {NormalizeAnnotationText(annotation.Text)}");
         }
 
+        foreach (var metadata in element.Children.OfType<SysmlMetadataNode>())
+        {
+            if (metadata.Attributes.Count == 0)
+            {
+                summary.Add($"Metadata {metadata.TypeReference}");
+                continue;
+            }
+
+            foreach (var attribute in metadata.Attributes)
+            {
+                summary.Add($"Metadata {metadata.TypeReference}.{attribute.Name}: {FormatMetadataAttributeValue(attribute)}");
+            }
+        }
+
         summary.Add($"Children: {element.Children.Count}");
 
         var entries = element.Children
@@ -290,6 +306,24 @@ internal static class QueryEngine
             .Where(line => line.Length > 0);
         return string.Join(" ", lines);
     }
+
+    /// <summary>
+    ///     Formats a single applied <see cref="MetadataAttributeValue"/> for display on a
+    ///     <c>"Metadata {Type}.{Attribute}: {value}"</c> summary line. Boolean values render as
+    ///     <c>"true"</c>/<c>"false"</c>, numbers via invariant-culture formatting, and strings
+    ///     unquoted; any non-scalar (<see cref="MetadataAttributeValueKind.Unsupported"/>) value
+    ///     falls back to its verbatim <see cref="MetadataAttributeValue.RawText"/> so the value is
+    ///     never silently dropped.
+    /// </summary>
+    /// <param name="attribute">The attribute value to format.</param>
+    /// <returns>The formatted value text.</returns>
+    private static string FormatMetadataAttributeValue(MetadataAttributeValue attribute) => attribute.Kind switch
+    {
+        MetadataAttributeValueKind.Boolean => attribute.BooleanValue!.Value ? "true" : "false",
+        MetadataAttributeValueKind.Number => attribute.NumberValue!.Value.ToString(CultureInfo.InvariantCulture),
+        MetadataAttributeValueKind.String => attribute.StringValue!,
+        _ => attribute.RawText
+    };
 
     /// <summary>
     ///     Reports the specialization/generalization hierarchy of a given element, walking

@@ -434,7 +434,7 @@ sysml2tools query dependencies --element Model::Engine "src/**/*.sysml"
 # Transitive blast radius of a change, optionally bounded
 sysml2tools query impact --element Model::Engine --walk-depth 2 "src/**/*.sysml"
 
-# A single-element "fact sheet": kind, supertypes, typing, annotations, children
+# A single-element "fact sheet": kind, supertypes, typing, annotations, applied metadata, children
 sysml2tools query describe --element Model::Vehicle "src/**/*.sysml"
 
 # Supertype/subtype tree
@@ -478,7 +478,7 @@ the same order, so either format can be relied on for automated comparisons.
 | `used-by` | yes | What depends on this element? |
 | `dependencies` | yes | What does this element depend on, and what depends on it (combined, as prose)? |
 | `impact` | yes | What is transitively affected by a change (`--walk-depth` to bound)? |
-| `describe` | yes | What is this element (kind, supertypes, typing, annotations, children)? |
+| `describe` | yes | What is this element (kind, supertypes, typing, annotations, applied metadata, children)? |
 | `hierarchy` | yes | What is the supertype/subtype tree (`--direction up`\|`down`\|`both`)? |
 | `requirements` | yes | What satisfy/verify/allocate relationships involve this element? |
 | `interface` | yes | What ports/typed features does this definition expose? |

@@ -18,6 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Text.Json;
+using DemaConsulting.SysML2Tools.Query;
+
 namespace DemaConsulting.SysML2Tools.Tests.Query;
 
 /// <summary>
@@ -265,6 +268,163 @@ public class QueryVerbsTests
         // contain an embedded newline, and no orphan '*' continuation-marker lines exist.
         var lines = output.Split('\n');
         Assert.DoesNotContain(lines, line => line.Trim().StartsWith('*'));
+    }
+
+    /// <summary>
+    ///     'describe' reports a bare (no attributes) applied metadata annotation as a single
+    ///     <c>"Metadata {Type}"</c> summary line, without a trailing attribute suffix.
+    /// </summary>
+    [Fact]
+    public async Task Describe_BareMetadataAnnotation_ReportsMetadataTypeLineOnly()
+    {
+        const string sysml = """
+            package Model {
+                metadata def Critical;
+
+                part def Car {
+                    @Critical;
+                }
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "describe", "--element", "Model::Car");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Metadata Critical", output);
+        Assert.DoesNotContain("Metadata Critical.", output);
+    }
+
+    /// <summary>
+    ///     'describe' reports each scalar (boolean/number/string) attribute of an applied
+    ///     metadata annotation as its own <c>"Metadata {Type}.{Attribute}: {value}"</c> summary
+    ///     line.
+    /// </summary>
+    [Fact]
+    public async Task Describe_MetadataWithScalarAttributes_ReportsOnePerAttributeLine()
+    {
+        const string sysml = """
+            package Model {
+                metadata def SoftwareInfo {
+                    attribute description : String;
+                    attribute priority : Number;
+                    attribute isCritical : Boolean;
+                }
+
+                part def Car {
+                    @SoftwareInfo {
+                        description = "Engine control";
+                        priority = 1;
+                        isCritical = true;
+                    }
+                }
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "describe", "--element", "Model::Car");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Metadata SoftwareInfo.description: Engine control", output);
+        Assert.Contains("Metadata SoftwareInfo.priority: 1", output);
+        Assert.Contains("Metadata SoftwareInfo.isCritical: true", output);
+    }
+
+    /// <summary>
+    ///     'describe' falls back to the verbatim raw text of a non-scalar (e.g. list-valued)
+    ///     metadata attribute value, since only scalar boolean/number/string literals are
+    ///     evaluated - the value is never silently dropped.
+    /// </summary>
+    [Fact]
+    public async Task Describe_MetadataWithUnsupportedListAttribute_FallsBackToRawText()
+    {
+        const string sysml = """
+            package Model {
+                metadata def SoftwareInfo {
+                    attribute sourceFiles : String[0..*];
+                }
+
+                part def Car {
+                    @SoftwareInfo {
+                        sourceFiles = ("a.cs", "b.cs");
+                    }
+                }
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "describe", "--element", "Model::Car");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Metadata SoftwareInfo.sourceFiles: (\"a.cs\",\"b.cs\")", output);
+    }
+
+    /// <summary>
+    ///     'describe' reports multiple metadata annotations applied to the same element
+    ///     independently: each produces its own summary line(s), and neither overwrites the
+    ///     other.
+    /// </summary>
+    [Fact]
+    public async Task Describe_MultipleMetadataAnnotations_ReportsEachIndependently()
+    {
+        const string sysml = """
+            package Model {
+                metadata def Safety;
+                metadata def Critical;
+
+                part def Car {
+                    @Safety;
+                    @Critical;
+                }
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "describe", "--element", "Model::Car");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Metadata Safety", output);
+        Assert.Contains("Metadata Critical", output);
+    }
+
+    /// <summary>
+    ///     'describe --format json' includes the same "Metadata ..." summary lines in the
+    ///     JSON <c>Summary</c> array as the Markdown output, since Summary is rendered directly
+    ///     from the shared <see cref="QueryResult"/> without any Markdown-only transformation.
+    /// </summary>
+    [Fact]
+    public async Task Describe_FormatJson_IncludesMetadataInSummaryArray()
+    {
+        const string sysml = """
+            package Model {
+                metadata def SoftwareInfo {
+                    attribute isCritical : Boolean;
+                }
+
+                part def Car {
+                    @SoftwareInfo {
+                        isCritical = true;
+                    }
+                }
+            }
+            """;
+
+        var (json, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "describe", "--element", "Model::Car", "--format", "json");
+
+        Assert.Equal(0, exitCode);
+
+        // The unresolved-reference diagnostic for the built-in "Boolean" type is written as a
+        // single-line "SysmlDiagnostic { ... }" record before the JSON result, so locate the
+        // JSON document's opening brace via the unambiguous "Verb" property rather than the
+        // first '{' in the captured output.
+        var verbIndex = json.IndexOf("\"Verb\":", StringComparison.Ordinal);
+        var jsonStart = json.LastIndexOf('{', verbIndex);
+        var deserialized = JsonSerializer.Deserialize(
+            json[jsonStart..], QueryResultSerializerContext.Default.QueryResult);
+
+        Assert.NotNull(deserialized);
+        Assert.Contains("Metadata SoftwareInfo.isCritical: true", deserialized!.Summary);
     }
 
     /// <summary>
