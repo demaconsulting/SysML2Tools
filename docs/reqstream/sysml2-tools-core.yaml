@@ -3,12 +3,14 @@
 #
 # PURPOSE:
 # - Define system-level requirements for the DemaConsulting.SysML2Tools core library
-# - Core library provides: Layout, Rendering interfaces, DiagramRenderer
+# - Core library provides: Layout, Rendering interfaces, DiagramRenderer, and the public Query API
 # - Parsing and semantic model are in DemaConsulting.SysML2Tools.Language
 # - Standard library is in DemaConsulting.SysML2Tools.Stdlib
 # - Requirements describe observable system behavior (WHAT the library produces),
 #   not the internal orchestration API. System-level evidence comes from the
 #   end-to-end rendering integration tests.
+# - Query subsystem requirements are defined separately in
+#   docs/reqstream/sysml2-tools-core/query.yaml.
 
 sections:
   - title: SysML2ToolsLibrary Requirements

@@ -957,7 +957,7 @@ public class ContextTests
 
     /// <summary>
     ///     Test creating a context with the query command and file globs after the verb sets
-    ///     Query.Files, leaving the lint/render option objects null.
+    ///     Context.QueryFiles, leaving the lint/render option objects null.
     /// </summary>
     [Fact]
     public void Context_Create_QueryCommand_WithFiles_SetsQueryFilesNotTopLevelFiles()
@@ -967,10 +967,36 @@ public class ContextTests
 
         // Assert: verify expected behavior
         Assert.NotNull(context.Query);
-        Assert.Single(context.Query.Files);
-        Assert.Equal("*.sysml", context.Query.Files[0]);
+        Assert.Single(context.QueryFiles);
+        Assert.Equal("*.sysml", context.QueryFiles[0]);
         Assert.Null(context.Lint);
         Assert.Null(context.Render);
+    }
+
+    /// <summary>
+    ///     Test creating a context with the query command and --output sets Context.QueryOutput.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithOutputFlag_SetsQueryOutput()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "list", "--output", "output/path.md"]);
+
+        // Assert: verify expected behavior
+        Assert.NotNull(context.Query);
+        Assert.Equal("output/path.md", context.QueryOutput);
+    }
+
+    /// <summary>
+    ///     Test creating a context with query --output but no value throws ArgumentException.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_OutputWithoutValue_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(
+            () => Context.Create(["query", "list", "--output"]));
+        Assert.Contains("--output", exception.Message);
     }
 
     /// <summary>

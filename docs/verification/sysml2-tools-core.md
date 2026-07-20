@@ -3,11 +3,13 @@
 ## Verification Approach
 
 System-level verification for the `DemaConsulting.SysML2Tools` core library uses unit tests
-in `DemaConsulting.SysML2Tools.Tests`. Tests exercise the Filtering, Layout, and Rendering
-pipeline via `FilterExpressionParser`, `FilterExpressionEvaluator`, `DiagramRenderer`, and
-`GeneralViewLayoutStrategy`, along with the shared `ExposeScopeResolver`-based expose-scoping
-path exercised by all seven layout strategies. The xUnit v3 framework discovers and runs all
-test methods; results are captured in TRX files consumed by ReqStream.
+in `DemaConsulting.SysML2Tools.Tests`. Tests exercise the Filtering, Layout, Rendering, Io,
+and Query subsystems via `FilterExpressionParser`, `FilterExpressionEvaluator`,
+`DiagramRenderer`, `GeneralViewLayoutStrategy`, `GlobFileCollector`, `QueryEngine`,
+`QueryResultRenderer`, and `QueryResultExporter`, along with the shared
+`ExposeScopeResolver`-based expose-scoping path exercised by all seven layout strategies.
+The xUnit v3 framework discovers and runs all test methods; results are captured in TRX files
+consumed by ReqStream.
 
 ## Test Environment
 
@@ -25,6 +27,11 @@ SDK installation.
 - Every layout strategy honors a view's resolved `expose` scope via the shared
   `ExposeScopeResolver` helper, including the no-`expose` fallback (rendering everything
   unchanged) and a multi-target `expose` union.
+- `GlobFileCollector.Collect` resolves literal paths, recursive globs, exclusions, and
+  extension-filtered bare-`*` patterns to a stable deduplicated file list.
+- `QueryEngine`, `QueryResultRenderer`, and `QueryResultExporter` produce stable,
+  deterministic query results, renderer output, and file-export behavior for the public Core
+  Query API.
 
 ## Test Scenarios
 
@@ -34,3 +41,6 @@ Primary acceptance evidence is provided by:
   tests.
 - `RenderIntegrationTests` — end-to-end rendering tests with stdlib seed workspace.
 - `GeneralViewLayoutStrategyTests` — layout algorithm tests for general view diagrams.
+- `GlobFileCollectorTests` — direct Io subsystem tests for shared file-pattern resolution.
+- `QueryOmgFixtureTests`, `QueryRenderingTests`, and `QueryResultExporterTests` — direct Query
+  subsystem tests for public verb execution, deterministic rendering, and file export.

@@ -1,22 +1,6 @@
-// Copyright (c) DEMA Consulting
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-// 
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// <copyright file="QueryResult.cs" company="DemaConsulting">
+// Copyright (c) DemaConsulting. All rights reserved.
+// </copyright>
 
 using System.Text.Json.Serialization;
 
@@ -32,7 +16,7 @@ namespace DemaConsulting.SysML2Tools.Query;
 ///     lines (e.g. <c>describe</c>'s kind/supertypes/annotations), and <see cref="Entries"/>
 ///     carries the tabular list of related elements every verb ultimately reports.
 /// </remarks>
-internal sealed record QueryResult
+public sealed record QueryResult
 {
     /// <summary>
     ///     Gets the kebab-case verb token that produced this result (e.g. <c>"used-by"</c>).
@@ -64,7 +48,7 @@ internal sealed record QueryResult
 ///     One row of a <see cref="QueryResult"/>: a related element (or transition/state) and its
 ///     relationship to the queried element.
 /// </summary>
-internal sealed record QueryResultEntry
+public sealed record QueryResultEntry
 {
     /// <summary>
     ///     Gets the qualified name of the related element.
@@ -104,7 +88,7 @@ internal sealed record QueryResultEntry
 ///     The traversal direction of a <see cref="QueryResultEntry"/> relative to the queried
 ///     element, populated only by the <c>dependencies</c> verb.
 /// </summary>
-internal enum QueryEntryDirection
+public enum QueryEntryDirection
 {
     /// <summary>The entry is an element the queried element depends on (an outgoing reference).</summary>
     Outgoing,

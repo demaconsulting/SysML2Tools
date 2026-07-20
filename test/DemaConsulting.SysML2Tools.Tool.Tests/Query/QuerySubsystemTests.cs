@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Text.Json;
 using DemaConsulting.SysML2Tools.Cli;
 using DemaConsulting.SysML2Tools.Query;
 
@@ -427,6 +428,111 @@ public class QuerySubsystemTests
         finally
         {
             Console.SetOut(originalOut);
+        }
+    }
+
+    /// <summary>
+    ///     'dependencies' end-to-end: '--depth'/'--heading' apply to its heading line exactly
+    ///     like every other verb, while the bullet-prose body below is unaffected.
+    /// </summary>
+    [Fact]
+    public async Task Dependencies_DepthAndHeadingOptions_ApplyToHeadingLikeOtherVerbs()
+    {
+        const string sysml = """
+            package Model {
+                part def Vehicle;
+                part def Car specializes Vehicle;
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "dependencies", "--element", "Model::Car", "--depth", "3", "--heading", "Custom");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("### Custom", output);
+        Assert.Contains("Depends on **Vehicle** (supertype)", output);
+    }
+
+    /// <summary>
+    ///     End-to-end: '--format markdown' and '--format json' for the same 'uses' query report
+    ///     the same qualified names, in the same order.
+    /// </summary>
+    [Fact]
+    public async Task Query_MarkdownAndJsonFormats_AgreeOnEntryContentAndOrder()
+    {
+        const string sysml = """
+            package Model {
+                part def Alpha;
+                part def Zeta specializes Alpha;
+                part def Beta specializes Alpha;
+            }
+            """;
+
+        var (markdown, markdownExit) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "used-by", "--element", "Model::Alpha", "--format", "markdown");
+        var (json, jsonExit) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "used-by", "--element", "Model::Alpha", "--format", "json");
+
+        Assert.Equal(0, markdownExit);
+        Assert.Equal(0, jsonExit);
+
+        // The JSON document is the last chunk written; extract it (from the first '{') and parse
+        var deserialized = JsonSerializer.Deserialize(
+            json[json.IndexOf('{')..], QueryResultSerializerContext.Default.QueryResult);
+
+        Assert.NotNull(deserialized);
+        Assert.Equal(2, deserialized!.Entries.Count);
+        Assert.Equal("Model::Beta", deserialized.Entries[0].QualifiedName);
+        Assert.Equal("Model::Zeta", deserialized.Entries[1].QualifiedName);
+
+        // Markdown reports the same two qualified names, Beta appearing before Zeta
+        var betaIndex = markdown.IndexOf("Model::Beta", StringComparison.Ordinal);
+        var zetaIndex = markdown.IndexOf("Model::Zeta", StringComparison.Ordinal);
+        Assert.True(betaIndex >= 0 && zetaIndex >= 0 && betaIndex < zetaIndex);
+    }
+
+    /// <summary>
+    ///     'query --output &lt;file&gt;' writes the rendered output to the given file instead of
+    ///     stdout, mirroring 'export --output' semantics exactly (single output file, not a
+    ///     directory).
+    /// </summary>
+    [Fact]
+    public async Task QuerySubsystem_OutputFlag_WritesToFileInsteadOfStdout()
+    {
+        const string sysml = """
+            package Model {
+                part def Vehicle;
+                part def Car specializes Vehicle;
+            }
+            """;
+
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        var outputFile = Path.GetTempFileName();
+        await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            using var context = Context.Create(
+                ["query", "uses", "--element", "Model::Car", "--output", outputFile, tempFile]);
+            await Program.RunAsync(context);
+
+            Assert.Equal(0, context.ExitCode);
+            Assert.DoesNotContain("# query uses", outWriter.ToString());
+            Assert.Contains(outputFile, outWriter.ToString());
+
+            var written = await File.ReadAllTextAsync(outputFile, TestContext.Current.CancellationToken);
+            Assert.Contains("# query uses: Model::Car", written);
+            Assert.Contains("Vehicle", written);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            File.Delete(tempFile);
+            File.Delete(outputFile);
         }
     }
 }

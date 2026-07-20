@@ -1,22 +1,6 @@
-// Copyright (c) DEMA Consulting
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-// 
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// <copyright file="QueryEngine.cs" company="DemaConsulting">
+// Copyright (c) DemaConsulting. All rights reserved.
+// </copyright>
 
 using System.Globalization;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -31,7 +15,7 @@ namespace DemaConsulting.SysML2Tools.Query;
 ///     <see cref="Find"/>), and the parsed <see cref="QueryOptions"/>, and returning a uniform
 ///     <see cref="QueryResult"/> for <see cref="QueryResultRenderer"/> to render.
 /// </summary>
-internal static class QueryEngine
+public static class QueryEngine
 {
     /// <summary>
     ///     The <see cref="SysmlEdgeKind"/> values considered "requirement relationships" by the
@@ -43,6 +27,64 @@ internal static class QueryEngine
         SysmlEdgeKind.Verify,
         SysmlEdgeKind.Allocate
     ];
+
+    /// <summary>
+    ///     Dispatches to the verb method selected by <see cref="QueryOptions.Verb"/>, the single
+    ///     entry point library callers can use instead of writing their own 12-arm switch (this is
+    ///     the same dispatch previously inlined in the Tool project's <c>QueryCommand.RunAsync</c>
+    ///     before <see cref="QueryEngine"/> became part of this project's public API).
+    /// </summary>
+    /// <param name="workspace">The loaded workspace.</param>
+    /// <param name="options">The parsed query options, supplying <see cref="QueryOptions.Verb"/>.</param>
+    /// <param name="element">
+    ///     The resolved target element. Required (non-<see langword="null"/>) for every verb
+    ///     except <see cref="QueryVerb.List"/> and <see cref="QueryVerb.Find"/> (see
+    ///     <see cref="QueryVerbParsing.RequiresElement"/>); callers that already guarantee this
+    ///     (e.g., because they resolved <paramref name="element"/> themselves before calling this
+    ///     method) incur only the cost of one enum check.
+    /// </param>
+    /// <returns>The query result produced by the dispatched verb.</returns>
+    /// <exception cref="ArgumentNullException">
+    ///     Thrown when <paramref name="workspace"/> or <paramref name="options"/> is
+    ///     <see langword="null"/>, or when <paramref name="element"/> is <see langword="null"/>
+    ///     for a verb that <see cref="QueryVerbParsing.RequiresElement"/> reports as requiring one.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    ///     Thrown when <see cref="QueryOptions.Verb"/> is not a recognized <see cref="QueryVerb"/>
+    ///     value.
+    /// </exception>
+    public static QueryResult Execute(SysmlWorkspace workspace, QueryOptions options, SysmlNode? element)
+    {
+        ArgumentNullException.ThrowIfNull(workspace);
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (QueryVerbParsing.RequiresElement(options.Verb) && element is null)
+        {
+            throw new ArgumentNullException(
+                nameof(element),
+                $"The '{QueryVerbParsing.ToToken(options.Verb)}' verb requires a resolved target element.");
+        }
+
+        // Each verb gets its own switch arm (rather than a lookup/loop) so a future release can
+        // change one verb's logic without touching the others; mirrors the switch previously
+        // inlined in the Tool project's QueryCommand.RunAsync.
+        return options.Verb switch
+        {
+            QueryVerb.Uses => Uses(workspace, element!, options),
+            QueryVerb.UsedBy => UsedBy(workspace, element!, options),
+            QueryVerb.Dependencies => Dependencies(workspace, element!, options),
+            QueryVerb.Impact => Impact(workspace, element!, options),
+            QueryVerb.Describe => Describe(workspace, element!, options),
+            QueryVerb.Hierarchy => Hierarchy(workspace, element!, options),
+            QueryVerb.Requirements => Requirements(workspace, element!, options),
+            QueryVerb.Interface => Interface(workspace, element!, options),
+            QueryVerb.Connections => Connections(workspace, element!, options),
+            QueryVerb.States => States(workspace, element!, options),
+            QueryVerb.List => List(workspace, options),
+            QueryVerb.Find => Find(workspace, options),
+            _ => throw new ArgumentOutOfRangeException(nameof(options), options.Verb, "Unrecognized query verb.")
+        };
+    }
 
     /// <summary>
     ///     Lists the elements a given element uses (its resolved outgoing supertype, typing, and
@@ -616,8 +658,7 @@ internal static class QueryEngine
 
     /// <summary>
     ///     Determines whether a qualified name should be included in results, applying the
-    ///     <c>--include-stdlib</c> filter via <see cref="SysmlWorkspace.StdlibNames"/> (the
-    ///     Tool project cannot reference Core's internal <c>StdlibFilter</c>).
+    ///     <c>--include-stdlib</c> filter via <see cref="SysmlWorkspace.StdlibNames"/>.
     /// </summary>
     /// <param name="qualifiedName">The qualified name to check.</param>
     /// <param name="workspace">The loaded workspace.</param>
@@ -629,7 +670,7 @@ internal static class QueryEngine
     /// <summary>
     ///     Resolves the effective qualified name for a target element, preferring the node's own
     ///     <see cref="SysmlNode.QualifiedName"/> and falling back to the raw
-    ///     <see cref="QueryOptions.Element"/> string looked up by <see cref="QueryCommand"/>.
+    ///     <see cref="QueryOptions.Element"/> string used by the caller to look it up.
     /// </summary>
     /// <param name="element">The resolved target element.</param>
     /// <param name="options">The parsed query options.</param>

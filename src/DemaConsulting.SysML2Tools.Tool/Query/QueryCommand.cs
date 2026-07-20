@@ -30,15 +30,22 @@ namespace DemaConsulting.SysML2Tools.Query;
 
 /// <summary>
 ///     Implements the <c>query</c> command: loads a SysML v2 workspace and dispatches to one of
-///     twelve model-analysis verbs implemented by <see cref="QueryEngine"/>, rendering the result
-///     via <see cref="QueryResultRenderer"/> as Markdown (default) or JSON.
+///     twelve model-analysis verbs implemented by Core's public <see cref="QueryEngine"/>,
+///     rendering the result via <see cref="QueryResultRenderer"/> as Markdown (default) or JSON —
+///     to stdout, or to a file when <c>--output</c> is supplied (via
+///     <see cref="QueryResultExporter"/>). A thin CLI adapter: glob resolution, workspace loading,
+///     element lookup, and console/log I/O are the only logic that remains in this class; the
+///     verb-semantics logic itself lives in Core's public, reusable Query API.
 /// </summary>
 internal static class QueryCommand
 {
     /// <summary>
     ///     Runs the query command.
     /// </summary>
-    /// <param name="context">The CLI context, supplying the parsed <see cref="QueryOptions"/> and output methods.</param>
+    /// <param name="context">
+    ///     The CLI context, supplying the parsed <see cref="QueryOptions"/>,
+    ///     <see cref="Context.QueryFiles"/>, <see cref="Context.QueryOutput"/>, and output methods.
+    /// </param>
     /// <exception cref="ArgumentException">
     ///     Thrown when <see cref="Context.Query"/> is <see langword="null"/> (no verb was parsed), when the verb
     ///     requires <c>--element</c> and none was supplied, when <c>find</c> is invoked without <c>--kind</c> or
@@ -80,7 +87,7 @@ internal static class QueryCommand
                 nameof(context));
         }
 
-        if (options.Files.Count == 0)
+        if (context.QueryFiles.Count == 0)
         {
             context.WriteError($"query {verbToken}: no input files specified. Provide file glob patterns.");
             return;
@@ -88,15 +95,15 @@ internal static class QueryCommand
 
         // Resolve the supplied file glob patterns to concrete file paths via the shared
         // GlobFileCollector, supporting recursive '**' patterns and '!' exclusions.
-        context.WriteLine($"Loading {options.Files.Count} file pattern(s)...");
-        var files = GlobFileCollector.Collect(options.Files, [".sysml", ".kerml"], Directory.GetCurrentDirectory());
+        context.WriteLine($"Loading {context.QueryFiles.Count} file pattern(s)...");
+        var files = GlobFileCollector.Collect(context.QueryFiles, [".sysml", ".kerml"], Directory.GetCurrentDirectory());
         if (files.Count == 0)
         {
             context.WriteError($"query {verbToken}: no files matched the given pattern(s).");
             return;
         }
 
-        context.WriteLine($"Resolved {files.Count} file(s) from {options.Files.Count} pattern(s).");
+        context.WriteLine($"Resolved {files.Count} file(s) from {context.QueryFiles.Count} pattern(s).");
 
         // Load the workspace from the resolved file paths, exactly as 'lint'/'render' do
         var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
@@ -132,28 +139,51 @@ internal static class QueryCommand
             return;
         }
 
-        // Each verb gets its own switch arm (rather than a lookup/loop) so a future release can
-        // change one verb's logic without touching the others.
-        var result = options.Verb switch
-        {
-            QueryVerb.Uses => QueryEngine.Uses(workspace, element!, options),
-            QueryVerb.UsedBy => QueryEngine.UsedBy(workspace, element!, options),
-            QueryVerb.Dependencies => QueryEngine.Dependencies(workspace, element!, options),
-            QueryVerb.Impact => QueryEngine.Impact(workspace, element!, options),
-            QueryVerb.Describe => QueryEngine.Describe(workspace, element!, options),
-            QueryVerb.Hierarchy => QueryEngine.Hierarchy(workspace, element!, options),
-            QueryVerb.Requirements => QueryEngine.Requirements(workspace, element!, options),
-            QueryVerb.Interface => QueryEngine.Interface(workspace, element!, options),
-            QueryVerb.Connections => QueryEngine.Connections(workspace, element!, options),
-            QueryVerb.States => QueryEngine.States(workspace, element!, options),
-            QueryVerb.List => QueryEngine.List(workspace, options),
-            QueryVerb.Find => QueryEngine.Find(workspace, options),
-            _ => throw new ArgumentOutOfRangeException(nameof(context), options.Verb, "Unrecognized query verb.")
-        };
+        // Dispatch to Core's public QueryEngine.Execute, which contains the per-verb switch
+        // (previously inlined here) now shared by any caller of the public Query API.
+        var result = QueryEngine.Execute(workspace, options, element);
 
         // Render via the shared renderer; markdown lines are written one per WriteLine call,
         // JSON is written as a single chunk (mirroring how other commands emit multi-line output)
-        if (format.Equals("json", StringComparison.OrdinalIgnoreCase))
+        // -- unless '--output' was supplied, in which case the rendered output is written to that
+        // file instead (mirroring 'export'/'render's own '--output' file-writing behavior).
+        if (context.QueryOutput is not null)
+        {
+            try
+            {
+                // Ensure the parent directory exists (mirroring 'export'/'render's
+                // Directory.CreateDirectory guard for their own --output paths), so a nonexistent
+                // output path fails cleanly rather than throwing DirectoryNotFoundException.
+                var outputDir = Path.GetDirectoryName(Path.GetFullPath(context.QueryOutput));
+                if (!string.IsNullOrEmpty(outputDir))
+                {
+                    Directory.CreateDirectory(outputDir);
+                }
+
+                if (format.Equals("json", StringComparison.OrdinalIgnoreCase))
+                {
+                    await QueryResultExporter.WriteJsonAsync(result, context.QueryOutput).ConfigureAwait(false);
+                }
+                else
+                {
+                    await QueryResultExporter.WriteMarkdownAsync(
+                        result, context.QueryOutput, context.HeadingDepth, options.Heading).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException
+                                             or ArgumentException or PathTooLongException)
+            {
+                // Covers cases such as '--output' pointing at an existing directory, a
+                // read-only/locked target, an otherwise-invalid path, or a malformed/too-long
+                // path string, surfacing a clean error instead of an unhandled exception with a
+                // stack trace.
+                context.WriteError($"query {verbToken}: failed to write output file '{context.QueryOutput}': {ex.Message}");
+                return;
+            }
+
+            context.WriteLine($"query {verbToken}: wrote output to '{context.QueryOutput}'.");
+        }
+        else if (format.Equals("json", StringComparison.OrdinalIgnoreCase))
         {
             context.WriteLine(QueryResultRenderer.RenderJson(result));
         }
@@ -205,6 +235,8 @@ internal static class QueryCommand
         context.WriteLine(QueryStrings.Query_GeneralOptionKind);
         context.WriteLine(QueryStrings.Query_GeneralOptionName);
         context.WriteLine(QueryStrings.Query_GeneralOptionIncludeStdlib);
+        context.WriteLine(QueryStrings.Query_GeneralOptionOutput1);
+        context.WriteLine(QueryStrings.Query_GeneralOptionOutput2);
         context.WriteLine("");
         context.WriteLine(QueryStrings.Query_WorkflowNote1);
         context.WriteLine(QueryStrings.Query_WorkflowNote2);
@@ -259,6 +291,7 @@ internal static class QueryCommand
         context.WriteLine(QueryStrings.Query_OptionDepthVerb);
         context.WriteLine(QueryStrings.Query_OptionHeadingVerb);
         context.WriteLine(QueryStrings.Query_OptionIncludeStdlibVerb);
+        context.WriteLine(QueryStrings.Query_OptionOutputVerb);
         context.WriteLine("");
         context.WriteLine(QueryStrings.Query_ExampleHeader);
         context.WriteLine(QueryStrings.GetExample(verb));

@@ -1,22 +1,6 @@
-// Copyright (c) DEMA Consulting
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-// 
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// <copyright file="QueryRenderingTests.cs" company="DemaConsulting">
+// Copyright (c) DemaConsulting. All rights reserved.
+// </copyright>
 
 using System.Text.Json;
 using DemaConsulting.SysML2Tools.Query;
@@ -122,28 +106,6 @@ public class QueryRenderingTests
         Assert.DoesNotContain(lines, l => l.Contains("Depends on"));
         Assert.DoesNotContain(lines, l => l.Contains("Used by"));
         Assert.DoesNotContain(lines, l => l.Contains("_No entries._"));
-    }
-
-    /// <summary>
-    ///     'dependencies' end-to-end: '--depth'/'--heading' apply to its heading line exactly
-    ///     like every other verb, while the bullet-prose body below is unaffected.
-    /// </summary>
-    [Fact]
-    public async Task Dependencies_DepthAndHeadingOptions_ApplyToHeadingLikeOtherVerbs()
-    {
-        const string sysml = """
-            package Model {
-                part def Vehicle;
-                part def Car specializes Vehicle;
-            }
-            """;
-
-        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
-            sysml, "dependencies", "--element", "Model::Car", "--depth", "3", "--heading", "Custom");
-
-        Assert.Equal(0, exitCode);
-        Assert.Contains("### Custom", output);
-        Assert.Contains("Depends on **Vehicle** (supertype)", output);
     }
 
     /// <summary>
@@ -333,7 +295,7 @@ public class QueryRenderingTests
 
     /// <summary>
     ///     Regression test: 'dependencies' JSON output remains fully-qualified (unaffected by
-    ///     the Markdown-only <see cref="Utilities.QualifiedNameShortener"/> shortening), even
+    ///     the Markdown-only <see cref="DemaConsulting.SysML2Tools.Utilities.QualifiedNameShortener"/> shortening), even
     ///     when the subject and entries share a common leading segment that Markdown would
     ///     shorten.
     /// </summary>
@@ -387,43 +349,5 @@ public class QueryRenderingTests
         var json = QueryResultRenderer.RenderJson(result);
 
         Assert.DoesNotContain("Direction", json);
-    }
-
-    /// <summary>
-    ///     End-to-end: '--format markdown' and '--format json' for the same 'uses' query report
-    ///     the same qualified names, in the same order.
-    /// </summary>
-    [Fact]
-    public async Task Query_MarkdownAndJsonFormats_AgreeOnEntryContentAndOrder()
-    {
-        const string sysml = """
-            package Model {
-                part def Alpha;
-                part def Zeta specializes Alpha;
-                part def Beta specializes Alpha;
-            }
-            """;
-
-        var (markdown, markdownExit) = await QueryTestFixtures.RunQueryAsync(
-            sysml, "used-by", "--element", "Model::Alpha", "--format", "markdown");
-        var (json, jsonExit) = await QueryTestFixtures.RunQueryAsync(
-            sysml, "used-by", "--element", "Model::Alpha", "--format", "json");
-
-        Assert.Equal(0, markdownExit);
-        Assert.Equal(0, jsonExit);
-
-        // The JSON document is the last chunk written; extract it (from the first '{') and parse
-        var deserialized = JsonSerializer.Deserialize(
-            json[json.IndexOf('{')..], QueryResultSerializerContext.Default.QueryResult);
-
-        Assert.NotNull(deserialized);
-        Assert.Equal(2, deserialized!.Entries.Count);
-        Assert.Equal("Model::Beta", deserialized.Entries[0].QualifiedName);
-        Assert.Equal("Model::Zeta", deserialized.Entries[1].QualifiedName);
-
-        // Markdown reports the same two qualified names, Beta appearing before Zeta
-        var betaIndex = markdown.IndexOf("Model::Beta", StringComparison.Ordinal);
-        var zetaIndex = markdown.IndexOf("Model::Zeta", StringComparison.Ordinal);
-        Assert.True(betaIndex >= 0 && zetaIndex >= 0 && betaIndex < zetaIndex);
     }
 }

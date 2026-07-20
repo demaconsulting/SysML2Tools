@@ -150,6 +150,20 @@ sections:
           - Context_Create_QueryCommand_WithoutHeading_LeavesHeadingNull
           - Context_Create_QueryCommand_WithHeadingFlag_SetsHeading
 
+      - id: SysML2Tools-Tool-Context-QueryOutputFile
+        title: >-
+          The Context class shall parse the query command's --output argument into the
+          Context.QueryOutput property, independent of render's OutputDirectory property.
+        justification: |
+          The query command's --output names a single output file (not a directory, unlike
+          render's --output), so it is kept as its own Context property rather than reusing
+          Render.OutputDirectory, letting QueryCommand write rendered results to a file
+          instead of stdout without any risk of colliding with render's output-directory
+          semantics.
+        tests:
+          - Context_Create_QueryCommand_WithOutputFlag_SetsQueryOutput
+          - Context_Create_QueryCommand_OutputWithoutValue_ThrowsArgumentException
+
       - id: SysML2Tools-Tool-Context-CommandScoping
         title: >-
           The Context class shall dispatch argument parsing to a dedicated per-command parser

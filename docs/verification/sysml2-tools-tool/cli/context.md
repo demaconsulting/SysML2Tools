@@ -207,6 +207,17 @@ called with `["query", "list", "*.sysml"]`; `Query.Files` contains `"*.sysml"` w
 separate from `lint`/`render`'s. This scenario is tested by
 `Context_Create_QueryCommand_WithFiles_SetsQueryFilesNotTopLevelFiles`.
 
+**Context_Create_QueryCommand_WithOutputFlag_SetsQueryOutput**: `Context.Create` is called
+with `["query", "list", "--output", "output/path.md"]`; `Context.QueryOutput` equals
+`"output/path.md"`, confirming query's `--output` is parsed into its own `Context` property
+independent of `Render.OutputDirectory`. This scenario is tested by
+`Context_Create_QueryCommand_WithOutputFlag_SetsQueryOutput`.
+
+**Context_Create_QueryCommand_OutputWithoutValue_ThrowsArgumentException**: `Context.Create`
+is called with `["query", "list", "--output"]` (value missing); an `ArgumentException`
+containing `"--output"` is thrown. This scenario is tested by
+`Context_Create_QueryCommand_OutputWithoutValue_ThrowsArgumentException`.
+
 **Context_Create_LintCommand_OutOfScopeAutoFlag_ThrowsArgumentException**: `Context.Create` is
 called with `["lint", "--auto", "file.sysml"]`; an `ArgumentException` is thrown naming both
 `--auto` and `lint`, confirming `lint` rejects flags belonging to other commands instead of

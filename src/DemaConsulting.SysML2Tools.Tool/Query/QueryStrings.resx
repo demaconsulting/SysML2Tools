@@ -148,6 +148,12 @@
   <data name="Query_GeneralOptionIncludeStdlib" xml:space="preserve">
     <value>  --include-stdlib             Include OMG standard library elements in results</value>
   </data>
+  <data name="Query_GeneralOptionOutput1" xml:space="preserve">
+    <value>  --output &lt;file&gt;             Output file path (default: stdout). Names a FILE,</value>
+  </data>
+  <data name="Query_GeneralOptionOutput2" xml:space="preserve">
+    <value>                             not a directory (same convention as 'export').</value>
+  </data>
   <data name="Query_WorkflowNote1" xml:space="preserve">
     <value>Typical workflow: run 'list' or 'find' first to discover exact qualified names in your</value>
   </data>
@@ -195,6 +201,9 @@
   </data>
   <data name="Query_OptionIncludeStdlibVerb" xml:space="preserve">
     <value>  --include-stdlib              Include OMG standard library elements in results</value>
+  </data>
+  <data name="Query_OptionOutputVerb" xml:space="preserve">
+    <value>  --output &lt;file&gt;              Output file path (default: stdout); a FILE, not a directory</value>
   </data>
   <data name="Query_ExampleHeader" xml:space="preserve">
     <value>Example:</value>

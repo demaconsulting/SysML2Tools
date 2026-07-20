@@ -114,6 +114,24 @@ system, subsystem, and unit levels:
     - **GlobFileCollector** (Unit) — resolves ordered glob patterns (with `!` exclusions,
       recursive `**` matching, and bare-`*` extension filtering) to a sorted, deduplicated
       list of absolute file paths
+  - **Query** (Subsystem) — public, reusable model-analysis API answering 12 fixed questions
+    over an already-loaded semantic workspace and returning a uniform `QueryResult` that
+    callers can render as Markdown or JSON or write to a file
+    - **QueryVerb** (Unit) — fixed 12-verb vocabulary, token conversion, and the
+      `RequiresElement` rule
+    - **QueryOptions** (Unit) — immutable option record shared by every verb
+    - **QueryArgumentParser** (Unit) — parses a token list into `(QueryOptions?, Files)` for
+      callers that accept the same verb/option grammar as the CLI
+    - **QueryEngine** (Unit) — public execution surface: 12 verb methods plus `Execute`,
+      centralizing the verb switch used by both library callers and the CLI adapter
+    - **QueryResult** (Unit) — verb-agnostic result model (`QueryResult`, `QueryResultEntry`,
+      `QueryEntryDirection`)
+    - **QueryResultRenderer** (Unit) — shared Markdown/JSON rendering and deterministic
+      sorting layer
+    - **QueryResultSerializerContext** (Unit) — source-generated `System.Text.Json` context
+      used by `RenderJson`
+    - **QueryResultExporter** (Unit) — synchronous and asynchronous file-writing wrappers
+      around the renderer
 - **DemaConsulting.SysML2Tools.Tool** (System) — dotnet tool: thin CLI wrapper and
   orchestration
   - **Program** (Unit) — entry point and execution orchestrator
@@ -186,6 +204,9 @@ reviewers an explicit navigation aid from design to code:
     - **Rendering/** — SysML-coupled rendering pipeline (`ILayoutStrategy`, `DiagramRenderer`)
     - **Io/** — shared file glob pattern resolution used by the Tool project's
       lint/render/query commands (`GlobFileCollector`)
+    - **Query/** — public, reusable model-analysis API (`QueryVerb`, `QueryOptions`,
+      `QueryArgumentParser`, `QueryEngine`, `QueryResult`, `QueryResultRenderer`,
+      `QueryResultSerializerContext`, `QueryResultExporter`)
   - **DemaConsulting.SysML2Tools.Tool/** — dotnet tool CLI wrapper
     - **Cli/** — command-line interface subsystem
     - **Lint/** — lint command subsystem

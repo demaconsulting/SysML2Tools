@@ -2,23 +2,27 @@
 
 ## Architecture
 
-The `DemaConsulting.SysML2Tools` core library provides the Filtering, Layout, Rendering, and Io
-subsystems for SysML v2 diagram generation and shared file-discovery. It depends on
-`DemaConsulting.SysML2Tools.Language` for parsing and semantic analysis, and on
-`DemaConsulting.SysML2Tools.Stdlib` for the pre-compiled standard library.
+The `DemaConsulting.SysML2Tools` core library provides the Filtering, Layout, Rendering,
+Query, and Io subsystems for SysML v2 diagram generation, model analysis, and shared file-
+discovery. It depends on `DemaConsulting.SysML2Tools.Language` for parsing and semantic
+analysis, and on `DemaConsulting.SysML2Tools.Stdlib` for the pre-compiled standard library.
 
-The core library provides four subsystems: **Filtering**, **Layout**, **Rendering**, and **Io**.
-The Filtering subsystem parses and evaluates the Phase 1 subset of standalone
-`filter [<expr>];` statements against metadata annotations captured by the semantic model. The Layout
-subsystem maps the SysML semantic model onto the `LayoutTree` intermediate representation — nine
-immutable node record types covering all SysML diagram elements — which is provided off-the-shelf
-by the `DemaConsulting.Rendering` package, and delegates geometric placement and routing to the
-off-the-shelf `DemaConsulting.Rendering.Layout` layered algorithm. The Rendering subsystem
-consumes the off-the-shelf rendering contracts (`IRenderer`, `Theme`, `RenderOptions`,
-`RenderOutput`) from the `DemaConsulting.Rendering.Abstractions` package and retains the
-SysML-coupled `ILayoutStrategy` and `DiagramRenderer` that drive the pipeline. The Io subsystem
-provides `GlobFileCollector`, a shared file glob pattern resolver used by the Tool project's
-`lint`, `render`, and `query` commands; it has no dependency on the SysML semantic model.
+The core library provides five subsystems: **Filtering**, **Layout**, **Rendering**,
+**Query**, and **Io**. The Filtering subsystem parses and evaluates the Phase 1 subset of
+standalone `filter [<expr>];` statements against metadata annotations captured by the
+semantic model. The Layout subsystem maps the SysML semantic model onto the `LayoutTree`
+intermediate representation — nine immutable node record types covering all SysML diagram
+elements — which is provided off-the-shelf by the `DemaConsulting.Rendering` package, and
+delegates geometric placement and routing to the off-the-shelf
+`DemaConsulting.Rendering.Layout` layered algorithm. The Rendering subsystem consumes the
+off-the-shelf rendering contracts (`IRenderer`, `Theme`, `RenderOptions`, `RenderOutput`)
+from the `DemaConsulting.Rendering.Abstractions` package and retains the SysML-coupled
+`ILayoutStrategy` and `DiagramRenderer` that drive the pipeline. The Query subsystem exposes
+Core's public model-analysis API — `QueryEngine`, `QueryResultRenderer`,
+`QueryResultExporter`, and their shared result model — over an already-loaded
+`SysmlWorkspace`; see `docs/design/sysml2-tools-core/query.md`. The Io subsystem provides
+`GlobFileCollector`, a shared file glob pattern resolver used by the Tool project's `lint`,
+`render`, and `query` commands; it has no dependency on the SysML semantic model.
 
 ```mermaid
 flowchart TD
@@ -41,13 +45,21 @@ flowchart TD
         Theme
         RenderOptions
     end
+    subgraph Query
+        QueryEngine
+        QueryResultRenderer
+        QueryResultExporter
+    end
     subgraph Io
         GlobFileCollector
     end
     Language --> FilterExpressionParser
     Language --> FilterExpressionEvaluator
     Language --> DiagramRenderer
+    Language --> QueryEngine
     Stdlib --> DiagramRenderer
+    QueryEngine --> QueryResultRenderer
+    QueryResultRenderer --> QueryResultExporter
     DiagramRenderer --> FilterExpressionParser
     DiagramRenderer --> FilterExpressionEvaluator
     DiagramRenderer --> ILayoutStrategy
@@ -90,7 +102,8 @@ flowchart TD
 ## Dependencies
 
 - **DemaConsulting.SysML2Tools.Language** — provides `WorkspaceLoader`, `SysmlWorkspace`,
-  `SysmlNode` and all subtypes used by `DiagramRenderer` for pattern-matching view declarations.
+  `SysmlNode` and all subtypes used by `DiagramRenderer` for pattern-matching view declarations,
+  and by `QueryEngine` for public model-analysis queries.
 - **DemaConsulting.SysML2Tools.Stdlib** — provides `StdlibProvider.GetSymbolTable()` used
   by `DiagramRenderer` to seed the semantic workspace with the pre-compiled standard library.
 
@@ -146,9 +159,21 @@ N/A — not a safety-classified software item.
    expose-scoped candidate definitions by reading their directly-owned `SysmlMetadataNode`
    children; when parsing fails, layout falls back to the unfiltered scope with a warning.
 
+### Query Data Flow
+
+1. A library caller supplies an already-loaded `SysmlWorkspace`, `QueryOptions`, and (for
+   element-scoped verbs) a resolved `SysmlNode` to `QueryEngine.Execute` or a verb-specific
+   method.
+2. `QueryEngine` reads the semantic workspace's declarations, reverse index, resolved edges,
+   and child nodes to build a uniform `QueryResult` for the requested verb.
+3. `QueryResultRenderer` sorts the result's entries once and renders Markdown or JSON; the
+   `dependencies` verb's Markdown path additionally shortens shared qualified-name prefixes via
+   `QualifiedNameShortener`.
+4. `QueryResultExporter` optionally persists the rendered output to a caller-chosen file path.
+
 ## Design Constraints
 
 - Platform: multi-targets net8.0, net9.0, and net10.0 on Windows, Linux, and macOS.
 - SysML v2 parsing, semantic analysis, and standard library are provided by the Language and
-  Stdlib assemblies; the Core assembly contains only Filtering, Layout, Rendering, and Io
-  concerns.
+  Stdlib assemblies; the Core assembly contains only Filtering, Layout, Rendering, Query, and
+  Io concerns.

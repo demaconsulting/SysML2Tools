@@ -533,6 +533,41 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Core/Io/NamespaceDoc.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Io/GlobFileCollectorTests.cs"
 
+  - id: SysML2Tools-Core-Query-Design
+    title: Review that DemaConsulting.SysML2Tools Query Design is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/reqstream/sysml2-tools-core/query.yaml
+    paths:
+      - "docs/design/introduction.md"
+      - "docs/design/sysml2-tools-core.md"
+      - "docs/design/sysml2-tools-core/query.md"
+
+  - id: SysML2Tools-Core-Query-Verification
+    title: Review that DemaConsulting.SysML2Tools Query Verification is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/reqstream/sysml2-tools-core/query.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-core.md"
+      - "docs/verification/sysml2-tools-core/query.md"
+
+  - id: SysML2Tools-Core-Query
+    title: Review that DemaConsulting.SysML2Tools Query Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-core.md
+      - docs/reqstream/sysml2-tools-core.yaml
+      - docs/design/sysml2-tools-core/query.md
+    paths:
+      - "docs/reqstream/sysml2-tools-core/query.yaml"
+      - "docs/design/sysml2-tools-core/query.md"
+      - "docs/verification/sysml2-tools-core/query.md"
+      - "src/DemaConsulting.SysML2Tools.Core/Query/*.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Utilities/QualifiedNameShortener.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Query/*.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Utilities/QualifiedNameShortenerTests.cs"
+
   - id: SysML2Tools-Core-Filtering-Design
     title: Review that DemaConsulting.SysML2Tools Filtering Design is Consistent and Complete
     context:
@@ -959,14 +994,14 @@ reviews:
       - "docs/reqstream/sysml2-tools-tool/query.yaml"
       - "docs/design/sysml2-tools-tool/query.md"
       - "docs/verification/sysml2-tools-tool/query.md"
-      - "src/DemaConsulting.SysML2Tools.Tool/Query/*.cs"
+      - "src/DemaConsulting.SysML2Tools.Tool/Query/QueryCommand.cs"
+      - "src/DemaConsulting.SysML2Tools.Tool/Query/QueryCliArgumentParser.cs"
+      - "src/DemaConsulting.SysML2Tools.Tool/Query/QueryStrings.cs"
       - "src/DemaConsulting.SysML2Tools.Tool/Query/QueryStrings.resx"
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QuerySubsystemTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Resources/ResxResourceTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryTestFixtures.cs"
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryVerbsTests.cs"
-      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryRenderingTests.cs"
-      - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryOmgFixtureTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryErrorPathTests.cs"
 
   - id: SysML2Tools-Tool-Export
