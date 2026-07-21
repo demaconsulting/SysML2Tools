@@ -16,8 +16,9 @@ namespace DemaConsulting.SysML2Tools.Tests.Query;
 public class QueryRenderingTests
 {
     /// <summary>
-    ///     RenderMarkdown on a result with no entries reports "No entries" rather than an empty
-    ///     table.
+    ///     RenderMarkdown on a result with no entries reports a verb-specific "no entries"
+    ///     fallback line (rather than an empty table), and precedes it with a verb-specific
+    ///     bold-text label naming what kind of entry the (empty) table would have held.
     /// </summary>
     [Fact]
     public void RenderMarkdown_NoEntries_ReportsNoEntries()
@@ -26,7 +27,85 @@ public class QueryRenderingTests
 
         var lines = QueryResultRenderer.RenderMarkdown(result);
 
-        Assert.Contains(lines, l => l.Contains("No entries"));
+        Assert.Contains("**Uses**", lines);
+        Assert.Contains(lines, l => l.Contains("No outgoing references"));
+    }
+
+    /// <summary>
+    ///     RenderMarkdown adds a verb-specific bold-text label before the entries table (not
+    ///     just before the "no entries" fallback), naming what kind of thing the table's rows
+    ///     represent for that verb. The label is plain bold text, not an ATX heading, so the
+    ///     whole report stays within the single Markdown section started by the main heading.
+    /// </summary>
+    [Fact]
+    public void RenderMarkdown_EntriesPresent_IncludesVerbSpecificBoldLabel()
+    {
+        var result = new QueryResult
+        {
+            Verb = "describe",
+            Element = "Model::Car",
+            Entries = [new QueryResultEntry { QualifiedName = "Model::Car::engine" }]
+        };
+
+        var lines = QueryResultRenderer.RenderMarkdown(result);
+
+        Assert.Contains("**Children**", lines);
+        Assert.DoesNotContain(lines, l => l.StartsWith('#') && l.Contains("Children"));
+    }
+
+    /// <summary>
+    ///     RenderMarkdown gives an unrecognized verb the generic "Entries" label and "_No
+    ///     entries._" fallback text, so any future verb added without an explicit label still
+    ///     renders sensibly instead of throwing.
+    /// </summary>
+    [Fact]
+    public void RenderMarkdown_UnrecognizedVerb_FallsBackToGenericEntriesLabel()
+    {
+        var result = new QueryResult { Verb = "some-future-verb", Element = "Model::Car" };
+
+        var lines = QueryResultRenderer.RenderMarkdown(result);
+
+        Assert.Contains("**Entries**", lines);
+        Assert.Contains("_No entries._", lines);
+    }
+
+    /// <summary>
+    ///     RenderMarkdown's entries label is always plain bold text - never an ATX heading -
+    ///     regardless of the caller's requested heading depth, so the report never branches
+    ///     into a Markdown sub-section even at the maximum heading depth (6).
+    /// </summary>
+    [Fact]
+    public void RenderMarkdown_MaxHeadingDepth_EntriesLabelStaysBoldTextNotHeading()
+    {
+        var result = new QueryResult
+        {
+            Verb = "describe",
+            Element = "Model::Car",
+            Entries = [new QueryResultEntry { QualifiedName = "Model::Car::engine" }]
+        };
+
+        var lines = QueryResultRenderer.RenderMarkdown(result, depth: 6);
+
+        Assert.Equal("###### query describe: Model::Car", lines[0]);
+        Assert.Contains("**Children**", lines);
+        Assert.DoesNotContain(lines.Skip(1), l => l.StartsWith('#'));
+    }
+
+    /// <summary>
+    ///     RenderMarkdown gives both "list" and "find" the same "Matching Elements" bold-text
+    ///     label, since "find" is a filtered form of "list" and their entries mean the same
+    ///     thing.
+    /// </summary>
+    [Theory]
+    [InlineData("list")]
+    [InlineData("find")]
+    public void RenderMarkdown_ListOrFindVerb_UsesMatchingElementsLabel(string verb)
+    {
+        var result = new QueryResult { Verb = verb };
+
+        var lines = QueryResultRenderer.RenderMarkdown(result);
+
+        Assert.Contains("**Matching Elements**", lines);
     }
 
     /// <summary>

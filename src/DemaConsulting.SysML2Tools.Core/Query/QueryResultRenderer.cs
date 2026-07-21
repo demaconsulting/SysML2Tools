@@ -18,10 +18,18 @@ public static class QueryResultRenderer
 {
     /// <summary>
     ///     Renders a <see cref="QueryResult"/> as Markdown lines: a heading, an optional summary
-    ///     bullet list, then a compact table of entries sorted by
-    ///     <see cref="QueryResultEntry.QualifiedName"/> (ordinal). The <c>dependencies</c> verb
-    ///     is the sole exception: after the heading, its entries are rendered as prose bullets
-    ///     (see <see cref="RenderDependenciesBody"/>) rather than a table.
+    ///     bullet list, then a verb-specific bold-text label (e.g. "Children" for
+    ///     <c>describe</c>, "Uses" for <c>uses</c>) followed by a compact table of entries
+    ///     sorted by <see cref="QueryResultEntry.QualifiedName"/> (ordinal), or a verb-specific
+    ///     "no entries" fallback line (e.g. "_No children._") when there are none. The label and
+    ///     fallback text tell the reader what kind of thing the entries represent, so an empty
+    ///     result reads as an unremarkable, expected outcome rather than a broken query. The
+    ///     label is always plain bold text rather than its own heading, so the whole report
+    ///     stays within the single Markdown section started by the main heading - it never
+    ///     branches into a sub-section, regardless of <paramref name="depth"/>. The
+    ///     <c>dependencies</c> verb is the sole exception: after the heading, its entries are
+    ///     rendered as prose bullets (see <see cref="RenderDependenciesBody"/>) rather than a
+    ///     table, with no separate label.
     /// </summary>
     /// <param name="result">The result to render.</param>
     /// <param name="depth">
@@ -77,9 +85,16 @@ public static class QueryResultRenderer
         }
 
         var sorted = SortEntries(result.Entries);
+        var (entriesHeading, noEntriesText) = EntriesLabel(result.Verb);
+
+        // Plain bold text (not an ATX heading) keeps the entries label within the same
+        // Markdown section as the main heading, regardless of the caller's heading depth.
+        lines.Add($"**{entriesHeading}**");
+        lines.Add("");
+
         if (sorted.Count == 0)
         {
-            lines.Add("_No entries._");
+            lines.Add(noEntriesText);
             return lines;
         }
 
@@ -92,6 +107,31 @@ public static class QueryResultRenderer
 
         return lines;
     }
+
+    /// <summary>
+    ///     Maps a verb name to a human-readable heading for its entries table (or the fallback
+    ///     text shown when it has no entries), so a reader can tell what kind of thing an empty
+    ///     result means without already knowing the verb's semantics (e.g. "_No children._" for
+    ///     <c>describe</c> makes clear that zero rows is an unremarkable, expected outcome for a
+    ///     childless element, not a broken query).
+    /// </summary>
+    /// <param name="verb">The query verb.</param>
+    /// <returns>The heading text and "no entries" fallback text for that verb.</returns>
+    private static (string Heading, string NoEntriesText) EntriesLabel(string verb) => verb switch
+    {
+        "uses" => ("Uses", "_No outgoing references._"),
+        "used-by" => ("Used By", "_No incoming references._"),
+        "impact" => ("Impacted Elements", "_No impacted elements._"),
+        "describe" => ("Children", "_No children._"),
+        "hierarchy" => ("Related Types", "_No related types._"),
+        "requirements" => ("Requirement Relationships", "_No requirement relationships._"),
+        "interface" => ("Ports & Typed Features", "_No ports or typed features._"),
+        "connections" => ("Connection Endpoints", "_No connection endpoints._"),
+        "states" => ("States & Transitions", "_No states or transitions._"),
+        "list" or "find" => ("Matching Elements", "_No matching elements._"),
+        _ => ("Entries", "_No entries._")
+    };
+
 
     /// <summary>
     ///     Renders a <see cref="QueryResult"/> as an indented JSON document via the

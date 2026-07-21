@@ -106,12 +106,17 @@ sections:
       - id: SysML2Tools-Core-Query-Describe
         title: >-
           The Query subsystem shall report a target element's own kind, qualified name, resolved
-          supertypes, typing, annotations, applied metadata annotations, and direct children
-          through the `describe` verb.
+          supertypes, typing, annotations, applied metadata annotations, and a `Children` count
+          through the `describe` verb, where the reported count always equals the number of
+          entries actually returned (visible, named children), never the raw count of the
+          element's underlying AST child nodes.
         justification: |
           A single-element fact sheet is the most common starting point for programmatic model
           exploration, consolidating information otherwise scattered across the raw source and
-          semantic model.
+          semantic model. A `Children` count that disagrees with the number of rows shown (as
+          happens when non-element children, such as comments/metadata/imports, or hidden
+          stdlib children, are counted but not listed) misleads a reader into thinking rows are
+          missing or the query is broken.
         tests:
           - Describe_ReportsKindSupertypesAnnotationsAndChildren
           - Describe_MultiLineComment_CollapsesToSingleSummaryLine
@@ -121,6 +126,7 @@ sections:
           - Describe_MetadataWithUnsupportedListAttribute_FallsBackToRawText
           - Describe_MultipleMetadataAnnotations_ReportsEachIndependently
           - Describe_FormatJson_IncludesMetadataInSummaryArray
+          - Describe_ChildIncludesNonElementMetadataAnnotation_ChildrenCountMatchesEntryRows
 
       - id: SysML2Tools-Core-Query-Hierarchy
         title: >-
@@ -236,3 +242,26 @@ sections:
           - WriteJsonAsync_HappyPath_MatchesRendererOutput
           - WriteMarkdown_MissingParentDirectory_PropagatesIoException
           - WriteJson_MissingParentDirectory_PropagatesIoException
+
+      - id: SysML2Tools-Core-Query-EntriesLabeling
+        title: >-
+          For every verb except `dependencies`, Markdown rendering shall precede the entries
+          table (or its "no entries" fallback) with a verb-specific bold-text label and
+          fallback message naming what kind of thing the entries represent (e.g. "Children" for
+          `describe`, "Uses" for `uses`), falling back to a generic "Entries"/"_No entries._"
+          label for any verb without a specific mapping. The label shall always render as plain
+          bold text rather than an ATX heading, so the report never branches into a Markdown
+          sub-section regardless of the caller's requested heading depth.
+        justification: |
+          A bare, unlabeled table (or a bare "_No entries._" line) gives a reader no way to tell
+          whether zero rows is an unremarkable, expected outcome for that verb or a sign the
+          query is broken. Naming the entries per verb removes that ambiguity without requiring
+          the reader to already know each verb's semantics by heart. Using bold text instead of
+          a sub-heading keeps the whole report within a single Markdown section, which is easier
+          to read and simpler to embed into other documents.
+        tests:
+          - RenderMarkdown_NoEntries_ReportsNoEntries
+          - RenderMarkdown_EntriesPresent_IncludesVerbSpecificBoldLabel
+          - RenderMarkdown_UnrecognizedVerb_FallsBackToGenericEntriesLabel
+          - RenderMarkdown_ListOrFindVerb_UsesMatchingElementsLabel
+          - RenderMarkdown_MaxHeadingDepth_EntriesLabelStaysBoldTextNotHeading
