@@ -33,8 +33,8 @@ namespace DemaConsulting.SysML2Tools.Help;
 ///     per-command parsers, <c>help</c> defines no flags of its own; any <c>-</c>-prefixed token is
 ///     rejected, matching the rejection convention shared by
 ///     <see cref="Lint.LintArgumentParser"/>/<see cref="Render.RenderArgumentParser"/>/
-///     <see cref="Query.QueryArgumentParser"/>. The verb vocabulary is not duplicated here — it is
-///     validated by delegating to <see cref="QueryVerbParsing.Parse"/>, reusing that method's
+///     <see cref="Query.QueryCliArgumentParser"/>. The verb vocabulary is not duplicated here — it
+///     is validated by delegating to <see cref="QueryVerbParsing.Parse"/>, reusing that method's
 ///     existing error message and valid-token list.
 /// </remarks>
 internal static class HelpArgumentParser

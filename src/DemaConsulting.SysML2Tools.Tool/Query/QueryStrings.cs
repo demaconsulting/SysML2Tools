@@ -128,6 +128,12 @@ internal static class QueryStrings
     /// <summary>Gets the general --include-stdlib option line.</summary>
     public static string Query_GeneralOptionIncludeStdlib => ResourceManager.GetString(nameof(Query_GeneralOptionIncludeStdlib))!;
 
+    /// <summary>Gets the first line of the general --output option description.</summary>
+    public static string Query_GeneralOptionOutput1 => ResourceManager.GetString(nameof(Query_GeneralOptionOutput1))!;
+
+    /// <summary>Gets the second line of the general --output option description.</summary>
+    public static string Query_GeneralOptionOutput2 => ResourceManager.GetString(nameof(Query_GeneralOptionOutput2))!;
+
     /// <summary>Gets the first line of the "typical workflow" note.</summary>
     public static string Query_WorkflowNote1 => ResourceManager.GetString(nameof(Query_WorkflowNote1))!;
 
@@ -175,6 +181,9 @@ internal static class QueryStrings
 
     /// <summary>Gets the --include-stdlib option line shown in verb-specific help.</summary>
     public static string Query_OptionIncludeStdlibVerb => ResourceManager.GetString(nameof(Query_OptionIncludeStdlibVerb))!;
+
+    /// <summary>Gets the --output option line shown in verb-specific help.</summary>
+    public static string Query_OptionOutputVerb => ResourceManager.GetString(nameof(Query_OptionOutputVerb))!;
 
     /// <summary>Gets the "Example:" header line shown in verb-specific help.</summary>
     public static string Query_ExampleHeader => ResourceManager.GetString(nameof(Query_ExampleHeader))!;

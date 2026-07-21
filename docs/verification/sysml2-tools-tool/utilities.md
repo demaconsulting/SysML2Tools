@@ -3,14 +3,11 @@
 ### Verification Approach
 
 The `Utilities` subsystem is verified by integration tests defined in
-`UtilitiesSubsystemTests.cs` (covering `PathHelpers`) plus dedicated unit tests for each unit:
-`PathHelpersTests.cs` and `QualifiedNameShortenerTests.cs`. Integration tests exercise
-`PathHelpers` through realistic path-combination workflows to confirm that valid paths are
-resolved correctly, traversal attacks are rejected, and the resulting paths can be used for
-actual directory creation. `QualifiedNameShortener`'s only consumer (`QueryResultRenderer`) is
-already covered end-to-end by the `Query` subsystem's own test suite, so no subsystem-level
-integration test is added for it — see `docs/verification/sysml2-tools-tool/query.md`. Neither
-unit has a dependency on any other tool unit, so no mocking is required for either.
+`UtilitiesSubsystemTests.cs` (covering `PathHelpers`) plus a dedicated unit test file:
+`PathHelpersTests.cs`. Integration tests exercise `PathHelpers` through realistic
+path-combination workflows to confirm that valid paths are resolved correctly, traversal
+attacks are rejected, and the resulting paths can be used for actual directory creation. This
+unit has no dependency on any other tool unit, so no mocking is required.
 
 ### Test Environment
 
@@ -23,8 +20,6 @@ N/A - standard test environment.
 - Path traversal patterns (e.g., `../`) cause `ArgumentException` to be thrown.
 - Absolute paths supplied as the relative argument cause `ArgumentException` to be thrown.
 - Paths produced by `SafePathCombine` can be passed directly to `Directory.CreateDirectory`.
-- `QualifiedNameShortener.Shorten`'s unit-level acceptance criteria are documented separately in
-  `docs/verification/sysml2-tools-tool/utilities/qualified-name-shortener.md`.
 
 ### Test Scenarios
 

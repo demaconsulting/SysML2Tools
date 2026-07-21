@@ -89,6 +89,13 @@ flag name is shared), `WalkDepth` (impact-walk depth, command-scoped, parsed fro
 `--walk-depth`), `Heading` (custom Markdown heading text from `--heading`), and the
 query-specific `Files` list.
 
+**QueryOutput**: `string?` — Path supplied after `query`'s `--output`, or `null` when not
+supplied (output goes to stdout). Parsed by `QueryCliArgumentParser` alongside `Query` and
+`QueryFiles`. Kept as its own property, independent of `Render.OutputDirectory`, because
+query's `--output` names a single output **file**, whereas render's `--output` names an output
+*directory* for per-view files; read directly by `QueryCommand.RunAsync` to decide whether to
+write to stdout or to the named file via `QueryResultExporter`.
+
 **HelpCommand**: `HelpOptions?` — populated only when `Command` is `SysmlCommand.Help`. Named
 `HelpCommand` (not `Help`) to avoid colliding with the existing `Help` flag property, which
 reflects the global `-h`/`-?`/`--help` flag independently of which command token was recognized.
@@ -112,12 +119,15 @@ switches on `GlobalArguments.Command` to dispatch to exactly one per-command par
 
 - `SysmlCommand.Lint` → `LintArgumentParser.Parse(global.CommandArgs)` → `Lint`.
 - `SysmlCommand.Render` → `RenderArgumentParser.Parse(global.CommandArgs)` → `Render`.
-- `SysmlCommand.Query` → `QueryArgumentParser.Parse(global.CommandArgs, global.Help)`
-  → `Query`. The `query` grammar is **structural**: the first token after the `query` command
-  token must be a recognized verb (validated eagerly via `QueryVerbParsing.Parse`, which lists all
-  valid tokens on failure); when no verb token is present, parsing returns `null` if `--help` was
-  requested, otherwise throws a clear `ArgumentException` ("query: a verb is required...") rather
-  than silently leaving `Query` null.
+- `SysmlCommand.Query` → `QueryCliArgumentParser.Parse(global.CommandArgs, global.Help)`
+  → `Query`, `QueryFiles`, and `QueryOutput`. The `query` grammar is **structural**: the first
+  token after the `query` command token must be a recognized verb (validated eagerly via
+  `QueryVerbParsing.Parse`, which lists all valid tokens on failure); when no verb token is
+  present, parsing returns `null` if `--help` was requested, otherwise throws a clear
+  `ArgumentException` ("query: a verb is required...") rather than silently leaving `Query`
+  null. `QueryCliArgumentParser` also pre-scans for the Tool-only `--output <file>` flag,
+  populating `QueryOutput` before delegating the remaining grammar to Core's public
+  `QueryArgumentParser`.
 - `SysmlCommand.None` → no per-command parser runs; any leftover `-`-prefixed token in
   `global.CommandArgs` throws `ArgumentException("Unsupported argument '{arg}'")`, preserving the
   historical bare-invocation error behavior.
@@ -180,8 +190,9 @@ available.
   the one deliberate piece of DRY sharing across parsers; command scoping/dispatch itself is not
   shared.
 - **`LintOptions`/`LintArgumentParser`**, **`RenderCommandOptions`/`RenderArgumentParser`**,
-  **`QueryOptions`/`QueryArgumentParser`**, **`HelpOptions`/`HelpArgumentParser`** — the
-  per-command option records and parsers dispatched to by `Create`.
+  **`QueryOptions`/`QueryCliArgumentParser`**, **`HelpOptions`/`HelpArgumentParser`** — the
+  per-command option records and parsers dispatched to by `Create`. `QueryCliArgumentParser`
+  additionally owns parsing `QueryOutput`, which has no equivalent Core `QueryOptions` property.
 
 #### Callers
 

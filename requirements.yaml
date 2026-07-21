@@ -35,6 +35,7 @@ includes:
   - docs/reqstream/sysml2-tools-core/layout/internal/layered-placement.yaml
   - docs/reqstream/sysml2-tools-core/io.yaml
   - docs/reqstream/sysml2-tools-core/io/glob-file-collector.yaml
+  - docs/reqstream/sysml2-tools-core/query.yaml
   - docs/reqstream/sysml2-tools-core/rendering.yaml
   - docs/reqstream/sysml2-tools-core/rendering/diagram-renderer.yaml
   - docs/reqstream/sysml2-tools-core/rendering/internal.yaml
@@ -53,7 +54,6 @@ includes:
   - docs/reqstream/sysml2-tools-tool/self-test/validation.yaml
   - docs/reqstream/sysml2-tools-tool/utilities.yaml
   - docs/reqstream/sysml2-tools-tool/utilities/path-helpers.yaml
-  - docs/reqstream/sysml2-tools-tool/utilities/qualified-name-shortener.yaml
   - docs/reqstream/sysml2-tools-tool/platform-requirements.yaml
   - docs/reqstream/ots/antlr4.yaml
   - docs/reqstream/ots/dema-rendering.yaml

@@ -1,0 +1,238 @@
+---
+# Query Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the SysML2Tools Core Query subsystem
+# - The Query subsystem exposes a public, reusable model-analysis API over an already-loaded
+#   SysML semantic workspace
+# - QueryEngine implements the 12 analysis verbs; QueryResult/QueryResultRenderer/
+#   QueryResultSerializerContext implement the shared output model; QueryResultExporter writes
+#   rendered output to files
+# - Requirements describe observable library behavior, not CLI parsing or console reporting
+
+sections:
+  - title: Query Subsystem Requirements
+    requirements:
+      - id: SysML2Tools-Core-Query-Uses
+        title: >-
+          The Query subsystem shall report a target element's outgoing semantic relationships
+          through the `uses` verb, including supertypes, typing, imports, and other resolved
+          outward references, excluding stdlib targets unless `IncludeStdlib` is supplied.
+        justification: |
+          "What does this element depend on?" is a foundational model-comprehension question.
+          Exposing the semantic index's outgoing-edge view directly answers it without forcing
+          library callers to traverse the semantic model manually.
+        tests:
+          - Uses_ReportsOutgoingSupertypeTypingImportEdges
+
+      - id: SysML2Tools-Core-Query-UsedBy
+        title: >-
+          The Query subsystem shall report a target element's incoming semantic relationships
+          through the `used-by` verb by using the semantic index's reverse lookup.
+        justification: |
+          The reverse of `uses` is required for change-impact assessment and traceability review;
+          callers need a first-class answer to "what depends on this element?".
+        tests:
+          - UsedBy_ReportsIncomingReferences
+
+      - id: SysML2Tools-Core-Query-Dependencies
+        title: >-
+          The Query subsystem shall combine the target element's outgoing and incoming
+          relationships into one `dependencies` result, tagging each entry with
+          `Outgoing`/`Incoming` direction and rendering Markdown as direction-grouped prose
+          bullets rather than the shared table used by other verbs.
+        justification: |
+          A combined dependency view is a distinct output need from the separate `uses` and
+          `used-by` queries. Reusing both traversals while tagging entry direction avoids
+          duplicate analysis logic and keeps JSON and Markdown representations aligned.
+        tests:
+          - Dependencies_CombinesOutgoingAndIncoming_ReportsBothDirections
+          - Dependencies_NoOutgoingReferences_ReportsProseLineInsteadOfBulletList
+          - Dependencies_NoIncomingReferences_ReportsProseLineInsteadOfBulletList
+          - Dependencies_MarkdownOutput_ContainsNoTable
+          - RenderMarkdown_DependenciesVerb_RendersBulletProseNotTable
+          - RenderMarkdown_DependenciesVerb_EmptyOutgoingAndIncoming_ReportsBothProseLines
+          - RenderJson_DependenciesVerb_IncludesDirectionField
+          - RenderJson_NonDependenciesVerb_DirectionFieldOmittedFromOutput
+
+      - id: SysML2Tools-Core-Query-DependenciesNameShortening
+        title: >-
+          The Query subsystem shall shorten qualified names only in the `dependencies` verb's
+          Markdown output by stripping the longest leading `::`-segment prefix shared by the
+          subject element and every dependency entry, while leaving JSON output fully qualified.
+        justification: |
+          Related dependency sets often share a long package prefix that adds no distinguishing
+          value in prose output. Applying the compaction only in the one Markdown rendering path
+          that needs it keeps every other verb and every JSON payload unaffected.
+        tests:
+          - RenderMarkdown_DependenciesVerb_NoCommonPrefix_LeavesNamesFullyQualified
+          - RenderJson_DependenciesVerb_NamesRemainFullyQualified
+
+      - id: SysML2Tools-Core-Query-QualifiedNameShortening
+        title: >-
+          The `QualifiedNameShortener` helper shall strip the longest leading `::`-segment
+          prefix shared across a pool of qualified names, always capping the stripped length so
+          every name retains at least its own leaf segment, and shall reject a `null` pool or a
+          `null` pool entry.
+        justification: |
+          The prefix-shortening algorithm used by `DependenciesNameShortening` above has edge
+          cases (single-name pools, all-identical names, differing name lengths, duplicate
+          names, null inputs) that are best proven directly against the helper rather than only
+          through the `dependencies` verb's Markdown rendering.
+        tests:
+          - QualifiedNameShortener_Shorten_OneSharedLeadingSegment_StripsThatSegment
+          - QualifiedNameShortener_Shorten_NoCommonPrefix_LeavesNamesUnchanged
+          - QualifiedNameShortener_Shorten_SingleNamePool_LeavesNameUnchanged
+          - QualifiedNameShortener_Shorten_AllIdenticalNames_KeepsLeafSegment
+          - QualifiedNameShortener_Shorten_DeeperCommonPrefix_StripsAllSharedSegments
+          - QualifiedNameShortener_Shorten_ShortestNameBoundsCap_RetainsShortestNamesLeaf
+          - QualifiedNameShortener_Shorten_NullPool_ThrowsArgumentNullException
+          - QualifiedNameShortener_Shorten_NullEntryInPool_ThrowsArgumentNullException
+          - QualifiedNameShortener_Shorten_DuplicateNamesInPool_ReturnsOneEntryPerDistinctName
+
+      - id: SysML2Tools-Core-Query-Impact
+        title: >-
+          The Query subsystem shall compute the transitive closure of incoming references from a
+          target element through the `impact` verb, optionally bounded by `WalkDepth` and guarded
+          against cycles.
+        justification: |
+          A single-hop reverse-reference view understates true blast radius for deeply-referenced
+          elements. A bounded transitive closure gives callers a practical, terminating answer to
+          "what is affected if this changes?".
+        tests:
+          - Impact_DepthOne_OnlyReachesDirectReferences
+          - Impact_Unbounded_ReachesTransitiveClosure
+
+      - id: SysML2Tools-Core-Query-Describe
+        title: >-
+          The Query subsystem shall report a target element's own kind, qualified name, resolved
+          supertypes, typing, annotations, applied metadata annotations, and direct children
+          through the `describe` verb.
+        justification: |
+          A single-element fact sheet is the most common starting point for programmatic model
+          exploration, consolidating information otherwise scattered across the raw source and
+          semantic model.
+        tests:
+          - Describe_ReportsKindSupertypesAnnotationsAndChildren
+          - Describe_MultiLineComment_CollapsesToSingleSummaryLine
+          - Describe_CommentsFixture_ReportsAnnotations
+          - Describe_BareMetadataAnnotation_ReportsMetadataTypeLineOnly
+          - Describe_MetadataWithScalarAttributes_ReportsOnePerAttributeLine
+          - Describe_MetadataWithUnsupportedListAttribute_FallsBackToRawText
+          - Describe_MultipleMetadataAnnotations_ReportsEachIndependently
+          - Describe_FormatJson_IncludesMetadataInSummaryArray
+
+      - id: SysML2Tools-Core-Query-Hierarchy
+        title: >-
+          The Query subsystem shall report a target element's supertype and subtype hierarchy,
+          respecting the requested direction and guarding against recursive cycles.
+        justification: |
+          Specialization hierarchies are frequently deep and multi-branch. A dedicated traversal
+          gives callers a direct answer to "how is this element related by generalization?".
+        tests:
+          - Hierarchy_DirectionUp_ReportsOnlySupertypes
+          - Hierarchy_DirectionDown_ReportsOnlySubtypes
+          - Hierarchy_DirectionBoth_ReportsSupertypesAndSubtypes
+          - Hierarchy_GeneralizationExampleFixture_ReportsSupertypes
+
+      - id: SysML2Tools-Core-Query-Requirements
+        title: >-
+          The Query subsystem shall report satisfy, verify, and allocate relationships where the
+          target element is either the source or the target.
+        justification: |
+          Requirements traceability is a core systems-engineering question. The public Query API
+          shall expose these resolved relationships directly from the semantic model.
+        tests:
+          - Requirements_ReportsSatisfyVerifyAndAllocateEdges
+          - Requirements_RequirementSatisfactionFixture_ReportsAtLeastOneRelationship
+
+      - id: SysML2Tools-Core-Query-Interface
+        title: >-
+          The Query subsystem shall report a target definition's ports and typed features through
+          the `interface` verb.
+        justification: |
+          A definition's externally visible interface is what other elements connect to and type
+          against. Library callers need a direct way to inspect that boundary.
+        tests:
+          - Interface_ReportsPortsAndTypedFeatures
+
+      - id: SysML2Tools-Core-Query-Connections
+        title: >-
+          The Query subsystem shall report a target element's resolved connection endpoints,
+          including dotted feature-chain resolution, and shall label each entry with the
+          connector keyword that produced it.
+        justification: |
+          Resolved connection edges do not live in the semantic index's global edge list, so the
+          Query subsystem must perform the node walk on behalf of callers that need connection
+          topology.
+        tests:
+          - Connections_ReportsResolvedEndpointsIncludingFeatureChain
+          - Connections_ConnectionsExampleFixture_ReportsAtLeastOneEndpoint
+
+      - id: SysML2Tools-Core-Query-States
+        title: >-
+          The Query subsystem shall report nested states and guarded transitions reachable from a
+          target element.
+        justification: |
+          State-machine structure is a distinct model dimension from hierarchy or containment. A
+          first-class `states` verb lets callers inspect that structure without manual descendant
+          traversal.
+        tests:
+          - States_ReportsStatesAndGuardedTransitions
+          - States_StateDecompositionFixture_ReportsStatesAndTransitions
+
+      - id: SysML2Tools-Core-Query-List
+        title: >-
+          The Query subsystem shall enumerate workspace declarations through the `list` verb,
+          optionally filtering by kind substring and qualified-name substring, without requiring a
+          target element.
+        justification: |
+          Workspace-wide enumeration is the discovery step that lets callers find element names
+          before issuing an element-scoped query.
+        tests:
+          - List_NoFilters_ReturnsAllNonStdlibElements
+          - List_KindFilter_OnlyMatchesGivenKind
+          - List_NameFilter_OnlyMatchesGivenSubstring
+
+      - id: SysML2Tools-Core-Query-Find
+        title: >-
+          The Query subsystem shall perform the same workspace-wide declaration search as `list`
+          through the `find` verb, applying the supplied kind and/or name filters without
+          requiring a target element.
+        justification: |
+          `find` is the targeted search form of workspace enumeration. Exposing it in Core keeps
+          search behavior reusable for non-CLI callers.
+        tests:
+          - Find_WithNameFilter_Succeeds
+
+      - id: SysML2Tools-Core-Query-StdlibFilter
+        title: >-
+          Every verb shall exclude stdlib-seeded elements from its results by default, and
+          include them when `IncludeStdlib` is supplied on `QueryOptions`.
+        justification: |
+          Most model-analysis questions concern user-authored elements; hiding the large
+          stdlib surface by default keeps results focused, while `IncludeStdlib` supports the
+          rarer case of auditing library usage.
+        tests:
+          - Context_Create_QueryCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue
+          - List_IncludeStdlib_TogglesStandardLibraryVisibility
+
+      - id: SysML2Tools-Core-Query-Exporter
+        title: >-
+          The Query subsystem shall provide synchronous and asynchronous file-export helpers that
+          write the exact Markdown or JSON text produced by the shared renderer to a caller-
+          supplied file path, without creating parent directories and without suppressing write
+          failures.
+        justification: |
+          Library callers often want the same persisted output shape as the CLI without taking a
+          dependency on CLI conventions. Keeping the file writer thin preserves a reusable Core
+          API while leaving policy decisions, such as parent-directory creation and exception
+          translation, to the caller.
+        tests:
+          - WriteMarkdown_HappyPath_MatchesRendererOutput
+          - WriteMarkdown_WithDepthAndHeading_MatchesRendererOutput
+          - WriteMarkdownAsync_HappyPath_MatchesRendererOutput
+          - WriteJson_HappyPath_MatchesRendererOutput
+          - WriteJsonAsync_HappyPath_MatchesRendererOutput
+          - WriteMarkdown_MissingParentDirectory_PropagatesIoException
+          - WriteJson_MissingParentDirectory_PropagatesIoException

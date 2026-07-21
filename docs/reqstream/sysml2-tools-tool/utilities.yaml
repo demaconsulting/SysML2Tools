@@ -3,8 +3,7 @@
 #
 # PURPOSE:
 # - Define requirements for the SysML2Tools Utilities subsystem
-# - The Utilities subsystem spans PathHelpers.cs (safe path-combination utilities) and
-#   QualifiedNameShortener.cs (qualified-name common-prefix stripping for Markdown display)
+# - The Utilities subsystem provides PathHelpers.cs (safe path-combination utilities)
 # - Subsystem requirements describe the shared utility behavior available to all other subsystems
 
 sections:
@@ -25,19 +24,3 @@ sections:
           - UtilitiesSubsystem_DirectoryCreationWorkflow_ValidPaths_CreatesDirectories
           - UtilitiesSubsystem_PathTraversalValidation_DangerousPaths_ThrowsException
           - UtilitiesSubsystem_AbsolutePathRejection_ThrowsException
-
-      - id: Template-Utilities-QualifiedNameShortening
-        title: >-
-          The Utilities subsystem shall provide Markdown-only qualified-name shortening that
-          strips the longest common leading "::"-segment prefix shared across a pool of
-          qualified names, always retaining each name's own leaf segment.
-        justification: |
-          The Utilities subsystem provides shared, reusable helpers consumed by other
-          subsystems. Rendering paths (such as the query command's Markdown output) benefit
-          from a common, centrally-tested prefix-shortening helper rather than each renderer
-          re-implementing its own ad hoc logic; this requirement captures the subsystem-level
-          capability that the QualifiedNameShortener unit implements.
-        tests:
-          - QualifiedNameShortener_Shorten_OneSharedLeadingSegment_StripsThatSegment
-          - QualifiedNameShortener_Shorten_NoCommonPrefix_LeavesNamesUnchanged
-          - QualifiedNameShortener_Shorten_SingleNamePool_LeavesNameUnchanged

@@ -35,8 +35,12 @@ systems:
   - **DemaConsulting.SysML2Tools.Tests/** — unit tests for the Language and core systems
     - **Parser/** — Language system: parsing subsystem tests
     - **Semantic/** — Language system: semantic model subsystem tests
+    - **Filtering/** — core system: filtering subsystem tests
     - **Layout/** — core system: layout subsystem tests
     - **Rendering/** — core system: rendering subsystem tests
+    - **Io/** — core system: Io subsystem tests
+    - **Query/** — core system: Query subsystem tests
+    - **Utilities/** — core system: Utilities subsystem tests
   - **DemaConsulting.SysML2Tools.Tool.Tests/** — dotnet tool unit and integration tests
 
 ## Companion Artifact Structure

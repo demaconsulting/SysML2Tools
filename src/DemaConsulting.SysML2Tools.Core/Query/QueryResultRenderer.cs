@@ -1,22 +1,6 @@
-// Copyright (c) DEMA Consulting
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-// 
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// <copyright file="QueryResultRenderer.cs" company="DemaConsulting">
+// Copyright (c) DemaConsulting. All rights reserved.
+// </copyright>
 
 using System.Text.Json;
 using DemaConsulting.SysML2Tools.Utilities;
@@ -25,12 +9,12 @@ namespace DemaConsulting.SysML2Tools.Query;
 
 /// <summary>
 ///     Shared, non-duplicated rendering layer for <see cref="QueryResult"/>: two pure methods
-///     converting the uniform result shape into Markdown lines or a JSON string. Every
-///     <see cref="QueryCommand"/> verb arm renders through this type instead of formatting its
-///     own output, guaranteeing consistent, deterministically-ordered output across all 12
-///     verbs.
+///     converting the uniform result shape into Markdown lines or a JSON string. Every caller
+///     (e.g. the Tool project's <c>query</c> CLI command) renders through this type instead of
+///     formatting its own output, guaranteeing consistent, deterministically-ordered output
+///     across all 12 verbs.
 /// </summary>
-internal static class QueryResultRenderer
+public static class QueryResultRenderer
 {
     /// <summary>
     ///     Renders a <see cref="QueryResult"/> as Markdown lines: a heading, an optional summary
@@ -41,10 +25,10 @@ internal static class QueryResultRenderer
     /// </summary>
     /// <param name="result">The result to render.</param>
     /// <param name="depth">
-    ///     The Markdown heading depth (number of leading <c>#</c> characters), sourced from the
-    ///     global <c>--depth</c> flag (<see cref="Cli.Context.HeadingDepth"/>). Defaults to 1 (a
-    ///     top-level <c>#</c> heading); expected to be pre-validated to the range 1-6 by the
-    ///     caller (<see cref="Cli.GlobalArgumentParser"/>).
+    ///     The Markdown heading depth (number of leading <c>#</c> characters), typically sourced
+    ///     from a caller's own global heading-depth option (e.g. the Tool project's <c>--depth</c>
+    ///     flag). Defaults to 1 (a top-level <c>#</c> heading); expected to be pre-validated to
+    ///     the range 1-6 by the caller.
     /// </param>
     /// <param name="heading">
     ///     A custom heading text, supplied via <c>query</c>'s own <c>--heading</c> flag, replacing

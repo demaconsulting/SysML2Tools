@@ -33,8 +33,8 @@ namespace DemaConsulting.SysML2Tools.Cli;
 ///     Argument parsing is split into a <see cref="GlobalArgumentParser"/> pass (cross-cutting
 ///     options that apply regardless of command) followed by exactly one per-command parser
 ///     dispatch (<see cref="LintArgumentParser"/>, <see cref="RenderArgumentParser"/>,
-///     <see cref="QueryArgumentParser"/>, or <see cref="HelpArgumentParser"/>), so that each
-///     command rejects flags outside its own grammar instead of sharing one mega-switch. See
+///     <see cref="Query.QueryCliArgumentParser"/>, or <see cref="HelpArgumentParser"/>), so that
+///     each command rejects flags outside its own grammar instead of sharing one mega-switch. See
 ///     <c>docs/design/sysml2-tools-tool/cli/context.md</c> for the full architecture.
 /// </remarks>
 internal sealed class Context : IDisposable
@@ -105,6 +105,29 @@ internal sealed class Context : IDisposable
     public QueryOptions? Query { get; private init; }
 
     /// <summary>
+    ///     Gets the file glob patterns supplied as positional arguments to the <c>query</c>
+    ///     command; empty unless <see cref="Command"/> is <see cref="SysmlCommand.Query"/>.
+    /// </summary>
+    /// <remarks>
+    ///     Kept separate from <see cref="Query"/> because Core's public <c>QueryOptions</c> no
+    ///     longer carries a file-glob-pattern property (a CLI-only concern) — see
+    ///     <see cref="Query.QueryCliArgumentParser"/>.
+    /// </remarks>
+    public IReadOnlyList<string> QueryFiles { get; private init; } = [];
+
+    /// <summary>
+    ///     Gets the <c>query</c> command's <c>--output</c> file path; <see langword="null"/>
+    ///     means write to stdout via <see cref="WriteLine"/>.
+    /// </summary>
+    /// <remarks>
+    ///     Mirrors <see cref="Export.ExportOptions.Output"/>'s single-output-FILE convention
+    ///     (not a directory, unlike <see cref="Render.RenderCommandOptions.OutputDirectory"/>).
+    ///     Kept separate from <see cref="Query"/> because Core's public <c>QueryOptions</c> has no
+    ///     CLI-I/O concept of its own — see <see cref="Query.QueryCliArgumentParser"/>.
+    /// </remarks>
+    public string? QueryOutput { get; private init; }
+
+    /// <summary>
     ///     Gets the parsed options for the <c>export</c> command; <see langword="null"/> unless
     ///     <see cref="Command"/> is <see cref="SysmlCommand.Export"/>.
     /// </summary>
@@ -153,6 +176,8 @@ internal sealed class Context : IDisposable
         LintOptions? lintOptions = null;
         RenderCommandOptions? renderOptions = null;
         QueryOptions? queryOptions = null;
+        IReadOnlyList<string> queryFiles = [];
+        string? queryOutput = null;
         ExportOptions? exportOptions = null;
         HelpOptions? helpOptions = null;
 
@@ -167,7 +192,7 @@ internal sealed class Context : IDisposable
                 break;
 
             case SysmlCommand.Query:
-                queryOptions = QueryArgumentParser.Parse(global.CommandArgs, global.Help);
+                (queryOptions, queryFiles, queryOutput) = QueryCliArgumentParser.Parse(global.CommandArgs, global.Help);
                 break;
 
             case SysmlCommand.Export:
@@ -203,6 +228,8 @@ internal sealed class Context : IDisposable
             Lint = lintOptions,
             Render = renderOptions,
             Query = queryOptions,
+            QueryFiles = queryFiles,
+            QueryOutput = queryOutput,
             Export = exportOptions,
             HelpCommand = helpOptions
         };

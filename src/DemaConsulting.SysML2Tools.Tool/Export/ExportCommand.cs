@@ -36,9 +36,12 @@ namespace DemaConsulting.SysML2Tools.Export;
 ///     Lines, for offline consumption by an AI/agent harness.
 /// </summary>
 /// <remarks>
-///     Stdlib filtering mirrors <c>Query.QueryEngine.IsVisible</c> exactly (replicated locally,
-///     since this Tool project cannot reference the Core project's internal
-///     <c>StdlibFilter</c>): <see cref="ExportResult.Declarations"/> excludes stdlib keys, and
+///     Stdlib filtering mirrors <c>Query.QueryEngine.IsVisible</c> exactly (intentionally
+///     duplicated locally — a one-line, no-state check now trivially shareable since
+///     <c>QueryEngine.IsVisible</c> became part of Core's public API, but left un-shared here to
+///     avoid growing Core's public surface for a one-line convenience and to avoid an
+///     out-of-scope edit to this class): <see cref="ExportResult.Declarations"/> excludes stdlib
+///     keys, and
 ///     <see cref="ExportResult.Edges"/> excludes any edge whose source or target is a stdlib
 ///     name, unless <c>--include-stdlib</c> was supplied. Diagnostics are never stdlib-filtered:
 ///     <c>WorkspaceLoader</c> diagnostics only ever originate from the user's own files, because
@@ -300,9 +303,12 @@ internal static class ExportCommand
     ///     or when <paramref name="qualifiedName"/> is not a standard-library name.
     /// </returns>
     /// <remarks>
-    ///     Mirrors <c>Query.QueryEngine.IsVisible</c> exactly; replicated here (rather than
-    ///     shared) because this Tool project cannot reference the Core project's internal
-    ///     <c>StdlibFilter</c>, and <c>QueryEngine.IsVisible</c> is <see langword="private"/>.
+    ///     Mirrors <c>Query.QueryEngine.IsVisible</c> exactly. Intentionally kept as a small,
+    ///     private duplicate rather than shared: <c>QueryEngine.IsVisible</c> is now part of
+    ///     Core's public Query API surface, but it is a trivial, one-line, no-state check, so
+    ///     making <c>ExportCommand</c> take a dependency on it (or promoting it to
+    ///     <see langword="public"/> purely to let this duplicate be deleted) is not worth the
+    ///     added coupling/public-API-surface growth for this one-line convenience.
     /// </remarks>
     private static bool IsVisible(string qualifiedName, SysmlWorkspace workspace, bool includeStdlib) =>
         includeStdlib || !workspace.StdlibNames.Contains(qualifiedName);
