@@ -36,9 +36,6 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest</AnalysisLevel>
-    <!-- Suppress NU5104: this library intentionally depends on the pre-release
-         DemaConsulting.Rendering.Layout package until it reaches a stable release. -->
-    <NoWarn>$(NoWarn);NU5104</NoWarn>
 
     <!-- SBOM Configuration -->
     <GenerateSBOM>true</GenerateSBOM>
@@ -56,7 +53,7 @@
     <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.5" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.301" PrivateAssets="All" />
     <PackageReference Include="DemaConsulting.ApiMark.MSBuild" Version="0.4.10" PrivateAssets="All" />
-    <PackageReference Include="DemaConsulting.Rendering.Layout" Version="0.1.0-beta.15" />
+    <PackageReference Include="DemaConsulting.Rendering.Layout" Version="0.1.0" />
     <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="10.0.10" />
   </ItemGroup>
 
