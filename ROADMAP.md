@@ -121,8 +121,9 @@ messages, etc.) alongside its existing `part def`s.
 
 `build.yaml` already runs `dotnet pack` for all packages and installs the packed tool as part of
 CI. It also runs FileAssert `[package]`-tagged size and zip-content assertions (`.fileassert.yaml`)
-against every packed `.nupkg` right after `dotnet pack`, guarding against regressions such as the
-historical 435 MB Tool package bloat and verifying expected DLLs/README are present. Still open:
+against the packed Tool `.nupkg` right after `dotnet pack`, guarding against the historical 435 MB
+size bloat and verifying the main assembly/README are present with no stray native symbols. Still
+open:
 
 1. **Tool smoke test:** install the packed tool from a local feed into a clean directory → run
    `--version`, render a sample to **both SVG and PNG** (PNG proves SkiaSharp natives resolve),
