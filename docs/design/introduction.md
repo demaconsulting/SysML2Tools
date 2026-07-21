@@ -132,6 +132,9 @@ system, subsystem, and unit levels:
       used by `RenderJson`
     - **QueryResultExporter** (Unit) — synchronous and asynchronous file-writing wrappers
       around the renderer
+    - **QualifiedNameShortener** (Unit) — strips the longest shared leading `::`-segment
+      prefix across a pool of qualified names, used only by the `dependencies` verb's
+      Markdown rendering
 - **DemaConsulting.SysML2Tools.Tool** (System) — dotnet tool: thin CLI wrapper and
   orchestration
   - **Program** (Unit) — entry point and execution orchestrator
@@ -158,9 +161,6 @@ system, subsystem, and unit levels:
     - **Validation** (Unit) — self-validation test runner
   - **Utilities** (Subsystem) — shared utilities
     - **PathHelpers** (Unit) — safe path combination utilities
-    - **QualifiedNameShortener** (Unit) — strips the longest common leading `::`-segment prefix
-      shared across a pool of qualified names, used by the `query dependencies` verb's Markdown
-      rendering
 
 **OTS Dependencies:**
 
@@ -207,6 +207,7 @@ reviewers an explicit navigation aid from design to code:
     - **Query/** — public, reusable model-analysis API (`QueryVerb`, `QueryOptions`,
       `QueryArgumentParser`, `QueryEngine`, `QueryResult`, `QueryResultRenderer`,
       `QueryResultSerializerContext`, `QueryResultExporter`)
+    - **Utilities/** — shared helper used by the Query subsystem (`QualifiedNameShortener`)
   - **DemaConsulting.SysML2Tools.Tool/** — dotnet tool CLI wrapper
     - **Cli/** — command-line interface subsystem
     - **Lint/** — lint command subsystem

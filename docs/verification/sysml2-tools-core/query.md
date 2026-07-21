@@ -4,10 +4,13 @@
 
 The Query subsystem is verified by direct tests in
 `test/DemaConsulting.SysML2Tools.Tests/Query/QueryOmgFixtureTests.cs`,
-`QueryRenderingTests.cs`, and `QueryResultExporterTests.cs`. These tests call
-`QueryEngine`, `QueryResultRenderer`, and `QueryResultExporter` directly against loaded OMG
-fixture workspaces and hand-built `QueryResult` instances, so the public Core API is verified
-without any dependency on the Tool project's CLI parsing or `Context` I/O behavior.
+`QueryRenderingTests.cs`, and `QueryResultExporterTests.cs`, plus dedicated unit tests for the
+`QualifiedNameShortener` helper in
+`test/DemaConsulting.SysML2Tools.Tests/Utilities/QualifiedNameShortenerTests.cs`. These tests
+call `QueryEngine`, `QueryResultRenderer`, `QueryResultExporter`, and `QualifiedNameShortener`
+directly against loaded OMG fixture workspaces and hand-built `QueryResult` instances, so the
+public Core API is verified without any dependency on the Tool project's CLI parsing or
+`Context` I/O behavior.
 
 The `uses`, `used-by`, `dependencies`, `impact`, `interface`, `list`, `find`, and stdlib-
 filtering behaviors are additionally exercised at the engine level from
@@ -32,8 +35,8 @@ scenarios listed under "Test Scenarios (Tool Test Project)" below run via `dotne
 
 ### Acceptance Criteria
 
-- All `QueryOmgFixtureTests`, `QueryRenderingTests`, and `QueryResultExporterTests` pass with
-  zero failures across all three target frameworks.
+- All `QueryOmgFixtureTests`, `QueryRenderingTests`, `QueryResultExporterTests`, and
+  `QualifiedNameShortenerTests` pass with zero failures across all three target frameworks.
 - The `uses`, `used-by`, `dependencies`, `impact`, `interface`, `list`, `find`, and stdlib-
   filtering behaviors are proven at the `QueryEngine`/`QueryOptions` level by the
   `Tool.Tests`-hosted scenarios cited below, in addition to the Core-project scenarios above;
@@ -48,6 +51,9 @@ scenarios listed under "Test Scenarios (Tool Test Project)" below run via `dotne
   `dependencies` JSON results.
 - `QueryResultExporter` writes exactly the renderer's Markdown and JSON text and propagates
   missing-parent-directory write failures instead of masking them.
+- `QualifiedNameShortener.Shorten` strips only the longest shared leading `::`-segment prefix
+  across a pool of qualified names, always capped so every name keeps at least its own leaf
+  segment, and rejects `null` pools or `null` pool entries.
 
 ### Test Scenarios
 
@@ -137,6 +143,44 @@ exporter does not create parent directories or suppress the resulting write fail
 
 **`WriteJson_MissingParentDirectory_PropagatesIoException`**: Verifies that the JSON exporter
 likewise propagates a missing-parent-directory write failure.
+
+#### QualifiedNameShortenerTests.cs
+
+**`QualifiedNameShortener_Shorten_OneSharedLeadingSegment_StripsThatSegment`**: The worked
+example `["A::B::x", "A::B::y", "A::T::g"]` is shortened; the shared leading segment `"A"` is
+stripped from every name, producing `["B::x", "B::y", "T::g"]`.
+
+**`QualifiedNameShortener_Shorten_NoCommonPrefix_LeavesNamesUnchanged`**: A pool of names
+rooted in different top-level packages (`["A::B::x", "C::D::y"]`) is shortened; every name is
+returned unchanged since no leading segment is shared.
+
+**`QualifiedNameShortener_Shorten_SingleNamePool_LeavesNameUnchanged`**: A pool containing only
+one distinct name is shortened; the name is returned unchanged since there is nothing to
+compare it against.
+
+**`QualifiedNameShortener_Shorten_AllIdenticalNames_KeepsLeafSegment`**: A pool where every
+entry is the same name (`["A::B::x", "A::B::x", "A::B::x"]`) reduces to a single distinct name
+and is returned unchanged, confirming the leaf segment `"x"` is never stripped down to an empty
+string.
+
+**`QualifiedNameShortener_Shorten_DeeperCommonPrefix_StripsAllSharedSegments`**: A pool sharing
+the two leading segments `"A::B"` (`["A::B::C::x", "A::B::C::y", "A::B::D::z"]`) is shortened;
+both shared segments are stripped from every name.
+
+**`QualifiedNameShortener_Shorten_ShortestNameBoundsCap_RetainsShortestNamesLeaf`**: A pool
+containing `"A::B"` (2 segments) alongside `"A::B::C"` (which shares the 2-segment prefix
+`"A::B"`) is shortened; only 1 segment (`"A"`) is stripped, capped by `"A::B"`'s own segment
+count, so `"A::B"` becomes `"B"` rather than an empty string.
+
+**`QualifiedNameShortener_Shorten_NullPool_ThrowsArgumentNullException`**: `null` is passed as
+the `qualifiedNames` argument; an `ArgumentNullException` is thrown.
+
+**`QualifiedNameShortener_Shorten_NullEntryInPool_ThrowsArgumentNullException`**: A pool
+containing a `null` entry is passed; an `ArgumentNullException` is thrown.
+
+**`QualifiedNameShortener_Shorten_DuplicateNamesInPool_ReturnsOneEntryPerDistinctName`**: A pool
+where one name is repeated (`["A::B::x", "A::B::x", "A::T::g"]`) is shortened; the returned map
+contains exactly one entry per distinct name, both correctly shortened.
 
 ### Test Scenarios (Tool Test Project)
 
