@@ -209,6 +209,12 @@ jobs:
           --property:PackageVersion=${{ inputs.version }}
           --output ./artifacts/packages
 
+      - name: Assert Package Contents with FileAssert
+        run: >
+          dotnet fileassert
+          --results artifacts/fileassert-package-${{ matrix.os }}.trx
+          package
+
       # === UPLOAD ARTIFACTS ===
       # This section uploads all generated artifacts for use by downstream jobs.
       # Downstream projects: Add any additional artifact uploads here.

@@ -1,13 +1,46 @@
 ---
 # FileAssert document validation tests for SysML2Tools.
 # Tests are tagged by document group to allow per-group execution during the build pipeline.
-# Tags: build-notes, code-quality, code-review, design, verification, user-guide, requirements.
+# Tags: build-notes, code-quality, code-review, design, verification, user-guide, requirements, package.
 #
 # NOTE: build-notes through user-guide tests provide OTS evidence for Pandoc and WeasyPrint
 # and run before ReqStream. The requirements tests run after ReqStream and validate the
-# final outputs, but do not contribute to OTS requirements evidence.
+# final outputs, but do not contribute to OTS requirements evidence. The package tests run
+# after `dotnet pack` in the build job and validate the packed NuGet packages.
 
 tests:
+
+  # --- PACKAGE ---
+  # The Tool package previously ballooned to ~435 MB because native SkiaSharp runtime
+  # assets shipped with their debug symbols (.pdb) alongside the binaries. These tests
+  # just guard against that regression: the packed size stays under budget, the tool's
+  # main assembly and README are present, and no .pdb files leak into the native
+  # runtimes folder.
+
+  - name: Package_ToolSizeWithinLimit
+    description: "Tool package stays within its size budget"
+    tags: [package]
+    files:
+      - pattern: "artifacts/packages/DemaConsulting.SysML2Tools.Tool.*.nupkg"
+        count: 1
+        max-size: 73400320  # 70 MiB
+
+  - name: Package_ToolContentsValid
+    description: "Tool package contains its main assembly and README, with no stray native symbol files"
+    tags: [package]
+    files:
+      - pattern: "artifacts/packages/DemaConsulting.SysML2Tools.Tool.*.nupkg"
+        zip:
+          files:
+            - pattern: "README.md"
+              min: 1
+            - pattern: "tools/net10.0/any/DemaConsulting.SysML2Tools.dll"
+              min: 1
+              max: 1
+            # Native SkiaSharp runtime assets must not ship with .pdb symbol files -
+            # this is what caused the historical ~435 MB package-size bloat.
+            - pattern: "tools/net10.0/any/runtimes/**/*.pdb"
+              max: 0
 
   # --- BUILD NOTES ---
 
