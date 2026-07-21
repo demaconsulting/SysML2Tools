@@ -313,12 +313,12 @@ public static class QueryEngine
             }
         }
 
-        summary.Add($"Children: {element.Children.Count}");
-
         var entries = element.Children
             .Where(c => c.QualifiedName is not null && IsVisible(c.QualifiedName, workspace, options.IncludeStdlib))
             .Select(c => new QueryResultEntry { QualifiedName = c.QualifiedName!, Kind = DescribeKind(c) })
             .ToList();
+
+        summary.Add($"Children: {entries.Count}");
 
         return new QueryResult
         {

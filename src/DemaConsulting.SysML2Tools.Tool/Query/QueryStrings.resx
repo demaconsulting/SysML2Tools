@@ -245,7 +245,7 @@
     <value>  sysml2tools query find --name Wheel test/SysMLModels/OMG/examples/VehicleExample/*.sysml</value>
   </data>
   <data name="Query_SchemaHint_Markdown" xml:space="preserve">
-    <value>Markdown output: a '# query &lt;verb&gt;[: &lt;element&gt;]' heading, an optional bullet-list summary, then a '| Qualified Name | Kind | Detail |' table (empty results print '_No entries._').</value>
+    <value>Markdown output: a '# query &lt;verb&gt;[: &lt;element&gt;]' heading, an optional bullet-list summary, then a verb-specific bold-text label (e.g. '**Children**') and a '| Qualified Name | Kind | Detail |' table (empty results print a verb-specific fallback, e.g. '_No children._').</value>
   </data>
   <data name="Query_SchemaHint_Json" xml:space="preserve">
     <value>JSON output: { "Verb", "Element", "Summary": [...], "Entries": [{ "QualifiedName", "Kind", "Detail", "Notes": [] }] }, entries sorted by QualifiedName.</value>

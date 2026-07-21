@@ -54,6 +54,14 @@ scenarios listed under "Test Scenarios (Tool Test Project)" below run via `dotne
 - `QualifiedNameShortener.Shorten` strips only the longest shared leading `::`-segment prefix
   across a pool of qualified names, always capped so every name keeps at least its own leaf
   segment, and rejects `null` pools or `null` pool entries.
+- `describe`'s `Children: N` summary line always equals the number of rows in the `Entries`
+  table (visible, named children only), never the raw count of the element's underlying AST
+  child nodes.
+- Every verb except `dependencies` precedes its entries table (or "no entries" fallback) with a
+  verb-specific bold-text label and fallback message (e.g. `**Children**` / `_No children._` for
+  `describe`), falling back to a generic `**Entries**` / `_No entries._` label for any
+  unrecognized verb. The label is always plain bold text, never an ATX heading, so the report
+  never branches into a Markdown sub-section regardless of the caller's requested heading depth.
 
 ### Test Scenarios
 
@@ -77,7 +85,27 @@ supertypes are reported.
 `QueryEngine.Describe`, and verifies that annotations appear in the result summary.
 
 **`RenderMarkdown_NoEntries_ReportsNoEntries`**: Verifies that a non-`dependencies` result with
-no entries renders the shared Markdown `_No entries._` fallback.
+no entries is preceded by its verb-specific bold-text label (e.g. `**Uses**`) and renders the
+verb-specific "no entries" fallback text (e.g. `_No outgoing references._`) instead of an empty
+table.
+
+**`RenderMarkdown_EntriesPresent_IncludesVerbSpecificBoldLabel`**: Verifies that a
+non-`dependencies` result with entries is also preceded by its verb-specific bold-text label
+(e.g. `**Children**` for `describe`), not just the "no entries" fallback case, and that the
+label is plain bold text rather than an ATX heading.
+
+**`RenderMarkdown_UnrecognizedVerb_FallsBackToGenericEntriesLabel`**: Verifies that a verb with
+no specific entries-label mapping falls back to the generic `**Entries**` label and `_No
+entries._` fallback text.
+
+**`RenderMarkdown_ListOrFindVerb_UsesMatchingElementsLabel`**: Verifies that both `list`
+and `find` share the same `**Matching Elements**` label, since `find` is a filtered form
+of `list` and their entries mean the same thing.
+
+**`RenderMarkdown_MaxHeadingDepth_EntriesLabelStaysBoldTextNotHeading`**: Verifies that at the
+maximum Markdown heading depth (6), the entries label remains plain bold text (`**Children**`)
+rather than becoming (or being mistaken for) an ATX heading, so the report never branches into
+a Markdown sub-section at any valid heading depth.
 
 **`RenderMarkdown_DependenciesVerb_RendersBulletProseNotTable`**: Verifies that
 `dependencies` Markdown renders as grouped prose bullets rather than the shared table.

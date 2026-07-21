@@ -110,7 +110,13 @@ flowchart TD
 6. `Impact` performs a breadth-first transitive closure over incoming edges, optionally bounded
    by `WalkDepth`, with a visited set preventing infinite loops on cyclic graphs.
 7. `Describe` reports the target element's own kind and qualified name in `Summary`, then adds
-   resolved supertypes, typing, annotations, applied metadata annotations, and direct children.
+   resolved supertypes, typing, annotations, applied metadata annotations, and a `Children: N`
+   count. `N` is the count of visible, named child entries actually placed in `Entries` (i.e.
+   direct children with a non-null `QualifiedName` that pass the `IncludeStdlib` visibility
+   rule), not the raw `element.Children.Count` - so the stated count always matches the number
+   of rows shown, even though non-element children (comments, metadata annotations, imports)
+   and, when `IncludeStdlib` is unset, stdlib-seeded children are present in `element.Children`
+   but excluded from both the count and the table.
    Metadata values preserve scalar booleans, numbers, and strings directly, while unsupported
    non-scalar values fall back to raw source text so information is never silently dropped.
 8. `Hierarchy` walks specialization relationships recursively. `--direction up` follows
@@ -131,9 +137,16 @@ flowchart TD
     supplied.
 14. `QueryResultRenderer` sorts entries exactly once by `QualifiedName` (ordinal) for both
     Markdown and JSON. All verbs except `dependencies` render Markdown as a heading, optional
-    summary bullet list, and a shared table. `dependencies` is the one intentional exception:
-    Markdown is rendered as direction-grouped prose bullets after shortening the subject and
-    entry names with `QualifiedNameShortener`. `RenderJson` never shortens names and uses
+    summary bullet list, a verb-specific bold-text label (e.g. `**Children**` for `describe`,
+    `**Uses**` for `uses`), and then either the shared table or a verb-specific "no entries"
+    fallback line (e.g. `_No children._`) when there are none. Labeling the (possibly empty)
+    entries section tells the reader what kind of thing it holds, so a zero-row result reads as
+    an unremarkable, expected outcome rather than a broken query. The label is always plain bold
+    text, never an ATX heading, so the whole report stays within the single Markdown section
+    started by the main heading regardless of the caller's requested heading depth.
+    `dependencies` is the one intentional exception: Markdown is rendered as direction-grouped
+    prose bullets after shortening the subject and entry names with `QualifiedNameShortener`,
+    with no separate label. `RenderJson` never shortens names and uses
     `QueryResultSerializerContext` so the JSON shape remains fully qualified and AOT-safe.
 15. `QueryResultExporter` renders first, then writes the exact Markdown or JSON text to the
     caller-supplied file path. Markdown is joined with `"\n"`; no parent-directory creation or

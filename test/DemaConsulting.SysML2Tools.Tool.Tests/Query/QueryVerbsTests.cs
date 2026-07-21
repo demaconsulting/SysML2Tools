@@ -239,6 +239,40 @@ public class QueryVerbsTests
     }
 
     /// <summary>
+    ///     'describe' reports a <c>Children: N</c> count that always matches the number of rows
+    ///     in the Entries table. A bare metadata annotation (<c>@Critical;</c>) is a non-element
+    ///     child with no qualified name, so it is present in the underlying AST child list but
+    ///     excluded from both the count and the table; only the one real child (<c>engine</c>)
+    ///     is counted and shown.
+    /// </summary>
+    [Fact]
+    public async Task Describe_ChildIncludesNonElementMetadataAnnotation_ChildrenCountMatchesEntryRows()
+    {
+        const string sysml = """
+            package Model {
+                metadata def Critical;
+
+                part def Car {
+                    @Critical;
+                    part engine;
+                }
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "describe", "--element", "Model::Car");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Children: 1", output);
+        Assert.Contains("Model::Car::engine", output);
+
+        var tableRows = output
+            .Split('\n')
+            .Count(line => line.TrimStart().StartsWith("| Model::Car::", StringComparison.Ordinal));
+        Assert.Equal(1, tableRows);
+    }
+
+    /// <summary>
     ///     'describe' collapses a multi-line comment/documentation annotation into a single
     ///     summary line, so the Markdown output keeps one fact per bullet rather than letting
     ///     the annotation's embedded newlines and '*' continuation markers spill across
@@ -265,9 +299,11 @@ public class QueryVerbsTests
         Assert.Contains("Documentation: A multi-line doc comment.", output);
 
         // The bullet list must remain one fact per line: no bullet's text should itself
-        // contain an embedded newline, and no orphan '*' continuation-marker lines exist.
+        // contain an embedded newline, and no orphan '* ' continuation-marker lines exist
+        // (checked as "* " with a trailing space, so this doesn't false-positive on
+        // legitimate "**Bold**" entries-label lines, which have no space after the stars).
         var lines = output.Split('\n');
-        Assert.DoesNotContain(lines, line => line.Trim().StartsWith('*'));
+        Assert.DoesNotContain(lines, line => line.Trim().StartsWith("* ", StringComparison.Ordinal));
     }
 
     /// <summary>
