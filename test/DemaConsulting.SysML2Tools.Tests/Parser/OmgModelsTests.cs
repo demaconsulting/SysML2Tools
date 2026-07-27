@@ -297,7 +297,7 @@ public sealed class OmgModelsTests
 
         // DecisionExample.sysml: an anonymous decide with two guarded successions, plus a named
         // merge that the decide's default-path action succession eventually rejoins.
-        var chargeBattery = (SysmlDefinitionNode)result.Workspace!.Declarations["'Decision Example'::ChargeBattery"];
+        var chargeBattery = (SysmlDefinitionNode)result.Workspace.Declarations["'Decision Example'::ChargeBattery"];
         var decide = Assert.Single(
             chargeBattery.Children.OfType<SysmlFeatureNode>(), f => f.FeatureKeyword == "decide");
         Assert.NotNull(decide.Name);
@@ -324,7 +324,7 @@ public sealed class OmgModelsTests
         Assert.Contains(chargeBatteryTransitions, t => t.Source == "monitor" && t.Target == decide.Name);
 
         // ControlNodeTest.sysml: fully named fork/join/merge — the richest, most reliable fixture.
-        var controlNodeTest = (SysmlDefinitionNode)result.Workspace!.Declarations["ControlNodeTest"];
+        var controlNodeTest = (SysmlDefinitionNode)result.Workspace.Declarations["ControlNodeTest"];
         var controlFeatures = controlNodeTest.Children.OfType<SysmlFeatureNode>().ToList();
         Assert.Contains(controlFeatures, f => f.FeatureKeyword == "join" && f.Name == "J");
         Assert.Contains(controlFeatures, f => f.FeatureKeyword == "fork" && f.Name == "F");
@@ -382,7 +382,7 @@ public sealed class OmgModelsTests
 
         // Redefinition-body form (each literal redefines "code"/"color" attributes via `:>>`).
         var classificationKind =
-            (SysmlDefinitionNode)result.Workspace!.Declarations["'Enumeration Definitions-2'::ClassificationKind"];
+            (SysmlDefinitionNode)result.Workspace.Declarations["'Enumeration Definitions-2'::ClassificationKind"];
         var classificationValues = classificationKind.Children
             .OfType<SysmlFeatureNode>()
             .Where(f => f.FeatureKeyword == "enum value")
@@ -393,7 +393,7 @@ public sealed class OmgModelsTests
         // Value-assignment form (`A = 4.0;`) — the assigned value expression is not parsed, only
         // the literal's own name, an accepted minimal-capture gap.
         var gradePoints =
-            (SysmlDefinitionNode)result.Workspace!.Declarations["'Enumeration Definitions-2'::GradePoints"];
+            (SysmlDefinitionNode)result.Workspace.Declarations["'Enumeration Definitions-2'::GradePoints"];
         var gradeValues = gradePoints.Children
             .OfType<SysmlFeatureNode>()
             .Where(f => f.FeatureKeyword == "enum value")
@@ -440,7 +440,7 @@ public sealed class OmgModelsTests
         // VehicleMassLimitationRequirement (a requirement def specializing another) has subject +
         // assume constraint.
         var vehicleMassLimitation =
-            (SysmlDefinitionNode)result.Workspace!.Declarations[
+            (SysmlDefinitionNode)result.Workspace.Declarations[
                 "'Requirement Definitions'::VehicleMassLimitationRequirement"];
         var subject = Assert.Single(
             vehicleMassLimitation.Children.OfType<SysmlFeatureNode>(), f => f.FeatureKeyword == "subject");
@@ -453,7 +453,7 @@ public sealed class OmgModelsTests
         // RequirementUsages.sysml: fullVehicleMassLimit is a requirement *usage* specializing
         // VehicleMassLimitationRequirement, with its own subject + assume constraint body.
         var fullVehicleMassLimit =
-            (SysmlFeatureNode)result.Workspace!.Declarations["'Requirement Usages'::fullVehicleMassLimit"];
+            (SysmlFeatureNode)result.Workspace.Declarations["'Requirement Usages'::fullVehicleMassLimit"];
         var usageSubject = Assert.Single(
             fullVehicleMassLimit.Children.OfType<SysmlFeatureNode>(), f => f.FeatureKeyword == "subject");
         Assert.Equal("vehicle", usageSubject.Name);
@@ -498,7 +498,7 @@ public sealed class OmgModelsTests
         Assert.Contains(partDefC.Annotations, a => a.Kind == SysmlAnnotationKind.Comment);
 
         var automobileWithDoc =
-            (SysmlDefinitionNode)result.Workspace!.Declarations["'Documentation Example'::Automobile"];
+            (SysmlDefinitionNode)result.Workspace.Declarations["'Documentation Example'::Automobile"];
         Assert.Contains(automobileWithDoc.Annotations, a => a.Kind == SysmlAnnotationKind.Documentation);
     }
 }

@@ -57,7 +57,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.True(result.Workspace!.Declarations.ContainsKey("Foo"),
+            Assert.True(result.Workspace.Declarations.ContainsKey("Foo"),
                 "Expected 'Foo' in declarations");
         }
         finally
@@ -85,8 +85,8 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.True(result.Workspace!.Declarations.ContainsKey("A"), "Expected 'A'");
-            Assert.True(result.Workspace!.Declarations.ContainsKey("A::B"), "Expected 'A::B'");
+            Assert.True(result.Workspace.Declarations.ContainsKey("A"), "Expected 'A'");
+            Assert.True(result.Workspace.Declarations.ContainsKey("A::B"), "Expected 'A::B'");
         }
         finally
         {
@@ -113,7 +113,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.True(result.Workspace!.Declarations.ContainsKey("P::W"),
+            Assert.True(result.Workspace.Declarations.ContainsKey("P::W"),
                 "Expected 'P::W' in declarations");
         }
         finally
@@ -136,7 +136,7 @@ public sealed class WorkspaceLoaderTests
         // Assert
         Assert.NotNull(result.Workspace);
         // Stdlib has many declarations
-        Assert.NotEmpty(result.Workspace!.Declarations);
+        Assert.NotEmpty(result.Workspace.Declarations);
     }
 
     // Level 6: Stdlib declarations are registered
@@ -153,7 +153,7 @@ public sealed class WorkspaceLoaderTests
         // Assert
         Assert.NotNull(result.Workspace);
         // Stdlib should register at least some declarations
-        Assert.True(result.Workspace!.Declarations.Count > 0,
+        Assert.True(result.Workspace.Declarations.Count > 0,
             "Expected stdlib declarations to be registered");
         // No errors from stdlib loading
         Assert.False(result.HasErrors);
@@ -183,8 +183,8 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.True(result.Workspace!.Declarations.ContainsKey("P::Base"), "Expected 'P::Base'");
-            Assert.True(result.Workspace!.Declarations.ContainsKey("P::Derived"), "Expected 'P::Derived'");
+            Assert.True(result.Workspace.Declarations.ContainsKey("P::Base"), "Expected 'P::Base'");
+            Assert.True(result.Workspace.Declarations.ContainsKey("P::Derived"), "Expected 'P::Derived'");
             // Supertype should resolve — no unresolved warning for P::Base
             Assert.DoesNotContain(result.Diagnostics,
                 d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
@@ -501,7 +501,7 @@ public sealed class WorkspaceLoaderTests
             var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
             Assert.NotNull(result.Workspace);
-            var index = result.Workspace!.Index;
+            var index = result.Workspace.Index;
 
             // Assert — "Foo" resolves as a Typing edge to the shallower (one-level-deep) match,
             // not the deeper-but-shorter-string one.
@@ -685,11 +685,11 @@ public sealed class WorkspaceLoaderTests
 
             // Assert: each definition is registered with its expected keyword
             Assert.NotNull(result.Workspace);
-            AssertKeyword(result.Workspace!, "Demo::Vehicle", "part def");
-            AssertKeyword(result.Workspace!, "Demo::FuelPort", "port def");
-            AssertKeyword(result.Workspace!, "Demo::FuelInterface", "interface def");
-            AssertKeyword(result.Workspace!, "Demo::MassReq", "requirement def");
-            AssertKeyword(result.Workspace!, "Demo::Gear", "enum def");
+            AssertKeyword(result.Workspace, "Demo::Vehicle", "part def");
+            AssertKeyword(result.Workspace, "Demo::FuelPort", "port def");
+            AssertKeyword(result.Workspace, "Demo::FuelInterface", "interface def");
+            AssertKeyword(result.Workspace, "Demo::MassReq", "requirement def");
+            AssertKeyword(result.Workspace, "Demo::Gear", "enum def");
         }
         finally
         {
@@ -716,7 +716,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert: stdlib names are recorded and the user declaration is not among them
             Assert.NotNull(result.Workspace);
-            Assert.NotEmpty(result.Workspace!.StdlibNames);
+            Assert.NotEmpty(result.Workspace.StdlibNames);
             Assert.DoesNotContain("UserPkg::UserPart", result.Workspace.StdlibNames);
         }
         finally
@@ -756,7 +756,7 @@ public sealed class WorkspaceLoaderTests
             // Assert: the Vehicle definition owns three feature children with the expected typing
             Assert.NotNull(result.Workspace);
             var vehicle = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["Demo::Vehicle"]);
+                result.Workspace.Declarations["Demo::Vehicle"]);
             var features = vehicle.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
                 .ToList();
@@ -801,7 +801,7 @@ public sealed class WorkspaceLoaderTests
             // Assert: the Drivetrain owns a connection node referencing both parts
             Assert.NotNull(result.Workspace);
             var drivetrain = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["Demo::Drivetrain"]);
+                result.Workspace.Declarations["Demo::Drivetrain"]);
             var connection = drivetrain.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlConnectionNode>()
                 .Single();
@@ -843,7 +843,7 @@ public sealed class WorkspaceLoaderTests
             // Assert: the state def owns two state features and one transition
             Assert.NotNull(result.Workspace);
             var light = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["SM::Light"]);
+                result.Workspace.Declarations["SM::Light"]);
             var states = light.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
                 .Where(f => f.FeatureKeyword == "state")
@@ -891,7 +891,7 @@ public sealed class WorkspaceLoaderTests
             // Assert: the action def owns two action features and one succession
             Assert.NotNull(result.Workspace);
             var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["AF::Flow"]);
+                result.Workspace.Declarations["AF::Flow"]);
             var actions = flow.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
                 .Count(f => f.FeatureKeyword == "action");
@@ -937,7 +937,7 @@ public sealed class WorkspaceLoaderTests
             // Assert: the protocol owns a message connection with the expected endpoints
             Assert.NotNull(result.Workspace);
             var protocol = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["Seq::Protocol"]);
+                result.Workspace.Declarations["Seq::Protocol"]);
             var message = protocol.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlConnectionNode>()
                 .Single(c => c.ConnectionKeyword == "message");
@@ -975,7 +975,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var outgoing = result.Workspace!.Index.GetOutgoingEdges("A::Child");
+            var outgoing = result.Workspace.Index.GetOutgoingEdges("A::Child");
             Assert.Contains(outgoing,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Supertype &&
                      e.TargetQualifiedName == "A::Ancestor");
@@ -1015,7 +1015,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var outgoing = result.Workspace!.Index.GetOutgoingEdges("Car::engine");
+            var outgoing = result.Workspace.Index.GetOutgoingEdges("Car::engine");
             Assert.Contains(outgoing,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Typing &&
                      e.TargetQualifiedName == "Engine");
@@ -1060,7 +1060,7 @@ public sealed class WorkspaceLoaderTests
             Assert.Contains(result.Diagnostics,
                 d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
                      d.Message.Contains("NonExistentType"));
-            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Typing &&
                      e.TargetQualifiedName == "NonExistentType");
         }
@@ -1097,7 +1097,7 @@ public sealed class WorkspaceLoaderTests
             // Assert
             Assert.NotNull(result.Workspace);
             var smallVehicle = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["SmallVehicle"]);
+                result.Workspace.Declarations["SmallVehicle"]);
             var smallEng = smallVehicle.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
                 .First(f => f.Name == "smallEng");
@@ -1137,7 +1137,7 @@ public sealed class WorkspaceLoaderTests
             // Assert
             Assert.NotNull(result.Workspace);
             var smallVehicle = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["SmallVehicle"]);
+                result.Workspace.Declarations["SmallVehicle"]);
             var smallEng = smallVehicle.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
                 .First(f => f.Name == "smallEng");
@@ -1177,7 +1177,7 @@ public sealed class WorkspaceLoaderTests
             // Assert
             Assert.NotNull(result.Workspace);
             var car = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["Car"]);
+                result.Workspace.Declarations["Car"]);
             var carMass = car.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
                 .First(f => f.Name == "carMass");
@@ -1215,7 +1215,7 @@ public sealed class WorkspaceLoaderTests
             // Assert
             Assert.NotNull(result.Workspace);
             var vehicle = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["Vehicle"]);
+                result.Workspace.Declarations["Vehicle"]);
             var mass = vehicle.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
                 .First(f => f.Name == "mass");
@@ -1260,7 +1260,7 @@ public sealed class WorkspaceLoaderTests
             // Assert
             Assert.NotNull(result.Workspace);
             var vehicle = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["Vehicle"]);
+                result.Workspace.Declarations["Vehicle"]);
             var implicitlyNamedPort = vehicle.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
                 .First(f => f.RedefinedFeatureName == "tank.fuelTankPort");
@@ -1298,7 +1298,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var outgoing = result.Workspace!.Index.GetOutgoingEdges("SmallVehicle::smallEng");
+            var outgoing = result.Workspace.Index.GetOutgoingEdges("SmallVehicle::smallEng");
             Assert.Contains(outgoing,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Redefinition &&
                      e.TargetQualifiedName == "eng");
@@ -1343,7 +1343,7 @@ public sealed class WorkspaceLoaderTests
             Assert.Contains(result.Diagnostics,
                 d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
                      d.Message.Contains("NonExistentFeature"));
-            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Redefinition &&
                      e.TargetQualifiedName == "NonExistentFeature");
         }
@@ -1388,7 +1388,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Redefinition &&
                      e.SourceQualifiedName == "SmallVehicle::smallEng" &&
                      e.TargetQualifiedName == "Vehicle::eng");
@@ -1516,7 +1516,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Redefinition &&
                      e.SourceQualifiedName == "Mid::value" &&
                      e.TargetQualifiedName == "GrandParent::feat");
@@ -1564,7 +1564,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Redefinition &&
                      e.SourceQualifiedName == "Mid::value" &&
                      e.TargetQualifiedName == "GrandParent::feat");
@@ -1608,7 +1608,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var thingNode = result.Workspace!.Declarations["Thing"];
+            var thingNode = result.Workspace.Declarations["Thing"];
             var xNode = Assert.Single(thingNode.Children, c => c.Name == "x");
             Assert.Contains("y", xNode.SupertypeNames);
             Assert.Contains(result.Workspace.Index.AllEdges,
@@ -1648,7 +1648,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var incoming = result.Workspace!.Index.GetIncomingEdges("Other");
+            var incoming = result.Workspace.Index.GetIncomingEdges("Other");
             Assert.Contains(incoming, e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Import);
         }
         finally
@@ -1681,7 +1681,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var incoming = result.Workspace!.Index.GetIncomingEdges("Other::Thing");
+            var incoming = result.Workspace.Index.GetIncomingEdges("Other::Thing");
             Assert.Contains(incoming, e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Import);
         }
         finally
@@ -1715,7 +1715,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert — the edge's target must be the fully-qualified "A::Foo", not raw "Foo"
             Assert.NotNull(result.Workspace);
-            var outgoing = result.Workspace!.Index.GetOutgoingEdges("A::Baz");
+            var outgoing = result.Workspace.Index.GetOutgoingEdges("A::Baz");
             Assert.Contains(outgoing,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Supertype &&
                      e.TargetQualifiedName == "A::Foo");
@@ -1791,7 +1791,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var index = result.Workspace!.Index;
+            var index = result.Workspace.Index;
 
             // Supertype edge, both directions
             Assert.Contains(index.GetOutgoingEdges("App::Gadget"),
@@ -1848,7 +1848,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Satisfy &&
                      e.SourceQualifiedName == "P::subj" &&
                      e.TargetQualifiedName == "P::req");
@@ -1887,7 +1887,7 @@ public sealed class WorkspaceLoaderTests
             Assert.Contains(result.Diagnostics,
                 d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
                      d.Message.Contains("nonExistentSubject"));
-            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Satisfy);
         }
         finally
@@ -1924,7 +1924,7 @@ public sealed class WorkspaceLoaderTests
             Assert.Contains(result.Diagnostics,
                 d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
                      d.Message.Contains("nonExistentReq"));
-            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Satisfy);
         }
         finally
@@ -1966,7 +1966,7 @@ public sealed class WorkspaceLoaderTests
             Assert.Contains(result.Diagnostics,
                 d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
                      d.Message.Contains("container.sub"));
-            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Satisfy);
         }
         finally
@@ -2004,7 +2004,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Verify &&
                      e.SourceQualifiedName == "P::outer" &&
                      e.TargetQualifiedName == "P::req");
@@ -2042,7 +2042,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Verify &&
                      e.SourceQualifiedName == "P::outer" &&
                      e.TargetQualifiedName == "P::R");
@@ -2084,7 +2084,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Verify &&
                      e.SourceQualifiedName == "P::C" &&
                      e.TargetQualifiedName == "P::R");
@@ -2125,7 +2125,7 @@ public sealed class WorkspaceLoaderTests
             Assert.Contains(result.Diagnostics,
                 d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
                      d.Message.Contains("nonExistentReq"));
-            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Verify);
         }
         finally
@@ -2161,7 +2161,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Allocate &&
                      e.SourceQualifiedName == "P::a" &&
                      e.TargetQualifiedName == "P::b");
@@ -2200,7 +2200,7 @@ public sealed class WorkspaceLoaderTests
             Assert.Contains(result.Diagnostics,
                 d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
                      d.Message.Contains("nonExistentEnd"));
-            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Allocate);
         }
         finally
@@ -2235,7 +2235,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Dependency &&
                      e.SourceQualifiedName == "P::a" &&
                      e.TargetQualifiedName == "P::b");
@@ -2274,7 +2274,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var edges = result.Workspace!.Index.AllEdges
+            var edges = result.Workspace.Index.AllEdges
                 .Where(e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Dependency)
                 .Select(e => (e.SourceQualifiedName, e.TargetQualifiedName))
                 .ToList();
@@ -2318,7 +2318,7 @@ public sealed class WorkspaceLoaderTests
             Assert.Contains(result.Diagnostics,
                 d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
                      d.Message.Contains("nonExistentEnd"));
-            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Dependency);
         }
         finally
@@ -2361,7 +2361,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Binding &&
                      e.SourceQualifiedName == "P::Q::a::x" &&
                      e.TargetQualifiedName == "P::Q::b::y");
@@ -2418,7 +2418,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Binding &&
                      e.SourceQualifiedName == "P::Vehicle::tank::fuelTankPort::fuelSupply" &&
                      e.TargetQualifiedName == "P::Vehicle::pump::pumpOut");
@@ -2462,7 +2462,7 @@ public sealed class WorkspaceLoaderTests
             Assert.Contains(result.Diagnostics,
                 d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
                      d.Message.Contains("nonExistentEnd"));
-            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Binding);
         }
         finally
@@ -2509,7 +2509,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var index = result.Workspace!.Index;
+            var index = result.Workspace.Index;
 
             // Satisfy edge, both directions
             Assert.Contains(index.GetOutgoingEdges("P::subj"),
@@ -2568,7 +2568,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
                      e.SourceQualifiedName == "P::a" &&
                      e.TargetQualifiedName == "P::b");
@@ -2613,7 +2613,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
                      e.SourceQualifiedName == "P::vehicle::engine::fuelPort" &&
                      e.TargetQualifiedName == "P::vehicle::transmission::input");
@@ -2658,7 +2658,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
                      e.SourceQualifiedName == "P::vehicle::engine::fuelCmdPort" &&
                      e.TargetQualifiedName == "P::vehicle::transmission::input");
@@ -2703,7 +2703,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
                      e.SourceQualifiedName == "P::rearAxle::leftHalfAxle::axleToWheelPort" &&
                      e.TargetQualifiedName == "P::leftWheel::wheelToAxlePort");
@@ -2747,7 +2747,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
                      e.SourceQualifiedName == "P::rearAxleAssembly::shaftPort" &&
                      e.TargetQualifiedName == "P::leftWheel::wheelToAxlePort");
@@ -2802,7 +2802,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
                      e.SourceQualifiedName == "P::rearAxle::leftHalfAxle::axleToWheelPort" &&
                      e.TargetQualifiedName == "P::leftWheel::wheelToAxlePort");
@@ -2852,7 +2852,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
                      e.SourceQualifiedName == "P::Drone::controller::power" &&
                      e.TargetQualifiedName == "P::Drone::battery::output");
@@ -2896,7 +2896,7 @@ public sealed class WorkspaceLoaderTests
             Assert.Contains(result.Diagnostics,
                 d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Warning &&
                      d.Message.Contains("transmission.nonExistentPort"));
-            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect);
         }
         finally
@@ -2932,7 +2932,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect &&
                      e.SourceQualifiedName == "P::a" &&
                      e.TargetQualifiedName == "P::b");
@@ -2970,7 +2970,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition &&
                      e.SourceQualifiedName == "P::Behavior::start" &&
                      e.TargetQualifiedName == "P::Behavior::off");
@@ -3015,7 +3015,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition &&
                      e.SourceQualifiedName == "P::Behavior::off" &&
                      e.TargetQualifiedName == "P::Behavior::off");
@@ -3059,7 +3059,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition);
         }
         finally
@@ -3100,11 +3100,11 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition &&
                      e.SourceQualifiedName == "P::Behavior::a" &&
                      e.TargetQualifiedName == "P::Behavior::b");
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition &&
                      e.SourceQualifiedName == "P::Behavior::a" &&
                      e.TargetQualifiedName == "P::Behavior::c");
@@ -3144,7 +3144,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition &&
                      e.SourceQualifiedName == "P::Behavior::initial" &&
                      e.TargetQualifiedName == "P::Behavior::off");
@@ -3186,7 +3186,7 @@ public sealed class WorkspaceLoaderTests
             Assert.NotNull(result.Workspace);
             Assert.DoesNotContain(result.Diagnostics,
                 d => d.Message.Contains("Unresolved reference: 'initial'", StringComparison.Ordinal));
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition &&
                      e.SourceQualifiedName == "P::Behavior::initial" &&
                      e.TargetQualifiedName == "P::Behavior::off");
@@ -3262,7 +3262,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Typing &&
                      e.SourceQualifiedName == "P::usage" &&
                      e.TargetQualifiedName == "P::X");
@@ -3306,7 +3306,7 @@ public sealed class WorkspaceLoaderTests
             Assert.NotNull(result.Workspace);
             Assert.DoesNotContain(result.Diagnostics,
                 d => d.Message.Contains("Unresolved reference: 'start'", StringComparison.Ordinal));
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition &&
                      e.SourceQualifiedName == "Actions::Action::start" &&
                      e.TargetQualifiedName == "P::usage::y");
@@ -3351,7 +3351,7 @@ public sealed class WorkspaceLoaderTests
             Assert.Same(loadTask, completed);
             var result = await loadTask;
             Assert.NotNull(result.Workspace);
-            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect);
         }
         finally
@@ -3387,7 +3387,7 @@ public sealed class WorkspaceLoaderTests
 
         // Assert
         Assert.NotNull(result.Workspace);
-        Assert.Contains(result.Workspace!.Index.AllEdges,
+        Assert.Contains(result.Workspace.Index.AllEdges,
             e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect);
     }
 
@@ -3420,7 +3420,7 @@ public sealed class WorkspaceLoaderTests
 
         // Assert
         Assert.NotNull(result.Workspace);
-        Assert.Contains(result.Workspace!.Index.AllEdges,
+        Assert.Contains(result.Workspace.Index.AllEdges,
             e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect);
     }
 
@@ -3453,7 +3453,7 @@ public sealed class WorkspaceLoaderTests
 
         // Assert
         Assert.NotNull(result.Workspace);
-        Assert.Contains(result.Workspace!.Index.AllEdges,
+        Assert.Contains(result.Workspace.Index.AllEdges,
             e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Connect);
     }
 
@@ -3485,7 +3485,7 @@ public sealed class WorkspaceLoaderTests
 
         // Assert
         Assert.NotNull(result.Workspace);
-        Assert.Contains(result.Workspace!.Index.AllEdges,
+        Assert.Contains(result.Workspace.Index.AllEdges,
             e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Transition);
     }
 
@@ -3519,7 +3519,7 @@ public sealed class WorkspaceLoaderTests
         // Assert — smoke test: at least one Satisfy edge is present (exact resolved names are not
         // pinned, since the fixture spans multiple files and packages)
         Assert.NotNull(result.Workspace);
-        Assert.Contains(result.Workspace!.Index.AllEdges,
+        Assert.Contains(result.Workspace.Index.AllEdges,
             e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Satisfy);
     }
 
@@ -3551,7 +3551,7 @@ public sealed class WorkspaceLoaderTests
 
         // Assert
         Assert.NotNull(result.Workspace);
-        Assert.Contains(result.Workspace!.Index.AllEdges,
+        Assert.Contains(result.Workspace.Index.AllEdges,
             e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Satisfy);
     }
 
@@ -3583,7 +3583,7 @@ public sealed class WorkspaceLoaderTests
 
         // Assert
         Assert.NotNull(result.Workspace);
-        Assert.Contains(result.Workspace!.Index.AllEdges,
+        Assert.Contains(result.Workspace.Index.AllEdges,
             e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Allocate);
     }
 
@@ -3617,7 +3617,7 @@ public sealed class WorkspaceLoaderTests
 
         // Assert
         Assert.NotNull(result.Workspace);
-        Assert.Contains(result.Workspace!.Index.AllEdges,
+        Assert.Contains(result.Workspace.Index.AllEdges,
             e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Verify);
     }
 
@@ -3645,7 +3645,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var package = result.Workspace!.Declarations["P"];
+            var package = result.Workspace.Declarations["P"];
             var annotation = Assert.Single(package.Annotations);
             Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlAnnotationKind.Comment, annotation.Kind);
             Assert.Equal(" a note about P ", annotation.Text);
@@ -3680,7 +3680,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var package = result.Workspace!.Declarations["P"];
+            var package = result.Workspace.Declarations["P"];
             var annotation = Assert.Single(package.Annotations);
             Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlAnnotationKind.Documentation, annotation.Kind);
             Assert.Equal(" documentation about P ", annotation.Text);
@@ -3715,7 +3715,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var package = result.Workspace!.Declarations["P"];
+            var package = result.Workspace.Declarations["P"];
             Assert.Equal(2, package.Annotations.Count);
             Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlAnnotationKind.Comment, package.Annotations[0].Kind);
             Assert.Equal(" first: a comment ", package.Annotations[0].Text);
@@ -3747,7 +3747,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var package = result.Workspace!.Declarations["P"];
+            var package = result.Workspace.Declarations["P"];
             Assert.NotNull(package.Annotations);
             Assert.Empty(package.Annotations);
         }
@@ -3781,7 +3781,7 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var package = result.Workspace!.Declarations["P"];
+            var package = result.Workspace.Declarations["P"];
             var annotation = Assert.Single(package.Annotations);
             Assert.Equal(" line one\n     * line two\n     ", annotation.Text);
         }
@@ -3819,7 +3819,7 @@ public sealed class WorkspaceLoaderTests
         // Assert — package-level doc
         Assert.NotNull(result.Workspace);
         var package = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlPackageNode>(
-            result.Workspace!.Declarations["'Documentation Example'"]);
+            result.Workspace.Declarations["'Documentation Example'"]);
         var packageDoc = Assert.Single(package.Annotations);
         Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlAnnotationKind.Documentation, packageDoc.Kind);
         Assert.Contains("This is documentation of the owning", packageDoc.Text);
@@ -3827,7 +3827,7 @@ public sealed class WorkspaceLoaderTests
 
         // Assert — part-def-level named doc
         var automobile = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-            result.Workspace!.Declarations["'Documentation Example'::Automobile"]);
+            result.Workspace.Declarations["'Documentation Example'::Automobile"]);
         var automobileDoc = Assert.Single(automobile.Annotations);
         Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlAnnotationKind.Documentation, automobileDoc.Kind);
         Assert.Equal(" This documentation of Automobile. ", automobileDoc.Text);
@@ -3863,10 +3863,10 @@ public sealed class WorkspaceLoaderTests
             // Assert
             Assert.NotNull(result.Workspace);
             var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
-                result.Workspace!.Declarations["P::V"]);
+                result.Workspace.Declarations["P::V"]);
             Assert.Equal("asTreeDiagram", view.RenderTargetName);
             Assert.Empty(result.Diagnostics);
-            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
                 e => e.SourceQualifiedName == "P::V");
         }
         finally
@@ -3903,10 +3903,10 @@ public sealed class WorkspaceLoaderTests
             // Assert
             Assert.NotNull(result.Workspace);
             var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
-                result.Workspace!.Declarations["P::V"]);
+                result.Workspace.Declarations["P::V"]);
             Assert.Equal("@SysML::PartUsage", view.FilterExpressionText);
             Assert.Empty(result.Diagnostics);
-            Assert.DoesNotContain(result.Workspace!.Index.AllEdges,
+            Assert.DoesNotContain(result.Workspace.Index.AllEdges,
                 e => e.SourceQualifiedName == "P::V");
         }
         finally
@@ -3945,9 +3945,9 @@ public sealed class WorkspaceLoaderTests
             // Assert
             Assert.NotNull(result.Workspace);
             var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
-                result.Workspace!.Declarations["P::V"]);
+                result.Workspace.Declarations["P::V"]);
             Assert.Contains("Exposed", view.GetExposedNames());
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose &&
                      e.SourceQualifiedName == "P::V" &&
                      e.TargetQualifiedName == "P::Exposed");
@@ -3993,9 +3993,9 @@ public sealed class WorkspaceLoaderTests
             // Assert
             Assert.NotNull(result.Workspace);
             var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
-                result.Workspace!.Declarations["P::V"]);
+                result.Workspace.Declarations["P::V"]);
             Assert.Contains("Exposed", view.GetExposedNames());
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose &&
                      e.SourceQualifiedName == "P::V" &&
                      e.TargetQualifiedName == "P::Exposed");
@@ -4035,9 +4035,9 @@ public sealed class WorkspaceLoaderTests
             // Assert
             Assert.NotNull(result.Workspace);
             var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
-                result.Workspace!.Declarations["P::V"]);
+                result.Workspace.Declarations["P::V"]);
             Assert.Contains("Exposed", view.GetExposedNames());
-            Assert.Contains(result.Workspace!.Index.AllEdges,
+            Assert.Contains(result.Workspace.Index.AllEdges,
                 e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose &&
                      e.SourceQualifiedName == "P::V" &&
                      e.TargetQualifiedName == "P::Exposed");
@@ -4084,9 +4084,9 @@ public sealed class WorkspaceLoaderTests
         // Assert
         Assert.NotNull(result.Workspace);
         var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
-            result.Workspace!.Declarations["'11b-Safety and Security Feaure Views'::Views::vehicleMandatorySafetyFeatureViewStandalone"]);
+            result.Workspace.Declarations["'11b-Safety and Security Feaure Views'::Views::vehicleMandatorySafetyFeatureViewStandalone"]);
         Assert.NotEmpty(view.GetExposedNames());
-        Assert.Contains(result.Workspace!.Index.AllEdges,
+        Assert.Contains(result.Workspace.Index.AllEdges,
             e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Expose &&
                  e.SourceQualifiedName == "'11b-Safety and Security Feaure Views'::Views::vehicleMandatorySafetyFeatureViewStandalone" &&
                  e.TargetQualifiedName == "'11b-Safety and Security Feaure Views'::PartsTree::vehicle");
@@ -4121,7 +4121,7 @@ public sealed class WorkspaceLoaderTests
             // Assert
             Assert.NotNull(result.Workspace);
             var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
-                result.Workspace!.Declarations["P::V"]);
+                result.Workspace.Declarations["P::V"]);
             Assert.Null(view.RenderTargetName);
             Assert.Null(view.FilterExpressionText);
             Assert.Empty(view.GetExposedNames());
@@ -4160,7 +4160,7 @@ public sealed class WorkspaceLoaderTests
 
             Assert.NotNull(result.Workspace);
             var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["AF::Flow"]);
+                result.Workspace.Declarations["AF::Flow"]);
             var actions = flow.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
                 .Count(f => f.FeatureKeyword == "action");
@@ -4210,7 +4210,7 @@ public sealed class WorkspaceLoaderTests
 
             Assert.NotNull(result.Workspace);
             var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["AF::Flow"]);
+                result.Workspace.Declarations["AF::Flow"]);
             var successions = flow.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlTransitionNode>()
                 .Where(t => t.Source == "f")
@@ -4255,7 +4255,7 @@ public sealed class WorkspaceLoaderTests
 
             Assert.NotNull(result.Workspace);
             var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["AF::Flow"]);
+                result.Workspace.Declarations["AF::Flow"]);
             Assert.Empty(flow.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlTransitionNode>());
         }
         finally
@@ -4290,7 +4290,7 @@ public sealed class WorkspaceLoaderTests
 
             Assert.NotNull(result.Workspace);
             var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["AF::Flow"]);
+                result.Workspace.Declarations["AF::Flow"]);
             var succession = flow.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlTransitionNode>()
                 .Single();
@@ -4342,7 +4342,7 @@ public sealed class WorkspaceLoaderTests
 
             Assert.NotNull(result.Workspace);
             var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["AF::Flow"]);
+                result.Workspace.Declarations["AF::Flow"]);
             var features = flow.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>().ToList();
 
             foreach (var keyword in new[] { "fork", "join", "decide", "merge" })
@@ -4391,7 +4391,7 @@ public sealed class WorkspaceLoaderTests
 
             Assert.NotNull(result.Workspace);
             var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["AF::Flow"]);
+                result.Workspace.Declarations["AF::Flow"]);
             var features = flow.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>().ToList();
 
             var fork = Assert.Single(features, f => f.FeatureKeyword == "fork" && f.Name == "f");
@@ -4403,9 +4403,9 @@ public sealed class WorkspaceLoaderTests
             // The named control nodes must actually be registered in the symbol table (this is
             // the crux of the fix: previously QualifiedName was always null, so RegisterAll never
             // registered named fork/join/merge/decide/accept/send nodes).
-            Assert.True(result.Workspace!.Declarations.TryGetValue("AF::Flow::f", out var forkSymbol));
+            Assert.True(result.Workspace.Declarations.TryGetValue("AF::Flow::f", out var forkSymbol));
             Assert.Same(fork, forkSymbol);
-            Assert.True(result.Workspace!.Declarations.TryGetValue("AF::Flow::j", out var joinSymbol));
+            Assert.True(result.Workspace.Declarations.TryGetValue("AF::Flow::j", out var joinSymbol));
             Assert.Same(join, joinSymbol);
         }
         finally
@@ -4443,7 +4443,7 @@ public sealed class WorkspaceLoaderTests
 
             Assert.NotNull(result.Workspace);
             var flow = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["AF::Flow"]);
+                result.Workspace.Declarations["AF::Flow"]);
             var successions = flow.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlTransitionNode>()
                 .Where(t => t.Source == "d")
@@ -4488,7 +4488,7 @@ public sealed class WorkspaceLoaderTests
 
             Assert.NotNull(result.Workspace);
             var color = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["E::TrafficLightColor"]);
+                result.Workspace.Declarations["E::TrafficLightColor"]);
             var values = color.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
                 .Where(f => f.FeatureKeyword == "enum value")
@@ -4529,7 +4529,7 @@ public sealed class WorkspaceLoaderTests
 
             Assert.NotNull(result.Workspace);
             var grades = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["E::GradePoints"]);
+                result.Workspace.Declarations["E::GradePoints"]);
             var values = grades.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>()
                 .Where(f => f.FeatureKeyword == "enum value")
@@ -4582,7 +4582,7 @@ public sealed class WorkspaceLoaderTests
             Assert.NotNull(result.Workspace);
 
             var massLimitation = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["R::MassLimitationRequirement"]);
+                result.Workspace.Declarations["R::MassLimitationRequirement"]);
             Assert.Contains(massLimitation.Annotations,
                 a => a.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlAnnotationKind.Documentation);
             var requireConstraint = Assert.Single(massLimitation.Children
@@ -4592,7 +4592,7 @@ public sealed class WorkspaceLoaderTests
             Assert.Contains("massReqd", requireConstraint.ExpressionText);
 
             var vehicleRequirement = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["R::VehicleMassLimitationRequirement"]);
+                result.Workspace.Declarations["R::VehicleMassLimitationRequirement"]);
             var subject = Assert.Single(vehicleRequirement.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(),
                 f => f.FeatureKeyword == "subject");
@@ -4646,7 +4646,7 @@ public sealed class WorkspaceLoaderTests
 
             Assert.NotNull(result.Workspace);
             var usage = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(
-                result.Workspace!.Declarations["R::fullVehicleMassLimit"]);
+                result.Workspace.Declarations["R::fullVehicleMassLimit"]);
 
             var subject = Assert.Single(usage.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(),
@@ -4698,7 +4698,7 @@ public sealed class WorkspaceLoaderTests
             Assert.NotNull(result.Workspace);
 
             var concernDef = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["Cn::SafetyConcern"]);
+                result.Workspace.Declarations["Cn::SafetyConcern"]);
             Assert.Equal("concern def", concernDef.DefinitionKeyword);
             var defSubject = Assert.Single(concernDef.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(),
@@ -4706,7 +4706,7 @@ public sealed class WorkspaceLoaderTests
             Assert.Equal("vehicle", defSubject.Name);
 
             var concernUsage = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(
-                result.Workspace!.Declarations["Cn::vehicleSafety"]);
+                result.Workspace.Declarations["Cn::vehicleSafety"]);
             Assert.Equal("concern", concernUsage.FeatureKeyword);
             var usageSubject = Assert.Single(concernUsage.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(),
@@ -4743,7 +4743,7 @@ public sealed class WorkspaceLoaderTests
 
             Assert.NotNull(result.Workspace);
             var constraint = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>(
-                result.Workspace!.Declarations["C::massCheck"]);
+                result.Workspace.Declarations["C::massCheck"]);
             Assert.Equal("constraint", constraint.FeatureKeyword);
             Assert.Contains("1==1", constraint.ExpressionText);
         }
@@ -4778,7 +4778,7 @@ public sealed class WorkspaceLoaderTests
 
             Assert.NotNull(result.Workspace);
             var def = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["C::MassCheck"]);
+                result.Workspace.Declarations["C::MassCheck"]);
             var expressionChild = Assert.Single(def.Children
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>());
             Assert.Equal("constraint", expressionChild.FeatureKeyword);
@@ -4818,7 +4818,7 @@ public sealed class WorkspaceLoaderTests
 
             Assert.NotNull(result.Workspace);
             var req = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["R::DriveRequirement"]);
+                result.Workspace.Declarations["R::DriveRequirement"]);
             var features = req.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>().ToList();
 
             var actor = Assert.Single(features, f => f.FeatureKeyword == "actor");
@@ -4871,7 +4871,7 @@ public sealed class WorkspaceLoaderTests
 
             Assert.NotNull(result.Workspace);
             var checkMass = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
-                result.Workspace!.Declarations["R::CheckMass"]);
+                result.Workspace.Declarations["R::CheckMass"]);
 
             // The verify member's own nested subject must not appear anywhere in CheckMass's
             // Children — neither as a direct child nor spuriously flattened into one. The
@@ -4922,7 +4922,7 @@ public sealed class WorkspaceLoaderTests
     {
         var feature = features.FirstOrDefault(f => f.Name == name);
         Assert.NotNull(feature);
-        Assert.Equal(keyword, feature!.FeatureKeyword);
+        Assert.Equal(keyword, feature.FeatureKeyword);
         Assert.Equal(typing, feature.FeatureTyping);
     }
 

@@ -31,7 +31,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(diagnostic);
         Assert.NotNull(viewNode);
-        Assert.Equal("asGeneralDiagram", viewNode!.RenderTargetName);
+        Assert.Equal("asGeneralDiagram", viewNode.RenderTargetName);
         Assert.Single(viewNode.ExposeMembers);
         Assert.Equal("P::Widget", viewNode.ExposeMembers[0].QualifiedName);
         Assert.Equal(ExposeRecursionKind.MembershipRecursive, viewNode.ExposeMembers[0].RecursionKind);
@@ -76,7 +76,7 @@ public sealed class DynamicViewSynthesizerTests
         Assert.Null(diagnostic);
         Assert.NotNull(viewNode);
 
-        var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode!);
+        var scope = ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
 
         Assert.NotNull(scope);
         Assert.True(ExposeScopeResolver.IsInSubjectScope("P::Widget", scope));
@@ -100,7 +100,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(diagnostic);
         Assert.NotNull(viewNode);
-        Assert.Equal("asGridDiagram", viewNode!.RenderTargetName);
+        Assert.Equal("asGridDiagram", viewNode.RenderTargetName);
     }
 
     /// <summary>A "browser" dynamic view targeting any resolvable non-stdlib definition succeeds.</summary>
@@ -119,7 +119,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(diagnostic);
         Assert.NotNull(viewNode);
-        Assert.Equal("asTreeDiagram", viewNode!.RenderTargetName);
+        Assert.Equal("asTreeDiagram", viewNode.RenderTargetName);
     }
 
     /// <summary>
@@ -146,7 +146,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(diagnostic);
         Assert.NotNull(viewNode);
-        Assert.Equal("asInterconnectionDiagram", viewNode!.RenderTargetName);
+        Assert.Equal("asInterconnectionDiagram", viewNode.RenderTargetName);
     }
 
     /// <summary>An "interconnection" dynamic view targeting a non-"part def" fails with a diagnostic.</summary>
@@ -165,7 +165,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(viewNode);
         Assert.NotNull(diagnostic);
-        Assert.Contains("part def", diagnostic!, StringComparison.Ordinal);
+        Assert.Contains("part def", diagnostic, StringComparison.Ordinal);
     }
 
     /// <summary>An "interconnection" dynamic view targeting a part def with no nested parts fails.</summary>
@@ -184,7 +184,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(viewNode);
         Assert.NotNull(diagnostic);
-        Assert.Contains("no nested 'part'", diagnostic!, StringComparison.Ordinal);
+        Assert.Contains("no nested 'part'", diagnostic, StringComparison.Ordinal);
     }
 
     /// <summary>A "state" dynamic view targeting a definition with a nested transition succeeds.</summary>
@@ -209,7 +209,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(diagnostic);
         Assert.NotNull(viewNode);
-        Assert.Equal("asStateTransitionDiagram", viewNode!.RenderTargetName);
+        Assert.Equal("asStateTransitionDiagram", viewNode.RenderTargetName);
     }
 
     /// <summary>A "state" dynamic view targeting a definition with no transitions fails.</summary>
@@ -228,7 +228,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(viewNode);
         Assert.NotNull(diagnostic);
-        Assert.Contains("no nested state transitions", diagnostic!, StringComparison.Ordinal);
+        Assert.Contains("no nested state transitions", diagnostic, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -260,7 +260,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(diagnostic);
         Assert.NotNull(viewNode);
-        Assert.Equal("asStateTransitionDiagram", viewNode!.RenderTargetName);
+        Assert.Equal("asStateTransitionDiagram", viewNode.RenderTargetName);
     }
 
     /// <summary>An "action" dynamic view targeting a definition with an "action" feature succeeds.</summary>
@@ -285,7 +285,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(diagnostic);
         Assert.NotNull(viewNode);
-        Assert.Equal("asActionFlowDiagram", viewNode!.RenderTargetName);
+        Assert.Equal("asActionFlowDiagram", viewNode.RenderTargetName);
     }
 
     /// <summary>An "action" dynamic view targeting a definition with a succession succeeds.</summary>
@@ -328,7 +328,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(viewNode);
         Assert.NotNull(diagnostic);
-        Assert.Contains("no successions or 'action' features", diagnostic!, StringComparison.Ordinal);
+        Assert.Contains("no successions or 'action' features", diagnostic, StringComparison.Ordinal);
     }
 
     /// <summary>A "sequence" dynamic view targeting a definition with a nested message succeeds.</summary>
@@ -353,7 +353,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(diagnostic);
         Assert.NotNull(viewNode);
-        Assert.Equal("asSequenceDiagram", viewNode!.RenderTargetName);
+        Assert.Equal("asSequenceDiagram", viewNode.RenderTargetName);
     }
 
     /// <summary>
@@ -376,7 +376,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(viewNode);
         Assert.NotNull(diagnostic);
-        Assert.Contains("no nested messages", diagnostic!, StringComparison.Ordinal);
+        Assert.Contains("no nested messages", diagnostic, StringComparison.Ordinal);
     }
 
     /// <summary>An unrecognized --view-type value fails with a diagnostic listing valid values.</summary>
@@ -395,7 +395,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(viewNode);
         Assert.NotNull(diagnostic);
-        Assert.Contains("unrecognized --view-type", diagnostic!, StringComparison.Ordinal);
+        Assert.Contains("unrecognized --view-type", diagnostic, StringComparison.Ordinal);
     }
 
     /// <summary>An unresolved --view-target fails with a diagnostic.</summary>
@@ -408,7 +408,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(viewNode);
         Assert.NotNull(diagnostic);
-        Assert.Contains("was not found", diagnostic!, StringComparison.Ordinal);
+        Assert.Contains("was not found", diagnostic, StringComparison.Ordinal);
     }
 
     /// <summary>A --view-target resolving to a view node (wrong kind) fails with a diagnostic.</summary>
@@ -427,7 +427,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(viewNode);
         Assert.NotNull(diagnostic);
-        Assert.Contains("view", diagnostic!, StringComparison.Ordinal);
+        Assert.Contains("view", diagnostic, StringComparison.Ordinal);
     }
 
     /// <summary>A --view-target resolving to a transition (wrong kind) fails with a diagnostic.</summary>
@@ -446,7 +446,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(viewNode);
         Assert.NotNull(diagnostic);
-        Assert.Contains("transition", diagnostic!, StringComparison.Ordinal);
+        Assert.Contains("transition", diagnostic, StringComparison.Ordinal);
     }
 
     /// <summary>A --view-target resolving to a standard-library element fails with a diagnostic.</summary>
@@ -466,7 +466,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(viewNode);
         Assert.NotNull(diagnostic);
-        Assert.Contains("standard-library", diagnostic!, StringComparison.Ordinal);
+        Assert.Contains("standard-library", diagnostic, StringComparison.Ordinal);
     }
 
     /// <summary>The --filter expression text is passed through unchanged to the synthesized node.</summary>
@@ -485,7 +485,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(diagnostic);
         Assert.NotNull(viewNode);
-        Assert.Equal("@Safety", viewNode!.FilterExpressionText);
+        Assert.Equal("@Safety", viewNode.FilterExpressionText);
     }
 
     /// <summary>A null --filter results in a null FilterExpressionText on the synthesized node.</summary>
@@ -504,7 +504,7 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(diagnostic);
         Assert.NotNull(viewNode);
-        Assert.Null(viewNode!.FilterExpressionText);
+        Assert.Null(viewNode.FilterExpressionText);
     }
 
     /// <summary>
@@ -527,6 +527,6 @@ public sealed class DynamicViewSynthesizerTests
 
         Assert.Null(viewNode);
         Assert.NotNull(diagnostic);
-        Assert.Contains("already exists", diagnostic!, StringComparison.Ordinal);
+        Assert.Contains("already exists", diagnostic, StringComparison.Ordinal);
     }
 }

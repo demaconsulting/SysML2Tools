@@ -44,8 +44,8 @@ public sealed class AstBuilderMetadataTests
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             Assert.NotNull(result.Workspace);
-            Assert.True(result.Workspace!.Declarations.TryGetValue("P::Engine", out var engine));
-            var metadata = Assert.Single(engine!.Children.OfType<SysmlMetadataNode>());
+            Assert.True(result.Workspace.Declarations.TryGetValue("P::Engine", out var engine));
+            var metadata = Assert.Single(engine.Children.OfType<SysmlMetadataNode>());
             Assert.Equal("Safety", metadata.TypeReference);
             Assert.Empty(metadata.Attributes);
         }
@@ -86,8 +86,8 @@ public sealed class AstBuilderMetadataTests
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             Assert.NotNull(result.Workspace);
-            Assert.True(result.Workspace!.Declarations.TryGetValue("P::Engine", out var engine));
-            var metadata = Assert.Single(engine!.Children.OfType<SysmlMetadataNode>());
+            Assert.True(result.Workspace.Declarations.TryGetValue("P::Engine", out var engine));
+            var metadata = Assert.Single(engine.Children.OfType<SysmlMetadataNode>());
             var attribute = Assert.Single(metadata.Attributes);
             Assert.Equal("isMandatory", attribute.Name);
             Assert.Equal(MetadataAttributeValueKind.Boolean, attribute.Kind);
@@ -129,8 +129,8 @@ public sealed class AstBuilderMetadataTests
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             Assert.NotNull(result.Workspace);
-            Assert.True(result.Workspace!.Declarations.TryGetValue("P::Engine", out var engine));
-            var metadata = Assert.Single(engine!.Children.OfType<SysmlMetadataNode>());
+            Assert.True(result.Workspace.Declarations.TryGetValue("P::Engine", out var engine));
+            var metadata = Assert.Single(engine.Children.OfType<SysmlMetadataNode>());
             var edge = Assert.Single(metadata.ResolvedEdges);
             Assert.Equal(SysmlEdgeKind.MetadataType, edge.Kind);
             Assert.Equal("P::Safety", edge.TargetQualifiedName);
@@ -212,7 +212,7 @@ public sealed class AstBuilderMetadataTests
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             Assert.NotNull(result.Workspace);
-            Assert.True(result.Workspace!.Declarations.TryGetValue("P::V", out var view));
+            Assert.True(result.Workspace.Declarations.TryGetValue("P::V", out var view));
             var viewNode = Assert.IsType<SysmlViewNode>(view);
             var member = Assert.Single(viewNode.ExposeMembers);
             Assert.Equal("P", member.QualifiedName);
@@ -264,7 +264,7 @@ public sealed class AstBuilderMetadataTests
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             Assert.NotNull(result.Workspace);
-            Assert.True(result.Workspace!.Declarations.TryGetValue("P::V", out var view));
+            Assert.True(result.Workspace.Declarations.TryGetValue("P::V", out var view));
             var viewNode = Assert.IsType<SysmlViewNode>(view);
 
             Assert.Equal(2, viewNode.ExposeMembers.Count);
@@ -316,7 +316,7 @@ public sealed class AstBuilderMetadataTests
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             Assert.NotNull(result.Workspace);
-            Assert.True(result.Workspace!.Declarations.TryGetValue("P::V", out var view));
+            Assert.True(result.Workspace.Declarations.TryGetValue("P::V", out var view));
             var viewNode = Assert.IsType<SysmlViewNode>(view);
             var member = Assert.Single(viewNode.ExposeMembers);
             Assert.Equal("Engine", member.QualifiedName);
@@ -357,7 +357,7 @@ public sealed class AstBuilderMetadataTests
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             Assert.NotNull(result.Workspace);
-            Assert.True(result.Workspace!.Declarations.TryGetValue("P::V", out var view));
+            Assert.True(result.Workspace.Declarations.TryGetValue("P::V", out var view));
             var viewNode = Assert.IsType<SysmlViewNode>(view);
             var member = Assert.Single(viewNode.ExposeMembers);
             Assert.Equal("Engine", member.QualifiedName);
@@ -396,7 +396,7 @@ public sealed class AstBuilderMetadataTests
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             Assert.NotNull(result.Workspace);
-            Assert.True(result.Workspace!.Declarations.TryGetValue("P::V", out var view));
+            Assert.True(result.Workspace.Declarations.TryGetValue("P::V", out var view));
             var viewNode = Assert.IsType<SysmlViewNode>(view);
             var member = Assert.Single(viewNode.ExposeMembers);
             Assert.Equal("P", member.QualifiedName);
@@ -435,7 +435,7 @@ public sealed class AstBuilderMetadataTests
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
 
             Assert.NotNull(result.Workspace);
-            Assert.True(result.Workspace!.Declarations.TryGetValue("P::V", out var view));
+            Assert.True(result.Workspace.Declarations.TryGetValue("P::V", out var view));
             var viewNode = Assert.IsType<SysmlViewNode>(view);
             var member = Assert.Single(viewNode.ExposeMembers);
             Assert.Equal("P", member.QualifiedName);

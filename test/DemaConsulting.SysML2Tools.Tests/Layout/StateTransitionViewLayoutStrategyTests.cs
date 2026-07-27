@@ -177,7 +177,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
         var transitionLine = layout.Nodes.OfType<LayoutLine>()
             .FirstOrDefault(l => l.MidpointLabel == "[g]");
         Assert.NotNull(transitionLine);
-        Assert.Equal(EndMarkerStyle.OpenChevron, transitionLine!.TargetEnd);
+        Assert.Equal(EndMarkerStyle.OpenChevron, transitionLine.TargetEnd);
     }
 
     /// <summary>
