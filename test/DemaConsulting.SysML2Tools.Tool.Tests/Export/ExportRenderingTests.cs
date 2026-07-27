@@ -62,7 +62,7 @@ public class ExportRenderingTests
 
         var deserialized = JsonSerializer.Deserialize(json, ExportResultSerializerContext.Default.ExportResult);
         Assert.NotNull(deserialized);
-        var roundTripped = Assert.IsType<SysmlDefinitionNode>(deserialized!.Declarations["Model::Wheel"]);
+        var roundTripped = Assert.IsType<SysmlDefinitionNode>(deserialized.Declarations["Model::Wheel"]);
         Assert.Equal("part def", roundTripped.DefinitionKeyword);
     }
 
@@ -116,7 +116,7 @@ public class ExportRenderingTests
         var deserialized = JsonSerializer.Deserialize(json, ExportResultSerializerContext.Default.ExportResult);
 
         Assert.NotNull(deserialized);
-        var roundTripped = Assert.Single(deserialized!.Edges);
+        var roundTripped = Assert.Single(deserialized.Edges);
         Assert.Equal(kind, roundTripped.Kind);
         Assert.Equal("Model::A", roundTripped.SourceQualifiedName);
         Assert.Equal("Model::B", roundTripped.TargetQualifiedName);
@@ -212,7 +212,7 @@ public class ExportRenderingTests
 
         var fixtureRoot = FindSysMlModelsRoot();
         Assert.NotNull(fixtureRoot);
-        var fixtureFile = Path.Combine(fixtureRoot!, "OMG", "examples", "VehicleExample", "VehicleDefinitions.sysml");
+        var fixtureFile = Path.Combine(fixtureRoot, "OMG", "examples", "VehicleExample", "VehicleDefinitions.sysml");
         Assert.True(File.Exists(fixtureFile), $"Could not find fixture file at {fixtureFile}");
 
         // --- JSON, default (stdlib excluded) ---
@@ -287,7 +287,7 @@ public class ExportRenderingTests
 
         var fixtureRoot = FindSysMlModelsRoot();
         Assert.NotNull(fixtureRoot);
-        var fixtureFile = Path.Combine(fixtureRoot!, "OMG", "examples", "VehicleExample", "VehicleDefinitions.sysml");
+        var fixtureFile = Path.Combine(fixtureRoot, "OMG", "examples", "VehicleExample", "VehicleDefinitions.sysml");
         Assert.True(File.Exists(fixtureFile), $"Could not find fixture file at {fixtureFile}");
 
         // --- Unscoped baseline, for a size comparison below ---
@@ -335,7 +335,7 @@ public class ExportRenderingTests
             var target = edge.GetProperty("TargetQualifiedName").GetString();
             Assert.NotNull(target);
             Assert.True(
-                target == "VehicleDefinitions::Vehicle" || target!.StartsWith("VehicleDefinitions::Vehicle::", StringComparison.Ordinal),
+                target == "VehicleDefinitions::Vehicle" || target.StartsWith("VehicleDefinitions::Vehicle::", StringComparison.Ordinal),
                 $"Edge target '{target}' is outside the --target subtree.");
 
             var source = edge.GetProperty("SourceQualifiedName").GetString();
@@ -365,7 +365,7 @@ public class ExportRenderingTests
 
         var fixtureRoot = FindSysMlModelsRoot();
         Assert.NotNull(fixtureRoot);
-        var fixtureFile = Path.Combine(fixtureRoot!, "OMG", "examples", "VehicleExample", "VehicleDefinitions.sysml");
+        var fixtureFile = Path.Combine(fixtureRoot, "OMG", "examples", "VehicleExample", "VehicleDefinitions.sysml");
         Assert.True(File.Exists(fixtureFile), $"Could not find fixture file at {fixtureFile}");
 
         var tempRoot = Path.Combine(Path.GetTempPath(), "sysml2tools-export-test-" + Guid.NewGuid().ToString("N"));
@@ -402,7 +402,7 @@ public class ExportRenderingTests
 
         var fixtureRoot = FindSysMlModelsRoot();
         Assert.NotNull(fixtureRoot);
-        var fixtureFile = Path.Combine(fixtureRoot!, "OMG", "examples", "VehicleExample", "VehicleDefinitions.sysml");
+        var fixtureFile = Path.Combine(fixtureRoot, "OMG", "examples", "VehicleExample", "VehicleDefinitions.sysml");
         Assert.True(File.Exists(fixtureFile), $"Could not find fixture file at {fixtureFile}");
 
         var tempDir = Path.Combine(Path.GetTempPath(), "sysml2tools-export-test-" + Guid.NewGuid().ToString("N"));

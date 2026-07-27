@@ -23,7 +23,7 @@ public sealed class FilterExpressionEvaluatorTests
             var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
             Assert.NotNull(result.Workspace);
-            return result.Workspace!;
+            return result.Workspace;
         }
         finally
         {

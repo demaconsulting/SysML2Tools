@@ -484,8 +484,8 @@ public sealed class FilterExpressionParserTests
         var first = FilterExpressionParser.Parse(expressionText);
         Assert.NotNull(first.Expression);
 
-        var printed = first.Expression!.ToString();
-        var second = FilterExpressionParser.Parse(printed!);
+        var printed = first.Expression.ToString();
+        var second = FilterExpressionParser.Parse(printed);
 
         Assert.NotNull(second.Expression);
         Assert.Equal(first.Expression, second.Expression);

@@ -460,7 +460,7 @@ public class QueryVerbsTests
             json[jsonStart..], QueryResultSerializerContext.Default.QueryResult);
 
         Assert.NotNull(deserialized);
-        Assert.Contains("Metadata SoftwareInfo.isCritical: true", deserialized!.Summary);
+        Assert.Contains("Metadata SoftwareInfo.isCritical: true", deserialized.Summary);
     }
 
     /// <summary>

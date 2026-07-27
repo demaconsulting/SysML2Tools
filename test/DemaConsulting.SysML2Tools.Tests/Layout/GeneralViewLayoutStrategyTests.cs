@@ -164,7 +164,7 @@ public sealed class GeneralViewLayoutStrategyTests
         // Assert: a folder-shaped box exists carrying the package keyword
         var folder = CollectBoxes(layout.Nodes).FirstOrDefault(b => b.Shape == BoxShape.Folder);
         Assert.NotNull(folder);
-        Assert.Equal("package", folder!.Keyword);
+        Assert.Equal("package", folder.Keyword);
         Assert.Equal("Sys", folder.Label);
     }
 
@@ -431,7 +431,7 @@ public sealed class GeneralViewLayoutStrategyTests
         // Assert: at least one orthogonal line with an open arrowhead at the supertype end
         var line = CollectLines(layout.Nodes).FirstOrDefault();
         Assert.NotNull(line);
-        Assert.Equal(EndMarkerStyle.HollowTriangle, line!.TargetEnd);
+        Assert.Equal(EndMarkerStyle.HollowTriangle, line.TargetEnd);
         Assert.True(line.Waypoints.Count >= 2);
     }
 
@@ -705,7 +705,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var typingEdge = CollectLines(layout.Nodes)
             .FirstOrDefault(l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.OpenChevron);
         Assert.NotNull(typingEdge);
-        Assert.True(typingEdge!.Waypoints.Count >= 2);
+        Assert.True(typingEdge.Waypoints.Count >= 2);
 
         // Assert: attribute typing is a dependency, not composition — no membership diamond is drawn.
         var diamondEdge = CollectLines(layout.Nodes)
@@ -762,7 +762,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var redefinitionEdge = CollectLines(layout.Nodes)
             .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
         Assert.NotNull(redefinitionEdge);
-        Assert.Equal(LineStyle.Solid, redefinitionEdge!.LineStyle);
+        Assert.Equal(LineStyle.Solid, redefinitionEdge.LineStyle);
     }
 
     /// <summary>
@@ -1700,7 +1700,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
         var result = await WorkspaceLoader.LoadAsync([modelPath], stdlibTable);
         Assert.NotNull(result.Workspace);
-        var workspace = result.Workspace!;
+        var workspace = result.Workspace;
 
         const string viewQualifiedName = "QuadcopterDrone::DroneGeneralView";
         var viewNode = Assert.IsType<SysmlViewNode>(workspace.Declarations[viewQualifiedName]);
@@ -1801,7 +1801,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
         var result = await WorkspaceLoader.LoadAsync([fixturePath], stdlibTable);
         Assert.NotNull(result.Workspace);
-        var workspace = result.Workspace!;
+        var workspace = result.Workspace;
 
         const string viewQualifiedName =
             "'11b-Safety and Security Feaure Views'::Views::vehicleMandatorySafetyFeatureViewStandalone";
@@ -2039,7 +2039,7 @@ public sealed class GeneralViewLayoutStrategyTests
             var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
             Assert.NotNull(result.Workspace);
-            var workspace = result.Workspace!;
+            var workspace = result.Workspace;
 
             var strategy = new GeneralViewLayoutStrategy();
             var options = new RenderOptions(Themes.Light);

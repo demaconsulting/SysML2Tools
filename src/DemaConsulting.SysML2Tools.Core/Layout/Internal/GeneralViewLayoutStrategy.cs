@@ -2,6 +2,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+using System.Diagnostics.CodeAnalysis;
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.Rendering.Layout;
@@ -1076,7 +1077,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         string reference,
         HashSet<string> byQualified,
         Dictionary<string, string> bySimple,
-        out string qualified)
+        [MaybeNullWhen(false)] out string qualified)
     {
         if (byQualified.Contains(reference))
         {
@@ -1086,7 +1087,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         var sep = reference.LastIndexOf("::", StringComparison.Ordinal);
         var simple = sep >= 0 ? reference[(sep + 2)..] : reference;
-        return bySimple.TryGetValue(simple, out qualified!);
+        return bySimple.TryGetValue(simple, out qualified);
     }
 
     /// <summary>

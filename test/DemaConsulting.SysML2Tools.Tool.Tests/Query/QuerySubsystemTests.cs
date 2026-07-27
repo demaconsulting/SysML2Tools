@@ -481,7 +481,7 @@ public class QuerySubsystemTests
             json[json.IndexOf('{')..], QueryResultSerializerContext.Default.QueryResult);
 
         Assert.NotNull(deserialized);
-        Assert.Equal(2, deserialized!.Entries.Count);
+        Assert.Equal(2, deserialized.Entries.Count);
         Assert.Equal("Model::Beta", deserialized.Entries[0].QualifiedName);
         Assert.Equal("Model::Zeta", deserialized.Entries[1].QualifiedName);
 

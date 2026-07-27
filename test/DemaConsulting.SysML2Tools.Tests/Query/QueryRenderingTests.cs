@@ -314,7 +314,7 @@ public class QueryRenderingTests
         var deserialized = JsonSerializer.Deserialize(json, QueryResultSerializerContext.Default.QueryResult);
 
         Assert.NotNull(deserialized);
-        Assert.Equal("uses", deserialized!.Verb);
+        Assert.Equal("uses", deserialized.Verb);
         Assert.Equal("Model::Foo", deserialized.Element);
         Assert.Single(deserialized.Entries);
         Assert.Equal("Model::Bar", deserialized.Entries[0].QualifiedName);
@@ -341,7 +341,7 @@ public class QueryRenderingTests
         var deserialized = JsonSerializer.Deserialize(json, QueryResultSerializerContext.Default.QueryResult);
 
         Assert.NotNull(deserialized);
-        Assert.Equal("Model::Apple", deserialized!.Entries[0].QualifiedName);
+        Assert.Equal("Model::Apple", deserialized.Entries[0].QualifiedName);
         Assert.Equal("Model::Zebra", deserialized.Entries[1].QualifiedName);
     }
 
@@ -368,7 +368,7 @@ public class QueryRenderingTests
 
         Assert.NotNull(deserialized);
         Assert.Contains("\"Direction\"", json);
-        Assert.Equal(QueryEntryDirection.Incoming, deserialized!.Entries[0].Direction);
+        Assert.Equal(QueryEntryDirection.Incoming, deserialized.Entries[0].Direction);
         Assert.Equal(QueryEntryDirection.Outgoing, deserialized.Entries[1].Direction);
     }
 
@@ -402,7 +402,7 @@ public class QueryRenderingTests
         var deserialized = JsonSerializer.Deserialize(json, QueryResultSerializerContext.Default.QueryResult);
 
         Assert.NotNull(deserialized);
-        Assert.Equal("Model::Car", deserialized!.Element);
+        Assert.Equal("Model::Car", deserialized.Element);
         Assert.Contains(deserialized.Entries, e => e.QualifiedName == "Model::Vehicle");
         Assert.Contains(deserialized.Entries, e => e.QualifiedName == "Model::Truck");
         Assert.Contains("Model::Vehicle", json);

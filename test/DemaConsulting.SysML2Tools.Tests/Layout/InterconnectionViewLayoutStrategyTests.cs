@@ -216,7 +216,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
             Assert.NotNull(owningBox);
             Assert.True(
-                port.CentreY >= owningBox!.Y + titleArea,
+                port.CentreY >= owningBox.Y + titleArea,
                 $"port at ({port.CentreX}, {port.CentreY}) overlaps the title area of its box (Y={owningBox.Y}, titleArea={titleArea})");
         }
     }
