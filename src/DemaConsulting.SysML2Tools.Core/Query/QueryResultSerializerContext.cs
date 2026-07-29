@@ -13,6 +13,7 @@ namespace DemaConsulting.SysML2Tools.Query;
 ///     project.
 /// </summary>
 [JsonSerializable(typeof(QueryResult))]
+[JsonSerializable(typeof(QueryResultEntry))]
 [JsonSourceGenerationOptions(WriteIndented = true)]
 public partial class QueryResultSerializerContext : JsonSerializerContext
 {

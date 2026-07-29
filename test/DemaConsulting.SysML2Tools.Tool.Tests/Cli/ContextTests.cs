@@ -880,6 +880,22 @@ public class ContextTests
     }
 
     /// <summary>
+    ///     Test creating a context with the query command and --include-connections sets
+    ///     Query.IncludeConnections to true, proving the Tool CLI forwards the flag to Core's
+    ///     parser without any Tool-side parsing of its own.
+    /// </summary>
+    [Fact]
+    public void Context_Create_QueryCommand_WithIncludeConnectionsFlag_SetsIncludeConnectionsTrue()
+    {
+        // Act: execute the operation being tested
+        using var context = Context.Create(["query", "impact", "--include-connections"]);
+
+        // Assert: verify expected behavior
+        Assert.NotNull(context.Query);
+        Assert.True(context.Query.IncludeConnections);
+    }
+
+    /// <summary>
     ///     Test creating a context with the query command and --format markdown sets
     ///     Query.Format independently of the render command's --format (context.Render is null
     ///     for a query invocation, so there is no shared field to disturb).

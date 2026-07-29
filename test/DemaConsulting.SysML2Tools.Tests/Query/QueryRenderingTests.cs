@@ -4,6 +4,7 @@
 
 using System.Text.Json;
 using DemaConsulting.SysML2Tools.Query;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 
 namespace DemaConsulting.SysML2Tools.Tests.Query;
 
@@ -428,5 +429,96 @@ public class QueryRenderingTests
         var json = QueryResultRenderer.RenderJson(result);
 
         Assert.DoesNotContain("Direction", json);
+    }
+
+    /// <summary>
+    ///     An entry carrying traversal metadata serializes <c>Depth</c>, <c>Relation</c>, and
+    ///     <c>ViaQualifiedName</c>, with <c>Relation</c> written as its enum member name so the
+    ///     JSON contract is immune to <c>SysmlEdgeKind</c> member reordering, and round-trips
+    ///     all three back through the source-generated serializer context.
+    /// </summary>
+    [Fact]
+    public void RenderJson_EntryWithDepthAndRelation_IncludesBothFieldsAndRoundTrips()
+    {
+        var result = new QueryResult
+        {
+            Verb = "impact",
+            Element = "Model::System::motorA",
+            Entries =
+            [
+                new QueryResultEntry
+                {
+                    QualifiedName = "Model::System::hub",
+                    Kind = "part",
+                    Detail = "depth 1",
+                    Depth = 1,
+                    Relation = SysmlEdgeKind.Connect,
+                    ViaQualifiedName = "Model::System::hub::J1"
+                }
+            ]
+        };
+
+        var json = QueryResultRenderer.RenderJson(result);
+        var deserialized = JsonSerializer.Deserialize(json, QueryResultSerializerContext.Default.QueryResult);
+
+        Assert.Contains("\"Depth\": 1", json);
+        Assert.Contains("\"Relation\": \"Connect\"", json);
+        Assert.NotNull(deserialized);
+        Assert.Equal(1, deserialized.Entries[0].Depth);
+        Assert.Equal(SysmlEdgeKind.Connect, deserialized.Entries[0].Relation);
+        Assert.Equal("Model::System::hub::J1", deserialized.Entries[0].ViaQualifiedName);
+    }
+
+    /// <summary>
+    ///     Regression test: entries produced by non-traversing verbs omit all three traversal
+    ///     metadata properties from JSON output entirely (rather than serializing them as
+    ///     <c>null</c>), so adding them does not change any existing verb's JSON output shape.
+    /// </summary>
+    [Fact]
+    public void RenderJson_EntryWithoutTraversalMetadata_OmitsDepthRelationAndVia()
+    {
+        var result = new QueryResult
+        {
+            Verb = "uses",
+            Element = "Model::Foo",
+            Entries = [new QueryResultEntry { QualifiedName = "Model::Bar", Kind = "supertype" }]
+        };
+
+        var json = QueryResultRenderer.RenderJson(result);
+
+        Assert.DoesNotContain("Depth", json);
+        Assert.DoesNotContain("Relation", json);
+        Assert.DoesNotContain("ViaQualifiedName", json);
+    }
+
+    /// <summary>
+    ///     The structured metadata is additive only: an impact entry's <c>Detail</c> text stays
+    ///     the same human-readable "depth N" string in Markdown output, so CLI output remains
+    ///     friendly and existing Markdown consumers are unaffected.
+    /// </summary>
+    [Fact]
+    public void RenderMarkdown_ImpactEntry_DetailRemainsHumanReadableDepthText()
+    {
+        var result = new QueryResult
+        {
+            Verb = "impact",
+            Element = "Model::System::motorA",
+            Entries =
+            [
+                new QueryResultEntry
+                {
+                    QualifiedName = "Model::System::hub",
+                    Kind = "part",
+                    Detail = "depth 1",
+                    Depth = 1,
+                    Relation = SysmlEdgeKind.Connect
+                }
+            ]
+        };
+
+        var lines = QueryResultRenderer.RenderMarkdown(result);
+
+        Assert.Contains(lines, l => l.Contains("| Model::System::hub | part | depth 1 |"));
+        Assert.DoesNotContain(lines, l => l.Contains("Connect"));
     }
 }

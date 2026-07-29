@@ -3,6 +3,7 @@
 // </copyright>
 
 using System.Text.Json.Serialization;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 
 namespace DemaConsulting.SysML2Tools.Query;
 
@@ -82,6 +83,38 @@ public sealed record QueryResultEntry
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public QueryEntryDirection? Direction { get; init; }
+
+    /// <summary>
+    ///     Gets the 1-based traversal depth at which this entry was reached, or
+    ///     <see langword="null"/> for verbs that do not traverse. This is the authoritative,
+    ///     machine-readable counterpart to the human-readable <c>"depth N"</c> text carried in
+    ///     <see cref="Detail"/>; API consumers shall read this property rather than parsing
+    ///     <see cref="Detail"/>. Omitted from JSON output entirely when <see langword="null"/>.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Depth { get; init; }
+
+    /// <summary>
+    ///     Gets the resolved semantic edge kind that reached this entry (e.g.
+    ///     <see cref="SysmlEdgeKind.Supertype"/> for a definitional reference,
+    ///     <see cref="SysmlEdgeKind.Connect"/> for a connector), or <see langword="null"/> when
+    ///     the entry was not produced by traversing a resolved edge. Serialized as its enum
+    ///     member name (e.g. <c>"Connect"</c>) so the JSON contract is immune to member
+    ///     reordering, and omitted from JSON output entirely when <see langword="null"/>.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(JsonStringEnumConverter<SysmlEdgeKind>))]
+    public SysmlEdgeKind? Relation { get; init; }
+
+    /// <summary>
+    ///     Gets the qualified name of the actual far endpoint that attributed this entry to
+    ///     <see cref="QualifiedName"/> — for connection roll-up, the nested port the connector
+    ///     actually reached, whose nearest owning declaration is reported as
+    ///     <see cref="QualifiedName"/>. <see langword="null"/> when no roll-up occurred.
+    ///     Omitted from JSON output entirely when <see langword="null"/>.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ViaQualifiedName { get; init; }
 }
 
 /// <summary>

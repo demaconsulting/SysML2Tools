@@ -167,6 +167,21 @@ sections:
           - QuerySubsystem_QueryVerbHelp_MentionsExampleInvocationAndSchemaHints
           - QuerySubsystem_QueryHelp_NoVerb_MentionsTypicalWorkflow
 
+      - id: SysML2Tools-Tool-Query-IncludeConnections
+        title: >-
+          The query command shall accept the `--include-connections` flag, forwarding it to
+          Core's `QueryOptions.IncludeConnections`, and shall document it in both general help
+          and `impact` verb help through culture-aware resx text.
+        justification: |
+          Connection-aware impact analysis changes the answer the `impact` verb gives, so it
+          must be an explicit, discoverable user choice rather than a silent default. Because
+          the Tool's CLI parser forwards every non-`--output` token to Core's parser unchanged,
+          the flag needs no Tool-side parsing — only help text, which must stay in lockstep with
+          the grammar Core actually accepts.
+        tests:
+          - Context_Create_QueryCommand_WithIncludeConnectionsFlag_SetsIncludeConnectionsTrue
+          - QuerySubsystem_ImpactVerbHelp_MentionsIncludeConnectionsOption
+
       - id: SysML2Tools-Tool-Query-OutputFile
         title: >-
           The query command shall write its rendered document to the file path supplied via

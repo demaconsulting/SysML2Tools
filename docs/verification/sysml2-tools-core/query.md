@@ -4,7 +4,8 @@
 
 The Query subsystem is verified by direct tests in
 `test/DemaConsulting.SysML2Tools.Tests/Query/QueryOmgFixtureTests.cs`,
-`QueryRenderingTests.cs`, and `QueryResultExporterTests.cs`, plus dedicated unit tests for the
+`QueryRenderingTests.cs`, `QueryEngineImpactTests.cs`, and `QueryResultExporterTests.cs`, plus
+dedicated unit tests for the
 `QualifiedNameShortener` helper in
 `test/DemaConsulting.SysML2Tools.Tests/Utilities/QualifiedNameShortenerTests.cs`. These tests
 call `QueryEngine`, `QueryResultRenderer`, `QueryResultExporter`, and `QualifiedNameShortener`
@@ -35,7 +36,8 @@ scenarios listed under "Test Scenarios (Tool Test Project)" below run via `dotne
 
 ### Acceptance Criteria
 
-- All `QueryOmgFixtureTests`, `QueryRenderingTests`, `QueryResultExporterTests`, and
+- All `QueryOmgFixtureTests`, `QueryRenderingTests`, `QueryEngineImpactTests`,
+  `QueryResultExporterTests`, and
   `QualifiedNameShortenerTests` pass with zero failures across all three target frameworks.
 - The `uses`, `used-by`, `dependencies`, `impact`, `interface`, `list`, `find`, and stdlib-
   filtering behaviors are proven at the `QueryEngine`/`QueryOptions` level by the
@@ -62,6 +64,27 @@ scenarios listed under "Test Scenarios (Tool Test Project)" below run via `dotne
   `describe`), falling back to a generic `**Entries**` / `_No entries._` label for any
   unrecognized verb. The label is always plain bold text, never an ATX heading, so the report
   never branches into a Markdown sub-section regardless of the caller's requested heading depth.
+- `impact` without `IncludeConnections` reports exactly the reference-only result it reported
+  before connection-aware impact existed, including for a subject whose only relationship to
+  the rest of the model is a connector.
+- `impact` with `IncludeConnections` reaches the part usage on the far side of a connector, from
+  either end of that connector, proving the traversal is undirected rather than reverse-only.
+- Connector endpoints that are nested ports are attributed to their nearest owning part usage,
+  with the raw far endpoint preserved in the entry's `ViaQualifiedName` and `Notes`. A far
+  endpoint that is itself a declared element is reported unchanged, with no roll-up performed
+  and `ViaQualifiedName` left null, so `impact` and `connections` agree on the same connector's
+  topology and the enclosing definition that also owns the subject is never reported in the
+  endpoint's place.
+- Connector hops are bounded to one per traversal path when no `WalkDepth` is supplied, and to
+  `WalkDepth` when it is, while reference-edge depth semantics are unchanged.
+- A cyclic connector topology terminates and reports each impacted element exactly once.
+- `Binding` connectors (`bind A = B;`) are traversed undirected exactly like `Connect`
+  connectors.
+- The public `QueryEngine.Impact`/`QueryOptions` API delivers all of the above with no CLI
+  involvement, as consumed by non-CLI clients such as SysML2Workbench.
+- Traversal-produced entries carry structured `Depth`, `Relation`, and (where roll-up occurred)
+  `ViaQualifiedName` values; JSON emits `Relation` as its enum member name, omits all three
+  when null, and `Detail` remains the same human-readable `"depth N"` text in Markdown.
 
 ### Test Scenarios
 
@@ -150,6 +173,52 @@ applies Markdown-only qualified-name shortening.
 
 **`RenderJson_NonDependenciesVerb_DirectionFieldOmittedFromOutput`**: Verifies that non-
 `dependencies` JSON omits the `Direction` property entirely when it is `null`.
+
+**`RenderJson_EntryWithDepthAndRelation_IncludesBothFieldsAndRoundTrips`**: Renders an impact
+entry carrying `Depth`, `Relation`, and `ViaQualifiedName`; verifies that JSON contains
+`"Depth": 1` and `"Relation": "Connect"` (the enum member *name*, not its numeric value) and
+that all three values round-trip back through `QueryResultSerializerContext`, which also proves
+`JsonStringEnumConverter<SysmlEdgeKind>` is compatible with the source-generated context.
+
+**`RenderJson_EntryWithoutTraversalMetadata_OmitsDepthRelationAndVia`**: Verifies that an entry
+produced by a non-traversing verb omits `Depth`, `Relation`, and `ViaQualifiedName` from JSON
+entirely rather than serializing them as `null`, so no existing verb's payload shape changes.
+
+**`RenderMarkdown_ImpactEntry_DetailRemainsHumanReadableDepthText`**: Verifies that an impact
+entry carrying structured metadata still renders its `Detail` cell as the plain `depth 1` text
+and that the structured `Relation` value does not leak into Markdown output.
+
+#### QueryEngineImpactTests.cs
+
+These scenarios exercise the public Core API only — a temp-file workspace loaded through
+`WorkspaceLoader`, a hand-constructed `QueryOptions`, and a direct `QueryEngine.Impact` call —
+proving that a non-CLI client such as SysML2Workbench obtains connection-aware impact results
+and their structured metadata without any dependency on the Tool project.
+
+**`Impact_IncludeConnections_ThroughPublicApi_ReturnsConnectedPartEntries`**: Runs `Impact`
+twice over the same connected-parts fixture, once with `IncludeConnections` unset and once with
+it set; verifies the first returns no entries and the second returns the connected hub part
+usage.
+
+**`Impact_ConnectionEntry_RecordsDepthRelationAndViaQualifiedName`**: Verifies that a connection
+entry records `Depth` of 1, `Relation` of `SysmlEdgeKind.Connect`, and a `ViaQualifiedName` of
+the nested port endpoint the entry was rolled up from.
+
+**`Impact_ReferenceEntry_RecordsDepthAndReferenceRelation`**: Verifies that a reference entry
+records `Depth` of 1 and `Relation` of `SysmlEdgeKind.Supertype`, with no `ViaQualifiedName`
+since no roll-up occurred.
+
+**`Impact_IncludeConnections_DeclaredFarEndpoint_ReportsEndpointItself`**: Uses the
+declared-endpoints fixture — sibling part usages `alpha`, `beta`, and `gamma` joined by
+`connect alpha to beta;` and `bind beta = gamma;` with no ports anywhere — and queries `alpha`
+with `IncludeConnections` set; verifies the impacted entry is `Model::System::beta` itself at
+`Depth` 1 with `Relation` of `SysmlEdgeKind.Connect`, and that neither the enclosing
+`Model::System` definition nor the subject `Model::System::alpha` appears among the entries.
+
+**`Impact_ConnectionEntry_WithoutRollUp_OmitsViaQualifiedName`**: Uses the same
+declared-endpoints fixture and subject; verifies that the `Model::System::beta` entry leaves
+`ViaQualifiedName` null because no roll-up occurred, while its `Notes` still name both raw
+connector endpoints so no information is lost.
 
 **`WriteMarkdown_HappyPath_MatchesRendererOutput`**: Verifies that `WriteMarkdown` writes the
 same Markdown text produced by `QueryResultRenderer.RenderMarkdown`.
@@ -246,6 +315,52 @@ references.
 
 **`Impact_Unbounded_ReachesTransitiveClosure`**: Verifies that unbounded `QueryEngine.Impact`
 reaches the full transitive closure of incoming references without looping on cycles.
+
+The connection-aware `impact` scenarios below all use the shared `QueryTestFixtures.
+GantryConnections` fixture (a minimal reduction of the three-axis-gantry topology: two motor
+part usages, each connecting one of its nested ports to a distinct port of a shared hub part
+usage) except where a local variant is named. No motor references the other and no motor has an
+incoming reference edge, so any element reported was necessarily reached through a connector.
+
+**`Impact_IncludeConnectionsFlagAbsent_ReportsReferenceOnlyResult`**: Regression lock for
+unchanged default semantics — verifies that `impact` on a motor without the flag reports zero
+impacted elements, does not name the connected hub, and does not mention connections in its
+summary.
+
+**`Impact_IncludeConnections_ReachesConnectedSiblingPart`**: Verifies that the same query with
+`--include-connections` reaches the connected hub part usage and reports the one-hop connection
+bound in its summary.
+
+**`Impact_IncludeConnections_QueriedFromFarEndpoint_ReachesOriginatingPart`**: Undirected proof
+— verifies that querying from the hub (the endpoint named second in every connector) reaches
+both motors, the mirror image of the previous scenario.
+
+**`Impact_IncludeConnections_PortEndpoints_RollUpToOwningPartUsage`**: Verifies that the
+reported entry is the owning part usage with kind `part` (not the nested port), and that the raw
+port-to-port endpoint pair is preserved in the entry's notes.
+
+**`Impact_IncludeConnections_NoWalkDepth_BoundsConnectionHopsToOne`**: Verifies that with no
+`--walk-depth` supplied the connected hub is reached but the second motor — two connector hops
+away through the hub — is not.
+
+**`Impact_IncludeConnections_WalkDepthTwo_ReachesSecondConnectionHop`**: Verifies that
+`--walk-depth 2` raises the connector hop bound to two, reaching the second motor, and reports
+the raised bound in the summary.
+
+**`Impact_IncludeConnections_CyclicConnections_TerminatesWithoutDuplicates`**: Uses a local
+variant joining one motor and the hub with two connectors written in opposite textual order,
+with `--walk-depth 5`; verifies the query terminates and reports the hub exactly once.
+
+**`Impact_IncludeConnections_BindingEdges_AreTraversedUndirected`**: Uses a local `bind A = B;`
+variant and verifies that each bound part is reachable from the other, proving `Binding` edges
+are traversed exactly like `Connect` edges.
+
+**`Impact_IncludeConnections_DeclaredEndpointConnector_ReportsSiblingPartNotOwningDefinition`**:
+Uses the `QueryTestFixtures.DeclaredEndpointConnections` fixture, in which every connector and
+binding names a directly declared sibling part usage rather than a nested port, and queries
+`Model::System::alpha` with `--include-connections`; verifies the rendered table contains the
+`| Model::System::beta | part |` row and never the `| Model::System | part def |` row for the
+enclosing definition.
 
 **`Interface_ReportsPortsAndTypedFeatures`**: Verifies that `QueryEngine.Interface` reports a
 target definition's ports and typed features.

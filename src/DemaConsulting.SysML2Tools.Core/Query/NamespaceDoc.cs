@@ -47,6 +47,33 @@ namespace DemaConsulting.SysML2Tools.Query;
 /// QueryResultExporter.WriteMarkdown(result, "uses.md");
 /// </code>
 /// </example>
+/// <example>
+/// A non-CLI application (for example, SysML2Workbench) uses the same API without any console
+/// or file I/O, and reads the structured traversal metadata on each entry rather than parsing
+/// the human-readable <see cref="QueryResultEntry.Detail"/> text:
+/// <code>
+/// var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+/// var loadResult = await WorkspaceLoader.LoadAsync(["Model.sysml"], stdlibTable);
+/// var workspace = loadResult.Workspace!;
+///
+/// var options = new QueryOptions
+/// {
+///     Verb = QueryVerb.Impact,
+///     Element = "Model::System::motorA",
+///     IncludeConnections = true
+/// };
+/// workspace.Declarations.TryGetValue(options.Element!, out var element);
+///
+/// var result = QueryEngine.Impact(workspace, element!, options);
+/// foreach (var entry in result.Entries)
+/// {
+///     // entry.Depth            : int?           - traversal depth; never parse "depth N" from Detail
+///     // entry.Relation         : SysmlEdgeKind? - Supertype/Typing/... versus Connect/Binding
+///     // entry.ViaQualifiedName : string?        - the far port a connection entry rolled up from
+///     Console.WriteLine($"{entry.QualifiedName} {entry.Relation} @{entry.Depth} via {entry.ViaQualifiedName}");
+/// }
+/// </code>
+/// </example>
 internal static class NamespaceDoc
 {
 }

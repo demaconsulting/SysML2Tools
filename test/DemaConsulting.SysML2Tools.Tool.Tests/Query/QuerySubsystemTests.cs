@@ -432,6 +432,34 @@ public class QuerySubsystemTests
     }
 
     /// <summary>
+    ///     'query impact --help' documents the --include-connections option, keeping the Core
+    ///     parser's accepted grammar and the Tool's resx-sourced help text in lockstep.
+    /// </summary>
+    [Fact]
+    public async Task QuerySubsystem_ImpactVerbHelp_MentionsIncludeConnectionsOption()
+    {
+        // Arrange
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act
+            using var context = Context.Create(["query", "impact", "--help"]);
+            await Program.RunAsync(context);
+
+            // Assert
+            Assert.Contains("--include-connections", outWriter.ToString());
+            Assert.Equal(0, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    /// <summary>
     ///     'dependencies' end-to-end: '--depth'/'--heading' apply to its heading line exactly
     ///     like every other verb, while the bullet-prose body below is unaffected.
     /// </summary>

@@ -78,6 +78,22 @@ flowchart TD
    and `query <verb> --help`. Every printed line is sourced from `QueryStrings`, including the
    `--output` help text, the workflow note, and the per-verb example/schema-hint enrichment.
 
+#### Pass-Through Options
+
+- `QueryCliArgumentParser` pre-extracts only `--output`; every other token is forwarded verbatim
+  to Core's `QueryArgumentParser`, and `Context` stores the resulting `QueryOptions` whole.
+  Adding a new Core option therefore requires no parsing change in this subsystem.
+- `--include-connections` (connection-aware `impact` analysis, Core's
+  `QueryOptions.IncludeConnections`) is exactly such an option: the only Tool-side work is help
+  text. `Query_GeneralOptionIncludeConnections` is printed by `PrintGeneralHelp` immediately
+  after the `--include-stdlib` line, and `Query_OptionIncludeConnectionsImpact` by
+  `PrintVerbHelp`'s `QueryVerb.Impact` arm immediately after `Query_OptionWalkDepthImpact`. Both
+  keys live in `QueryStrings.resx` with matching `QueryStrings` accessor properties, as the
+  resx-parity tests require.
+- Because the Tool does not parse the flag itself, keeping this help text in lockstep with
+  Core's accepted grammar is a Tool-subsystem responsibility verified by a dedicated help test;
+  a Core-only option with no Tool help line would be silently undiscoverable.
+
 #### Output File Option
 
 - `Context.QueryOutput` is a **file path** (not a directory) from `--output`; when omitted,
@@ -121,3 +137,4 @@ flowchart TD
 | SysML2Tools-Tool-Query-ReportHeading | `HeadingDepth`; `QueryOptions.Heading`; `QueryResultRenderer.RenderMarkdown` |
 | SysML2Tools-Tool-Query-HelpEnrichment | `QueryStrings.GetExample`/`Query_SchemaHint_*`; workflow-note lines |
 | SysML2Tools-Tool-Query-OutputFile | `QueryCliArgumentParser.Parse`; `QueryCommand.RunAsync`; `QueryResultExporter` |
+| SysML2Tools-Tool-Query-IncludeConnections | Core `QueryArgumentParser.Parse` pass-through; `QueryStrings` help lines |

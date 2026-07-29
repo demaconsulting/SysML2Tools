@@ -36,6 +36,9 @@ renderer behavior, and Core-side file-export helper behavior are verified separa
 - `--output <file>` writes the rendered document to the named file instead of stdout.
 - Help output remains localized through `QueryStrings`, including the workflow note, example
   invocations, schema hints, and the `--output` help text.
+- `--include-connections` is accepted by the CLI without any Tool-side parsing (it is forwarded
+  verbatim to Core's parser) and sets `QueryOptions.IncludeConnections`, and it is documented in
+  `impact` verb help through `QueryStrings`.
 - Error paths are covered: no input files, patterns supplied but none matching on disk, target
   element not found, invalid `--walk-depth`, invalid `--format`, and parse-error-containing
   input files that still complete best-effort.
@@ -103,6 +106,11 @@ Markdown/JSON schema hints for every verb.
 Verifies that `query uses --help` prints verb-specific help and returns exit code 0 without
 requiring `--element`.
 
+#### QuerySubsystem_ImpactVerbHelp_MentionsIncludeConnectionsOption
+
+Verifies that `query impact --help` prints the `--include-connections` option line, keeping the
+Tool's resx-sourced help text in lockstep with the grammar Core's parser actually accepts.
+
 #### Dependencies_DepthAndHeadingOptions_ApplyToHeadingLikeOtherVerbs
 
 Verifies end-to-end that the CLI passes heading-depth and heading-text options through to the
@@ -152,6 +160,10 @@ leaves `Context.Query` null so the general-help path can run without a fake verb
 **`Context_Create_QueryCommand_WithNameFlag_SetsNameFilter`** /
 **`Context_Create_QueryCommand_WithIncludeStdlibFlag_SetsIncludeStdlibTrue`**: Verify parsing of
 query-specific option fields.
+
+**`Context_Create_QueryCommand_WithIncludeConnectionsFlag_SetsIncludeConnectionsTrue`**:
+Verifies that `--include-connections` sets `Query.IncludeConnections`, proving the Tool CLI
+forwards the flag to Core's parser without any Tool-side parsing of its own.
 
 **`Context_Create_QueryCommand_WithFormatMarkdown_SetsQueryFormat`** /
 **`Context_Create_QueryCommand_WithFormatJson_SetsQueryFormat`**: Verify that query's

@@ -214,6 +214,220 @@ public class QueryVerbsTests
     }
 
     /// <summary>
+    ///     'impact' without --include-connections keeps its existing reference-only semantics:
+    ///     a part usage whose only relationship to the rest of the model is a connector reports
+    ///     no impacted elements.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnectionsFlagAbsent_ReportsReferenceOnlyResult()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.GantryConnections, "impact", "--element", "Model::System::motorA");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("0 element(s) transitively impacted", output);
+        Assert.DoesNotContain("Model::System::hub", output);
+        Assert.DoesNotContain("including connections", output);
+    }
+
+    /// <summary>
+    ///     'impact --include-connections' reaches the part usage on the far side of a connector,
+    ///     which the reference-only walk cannot see.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_ReachesConnectedSiblingPart()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.GantryConnections,
+            "impact",
+            "--element",
+            "Model::System::motorA",
+            "--include-connections");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("| Model::System::hub | part |", output);
+        Assert.Contains("including connections (connection hops <= 1)", output);
+    }
+
+    /// <summary>
+    ///     Connector traversal is undirected: querying from the endpoint that the connector
+    ///     declaration names second (the hub) reaches the originating parts just as querying
+    ///     from the first-named endpoint reaches the hub.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_QueriedFromFarEndpoint_ReachesOriginatingPart()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.GantryConnections,
+            "impact",
+            "--element",
+            "Model::System::hub",
+            "--include-connections");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("| Model::System::motorA | part |", output);
+        Assert.Contains("| Model::System::motorB | part |", output);
+    }
+
+    /// <summary>
+    ///     Connector endpoints are nested ports, but impact entries are attributed to the
+    ///     nearest owning part usage, with the raw port retained in the entry notes so no
+    ///     information is lost.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_PortEndpoints_RollUpToOwningPartUsage()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.GantryConnections,
+            "impact",
+            "--element",
+            "Model::System::motorA",
+            "--include-connections");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("| Model::System::hub | part |", output);
+        Assert.Contains("Model::System::motorA::power -> Model::System::hub::J1", output);
+    }
+
+    /// <summary>
+    ///     With no --walk-depth supplied, reference-edge traversal stays unlimited but connector
+    ///     hops are bounded to one, so the second motor (two connector hops away, through the
+    ///     hub) is not reported.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_NoWalkDepth_BoundsConnectionHopsToOne()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.GantryConnections,
+            "impact",
+            "--element",
+            "Model::System::motorA",
+            "--include-connections");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("| Model::System::hub | part |", output);
+        Assert.DoesNotContain("Model::System::motorB", output);
+    }
+
+    /// <summary>
+    ///     Supplying --walk-depth raises the connector hop bound to that same value, so the
+    ///     second motor is reached through the hub at the second hop.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_WalkDepthTwo_ReachesSecondConnectionHop()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.GantryConnections,
+            "impact",
+            "--element",
+            "Model::System::motorA",
+            "--include-connections",
+            "--walk-depth",
+            "2");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("| Model::System::hub | part |", output);
+        Assert.Contains("| Model::System::motorB | part |", output);
+        Assert.Contains("including connections (connection hops <= 2)", output);
+    }
+
+    /// <summary>
+    ///     A cyclic connector topology (two parts joined by two connectors in opposite textual
+    ///     order) terminates and reports each impacted element exactly once.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_CyclicConnections_TerminatesWithoutDuplicates()
+    {
+        const string sysml = """
+            package Model {
+                part def Hub {
+                    port J1;
+                    port J2;
+                }
+
+                part def Motor {
+                    port power;
+                    port encoder;
+                }
+
+                part def System {
+                    part hub : Hub;
+                    part motorA : Motor;
+
+                    connect motorA.power to hub.J1;
+                    connect hub.J2 to motorA.encoder;
+                }
+            }
+            """;
+
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "impact", "--element", "Model::System::motorA", "--include-connections", "--walk-depth", "5");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("1 element(s) transitively impacted", output);
+        Assert.Single(
+            output.Split('\n'),
+            line => line.StartsWith("| Model::System::hub |", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     Binding connectors ('bind A = B;') are traversed undirected exactly like connection
+    ///     connectors, reachable from either bound side.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_BindingEdges_AreTraversedUndirected()
+    {
+        const string sysml = """
+            package Model {
+                part def Controller {
+                    attribute setPoint;
+                }
+
+                part def Actuator {
+                    attribute command;
+                }
+
+                part def System {
+                    part controller : Controller;
+                    part actuator : Actuator;
+
+                    bind controller.setPoint = actuator.command;
+                }
+            }
+            """;
+
+        var (fromA, exitCodeA) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "impact", "--element", "Model::System::controller", "--include-connections");
+        var (fromB, exitCodeB) = await QueryTestFixtures.RunQueryAsync(
+            sysml, "impact", "--element", "Model::System::actuator", "--include-connections");
+
+        Assert.Equal(0, exitCodeA);
+        Assert.Equal(0, exitCodeB);
+        Assert.Contains("| Model::System::actuator | part |", fromA);
+        Assert.Contains("| Model::System::controller | part |", fromB);
+    }
+
+    /// <summary>
+    ///     When a connector names directly declared sibling part usages as its endpoints, the far
+    ///     endpoint requires no roll-up and is reported as the impacted element. The enclosing
+    ///     'part def' that owns both endpoints is never reported in its place.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_DeclaredEndpointConnector_ReportsSiblingPartNotOwningDefinition()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.DeclaredEndpointConnections,
+            "impact",
+            "--element",
+            "Model::System::alpha",
+            "--include-connections");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("| Model::System::beta | part |", output);
+        Assert.DoesNotContain("| Model::System | part def |", output);
+    }
+
+    /// <summary>
     ///     'describe' reports the element's kind, supertypes, annotation text, and child count.
     /// </summary>
     [Fact]

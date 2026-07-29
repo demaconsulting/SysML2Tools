@@ -17,7 +17,8 @@ namespace DemaConsulting.SysML2Tools.Query;
 ///     verb is present and help was not requested, a clear <see cref="ArgumentException"/> is
 ///     thrown rather than leaving the caller in a silent null/None state. Remaining tokens
 ///     recognize <c>--element</c>/<c>-e</c>, <c>--direction</c>, <c>--kind</c>, <c>--name</c>,
-///     <c>--include-stdlib</c>, <c>--format</c>, <c>--walk-depth</c>, and <c>--heading</c>, plus
+///     <c>--include-stdlib</c>, <c>--include-connections</c>, <c>--format</c>,
+///     <c>--walk-depth</c>, and <c>--heading</c>, plus
 ///     positional file glob patterns returned separately (this type has no file-glob or CLI-I/O
 ///     concept of its own — <see cref="QueryOptions"/> does not carry an input-files property);
 ///     any other <c>-</c>-prefixed token is rejected, including <c>--output</c>, which is a
@@ -89,6 +90,7 @@ public static class QueryArgumentParser
         int? walkDepth = null;
         string? heading = null;
         var includeStdlib = false;
+        var includeConnections = false;
         var files = new List<string>();
 
         while (index < commandArgs.Count)
@@ -136,6 +138,10 @@ public static class QueryArgumentParser
                     includeStdlib = true;
                     break;
 
+                case "--include-connections":
+                    includeConnections = true;
+                    break;
+
                 default:
                     if (arg.StartsWith("-", StringComparison.Ordinal))
                     {
@@ -158,6 +164,7 @@ public static class QueryArgumentParser
             Kind = kind,
             NameFilter = nameFilter,
             IncludeStdlib = includeStdlib,
+            IncludeConnections = includeConnections,
             Heading = heading
         };
 

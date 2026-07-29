@@ -30,6 +30,58 @@ namespace DemaConsulting.SysML2Tools.Tests.Query;
 internal static class QueryTestFixtures
 {
     /// <summary>
+    ///     Shared inline SysML fixture for connection-aware <c>impact</c> scenarios: a minimal
+    ///     reduction of the three-axis-gantry topology in which two motor part usages each
+    ///     connect one of their nested ports to a distinct port of a shared hub part usage.
+    ///     Neither motor references the other, and no motor has any incoming reference edge, so
+    ///     the default (reference-only) <c>impact</c> result for a motor is empty and any
+    ///     element reported by <c>--include-connections</c> was necessarily reached through a
+    ///     connector.
+    /// </summary>
+    public const string GantryConnections = """
+        package Model {
+            part def Hub {
+                port J1;
+                port J2;
+            }
+
+            part def Motor {
+                port power;
+                port encoder;
+            }
+
+            part def System {
+                part hub : Hub;
+                part motorA : Motor;
+                part motorB : Motor;
+
+                connect motorA.power to hub.J1;
+                connect motorB.power to hub.J2;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     Shared inline SysML fixture for declared-endpoint connector scenarios. No endpoint is
+    ///     a nested port: every connector and binding names a directly declared sibling part
+    ///     usage, so the declared-endpoint branch of the far-endpoint roll-up is exercised and
+    ///     the endpoint itself — never the enclosing definition that also owns the subject — must
+    ///     be reported.
+    /// </summary>
+    public const string DeclaredEndpointConnections = """
+        package Model {
+            part def System {
+                part alpha;
+                part beta;
+                part gamma;
+
+                connect alpha to beta;
+                bind beta = gamma;
+            }
+        }
+        """;
+
+    /// <summary>
     ///     Writes <paramref name="sysml"/> to a uniquely-named temp <c>.sysml</c> file, runs
     ///     <c>query</c> with the given arguments (the temp file path is appended automatically),
     ///     and returns the captured stdout and exit code. The temp file is deleted afterward.
