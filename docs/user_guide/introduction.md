@@ -505,8 +505,12 @@ well. Three rules apply:
   `--walk-depth` continues to bound reference-edge depth exactly as before; omitting it still
   means *unlimited* reference depth, and only the connector limit defaults to one.
 
-Reference-only results are completely unchanged when the flag is omitted, so adding it to an
-existing command can only ever add rows, never remove or alter them. `--format json` entries
+Omitting the flag leaves reference-only results completely unchanged, and adding it never
+removes an element: every element reported without the flag is still reported with it. It can,
+however, change how an already-reported element is described. An element that a reference path
+reaches at depth 2 may be reached over a connector at depth 1, and is then reported at the
+lower depth with `Relation` `Connect` and the connector named in its notes, instead of at the
+higher depth with its reference relation. `--format json` entries
 additionally carry `Depth` (the traversal depth), `Relation` (`Connect`/`Binding` for a
 connector, or the reference edge kind otherwise), and `ViaQualifiedName`, so scripts can
 distinguish "referenced by" from "connected to" without parsing the human-readable detail text.

@@ -336,9 +336,15 @@ flowchart TD
 | SysML2Tools-Core-Query-Dependencies | `QueryEngine.Dependencies`; `QueryResultRenderer.RenderMarkdown`/`RenderJson` |
 | SysML2Tools-Core-Query-DependenciesNameShortening | `QueryResultRenderer.RenderMarkdown`; `QualifiedNameShortener` |
 | SysML2Tools-Core-Query-Impact | `QueryEngine.Impact`; `CollectImpactReferences`; `IsImpactConnectorKind` |
-| SysML2Tools-Core-Query-ImpactConnections | `QueryEngine.CollectImpactConnections`; `RollUpToNearestDeclaration` |
+| SysML2Tools-Core-Query-ImpactConnections | `QueryEngine.CollectImpactConnections` |
+| SysML2Tools-Core-Query-ImpactConnectionEndpoints | `CollectImpactConnections`; `IsSelfOrNestedUnder` |
+| SysML2Tools-Core-Query-ImpactConnectionRollUp | `QueryEngine.RollUpToNearestDeclaration` |
+| SysML2Tools-Core-Query-ImpactConnectionHopBound | `QueryEngine.Impact` hop counter; `DefaultConnectionHopLimit` |
+| SysML2Tools-Core-Query-ImpactConnectionCycles | `QueryEngine.Impact` `bestHops` guard; `TryReach` |
 | SysML2Tools-Core-Query-ImpactHopMinimality | `QueryEngine.Impact`; `CollectImpactConnections`; `TryReach` |
 | SysML2Tools-Core-Query-EntryTraversalMetadata | `QueryResultEntry.Depth`/`Relation`/`ViaQualifiedName` |
+| SysML2Tools-Core-Query-EntryMetadataJsonOmission | `JsonIgnore(WhenWritingNull)`; `QueryResultRenderer.RenderJson` |
+| SysML2Tools-Core-Query-EntryRelationSerialization | `JsonStringEnumConverter`; `QueryResultSerializerContext` |
 | SysML2Tools-Core-Query-Describe | `QueryEngine.Describe` |
 | SysML2Tools-Core-Query-Hierarchy | `QueryEngine.Hierarchy` |
 | SysML2Tools-Core-Query-Requirements | `QueryEngine.Requirements` |

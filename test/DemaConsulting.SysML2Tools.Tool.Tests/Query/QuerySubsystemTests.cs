@@ -353,6 +353,37 @@ public class QuerySubsystemTests
     }
 
     /// <summary>
+    ///     'query --help' (no verb) documents the --include-connections option, so the option is
+    ///     discoverable from the command's overall option list and not only from 'impact' verb
+    ///     help.
+    /// </summary>
+    [Fact]
+    public async Task QuerySubsystem_QueryHelp_NoVerb_MentionsIncludeConnectionsOption()
+    {
+        // Arrange
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act
+            using var context = Context.Create(["query", "--help"]);
+            await Program.RunAsync(context);
+
+            // Assert
+            var output = outWriter.ToString();
+            Assert.Contains("--include-connections", output);
+            Assert.Contains("'impact' verb only", output);
+            Assert.Equal(0, context.ExitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    /// <summary>
     ///     'query &lt;verb&gt; --help' for every verb includes that verb's example invocation and
     ///     the shared Markdown/JSON output-shape schema hints.
     /// </summary>
