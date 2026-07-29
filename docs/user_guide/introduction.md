@@ -471,13 +471,14 @@ imports, and similar resolved references — in the reverse direction. A part th
 the rest of an assembly purely by `connect` statements therefore reports no impacted elements,
 because a connector is not a reference.
 
-> **Upgrade note — the default `impact` result changed.** In releases before this correction,
-> `query impact` could follow `connect` and `bind` relationships **even without**
-> `--include-connections`, whenever a connector named a directly declared element (for example
+> **Upgrade note — the default `impact` result changed.** In releases before connection-aware
+> impact analysis existed, `query impact` followed `connect` and `bind` relationships as if they
+> were ordinary references, whenever a connector named a directly declared element (for example
 > `connect b to a;` or `connect hub.J1 to motorA;`). Those connectors were followed without any
 > hop bound and were reported as their raw endpoint — including nested port names such as
-> `Model::System::hub::J1`, which cannot themselves be used as an `--element` subject. That
-> contradicted the documented default described above and has been fixed. As a result, a
+> `Model::System::hub::J1`, which cannot themselves be used as an `--element` subject. That was
+> never intended, is inconsistent with the reference-only default described above, and has been
+> corrected. As a result, a
 > `query impact` command that you have not changed may now report **fewer** rows than it used to
 > — often none — on models that rely on `connect` statements. To get those elements back,
 > deliberately add `--include-connections`, which now reports them correctly rolled up to their

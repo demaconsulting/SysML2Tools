@@ -108,8 +108,10 @@ sections:
           reference edges, so the exclusion must be explicit. Without it the default walk followed
           every connector as a plain incoming reference — directed rather than undirected,
           attributed to the raw nested-port endpoint rather than its owning declaration, and
-          outside the connector hop bound. That was a defect: it contradicted the documented
-          default contract and emitted qualified names that are not resolvable as query subjects.
+          outside the connector hop bound. That was a defect: connector traversal became an
+          unbounded, direction-sensitive side effect of the reference walk instead of the bounded,
+          undirected, opt-in behavior it is meant to be, and where a connector endpoint was a
+          nested port the walk emitted qualified names that are not resolvable as query subjects.
           Correcting it makes the default result smaller than in releases before this change, and
           makes `IncludeConnections` a strict superset of the default.
         tests:
@@ -161,20 +163,21 @@ sections:
 
       - id: SysML2Tools-Core-Query-ImpactHopMinimality
         title: >-
-          The `impact` verb's cycle guard shall record the minimum connector-hop count at which
-          each element was reached and shall re-expand an element whenever a strictly cheaper hop
-          count is found, while retaining each element's first-arrival depth and relation
-          attribution and reporting each element at most once.
+          The `impact` verb shall report every element reachable by its traversal within the
+          applicable connector-hop bound, regardless of the order in which paths to that element
+          are discovered, and shall report each such element exactly once, at the depth and
+          relation of the first path by which it was reached.
         justification: |
-          Connector-hop cost is not monotonic in breadth-first depth: an element first reached
-          over a connector can later be reached over a pure reference path that consumed none of
-          the hop budget. A guard that records only membership pins each element to its
-          first-arrival cost, so such an element is never expanded with its restored budget and
-          elements one connector hop beyond it are silently dropped — making the result depend on
-          frontier iteration order rather than on the model. Re-expanding on a strictly cheaper
-          arrival removes that dependence, while suppressing the duplicate entry preserves both
-          the "each element appears exactly once" invariant and the rule that `Depth` equals the
-          breadth-first level of first arrival.
+          Connector-hop cost is not monotonic in traversal depth: an element first reached over a
+          connector can later be reached over a pure reference path that consumed none of the hop
+          budget, restoring the budget available beyond it. Unless that cheaper route is honored,
+          elements one connector hop past such an element are silently missing from the answer,
+          and which elements are missing depends on the order in which the walk happened to
+          discover paths rather than on the model itself. A change-impact answer that varies with
+          traversal order cannot be relied on or reproduced, so the reported set must be a
+          function of the model and the requested bound alone — while each impacted element must
+          still appear once, at the depth at which it first entered the answer, so callers can
+          read distance from the subject off the result.
         tests:
           - Impact_IncludeConnections_CheaperReferencePath_ReExpandsConnectorsFromReReachedElement
           - Impact_IncludeConnections_ReReachedAtLowerHopCount_KeepsFirstArrivalDepthAndAttribution

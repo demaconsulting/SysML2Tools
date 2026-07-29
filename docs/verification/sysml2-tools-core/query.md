@@ -82,10 +82,10 @@ scenarios listed under "Test Scenarios (Tool Test Project)" below run via `dotne
 - A single connector produces exactly one impact entry — its far endpoint rolled up to the
   nearest owning declaration — regardless of which side of the connector the nested port sits
   on, and never an additional raw-endpoint entry.
-- An element re-reached at a strictly lower connector-hop count is re-expanded, so elements
-  within the hop budget of the reference closure are never dropped because a costlier path
-  reached them first, while the re-reached element keeps its first-arrival depth and relation
-  attribution and is still reported exactly once.
+- Every element reachable within the applicable connector-hop bound is reported, including
+  elements that only become reachable through a cheaper path found after a costlier one, so the
+  reported set does not depend on the order in which paths are discovered. Each such element is
+  reported exactly once, at the depth and relation of the first path by which it was reached.
 - A cyclic connector topology terminates and reports each impacted element exactly once.
 - `Binding` connectors (`bind A = B;`) are traversed undirected exactly like `Connect`
   connectors.

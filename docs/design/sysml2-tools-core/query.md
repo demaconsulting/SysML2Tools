@@ -304,8 +304,10 @@ flowchart TD
   connector endpoints have always been present in `SemanticIndex.AllEdges`, so the default walk
   previously followed them as ordinary incoming reference edges: unbounded by the connector hop
   limit, attributed to the raw nested-port endpoint rather than its owning declaration, and
-  without any relation metadata. That contradicted the documented default contract and emitted
-  qualified names (such as `System::hub::J1`) that cannot be used as a `--element` subject. It
+  without any relation metadata. That made connector traversal an unbounded, direction-sensitive
+  side effect of the reference walk rather than the opt-in behavior this design defines, and
+  where an endpoint was a nested port it emitted qualified names (such as `System::hub::J1`)
+  that cannot be used as a `--element` subject. It
   is now corrected, so a default `impact` query over a model with declared-endpoint connectors
   reports fewer rows than before — frequently none. The correction also makes
   `--include-connections` a strict superset of the default, which is the only defensible
@@ -335,7 +337,7 @@ flowchart TD
 | SysML2Tools-Core-Query-DependenciesNameShortening | `QueryResultRenderer.RenderMarkdown`; `QualifiedNameShortener` |
 | SysML2Tools-Core-Query-Impact | `QueryEngine.Impact`; `CollectImpactReferences`; `IsImpactConnectorKind` |
 | SysML2Tools-Core-Query-ImpactConnections | `QueryEngine.CollectImpactConnections`; `RollUpToNearestDeclaration` |
-| SysML2Tools-Core-Query-ImpactHopMinimality | `QueryEngine.TryReach` |
+| SysML2Tools-Core-Query-ImpactHopMinimality | `QueryEngine.Impact`; `CollectImpactConnections`; `TryReach` |
 | SysML2Tools-Core-Query-EntryTraversalMetadata | `QueryResultEntry.Depth`/`Relation`/`ViaQualifiedName` |
 | SysML2Tools-Core-Query-Describe | `QueryEngine.Describe` |
 | SysML2Tools-Core-Query-Hierarchy | `QueryEngine.Hierarchy` |
