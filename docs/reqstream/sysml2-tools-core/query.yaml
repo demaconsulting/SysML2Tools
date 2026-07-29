@@ -94,14 +94,175 @@ sections:
         title: >-
           The Query subsystem shall compute the transitive closure of incoming references from a
           target element through the `impact` verb, optionally bounded by `WalkDepth` and guarded
-          against cycles.
+          against cycles, excluding `Connect` and `Binding` connector edges from that reference
+          closure.
         justification: |
           A single-hop reverse-reference view understates true blast radius for deeply-referenced
           elements. A bounded transitive closure gives callers a practical, terminating answer to
-          "what is affected if this changes?".
+          "what is affected if this changes?". These reference-only semantics are the default and
+          are unchanged by the opt-in connection traversal described by
+          `SysML2Tools-Core-Query-ImpactConnections`; connector edges are followed only when
+          `IncludeConnections` is explicitly supplied.
+
+          Connector relationships are published into the semantic index alongside ordinary
+          reference edges, so the exclusion must be explicit. Without it the default walk followed
+          every connector as a plain incoming reference — directed rather than undirected,
+          attributed to the raw nested-port endpoint rather than its owning declaration, and
+          outside the connector hop bound. That was a defect: connector traversal became an
+          unbounded, direction-sensitive side effect of the reference walk instead of the bounded,
+          undirected, opt-in behavior it is meant to be, and where a connector endpoint was a
+          nested port the walk emitted qualified names that are not resolvable as query subjects.
+          Correcting it makes the default result smaller than in releases before this change, and
+          makes `IncludeConnections` a strict superset of the default.
         tests:
           - Impact_DepthOne_OnlyReachesDirectReferences
           - Impact_Unbounded_ReachesTransitiveClosure
+          - Impact_IncludeConnectionsFlagAbsent_ReportsReferenceOnlyResult
+          - Impact_ChainedDeclaredConnectors_FlagAbsent_ReportsNoImpactedElements
+          - Impact_SourceSidePortEndpoint_FlagAbsent_ReportsNoImpactedElements
+
+      - id: SysML2Tools-Core-Query-ImpactConnections
+        title: >-
+          When `IncludeConnections` is supplied, the `impact` verb shall additionally traverse
+          resolved `Connect` and `Binding` connector relationships without regard to their
+          recorded endpoint order, so that the element at one end of a connector is reported when
+          the query subject is at the other end, whichever end each occupies.
+        justification: |
+          A connector's two ends carry no semantic "source causes target" direction, so the
+          reverse-only reference closure reports nothing for a part joined to the rest of the
+          assembly only by `connect` or `bind` statements — the exact case a change-impact
+          question is asked about. Answering that question correctly therefore requires the
+          connector to be followed from either end, and requires the caller to opt in explicitly,
+          because it broadens the answer beyond the reference-only default.
+        tests:
+          - Impact_IncludeConnections_ReachesConnectedSiblingPart
+          - Impact_IncludeConnections_QueriedFromFarEndpoint_ReachesOriginatingPart
+          - Impact_IncludeConnections_BindingEdges_AreTraversedUndirected
+          - Impact_IncludeConnections_ThroughPublicApi_ReturnsConnectedPartEntries
+
+      - id: SysML2Tools-Core-Query-ImpactConnectionEndpoints
+        title: >-
+          The `impact` verb shall treat a connector as attached to the query subject when an
+          endpoint of that connector is the subject element itself or a feature nested within it,
+          and shall report the element reached at the connector's other end.
+        justification: |
+          Users ask about parts, but a connector's declared endpoints are normally the ports
+          nested inside those parts. Unless a subject matches connectors reaching its nested
+          features, asking about a part whose ports are wired to the rest of the assembly returns
+          nothing, which is the opposite of the true answer.
+        tests:
+          - Impact_IncludeConnections_PortEndpoints_RollUpToOwningPartUsage
+          - Impact_IncludeConnections_SourceSidePortEndpoint_ReportsOwnerNotRawPort
+          - Impact_IncludeConnections_ReachesConnectedSiblingPart
+
+      - id: SysML2Tools-Core-Query-ImpactConnectionRollUp
+        title: >-
+          The `impact` verb shall report each connector endpoint it reaches as the nearest
+          declaration that owns that endpoint, and shall report the endpoint itself unchanged
+          when the endpoint is already a declared element.
+        justification: |
+          A nested port such as `System::hub::J1` is not itself a usable query subject, so
+          reporting it raw gives the caller a name they cannot act on and cannot feed back into
+          another query. Reporting the owning part instead makes every row actionable, while
+          leaving an already-declared endpoint alone prevents the answer from being widened to an
+          enclosing definition that the connector never named.
+        tests:
+          - Impact_IncludeConnections_PortEndpoints_RollUpToOwningPartUsage
+          - Impact_IncludeConnections_DeclaredFarEndpoint_ReportsEndpointItself
+          - Impact_IncludeConnections_DeclaredEndpointConnector_ReportsSiblingPartNotOwningDefinition
+          - Impact_IncludeConnections_SourceSidePortEndpoint_ReportsOwnerNotRawPort
+
+      - id: SysML2Tools-Core-Query-ImpactConnectionHopBound
+        title: >-
+          The `impact` verb shall follow at most `WalkDepth` connector relationships along any
+          single traversal path when `WalkDepth` is supplied, and at most one connector
+          relationship along any single traversal path when it is not.
+        justification: |
+          Connector graphs in real models are dense meshes in which an unbounded connector closure
+          degenerates to "the whole assembly" and answers nothing. A one-connector default keeps
+          the opt-in answer useful out of the box, while an explicit bound lets a caller widen the
+          blast radius deliberately and know exactly how far the reported answer reaches.
+        tests:
+          - Impact_IncludeConnections_NoWalkDepth_BoundsConnectionHopsToOne
+          - Impact_IncludeConnections_WalkDepthTwo_ReachesSecondConnectionHop
+          - Impact_IncludeConnections_ChainedDeclaredConnectors_StopsAtOneConnectorHop
+          - Impact_IncludeConnections_ChainedDeclaredConnectors_WalkDepthTwo_ReachesSecondHopOnly
+
+      - id: SysML2Tools-Core-Query-ImpactConnectionCycles
+        title: >-
+          The `impact` verb shall terminate and return a result for models whose connector
+          relationships form cycles.
+        justification: |
+          Connectors are routinely declared in both textual orders between the same two parts, so
+          cyclic connector topologies are ordinary models rather than corner cases. A
+          change-impact query that hangs on an ordinary model is unusable, so termination is a
+          user-visible obligation in its own right and not merely an implementation nicety.
+        tests:
+          - Impact_IncludeConnections_CyclicConnections_TerminatesWithoutDuplicates
+
+      - id: SysML2Tools-Core-Query-ImpactHopMinimality
+        title: >-
+          The `impact` verb shall report every element reachable by its traversal within the
+          applicable connector-hop bound, regardless of the order in which paths to that element
+          are discovered, and shall report each such element exactly once, at the depth and
+          relation of the first path by which it was reached.
+        justification: |
+          Connector-hop cost is not monotonic in traversal depth: an element first reached over a
+          connector can later be reached over a pure reference path that consumed none of the hop
+          budget, restoring the budget available beyond it. Unless that cheaper route is honored,
+          elements one connector hop past such an element are silently missing from the answer,
+          and which elements are missing depends on the order in which the walk happened to
+          discover paths rather than on the model itself. A change-impact answer that varies with
+          traversal order cannot be relied on or reproduced, so the reported set must be a
+          function of the model and the requested bound alone — while each impacted element must
+          still appear once, at the depth at which it first entered the answer, so callers can
+          read distance from the subject off the result.
+        tests:
+          - Impact_IncludeConnections_CheaperReferencePath_ReExpandsConnectorsFromReReachedElement
+          - Impact_IncludeConnections_ReReachedAtLowerHopCount_KeepsFirstArrivalDepthAndAttribution
+          - Impact_IncludeConnections_SourceSidePortEndpoint_ProducesExactlyOneEntry
+
+      - id: SysML2Tools-Core-Query-EntryTraversalMetadata
+        title: >-
+          Every traversal-produced result entry shall carry machine-readable `Depth` and
+          `Relation` values, and a `ViaQualifiedName` value naming the endpoint an entry was
+          attributed from whenever the reported element differs from that endpoint, alongside the
+          existing human-readable `Detail` text.
+        justification: |
+          Non-CLI API consumers previously had to parse the free-form `Detail` string to recover a
+          traversal depth, and had no way at all to tell which kind of relationship reached an
+          entry — a distinction that becomes essential once reference and connector results are
+          combined in one answer. Exposing the values structurally makes the API contract
+          authoritative, while retaining `Detail` keeps Markdown output human-readable.
+        tests:
+          - Impact_ConnectionEntry_RecordsDepthRelationAndViaQualifiedName
+          - Impact_ConnectionEntry_WithoutRollUp_OmitsViaQualifiedName
+          - Impact_ReferenceEntry_RecordsDepthAndReferenceRelation
+          - RenderMarkdown_ImpactEntry_DetailRemainsHumanReadableDepthText
+
+      - id: SysML2Tools-Core-Query-EntryMetadataJsonOmission
+        title: >-
+          A result entry's `Depth`, `Relation`, and `ViaQualifiedName` values shall each be
+          omitted from JSON output when that value is null.
+        justification: |
+          Verbs that perform no traversal populate none of these values. Emitting them as explicit
+          `null`s would change the JSON payload shape of every pre-existing verb and break
+          consumers that key off property presence, so a purely additive contract requires null
+          values to be absent rather than present-and-null.
+        tests:
+          - RenderJson_EntryWithoutTraversalMetadata_OmitsDepthRelationAndVia
+
+      - id: SysML2Tools-Core-Query-EntryRelationSerialization
+        title: >-
+          A result entry's `Relation` value shall be written to JSON as the name of the
+          relationship kind it records.
+        justification: |
+          A consumer reading `"Relation": "Connect"` can distinguish "connected to" from
+          "referenced by" without any lookup table, and the emitted contract stays stable if the
+          underlying set of relationship kinds is ever reordered — which an ordinal encoding would
+          silently break.
+        tests:
+          - RenderJson_EntryWithDepthAndRelation_IncludesBothFieldsAndRoundTrips
 
       - id: SysML2Tools-Core-Query-Describe
         title: >-
@@ -168,9 +329,11 @@ sections:
           including dotted feature-chain resolution, and shall label each entry with the
           connector keyword that produced it.
         justification: |
-          Resolved connection edges do not live in the semantic index's global edge list, so the
-          Query subsystem must perform the node walk on behalf of callers that need connection
-          topology.
+          A `SysmlEdge` records only its source, target, and kind — not the connector keyword
+          (`connect`/`connection`/`message`/`bind`) that produced it — so the Query subsystem
+          must perform the node walk on behalf of callers that need connection topology labeled
+          by the syntax that declared it. The same walk is shared with the `impact` verb's
+          connector traversal so the two verbs can never disagree about connection topology.
         tests:
           - Connections_ReportsResolvedEndpointsIncludingFeatureChain
           - Connections_ConnectionsExampleFixture_ReportsAtLeastOneEndpoint

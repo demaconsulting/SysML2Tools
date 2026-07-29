@@ -78,6 +78,37 @@ flowchart TD
    and `query <verb> --help`. Every printed line is sourced from `QueryStrings`, including the
    `--output` help text, the workflow note, and the per-verb example/schema-hint enrichment.
 
+#### Pass-Through Options
+
+- `QueryCliArgumentParser` pre-extracts only `--output`; every other token is forwarded verbatim
+  to Core's `QueryArgumentParser`, and `Context` stores the resulting `QueryOptions` whole.
+  Adding a new Core option therefore requires no parsing change in this subsystem.
+- `--include-connections` (connection-aware `impact` analysis, Core's
+  `QueryOptions.IncludeConnections`) is exactly such an option: the only Tool-side work is help
+  text, printed from four resx keys. `PrintGeneralHelp` writes the single line
+  `Query_GeneralOptionIncludeConnections` immediately after the `--include-stdlib` line:
+
+  ```text
+    --include-connections        Also follow connect/bind edges ('impact' verb only)
+  ```
+
+  `PrintVerbHelp`'s `QueryVerb.Impact` arm writes the three-line block
+  `Query_OptionIncludeConnectionsImpact1`, `Query_OptionIncludeConnectionsImpact2`, and
+  `Query_OptionIncludeConnectionsImpact3` immediately after `Query_OptionWalkDepthImpact`:
+
+  ```text
+    --include-connections         Also follow connect/bind edges, undirected
+                                  (default: reference edges only). Connector
+                                  hops are bounded by --walk-depth, else 1.
+  ```
+
+  All four keys live in `QueryStrings.resx` with matching `QueryStrings` accessor properties, as
+  the resx-parity tests require.
+- Because the Tool does not parse the flag itself, keeping this help text in lockstep with
+  Core's accepted grammar is a Tool-subsystem responsibility, verified by one general-help test
+  and one `impact`-verb-help test; a Core-only option with no Tool help line would be silently
+  undiscoverable.
+
 #### Output File Option
 
 - `Context.QueryOutput` is a **file path** (not a directory) from `--output`; when omitted,
@@ -121,3 +152,5 @@ flowchart TD
 | SysML2Tools-Tool-Query-ReportHeading | `HeadingDepth`; `QueryOptions.Heading`; `QueryResultRenderer.RenderMarkdown` |
 | SysML2Tools-Tool-Query-HelpEnrichment | `QueryStrings.GetExample`/`Query_SchemaHint_*`; workflow-note lines |
 | SysML2Tools-Tool-Query-OutputFile | `QueryCliArgumentParser.Parse`; `QueryCommand.RunAsync`; `QueryResultExporter` |
+| SysML2Tools-Tool-Query-IncludeConnections | `QueryCliArgumentParser.Parse` pass-through to Core; `Context.Query` |
+| SysML2Tools-Tool-Query-IncludeConnectionsHelp | `QueryStrings` keys via `PrintGeneralHelp` and `PrintVerbHelp` |

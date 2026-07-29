@@ -128,6 +128,9 @@ internal static class QueryStrings
     /// <summary>Gets the general --include-stdlib option line.</summary>
     public static string Query_GeneralOptionIncludeStdlib => ResourceManager.GetString(nameof(Query_GeneralOptionIncludeStdlib))!;
 
+    /// <summary>Gets the general --include-connections option line.</summary>
+    public static string Query_GeneralOptionIncludeConnections => ResourceManager.GetString(nameof(Query_GeneralOptionIncludeConnections))!;
+
     /// <summary>Gets the first line of the general --output option description.</summary>
     public static string Query_GeneralOptionOutput1 => ResourceManager.GetString(nameof(Query_GeneralOptionOutput1))!;
 
@@ -160,6 +163,15 @@ internal static class QueryStrings
 
     /// <summary>Gets the --walk-depth option line shown for the 'impact' verb.</summary>
     public static string Query_OptionWalkDepthImpact => ResourceManager.GetString(nameof(Query_OptionWalkDepthImpact))!;
+
+    /// <summary>Gets the first line of the --include-connections option shown for the 'impact' verb.</summary>
+    public static string Query_OptionIncludeConnectionsImpact1 => ResourceManager.GetString(nameof(Query_OptionIncludeConnectionsImpact1))!;
+
+    /// <summary>Gets the second line of the --include-connections option shown for the 'impact' verb.</summary>
+    public static string Query_OptionIncludeConnectionsImpact2 => ResourceManager.GetString(nameof(Query_OptionIncludeConnectionsImpact2))!;
+
+    /// <summary>Gets the third line of the --include-connections option shown for the 'impact' verb.</summary>
+    public static string Query_OptionIncludeConnectionsImpact3 => ResourceManager.GetString(nameof(Query_OptionIncludeConnectionsImpact3))!;
 
     /// <summary>Gets the --direction option line shown for the 'hierarchy' verb.</summary>
     public static string Query_OptionDirectionHierarchy => ResourceManager.GetString(nameof(Query_OptionDirectionHierarchy))!;

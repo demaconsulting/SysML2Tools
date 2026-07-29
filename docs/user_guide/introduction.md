@@ -434,6 +434,10 @@ sysml2tools query dependencies --element Model::Engine "src/**/*.sysml"
 # Transitive blast radius of a change, optionally bounded
 sysml2tools query impact --element Model::Engine --walk-depth 2 "src/**/*.sysml"
 
+# Also follow connect/bind edges, so a part joined to the rest of the assembly only by
+# connectors is no longer reported as impacting nothing
+sysml2tools query impact --element Model::System::motorA --include-connections "src/**/*.sysml"
+
 # A single-element "fact sheet": kind, supertypes, typing, annotations, applied metadata, children
 sysml2tools query describe --element Model::Vehicle "src/**/*.sysml"
 
@@ -460,6 +464,66 @@ sysml2tools query find --name Engine "src/**/*.sysml" --format json
 sysml2tools query describe --element Model::Vehicle --depth 2 --heading "Vehicle Report" "src/**/*.sysml"
 ```
 
+## Connection-Aware Impact Analysis
+
+By default, `query impact` follows only *reference* relationships — specialization, typing,
+imports, and similar resolved references — in the reverse direction. A part that is joined to
+the rest of an assembly purely by `connect` statements therefore reports no impacted elements,
+because a connector is not a reference.
+
+> **Upgrade note — the default `impact` result changed.** In releases before connection-aware
+> impact analysis existed, `query impact` followed `connect` and `bind` relationships as if they
+> were ordinary references, whenever a connector named a directly declared element (for example
+> `connect b to a;` or `connect hub.J1 to motorA;`). Those connectors were followed without any
+> hop bound and were reported as their raw endpoint — including nested port names such as
+> `Model::System::hub::J1`, which cannot themselves be used as an `--element` subject. That was
+> never intended, is inconsistent with the reference-only default described above, and has been
+> corrected. As a result, a
+> `query impact` command that you have not changed may now report **fewer** rows than it used to
+> — often none — on models that rely on `connect` statements. To get those elements back,
+> deliberately add `--include-connections`, which now reports them correctly rolled up to their
+> owning part and within the documented hop bound.
+
+Adding `--include-connections` makes `impact` follow `connect` and `bind` relationships as
+well. Three rules apply:
+
+- **Connectors are followed in both directions.** A connector's two ends carry no
+  "source causes target" meaning, so the connected element is reported no matter which end you
+  query from. Querying a motor reports the hub it is plugged into, and querying that hub
+  reports every motor plugged into it.
+- **Port endpoints roll up to the part that owns them.** Connectors join nested ports, but you
+  normally ask about parts. An endpoint such as `System::hub::J1` is reported as
+  `System::hub`, with the actual port named in the entry's notes (and in the
+  `ViaQualifiedName` field of `--format json` output) so nothing is lost. Roll-up applies only
+  to endpoints that are not themselves declared elements — typically ports inherited through a
+  typed usage such as `part hub : Hub`. An endpoint that *is* a declared element, such as a
+  directly connected sibling part (`connect alpha to beta;`) or a port declared inline on a
+  usage, is reported as-is, and `ViaQualifiedName` is then absent.
+- **Connector hops are bounded.** Real models connect many parts to a shared hub, so an
+  unbounded connector walk quickly reports the whole assembly. Each traversal path may take at
+  most one connector hop unless you supply `--walk-depth <n>`, which raises the limit to `n`.
+  `--walk-depth` continues to bound reference-edge depth exactly as before; omitting it still
+  means *unlimited* reference depth, and only the connector limit defaults to one.
+
+Omitting the flag leaves reference-only results completely unchanged, and adding it never
+removes an element: every element reported without the flag is still reported with it. It can,
+however, change how an already-reported element is described. An element that a reference path
+reaches at depth 2 may be reached over a connector at depth 1, and is then reported at the
+lower depth with `Relation` `Connect` and the connector named in its notes, instead of at the
+higher depth with its reference relation. `--format json` entries
+additionally carry `Depth` (the traversal depth), `Relation` (`Connect`/`Binding` for a
+connector, or the reference edge kind otherwise), and `ViaQualifiedName`, so scripts can
+distinguish "referenced by" from "connected to" without parsing the human-readable detail text.
+
+One consequence of the hop bound is worth knowing when reading depths. Reference hops cost
+nothing against the connector budget, so an element that was first reached over a connector may
+later be reached again over a pure reference path with its full connector budget restored. When
+that happens the tool re-explores the connectors around it, which can report an element at a
+depth *greater* than the depth of the element it was connected to. That is deliberate: the
+reported depth is the first traversal level at which the element genuinely became reachable
+within the hop budget, and the alternative — refusing to re-explore — would silently omit
+elements that are well inside the bound you asked for.
+
 ## Query Output Formats
 
 | Format | Flag | Notes |
@@ -477,7 +541,7 @@ the same order, so either format can be relied on for automated comparisons.
 | `uses` | yes | What does this element depend on? |
 | `used-by` | yes | What depends on this element? |
 | `dependencies` | yes | What does this element depend on, and what depends on it (combined, as prose)? |
-| `impact` | yes | What is transitively affected by a change (`--walk-depth` to bound)? |
+| `impact` | yes | What is transitively affected by a change (`--walk-depth`, `--include-connections`)? |
 | `describe` | yes | What is this element (kind, supertypes, typing, annotations, applied metadata, children)? |
 | `hierarchy` | yes | What is the supertype/subtype tree (`--direction up`\|`down`\|`both`)? |
 | `requirements` | yes | What satisfy/verify/allocate relationships involve this element? |
@@ -495,6 +559,7 @@ the same order, so either format can be relied on for automated comparisons.
 | `--format markdown\|json` | Output format (default: `markdown`); distinct from `render`'s `--format` (`svg`/`png`) |
 | `--output <file>` | Write to this **file** (default: stdout); `render`'s `--output` is a *directory* instead |
 | `--walk-depth <#>` | Maximum impact-walk depth (`impact` verb only) |
+| `--include-connections` | `impact` only: also follow `connect`/`bind` edges, undirected (see above) |
 | `--direction up\|down\|both` | Traversal direction (`hierarchy` verb only) |
 | `--kind <kind>` | Element-kind filter (`list`/`find` verbs only) |
 | `--name <substring>` | Name substring filter (`list`/`find` verbs only) |

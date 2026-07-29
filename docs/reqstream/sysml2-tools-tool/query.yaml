@@ -167,6 +167,33 @@ sections:
           - QuerySubsystem_QueryVerbHelp_MentionsExampleInvocationAndSchemaHints
           - QuerySubsystem_QueryHelp_NoVerb_MentionsTypicalWorkflow
 
+      - id: SysML2Tools-Tool-Query-IncludeConnections
+        title: >-
+          The query command shall accept the `--include-connections` option on its command line
+          and, when it is supplied with the `impact` verb, shall produce a report that includes
+          elements reached through connections.
+        justification: |
+          Connection-aware impact analysis changes the answer the `impact` verb gives, so it
+          must be an explicit, discoverable user choice rather than a silent default. Users
+          invoke the analysis through this command, so the command is where accepting the choice
+          and acting on it must be guaranteed.
+        tests:
+          - Context_Create_QueryCommand_WithIncludeConnectionsFlag_SetsIncludeConnectionsTrue
+          - Impact_IncludeConnections_ReachesConnectedSiblingPart
+
+      - id: SysML2Tools-Tool-Query-IncludeConnectionsHelp
+        title: >-
+          The query command's general help and its `impact` verb help shall each document the
+          `--include-connections` option, in localized text.
+        justification: |
+          An option that changes the meaning of a result is useless if a user cannot find it.
+          Users look in two places — the command's overall option list and the specific verb's
+          help — so the option must be discoverable from both, and in the user's own language
+          like every other help line.
+        tests:
+          - QuerySubsystem_QueryHelp_NoVerb_MentionsIncludeConnectionsOption
+          - QuerySubsystem_ImpactVerbHelp_MentionsIncludeConnectionsOption
+
       - id: SysML2Tools-Tool-Query-OutputFile
         title: >-
           The query command shall write its rendered document to the file path supplied via

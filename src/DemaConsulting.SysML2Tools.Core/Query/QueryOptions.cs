@@ -47,7 +47,11 @@ public sealed record QueryOptions
     /// </summary>
     /// <remarks>
     ///     Only meaningful for <see cref="QueryVerb.Impact"/>, where it bounds the transitive
-    ///     impact walk; <see langword="null"/> means unlimited.
+    ///     impact walk; <see langword="null"/> means unlimited. When
+    ///     <see cref="IncludeConnections"/> is also set, this value additionally bounds the
+    ///     number of connector hops taken along any single traversal path, and
+    ///     <see langword="null"/> then means "one connector hop" rather than "unlimited" (see
+    ///     <see cref="IncludeConnections"/>).
     /// </remarks>
     public int? WalkDepth { get; init; }
 
@@ -98,4 +102,23 @@ public sealed record QueryOptions
     ///     excluded from results unless explicitly requested).
     /// </remarks>
     public bool IncludeStdlib { get; init; }
+
+    /// <summary>
+    ///     Gets a value indicating whether the impact walk should also follow connector
+    ///     (<c>connect</c>/<c>bind</c>) relationships in addition to resolved reference edges.
+    /// </summary>
+    /// <remarks>
+    ///     Only meaningful for <see cref="QueryVerb.Impact"/>; defaults to
+    ///     <see langword="false"/>, so the default <c>impact</c> semantics (a reverse-only
+    ///     closure over resolved reference edges) are unchanged. When set, <c>Connect</c> and
+    ///     <c>Binding</c> semantic edges are traversed <em>undirected</em> (a connector's two
+    ///     ends carry no semantic
+    ///     source-causes-target direction), and endpoints are rolled up through containment in
+    ///     both directions so a <c>part</c> subject matches a connector attached to one of its
+    ///     nested ports and a far-side port is attributed to its nearest owning declaration.
+    ///     Because connector graphs are dense meshes, connector hops along a single traversal
+    ///     path are bounded by <see cref="WalkDepth"/> when supplied, and by one hop when
+    ///     <see cref="WalkDepth"/> is <see langword="null"/>.
+    /// </remarks>
+    public bool IncludeConnections { get; init; }
 }

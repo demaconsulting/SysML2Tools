@@ -148,6 +148,9 @@
   <data name="Query_GeneralOptionIncludeStdlib" xml:space="preserve">
     <value>  --include-stdlib             Include OMG standard library elements in results</value>
   </data>
+  <data name="Query_GeneralOptionIncludeConnections" xml:space="preserve">
+    <value>  --include-connections        Also follow connect/bind edges ('impact' verb only)</value>
+  </data>
   <data name="Query_GeneralOptionOutput1" xml:space="preserve">
     <value>  --output &lt;file&gt;             Output file path (default: stdout). Names a FILE,</value>
   </data>
@@ -180,6 +183,15 @@
   </data>
   <data name="Query_OptionWalkDepthImpact" xml:space="preserve">
     <value>  --walk-depth &lt;#&gt;              Maximum impact-walk depth (default: unlimited)</value>
+  </data>
+  <data name="Query_OptionIncludeConnectionsImpact1" xml:space="preserve">
+    <value>  --include-connections         Also follow connect/bind edges, undirected</value>
+  </data>
+  <data name="Query_OptionIncludeConnectionsImpact2" xml:space="preserve">
+    <value>                                (default: reference edges only). Connector</value>
+  </data>
+  <data name="Query_OptionIncludeConnectionsImpact3" xml:space="preserve">
+    <value>                                hops are bounded by --walk-depth, else 1.</value>
   </data>
   <data name="Query_OptionDirectionHierarchy" xml:space="preserve">
     <value>  --direction up|down|both      Traversal direction (default: both)</value>

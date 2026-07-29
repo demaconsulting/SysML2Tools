@@ -235,6 +235,7 @@ internal static class QueryCommand
         context.WriteLine(QueryStrings.Query_GeneralOptionKind);
         context.WriteLine(QueryStrings.Query_GeneralOptionName);
         context.WriteLine(QueryStrings.Query_GeneralOptionIncludeStdlib);
+        context.WriteLine(QueryStrings.Query_GeneralOptionIncludeConnections);
         context.WriteLine(QueryStrings.Query_GeneralOptionOutput1);
         context.WriteLine(QueryStrings.Query_GeneralOptionOutput2);
         context.WriteLine("");
@@ -270,6 +271,9 @@ internal static class QueryCommand
         {
             case QueryVerb.Impact:
                 context.WriteLine(QueryStrings.Query_OptionWalkDepthImpact);
+                context.WriteLine(QueryStrings.Query_OptionIncludeConnectionsImpact1);
+                context.WriteLine(QueryStrings.Query_OptionIncludeConnectionsImpact2);
+                context.WriteLine(QueryStrings.Query_OptionIncludeConnectionsImpact3);
                 break;
 
             case QueryVerb.Dependencies:
