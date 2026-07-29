@@ -214,19 +214,31 @@ public class QueryVerbsTests
     }
 
     /// <summary>
-    ///     'impact' without --include-connections keeps its existing reference-only semantics:
-    ///     a part usage whose only relationship to the rest of the model is a connector reports
-    ///     no impacted elements.
+    ///     'impact' without --include-connections excludes connector edges from its reference
+    ///     closure entirely, so a chain of connectors joining declared sibling part usages
+    ///     reports no impacted elements at all.
     /// </summary>
+    /// <remarks>
+    ///     This corrects a pre-existing defect. Connector edges are published into the semantic
+    ///     index alongside ordinary reference edges, so the default walk followed them as plain
+    ///     incoming references — directed, attributed to the raw endpoint rather than its owning
+    ///     declaration, and outside the connector hop bound. The fixture is deliberately
+    ///     <see cref="QueryTestFixtures.ChainedDeclaredConnectors"/> rather than
+    ///     <see cref="QueryTestFixtures.GantryConnections"/>: only declared (non-port) endpoints
+    ///     make the queried element an incoming-edge key, and therefore only they can exercise
+    ///     the leaking path.
+    /// </remarks>
     [Fact]
     public async Task Impact_IncludeConnectionsFlagAbsent_ReportsReferenceOnlyResult()
     {
         var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
-            QueryTestFixtures.GantryConnections, "impact", "--element", "Model::System::motorA");
+            QueryTestFixtures.ChainedDeclaredConnectors, "impact", "--element", "Model::System::a");
 
         Assert.Equal(0, exitCode);
         Assert.Contains("0 element(s) transitively impacted", output);
-        Assert.DoesNotContain("Model::System::hub", output);
+        Assert.DoesNotContain("Model::System::b", output);
+        Assert.DoesNotContain("Model::System::c", output);
+        Assert.DoesNotContain("Model::System::d", output);
         Assert.DoesNotContain("including connections", output);
     }
 
@@ -291,22 +303,33 @@ public class QueryVerbsTests
 
     /// <summary>
     ///     With no --walk-depth supplied, reference-edge traversal stays unlimited but connector
-    ///     hops are bounded to one, so the second motor (two connector hops away, through the
-    ///     hub) is not reported.
+    ///     hops are bounded to one, so a chain of connectors is followed exactly one hop and the
+    ///     reported count matches the "connection hops &lt;= 1" claim in the summary.
     /// </summary>
+    /// <remarks>
+    ///     The fixture is <see cref="QueryTestFixtures.ChainedDeclaredConnectors"/> rather than
+    ///     <see cref="QueryTestFixtures.GantryConnections"/> because only declared (non-port)
+    ///     connector endpoints make the queried element an incoming-edge key, which is the
+    ///     precondition for an unbounded connector chain to leak through the reference pass. The
+    ///     bare element count is asserted as well as the names, so the test is sensitive to any
+    ///     extra row rather than only to specific ones.
+    /// </remarks>
     [Fact]
     public async Task Impact_IncludeConnections_NoWalkDepth_BoundsConnectionHopsToOne()
     {
         var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
-            QueryTestFixtures.GantryConnections,
+            QueryTestFixtures.ChainedDeclaredConnectors,
             "impact",
             "--element",
-            "Model::System::motorA",
+            "Model::System::a",
             "--include-connections");
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("| Model::System::hub | part |", output);
-        Assert.DoesNotContain("Model::System::motorB", output);
+        Assert.Contains("1 element(s) transitively impacted", output);
+        Assert.Contains("| Model::System::b | part |", output);
+        Assert.DoesNotContain("Model::System::c", output);
+        Assert.DoesNotContain("Model::System::d", output);
+        Assert.Contains("including connections (connection hops <= 1)", output);
     }
 
     /// <summary>
@@ -425,6 +448,137 @@ public class QueryVerbsTests
         Assert.Equal(0, exitCode);
         Assert.Contains("| Model::System::beta | part |", output);
         Assert.DoesNotContain("| Model::System | part def |", output);
+    }
+
+    /// <summary>
+    ///     A chain of connectors between declared sibling part usages is followed exactly one
+    ///     connector hop by default, so only the immediately connected part is reported and the
+    ///     two- and three-hop parts are not.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_ChainedDeclaredConnectors_StopsAtOneConnectorHop()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.ChainedDeclaredConnectors,
+            "impact",
+            "--element",
+            "Model::System::a",
+            "--include-connections");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("1 element(s) transitively impacted", output);
+        Assert.Contains("| Model::System::b | part |", output);
+        Assert.DoesNotContain("Model::System::c", output);
+        Assert.DoesNotContain("Model::System::d", output);
+    }
+
+    /// <summary>
+    ///     Without --include-connections, a chain of connectors between declared sibling part
+    ///     usages contributes nothing to the impact result: connector edge kinds are excluded
+    ///     from the reference closure, so not even the directly connected part is reported.
+    /// </summary>
+    [Fact]
+    public async Task Impact_ChainedDeclaredConnectors_FlagAbsent_ReportsNoImpactedElements()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.ChainedDeclaredConnectors,
+            "impact",
+            "--element",
+            "Model::System::a");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("0 element(s) transitively impacted", output);
+        Assert.DoesNotContain("Model::System::b", output);
+        Assert.DoesNotContain("including connections", output);
+    }
+
+    /// <summary>
+    ///     Raising --walk-depth to two raises the connector hop bound to two, so a connector
+    ///     chain is followed exactly two hops — reaching the second part but never the third.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_ChainedDeclaredConnectors_WalkDepthTwo_ReachesSecondHopOnly()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.ChainedDeclaredConnectors,
+            "impact",
+            "--element",
+            "Model::System::a",
+            "--include-connections",
+            "--walk-depth",
+            "2");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("| Model::System::b | part |", output);
+        Assert.Contains("| Model::System::c | part |", output);
+        Assert.DoesNotContain("Model::System::d", output);
+        Assert.Contains("including connections (connection hops <= 2)", output);
+    }
+
+    /// <summary>
+    ///     A connector whose nested-port endpoint is on the source side is attributed exactly
+    ///     once, to the port's owning part usage. The raw port name is never additionally
+    ///     reported as an impacted element in its own right.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_SourceSidePortEndpoint_ReportsOwnerNotRawPort()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.SourceSidePortConnector,
+            "impact",
+            "--element",
+            "Model::System::motorA",
+            "--include-connections");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("1 element(s) transitively impacted", output);
+        Assert.Contains("| Model::System::hub | part |", output);
+        Assert.DoesNotContain("| Model::System::hub::J1 | connect", output);
+    }
+
+    /// <summary>
+    ///     Without --include-connections, a source-side nested-port connector contributes nothing
+    ///     to the impact result — neither the owning part usage nor the raw port.
+    /// </summary>
+    [Fact]
+    public async Task Impact_SourceSidePortEndpoint_FlagAbsent_ReportsNoImpactedElements()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.SourceSidePortConnector,
+            "impact",
+            "--element",
+            "Model::System::motorA");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("0 element(s) transitively impacted", output);
+        Assert.DoesNotContain("Model::System::hub", output);
+    }
+
+    /// <summary>
+    ///     An element first reached over a connector and later re-reached over a cheaper pure
+    ///     reference path is re-expanded with its restored hop budget, so elements one connector
+    ///     hop beyond it are still reported rather than silently dropped.
+    /// </summary>
+    /// <remarks>
+    ///     'z' is expected at depth 3, not 2: 'b' is re-reached cheaply at breadth-first level 2
+    ///     and therefore expands its connectors at level 3, which is genuinely the first level at
+    ///     which 'z' is reachable within the hop budget. This is not an off-by-one.
+    /// </remarks>
+    [Fact]
+    public async Task Impact_IncludeConnections_CheaperReferencePath_ReExpandsConnectorsFromReReachedElement()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.MinimumHopReExpansion,
+            "impact",
+            "--element",
+            "Model::Assembly::s",
+            "--include-connections");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("3 element(s) transitively impacted", output);
+        Assert.Contains("| Model::Assembly::b | part |", output);
+        Assert.Contains("| Model::Assembly::s2 | part |", output);
+        Assert.Contains("| Model::Assembly::z | part |", output);
     }
 
     /// <summary>

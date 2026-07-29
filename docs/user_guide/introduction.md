@@ -471,6 +471,18 @@ imports, and similar resolved references — in the reverse direction. A part th
 the rest of an assembly purely by `connect` statements therefore reports no impacted elements,
 because a connector is not a reference.
 
+> **Upgrade note — the default `impact` result changed.** In releases before this correction,
+> `query impact` could follow `connect` and `bind` relationships **even without**
+> `--include-connections`, whenever a connector named a directly declared element (for example
+> `connect b to a;` or `connect hub.J1 to motorA;`). Those connectors were followed without any
+> hop bound and were reported as their raw endpoint — including nested port names such as
+> `Model::System::hub::J1`, which cannot themselves be used as an `--element` subject. That
+> contradicted the documented default described above and has been fixed. As a result, a
+> `query impact` command that you have not changed may now report **fewer** rows than it used to
+> — often none — on models that rely on `connect` statements. To get those elements back,
+> deliberately add `--include-connections`, which now reports them correctly rolled up to their
+> owning part and within the documented hop bound.
+
 Adding `--include-connections` makes `impact` follow `connect` and `bind` relationships as
 well. Three rules apply:
 
@@ -497,6 +509,15 @@ existing command can only ever add rows, never remove or alter them. `--format j
 additionally carry `Depth` (the traversal depth), `Relation` (`Connect`/`Binding` for a
 connector, or the reference edge kind otherwise), and `ViaQualifiedName`, so scripts can
 distinguish "referenced by" from "connected to" without parsing the human-readable detail text.
+
+One consequence of the hop bound is worth knowing when reading depths. Reference hops cost
+nothing against the connector budget, so an element that was first reached over a connector may
+later be reached again over a pure reference path with its full connector budget restored. When
+that happens the tool re-explores the connectors around it, which can report an element at a
+depth *greater* than the depth of the element it was connected to. That is deliberate: the
+reported depth is the first traversal level at which the element genuinely became reachable
+within the hop budget, and the alternative — refusing to re-explore — would silently omit
+elements that are well inside the bound you asked for.
 
 ## Query Output Formats
 

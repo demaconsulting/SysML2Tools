@@ -259,7 +259,7 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 | `--format markdown\|json` | Output format (default: `markdown`); distinct from `render`'s `--format` (`svg`/`png`) |
 | `--output <file>` | Write query report to this **file** (default: stdout); differs from `render`'s `--output` dir |
 | `--walk-depth <#>` | Maximum impact-walk depth (`impact` verb only) |
-| `--include-connections` | `impact` only: also follow `connect`/`bind` edges, undirected (1 hop) |
+| `--include-connections` | `impact` only: follow `connect`/`bind` edges undirected (1 hop); off = not followed |
 | `--direction up\|down\|both` | Traversal direction (`hierarchy` verb only) |
 | `--kind <kind>` | Element-kind filter (`list`/`find` verbs only) |
 | `--name <substring>` | Name substring filter (`list`/`find` verbs only) |

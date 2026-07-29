@@ -69,6 +69,48 @@ public class QueryEngineImpactTests
         """;
 
     /// <summary>
+    ///     Connector topology placing the nested-port endpoint on the connector's <b>source</b>
+    ///     side, so the subject part usage is itself the incoming-edge key for the connector.
+    ///     That orientation is what exposes duplicate attribution: an unfiltered reference pass
+    ///     reports the raw port in addition to the correctly rolled-up owning part usage.
+    /// </summary>
+    private const string SourceSidePortFixture = """
+        package Model {
+            port def PowerPort;
+
+            part def Hub {
+                port J1 : PowerPort;
+            }
+
+            part def System {
+                part hub : Hub;
+                part motorA;
+
+                connect hub.J1 to motorA;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     Topology in which <c>b</c> is first reached from <c>s</c> over a connector (one hop)
+    ///     and later re-reached one level deeper over the subsetting chain <c>b :&gt; s2 :&gt; s</c>
+    ///     at zero hops, so the minimum-hop cycle guard must re-expand it for <c>z</c> to be found.
+    /// </summary>
+    private const string MinimumHopFixture = """
+        package Model {
+            part def Assembly {
+                part s;
+                part s2 :> s;
+                part b :> s2;
+                part z;
+
+                connect b to s;
+                connect z to b;
+            }
+        }
+        """;
+
+    /// <summary>
     ///     Writes the fixture to a temp file, loads it exactly as a non-CLI library caller
     ///     would, resolves the named element, and returns both for a direct
     ///     <see cref="QueryEngine"/> call.
@@ -222,5 +264,72 @@ public class QueryEngineImpactTests
         Assert.Null(entry.ViaQualifiedName);
         Assert.Contains(entry.Notes, n => n.Contains("Model::System::beta", StringComparison.Ordinal));
         Assert.Contains(entry.Notes, n => n.Contains("Model::System::alpha", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     A connector whose nested-port endpoint sits on the source side yields exactly one
+    ///     entry — the port's owning part usage — and never an additional raw-port entry.
+    /// </summary>
+    /// <remarks>
+    ///     <c>Assert.Single</c> is applied to the whole entry list rather than through the
+    ///     predicate overload on purpose: the predicate overload asserts only that a
+    ///     <i>matching</i> entry is unique and is structurally blind to an extra non-matching
+    ///     entry, which is exactly how the duplicate raw-port entry escaped detection.
+    /// </remarks>
+    [Fact]
+    public async Task Impact_IncludeConnections_SourceSidePortEndpoint_ProducesExactlyOneEntry()
+    {
+        var (workspace, element) = await LoadAsync(SourceSidePortFixture, "Model::System::motorA");
+
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::System::motorA",
+                IncludeConnections = true
+            });
+
+        var entry = Assert.Single(result.Entries);
+        Assert.Equal("Model::System::hub", entry.QualifiedName);
+        Assert.Equal(1, entry.Depth);
+        Assert.Equal(SysmlEdgeKind.Connect, entry.Relation);
+        Assert.Equal("Model::System::hub::J1", entry.ViaQualifiedName);
+        Assert.DoesNotContain(result.Entries, e => e.QualifiedName == "Model::System::hub::J1");
+    }
+
+    /// <summary>
+    ///     An element re-reached at a strictly lower connector-hop count is re-expanded so
+    ///     elements beyond it are not lost, while its already-recorded first-arrival depth and
+    ///     relation attribution are retained and no duplicate entry is emitted.
+    /// </summary>
+    /// <remarks>
+    ///     <c>z</c> is expected at depth 3, not 2: <c>b</c> is re-reached cheaply at
+    ///     breadth-first level 2 and therefore expands its connectors at level 3, which is
+    ///     genuinely the first level at which <c>z</c> is reachable within the hop budget.
+    /// </remarks>
+    [Fact]
+    public async Task Impact_IncludeConnections_ReReachedAtLowerHopCount_KeepsFirstArrivalDepthAndAttribution()
+    {
+        var (workspace, element) = await LoadAsync(MinimumHopFixture, "Model::Assembly::s");
+
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::Assembly::s",
+                IncludeConnections = true
+            });
+
+        var b = Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::b");
+        Assert.Equal(1, b.Depth);
+        Assert.Equal(SysmlEdgeKind.Connect, b.Relation);
+
+        var z = Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::z");
+        Assert.Equal(3, z.Depth);
+        Assert.Equal(SysmlEdgeKind.Connect, z.Relation);
     }
 }

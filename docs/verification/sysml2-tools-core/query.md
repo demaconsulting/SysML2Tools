@@ -64,9 +64,10 @@ scenarios listed under "Test Scenarios (Tool Test Project)" below run via `dotne
   `describe`), falling back to a generic `**Entries**` / `_No entries._` label for any
   unrecognized verb. The label is always plain bold text, never an ATX heading, so the report
   never branches into a Markdown sub-section regardless of the caller's requested heading depth.
-- `impact` without `IncludeConnections` reports exactly the reference-only result it reported
-  before connection-aware impact existed, including for a subject whose only relationship to
-  the rest of the model is a connector.
+- `impact` without `IncludeConnections` reports a reference-only result that excludes `Connect`
+  and `Binding` edges entirely, so a subject whose only relationship to the rest of the model is
+  a connector reports no impacted elements — including when both connector endpoints are
+  declared part usages rather than nested ports.
 - `impact` with `IncludeConnections` reaches the part usage on the far side of a connector, from
   either end of that connector, proving the traversal is undirected rather than reverse-only.
 - Connector endpoints that are nested ports are attributed to their nearest owning part usage,
@@ -76,7 +77,15 @@ scenarios listed under "Test Scenarios (Tool Test Project)" below run via `dotne
   topology and the enclosing definition that also owns the subject is never reported in the
   endpoint's place.
 - Connector hops are bounded to one per traversal path when no `WalkDepth` is supplied, and to
-  `WalkDepth` when it is, while reference-edge depth semantics are unchanged.
+  `WalkDepth` when it is, while reference-edge depth semantics are unchanged. The bound holds
+  for connector chains whose endpoints are declared part usages, not only for port endpoints.
+- A single connector produces exactly one impact entry — its far endpoint rolled up to the
+  nearest owning declaration — regardless of which side of the connector the nested port sits
+  on, and never an additional raw-endpoint entry.
+- An element re-reached at a strictly lower connector-hop count is re-expanded, so elements
+  within the hop budget of the reference closure are never dropped because a costlier path
+  reached them first, while the re-reached element keeps its first-arrival depth and relation
+  attribution and is still reported exactly once.
 - A cyclic connector topology terminates and reports each impacted element exactly once.
 - `Binding` connectors (`bind A = B;`) are traversed undirected exactly like `Connect`
   connectors.
@@ -220,6 +229,30 @@ declared-endpoints fixture and subject; verifies that the `Model::System::beta` 
 `ViaQualifiedName` null because no roll-up occurred, while its `Notes` still name both raw
 connector endpoints so no information is lost.
 
+**`Impact_IncludeConnections_SourceSidePortEndpoint_ProducesExactlyOneEntry`**: Uses the
+source-side-port fixture, in which the nested port is the connector's *source*
+(`connect hub.J1 to motorA;`) rather than its target, and queries `Model::System::motorA` with
+`IncludeConnections` set. That orientation makes the subject itself the incoming-edge key for
+the connector, which is the precondition for duplicate attribution — an unfiltered reference
+pass reports the raw port `Model::System::hub::J1` in addition to the correctly rolled-up
+`Model::System::hub`. Verifies that the result contains **exactly one** entry in total, that it
+is `Model::System::hub` at `Depth` 1 with `Relation` of `SysmlEdgeKind.Connect` and
+`ViaQualifiedName` of `Model::System::hub::J1`, and that no entry names the raw port. The
+whole-list `Assert.Single` overload is used deliberately: the predicate overload asserts only
+that a *matching* entry is unique and is structurally blind to an extra non-matching entry,
+which is how the duplicate previously escaped detection.
+
+**`Impact_IncludeConnections_ReReachedAtLowerHopCount_KeepsFirstArrivalDepthAndAttribution`**:
+Uses the minimum-hop fixture, in which `b` is reached from `s` over `connect b to s` at one
+connector hop and re-reached one breadth-first level deeper over the subsetting chain
+`b :> s2 :> s` at zero hops. Verifies that `b` appears exactly once and retains its
+first-arrival `Depth` of 1 and `Relation` of `SysmlEdgeKind.Connect` — the cheaper re-arrival
+re-opens it for expansion but never rewrites its attribution — and that `z`, reachable only by
+expanding the re-opened `b`, is reported with `Relation` of `SysmlEdgeKind.Connect` at `Depth`
+**3**. Depth 3 is correct and is not an off-by-one: `b` is re-reached cheaply at level 2 and
+therefore expands its connectors at level 3, which is genuinely the first breadth-first level
+at which `z` becomes reachable within the hop budget.
+
 **`WriteMarkdown_HappyPath_MatchesRendererOutput`**: Verifies that `WriteMarkdown` writes the
 same Markdown text produced by `QueryResultRenderer.RenderMarkdown`.
 
@@ -316,16 +349,27 @@ references.
 **`Impact_Unbounded_ReachesTransitiveClosure`**: Verifies that unbounded `QueryEngine.Impact`
 reaches the full transitive closure of incoming references without looping on cycles.
 
-The connection-aware `impact` scenarios below all use the shared `QueryTestFixtures.
+The connection-aware `impact` scenarios below use the shared `QueryTestFixtures.
 GantryConnections` fixture (a minimal reduction of the three-axis-gantry topology: two motor
 part usages, each connecting one of its nested ports to a distinct port of a shared hub part
-usage) except where a local variant is named. No motor references the other and no motor has an
-incoming reference edge, so any element reported was necessarily reached through a connector.
+usage) except where another shared fixture or a local variant is named. No motor references the
+other and no motor has an incoming reference edge, so any element reported was necessarily
+reached through a connector. Because every `GantryConnections` connector endpoint is a nested
+port, the queried part usage is never a key in the incoming-edge index; scenarios that must
+detect connector edges leaking into the reference closure therefore use
+`ChainedDeclaredConnectors` or `SourceSidePortConnector`, whose endpoints are declared part
+usages or source-side ports, instead.
 
-**`Impact_IncludeConnectionsFlagAbsent_ReportsReferenceOnlyResult`**: Regression lock for
-unchanged default semantics — verifies that `impact` on a motor without the flag reports zero
-impacted elements, does not name the connected hub, and does not mention connections in its
-summary.
+**`Impact_IncludeConnectionsFlagAbsent_ReportsReferenceOnlyResult`**: Uses the
+`QueryTestFixtures.ChainedDeclaredConnectors` fixture (four sibling part usages joined by
+`connect b to a; connect c to b; connect d to c;`) and queries `Model::System::a` without the
+flag; verifies zero impacted elements, that none of `b`, `c`, or `d` is named, and that the
+summary does not mention connections. The fixture is deliberately *not* `GantryConnections`:
+because every `GantryConnections` connector endpoint is a nested port, the queried part usage is
+never a key in the incoming-edge index, so the defective path — connector edges leaking into the
+reference closure — is never reached and no assertion over that fixture could ever fail. This
+scenario is the lock on the corrected default: connector edge kinds are excluded from the
+reference closure entirely.
 
 **`Impact_IncludeConnections_ReachesConnectedSiblingPart`**: Verifies that the same query with
 `--include-connections` reaches the connected hub part usage and reports the one-hop connection
@@ -339,9 +383,15 @@ both motors, the mirror image of the previous scenario.
 reported entry is the owning part usage with kind `part` (not the nested port), and that the raw
 port-to-port endpoint pair is preserved in the entry's notes.
 
-**`Impact_IncludeConnections_NoWalkDepth_BoundsConnectionHopsToOne`**: Verifies that with no
-`--walk-depth` supplied the connected hub is reached but the second motor — two connector hops
-away through the hub — is not.
+**`Impact_IncludeConnections_NoWalkDepth_BoundsConnectionHopsToOne`**: Uses the
+`QueryTestFixtures.ChainedDeclaredConnectors` fixture and queries `Model::System::a` with
+`--include-connections`; verifies exactly `1 element(s) transitively impacted`, that the `b` row
+is present, that neither `c` nor `d` is named, and that the summary reads
+`including connections (connection hops <= 1)`. The fixture change from `GantryConnections` is
+essential for the same reason given above — only declared (non-port) connector endpoints make
+the queried element an incoming-edge key, and only then can a connector chain be followed past
+the hop bound the summary claims. Asserting the bare element count, not just names, is what
+makes the scenario sensitive to any extra row.
 
 **`Impact_IncludeConnections_WalkDepthTwo_ReachesSecondConnectionHop`**: Verifies that
 `--walk-depth 2` raises the connector hop bound to two, reaching the second motor, and reports
@@ -361,6 +411,44 @@ binding names a directly declared sibling part usage rather than a nested port, 
 `Model::System::alpha` with `--include-connections`; verifies the rendered table contains the
 `| Model::System::beta | part |` row and never the `| Model::System | part def |` row for the
 enclosing definition.
+
+**`Impact_IncludeConnections_ChainedDeclaredConnectors_StopsAtOneConnectorHop`**: Uses the
+`ChainedDeclaredConnectors` fixture and queries `Model::System::a` with
+`--include-connections`; verifies exactly one impacted element, that it is `b`, and that neither
+`c` (two connector hops) nor `d` (three) is reported. This is the direct regression lock for the
+reported defect in which a declared-connector chain was traversed unbounded while the summary
+still claimed a one-hop bound.
+
+**`Impact_ChainedDeclaredConnectors_FlagAbsent_ReportsNoImpactedElements`**: Same fixture and
+subject without the flag; verifies zero impacted elements, that `b` is not named, and that the
+summary omits the connections suffix — proving connector edges contribute nothing to the default
+reference closure.
+
+**`Impact_IncludeConnections_ChainedDeclaredConnectors_WalkDepthTwo_ReachesSecondHopOnly`**:
+Same fixture and subject with `--walk-depth 2`; verifies that `b` and `c` are reported, `d` is
+not, and the summary reads `including connections (connection hops <= 2)` — proving the bound
+tracks `--walk-depth` rather than being absent.
+
+**`Impact_IncludeConnections_SourceSidePortEndpoint_ReportsOwnerNotRawPort`**: Uses the
+`QueryTestFixtures.SourceSidePortConnector` fixture (`connect hub.J1 to motorA;`, the nested port
+on the connector's source side) and queries `Model::System::motorA` with
+`--include-connections`; verifies exactly one impacted element, that it is the
+`| Model::System::hub | part |` row, and that no `| Model::System::hub::J1 | connect` row
+appears. This is the regression lock for the reported defect in which a single connector
+produced two rows — the correct rolled-up owner plus a raw port entry.
+
+**`Impact_SourceSidePortEndpoint_FlagAbsent_ReportsNoImpactedElements`**: Same fixture and
+subject without the flag; verifies zero impacted elements and that the hub is not named at all.
+
+**`Impact_IncludeConnections_CheaperReferencePath_ReExpandsConnectorsFromReReachedElement`**:
+Uses the `QueryTestFixtures.MinimumHopReExpansion` fixture and queries `Model::Assembly::s` with
+`--include-connections`; verifies exactly three impacted elements — `b` (reached over a
+connector), `s2` (reached over a reference edge), and `z`, which is reachable only because `b`
+is re-expanded after being re-reached at a cheaper connector-hop count. `z` is reported at depth
+3, since `b` is re-reached at breadth-first level 2 and expands its connectors at level 3; that
+is the first level at which `z` is genuinely reachable within the hop budget, not an off-by-one.
+Without minimum-hop tracking `z` is silently dropped and the result depends on frontier
+iteration order.
 
 **`Interface_ReportsPortsAndTypedFeatures`**: Verifies that `QueryEngine.Interface` reports a
 target definition's ports and typed features.

@@ -94,7 +94,8 @@ sections:
         title: >-
           The Query subsystem shall compute the transitive closure of incoming references from a
           target element through the `impact` verb, optionally bounded by `WalkDepth` and guarded
-          against cycles.
+          against cycles, excluding `Connect` and `Binding` connector edges from that reference
+          closure.
         justification: |
           A single-hop reverse-reference view understates true blast radius for deeply-referenced
           elements. A bounded transitive closure gives callers a practical, terminating answer to
@@ -102,19 +103,31 @@ sections:
           are unchanged by the opt-in connection traversal described by
           `SysML2Tools-Core-Query-ImpactConnections`; connector edges are followed only when
           `IncludeConnections` is explicitly supplied.
+
+          Connector relationships are published into the semantic index alongside ordinary
+          reference edges, so the exclusion must be explicit. Without it the default walk followed
+          every connector as a plain incoming reference — directed rather than undirected,
+          attributed to the raw nested-port endpoint rather than its owning declaration, and
+          outside the connector hop bound. That was a defect: it contradicted the documented
+          default contract and emitted qualified names that are not resolvable as query subjects.
+          Correcting it makes the default result smaller than in releases before this change, and
+          makes `IncludeConnections` a strict superset of the default.
         tests:
           - Impact_DepthOne_OnlyReachesDirectReferences
           - Impact_Unbounded_ReachesTransitiveClosure
           - Impact_IncludeConnectionsFlagAbsent_ReportsReferenceOnlyResult
+          - Impact_ChainedDeclaredConnectors_FlagAbsent_ReportsNoImpactedElements
+          - Impact_SourceSidePortEndpoint_FlagAbsent_ReportsNoImpactedElements
 
       - id: SysML2Tools-Core-Query-ImpactConnections
         title: >-
           When `IncludeConnections` is supplied, the `impact` verb shall additionally traverse
           resolved `Connect` and `Binding` connector relationships without regard to their
           recorded endpoint order, matching a subject element against endpoints nested inside it
-          and attributing each far endpoint to its nearest owning declaration, bounding connector
-          hops along any single traversal path to `WalkDepth` when supplied or to one hop
-          otherwise, and terminating on cyclic connector topologies.
+          and attributing each far endpoint to its nearest owning declaration exactly once and
+          never additionally as a reference edge, bounding connector hops along any single
+          traversal path to `WalkDepth` when supplied or to one hop otherwise, and terminating on
+          cyclic connector topologies.
         justification: |
           A connector's two ends carry no semantic source-causes-target direction, so the
           reverse-only reference closure reports nothing for a part joined to the rest of the
@@ -124,6 +137,12 @@ sections:
           answer to be meaningful. Because connector graphs are dense meshes, an unbounded
           connector closure degenerates to "the whole assembly", so a one-hop default keeps the
           opt-in answer useful while `WalkDepth` remains available to widen it deliberately.
+
+          The single-attribution guarantee is required because the same connector is reachable
+          from both the connector pass and the reference-edge pass. Attributing it twice produced
+          two result rows for one connector whenever the nested-port endpoint sat on the
+          connector's source side, and let a connector chain be followed past the hop bound the
+          summary text claims.
         tests:
           - Impact_IncludeConnections_ReachesConnectedSiblingPart
           - Impact_IncludeConnections_QueriedFromFarEndpoint_ReachesOriginatingPart
@@ -135,6 +154,30 @@ sections:
           - Impact_IncludeConnections_ThroughPublicApi_ReturnsConnectedPartEntries
           - Impact_IncludeConnections_DeclaredFarEndpoint_ReportsEndpointItself
           - Impact_IncludeConnections_DeclaredEndpointConnector_ReportsSiblingPartNotOwningDefinition
+          - Impact_IncludeConnections_ChainedDeclaredConnectors_StopsAtOneConnectorHop
+          - Impact_IncludeConnections_ChainedDeclaredConnectors_WalkDepthTwo_ReachesSecondHopOnly
+          - Impact_IncludeConnections_SourceSidePortEndpoint_ReportsOwnerNotRawPort
+          - Impact_IncludeConnections_SourceSidePortEndpoint_ProducesExactlyOneEntry
+
+      - id: SysML2Tools-Core-Query-ImpactHopMinimality
+        title: >-
+          The `impact` verb's cycle guard shall record the minimum connector-hop count at which
+          each element was reached and shall re-expand an element whenever a strictly cheaper hop
+          count is found, while retaining each element's first-arrival depth and relation
+          attribution and reporting each element at most once.
+        justification: |
+          Connector-hop cost is not monotonic in breadth-first depth: an element first reached
+          over a connector can later be reached over a pure reference path that consumed none of
+          the hop budget. A guard that records only membership pins each element to its
+          first-arrival cost, so such an element is never expanded with its restored budget and
+          elements one connector hop beyond it are silently dropped — making the result depend on
+          frontier iteration order rather than on the model. Re-expanding on a strictly cheaper
+          arrival removes that dependence, while suppressing the duplicate entry preserves both
+          the "each element appears exactly once" invariant and the rule that `Depth` equals the
+          breadth-first level of first arrival.
+        tests:
+          - Impact_IncludeConnections_CheaperReferencePath_ReExpandsConnectorsFromReReachedElement
+          - Impact_IncludeConnections_ReReachedAtLowerHopCount_KeepsFirstArrivalDepthAndAttribution
 
       - id: SysML2Tools-Core-Query-EntryTraversalMetadata
         title: >-
@@ -153,6 +196,8 @@ sections:
           - Impact_ConnectionEntry_RecordsDepthRelationAndViaQualifiedName
           - Impact_ConnectionEntry_WithoutRollUp_OmitsViaQualifiedName
           - Impact_ReferenceEntry_RecordsDepthAndReferenceRelation
+          - Impact_IncludeConnections_SourceSidePortEndpoint_ProducesExactlyOneEntry
+          - Impact_IncludeConnections_ReReachedAtLowerHopCount_KeepsFirstArrivalDepthAndAttribution
           - RenderJson_EntryWithDepthAndRelation_IncludesBothFieldsAndRoundTrips
           - RenderJson_EntryWithoutTraversalMetadata_OmitsDepthRelationAndVia
           - RenderMarkdown_ImpactEntry_DetailRemainsHumanReadableDepthText

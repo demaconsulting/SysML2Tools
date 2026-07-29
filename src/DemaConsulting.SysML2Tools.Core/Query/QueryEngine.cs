@@ -39,6 +39,15 @@ public static class QueryEngine
     ///     that carry no semantic source-causes-target direction, so both are traversed
     ///     undirected.
     /// </summary>
+    /// <remarks>
+    ///     These kinds are also <b>excluded</b> from the <c>impact</c> verb's reference-edge
+    ///     closure. They are present in <see cref="SemanticIndex.AllEdges"/> alongside ordinary
+    ///     reference edges, so without that exclusion every connector would be followed a second
+    ///     time as a plain incoming reference — directed, unrolled, unattributed, and outside the
+    ///     connector hop bound. Excluding them makes <see cref="CollectImpactConnections"/> the
+    ///     single attribution path for connector relationships, so each connector is reported
+    ///     exactly once and only under <see cref="QueryOptions.IncludeConnections"/>.
+    /// </remarks>
     private static readonly SysmlEdgeKind[] ImpactConnectorEdgeKinds =
     [
         SysmlEdgeKind.Connect,
@@ -242,11 +251,26 @@ public static class QueryEngine
     ///     traversal path by <see cref="QueryOptions.WalkDepth"/> or, when that is
     ///     <see langword="null"/>, by <see cref="DefaultConnectionHopLimit"/> — so the outer
     ///     loop cannot enforce it and a per-frontier-item hop counter is carried instead.
+    ///     <para>
+    ///     Connector edge kinds (<see cref="ImpactConnectorEdgeKinds"/>) are excluded from the
+    ///     reference closure, so a connector is attributed exactly once — by
+    ///     <see cref="CollectImpactConnections"/>, rolled up to its owning declaration and within
+    ///     the hop bound — and never additionally as a raw incoming reference edge.
+    ///     </para>
+    ///     <para>
+    ///     The cycle guard records the <b>minimum</b> connector-hop count at which each element
+    ///     has been reached rather than mere membership, because connector-hop count is not
+    ///     monotonic in breadth-first depth: an element first reached over a connector can later
+    ///     be reached again over a pure reference path that consumes no hop budget. Such an
+    ///     element is re-expanded so nothing within the budget is silently dropped, but its
+    ///     already-recorded entry is never rewritten and no duplicate entry is emitted, so each
+    ///     element is reported exactly once at its first-arrival depth and attribution.
+    ///     </para>
     /// </remarks>
     public static QueryResult Impact(SysmlWorkspace workspace, SysmlNode element, QueryOptions options)
     {
         var qualifiedName = QualifiedNameOf(element, options);
-        var visited = new HashSet<string>(StringComparer.Ordinal) { qualifiedName };
+        var bestHops = new Dictionary<string, int>(StringComparer.Ordinal) { [qualifiedName] = 0 };
         var entries = new List<QueryResultEntry>();
 
         // Collected once per call, and only when requested, rather than once per frontier item.
@@ -266,12 +290,12 @@ public static class QueryEngine
 
             foreach (var (current, hops) in frontier)
             {
-                CollectImpactReferences(workspace, options, current, hops, depth, visited, entries, next);
+                CollectImpactReferences(workspace, options, current, hops, depth, bestHops, entries, next);
 
                 if (options.IncludeConnections && hops < connectionHopLimit)
                 {
                     CollectImpactConnections(
-                        workspace, options, current, hops, depth, connectorEdges, visited, entries, next);
+                        workspace, options, current, hops, depth, connectorEdges, bestHops, entries, next);
                 }
             }
 
@@ -301,12 +325,21 @@ public static class QueryEngine
     ///     <paramref name="next"/> with their connector-hop count carried through unchanged
     ///     (a reference hop never consumes a connector hop).
     /// </summary>
+    /// <remarks>
+    ///     Edges whose kind is in <see cref="ImpactConnectorEdgeKinds"/> are skipped. Connector
+    ///     edges are published into <see cref="SemanticIndex.AllEdges"/> alongside ordinary
+    ///     reference edges, so following them here as well would report every connector a second
+    ///     time — directed instead of undirected, as the raw endpoint instead of its owning
+    ///     declaration, without <see cref="QueryResultEntry.ViaQualifiedName"/> attribution, and
+    ///     outside the connector hop bound. <see cref="CollectImpactConnections"/> is therefore
+    ///     the single attribution path for connector relationships.
+    /// </remarks>
     /// <param name="workspace">The loaded workspace.</param>
     /// <param name="options">The parsed query options.</param>
     /// <param name="current">The frontier item's qualified name.</param>
     /// <param name="hops">The number of connector hops already taken to reach <paramref name="current"/>.</param>
     /// <param name="depth">The 1-based traversal depth of the names being reached.</param>
-    /// <param name="visited">The shared cycle guard.</param>
+    /// <param name="bestHops">The shared minimum-connector-hop cycle guard.</param>
     /// <param name="entries">The result entries accumulated so far.</param>
     /// <param name="next">The next frontier being built.</param>
     private static void CollectImpactReferences(
@@ -315,20 +348,24 @@ public static class QueryEngine
         string current,
         int hops,
         int depth,
-        HashSet<string> visited,
+        Dictionary<string, int> bestHops,
         List<QueryResultEntry> entries,
         List<(string Name, int ConnectionHops)> next)
     {
         foreach (var edge in workspace.Index.GetIncomingEdges(current))
         {
-            if (edge.SourceQualifiedName is not { Length: > 0 } source || !visited.Add(source))
+            if (IsImpactConnectorKind(edge.Kind) ||
+                edge.SourceQualifiedName is not { Length: > 0 } source ||
+                !TryReach(bestHops, source, hops, out var isFirstArrival))
             {
                 continue;
             }
 
             next.Add((source, hops));
 
-            if (!IsVisible(source, workspace, options.IncludeStdlib))
+            // A cheaper re-arrival only re-opens the element for expansion; its first-arrival
+            // entry (and therefore its depth and relation attribution) is never rewritten.
+            if (!isFirstArrival || !IsVisible(source, workspace, options.IncludeStdlib))
             {
                 continue;
             }
@@ -357,7 +394,7 @@ public static class QueryEngine
     /// <param name="hops">The number of connector hops already taken to reach <paramref name="current"/>.</param>
     /// <param name="depth">The 1-based traversal depth of the names being reached.</param>
     /// <param name="connectorEdges">The connector edges collected once for this invocation.</param>
-    /// <param name="visited">The shared cycle guard.</param>
+    /// <param name="bestHops">The shared minimum-connector-hop cycle guard.</param>
     /// <param name="entries">The result entries accumulated so far.</param>
     /// <param name="next">The next frontier being built.</param>
     private static void CollectImpactConnections(
@@ -367,7 +404,7 @@ public static class QueryEngine
         int hops,
         int depth,
         List<(string Source, string Target, string Keyword, SysmlEdgeKind Kind)> connectorEdges,
-        HashSet<string> visited,
+        Dictionary<string, int> bestHops,
         List<QueryResultEntry> entries,
         List<(string Name, int ConnectionHops)> next)
     {
@@ -386,14 +423,16 @@ public static class QueryEngine
             var near = nearIsSource ? source : target;
             var far = nearIsSource ? target : source;
             var owner = RollUpToNearestDeclaration(workspace, far);
-            if (!visited.Add(owner))
+            if (!TryReach(bestHops, owner, hops + 1, out var isFirstArrival))
             {
                 continue;
             }
 
             next.Add((owner, hops + 1));
 
-            if (!IsVisible(owner, workspace, options.IncludeStdlib))
+            // A cheaper re-arrival only re-opens the element for expansion; its first-arrival
+            // entry (and therefore its depth and relation attribution) is never rewritten.
+            if (!isFirstArrival || !IsVisible(owner, workspace, options.IncludeStdlib))
             {
                 continue;
             }
@@ -1004,6 +1043,73 @@ public static class QueryEngine
         candidate is not null &&
         (string.Equals(candidate, subjectQualifiedName, StringComparison.Ordinal) ||
          candidate.StartsWith(subjectQualifiedName + "::", StringComparison.Ordinal));
+
+    /// <summary>
+    ///     Determines whether an edge kind is one of the connector kinds the <c>impact</c> verb
+    ///     handles through its dedicated, hop-bounded, rolled-up connector pass.
+    /// </summary>
+    /// <param name="kind">The edge kind to test.</param>
+    /// <returns>
+    ///     <see langword="true"/> when <paramref name="kind"/> is in
+    ///     <see cref="ImpactConnectorEdgeKinds"/> and must therefore be excluded from the
+    ///     reference-edge closure.
+    /// </returns>
+    private static bool IsImpactConnectorKind(SysmlEdgeKind kind) =>
+        Array.IndexOf(ImpactConnectorEdgeKinds, kind) >= 0;
+
+    /// <summary>
+    ///     Applies the <c>impact</c> verb's minimum-connector-hop cycle guard to a candidate
+    ///     element, deciding whether it may be expanded and whether it is a first arrival.
+    /// </summary>
+    /// <remarks>
+    ///     A plain membership set is insufficient because connector-hop count is not monotonic in
+    ///     breadth-first depth: an element first reached over a connector may later be reached
+    ///     over a pure reference path that has consumed less of the hop budget, and would
+    ///     otherwise never be expanded at the cheaper cost — silently dropping elements that are
+    ///     genuinely within the bound. Termination is guaranteed because a recorded hop count
+    ///     strictly decreases on each re-admission and is bounded below by zero.
+    /// </remarks>
+    /// <param name="bestHops">
+    ///     The guard, mapping qualified name to the minimum connector-hop count at which it has
+    ///     been reached so far. Updated in place.
+    /// </param>
+    /// <param name="name">The candidate element's qualified name.</param>
+    /// <param name="hops">The connector-hop count at which the candidate is being reached.</param>
+    /// <param name="isFirstArrival">
+    ///     On return, <see langword="true"/> when the candidate had never been reached before and
+    ///     therefore requires a result entry; <see langword="false"/> when it is a cheaper
+    ///     re-arrival at an element that has already been reported.
+    /// </param>
+    /// <returns>
+    ///     <see langword="true"/> when the candidate must be added to the next frontier — either
+    ///     as a first arrival or as a strictly cheaper re-arrival; <see langword="false"/> when it
+    ///     has already been reached at an equal or lower hop count.
+    /// </returns>
+    private static bool TryReach(
+        Dictionary<string, int> bestHops,
+        string name,
+        int hops,
+        out bool isFirstArrival)
+    {
+        // First arrival: record the cost, expand it, and emit its entry.
+        if (!bestHops.TryGetValue(name, out var existing))
+        {
+            bestHops[name] = hops;
+            isFirstArrival = true;
+            return true;
+        }
+
+        // Re-arrival at an equal or costlier hop count buys nothing already available.
+        isFirstArrival = false;
+        if (hops >= existing)
+        {
+            return false;
+        }
+
+        // Strictly cheaper re-arrival: re-open for expansion without emitting a second entry.
+        bestHops[name] = hops;
+        return true;
+    }
 
     /// <summary>
     ///     Rolls a connector endpoint up to its nearest owning declaration. The endpoint itself
