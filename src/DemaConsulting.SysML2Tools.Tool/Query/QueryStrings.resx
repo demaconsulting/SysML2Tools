@@ -182,16 +182,16 @@
     <value>  --element &lt;name&gt;, -e &lt;name&gt;  Qualified name of the target element (required)</value>
   </data>
   <data name="Query_OptionWalkDepthImpact" xml:space="preserve">
-    <value>  --walk-depth &lt;#&gt;              Maximum impact-walk depth (default: unlimited)</value>
+    <value>  --walk-depth &lt;#&gt;              Max impact-walk depth, all edge kinds (default: unlimited)</value>
   </data>
   <data name="Query_OptionIncludeConnectionsImpact1" xml:space="preserve">
     <value>  --include-connections         Also follow connect/bind edges, undirected</value>
   </data>
   <data name="Query_OptionIncludeConnectionsImpact2" xml:space="preserve">
-    <value>                                (default: reference edges only). Connector</value>
+    <value>                                (default: reference edges only). Distance</value>
   </data>
   <data name="Query_OptionIncludeConnectionsImpact3" xml:space="preserve">
-    <value>                                hops are bounded by --walk-depth, else 1.</value>
+    <value>                                is bounded by --walk-depth like any edge.</value>
   </data>
   <data name="Query_OptionDirectionHierarchy" xml:space="preserve">
     <value>  --direction up|down|both      Traversal direction (default: both)</value>

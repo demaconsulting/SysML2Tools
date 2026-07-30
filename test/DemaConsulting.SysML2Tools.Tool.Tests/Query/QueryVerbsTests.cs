@@ -221,8 +221,8 @@ public class QueryVerbsTests
     /// <remarks>
     ///     This corrects a pre-existing defect. Connector edges are published into the semantic
     ///     index alongside ordinary reference edges, so the default walk followed them as plain
-    ///     incoming references — directed, attributed to the raw endpoint rather than its owning
-    ///     declaration, and outside the connector hop bound. The fixture is deliberately
+    ///     incoming references — directed and attributed to the raw endpoint rather than its
+    ///     owning declaration. The fixture is deliberately
     ///     <see cref="QueryTestFixtures.ChainedDeclaredConnectors"/> rather than
     ///     <see cref="QueryTestFixtures.GantryConnections"/>: only declared (non-port) endpoints
     ///     make the queried element an incoming-edge key, and therefore only they can exercise
@@ -258,7 +258,7 @@ public class QueryVerbsTests
 
         Assert.Equal(0, exitCode);
         Assert.Contains("| Model::System::hub | part |", output);
-        Assert.Contains("including connections (connection hops <= 1)", output);
+        Assert.Contains("including connections", output);
     }
 
     /// <summary>
@@ -302,20 +302,19 @@ public class QueryVerbsTests
     }
 
     /// <summary>
-    ///     With no --walk-depth supplied, reference-edge traversal stays unlimited but connector
-    ///     hops are bounded to one, so a chain of connectors is followed exactly one hop and the
-    ///     reported count matches the "connection hops &lt;= 1" claim in the summary.
+    ///     With no --walk-depth supplied the walk is unlimited for connector edges just as it is
+    ///     for reference edges, so an entire chain of connectors is followed to its far end.
     /// </summary>
     /// <remarks>
     ///     The fixture is <see cref="QueryTestFixtures.ChainedDeclaredConnectors"/> rather than
     ///     <see cref="QueryTestFixtures.GantryConnections"/> because only declared (non-port)
     ///     connector endpoints make the queried element an incoming-edge key, which is the
-    ///     precondition for an unbounded connector chain to leak through the reference pass. The
-    ///     bare element count is asserted as well as the names, so the test is sensitive to any
-    ///     extra row rather than only to specific ones.
+    ///     precondition for a connector to leak through the reference pass. The bare element
+    ///     count is asserted as well as the names, so the test is sensitive to any extra row —
+    ///     in particular to a connector being attributed twice — rather than only to specific ones.
     /// </remarks>
     [Fact]
-    public async Task Impact_IncludeConnections_NoWalkDepth_BoundsConnectionHopsToOne()
+    public async Task Impact_IncludeConnections_NoWalkDepth_ReachesEntireConnectorChain()
     {
         var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
             QueryTestFixtures.ChainedDeclaredConnectors,
@@ -325,15 +324,15 @@ public class QueryVerbsTests
             "--include-connections");
 
         Assert.Equal(0, exitCode);
-        Assert.Contains("1 element(s) transitively impacted", output);
+        Assert.Contains("3 element(s) transitively impacted", output);
         Assert.Contains("| Model::System::b | part |", output);
-        Assert.DoesNotContain("Model::System::c", output);
-        Assert.DoesNotContain("Model::System::d", output);
-        Assert.Contains("including connections (connection hops <= 1)", output);
+        Assert.Contains("| Model::System::c | part |", output);
+        Assert.Contains("| Model::System::d | part |", output);
+        Assert.Contains("including connections", output);
     }
 
     /// <summary>
-    ///     Supplying --walk-depth raises the connector hop bound to that same value, so the
+    ///     Supplying --walk-depth bounds the walk to that many relationships of any kind, so the
     ///     second motor is reached through the hub at the second hop.
     /// </summary>
     [Fact]
@@ -351,12 +350,13 @@ public class QueryVerbsTests
         Assert.Equal(0, exitCode);
         Assert.Contains("| Model::System::hub | part |", output);
         Assert.Contains("| Model::System::motorB | part |", output);
-        Assert.Contains("including connections (connection hops <= 2)", output);
+        Assert.Contains("including connections", output);
     }
 
     /// <summary>
     ///     A cyclic connector topology (two parts joined by two connectors in opposite textual
-    ///     order) terminates and reports each impacted element exactly once.
+    ///     order) terminates and reports each impacted element exactly once, with no depth bound
+    ///     supplied at all.
     /// </summary>
     [Fact]
     public async Task Impact_IncludeConnections_CyclicConnections_TerminatesWithoutDuplicates()
@@ -384,13 +384,74 @@ public class QueryVerbsTests
             """;
 
         var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
-            sysml, "impact", "--element", "Model::System::motorA", "--include-connections", "--walk-depth", "5");
+            sysml, "impact", "--element", "Model::System::motorA", "--include-connections");
 
         Assert.Equal(0, exitCode);
         Assert.Contains("1 element(s) transitively impacted", output);
         Assert.Single(
             output.Split('\n'),
             line => line.StartsWith("| Model::System::hub |", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     A four-part connector ring with no depth bound at all terminates, reporting every
+    ///     other ring member exactly once.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_RingTopology_NoDepthBound_Terminates()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.RingConnectors,
+            "impact",
+            "--element",
+            "Model::System::r1",
+            "--include-connections");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("3 element(s) transitively impacted", output);
+        Assert.Contains("| Model::System::r2 | part |", output);
+        Assert.Contains("| Model::System::r3 | part |", output);
+        Assert.Contains("| Model::System::r4 | part |", output);
+    }
+
+    /// <summary>
+    ///     A five-connector chain with no --walk-depth supplied is followed all the way to its
+    ///     far end, proving the unbounded default rather than a merely generous one.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_LongChain_NoWalkDepth_ReachesFarEnd()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.LongDeclaredConnectorChain,
+            "impact",
+            "--element",
+            "Model::System::a",
+            "--include-connections");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("5 element(s) transitively impacted", output);
+        Assert.Contains("| Model::System::f | part |", output);
+    }
+
+    /// <summary>
+    ///     The unbounded connection-aware summary states only that connections were included,
+    ///     with no separate connector-hop clause, because there is only one depth budget.
+    /// </summary>
+    [Fact]
+    public async Task Impact_Summary_UnboundedWithConnections_OmitsHopClause()
+    {
+        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
+            QueryTestFixtures.ChainedDeclaredConnectors,
+            "impact",
+            "--element",
+            "Model::System::a",
+            "--include-connections");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains(
+            "3 element(s) transitively impacted by a change to 'Model::System::a', including connections.",
+            output);
+        Assert.DoesNotContain("connection hops", output);
     }
 
     /// <summary>
@@ -451,28 +512,6 @@ public class QueryVerbsTests
     }
 
     /// <summary>
-    ///     A chain of connectors between declared sibling part usages is followed exactly one
-    ///     connector hop by default, so only the immediately connected part is reported and the
-    ///     two- and three-hop parts are not.
-    /// </summary>
-    [Fact]
-    public async Task Impact_IncludeConnections_ChainedDeclaredConnectors_StopsAtOneConnectorHop()
-    {
-        var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
-            QueryTestFixtures.ChainedDeclaredConnectors,
-            "impact",
-            "--element",
-            "Model::System::a",
-            "--include-connections");
-
-        Assert.Equal(0, exitCode);
-        Assert.Contains("1 element(s) transitively impacted", output);
-        Assert.Contains("| Model::System::b | part |", output);
-        Assert.DoesNotContain("Model::System::c", output);
-        Assert.DoesNotContain("Model::System::d", output);
-    }
-
-    /// <summary>
     ///     Without --include-connections, a chain of connectors between declared sibling part
     ///     usages contributes nothing to the impact result: connector edge kinds are excluded
     ///     from the reference closure, so not even the directly connected part is reported.
@@ -493,8 +532,9 @@ public class QueryVerbsTests
     }
 
     /// <summary>
-    ///     Raising --walk-depth to two raises the connector hop bound to two, so a connector
-    ///     chain is followed exactly two hops — reaching the second part but never the third.
+    ///     Setting --walk-depth to two bounds the walk to two relationships of any kind, so a
+    ///     connector chain is followed exactly two hops — reaching the second part but never the
+    ///     third.
     /// </summary>
     [Fact]
     public async Task Impact_IncludeConnections_ChainedDeclaredConnectors_WalkDepthTwo_ReachesSecondHopOnly()
@@ -512,7 +552,7 @@ public class QueryVerbsTests
         Assert.Contains("| Model::System::b | part |", output);
         Assert.Contains("| Model::System::c | part |", output);
         Assert.DoesNotContain("Model::System::d", output);
-        Assert.Contains("including connections (connection hops <= 2)", output);
+        Assert.Contains("including connections", output);
     }
 
     /// <summary>
@@ -555,17 +595,17 @@ public class QueryVerbsTests
     }
 
     /// <summary>
-    ///     An element first reached over a connector and later re-reached over a cheaper pure
-    ///     reference path is re-expanded with its restored hop budget, so elements one connector
-    ///     hop beyond it are still reported rather than silently dropped.
+    ///     An element reachable both over a connector and over a longer pure-reference path is
+    ///     reported at the shorter of the two distances, and the element one connector beyond it
+    ///     is reported relative to that shorter distance.
     /// </summary>
     /// <remarks>
-    ///     'z' is expected at depth 3, not 2: 'b' is re-reached cheaply at breadth-first level 2
-    ///     and therefore expands its connectors at level 3, which is genuinely the first level at
-    ///     which 'z' is reachable within the hop budget. This is not an off-by-one.
+    ///     'z' is expected at depth 2, not 3: with one uniform budget the shortest path is
+    ///     s -> b -> z over two connectors, and there is no separate connector budget for the
+    ///     first hop to exhaust.
     /// </remarks>
     [Fact]
-    public async Task Impact_IncludeConnections_CheaperReferencePath_ReExpandsConnectorsFromReReachedElement()
+    public async Task Impact_IncludeConnections_ReachedByTwoPaths_ReportsShortestDistance()
     {
         var (output, exitCode) = await QueryTestFixtures.RunQueryAsync(
             QueryTestFixtures.MinimumHopReExpansion,
@@ -579,6 +619,7 @@ public class QueryVerbsTests
         Assert.Contains("| Model::Assembly::b | part |", output);
         Assert.Contains("| Model::Assembly::s2 | part |", output);
         Assert.Contains("| Model::Assembly::z | part |", output);
+        Assert.Contains("depth 2", output);
     }
 
     /// <summary>

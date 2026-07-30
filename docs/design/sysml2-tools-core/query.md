@@ -112,17 +112,16 @@ flowchart TD
 5. `Dependencies` combines `Uses` and `UsedBy` for the same subject, tagging entries with
    `QueryEntryDirection.Outgoing` or `Incoming` rather than performing a third traversal.
 6. `Impact` performs a breadth-first transitive closure over incoming edges, optionally bounded
-   by `WalkDepth`, with a minimum-connector-hop guard preventing infinite loops on cyclic
-   graphs. Each frontier item is a `(qualified name, connector hops taken)` pair, and each item
-   is expanded by two collaborating helpers:
+   by `WalkDepth`, with a visited-set guard preventing infinite loops on cyclic graphs. Each
+   frontier item is a bare qualified name, and each item is expanded by two collaborating
+   helpers:
    - `CollectImpactReferences` — always on: it reads `workspace.Index.GetIncomingEdges` and
-     emits one entry per newly-reached source, carrying the connector-hop count through
-     unchanged (a reference hop never consumes a connector hop). Edges whose kind is in
+     emits one entry per newly-reached source. Edges whose kind is in
      `ImpactConnectorEdgeKinds` are **filtered out** by `IsImpactConnectorKind`, because
      `ReferenceResolver` publishes resolved connector endpoints into `SemanticIndex.AllEdges`
      alongside ordinary reference edges. Without that filter every connector would be followed
      a second time here — directed instead of undirected, attributed to the raw endpoint instead
-     of its owning declaration, without `ViaQualifiedName`, and outside the connector hop bound.
+     of its owning declaration, and without `ViaQualifiedName`.
      The filter makes `CollectImpactConnections` the single attribution path for connector
      relationships, so a connector is reported exactly once and only under `IncludeConnections`.
    - `CollectImpactConnections` — only when `QueryOptions.IncludeConnections` is set. It walks
@@ -148,30 +147,23 @@ flowchart TD
    endpoint is preserved structurally in `ViaQualifiedName` and textually in the entry's `Notes`
    alongside the originating connector keyword, and an endpoint with no declared ancestor is
    reported unchanged rather than dropped.
-   Two independent bounds are applied, because they differ when `WalkDepth` is `null`. The
-   reference closure keeps its exact existing semantics (`null` means unlimited), enforced by
-   the outer breadth-first loop. Connector hops are bounded per traversal path by `WalkDepth`
-   when supplied and by `DefaultConnectionHopLimit` (one hop) when it is not — a bound the outer
-   loop therefore cannot express, so a per-frontier-item hop counter carries it instead. The
-   one-hop default exists because connector graphs in real models are dense meshes, in which an
-   unbounded connector closure degenerates to "the whole assembly". A single shared ordinal
-   `bestHops` dictionary spans both helpers, mapping each qualified name to the **minimum**
-   connector-hop count at which it has been reached, and the shared `TryReach` helper resolves
-   every arrival three ways: a first arrival is added to the next frontier and emits an entry;
-   a re-arrival at a strictly cheaper hop count is added to the frontier but emits no second
-   entry; a re-arrival at an equal or costlier hop count is discarded. Minimum-hop tracking is
-   required because connector-hop cost is not monotonic in breadth-first depth — an element
-   first reached over a connector may later be reached over a pure reference path that consumed
-   none of the hop budget, and a membership-only guard would pin it to its costlier first
-   arrival and silently drop everything one connector hop beyond it. Suppressing the entry on
-   re-arrival keeps each element reported exactly once, and keeps `Depth`, `Relation`, `Detail`,
-   `Notes`, and `ViaQualifiedName` describing the shallowest path: first arrival in a
-   breadth-first walk is by construction the minimum depth, so an already-recorded entry is
-   never rewritten. Termination is guaranteed because a recorded hop count strictly decreases on
-   each re-admission and is bounded below by zero. A consequence worth stating explicitly: an
-   element unlocked only by a cheaper re-arrival is reported at the breadth-first level at which
-   it actually became reachable, which is deeper than the re-arrival level — this is correct,
-   not an off-by-one.
+   One uniform bound is applied. `WalkDepth` bounds the walk in relationships, counting a
+   connector relationship exactly like a reference relationship, and `null` means unlimited for
+   both. `IncludeConnections` selects **which edges exist in the graph**, never how far the walk
+   goes. A single shared ordinal `visited` set spans both helpers and is seeded with the subject
+   so the subject never reports itself; a name is admitted to the next frontier, and emits an
+   entry, only on the call to `visited.Add` that first inserts it.
+   That membership-only guard is sufficient because the traversal is uniform-cost and
+   level-synchronous: both helpers append only to the *next* level's frontier, and neither can
+   reach an element without advancing a level, so there are no zero-cost edges. `IsSelfOrNestedUnder`
+   and `RollUpToNearestDeclaration` are pure string operations that normalize the endpoints of a
+   *single* connector rather than traversing a second edge, so they introduce no free hops. In a
+   uniform-cost level-order search first arrival is by construction the shortest relationship
+   distance, so `Depth` — which is simply the breadth-first level — is exactly that distance, and
+   a later arrival can never be cheaper. `Relation`, `Detail`, `Notes`, and `ViaQualifiedName`
+   likewise describe the shortest path. Termination is guaranteed because each name is admitted
+   to `visited` at most once, so total enqueues are bounded by the number of declarations; this
+   holds on cyclic connector topologies with no bound in force at all.
 7. `Describe` reports the target element's own kind and qualified name in `Summary`, then adds
    resolved supertypes, typing, annotations, applied metadata annotations, and a `Children: N`
    count. `N` is the count of visible, named child entries actually placed in `Entries` (i.e.
@@ -302,9 +294,9 @@ flowchart TD
   keeps its original shape.
 - **The default `impact` result changed relative to releases before this correction.** Resolved
   connector endpoints have always been present in `SemanticIndex.AllEdges`, so the default walk
-  previously followed them as ordinary incoming reference edges: unbounded by the connector hop
-  limit, attributed to the raw nested-port endpoint rather than its owning declaration, and
-  without any relation metadata. That made connector traversal an unbounded, direction-sensitive
+  previously followed them as ordinary incoming reference edges: attributed to the raw
+  nested-port endpoint rather than its owning declaration, and
+  without any relation metadata. That made connector traversal a direction-sensitive
   side effect of the reference walk rather than the opt-in behavior this design defines, and
   where an endpoint was a nested port it emitted qualified names (such as `System::hub::J1`)
   that cannot be used as a `--element` subject. It
@@ -315,13 +307,18 @@ flowchart TD
 - `impact` is deliberately **not** exactly "transitive `used-by`" any more. `UsedBy` remains
   unfiltered and still reports connector edges as incoming references, because `used-by` answers
   "what edges point at this" while `impact` answers "what breaks if this changes". The two
-  legitimately diverge once connectors receive first-class, rolled-up, hop-bounded handling.
+  legitimately diverge once connectors receive first-class, rolled-up handling.
   This divergence is recorded rather than removed; `Uses`, `UsedBy`, and `Dependencies` keep
   their existing semantics.
-- Connector traversal is bounded by default (`DefaultConnectionHopLimit` = 1 hop) rather than
-  unbounded, because real connector graphs are dense meshes in which an unbounded closure
-  answers "the whole assembly". A caller widens the bound deliberately by supplying
-  `WalkDepth`.
+- **The connection-aware `impact` result changed relative to the `0.2.0-beta.1` tag.** Connector
+  relationships were previously bounded to one hop per traversal path unless `WalkDepth` was
+  supplied, which meant "unspecified" silently meant "one" for connectors while meaning
+  "unlimited" for references. `WalkDepth` is now the single depth control and applies uniformly
+  to every edge kind, so `--include-connections` with no `--walk-depth` reaches an entire
+  connector chain rather than one hop. Real connector graphs are dense meshes, so on a
+  hub-and-spoke assembly an unbounded connection-aware walk can still reach the whole assembly —
+  that is the reason a user may want to pass `--walk-depth`, but it is guidance on when to bound
+  rather than a description of the default.
 - `Relation`'s string JSON serialization couples the Query JSON contract to `SysmlEdgeKind`
   member *names*. This is an accepted, deliberate trade: string serialization is immune to
   member reordering (which numeric serialization is not), at the cost of making a future
@@ -339,9 +336,9 @@ flowchart TD
 | SysML2Tools-Core-Query-ImpactConnections | `QueryEngine.CollectImpactConnections` |
 | SysML2Tools-Core-Query-ImpactConnectionEndpoints | `CollectImpactConnections`; `IsSelfOrNestedUnder` |
 | SysML2Tools-Core-Query-ImpactConnectionRollUp | `QueryEngine.RollUpToNearestDeclaration` |
-| SysML2Tools-Core-Query-ImpactConnectionHopBound | `QueryEngine.Impact` hop counter; `DefaultConnectionHopLimit` |
-| SysML2Tools-Core-Query-ImpactConnectionCycles | `QueryEngine.Impact` `bestHops` guard; `TryReach` |
-| SysML2Tools-Core-Query-ImpactHopMinimality | `QueryEngine.Impact`; `CollectImpactConnections`; `TryReach` |
+| SysML2Tools-Core-Query-ImpactUniformDepth | `QueryEngine.Impact` breadth-first level loop; `WalkDepth` |
+| SysML2Tools-Core-Query-ImpactConnectionCycles | `QueryEngine.Impact` `visited` guard |
+| SysML2Tools-Core-Query-ImpactHopMinimality | `QueryEngine.Impact`; `CollectImpactConnections` |
 | SysML2Tools-Core-Query-EntryTraversalMetadata | `QueryResultEntry.Depth`/`Relation`/`ViaQualifiedName` |
 | SysML2Tools-Core-Query-EntryMetadataJsonOmission | `JsonIgnore(WhenWritingNull)`; `QueryResultRenderer.RenderJson` |
 | SysML2Tools-Core-Query-EntryRelationSerialization | `JsonStringEnumConverter`; `QueryResultSerializerContext` |

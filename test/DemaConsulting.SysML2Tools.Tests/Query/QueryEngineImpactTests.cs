@@ -92,9 +92,10 @@ public class QueryEngineImpactTests
         """;
 
     /// <summary>
-    ///     Topology in which <c>b</c> is first reached from <c>s</c> over a connector (one hop)
-    ///     and later re-reached one level deeper over the subsetting chain <c>b :&gt; s2 :&gt; s</c>
-    ///     at zero hops, so the minimum-hop cycle guard must re-expand it for <c>z</c> to be found.
+    ///     Topology in which <c>b</c> is reachable from <c>s</c> both over a connector
+    ///     (<c>connect b to s</c>, one relationship) and over the subsetting chain
+    ///     <c>b :&gt; s2 :&gt; s</c> (two relationships), so the shorter of the two must win, and
+    ///     <c>z</c> sits one further connector beyond <c>b</c>.
     /// </summary>
     private const string MinimumHopFixture = """
         package Model {
@@ -106,6 +107,104 @@ public class QueryEngineImpactTests
 
                 connect b to s;
                 connect z to b;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     Connector chain of five connectors joining six declared sibling part usages, so
+    ///     <c>a</c> is one connector hop from <c>b</c>, two from <c>c</c>, three from <c>d</c>,
+    ///     four from <c>e</c>, and five from <c>f</c>. Every endpoint is a declared part usage
+    ///     rather than a nested port, so a reference pass that failed to exclude connector kinds
+    ///     would be detected here as duplicate entries or entries attributed to the wrong
+    ///     connector. The chain is long enough to distinguish an unlimited budget from a merely
+    ///     generous one and to observe a bound of three stopping the walk partway.
+    /// </summary>
+    private const string LongConnectorChainFixture = """
+        package Model {
+            part def System {
+                part a;
+                part b;
+                part c;
+                part d;
+                part e;
+                part f;
+
+                connect b to a;
+                connect c to b;
+                connect d to c;
+                connect e to d;
+                connect f to e;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     Cyclic connector topology: four part usages joined into a ring. Traversal from
+    ///     <c>r1</c> must terminate with no depth bound at all, and <c>r3</c> — reachable
+    ///     around either side of the ring — must be attributed its minimum ring distance rather
+    ///     than a traversal-order-dependent one.
+    /// </summary>
+    private const string RingConnectorFixture = """
+        package Model {
+            part def System {
+                part r1;
+                part r2;
+                part r3;
+                part r4;
+
+                connect r2 to r1;
+                connect r3 to r2;
+                connect r4 to r3;
+                connect r1 to r4;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     Topology placing a three-link pure-reference chain and a three-hop pure-connector
+    ///     chain on the same subject, so a single depth bound can be observed cutting both
+    ///     chains at exactly the same distance.
+    /// </summary>
+    private const string MixedReferenceAndConnectorFixture = """
+        package Model {
+            part def Assembly {
+                part ref0;
+                part ref1 :> ref0;
+                part ref2 :> ref1;
+                part ref3 :> ref2;
+                part con1;
+                part con2;
+                part con3;
+
+                connect con1 to ref0;
+                connect con2 to con1;
+                connect con3 to con2;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     Topology in which two elements are each reachable from <c>origin</c> by both a
+    ///     reference path and a connector path, with the shorter path being of a different class
+    ///     in each case: <c>viaConnector</c> is one connector away but two references away, and
+    ///     <c>viaReference</c> is one reference away but two connectors away. Under one uniform
+    ///     depth, each must be reported once, at the shorter distance, carrying the relation of
+    ///     the path that achieved it.
+    /// </summary>
+    private const string DualPathFixture = """
+        package Model {
+            part def Assembly {
+                part origin;
+
+                part link :> origin;
+                part viaConnector :> link;
+                connect viaConnector to origin;
+
+                part viaReference :> origin;
+                part relay;
+                connect relay to origin;
+                connect viaReference to relay;
             }
         }
         """;
@@ -300,20 +399,25 @@ public class QueryEngineImpactTests
     }
 
     /// <summary>
-    ///     An element re-reached at a strictly lower connector-hop count is re-expanded so
-    ///     elements beyond it are not lost, while its already-recorded first-arrival depth and
-    ///     relation attribution are retained and no duplicate entry is emitted.
+    ///     An element reachable by both a connector path and a longer reference path is reported
+    ///     exactly once, at the shorter of the two distances, and the elements beyond it are
+    ///     attributed relative to that shorter distance.
     /// </summary>
     /// <remarks>
-    ///     <c>z</c> is expected at depth 3, not 2: <c>b</c> is re-reached cheaply at
-    ///     breadth-first level 2 and therefore expands its connectors at level 3, which is
-    ///     genuinely the first level at which <c>z</c> is reachable within the hop budget.
+    ///     <c>z</c> is expected at depth 2, not 3: with one uniform budget the shortest path is
+    ///     <c>s</c> → <c>b</c> (the connector <c>connect b to s</c>) → <c>z</c> (the connector
+    ///     <c>connect z to b</c>), two relationships. The two-relationship subsetting detour
+    ///     <c>b :&gt; s2 :&gt; s</c> no longer delays <c>b</c>'s connector expansion, because
+    ///     there is no second budget for a connector hop to exhaust.
     /// </remarks>
     [Fact]
-    public async Task Impact_IncludeConnections_ReReachedAtLowerHopCount_KeepsFirstArrivalDepthAndAttribution()
+    public async Task Impact_IncludeConnections_ReachedByTwoPaths_ReportsShortestDistance()
     {
+        // Arrange: 'b' is one connector from 's' and two subsettings from 's'; 'z' is one
+        // further connector beyond 'b'
         var (workspace, element) = await LoadAsync(MinimumHopFixture, "Model::Assembly::s");
 
+        // Act: walk with connections enabled and no depth bound
         var result = QueryEngine.Impact(
             workspace,
             element,
@@ -324,12 +428,204 @@ public class QueryEngineImpactTests
                 IncludeConnections = true
             });
 
+        // Assert: 'b' is reported once at the shorter connector distance, and 'z' one beyond it
         var b = Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::b");
         Assert.Equal(1, b.Depth);
         Assert.Equal(SysmlEdgeKind.Connect, b.Relation);
 
         var z = Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::z");
-        Assert.Equal(3, z.Depth);
+        Assert.Equal(2, z.Depth);
         Assert.Equal(SysmlEdgeKind.Connect, z.Relation);
+    }
+
+    /// <summary>
+    ///     With no walk depth supplied the walk is unlimited for connector edges just as it is
+    ///     for reference edges, so an entire connector chain is reported, each element at its
+    ///     shortest relationship distance from the subject.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_NoWalkDepth_ReachesEntireConnectorChainAtShortestDistance()
+    {
+        // Arrange: a six-part chain joined by five connectors, queried from one end
+        var (workspace, element) = await LoadAsync(LongConnectorChainFixture, "Model::System::a");
+
+        // Act: enable connections and supply no depth bound at all
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::System::a",
+                IncludeConnections = true
+            });
+
+        // Assert: every element in the chain is reported exactly once, at its true hop distance
+        Assert.Equal(5, result.Entries.Count);
+        var expectedDepths = new Dictionary<string, int>(StringComparer.Ordinal)
+        {
+            ["Model::System::b"] = 1,
+            ["Model::System::c"] = 2,
+            ["Model::System::d"] = 3,
+            ["Model::System::e"] = 4,
+            ["Model::System::f"] = 5
+        };
+        foreach (var (name, expectedDepth) in expectedDepths)
+        {
+            var entry = Assert.Single(result.Entries, e => e.QualifiedName == name);
+            Assert.Equal(expectedDepth, entry.Depth);
+            Assert.Equal(SysmlEdgeKind.Connect, entry.Relation);
+        }
+    }
+
+    /// <summary>
+    ///     A walk depth of three means "everything within three relationships of the subject",
+    ///     so a connector chain is followed exactly three hops and no further.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_WalkDepthThree_BoundsConnectorChainToThreeHops()
+    {
+        // Arrange: the same six-part connector chain
+        var (workspace, element) = await LoadAsync(LongConnectorChainFixture, "Model::System::a");
+
+        // Act: bound the walk to three relationships
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::System::a",
+                IncludeConnections = true,
+                WalkDepth = 3
+            });
+
+        // Assert: exactly b, c and d are reported — never e or f
+        Assert.Equal(3, result.Entries.Count);
+        Assert.Contains(result.Entries, e => e.QualifiedName == "Model::System::b");
+        Assert.Contains(result.Entries, e => e.QualifiedName == "Model::System::c");
+        Assert.Contains(result.Entries, e => e.QualifiedName == "Model::System::d");
+        Assert.DoesNotContain(result.Entries, e => e.QualifiedName == "Model::System::e");
+        Assert.DoesNotContain(result.Entries, e => e.QualifiedName == "Model::System::f");
+    }
+
+    /// <summary>
+    ///     One walk depth bounds reference and connector relationships identically: a reference
+    ///     chain and a connector chain of the same length are both cut at the same distance.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_MixedPaths_WalkDepthBoundsBothEdgeClassesIdentically()
+    {
+        // Arrange: a three-link reference chain and a three-hop connector chain on one subject
+        var (workspace, element) = await LoadAsync(MixedReferenceAndConnectorFixture, "Model::Assembly::ref0");
+
+        // Act: bound the walk to two relationships of any kind
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::Assembly::ref0",
+                IncludeConnections = true,
+                WalkDepth = 2
+            });
+
+        // Assert: both chains are followed to exactly two and cut at exactly three
+        Assert.Equal(1, Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::ref1").Depth);
+        Assert.Equal(2, Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::ref2").Depth);
+        Assert.Equal(1, Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::con1").Depth);
+        Assert.Equal(2, Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::con2").Depth);
+        Assert.DoesNotContain(result.Entries, e => e.QualifiedName == "Model::Assembly::ref3");
+        Assert.DoesNotContain(result.Entries, e => e.QualifiedName == "Model::Assembly::con3");
+    }
+
+    /// <summary>
+    ///     An element reachable by both a reference path and a connector path is reported once,
+    ///     at the shorter distance, carrying the relation of the path that achieved it —
+    ///     whichever class that path happens to be.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_ReachableByReferenceAndConnector_ReportedOnceAtShorterDistance()
+    {
+        // Arrange: one element is closer over a connector, another is closer over a reference
+        var (workspace, element) = await LoadAsync(DualPathFixture, "Model::Assembly::origin");
+
+        // Act: walk with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::Assembly::origin",
+                IncludeConnections = true,
+                IncludeStdlib = false
+            });
+
+        // Assert: the connector path wins where it is shorter, keeping its Connect relation
+        var viaConnector = Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::viaConnector");
+        Assert.Equal(1, viaConnector.Depth);
+        Assert.Equal(SysmlEdgeKind.Connect, viaConnector.Relation);
+
+        // Assert: the reference path wins where it is shorter, keeping its reference relation
+        var viaReference = Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::viaReference");
+        Assert.Equal(1, viaReference.Depth);
+        Assert.Equal(SysmlEdgeKind.Supertype, viaReference.Relation);
+    }
+
+    /// <summary>
+    ///     A cyclic connector topology with no depth bound at all terminates and attributes each
+    ///     element its minimum ring distance rather than a traversal-order-dependent one.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_RingTopology_NoDepthBound_TerminatesWithShortestDistances()
+    {
+        // Arrange: four part usages joined into a connector ring
+        var (workspace, element) = await LoadAsync(RingConnectorFixture, "Model::System::r1");
+
+        // Act: walk the ring with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::System::r1",
+                IncludeConnections = true
+            });
+
+        // Assert: the walk terminated, reporting each neighbour once at its minimum ring distance
+        Assert.Equal(3, result.Entries.Count);
+        Assert.Equal(1, Assert.Single(result.Entries, e => e.QualifiedName == "Model::System::r2").Depth);
+        Assert.Equal(1, Assert.Single(result.Entries, e => e.QualifiedName == "Model::System::r4").Depth);
+        Assert.Equal(2, Assert.Single(result.Entries, e => e.QualifiedName == "Model::System::r3").Depth);
+    }
+
+    /// <summary>
+    ///     On a hub-and-spoke topology, a sibling spoke reached through the shared hub is
+    ///     reported at depth two rather than suppressed, because no per-edge-class budget is
+    ///     exhausted by the first hop into the hub.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_HubTopology_SpokeReachesOtherSpokeAtDepthTwo()
+    {
+        // Arrange: two motors each connected to a distinct port of a shared hub
+        var (workspace, element) = await LoadAsync(ConnectedPartsFixture, "Model::System::motorA");
+
+        // Act: walk from one spoke with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::System::motorA",
+                IncludeConnections = true
+            });
+
+        // Assert: the hub is at depth one and the sibling spoke beyond it at depth two
+        Assert.Equal(1, Assert.Single(result.Entries, e => e.QualifiedName == "Model::System::hub").Depth);
+        Assert.Equal(2, Assert.Single(result.Entries, e => e.QualifiedName == "Model::System::motorB").Depth);
     }
 }

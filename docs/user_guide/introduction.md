@@ -474,15 +474,24 @@ because a connector is not a reference.
 > **Upgrade note — the default `impact` result changed.** In releases before connection-aware
 > impact analysis existed, `query impact` followed `connect` and `bind` relationships as if they
 > were ordinary references, whenever a connector named a directly declared element (for example
-> `connect b to a;` or `connect hub.J1 to motorA;`). Those connectors were followed without any
-> hop bound and were reported as their raw endpoint — including nested port names such as
+> `connect b to a;` or `connect hub.J1 to motorA;`). Those connectors were reported as their raw
+> endpoint — including nested port names such as
 > `Model::System::hub::J1`, which cannot themselves be used as an `--element` subject. That was
 > never intended, is inconsistent with the reference-only default described above, and has been
 > corrected. As a result, a
 > `query impact` command that you have not changed may now report **fewer** rows than it used to
 > — often none — on models that rely on `connect` statements. To get those elements back,
 > deliberately add `--include-connections`, which now reports them correctly rolled up to their
-> owning part and within the documented hop bound.
+> owning part.
+>
+> **Upgrade note — connection-aware depth changed since `0.2.0-beta.1`.** In `0.2.0-beta.1`,
+> `--include-connections` followed at most **one** connector per traversal path unless you
+> supplied `--walk-depth`, so leaving `--walk-depth` off silently meant "one hop" for connectors
+> while meaning "unlimited" for references. `--walk-depth` is now the single depth control and
+> counts every relationship equally, so `--include-connections` with no `--walk-depth` now
+> follows a connector chain all the way to its end. A command you have not changed may therefore
+> report **more** rows than it did in `0.2.0-beta.1`. To restore the old narrowness, add
+> `--walk-depth 1`; to ask for a specific proximity, pass the distance you actually want.
 
 Adding `--include-connections` makes `impact` follow `connect` and `bind` relationships as
 well. Three rules apply:
@@ -499,11 +508,18 @@ well. Three rules apply:
   typed usage such as `part hub : Hub`. An endpoint that *is* a declared element, such as a
   directly connected sibling part (`connect alpha to beta;`) or a port declared inline on a
   usage, is reported as-is, and `ViaQualifiedName` is then absent.
-- **Connector hops are bounded.** Real models connect many parts to a shared hub, so an
-  unbounded connector walk quickly reports the whole assembly. Each traversal path may take at
-  most one connector hop unless you supply `--walk-depth <n>`, which raises the limit to `n`.
-  `--walk-depth` continues to bound reference-edge depth exactly as before; omitting it still
-  means *unlimited* reference depth, and only the connector limit defaults to one.
+- **One uniform depth.** `--walk-depth <n>` counts every relationship equally — a `connect`
+  hop, a `bind` hop, a specialization, and a typing reference each cost exactly one. So
+  `--walk-depth 3` means "everything within 3 relationships of this element", whatever kinds of
+  relationship those turn out to be. Omitting `--walk-depth` means *unlimited* for connectors
+  exactly as it always has for references. `--include-connections` decides only *which*
+  relationships exist in the graph, never how far the walk goes.
+
+Because real models connect many parts to a shared hub or bus, an unlimited connection-aware
+walk on such an assembly can reach the whole assembly. That is worth knowing when you want
+proximity rather than reachability: pass `--walk-depth <n>` to ask for the neighborhood you
+actually care about. Every reported element carries the distance at which it was found, and
+that distance is always the *shortest* number of relationships separating it from your subject.
 
 Omitting the flag leaves reference-only results completely unchanged, and adding it never
 removes an element: every element reported without the flag is still reported with it. It can,
@@ -514,15 +530,6 @@ higher depth with its reference relation. `--format json` entries
 additionally carry `Depth` (the traversal depth), `Relation` (`Connect`/`Binding` for a
 connector, or the reference edge kind otherwise), and `ViaQualifiedName`, so scripts can
 distinguish "referenced by" from "connected to" without parsing the human-readable detail text.
-
-One consequence of the hop bound is worth knowing when reading depths. Reference hops cost
-nothing against the connector budget, so an element that was first reached over a connector may
-later be reached again over a pure reference path with its full connector budget restored. When
-that happens the tool re-explores the connectors around it, which can report an element at a
-depth *greater* than the depth of the element it was connected to. That is deliberate: the
-reported depth is the first traversal level at which the element genuinely became reachable
-within the hop budget, and the alternative — refusing to re-explore — would silently omit
-elements that are well inside the bound you asked for.
 
 ## Query Output Formats
 
@@ -558,7 +565,7 @@ the same order, so either format can be relied on for automated comparisons.
 | `--element <name>`, `-e <name>` | Qualified name of the target element; required for every verb except `list`/`find` |
 | `--format markdown\|json` | Output format (default: `markdown`); distinct from `render`'s `--format` (`svg`/`png`) |
 | `--output <file>` | Write to this **file** (default: stdout); `render`'s `--output` is a *directory* instead |
-| `--walk-depth <#>` | Maximum impact-walk depth (`impact` verb only) |
+| `--walk-depth <#>` | Max impact-walk depth (`impact` only); all relationship kinds count equally, unlimited default |
 | `--include-connections` | `impact` only: also follow `connect`/`bind` edges, undirected (see above) |
 | `--direction up\|down\|both` | Traversal direction (`hierarchy` verb only) |
 | `--kind <kind>` | Element-kind filter (`list`/`find` verbs only) |
