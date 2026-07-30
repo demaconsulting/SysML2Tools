@@ -294,6 +294,32 @@ connected-parts hub fixture and queries from spoke `motorA` with no depth bound.
 shared `hub` at `Depth` 1 and the sibling spoke `motorB` at `Depth` 2, proving a second spoke
 reached through the hub is reported rather than suppressed by an exhausted per-class budget.
 
+**`Impact_IncludeConnections_InlineUsagePortEndpoint_ReportsOwningPartUsage`**: Regression for a
+far-endpoint roll-up that stopped at the first declared ancestor. Uses the inline-usage-ports
+fixture, whose ports are declared directly on the `hub` part usage (`part hub { port J1; port
+J2; }`) rather than on a part definition reached through a typed usage. That shape — and only
+that shape — makes the connector endpoint path `M::S::hub::J1` itself a key in
+`SysmlWorkspace.Declarations`, which is why every pre-existing connector fixture, all of which
+use the definition-side style, left the defect undetected. Queries `M::S::motorA` with
+`IncludeConnections` set and verifies the entry is `M::S::hub` at `Depth` 1 with `Relation` of
+`SysmlEdgeKind.Connect` and `ViaQualifiedName` of `M::S::hub::J1`, and that no entry names the
+raw port.
+
+**`Impact_IncludeConnections_InlineUsagePortEndpoint_ContinuesTraversalBeyondPortOwner`**:
+Regression proving the roll-up result is what the walk advances from, not merely what is
+reported. Uses the same inline-usage-ports fixture and subject and verifies that `M::S::motorB`
+— on the far side of the hub — is reported at `Depth` 2 with `Relation` of
+`SysmlEdgeKind.Connect` and a null `ViaQualifiedName`. Before the fix the frontier held the port
+rather than the hub, so `motorB` was unreachable at any depth; asserting reachability *and* the
+exact depth is what distinguishes a continued walk from a coincidentally longer one.
+
+**`Impact_IncludeConnections_PortDeclarationStyles_ReportNoPortEntries`**: Negative assertion run
+as a `[Theory]` across **both** port-declaration styles — the inline-usage-ports fixture and the
+definition-side connected-parts fixture. Verifies the result is non-empty (so the assertion
+cannot pass vacuously) and that no entry has a `Kind` of `port`. Varying the model shape rather
+than the assertion is the point: the two rows exercise structurally different roll-up paths that
+must produce the same class of answer.
+
 **`WriteMarkdown_HappyPath_MatchesRendererOutput`**: Verifies that `WriteMarkdown` writes the
 same Markdown text produced by `QueryResultRenderer.RenderMarkdown`.
 

@@ -210,6 +210,39 @@ public class QueryEngineImpactTests
         """;
 
     /// <summary>
+    ///     Hub-and-spoke connector topology whose ports are declared <b>inline on the part usage</b>
+    ///     (<c>part hub { port J1; port J2; }</c>) rather than on a part definition reached through
+    ///     a typed usage, as in <see cref="ConnectedPartsFixture"/>.
+    ///     <para>
+    ///     The distinction is the whole point of this fixture and is invisible in the rendered
+    ///     output: declaring the ports inline makes the connector endpoint path
+    ///     <c>M::S::hub::J1</c> itself a key in <c>SysmlWorkspace.Declarations</c>, whereas the
+    ///     definition-side style leaves the endpoint path undeclared (the declaration is
+    ///     <c>Hub::J1</c>). A far-endpoint roll-up that stops at the first declared ancestor
+    ///     therefore reports the raw port for this shape only — and, because the reported name is
+    ///     also the name enqueued onto the traversal frontier, dead-ends the walk at the port so
+    ///     <c>motorB</c> is never reached at any depth. Both modeling styles are legal, so both
+    ///     shapes must be covered.
+    ///     </para>
+    /// </summary>
+    private const string InlineUsagePortsFixture = """
+        package M {
+            part def S {
+                part hub {
+                    port J1;
+                    port J2;
+                }
+
+                part motorA;
+                part motorB;
+
+                connect hub.J1 to motorA;
+                connect hub.J2 to motorB;
+            }
+        }
+        """;
+
+    /// <summary>
     ///     Writes the fixture to a temp file, loads it exactly as a non-CLI library caller
     ///     would, resolves the named element, and returns both for a direct
     ///     <see cref="QueryEngine"/> call.
@@ -627,5 +660,93 @@ public class QueryEngineImpactTests
         // Assert: the hub is at depth one and the sibling spoke beyond it at depth two
         Assert.Equal(1, Assert.Single(result.Entries, e => e.QualifiedName == "Model::System::hub").Depth);
         Assert.Equal(2, Assert.Single(result.Entries, e => e.QualifiedName == "Model::System::motorB").Depth);
+    }
+
+    /// <summary>
+    ///     Regression: a connector endpoint that is a port declared inline on a part usage — and
+    ///     therefore itself a declaration key — is still attributed to the owning part usage, not
+    ///     reported raw, with the port preserved in
+    ///     <see cref="QueryResultEntry.ViaQualifiedName"/>.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_InlineUsagePortEndpoint_ReportsOwningPartUsage()
+    {
+        // Arrange: hub-and-spoke topology whose ports are declared inline on the hub usage
+        var (workspace, element) = await LoadAsync(InlineUsagePortsFixture, "M::S::motorA");
+
+        // Act: walk from one spoke with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "M::S::motorA",
+                IncludeConnections = true
+            });
+
+        // Assert: the owning part usage is reported at depth one, with the raw port recorded
+        var entry = Assert.Single(result.Entries, e => e.QualifiedName == "M::S::hub");
+        Assert.Equal(1, entry.Depth);
+        Assert.Equal(SysmlEdgeKind.Connect, entry.Relation);
+        Assert.Equal("M::S::hub::J1", entry.ViaQualifiedName);
+        Assert.DoesNotContain(result.Entries, e => e.QualifiedName == "M::S::hub::J1");
+    }
+
+    /// <summary>
+    ///     Regression: rolling an inline-declared port endpoint up to its owning part usage also
+    ///     places that part — not the port — on the traversal frontier, so the walk continues
+    ///     through the hub and reaches the far spoke. Stopping at the port dead-ends the walk and
+    ///     makes the far spoke unreachable at any depth, which is what this asserts against.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_InlineUsagePortEndpoint_ContinuesTraversalBeyondPortOwner()
+    {
+        // Arrange: hub-and-spoke topology whose ports are declared inline on the hub usage
+        var (workspace, element) = await LoadAsync(InlineUsagePortsFixture, "M::S::motorA");
+
+        // Act: walk from one spoke with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "M::S::motorA",
+                IncludeConnections = true
+            });
+
+        // Assert: the sibling spoke beyond the hub is reached, at exactly one further hop
+        var entry = Assert.Single(result.Entries, e => e.QualifiedName == "M::S::motorB");
+        Assert.Equal(2, entry.Depth);
+        Assert.Equal(SysmlEdgeKind.Connect, entry.Relation);
+        Assert.Null(entry.ViaQualifiedName);
+    }
+
+    /// <summary>
+    ///     Regression: no impact row names a port, for either port-declaration style. A port is
+    ///     an attachment point rather than an actionable impact subject, so its presence would be
+    ///     a name the caller can neither act on nor feed back into another query.
+    /// </summary>
+    /// <param name="fixture">The connector fixture to walk.</param>
+    /// <param name="subject">The qualified name of the spoke to query from.</param>
+    [Theory]
+    [InlineData(InlineUsagePortsFixture, "M::S::motorA")]
+    [InlineData(ConnectedPartsFixture, "Model::System::motorA")]
+    public async Task Impact_IncludeConnections_PortDeclarationStyles_ReportNoPortEntries(
+        string fixture, string subject)
+    {
+        // Arrange: load the fixture and resolve the spoke to query from
+        var (workspace, element) = await LoadAsync(fixture, subject);
+
+        // Act: walk with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions { Verb = QueryVerb.Impact, Element = subject, IncludeConnections = true });
+
+        // Assert: results are non-empty and no reported element is a port
+        Assert.NotEmpty(result.Entries);
+        Assert.DoesNotContain(result.Entries, e => e.Kind == "port");
     }
 }

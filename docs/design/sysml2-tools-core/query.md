@@ -137,16 +137,30 @@ flowchart TD
    Containment roll-up applies in both directions. On the subject side, `IsSelfOrNestedUnder`
    (shared verbatim with the `connections` verb) lets a `part` subject match a connector
    attached to one of its nested ports. On the far side, `RollUpToNearestDeclaration` probes the
-   endpoint itself first and returns it unchanged when it is already a declared qualified name,
-   so a connector naming a sibling part directly (`connect alpha to beta;`) reports `beta`
-   rather than the enclosing definition that also owns the subject. Stripping of trailing `::`
-   segments applies only to endpoints absent from `Declarations` — typically ports inherited
-   through a typed usage — so a port endpoint such as `System::hub::J1` is attributed to
-   `System::hub`. Probing the endpoint before stripping is what keeps `impact` and `connections`
-   in agreement about the same connector's topology. No information is lost: the raw far
-   endpoint is preserved structurally in `ViaQualifiedName` and textually in the entry's `Notes`
-   alongside the originating connector keyword, and an endpoint with no declared ancestor is
-   reported unchanged rather than dropped.
+   endpoint itself first and returns it unchanged when it is already a declared qualified name
+   **and is not an endpoint-only construct**, so a connector naming a sibling part directly
+   (`connect alpha to beta;`) reports `beta` rather than the enclosing definition that also owns
+   the subject. Trailing `::` segments are stripped, one at a time, for endpoints absent from
+   `Declarations` — typically ports inherited through a typed usage — and equally for endpoints
+   that *are* declared but are classified endpoint-only by `IsEndpointOnlyDeclaration`, so a port
+   endpoint such as `System::hub::J1` is attributed to `System::hub` under either modeling style.
+   `IsEndpointOnlyDeclaration` classifies structurally, from `SysmlFeatureNode.FeatureKeyword`
+   (`port`) and `SysmlDefinitionNode.DefinitionKeyword` (`port def`), never from element names.
+   Skipping declared ports is required because whether a port endpoint is itself a key in
+   `Declarations` is an artifact of modeling style rather than meaning: a port declared on a
+   definition and reached through a typed usage (`part def Hub { port J1; } ... part hub : Hub;`)
+   yields the undeclared path `System::hub::J1`, whereas the same port declared inline on the
+   usage (`part hub { port J1; }`) yields a path that *is* a declaration key. Stopping at the
+   first declared ancestor would therefore answer a `part`-level question with a port for the
+   second spelling only — and, because the reported name is also the name enqueued onto the next
+   frontier, it would dead-end the walk at the port rather than continuing through the owning
+   part. Probing the endpoint before stripping is what keeps `impact` and `connections` in
+   agreement about the same connector's topology; note that `connections` reports raw endpoints
+   and performs no roll-up of its own, so this policy is `impact`-specific and has a single
+   caller. No information is lost: the raw far endpoint is preserved structurally in
+   `ViaQualifiedName` and textually in the entry's `Notes` alongside the originating connector
+   keyword, and an endpoint with no suitable declared ancestor is reported unchanged rather than
+   dropped.
    One uniform bound is applied. `WalkDepth` bounds the walk in relationships, counting a
    connector relationship exactly like a reference relationship, and `null` means unlimited for
    both. `IncludeConnections` selects **which edges exist in the graph**, never how far the walk
@@ -336,6 +350,8 @@ flowchart TD
 | SysML2Tools-Core-Query-ImpactConnections | `QueryEngine.CollectImpactConnections` |
 | SysML2Tools-Core-Query-ImpactConnectionEndpoints | `CollectImpactConnections`; `IsSelfOrNestedUnder` |
 | SysML2Tools-Core-Query-ImpactConnectionRollUp | `QueryEngine.RollUpToNearestDeclaration` |
+| SysML2Tools-Core-Query-ImpactConnectionPortSkip | `RollUpToNearestDeclaration`; `IsEndpointOnlyDeclaration` |
+| SysML2Tools-Core-Query-ImpactConnectionPortContinuation | `CollectImpactConnections` frontier append |
 | SysML2Tools-Core-Query-ImpactUniformDepth | `QueryEngine.Impact` breadth-first level loop; `WalkDepth` |
 | SysML2Tools-Core-Query-ImpactConnectionCycles | `QueryEngine.Impact` `visited` guard |
 | SysML2Tools-Core-Query-ImpactHopMinimality | `QueryEngine.Impact`; `CollectImpactConnections` |

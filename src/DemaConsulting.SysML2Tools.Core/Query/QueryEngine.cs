@@ -55,6 +55,20 @@ public static class QueryEngine
     ];
 
     /// <summary>
+    ///     The <see cref="SysmlFeatureNode.FeatureKeyword"/> value identifying a port usage.
+    ///     Named here rather than repeated inline so the endpoint-only classification in
+    ///     <see cref="IsEndpointOnlyDeclaration"/> reads as a structural model test rather than a
+    ///     bare string comparison.
+    /// </summary>
+    private const string PortFeatureKeyword = "port";
+
+    /// <summary>
+    ///     The <see cref="SysmlDefinitionNode.DefinitionKeyword"/> value identifying a port
+    ///     definition, the definition-side counterpart of <see cref="PortFeatureKeyword"/>.
+    /// </summary>
+    private const string PortDefinitionKeyword = "port def";
+
+    /// <summary>
     ///     Dispatches to the verb method selected by <see cref="QueryOptions.Verb"/>, the single
     ///     entry point library callers can use instead of writing their own 12-arm switch (this is
     ///     the same dispatch previously inlined in the Tool project's <c>QueryCommand.RunAsync</c>
@@ -1042,30 +1056,51 @@ public static class QueryEngine
         Array.IndexOf(ImpactConnectorEdgeKinds, kind) >= 0;
 
     /// <summary>
-    ///     Rolls a connector endpoint up to its nearest owning declaration. The endpoint itself
-    ///     is probed first and returned unchanged when it is itself present in
-    ///     <see cref="SysmlWorkspace.Declarations"/> (for example a directly connected sibling
-    ///     part usage). Only endpoints absent from <see cref="SysmlWorkspace.Declarations"/>
-    ///     (frequently ports inherited through a typed usage) have trailing <c>::</c> segments
-    ///     stripped until a declared qualified name is found.
+    ///     Rolls a connector endpoint up to the nearest owning declaration that is a meaningful
+    ///     impact subject. The endpoint itself is probed first and returned unchanged when it is
+    ///     present in <see cref="SysmlWorkspace.Declarations"/> and is not an endpoint-only
+    ///     construct (for example a directly connected sibling part usage). Endpoints that are
+    ///     absent from <see cref="SysmlWorkspace.Declarations"/> — frequently ports inherited
+    ///     through a typed usage — and endpoints that are declared but endpoint-only, per
+    ///     <see cref="IsEndpointOnlyDeclaration"/>, have trailing <c>::</c> segments stripped
+    ///     until such a declaration is found.
     /// </summary>
+    /// <remarks>
+    ///     Skipping declared endpoint-only constructs matters because whether a port endpoint is
+    ///     itself a key in <see cref="SysmlWorkspace.Declarations"/> is an artifact of modeling
+    ///     style, not of meaning. A port declared on a definition (<c>part def Hub { port J1; }</c>)
+    ///     reached through a typed usage yields the path <c>System::hub::J1</c>, which is not a
+    ///     declaration key, whereas the same port declared inline on the usage
+    ///     (<c>part hub { port J1; }</c>) yields a path that <i>is</i> a declaration key. Both
+    ///     forms are legal and equivalent, so stopping at the first declared ancestor would make
+    ///     the answer depend on the model's spelling: it would report a port — never an
+    ///     actionable answer to "what parts are impacted" — and, because the reported name is
+    ///     also the name enqueued onto the traversal frontier, it would dead-end the walk at the
+    ///     port instead of continuing through the owning part.
+    /// </remarks>
     /// <param name="workspace">The loaded workspace.</param>
     /// <param name="qualifiedName">The connector endpoint's qualified name.</param>
     /// <returns>
-    ///     <paramref name="qualifiedName"/> itself when it is declared, otherwise the nearest
-    ///     declared owning qualified name, or <paramref name="qualifiedName"/> unchanged when
-    ///     no ancestor is declared, so a connection is never silently dropped.
+    ///     <paramref name="qualifiedName"/> itself when it is declared and is not endpoint-only,
+    ///     otherwise the nearest declared, non-endpoint-only owning qualified name, or
+    ///     <paramref name="qualifiedName"/> unchanged when no such ancestor exists, so a
+    ///     connection is never silently dropped.
     /// </returns>
     private static string RollUpToNearestDeclaration(SysmlWorkspace workspace, string qualifiedName)
     {
         var probe = qualifiedName;
         while (true)
         {
-            if (workspace.Declarations.ContainsKey(probe))
+            // Accept the probe only when it names a declaration that a caller could act on and
+            // usefully continue the impact walk from - a declared port is neither.
+            if (workspace.Declarations.TryGetValue(probe, out var declaration) &&
+                !IsEndpointOnlyDeclaration(declaration))
             {
                 return probe;
             }
 
+            // Strip one containment segment and retry; exhausting the path yields the original
+            // endpoint rather than nothing, so the connection is still reported.
             var index = probe.LastIndexOf("::", StringComparison.Ordinal);
             if (index < 0)
             {
@@ -1075,6 +1110,34 @@ public static class QueryEngine
             probe = probe[..index];
         }
     }
+
+    /// <summary>
+    ///     Determines whether a declaration is an endpoint-only construct: an element that exists
+    ///     solely to be named as a connector endpoint and is therefore never a valid subject of an
+    ///     impact answer.
+    /// </summary>
+    /// <remarks>
+    ///     Ports are the only such construct in the modeled node hierarchy. A port has no
+    ///     behavior or state of its own to be impacted - it is the attachment point through which
+    ///     its owning part is impacted - so an impact row naming a port is a name the caller can
+    ///     neither act on nor feed back into another query. Classified structurally, from
+    ///     <see cref="SysmlFeatureNode.FeatureKeyword"/> and
+    ///     <see cref="SysmlDefinitionNode.DefinitionKeyword"/>, so the decision follows the parsed
+    ///     model rather than any naming convention in the source text.
+    /// </remarks>
+    /// <param name="declaration">The resolved declaration to classify. Must not be null.</param>
+    /// <returns>
+    ///     <see langword="true"/> when <paramref name="declaration"/> is a port usage or port
+    ///     definition; otherwise <see langword="false"/>.
+    /// </returns>
+    private static bool IsEndpointOnlyDeclaration(SysmlNode declaration) => declaration switch
+    {
+        SysmlFeatureNode feature =>
+            string.Equals(feature.FeatureKeyword, PortFeatureKeyword, StringComparison.Ordinal),
+        SysmlDefinitionNode definition =>
+            string.Equals(definition.DefinitionKeyword, PortDefinitionKeyword, StringComparison.Ordinal),
+        _ => false
+    };
 
     /// <summary>
     ///     Recursively collects state entries (child <see cref="SysmlFeatureNode"/> with

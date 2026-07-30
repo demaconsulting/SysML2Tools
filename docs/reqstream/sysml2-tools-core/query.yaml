@@ -161,7 +161,7 @@ sections:
         title: >-
           The `impact` verb shall report each connector endpoint it reaches as the nearest
           declaration that owns that endpoint, and shall report the endpoint itself unchanged
-          when the endpoint is already a declared element.
+          when the endpoint is already a declared element that is a valid impact subject.
         justification: |
           A nested port such as `System::hub::J1` is not itself a usable query subject, so
           reporting it raw gives the caller a name they cannot act on and cannot feed back into
@@ -173,6 +173,40 @@ sections:
           - Impact_IncludeConnections_DeclaredFarEndpoint_ReportsEndpointItself
           - Impact_IncludeConnections_DeclaredEndpointConnector_ReportsSiblingPartNotOwningDefinition
           - Impact_IncludeConnections_SourceSidePortEndpoint_ReportsOwnerNotRawPort
+
+      - id: SysML2Tools-Core-Query-ImpactConnectionPortSkip
+        title: >-
+          The `impact` verb shall exclude ports from its results, rolling a port endpoint up to
+          the nearest enclosing non-port declaration regardless of whether the port endpoint is
+          itself a declared element.
+        justification: |
+          A port has no behavior or state of its own to be impacted; it is the attachment point
+          through which its owning part is impacted. Whether a port endpoint is itself a declared
+          element is an artifact of modeling style — a port declared on a part definition and
+          reached through a typed usage produces an undeclared endpoint path, while the same port
+          declared inline on a part usage produces a declared one — and both styles are legal, so
+          an answer that depends on which was used is not trustworthy. Reporting a port also
+          truncates the analysis, because the reported element is the one the walk continues
+          from, so everything wired beyond that port is silently omitted from the answer.
+        tests:
+          - Impact_IncludeConnections_InlineUsagePortEndpoint_ReportsOwningPartUsage
+          - Impact_IncludeConnections_PortDeclarationStyles_ReportNoPortEntries
+          - Impact_IncludeConnections_PortEndpoints_RollUpToOwningPartUsage
+
+      - id: SysML2Tools-Core-Query-ImpactConnectionPortContinuation
+        title: >-
+          The `impact` verb shall continue its traversal from the declaration a port endpoint
+          rolled up to, so elements connected beyond that declaration are reached at their true
+          relationship distance.
+        justification: |
+          Reporting and traversing must agree: if the walk advanced from the raw port instead of
+          the owning part, a hub wired to several parts would yield exactly one row and every
+          part on the far side of the hub would be unreachable at any depth. That is a silent
+          under-report of impact, the most dangerous failure mode for a change-impact analysis,
+          because the caller cannot tell an empty answer from a truncated one.
+        tests:
+          - Impact_IncludeConnections_InlineUsagePortEndpoint_ContinuesTraversalBeyondPortOwner
+          - Impact_IncludeConnections_HubTopology_SpokeReachesOtherSpokeAtDepthTwo
 
       - id: SysML2Tools-Core-Query-ImpactUniformDepth
         title: >-
