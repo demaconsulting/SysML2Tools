@@ -43,10 +43,10 @@ public static class QueryEngine
     ///     These kinds are also <b>excluded</b> from the <c>impact</c> verb's reference-edge
     ///     closure. They are present in <see cref="SemanticIndex.AllEdges"/> alongside ordinary
     ///     reference edges, so without that exclusion every connector would be followed a second
-    ///     time as a plain incoming reference — directed, unrolled, unattributed, and outside the
-    ///     connector hop bound. Excluding them makes <see cref="CollectImpactConnections"/> the
-    ///     single attribution path for connector relationships, so each connector is reported
-    ///     exactly once and only under <see cref="QueryOptions.IncludeConnections"/>.
+    ///     time as a plain incoming reference — directed, unrolled, and unattributed. Excluding
+    ///     them makes <see cref="CollectImpactConnections"/> the single attribution path for
+    ///     connector relationships, so each connector is reported exactly once and only under
+    ///     <see cref="QueryOptions.IncludeConnections"/>.
     /// </remarks>
     private static readonly SysmlEdgeKind[] ImpactConnectorEdgeKinds =
     [
@@ -55,14 +55,18 @@ public static class QueryEngine
     ];
 
     /// <summary>
-    ///     Default maximum number of connector hops per traversal path when
-    ///     <see cref="QueryOptions.IncludeConnections"/> is set but no explicit
-    ///     <see cref="QueryOptions.WalkDepth"/> was supplied. Connector graphs in real models
-    ///     are dense meshes (every port of every part joined to every port of a hub), so an
-    ///     unbounded connector closure degenerates to "the whole assembly" and answers nothing
-    ///     useful.
+    ///     The <see cref="SysmlFeatureNode.FeatureKeyword"/> value identifying a port usage.
+    ///     Named here rather than repeated inline so the endpoint-only classification in
+    ///     <see cref="IsEndpointOnlyDeclaration"/> reads as a structural model test rather than a
+    ///     bare string comparison.
     /// </summary>
-    private const int DefaultConnectionHopLimit = 1;
+    private const string PortFeatureKeyword = "port";
+
+    /// <summary>
+    ///     The <see cref="SysmlDefinitionNode.DefinitionKeyword"/> value identifying a port
+    ///     definition, the definition-side counterpart of <see cref="PortFeatureKeyword"/>.
+    /// </summary>
+    private const string PortDefinitionKeyword = "port def";
 
     /// <summary>
     ///     Dispatches to the verb method selected by <see cref="QueryOptions.Verb"/>, the single
@@ -237,40 +241,40 @@ public static class QueryEngine
     ///     closure of <see cref="UsedBy"/>, bounded by <see cref="QueryOptions.WalkDepth"/> when
     ///     specified (unlimited otherwise), optionally extended with undirected connector
     ///     (<c>connect</c>/<c>bind</c>) traversal when
-    ///     <see cref="QueryOptions.IncludeConnections"/> is set.
+    ///     <see cref="QueryOptions.IncludeConnections"/> is set. The bound applies uniformly to
+    ///     reference and connector relationships alike — one relationship is one unit of depth
+    ///     regardless of its kind.
     /// </summary>
     /// <param name="workspace">The loaded workspace.</param>
     /// <param name="element">The target element.</param>
     /// <param name="options">The parsed query options.</param>
     /// <returns>The query result.</returns>
     /// <remarks>
-    ///     Two independent bounds are applied, because they differ when
-    ///     <see cref="QueryOptions.WalkDepth"/> is <see langword="null"/>. The reference-edge
-    ///     closure keeps its existing semantics exactly (<see langword="null"/> means
-    ///     unlimited), enforced by the outer breadth-first loop. Connector hops are bounded per
-    ///     traversal path by <see cref="QueryOptions.WalkDepth"/> or, when that is
-    ///     <see langword="null"/>, by <see cref="DefaultConnectionHopLimit"/> — so the outer
-    ///     loop cannot enforce it and a per-frontier-item hop counter is carried instead.
+    ///     A single depth budget is applied, because users reason about proximity to the subject
+    ///     rather than about per-relationship-class allowances; the class of each relationship is
+    ///     reported on the entry (<see cref="QueryResultEntry.Relation"/>) for clients to group or
+    ///     filter on after the fact. <see cref="QueryOptions.IncludeConnections"/> therefore
+    ///     selects <em>which edges exist in the graph</em>, never how far the walk goes.
     ///     <para>
     ///     Connector edge kinds (<see cref="ImpactConnectorEdgeKinds"/>) are excluded from the
     ///     reference closure, so a connector is attributed exactly once — by
-    ///     <see cref="CollectImpactConnections"/>, rolled up to its owning declaration and within
-    ///     the hop bound — and never additionally as a raw incoming reference edge.
+    ///     <see cref="CollectImpactConnections"/>, rolled up to its owning declaration — and
+    ///     never additionally as a raw incoming reference edge.
     ///     </para>
     ///     <para>
-    ///     The cycle guard records the <b>minimum</b> connector-hop count at which each element
-    ///     has been reached rather than mere membership, because connector-hop count is not
-    ///     monotonic in breadth-first depth: an element first reached over a connector can later
-    ///     be reached again over a pure reference path that consumes no hop budget. Such an
-    ///     element is re-expanded so nothing within the budget is silently dropped, but its
-    ///     already-recorded entry is never rewritten and no duplicate entry is emitted, so each
-    ///     element is reported exactly once at its first-arrival depth and attribution.
+    ///     Because every traversed relationship costs exactly one breadth-first level (both
+    ///     collectors append only to the next level's frontier, and neither can reach an element
+    ///     without advancing a level), this is a uniform-cost level-order search. First arrival is
+    ///     therefore provably the shortest relationship distance, so a plain membership set
+    ///     suffices as the cycle guard and <see cref="QueryResultEntry.Depth"/> is exactly that
+    ///     shortest distance. Termination on cyclic and densely connected graphs follows from
+    ///     each element being admitted to the guard at most once.
     ///     </para>
     /// </remarks>
     public static QueryResult Impact(SysmlWorkspace workspace, SysmlNode element, QueryOptions options)
     {
         var qualifiedName = QualifiedNameOf(element, options);
-        var bestHops = new Dictionary<string, int>(StringComparer.Ordinal) { [qualifiedName] = 0 };
+        var visited = new HashSet<string>(StringComparer.Ordinal) { qualifiedName };
         var entries = new List<QueryResultEntry>();
 
         // Collected once per call, and only when requested, rather than once per frontier item.
@@ -278,24 +282,23 @@ public static class QueryEngine
             options.IncludeConnections
                 ? CollectConnectorEdges(workspace, ImpactConnectorEdgeKinds)
                 : [];
-        var connectionHopLimit = options.WalkDepth ?? DefaultConnectionHopLimit;
 
-        var frontier = new List<(string Name, int ConnectionHops)> { (qualifiedName, 0) };
+        var frontier = new List<string> { qualifiedName };
         var depth = 0;
 
         while (frontier.Count > 0 && (options.WalkDepth is not { } maxDepth || depth < maxDepth))
         {
             depth++;
-            var next = new List<(string Name, int ConnectionHops)>();
+            var next = new List<string>();
 
-            foreach (var (current, hops) in frontier)
+            foreach (var current in frontier)
             {
-                CollectImpactReferences(workspace, options, current, hops, depth, bestHops, entries, next);
+                CollectImpactReferences(workspace, options, current, depth, visited, entries, next);
 
-                if (options.IncludeConnections && hops < connectionHopLimit)
+                if (options.IncludeConnections)
                 {
                     CollectImpactConnections(
-                        workspace, options, current, hops, depth, connectorEdges, bestHops, entries, next);
+                        workspace, options, current, depth, connectorEdges, visited, entries, next);
                 }
             }
 
@@ -303,9 +306,7 @@ public static class QueryEngine
         }
 
         var depthSuffix = options.WalkDepth is { } d ? $" (depth <= {d})" : string.Empty;
-        var connectionSuffix = options.IncludeConnections
-            ? $", including connections (connection hops <= {connectionHopLimit})"
-            : string.Empty;
+        var connectionSuffix = options.IncludeConnections ? ", including connections" : string.Empty;
         return new QueryResult
         {
             Verb = "impact",
@@ -322,50 +323,48 @@ public static class QueryEngine
     /// <summary>
     ///     Expands one impact frontier item over its incoming reference edges — the original,
     ///     always-on reverse closure — appending newly-reached names to
-    ///     <paramref name="next"/> with their connector-hop count carried through unchanged
-    ///     (a reference hop never consumes a connector hop).
+    ///     <paramref name="next"/>, the frontier for the following depth level.
     /// </summary>
     /// <remarks>
     ///     Edges whose kind is in <see cref="ImpactConnectorEdgeKinds"/> are skipped. Connector
     ///     edges are published into <see cref="SemanticIndex.AllEdges"/> alongside ordinary
     ///     reference edges, so following them here as well would report every connector a second
     ///     time — directed instead of undirected, as the raw endpoint instead of its owning
-    ///     declaration, without <see cref="QueryResultEntry.ViaQualifiedName"/> attribution, and
-    ///     outside the connector hop bound. <see cref="CollectImpactConnections"/> is therefore
-    ///     the single attribution path for connector relationships.
+    ///     declaration, and without <see cref="QueryResultEntry.ViaQualifiedName"/> attribution.
+    ///     <see cref="CollectImpactConnections"/> is therefore the single attribution path for
+    ///     connector relationships.
     /// </remarks>
     /// <param name="workspace">The loaded workspace.</param>
     /// <param name="options">The parsed query options.</param>
     /// <param name="current">The frontier item's qualified name.</param>
-    /// <param name="hops">The number of connector hops already taken to reach <paramref name="current"/>.</param>
     /// <param name="depth">The 1-based traversal depth of the names being reached.</param>
-    /// <param name="bestHops">The shared minimum-connector-hop cycle guard.</param>
+    /// <param name="visited">
+    ///     The shared cycle guard, holding every qualified name already reached (seeded with the
+    ///     subject so it never reports itself). Updated in place.
+    /// </param>
     /// <param name="entries">The result entries accumulated so far.</param>
     /// <param name="next">The next frontier being built.</param>
     private static void CollectImpactReferences(
         SysmlWorkspace workspace,
         QueryOptions options,
         string current,
-        int hops,
         int depth,
-        Dictionary<string, int> bestHops,
+        HashSet<string> visited,
         List<QueryResultEntry> entries,
-        List<(string Name, int ConnectionHops)> next)
+        List<string> next)
     {
         foreach (var edge in workspace.Index.GetIncomingEdges(current))
         {
             if (IsImpactConnectorKind(edge.Kind) ||
                 edge.SourceQualifiedName is not { Length: > 0 } source ||
-                !TryReach(bestHops, source, hops, out var isFirstArrival))
+                !visited.Add(source))
             {
                 continue;
             }
 
-            next.Add((source, hops));
+            next.Add(source);
 
-            // A cheaper re-arrival only re-opens the element for expansion; its first-arrival
-            // entry (and therefore its depth and relation attribution) is never rewritten.
-            if (!isFirstArrival || !IsVisible(source, workspace, options.IncludeStdlib))
+            if (!IsVisible(source, workspace, options.IncludeStdlib))
             {
                 continue;
             }
@@ -386,27 +385,28 @@ public static class QueryEngine
     ///     Expands one impact frontier item over connector edges, undirected: a connector is
     ///     followed whenever exactly one of its two endpoints is the frontier item itself or a
     ///     feature nested inside it, and the other endpoint is rolled up to its nearest owning
-    ///     declaration. Consumes one connector hop per reached element.
+    ///     declaration. Costs one depth level per reached element, exactly like a reference edge.
     /// </summary>
     /// <param name="workspace">The loaded workspace.</param>
     /// <param name="options">The parsed query options.</param>
     /// <param name="current">The frontier item's qualified name.</param>
-    /// <param name="hops">The number of connector hops already taken to reach <paramref name="current"/>.</param>
     /// <param name="depth">The 1-based traversal depth of the names being reached.</param>
     /// <param name="connectorEdges">The connector edges collected once for this invocation.</param>
-    /// <param name="bestHops">The shared minimum-connector-hop cycle guard.</param>
+    /// <param name="visited">
+    ///     The shared cycle guard, holding every qualified name already reached (seeded with the
+    ///     subject so it never reports itself). Updated in place.
+    /// </param>
     /// <param name="entries">The result entries accumulated so far.</param>
     /// <param name="next">The next frontier being built.</param>
     private static void CollectImpactConnections(
         SysmlWorkspace workspace,
         QueryOptions options,
         string current,
-        int hops,
         int depth,
         List<(string Source, string Target, string Keyword, SysmlEdgeKind Kind)> connectorEdges,
-        Dictionary<string, int> bestHops,
+        HashSet<string> visited,
         List<QueryResultEntry> entries,
-        List<(string Name, int ConnectionHops)> next)
+        List<string> next)
     {
         foreach (var (source, target, keyword, kind) in connectorEdges)
         {
@@ -422,17 +422,15 @@ public static class QueryEngine
 
             var near = nearIsSource ? source : target;
             var far = nearIsSource ? target : source;
-            var owner = RollUpToNearestDeclaration(workspace, far);
-            if (!TryReach(bestHops, owner, hops + 1, out var isFirstArrival))
+            var owner = RollUpToNearestDeclaration(workspace, far, near);
+            if (!visited.Add(owner))
             {
                 continue;
             }
 
-            next.Add((owner, hops + 1));
+            next.Add(owner);
 
-            // A cheaper re-arrival only re-opens the element for expansion; its first-arrival
-            // entry (and therefore its depth and relation attribution) is never rewritten.
-            if (!isFirstArrival || !IsVisible(owner, workspace, options.IncludeStdlib))
+            if (!IsVisible(owner, workspace, options.IncludeStdlib))
             {
                 continue;
             }
@@ -1046,7 +1044,7 @@ public static class QueryEngine
 
     /// <summary>
     ///     Determines whether an edge kind is one of the connector kinds the <c>impact</c> verb
-    ///     handles through its dedicated, hop-bounded, rolled-up connector pass.
+    ///     handles through its dedicated, rolled-up connector pass.
     /// </summary>
     /// <param name="kind">The edge kind to test.</param>
     /// <returns>
@@ -1058,84 +1056,73 @@ public static class QueryEngine
         Array.IndexOf(ImpactConnectorEdgeKinds, kind) >= 0;
 
     /// <summary>
-    ///     Applies the <c>impact</c> verb's minimum-connector-hop cycle guard to a candidate
-    ///     element, deciding whether it may be expanded and whether it is a first arrival.
+    ///     Rolls a connector endpoint up to the nearest owning declaration that is a meaningful
+    ///     impact subject. The endpoint itself is probed first and returned unchanged when it is
+    ///     present in <see cref="SysmlWorkspace.Declarations"/> and is not an endpoint-only
+    ///     construct (for example a directly connected sibling part usage). Endpoints that are
+    ///     absent from <see cref="SysmlWorkspace.Declarations"/> — frequently ports inherited
+    ///     through a typed usage — and endpoints that are declared but endpoint-only, per
+    ///     <see cref="IsEndpointOnlyDeclaration"/>, have trailing <c>::</c> segments stripped
+    ///     until such a declaration is found. A candidate that <i>contains</i> the connector's
+    ///     near endpoint is also rejected, so the walk can never roll up into one of its own
+    ///     containers.
     /// </summary>
     /// <remarks>
-    ///     A plain membership set is insufficient because connector-hop count is not monotonic in
-    ///     breadth-first depth: an element first reached over a connector may later be reached
-    ///     over a pure reference path that has consumed less of the hop budget, and would
-    ///     otherwise never be expanded at the cheaper cost — silently dropping elements that are
-    ///     genuinely within the bound. Termination is guaranteed because a recorded hop count
-    ///     strictly decreases on each re-admission and is bounded below by zero.
+    ///     <para>
+    ///     Skipping declared endpoint-only constructs matters because whether a port endpoint is
+    ///     itself a key in <see cref="SysmlWorkspace.Declarations"/> is an artifact of modeling
+    ///     style, not of meaning. A port declared on a definition (<c>part def Hub { port J1; }</c>)
+    ///     reached through a typed usage yields the path <c>System::hub::J1</c>, which is not a
+    ///     declaration key, whereas the same port declared inline on the usage
+    ///     (<c>part hub { port J1; }</c>) yields a path that <i>is</i> a declaration key. Both
+    ///     forms are legal and equivalent, so stopping at the first declared ancestor would make
+    ///     the answer depend on the model's spelling: it would report a port — never an
+    ///     actionable answer to "what parts are impacted" — and, because the reported name is
+    ///     also the name enqueued onto the traversal frontier, it would dead-end the walk at the
+    ///     port instead of continuing through the owning part.
+    /// </para>
+    /// <para>
+    ///     Rolling up must nonetheless stop short of any container of the connector's near
+    ///     endpoint. A proxy port declared on the enclosing definition
+    ///     (<c>part def Mid { port mp; part l1; part l2; connect l1.p to mp; }</c>) has no owning
+    ///     part beside the subject — the nearest non-port owner is <c>Mid</c> itself. Reporting
+    ///     <c>Mid</c> would attribute containment as a connection and, once <c>Mid</c> reached the
+    ///     frontier, every connector interior to it would be discarded by the both-ends-nested
+    ///     guard, hiding <c>l2</c> at every depth. Keeping the port in that case reports the real
+    ///     shared attachment point and leaves it traversable, so peers across the port stay
+    ///     reachable.
+    /// </para>
     /// </remarks>
-    /// <param name="bestHops">
-    ///     The guard, mapping qualified name to the minimum connector-hop count at which it has
-    ///     been reached so far. Updated in place.
-    /// </param>
-    /// <param name="name">The candidate element's qualified name.</param>
-    /// <param name="hops">The connector-hop count at which the candidate is being reached.</param>
-    /// <param name="isFirstArrival">
-    ///     On return, <see langword="true"/> when the candidate had never been reached before and
-    ///     therefore requires a result entry; <see langword="false"/> when it is a cheaper
-    ///     re-arrival at an element that has already been reported.
-    /// </param>
-    /// <returns>
-    ///     <see langword="true"/> when the candidate must be added to the next frontier — either
-    ///     as a first arrival or as a strictly cheaper re-arrival; <see langword="false"/> when it
-    ///     has already been reached at an equal or lower hop count.
-    /// </returns>
-    private static bool TryReach(
-        Dictionary<string, int> bestHops,
-        string name,
-        int hops,
-        out bool isFirstArrival)
-    {
-        // First arrival: record the cost, expand it, and emit its entry.
-        if (!bestHops.TryGetValue(name, out var existing))
-        {
-            bestHops[name] = hops;
-            isFirstArrival = true;
-            return true;
-        }
-
-        // Re-arrival at an equal or costlier hop count buys nothing already available.
-        isFirstArrival = false;
-        if (hops >= existing)
-        {
-            return false;
-        }
-
-        // Strictly cheaper re-arrival: re-open for expansion without emitting a second entry.
-        bestHops[name] = hops;
-        return true;
-    }
-
-    /// <summary>
-    ///     Rolls a connector endpoint up to its nearest owning declaration. The endpoint itself
-    ///     is probed first and returned unchanged when it is itself present in
-    ///     <see cref="SysmlWorkspace.Declarations"/> (for example a directly connected sibling
-    ///     part usage). Only endpoints absent from <see cref="SysmlWorkspace.Declarations"/>
-    ///     (frequently ports inherited through a typed usage) have trailing <c>::</c> segments
-    ///     stripped until a declared qualified name is found.
-    /// </summary>
     /// <param name="workspace">The loaded workspace.</param>
     /// <param name="qualifiedName">The connector endpoint's qualified name.</param>
+    /// <param name="nearEndpoint">
+    ///     The opposite endpoint of the same connector — the one belonging to the element the walk
+    ///     is currently expanding. Candidates that contain it are rejected as described above.
+    /// </param>
     /// <returns>
-    ///     <paramref name="qualifiedName"/> itself when it is declared, otherwise the nearest
-    ///     declared owning qualified name, or <paramref name="qualifiedName"/> unchanged when
-    ///     no ancestor is declared, so a connection is never silently dropped.
+    ///     <paramref name="qualifiedName"/> itself when it is declared, is not endpoint-only, and
+    ///     does not contain <paramref name="nearEndpoint"/>; otherwise the nearest declared owning
+    ///     qualified name meeting those conditions, or <paramref name="qualifiedName"/> unchanged
+    ///     when no such ancestor exists, so a connection is never silently dropped.
     /// </returns>
-    private static string RollUpToNearestDeclaration(SysmlWorkspace workspace, string qualifiedName)
+    private static string RollUpToNearestDeclaration(
+        SysmlWorkspace workspace, string qualifiedName, string nearEndpoint)
     {
         var probe = qualifiedName;
         while (true)
         {
-            if (workspace.Declarations.ContainsKey(probe))
+            // Accept the probe only when it names a declaration that a caller could act on and
+            // usefully continue the impact walk from - a declared port is neither, and neither is
+            // a container of the near endpoint, which would convert containment into connectivity.
+            if (workspace.Declarations.TryGetValue(probe, out var declaration) &&
+                !IsEndpointOnlyDeclaration(declaration) &&
+                !IsSelfOrNestedUnder(nearEndpoint, probe))
             {
                 return probe;
             }
 
+            // Strip one containment segment and retry; exhausting the path yields the original
+            // endpoint rather than nothing, so the connection is still reported.
             var index = probe.LastIndexOf("::", StringComparison.Ordinal);
             if (index < 0)
             {
@@ -1145,6 +1132,34 @@ public static class QueryEngine
             probe = probe[..index];
         }
     }
+
+    /// <summary>
+    ///     Determines whether a declaration is an endpoint-only construct: an element that exists
+    ///     solely to be named as a connector endpoint and is therefore never a valid subject of an
+    ///     impact answer.
+    /// </summary>
+    /// <remarks>
+    ///     Ports are the only such construct in the modeled node hierarchy. A port has no
+    ///     behavior or state of its own to be impacted - it is the attachment point through which
+    ///     its owning part is impacted - so an impact row naming a port is a name the caller can
+    ///     neither act on nor feed back into another query. Classified structurally, from
+    ///     <see cref="SysmlFeatureNode.FeatureKeyword"/> and
+    ///     <see cref="SysmlDefinitionNode.DefinitionKeyword"/>, so the decision follows the parsed
+    ///     model rather than any naming convention in the source text.
+    /// </remarks>
+    /// <param name="declaration">The resolved declaration to classify. Must not be null.</param>
+    /// <returns>
+    ///     <see langword="true"/> when <paramref name="declaration"/> is a port usage or port
+    ///     definition; otherwise <see langword="false"/>.
+    /// </returns>
+    private static bool IsEndpointOnlyDeclaration(SysmlNode declaration) => declaration switch
+    {
+        SysmlFeatureNode feature =>
+            string.Equals(feature.FeatureKeyword, PortFeatureKeyword, StringComparison.Ordinal),
+        SysmlDefinitionNode definition =>
+            string.Equals(definition.DefinitionKeyword, PortDefinitionKeyword, StringComparison.Ordinal),
+        _ => false
+    };
 
     /// <summary>
     ///     Recursively collects state entries (child <see cref="SysmlFeatureNode"/> with

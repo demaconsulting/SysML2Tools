@@ -68,7 +68,8 @@ self-testing, and uses `PathHelpers` to construct safe temporary file paths.
   subcommand (equivalent to `--help`/`-?`/`-h`) that prints general or per-subcommand usage
   text. Accepts `query <verb> [options] <patterns...>` (12 verbs; `--element`/`-e`, `--format`,
   `--direction`, `--kind`, `--name`, `--include-stdlib`, `--walk-depth` (bounded-traversal depth,
-  meaningful only for the `impact` verb) options). Accepts
+  meaningful only for the `impact` verb, applied uniformly to every relationship kind and
+  unlimited when omitted) options). Accepts
   `export [options] <patterns...>` (`--format json|jsonl`, `--output <file>`,
   `--include-stdlib` options) which dumps the resolved semantic model (declarations, edges,
   diagnostics) as JSON or JSON Lines. Returns

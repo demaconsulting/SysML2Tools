@@ -76,17 +76,23 @@ scenarios listed under "Test Scenarios (Tool Test Project)" below run via `dotne
   and `ViaQualifiedName` left null, so `impact` and `connections` agree on the same connector's
   topology and the enclosing definition that also owns the subject is never reported in the
   endpoint's place.
-- Connector hops are bounded to one per traversal path when no `WalkDepth` is supplied, and to
-  `WalkDepth` when it is, while reference-edge depth semantics are unchanged. The bound holds
-  for connector chains whose endpoints are declared part usages, not only for port endpoints.
+- One uniform depth bounds the walk: `WalkDepth` counts every traversed relationship equally,
+  so a `--walk-depth N` cuts a connector chain and a reference chain at exactly the same
+  distance, and a `WalkDepth` that is not supplied leaves connector traversal unlimited just as
+  it leaves
+  reference traversal unlimited. A connector chain is therefore reached end to end when no
+  `WalkDepth` is supplied. This holds for connector chains whose endpoints are declared part
+  usages, not only for port endpoints.
 - A single connector produces exactly one impact entry — its far endpoint rolled up to the
   nearest owning declaration — regardless of which side of the connector the nested port sits
   on, and never an additional raw-endpoint entry.
-- Every element reachable within the applicable connector-hop bound is reported, including
-  elements that only become reachable through a cheaper path found after a costlier one, so the
-  reported set does not depend on the order in which paths are discovered. Each such element is
-  reported exactly once, at the depth and relation of the first path by which it was reached.
-- A cyclic connector topology terminates and reports each impacted element exactly once.
+- Every reported element is reported exactly once, at its shortest relationship distance from
+  the subject and with the relation of the path achieving that distance, so the reported set and
+  the depth shown against each row do not depend on the order in which paths are discovered.
+  This holds when an element is reachable by both a reference path and a connector path,
+  whichever of the two is shorter.
+- A cyclic connector topology terminates and reports each impacted element exactly once, with
+  no depth bound supplied at all.
 - `Binding` connectors (`bind A = B;`) are traversed undirected exactly like `Connect`
   connectors.
 - The public `QueryEngine.Impact`/`QueryOptions` API delivers all of the above with no CLI
@@ -242,16 +248,77 @@ whole-list `Assert.Single` overload is used deliberately: the predicate overload
 that a *matching* entry is unique and is structurally blind to an extra non-matching entry,
 which is how the duplicate previously escaped detection.
 
-**`Impact_IncludeConnections_ReReachedAtLowerHopCount_KeepsFirstArrivalDepthAndAttribution`**:
-Uses the minimum-hop fixture, in which `b` is reached from `s` over `connect b to s` at one
-connector hop and re-reached one breadth-first level deeper over the subsetting chain
-`b :> s2 :> s` at zero hops. Verifies that `b` appears exactly once and retains its
-first-arrival `Depth` of 1 and `Relation` of `SysmlEdgeKind.Connect` — the cheaper re-arrival
-re-opens it for expansion but never rewrites its attribution — and that `z`, reachable only by
-expanding the re-opened `b`, is reported with `Relation` of `SysmlEdgeKind.Connect` at `Depth`
-**3**. Depth 3 is correct and is not an off-by-one: `b` is re-reached cheaply at level 2 and
-therefore expands its connectors at level 3, which is genuinely the first breadth-first level
-at which `z` becomes reachable within the hop budget.
+**`Impact_IncludeConnections_ReachedByTwoPaths_ReportsShortestDistance`**:
+Uses the minimum-hop fixture, in which `b` is reachable from `s` over `connect b to s` in one
+relationship and over the subsetting chain `b :> s2 :> s` in two. Verifies that `b` appears
+exactly once at `Depth` 1 with `Relation` of `SysmlEdgeKind.Connect` — the shorter of the two
+paths — and that `z`, one further connector beyond `b`, is reported with `Relation` of
+`SysmlEdgeKind.Connect` at `Depth` **2**. Depth 2 is the true shortest distance: `s` → `b`
+(`connect b to s`) → `z` (`connect z to b`) is two relationships. The previous expectation of 3
+was an artifact of the separate connector budget, which delayed `b`'s connector expansion until
+`b` had been re-reached over the reference detour.
+
+**`Impact_IncludeConnections_NoWalkDepth_ReachesEntireConnectorChainAtShortestDistance`**: Uses
+the six-part, five-connector chain fixture and queries from `a` with `IncludeConnections` set
+and no `WalkDepth`. Verifies that exactly five entries are produced and that `b` through `f`
+carry `Depth` 1 through 5 respectively, each with `Relation` of `SysmlEdgeKind.Connect` —
+proving connector traversal is unlimited by default and that reported depth is true hop
+distance.
+
+**`Impact_IncludeConnections_WalkDepthThree_BoundsConnectorChainToThreeHops`**: Uses the same
+chain fixture with `WalkDepth` of 3. Verifies that exactly `b`, `c`, and `d` are reported and
+that neither `e` nor `f` is, proving that `--walk-depth 3` means "everything within three
+relationships" for connector edges exactly as it does for reference edges.
+
+**`Impact_IncludeConnections_MixedPaths_WalkDepthBoundsBothEdgeClassesIdentically`**: Uses the
+mixed fixture, which places a three-link subsetting chain and a three-hop connector chain on the
+same subject, with `WalkDepth` of 2. Verifies that `ref1`/`ref2` and `con1`/`con2` are all
+reported at `Depth` 1 and 2, while `ref3` and `con3` are both absent — proving a single budget
+cuts both relationship classes at identical distance.
+
+**`Impact_IncludeConnections_ReachableByReferenceAndConnector_ReportedOnceAtShorterDistance`**:
+Uses the dual-path fixture, in which `viaConnector` is one connector but two references away
+and `viaReference` is one reference but two connectors away. Verifies that each appears exactly
+once at `Depth` 1, `viaConnector` with `Relation` of `SysmlEdgeKind.Connect` and `viaReference`
+with `Relation` of `SysmlEdgeKind.Supertype` — proving the shorter path wins irrespective of
+which relationship class achieves it, and that the reported relation names the winning path.
+
+**`Impact_IncludeConnections_RingTopology_NoDepthBound_TerminatesWithShortestDistances`**: Uses
+the four-part connector ring and queries from `r1` with no depth bound. Verifies that the walk
+terminates, that exactly three entries are produced, and that `r2` and `r4` are at `Depth` 1
+while `r3` — reachable around either side of the ring — is at `Depth` 2, proving termination
+rests on the visited-set guard rather than on any bound.
+
+**`Impact_IncludeConnections_HubTopology_SpokeReachesOtherSpokeAtDepthTwo`**: Uses the
+connected-parts hub fixture and queries from spoke `motorA` with no depth bound. Verifies the
+shared `hub` at `Depth` 1 and the sibling spoke `motorB` at `Depth` 2, proving a second spoke
+reached through the hub is reported rather than suppressed by an exhausted per-class budget.
+
+**`Impact_IncludeConnections_InlineUsagePortEndpoint_ReportsOwningPartUsage`**: Regression for a
+far-endpoint roll-up that stopped at the first declared ancestor. Uses the inline-usage-ports
+fixture, whose ports are declared directly on the `hub` part usage (`part hub { port J1; port
+J2; }`) rather than on a part definition reached through a typed usage. That shape — and only
+that shape — makes the connector endpoint path `M::S::hub::J1` itself a key in
+`SysmlWorkspace.Declarations`, which is why every pre-existing connector fixture, all of which
+use the definition-side style, left the defect undetected. Queries `M::S::motorA` with
+`IncludeConnections` set and verifies the entry is `M::S::hub` at `Depth` 1 with `Relation` of
+`SysmlEdgeKind.Connect` and `ViaQualifiedName` of `M::S::hub::J1`, and that no entry names the
+raw port.
+
+**`Impact_IncludeConnections_InlineUsagePortEndpoint_ContinuesTraversalBeyondPortOwner`**:
+Regression proving the roll-up result is what the walk advances from, not merely what is
+reported. Uses the same inline-usage-ports fixture and subject and verifies that `M::S::motorB`
+— on the far side of the hub — is reported at `Depth` 2 with `Relation` of
+`SysmlEdgeKind.Connect` and a null `ViaQualifiedName`. Before the fix the frontier held the port
+rather than the hub, so `motorB` was unreachable at any depth; asserting reachability *and* the
+exact depth is what distinguishes a continued walk from a coincidentally longer one.
+
+**`Impact_IncludeConnections_PortDeclarationStyles_ReportNoPortEntries`**: Negative assertion run
+as a `[Theory]` across **both** port-declaration styles — the inline-usage-ports fixture and the
+definition-side connected-parts fixture. Verifies the result is non-empty (so the assertion
+cannot pass vacuously) and that no entry has a `Kind` of `port`. Varying the model shape rather
+than the assertion is the point: the two rows exercise structurally different roll-up paths that
+must produce the same class of answer.
 
 **`WriteMarkdown_HappyPath_MatchesRendererOutput`**: Verifies that `WriteMarkdown` writes the
 same Markdown text produced by `QueryResultRenderer.RenderMarkdown`.
@@ -372,8 +439,8 @@ scenario is the lock on the corrected default: connector edge kinds are excluded
 reference closure entirely.
 
 **`Impact_IncludeConnections_ReachesConnectedSiblingPart`**: Verifies that the same query with
-`--include-connections` reaches the connected hub part usage and reports the one-hop connection
-bound in its summary.
+`--include-connections` reaches the connected hub part usage and reports connection inclusion in
+its summary.
 
 **`Impact_IncludeConnections_QueriedFromFarEndpoint_ReachesOriginatingPart`**: Undirected proof
 — verifies that querying from the hub (the endpoint named second in every connector) reaches
@@ -383,23 +450,40 @@ both motors, the mirror image of the previous scenario.
 reported entry is the owning part usage with kind `part` (not the nested port), and that the raw
 port-to-port endpoint pair is preserved in the entry's notes.
 
-**`Impact_IncludeConnections_NoWalkDepth_BoundsConnectionHopsToOne`**: Uses the
+**`Impact_IncludeConnections_NoWalkDepth_ReachesEntireConnectorChain`**: Uses the
 `QueryTestFixtures.ChainedDeclaredConnectors` fixture and queries `Model::System::a` with
-`--include-connections`; verifies exactly `1 element(s) transitively impacted`, that the `b` row
-is present, that neither `c` nor `d` is named, and that the summary reads
-`including connections (connection hops <= 1)`. The fixture change from `GantryConnections` is
-essential for the same reason given above — only declared (non-port) connector endpoints make
-the queried element an incoming-edge key, and only then can a connector chain be followed past
-the hop bound the summary claims. Asserting the bare element count, not just names, is what
-makes the scenario sensitive to any extra row.
+`--include-connections`; verifies exactly `3 element(s) transitively impacted`, that the `b`,
+`c`, and `d` rows are all present, and that the summary reads `including connections`. The
+fixture change from `GantryConnections` is essential for the same reason given above — only
+declared (non-port) connector endpoints make the queried element an incoming-edge key, and only
+then can a connector be attributed twice. Asserting the bare element count, not just names, is
+what makes the scenario sensitive to any extra row.
 
 **`Impact_IncludeConnections_WalkDepthTwo_ReachesSecondConnectionHop`**: Verifies that
-`--walk-depth 2` raises the connector hop bound to two, reaching the second motor, and reports
-the raised bound in the summary.
+`--walk-depth 2` bounds the walk to two relationships of any kind, reaching the second motor
+through the hub, and reports connection inclusion in the summary.
 
 **`Impact_IncludeConnections_CyclicConnections_TerminatesWithoutDuplicates`**: Uses a local
 variant joining one motor and the hub with two connectors written in opposite textual order,
-with `--walk-depth 5`; verifies the query terminates and reports the hub exactly once.
+with no depth bound at all; verifies the query terminates and reports the hub exactly once.
+
+**`Impact_IncludeConnections_RingTopology_NoDepthBound_Terminates`**: Uses the
+`QueryTestFixtures.RingConnectors` four-part ring and queries `Model::System::r1` with
+`--include-connections` and no depth bound; verifies exactly three impacted elements and that
+`r2`, `r3`, and `r4` are each reported, proving an unbounded walk terminates on a cycle at the
+CLI level.
+
+**`Impact_IncludeConnections_LongChain_NoWalkDepth_ReachesFarEnd`**: Uses the
+`QueryTestFixtures.LongDeclaredConnectorChain` five-connector chain and queries
+`Model::System::a` with `--include-connections`; verifies exactly five impacted elements and
+that the far end `f` is among them, distinguishing an unlimited default from a merely generous
+one.
+
+**`Impact_Summary_UnboundedWithConnections_OmitsHopClause`**: Verifies the exact unbounded
+connection-aware summary literal
+`3 element(s) transitively impacted by a change to 'Model::System::a', including connections.`
+and that the output contains no `connection hops` substring, locking the two-case summary
+wording.
 
 **`Impact_IncludeConnections_BindingEdges_AreTraversedUndirected`**: Uses a local `bind A = B;`
 variant and verifies that each bound part is reachable from the other, proving `Binding` edges
@@ -412,13 +496,6 @@ binding names a directly declared sibling part usage rather than a nested port, 
 `| Model::System::beta | part |` row and never the `| Model::System | part def |` row for the
 enclosing definition.
 
-**`Impact_IncludeConnections_ChainedDeclaredConnectors_StopsAtOneConnectorHop`**: Uses the
-`ChainedDeclaredConnectors` fixture and queries `Model::System::a` with
-`--include-connections`; verifies exactly one impacted element, that it is `b`, and that neither
-`c` (two connector hops) nor `d` (three) is reported. This is the direct regression lock for the
-reported defect in which a declared-connector chain was traversed unbounded while the summary
-still claimed a one-hop bound.
-
 **`Impact_ChainedDeclaredConnectors_FlagAbsent_ReportsNoImpactedElements`**: Same fixture and
 subject without the flag; verifies zero impacted elements, that `b` is not named, and that the
 summary omits the connections suffix — proving connector edges contribute nothing to the default
@@ -426,8 +503,8 @@ reference closure.
 
 **`Impact_IncludeConnections_ChainedDeclaredConnectors_WalkDepthTwo_ReachesSecondHopOnly`**:
 Same fixture and subject with `--walk-depth 2`; verifies that `b` and `c` are reported, `d` is
-not, and the summary reads `including connections (connection hops <= 2)` — proving the bound
-tracks `--walk-depth` rather than being absent.
+not, and the summary reads `including connections` — proving the walk is cut at exactly the
+requested distance.
 
 **`Impact_IncludeConnections_SourceSidePortEndpoint_ReportsOwnerNotRawPort`**: Uses the
 `QueryTestFixtures.SourceSidePortConnector` fixture (`connect hub.J1 to motorA;`, the nested port
@@ -440,15 +517,14 @@ produced two rows — the correct rolled-up owner plus a raw port entry.
 **`Impact_SourceSidePortEndpoint_FlagAbsent_ReportsNoImpactedElements`**: Same fixture and
 subject without the flag; verifies zero impacted elements and that the hub is not named at all.
 
-**`Impact_IncludeConnections_CheaperReferencePath_ReExpandsConnectorsFromReReachedElement`**:
+**`Impact_IncludeConnections_ReachedByTwoPaths_ReportsShortestDistance`**:
 Uses the `QueryTestFixtures.MinimumHopReExpansion` fixture and queries `Model::Assembly::s` with
 `--include-connections`; verifies exactly three impacted elements — `b` (reached over a
-connector), `s2` (reached over a reference edge), and `z`, which is reachable only because `b`
-is re-expanded after being re-reached at a cheaper connector-hop count. `z` is reported at depth
-3, since `b` is re-reached at breadth-first level 2 and expands its connectors at level 3; that
-is the first level at which `z` is genuinely reachable within the hop budget, not an off-by-one.
-Without minimum-hop tracking `z` is silently dropped and the result depends on frontier
-iteration order.
+connector in one relationship), `s2` (reached over a reference edge), and `z`, one further
+connector beyond `b`. `z` is reported at depth 2, the true shortest distance
+`s` → `b` → `z`, and the rendered output is checked for that depth text. Under the previous
+separate connector budget `z` appeared at depth 3, because `b` could not expand its connectors
+until it had been re-reached over the longer reference detour.
 
 **`Interface_ReportsPortsAndTypedFeatures`**: Verifies that `QueryEngine.Interface` reports a
 target definition's ports and typed features.

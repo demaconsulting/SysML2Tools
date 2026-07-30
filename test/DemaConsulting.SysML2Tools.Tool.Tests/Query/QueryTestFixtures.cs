@@ -82,7 +82,7 @@ internal static class QueryTestFixtures
         """;
 
     /// <summary>
-    ///     Shared inline SysML fixture for connector hop-bound scenarios: a chain of three
+    ///     Shared inline SysML fixture for connector-distance scenarios: a chain of three
     ///     connectors joining four directly declared sibling part usages, so <c>a</c> is one
     ///     connector hop from <c>b</c>, two from <c>c</c>, and three from <c>d</c>.
     ///     <para>
@@ -140,14 +140,13 @@ internal static class QueryTestFixtures
         """;
 
     /// <summary>
-    ///     Shared inline SysML fixture in which an element is first reached over a connector and
-    ///     later re-reached over a cheaper pure-reference path.
+    ///     Shared inline SysML fixture in which an element is reachable both over a connector and
+    ///     over a longer pure-reference path.
     ///     <para>
-    ///     Querying impact from <c>s</c>: the connector <c>connect b to s</c> reaches <c>b</c> at
-    ///     one connector hop, while the subsetting chain <c>b :&gt; s2 :&gt; s</c> reaches <c>b</c>
-    ///     one level deeper at zero connector hops. Unless the cycle guard records the minimum
-    ///     hop count and re-expands on the cheaper arrival, <c>b</c> is never expanded with hop
-    ///     budget remaining and <c>z</c> — one connector hop beyond <c>b</c> — is silently lost.
+    ///     Querying impact from <c>s</c>: the connector <c>connect b to s</c> reaches <c>b</c> in
+    ///     one relationship, while the subsetting chain <c>b :&gt; s2 :&gt; s</c> reaches it in
+    ///     two. Under one uniform depth the shorter path wins, so <c>b</c> is reported at depth
+    ///     one and <c>z</c> — one further connector beyond <c>b</c> — at depth two.
     ///     </para>
     /// </summary>
     public const string MinimumHopReExpansion = """
@@ -160,6 +159,60 @@ internal static class QueryTestFixtures
 
                 connect b to s;
                 connect z to b;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     Shared inline SysML fixture for uniform-depth scenarios needing more than three
+    ///     hops: five connectors joining six directly declared sibling part usages, so <c>a</c>
+    ///     is one connector hop from <c>b</c> and five from <c>f</c>.
+    ///     <para>
+    ///     A chain this long distinguishes an unlimited walk from a merely generous one, and
+    ///     gives room for a bound of two or three to be observed stopping the walk partway
+    ///     rather than at the far end of the fixture.
+    ///     </para>
+    /// </summary>
+    public const string LongDeclaredConnectorChain = """
+        package Model {
+            part def System {
+                part a;
+                part b;
+                part c;
+                part d;
+                part e;
+                part f;
+
+                connect b to a;
+                connect c to b;
+                connect d to c;
+                connect e to d;
+                connect f to e;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     Shared inline SysML fixture forming a four-part connector ring, so every member is
+    ///     reachable around either side of the cycle.
+    ///     <para>
+    ///     Exists to prove that an unbounded connector walk terminates on a cyclic topology and
+    ///     still attributes each element its minimum ring distance rather than a
+    ///     traversal-order-dependent one.
+    ///     </para>
+    /// </summary>
+    public const string RingConnectors = """
+        package Model {
+            part def System {
+                part r1;
+                part r2;
+                part r3;
+                part r4;
+
+                connect r2 to r1;
+                connect r3 to r2;
+                connect r4 to r3;
+                connect r1 to r4;
             }
         }
         """;

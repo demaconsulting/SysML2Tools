@@ -47,11 +47,11 @@ public sealed record QueryOptions
     /// </summary>
     /// <remarks>
     ///     Only meaningful for <see cref="QueryVerb.Impact"/>, where it bounds the transitive
-    ///     impact walk; <see langword="null"/> means unlimited. When
-    ///     <see cref="IncludeConnections"/> is also set, this value additionally bounds the
-    ///     number of connector hops taken along any single traversal path, and
-    ///     <see langword="null"/> then means "one connector hop" rather than "unlimited" (see
-    ///     <see cref="IncludeConnections"/>).
+    ///     impact walk; <see langword="null"/> means unlimited. The bound applies
+    ///     <em>uniformly to every relationship kind the walk traverses</em>, including connector
+    ///     edges when <see cref="IncludeConnections"/> is set: one relationship is one unit of
+    ///     depth regardless of its class, and <see langword="null"/> means unlimited in all
+    ///     cases.
     /// </remarks>
     public int? WalkDepth { get; init; }
 
@@ -116,9 +116,11 @@ public sealed record QueryOptions
     ///     source-causes-target direction), and endpoints are rolled up through containment in
     ///     both directions so a <c>part</c> subject matches a connector attached to one of its
     ///     nested ports and a far-side port is attributed to its nearest owning declaration.
-    ///     Because connector graphs are dense meshes, connector hops along a single traversal
-    ///     path are bounded by <see cref="WalkDepth"/> when supplied, and by one hop when
-    ///     <see cref="WalkDepth"/> is <see langword="null"/>.
+    ///     Because connector graphs are dense meshes, an unbounded connection-aware walk on a
+    ///     hub-and-spoke assembly can reach the whole assembly; supply <see cref="WalkDepth"/>
+    ///     when proximity rather than reachability is wanted. This flag controls only
+    ///     <em>which edges are present in the graph</em>, never how far the walk goes — distance
+    ///     is governed by <see cref="WalkDepth"/> alone.
     /// </remarks>
     public bool IncludeConnections { get; init; }
 }

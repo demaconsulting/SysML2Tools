@@ -98,8 +98,8 @@ flowchart TD
 
   ```text
     --include-connections         Also follow connect/bind edges, undirected
-                                  (default: reference edges only). Connector
-                                  hops are bounded by --walk-depth, else 1.
+                                  (default: reference edges only). Distance
+                                  is bounded by --walk-depth like any edge.
   ```
 
   All four keys live in `QueryStrings.resx` with matching `QueryStrings` accessor properties, as

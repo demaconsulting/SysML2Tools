@@ -92,9 +92,10 @@ public class QueryEngineImpactTests
         """;
 
     /// <summary>
-    ///     Topology in which <c>b</c> is first reached from <c>s</c> over a connector (one hop)
-    ///     and later re-reached one level deeper over the subsetting chain <c>b :&gt; s2 :&gt; s</c>
-    ///     at zero hops, so the minimum-hop cycle guard must re-expand it for <c>z</c> to be found.
+    ///     Topology in which <c>b</c> is reachable from <c>s</c> both over a connector
+    ///     (<c>connect b to s</c>, one relationship) and over the subsetting chain
+    ///     <c>b :&gt; s2 :&gt; s</c> (two relationships), so the shorter of the two must win, and
+    ///     <c>z</c> sits one further connector beyond <c>b</c>.
     /// </summary>
     private const string MinimumHopFixture = """
         package Model {
@@ -107,6 +108,182 @@ public class QueryEngineImpactTests
                 connect b to s;
                 connect z to b;
             }
+        }
+        """;
+
+    /// <summary>
+    ///     Connector chain of five connectors joining six declared sibling part usages, so
+    ///     <c>a</c> is one connector hop from <c>b</c>, two from <c>c</c>, three from <c>d</c>,
+    ///     four from <c>e</c>, and five from <c>f</c>. Every endpoint is a declared part usage
+    ///     rather than a nested port, so a reference pass that failed to exclude connector kinds
+    ///     would be detected here as duplicate entries or entries attributed to the wrong
+    ///     connector. The chain is long enough to distinguish an unlimited budget from a merely
+    ///     generous one and to observe a bound of three stopping the walk partway.
+    /// </summary>
+    private const string LongConnectorChainFixture = """
+        package Model {
+            part def System {
+                part a;
+                part b;
+                part c;
+                part d;
+                part e;
+                part f;
+
+                connect b to a;
+                connect c to b;
+                connect d to c;
+                connect e to d;
+                connect f to e;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     Cyclic connector topology: four part usages joined into a ring. Traversal from
+    ///     <c>r1</c> must terminate with no depth bound at all, and <c>r3</c> — reachable
+    ///     around either side of the ring — must be attributed its minimum ring distance rather
+    ///     than a traversal-order-dependent one.
+    /// </summary>
+    private const string RingConnectorFixture = """
+        package Model {
+            part def System {
+                part r1;
+                part r2;
+                part r3;
+                part r4;
+
+                connect r2 to r1;
+                connect r3 to r2;
+                connect r4 to r3;
+                connect r1 to r4;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     Topology placing a three-link pure-reference chain and a three-hop pure-connector
+    ///     chain on the same subject, so a single depth bound can be observed cutting both
+    ///     chains at exactly the same distance.
+    /// </summary>
+    private const string MixedReferenceAndConnectorFixture = """
+        package Model {
+            part def Assembly {
+                part ref0;
+                part ref1 :> ref0;
+                part ref2 :> ref1;
+                part ref3 :> ref2;
+                part con1;
+                part con2;
+                part con3;
+
+                connect con1 to ref0;
+                connect con2 to con1;
+                connect con3 to con2;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     Topology in which two elements are each reachable from <c>origin</c> by both a
+    ///     reference path and a connector path, with the shorter path being of a different class
+    ///     in each case: <c>viaConnector</c> is one connector away but two references away, and
+    ///     <c>viaReference</c> is one reference away but two connectors away. Under one uniform
+    ///     depth, each must be reported once, at the shorter distance, carrying the relation of
+    ///     the path that achieved it.
+    /// </summary>
+    private const string DualPathFixture = """
+        package Model {
+            part def Assembly {
+                part origin;
+
+                part link :> origin;
+                part viaConnector :> link;
+                connect viaConnector to origin;
+
+                part viaReference :> origin;
+                part relay;
+                connect relay to origin;
+                connect viaReference to relay;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     Hub-and-spoke connector topology whose ports are declared <b>inline on the part usage</b>
+    ///     (<c>part hub { port J1; port J2; }</c>) rather than on a part definition reached through
+    ///     a typed usage, as in <see cref="ConnectedPartsFixture"/>.
+    ///     <para>
+    ///     The distinction is the whole point of this fixture and is invisible in the rendered
+    ///     output: declaring the ports inline makes the connector endpoint path
+    ///     <c>M::S::hub::J1</c> itself a key in <c>SysmlWorkspace.Declarations</c>, whereas the
+    ///     definition-side style leaves the endpoint path undeclared (the declaration is
+    ///     <c>Hub::J1</c>). A far-endpoint roll-up that stops at the first declared ancestor
+    ///     therefore reports the raw port for this shape only — and, because the reported name is
+    ///     also the name enqueued onto the traversal frontier, dead-ends the walk at the port so
+    ///     <c>motorB</c> is never reached at any depth. Both modeling styles are legal, so both
+    ///     shapes must be covered.
+    ///     </para>
+    /// </summary>
+    private const string InlineUsagePortsFixture = """
+        package M {
+            part def S {
+                part hub {
+                    port J1;
+                    port J2;
+                }
+
+                part motorA;
+                part motorB;
+
+                connect hub.J1 to motorA;
+                connect hub.J2 to motorB;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     A proxy-port topology: <c>mp</c> is declared on the enclosing definition and both
+    ///     nested parts connect to it, the standard SysML v2 interface-delegation idiom. The
+    ///     nearest non-port owner of <c>mp</c> is <c>Mid</c>, which contains the query subject,
+    ///     so roll-up must decline it and keep the port. Rolling up to <c>Mid</c> would attribute
+    ///     containment as a connection and, because every connector interior to <c>Mid</c> has
+    ///     both ends nested under it, would hide <c>l2</c> at every depth.
+    /// </summary>
+    private const string ProxyPortFixture = """
+        package Model {
+            part def Leaf {
+                port p;
+            }
+
+            part def Mid {
+                port mp;
+                part l1 : Leaf;
+                part l2 : Leaf;
+
+                connect l1.p to mp;
+                connect l2.p to mp;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     A port declared directly in a package, whose only non-port ancestor is the package
+    ///     itself. Reporting the package would make every element it contains appear connected,
+    ///     because the both-ends-nested test treats containment as membership.
+    /// </summary>
+    private const string PackageScopedPortFixture = """
+        package Top {
+            package M {
+                port P;
+                part x;
+                part y;
+            }
+
+            part outsider;
+
+            connect M::P to M::x;
+            connect M::y to outsider;
         }
         """;
 
@@ -300,20 +477,25 @@ public class QueryEngineImpactTests
     }
 
     /// <summary>
-    ///     An element re-reached at a strictly lower connector-hop count is re-expanded so
-    ///     elements beyond it are not lost, while its already-recorded first-arrival depth and
-    ///     relation attribution are retained and no duplicate entry is emitted.
+    ///     An element reachable by both a connector path and a longer reference path is reported
+    ///     exactly once, at the shorter of the two distances, and the elements beyond it are
+    ///     attributed relative to that shorter distance.
     /// </summary>
     /// <remarks>
-    ///     <c>z</c> is expected at depth 3, not 2: <c>b</c> is re-reached cheaply at
-    ///     breadth-first level 2 and therefore expands its connectors at level 3, which is
-    ///     genuinely the first level at which <c>z</c> is reachable within the hop budget.
+    ///     <c>z</c> is expected at depth 2, not 3: with one uniform budget the shortest path is
+    ///     <c>s</c> → <c>b</c> (the connector <c>connect b to s</c>) → <c>z</c> (the connector
+    ///     <c>connect z to b</c>), two relationships. The two-relationship subsetting detour
+    ///     <c>b :&gt; s2 :&gt; s</c> no longer delays <c>b</c>'s connector expansion, because
+    ///     there is no second budget for a connector hop to exhaust.
     /// </remarks>
     [Fact]
-    public async Task Impact_IncludeConnections_ReReachedAtLowerHopCount_KeepsFirstArrivalDepthAndAttribution()
+    public async Task Impact_IncludeConnections_ReachedByTwoPaths_ReportsShortestDistance()
     {
+        // Arrange: 'b' is one connector from 's' and two subsettings from 's'; 'z' is one
+        // further connector beyond 'b'
         var (workspace, element) = await LoadAsync(MinimumHopFixture, "Model::Assembly::s");
 
+        // Act: walk with connections enabled and no depth bound
         var result = QueryEngine.Impact(
             workspace,
             element,
@@ -324,12 +506,379 @@ public class QueryEngineImpactTests
                 IncludeConnections = true
             });
 
+        // Assert: 'b' is reported once at the shorter connector distance, and 'z' one beyond it
         var b = Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::b");
         Assert.Equal(1, b.Depth);
         Assert.Equal(SysmlEdgeKind.Connect, b.Relation);
 
         var z = Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::z");
-        Assert.Equal(3, z.Depth);
+        Assert.Equal(2, z.Depth);
         Assert.Equal(SysmlEdgeKind.Connect, z.Relation);
+    }
+
+    /// <summary>
+    ///     With no walk depth supplied the walk is unlimited for connector edges just as it is
+    ///     for reference edges, so an entire connector chain is reported, each element at its
+    ///     shortest relationship distance from the subject.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_NoWalkDepth_ReachesEntireConnectorChainAtShortestDistance()
+    {
+        // Arrange: a six-part chain joined by five connectors, queried from one end
+        var (workspace, element) = await LoadAsync(LongConnectorChainFixture, "Model::System::a");
+
+        // Act: enable connections and supply no depth bound at all
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::System::a",
+                IncludeConnections = true
+            });
+
+        // Assert: every element in the chain is reported exactly once, at its true hop distance
+        Assert.Equal(5, result.Entries.Count);
+        var expectedDepths = new Dictionary<string, int>(StringComparer.Ordinal)
+        {
+            ["Model::System::b"] = 1,
+            ["Model::System::c"] = 2,
+            ["Model::System::d"] = 3,
+            ["Model::System::e"] = 4,
+            ["Model::System::f"] = 5
+        };
+        foreach (var (name, expectedDepth) in expectedDepths)
+        {
+            var entry = Assert.Single(result.Entries, e => e.QualifiedName == name);
+            Assert.Equal(expectedDepth, entry.Depth);
+            Assert.Equal(SysmlEdgeKind.Connect, entry.Relation);
+        }
+    }
+
+    /// <summary>
+    ///     A walk depth of three means "everything within three relationships of the subject",
+    ///     so a connector chain is followed exactly three hops and no further.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_WalkDepthThree_BoundsConnectorChainToThreeHops()
+    {
+        // Arrange: the same six-part connector chain
+        var (workspace, element) = await LoadAsync(LongConnectorChainFixture, "Model::System::a");
+
+        // Act: bound the walk to three relationships
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::System::a",
+                IncludeConnections = true,
+                WalkDepth = 3
+            });
+
+        // Assert: exactly b, c and d are reported — never e or f
+        Assert.Equal(3, result.Entries.Count);
+        Assert.Contains(result.Entries, e => e.QualifiedName == "Model::System::b");
+        Assert.Contains(result.Entries, e => e.QualifiedName == "Model::System::c");
+        Assert.Contains(result.Entries, e => e.QualifiedName == "Model::System::d");
+        Assert.DoesNotContain(result.Entries, e => e.QualifiedName == "Model::System::e");
+        Assert.DoesNotContain(result.Entries, e => e.QualifiedName == "Model::System::f");
+    }
+
+    /// <summary>
+    ///     One walk depth bounds reference and connector relationships identically: a reference
+    ///     chain and a connector chain of the same length are both cut at the same distance.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_MixedPaths_WalkDepthBoundsBothEdgeClassesIdentically()
+    {
+        // Arrange: a three-link reference chain and a three-hop connector chain on one subject
+        var (workspace, element) = await LoadAsync(MixedReferenceAndConnectorFixture, "Model::Assembly::ref0");
+
+        // Act: bound the walk to two relationships of any kind
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::Assembly::ref0",
+                IncludeConnections = true,
+                WalkDepth = 2
+            });
+
+        // Assert: both chains are followed to exactly two and cut at exactly three
+        Assert.Equal(1, Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::ref1").Depth);
+        Assert.Equal(2, Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::ref2").Depth);
+        Assert.Equal(1, Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::con1").Depth);
+        Assert.Equal(2, Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::con2").Depth);
+        Assert.DoesNotContain(result.Entries, e => e.QualifiedName == "Model::Assembly::ref3");
+        Assert.DoesNotContain(result.Entries, e => e.QualifiedName == "Model::Assembly::con3");
+    }
+
+    /// <summary>
+    ///     An element reachable by both a reference path and a connector path is reported once,
+    ///     at the shorter distance, carrying the relation of the path that achieved it —
+    ///     whichever class that path happens to be.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_ReachableByReferenceAndConnector_ReportedOnceAtShorterDistance()
+    {
+        // Arrange: one element is closer over a connector, another is closer over a reference
+        var (workspace, element) = await LoadAsync(DualPathFixture, "Model::Assembly::origin");
+
+        // Act: walk with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::Assembly::origin",
+                IncludeConnections = true,
+                IncludeStdlib = false
+            });
+
+        // Assert: the connector path wins where it is shorter, keeping its Connect relation
+        var viaConnector = Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::viaConnector");
+        Assert.Equal(1, viaConnector.Depth);
+        Assert.Equal(SysmlEdgeKind.Connect, viaConnector.Relation);
+
+        // Assert: the reference path wins where it is shorter, keeping its reference relation
+        var viaReference = Assert.Single(result.Entries, e => e.QualifiedName == "Model::Assembly::viaReference");
+        Assert.Equal(1, viaReference.Depth);
+        Assert.Equal(SysmlEdgeKind.Supertype, viaReference.Relation);
+    }
+
+    /// <summary>
+    ///     A cyclic connector topology with no depth bound at all terminates and attributes each
+    ///     element its minimum ring distance rather than a traversal-order-dependent one.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_RingTopology_NoDepthBound_TerminatesWithShortestDistances()
+    {
+        // Arrange: four part usages joined into a connector ring
+        var (workspace, element) = await LoadAsync(RingConnectorFixture, "Model::System::r1");
+
+        // Act: walk the ring with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::System::r1",
+                IncludeConnections = true
+            });
+
+        // Assert: the walk terminated, reporting each neighbour once at its minimum ring distance
+        Assert.Equal(3, result.Entries.Count);
+        Assert.Equal(1, Assert.Single(result.Entries, e => e.QualifiedName == "Model::System::r2").Depth);
+        Assert.Equal(1, Assert.Single(result.Entries, e => e.QualifiedName == "Model::System::r4").Depth);
+        Assert.Equal(2, Assert.Single(result.Entries, e => e.QualifiedName == "Model::System::r3").Depth);
+    }
+
+    /// <summary>
+    ///     On a hub-and-spoke topology, a sibling spoke reached through the shared hub is
+    ///     reported at depth two rather than suppressed, because no per-edge-class budget is
+    ///     exhausted by the first hop into the hub.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_HubTopology_SpokeReachesOtherSpokeAtDepthTwo()
+    {
+        // Arrange: two motors each connected to a distinct port of a shared hub
+        var (workspace, element) = await LoadAsync(ConnectedPartsFixture, "Model::System::motorA");
+
+        // Act: walk from one spoke with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::System::motorA",
+                IncludeConnections = true
+            });
+
+        // Assert: the hub is at depth one and the sibling spoke beyond it at depth two
+        Assert.Equal(1, Assert.Single(result.Entries, e => e.QualifiedName == "Model::System::hub").Depth);
+        Assert.Equal(2, Assert.Single(result.Entries, e => e.QualifiedName == "Model::System::motorB").Depth);
+    }
+
+    /// <summary>
+    ///     Regression: a connector endpoint that is a port declared inline on a part usage — and
+    ///     therefore itself a declaration key — is still attributed to the owning part usage, not
+    ///     reported raw, with the port preserved in
+    ///     <see cref="QueryResultEntry.ViaQualifiedName"/>.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_InlineUsagePortEndpoint_ReportsOwningPartUsage()
+    {
+        // Arrange: hub-and-spoke topology whose ports are declared inline on the hub usage
+        var (workspace, element) = await LoadAsync(InlineUsagePortsFixture, "M::S::motorA");
+
+        // Act: walk from one spoke with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "M::S::motorA",
+                IncludeConnections = true
+            });
+
+        // Assert: the owning part usage is reported at depth one, with the raw port recorded
+        var entry = Assert.Single(result.Entries, e => e.QualifiedName == "M::S::hub");
+        Assert.Equal(1, entry.Depth);
+        Assert.Equal(SysmlEdgeKind.Connect, entry.Relation);
+        Assert.Equal("M::S::hub::J1", entry.ViaQualifiedName);
+        Assert.DoesNotContain(result.Entries, e => e.QualifiedName == "M::S::hub::J1");
+    }
+
+    /// <summary>
+    ///     Regression: rolling an inline-declared port endpoint up to its owning part usage also
+    ///     places that part — not the port — on the traversal frontier, so the walk continues
+    ///     through the hub and reaches the far spoke. Stopping at the port dead-ends the walk and
+    ///     makes the far spoke unreachable at any depth, which is what this asserts against.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_InlineUsagePortEndpoint_ContinuesTraversalBeyondPortOwner()
+    {
+        // Arrange: hub-and-spoke topology whose ports are declared inline on the hub usage
+        var (workspace, element) = await LoadAsync(InlineUsagePortsFixture, "M::S::motorA");
+
+        // Act: walk from one spoke with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "M::S::motorA",
+                IncludeConnections = true
+            });
+
+        // Assert: the sibling spoke beyond the hub is reached, at exactly one further hop
+        var entry = Assert.Single(result.Entries, e => e.QualifiedName == "M::S::motorB");
+        Assert.Equal(2, entry.Depth);
+        Assert.Equal(SysmlEdgeKind.Connect, entry.Relation);
+        Assert.Null(entry.ViaQualifiedName);
+    }
+
+    /// <summary>
+    ///     Regression: when a connector endpoint's nearest non-port owner contains the subject —
+    ///     a proxy port declared on the enclosing definition — roll-up declines that owner and
+    ///     keeps the port, so the shared attachment point is reported rather than the container.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_ProxyPortOnOwningDefinition_ReportsPortNotContainer()
+    {
+        // Arrange: interface-delegation topology whose shared port hangs off the definition
+        var (workspace, element) = await LoadAsync(ProxyPortFixture, "Model::Mid::l1");
+
+        // Act: walk from one nested part with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::Mid::l1",
+                IncludeConnections = true
+            });
+
+        // Assert: the proxy port stands in for the connection, and its container is never reported
+        var entry = Assert.Single(result.Entries, e => e.QualifiedName == "Model::Mid::mp");
+        Assert.Equal(1, entry.Depth);
+        Assert.Equal(SysmlEdgeKind.Connect, entry.Relation);
+        Assert.DoesNotContain(result.Entries, e => e.QualifiedName == "Model::Mid");
+    }
+
+    /// <summary>
+    ///     Regression: keeping the proxy port on the frontier preserves reachability across it,
+    ///     so the sibling sharing that port is still reported at exactly one further hop. Rolling
+    ///     up to the containing definition instead would discard every connector interior to it
+    ///     and make the sibling unreachable at any depth.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_ProxyPortOnOwningDefinition_ReachesSiblingAcrossPort()
+    {
+        // Arrange: interface-delegation topology whose shared port hangs off the definition
+        var (workspace, element) = await LoadAsync(ProxyPortFixture, "Model::Mid::l1");
+
+        // Act: walk from one nested part with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::Mid::l1",
+                IncludeConnections = true
+            });
+
+        // Assert: the sibling on the far side of the shared port is reached at two hops
+        var entry = Assert.Single(result.Entries, e => e.QualifiedName == "Model::Mid::l2");
+        Assert.Equal(2, entry.Depth);
+        Assert.Equal(SysmlEdgeKind.Connect, entry.Relation);
+    }
+
+    /// <summary>
+    ///     Regression: a package is never an impact subject. Rolling a package-scoped port up to
+    ///     its package would place a container on the frontier, and because the both-ends-nested
+    ///     test treats containment as membership, every element inside that package would appear
+    ///     connected to the subject — here <c>outsider</c>, which shares no connector with it.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_PackageScopedPort_DoesNotTreatPackageAsConnected()
+    {
+        // Arrange: a port whose only non-port ancestor is the enclosing package
+        var (workspace, element) = await LoadAsync(PackageScopedPortFixture, "Top::M::x");
+
+        // Act: walk with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Top::M::x",
+                IncludeConnections = true
+            });
+
+        // Assert: only the port is reported - no package row, and no element merely sharing it
+        var entry = Assert.Single(result.Entries);
+        Assert.Equal("Top::M::P", entry.QualifiedName);
+        Assert.Equal(1, entry.Depth);
+    }
+
+    /// <summary>
+    ///     Regression: no impact row names a port, for either port-declaration style. A port is
+    ///     an attachment point rather than an actionable impact subject, so its presence would be
+    ///     a name the caller can neither act on nor feed back into another query.
+    /// </summary>
+    /// <param name="fixture">The connector fixture to walk.</param>
+    /// <param name="subject">The qualified name of the spoke to query from.</param>
+    [Theory]
+    [InlineData(InlineUsagePortsFixture, "M::S::motorA")]
+    [InlineData(ConnectedPartsFixture, "Model::System::motorA")]
+    public async Task Impact_IncludeConnections_PortDeclarationStyles_ReportNoPortEntries(
+        string fixture, string subject)
+    {
+        // Arrange: load the fixture and resolve the spoke to query from
+        var (workspace, element) = await LoadAsync(fixture, subject);
+
+        // Act: walk with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions { Verb = QueryVerb.Impact, Element = subject, IncludeConnections = true });
+
+        // Assert: results are non-empty and no reported element is a port
+        Assert.NotEmpty(result.Entries);
+        Assert.DoesNotContain(result.Entries, e => e.Kind == "port");
     }
 }
