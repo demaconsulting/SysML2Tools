@@ -351,6 +351,7 @@ flowchart TD
 | SysML2Tools-Core-Query-ImpactConnectionEndpoints | `CollectImpactConnections`; `IsSelfOrNestedUnder` |
 | SysML2Tools-Core-Query-ImpactConnectionRollUp | `QueryEngine.RollUpToNearestDeclaration` |
 | SysML2Tools-Core-Query-ImpactConnectionPortSkip | `RollUpToNearestDeclaration`; `IsEndpointOnlyDeclaration` |
+| SysML2Tools-Core-Query-ImpactConnectionContainerDecline | `RollUpToNearestDeclaration`; `IsSelfOrNestedUnder` |
 | SysML2Tools-Core-Query-ImpactConnectionPortContinuation | `CollectImpactConnections` frontier append |
 | SysML2Tools-Core-Query-ImpactUniformDepth | `QueryEngine.Impact` breadth-first level loop; `WalkDepth` |
 | SysML2Tools-Core-Query-ImpactConnectionCycles | `QueryEngine.Impact` `visited` guard |

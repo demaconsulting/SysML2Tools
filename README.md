@@ -258,7 +258,7 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 | `--element <name>`, `-e <name>` | Qualified name of the target element; required for every verb except `list`/`find` |
 | `--format markdown\|json` | Output format (default: `markdown`); distinct from `render`'s `--format` (`svg`/`png`) |
 | `--output <file>` | Write query report to this **file** (default: stdout); differs from `render`'s `--output` dir |
-| `--walk-depth <#>` | Maximum impact-walk depth (`impact` verb only); bounds all relationship kinds equally |
+| `--walk-depth <#>` | Max impact-walk depth (`impact` only); bounds all kinds equally; unlimited if omitted |
 | `--include-connections` | `impact` only: follow `connect`/`bind` edges undirected; bounded by `--walk-depth` |
 | `--direction up\|down\|both` | Traversal direction (`hierarchy` verb only) |
 | `--kind <kind>` | Element-kind filter (`list`/`find` verbs only) |

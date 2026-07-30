@@ -243,6 +243,51 @@ public class QueryEngineImpactTests
         """;
 
     /// <summary>
+    ///     A proxy-port topology: <c>mp</c> is declared on the enclosing definition and both
+    ///     nested parts connect to it, the standard SysML v2 interface-delegation idiom. The
+    ///     nearest non-port owner of <c>mp</c> is <c>Mid</c>, which contains the query subject,
+    ///     so roll-up must decline it and keep the port. Rolling up to <c>Mid</c> would attribute
+    ///     containment as a connection and, because every connector interior to <c>Mid</c> has
+    ///     both ends nested under it, would hide <c>l2</c> at every depth.
+    /// </summary>
+    private const string ProxyPortFixture = """
+        package Model {
+            part def Leaf {
+                port p;
+            }
+
+            part def Mid {
+                port mp;
+                part l1 : Leaf;
+                part l2 : Leaf;
+
+                connect l1.p to mp;
+                connect l2.p to mp;
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     A port declared directly in a package, whose only non-port ancestor is the package
+    ///     itself. Reporting the package would make every element it contains appear connected,
+    ///     because the both-ends-nested test treats containment as membership.
+    /// </summary>
+    private const string PackageScopedPortFixture = """
+        package Top {
+            package M {
+                port P;
+                part x;
+                part y;
+            }
+
+            part outsider;
+
+            connect M::P to M::x;
+            connect M::y to outsider;
+        }
+        """;
+
+    /// <summary>
     ///     Writes the fixture to a temp file, loads it exactly as a non-CLI library caller
     ///     would, resolves the named element, and returns both for a direct
     ///     <see cref="QueryEngine"/> call.
@@ -721,6 +766,93 @@ public class QueryEngineImpactTests
         Assert.Equal(2, entry.Depth);
         Assert.Equal(SysmlEdgeKind.Connect, entry.Relation);
         Assert.Null(entry.ViaQualifiedName);
+    }
+
+    /// <summary>
+    ///     Regression: when a connector endpoint's nearest non-port owner contains the subject —
+    ///     a proxy port declared on the enclosing definition — roll-up declines that owner and
+    ///     keeps the port, so the shared attachment point is reported rather than the container.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_ProxyPortOnOwningDefinition_ReportsPortNotContainer()
+    {
+        // Arrange: interface-delegation topology whose shared port hangs off the definition
+        var (workspace, element) = await LoadAsync(ProxyPortFixture, "Model::Mid::l1");
+
+        // Act: walk from one nested part with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::Mid::l1",
+                IncludeConnections = true
+            });
+
+        // Assert: the proxy port stands in for the connection, and its container is never reported
+        var entry = Assert.Single(result.Entries, e => e.QualifiedName == "Model::Mid::mp");
+        Assert.Equal(1, entry.Depth);
+        Assert.Equal(SysmlEdgeKind.Connect, entry.Relation);
+        Assert.DoesNotContain(result.Entries, e => e.QualifiedName == "Model::Mid");
+    }
+
+    /// <summary>
+    ///     Regression: keeping the proxy port on the frontier preserves reachability across it,
+    ///     so the sibling sharing that port is still reported at exactly one further hop. Rolling
+    ///     up to the containing definition instead would discard every connector interior to it
+    ///     and make the sibling unreachable at any depth.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_ProxyPortOnOwningDefinition_ReachesSiblingAcrossPort()
+    {
+        // Arrange: interface-delegation topology whose shared port hangs off the definition
+        var (workspace, element) = await LoadAsync(ProxyPortFixture, "Model::Mid::l1");
+
+        // Act: walk from one nested part with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Model::Mid::l1",
+                IncludeConnections = true
+            });
+
+        // Assert: the sibling on the far side of the shared port is reached at two hops
+        var entry = Assert.Single(result.Entries, e => e.QualifiedName == "Model::Mid::l2");
+        Assert.Equal(2, entry.Depth);
+        Assert.Equal(SysmlEdgeKind.Connect, entry.Relation);
+    }
+
+    /// <summary>
+    ///     Regression: a package is never an impact subject. Rolling a package-scoped port up to
+    ///     its package would place a container on the frontier, and because the both-ends-nested
+    ///     test treats containment as membership, every element inside that package would appear
+    ///     connected to the subject — here <c>outsider</c>, which shares no connector with it.
+    /// </summary>
+    [Fact]
+    public async Task Impact_IncludeConnections_PackageScopedPort_DoesNotTreatPackageAsConnected()
+    {
+        // Arrange: a port whose only non-port ancestor is the enclosing package
+        var (workspace, element) = await LoadAsync(PackageScopedPortFixture, "Top::M::x");
+
+        // Act: walk with connections enabled and no depth bound
+        var result = QueryEngine.Impact(
+            workspace,
+            element,
+            new QueryOptions
+            {
+                Verb = QueryVerb.Impact,
+                Element = "Top::M::x",
+                IncludeConnections = true
+            });
+
+        // Assert: only the port is reported - no package row, and no element merely sharing it
+        var entry = Assert.Single(result.Entries);
+        Assert.Equal("Top::M::P", entry.QualifiedName);
+        Assert.Equal(1, entry.Depth);
     }
 
     /// <summary>

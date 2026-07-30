@@ -422,7 +422,7 @@ public static class QueryEngine
 
             var near = nearIsSource ? source : target;
             var far = nearIsSource ? target : source;
-            var owner = RollUpToNearestDeclaration(workspace, far);
+            var owner = RollUpToNearestDeclaration(workspace, far, near);
             if (!visited.Add(owner))
             {
                 continue;
@@ -1063,9 +1063,12 @@ public static class QueryEngine
     ///     absent from <see cref="SysmlWorkspace.Declarations"/> — frequently ports inherited
     ///     through a typed usage — and endpoints that are declared but endpoint-only, per
     ///     <see cref="IsEndpointOnlyDeclaration"/>, have trailing <c>::</c> segments stripped
-    ///     until such a declaration is found.
+    ///     until such a declaration is found. A candidate that <i>contains</i> the connector's
+    ///     near endpoint is also rejected, so the walk can never roll up into one of its own
+    ///     containers.
     /// </summary>
     /// <remarks>
+    ///     <para>
     ///     Skipping declared endpoint-only constructs matters because whether a port endpoint is
     ///     itself a key in <see cref="SysmlWorkspace.Declarations"/> is an artifact of modeling
     ///     style, not of meaning. A port declared on a definition (<c>part def Hub { port J1; }</c>)
@@ -1077,24 +1080,43 @@ public static class QueryEngine
     ///     actionable answer to "what parts are impacted" — and, because the reported name is
     ///     also the name enqueued onto the traversal frontier, it would dead-end the walk at the
     ///     port instead of continuing through the owning part.
+    /// </para>
+    /// <para>
+    ///     Rolling up must nonetheless stop short of any container of the connector's near
+    ///     endpoint. A proxy port declared on the enclosing definition
+    ///     (<c>part def Mid { port mp; part l1; part l2; connect l1.p to mp; }</c>) has no owning
+    ///     part beside the subject — the nearest non-port owner is <c>Mid</c> itself. Reporting
+    ///     <c>Mid</c> would attribute containment as a connection and, once <c>Mid</c> reached the
+    ///     frontier, every connector interior to it would be discarded by the both-ends-nested
+    ///     guard, hiding <c>l2</c> at every depth. Keeping the port in that case reports the real
+    ///     shared attachment point and leaves it traversable, so peers across the port stay
+    ///     reachable.
+    /// </para>
     /// </remarks>
     /// <param name="workspace">The loaded workspace.</param>
     /// <param name="qualifiedName">The connector endpoint's qualified name.</param>
+    /// <param name="nearEndpoint">
+    ///     The opposite endpoint of the same connector — the one belonging to the element the walk
+    ///     is currently expanding. Candidates that contain it are rejected as described above.
+    /// </param>
     /// <returns>
-    ///     <paramref name="qualifiedName"/> itself when it is declared and is not endpoint-only,
-    ///     otherwise the nearest declared, non-endpoint-only owning qualified name, or
-    ///     <paramref name="qualifiedName"/> unchanged when no such ancestor exists, so a
-    ///     connection is never silently dropped.
+    ///     <paramref name="qualifiedName"/> itself when it is declared, is not endpoint-only, and
+    ///     does not contain <paramref name="nearEndpoint"/>; otherwise the nearest declared owning
+    ///     qualified name meeting those conditions, or <paramref name="qualifiedName"/> unchanged
+    ///     when no such ancestor exists, so a connection is never silently dropped.
     /// </returns>
-    private static string RollUpToNearestDeclaration(SysmlWorkspace workspace, string qualifiedName)
+    private static string RollUpToNearestDeclaration(
+        SysmlWorkspace workspace, string qualifiedName, string nearEndpoint)
     {
         var probe = qualifiedName;
         while (true)
         {
             // Accept the probe only when it names a declaration that a caller could act on and
-            // usefully continue the impact walk from - a declared port is neither.
+            // usefully continue the impact walk from - a declared port is neither, and neither is
+            // a container of the near endpoint, which would convert containment into connectivity.
             if (workspace.Declarations.TryGetValue(probe, out var declaration) &&
-                !IsEndpointOnlyDeclaration(declaration))
+                !IsEndpointOnlyDeclaration(declaration) &&
+                !IsSelfOrNestedUnder(nearEndpoint, probe))
             {
                 return probe;
             }

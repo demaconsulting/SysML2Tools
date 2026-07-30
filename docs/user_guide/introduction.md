@@ -490,8 +490,10 @@ because a connector is not a reference.
 > while meaning "unlimited" for references. `--walk-depth` is now the single depth control and
 > counts every relationship equally, so `--include-connections` with no `--walk-depth` now
 > follows a connector chain all the way to its end. A command you have not changed may therefore
-> report **more** rows than it did in `0.2.0-beta.1`. To restore the old narrowness, add
-> `--walk-depth 1`; to ask for a specific proximity, pass the distance you actually want.
+> report **more** rows than it did in `0.2.0-beta.1`. There is no longer an exact equivalent of
+> the old behavior, because the one-hop bound applied to connectors only while references stayed
+> unlimited; pass the proximity you actually want instead, such as `--walk-depth 1` for immediate
+> neighbors of every kind.
 
 Adding `--include-connections` makes `impact` follow `connect` and `bind` relationships as
 well. Three rules apply:

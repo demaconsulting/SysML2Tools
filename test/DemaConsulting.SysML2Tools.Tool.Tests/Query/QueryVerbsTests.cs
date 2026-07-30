@@ -618,8 +618,10 @@ public class QueryVerbsTests
         Assert.Contains("3 element(s) transitively impacted", output);
         Assert.Contains("| Model::Assembly::b | part |", output);
         Assert.Contains("| Model::Assembly::s2 | part |", output);
-        Assert.Contains("| Model::Assembly::z | part |", output);
-        Assert.Contains("depth 2", output);
+
+        // Bind the depth to the row it belongs to: a bare "depth 2" would also be satisfied by
+        // any other row, which is the whole point of this minimum-hop case.
+        Assert.Contains("| Model::Assembly::z | part | depth 2", output);
     }
 
     /// <summary>
