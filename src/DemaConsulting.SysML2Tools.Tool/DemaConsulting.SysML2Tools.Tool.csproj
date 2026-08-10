@@ -67,7 +67,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.5" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.301" PrivateAssets="All" />
-    <PackageReference Include="Polyfill" Version="11.0.1" PrivateAssets="All" />
+    <PackageReference Include="Polyfill" Version="11.0.2" PrivateAssets="All" />
   </ItemGroup>
 
   <!-- Code Analysis Dependencies -->
@@ -81,7 +81,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.30.0.144632">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.31.0.145097">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
