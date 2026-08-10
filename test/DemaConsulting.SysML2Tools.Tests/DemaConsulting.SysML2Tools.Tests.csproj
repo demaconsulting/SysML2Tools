@@ -63,7 +63,7 @@
   <!-- SkiaSharp Native Assets -->
   <ItemGroup>
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.150.0" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.1" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.150.0" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
     <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="4.150.0" Condition="$([MSBuild]::IsOSPlatform('macOS'))" />
   </ItemGroup>
 
