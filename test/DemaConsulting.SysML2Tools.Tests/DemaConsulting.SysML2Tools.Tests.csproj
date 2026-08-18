@@ -27,11 +27,18 @@
 
   <!-- Test Framework Dependencies -->
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="10.0.1">
+    <!-- coverlet.MTP is coverlet's native Microsoft.Testing.Platform extension (the VSTest-only
+         coverlet.collector no longer runs under the MTP 'dotnet test' mode required by xunit.v3 4.0.0).
+         Child-element form configures both PrivateAssets and IncludeAssets:
+         - PrivateAssets="all" keeps this test-coverage tool out of any consuming project's dependencies.
+         - IncludeAssets lists all asset types (including 'build' and 'buildtransitive') to ensure the
+           extension's MSBuild targets are activated so coverage is collected during test runs. -->
+    <PackageReference Include="coverlet.MTP" Version="10.0.1">
       <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <IncludeAssets>compile; runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="2.3.3" />
     <PackageReference Include="xunit.v3" Version="4.0.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
       <PrivateAssets>all</PrivateAssets>
