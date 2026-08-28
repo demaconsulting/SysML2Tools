@@ -98,8 +98,21 @@
 
   <!-- Rendering output packages: the SVG renderer and the SkiaSharp raster renderers -->
   <ItemGroup>
-    <PackageReference Include="DemaConsulting.Rendering.Svg" Version="0.1.0" />
-    <PackageReference Include="DemaConsulting.Rendering.Skia" Version="0.1.0" />
+    <PackageReference Include="DemaConsulting.Rendering.Svg" Version="0.2.0" />
+    <PackageReference Include="DemaConsulting.Rendering.Skia" Version="0.2.0" />
+  </ItemGroup>
+
+  <!-- Native SkiaSharp asset flavor selection: DemaConsulting.Rendering.Skia (since 0.2.0) depends
+       only on the managed SkiaSharp core, so this tool (the application/publish boundary) chooses
+       the native asset flavor explicitly. No OS Condition is used: this project is packed as a
+       single cross-platform dotnet tool package, so all platforms' native assets must be present
+       in one pack, then curated down to $(SupportedNativeAssetRids) by TrimPublishedNativeAssets
+       below. Linux uses the "NoDependencies" flavor so the tool works on minimal containers
+       lacking libfontconfig/libfreetype. -->
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.151.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="4.151.1" />
   </ItemGroup>
 
   <ItemGroup>
