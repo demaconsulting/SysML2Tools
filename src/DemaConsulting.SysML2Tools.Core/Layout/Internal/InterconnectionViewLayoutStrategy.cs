@@ -1001,7 +1001,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     {
         var label = part.Typing is { Length: > 0 } ? $"{part.Name} : {part.Typing}" : part.Name;
         var children = part.InnerContent is null
-            ? (IReadOnlyList<LayoutNode>)[]
+            ? []
             : TranslateNodes(part.InnerContent, rect.X, rect.Y);
 
         return new LayoutBox(
