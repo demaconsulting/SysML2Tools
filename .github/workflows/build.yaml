@@ -172,7 +172,7 @@ jobs:
           /o:"demaconsulting"
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
           /d:sonar.host.url="https://sonarcloud.io"
-          /d:sonar.cs.opencover.reportsPaths=**/*.opencover.xml
+          /d:sonar.cs.opencover.reportsPaths=**/coverage.opencover.*.xml
           /d:sonar.scanner.scanAll=false
 
       - name: Build
