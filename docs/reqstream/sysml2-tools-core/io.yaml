@@ -22,6 +22,14 @@ sections:
           concrete files before loading a workspace. A single shared resolution unit ensures
           all three commands support the same pattern semantics and prevents behavioral drift
           between hand-rolled, per-command implementations.
+        children:
+          - SysML2Tools-Core-Io-GlobFileCollector-PatternResolution
+          - SysML2Tools-Core-Io-GlobFileCollector-ExclusionOrder
+          - SysML2Tools-Core-Io-GlobFileCollector-ExtensionFiltering
+          - SysML2Tools-Core-Io-GlobFileCollector-LiteralPath
+          - SysML2Tools-Core-Io-GlobFileCollector-CasingNormalization
+          - SysML2Tools-Core-Io-GlobFileCollector-SilentSkip
+          - SysML2Tools-Core-Io-GlobFileCollector-StableOutput
         tests:
           - GlobFileCollector_Collect_LiteralPath_ReturnsSingleFile
           - GlobFileCollector_Collect_BasicGlob_ReturnsMatchingFiles

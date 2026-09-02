@@ -49,6 +49,8 @@ sections:
         justification: |
           View selection is a render-command concern but must be parsed centrally by
           Context so that all argument handling remains in one place.
+        children:
+          - SysML2Tools-Tool-Render-ViewSelection
         tests:
           - Context_Create_ViewFlag_SetsViewName
 
@@ -114,6 +116,9 @@ sections:
           directory without needing to re-parse command-line arguments. The render command
           token must also set Command to SysmlCommand.Render and collect subsequent
           positional arguments into Render.Files.
+        children:
+          - SysML2Tools-Tool-Context-ViewName
+          - SysML2Tools-Tool-Render-Patterns
         tests:
           - Context_Create_RenderCommand_SetsCommandRender
           - Context_Create_RenderCommand_WithFormat_SetsSvgFormat
@@ -133,6 +138,9 @@ sections:
           already parsed) keeps a single, consistent argument-parsing entry point for all
           commands while confining query-specific option fields to a dedicated QueryOptions
           record so the existing lint/render properties are unaffected.
+        children:
+          - SysML2Tools-Tool-Context-QueryVerbRequired
+          - SysML2Tools-Tool-Query-VerbGrammar
         tests:
           - Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb
           - Context_Create_QueryCommand_UnknownVerb_ThrowsArgumentException
@@ -160,6 +168,8 @@ sections:
           Render.OutputDirectory, letting QueryCommand write rendered results to a file
           instead of stdout without any risk of colliding with render's output-directory
           semantics.
+        children:
+          - SysML2Tools-Tool-Query-OutputFile
         tests:
           - Context_Create_QueryCommand_WithOutputFlag_SetsQueryOutput
           - Context_Create_QueryCommand_OutputWithoutValue_ThrowsArgumentException
@@ -176,6 +186,9 @@ sections:
           or misinterpreted. Scoping each command's flags to a dedicated parser (LintArgumentParser,
           RenderArgumentParser, QueryArgumentParser) makes invalid combinations fail fast with a
           clear, actionable error instead of being silently ignored.
+        children:
+          - SysML2Tools-Tool-Lint-Patterns
+          - SysML2Tools-Tool-Export-Grammar
         tests:
           - Context_Create_LintCommand_OutOfScopeAutoFlag_ThrowsArgumentException
           - Context_Create_LintCommand_OutOfScopeKindFlag_ThrowsArgumentException
@@ -208,6 +221,8 @@ sections:
           `sysml2tools help [command] [verb]` be parsed through the same per-command dispatch
           pattern already used for lint/render/query, keeping Context's argument-parsing
           architecture uniform across all four commands.
+        children:
+          - SysML2Tools-Tool-Help-Grammar
         tests:
           - Context_Create_HelpCommand_NoArgs_PopulatesEmptyHelpOptions
           - Context_Create_HelpCommand_WithLintTarget_SetsTargetCommand

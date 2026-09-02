@@ -19,6 +19,8 @@ sections:
           self-validation suite that exercises core behaviors and produces a pass/fail
           summary, enabling quality assurance teams to obtain tool qualification evidence
           without requiring a separate test harness.
+        children:
+          - Template-Validation-Run
         tests:
           - SelfTestSubsystem_ValidationWorkflow_NoResultFiles_CompletesSuccessfully
 
@@ -30,6 +32,9 @@ sections:
           XML output, the SelfTest subsystem enables self-validation results to be fed
           directly into pipeline tooling and traceability reports without additional
           conversion steps, satisfying audit trail requirements.
+        children:
+          - Template-Validation-TrxResults
+          - Template-Validation-XmlResults
         tests:
           - SelfTestSubsystem_ValidationWorkflow_WithTrxFile_GeneratesResults
           - SelfTestSubsystem_ValidationWorkflow_WithJUnitFile_GeneratesResults
@@ -43,5 +48,7 @@ sections:
           Prevents silent loss of validation evidence by failing loudly when a results
           file cannot be written due to an unrecognized extension. This enables CI/CD
           pipelines to detect misconfigured output paths automatically.
+        children:
+          - Template-Validation-InvalidExtension
         tests:
           - SelfTestSubsystem_ValidationWorkflow_WithUnsupportedExtension_EmitsErrorAndNoFile

@@ -18,6 +18,14 @@ sections:
           A single dispatch point keeps the renderer agnostic of how many view kinds exist
           and lets new view kinds be added without changing the orchestration loop. Falling
           back to the general view keeps unrecognized views renderable rather than failing.
+        children:
+          - SysML2Tools-Core-Rendering-Internal-DiagramTypeRouter-KindDispatch
+          - SysML2Tools-Core-Rendering-Internal-DiagramTypeRouter-DefaultGeneral
+          - SysML2Tools-Core-Rendering-Internal-DiagramTypeRouter-RenderTargetOverride
+          - SysML2Tools-Core-Rendering-Internal-DiagramTypeRouter-RenderTargetUnrecognizedFallthrough
+          - SysML2Tools-Core-Rendering-Internal-DynamicViewSynthesizer-ViewTypeMapping
+          - SysML2Tools-Core-Rendering-Internal-DynamicViewSynthesizer-CompatibilityPreCheck
+          - SysML2Tools-Core-Rendering-Internal-DynamicViewSynthesizer-NodeConstruction
         tests:
           - GetStrategy_InterconnectionNamedView_ReturnsInterconnectionStrategy
           - GetStrategy_PlainView_ReturnsGeneralViewStrategy
@@ -30,6 +38,8 @@ sections:
           The implicitly loaded OMG standard library would otherwise flood every diagram
           with library definitions. Excluding stdlib elements keeps diagrams focused on the
           user's model.
+        children:
+          - SysML2Tools-Core-Rendering-Internal-DynamicViewSynthesizer-TargetResolution
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded
           - GeneralViewLayoutStrategy_BuildLayout_StdlibOnlyWorkspace_ReturnsMinimalCanvas

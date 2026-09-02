@@ -19,6 +19,7 @@ sections:
     requirements:
       - id: Template-Platform-Windows
         title: The tool shall execute successfully on Windows platforms.
+        tags: [system]
         justification: |
           DEMA Consulting tools must support Windows as a major development platform.
         tests:
@@ -28,6 +29,7 @@ sections:
 
       - id: Template-Platform-Linux
         title: The tool shall execute successfully on Linux platforms.
+        tags: [system]
         justification: |
           DEMA Consulting tools must support Linux for CI/CD and containerized environments.
         tests:
@@ -37,6 +39,7 @@ sections:
 
       - id: Template-Platform-MacOS
         title: The tool shall execute successfully on macOS platforms.
+        tags: [system]
         justification: |
           DEMA Consulting tools must support macOS for developers using Apple platforms.
         tests:
@@ -46,6 +49,7 @@ sections:
 
       - id: Template-Platform-Net10
         title: The tool shall support .NET 10 runtime.
+        tags: [system]
         justification: |
           .NET 10 support ensures the tool remains compatible with the latest .NET ecosystem.
         tests:

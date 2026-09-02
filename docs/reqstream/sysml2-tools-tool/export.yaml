@@ -22,6 +22,16 @@ sections:
           A small, fixed flag vocabulary (mirroring the query/render commands' own per-command
           argument parsers) keeps export's grammar simple and predictable, and rejecting
           unrecognized flags prevents another command's flag from being silently accepted.
+        children:
+          - SysML2Tools-Tool-Export-Format
+          - SysML2Tools-Tool-Export-Output
+          - SysML2Tools-Tool-Export-StdlibFilter
+          - SysML2Tools-Tool-Export-NoFilesOrNoMatch
+          - SysML2Tools-Tool-Export-JsonEnvelope
+          - SysML2Tools-Tool-Export-JsonlEnvelope
+          - SysML2Tools-Tool-Export-Help
+          - SysML2Tools-Tool-Export-Target
+          - SysML2Tools-Tool-Export-Filter
         tests:
           - ExportArgumentParser_NoFlags_ProducesDefaults
           - ExportArgumentParser_FormatFlag_CapturesRawValue

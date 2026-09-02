@@ -109,6 +109,13 @@ sections:
         justification: |
           A strict, minimal grammar (mirroring lint/render/query's own rejection convention)
           prevents `help` from silently accepting flags that belong to other commands.
+        children:
+          - SysML2Tools-Tool-Help-BareHelp
+          - SysML2Tools-Tool-Help-CommandHelp
+          - SysML2Tools-Tool-Help-QueryOverview
+          - SysML2Tools-Tool-Help-QueryVerbHelp
+          - SysML2Tools-Tool-Help-UnknownTarget
+          - SysML2Tools-Tool-Help-SilentConsistency
         tests:
           - HelpArgumentParser_Parse_NoArguments_ReturnsBothFieldsNull
           - HelpArgumentParser_Parse_Lint_SetsTargetCommandLint

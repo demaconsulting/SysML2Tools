@@ -13,6 +13,14 @@ sections:
         justification: |
           Provides a built-in mechanism to verify the tool is functioning correctly
           in the deployment environment. A summary is printed for human review.
+        children:
+          - Template-Utilities-SafePaths
+          - SysML2Tools-Tool-Validation-LintSelfTest
+          - SysML2Tools-Tool-Validation-RenderSvgSelfTest
+          - SysML2Tools-Tool-Validation-RenderPngSelfTest
+          - SysML2Tools-Tool-Validation-RenderDynamicViewSelfTests
+          - SysML2Tools-Tool-Validation-PassedSummary
+          - SysML2Tools-Tool-Export-SelfTest
         tests:
           - Validation_Run_WithSilentContext_PrintsSummary
           - Validation_Run_WithSilentContext_ExitCodeIsZero
