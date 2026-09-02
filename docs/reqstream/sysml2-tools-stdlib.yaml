@@ -15,6 +15,7 @@ sections:
         title: >-
           The Stdlib system shall provide the pre-compiled SysML v2 standard library symbol table
           so that a workspace can be seeded without parsing the standard library source files.
+        tags: [system]
         justification: |
           The SysML v2 and KerML standard library contains the base types user models reference.
           Delivering it pre-compiled and seeding it into a workspace eliminates the cold-start parse

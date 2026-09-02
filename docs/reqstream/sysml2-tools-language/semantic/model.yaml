@@ -15,6 +15,39 @@ sections:
         justification: |
           A symbol table indexed by qualified name is required for reference resolution
           and supertype walking. The AST provides a structured representation of the model.
+        children:
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-Hierarchy
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-Types
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewRenderTarget
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewExposedNames
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewFilterExpression
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-RedefinedFeatureName
+          - SysML2Tools-Language-Semantic-Model-SysmlMetadataNode-CaptureForms
+          - SysML2Tools-Language-Semantic-Model-SysmlMetadataNode-LiteralAttributes
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-Build
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-QualifiedNames
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-Supertypes
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-UsageSubsetting
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewRenderTarget
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewFilterExpression
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewExposedNames
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ExposeRecursionKindDerivation
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewUsageExpose
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-RedefinedFeature
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ImplicitRedefinitionName
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-MetadataAnnotations
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ExposeBracketFilterText
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-Dependency
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-BindingConnector
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-AttachedTransitionStateBody
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-EntryDoExitActionFeatures
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ActionBodyAttachedSuccession
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ActionControlNodes
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-EnumerationValues
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-RequirementSubjectAndConstraints
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-StandaloneConstraintUsageAndDefinition
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-RequirementVerifyFrameNoHoist
+          - SysML2Tools-Language-Semantic-Model-SymbolTable-Register
         tests:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
           - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames
@@ -28,6 +61,19 @@ sections:
           Reference resolution identifies incomplete models where supertype names do not
           correspond to any loaded declaration. Warnings allow callers to inspect model
           completeness without blocking on hard errors.
+        children:
+          - SysML2Tools-Language-Semantic-Model-SysmlMetadataNode-MetadataTypeResolution
+          - SysML2Tools-Language-Semantic-Model-SysmlMetadataNode-UnresolvedTypeWarning
+          - SysML2Tools-Language-Semantic-Model-SymbolTable-Lookup
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-Resolve
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-CircularImport
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewExposeResolution
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewExposeUnresolvedWarning
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewRenderFilterNeverResolved
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-RedefinitionResolution
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-DependencyCrossProduct
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-BindingFeatureChain
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-InheritedTransitionSource
         tests:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered
@@ -39,6 +85,8 @@ sections:
         justification: |
           Cyclic specialization (A specializes B, B specializes A) is invalid in SysML v2
           and must be detected to prevent infinite loops in downstream analysis.
+        children:
+          - SysML2Tools-Language-Semantic-Model-SupertypeWalker-Walk
         tests:
           - WorkspaceLoader_LoadAsync_CyclicSpecialization_ProducesWarning
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered

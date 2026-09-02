@@ -1,0 +1,125 @@
+---
+# Quality/process requirements grouping SysML2Tools' use of off-the-shelf (OTS) process
+# tooling and third-party parsing/rendering dependencies. These requirements exist so that
+# OTS-derived requirements (which describe capabilities the repository's build/quality
+# pipeline or tool implementation rely on from third-party tools, not user-visible
+# SysML2Tools functionality) are not reported as orphans by
+# `dotnet reqstream --requirements requirements.yaml --enforce`.
+sections:
+  - title: Quality Requirements
+    requirements:
+      - id: SysML2Tools-Quality-TestInfrastructure
+        title: The repository shall rely on xUnit to execute and report automated test results.
+        tags: [quality]
+        justification: |
+          Automated testing depends on xUnit's test execution and reporting
+          capabilities. This grouping requirement links the xUnit OTS requirements
+          to the quality root so they participate in orphan detection without being
+          falsely reported as disconnected from SysML2Tools functionality.
+        children:
+          - Template-OTS-xUnit-Execute
+          - Template-OTS-xUnit-Report
+
+      - id: SysML2Tools-Quality-BuildIntegrity
+        title: >-
+          The repository's build pipeline shall rely on BuildMark and VersionMark
+          to validate tool versions and enforce build integrity.
+        tags: [quality]
+        justification: |
+          CI/CD reliability depends on BuildMark's build-integrity checks and
+          VersionMark's version-tracking capabilities. This grouping requirement
+          links those OTS requirements to the quality root so they participate in
+          orphan detection without being falsely reported as disconnected from
+          SysML2Tools functionality.
+        children:
+          - Template-OTS-BuildMark
+          - Template-OTS-VersionMark
+
+      - id: SysML2Tools-Quality-StaticAnalysis
+        title: The repository shall rely on SarifMark and SonarMark to enforce static-analysis quality gates.
+        tags: [quality]
+        justification: |
+          Code quality assurance depends on SarifMark's SARIF-based enforcement and
+          SonarMark's SonarCloud integration. This grouping requirement links those
+          OTS requirements to the quality root so they participate in orphan
+          detection without being falsely reported as disconnected from SysML2Tools
+          functionality.
+        children:
+          - Template-OTS-SarifMark
+          - Template-OTS-SarifMark-Enforcement
+          - Template-OTS-SonarMark
+
+      - id: SysML2Tools-Quality-PeerReview
+        title: The repository shall rely on ReviewMark to enforce peer-review tracking and reporting.
+        tags: [quality]
+        justification: |
+          Peer-review compliance depends on ReviewMark's enforcement, elaboration,
+          and linting capabilities. This grouping requirement links those OTS
+          requirements to the quality root so they participate in orphan detection
+          without being falsely reported as disconnected from SysML2Tools
+          functionality.
+        children:
+          - Template-OTS-ReviewMark
+          - Template-OTS-ReviewMark-Lint
+          - Template-OTS-ReviewMark-Elaborate
+          - Template-OTS-ReviewMark-Enforce
+
+      - id: SysML2Tools-Quality-DocumentationGeneration
+        title: The repository shall rely on Pandoc and WeasyPrint to generate HTML and PDF documentation.
+        tags: [quality]
+        justification: |
+          Documentation generation depends on Pandoc's format conversion and
+          WeasyPrint's PDF rendering. This grouping requirement links those OTS
+          requirements to the quality root so they participate in orphan detection
+          without being falsely reported as disconnected from SysML2Tools
+          functionality.
+        children:
+          - Template-OTS-Pandoc
+          - Template-OTS-WeasyPrint
+
+      - id: SysML2Tools-Quality-RequirementsTraceability
+        title: >-
+          The repository shall rely on ReqStream and FileAssert to validate
+          requirements traceability and generated documentation.
+        tags: [quality]
+        justification: |
+          Requirements traceability depends on ReqStream's linting and reporting
+          capabilities, and generated-document verification depends on FileAssert.
+          This grouping requirement links those OTS requirements to the quality
+          root so they participate in orphan detection without being falsely
+          reported as disconnected from SysML2Tools functionality.
+        children:
+          - Template-OTS-ReqStream
+          - Template-OTS-FileAssert
+
+      - id: SysML2Tools-Quality-GrammarParsing
+        title: The SysML2Tools.Language library shall rely on ANTLR4 to parse SysML v2 source and report syntax errors.
+        tags: [quality]
+        justification: |
+          Parsing SysML v2 source text depends on the ANTLR4 generated parser and
+          its error-reporting facilities. This grouping requirement links those OTS
+          requirements to the quality root so they participate in orphan detection
+          without being falsely reported as disconnected from SysML2Tools
+          functionality.
+        children:
+          - SysML2Tools-OTS-ANTLR4-Parse
+          - SysML2Tools-OTS-ANTLR4-Errors
+
+      - id: SysML2Tools-Quality-RenderingEngine
+        title: >-
+          The SysML2Tools.Core library shall rely on DemaConsulting.Rendering to lay out,
+          route, and render diagrams to SVG and PNG output.
+        tags: [quality]
+        justification: |
+          Diagram layout and rendering depend on DemaConsulting.Rendering's graph-layout,
+          containment, routing, and SVG/PNG rendering capabilities. This grouping
+          requirement links those OTS requirements to the quality root so they
+          participate in orphan detection without being falsely reported as
+          disconnected from SysML2Tools functionality.
+        children:
+          - SysML2Tools-OTS-DemaRendering-LayoutGraph
+          - SysML2Tools-OTS-DemaRendering-Direction
+          - SysML2Tools-OTS-DemaRendering-Containers
+          - SysML2Tools-OTS-DemaRendering-Routing
+          - SysML2Tools-OTS-DemaRendering-RenderSvg
+          - SysML2Tools-OTS-DemaRendering-RenderPng

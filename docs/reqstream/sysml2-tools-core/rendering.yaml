@@ -97,6 +97,9 @@ sections:
           Separating layout computation from rendering allows different layout algorithms
           (e.g., hierarchical, force-directed) to produce the same LayoutTree representation
           consumed by any IRenderer implementation, maximizing reuse.
+        children:
+          - SysML2Tools-Core-Rendering-Internal-StrategySelection
+          - SysML2Tools-Core-Rendering-Internal-StdlibExclusion
         tests:
           - ViewContext_Construction_StoresAllFields
           - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsSvgOutput
@@ -125,6 +128,11 @@ sections:
           DiagramRenderer is the single orchestration point that wires together the
           layout and rendering pipeline. Centralizing this loop ensures consistent
           error handling and output collection across all views and all renderer types.
+        children:
+          - SysML2Tools-Core-Rendering-DiagramRenderer-RendersEachView
+          - SysML2Tools-Core-Rendering-DiagramRenderer-RendererAgnostic
+          - SysML2Tools-Core-Rendering-DiagramRenderer-NoViews
+          - SysML2Tools-Core-Rendering-DiagramRenderer-SynthesizeDynamicView
         tests:
           - DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList
 

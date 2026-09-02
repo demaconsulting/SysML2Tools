@@ -19,6 +19,9 @@ sections:
               A collection-based async API allows callers to supply any number of pre-resolved
               file paths and receive a single aggregate result including a semantic workspace
               and all diagnostics.
+            children:
+              - SysML2Tools-Language-Semantic-WorkspaceLoader-Load
+              - SysML2Tools-Language-Semantic-WorkspaceLoader-FileError
             tests:
               - WorkspaceLoader_LoadAsync_NoFiles_ReturnsNonNullWorkspace
               - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
@@ -31,6 +34,8 @@ sections:
               A qualified-name registry enables callers to look up declarations by their fully
               qualified names, supporting IDE integration, reference resolution, and future diagram
               rendering features.
+            children:
+              - SysML2Tools-Language-Semantic-Model-AstBuild
             tests:
               - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
               - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames
@@ -44,6 +49,13 @@ sections:
               The SysML v2 and KerML standard library defines the base types and packages that
               user models reference. Seeding from a provided SymbolTable ensures user files are resolved in
               the correct context and stdlib declarations are available for reference resolution.
+            children:
+              - SysML2Tools-Language-Semantic-WorkspaceLoader-Load
+              - SysML2Tools-Language-Semantic-AstSerializer-Serialize
+              - SysML2Tools-Language-Semantic-AstSerializer-PreservesNodeTypes
+              - SysML2Tools-Language-Semantic-AstSerializer-PreservesNodeData
+              - SysML2Tools-Language-Semantic-AstDeserializer-Deserialize
+              - SysML2Tools-Language-Semantic-AstDeserializer-RestoresNodeData
             tests:
               - WorkspaceLoader_LoadAsync_NoFiles_ReturnsNonNullWorkspace
               - WorkspaceLoader_LoadAsync_StdlibDeclarations_Registered
@@ -56,6 +68,8 @@ sections:
               Unresolved supertype references indicate that a definition specializes a type that
               has not been loaded. Reporting these as Warnings (not Errors) allows callers to
               diagnose incomplete models while still returning a usable workspace.
+            children:
+              - SysML2Tools-Language-Semantic-Model-ReferenceResolution
             tests:
               - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
 
@@ -66,6 +80,8 @@ sections:
             justification: |
               Circular imports in SysML models can arise from split namespace declarations across
               files. The loader must detect and report these without hanging the calling process.
+            children:
+              - SysML2Tools-Language-Semantic-Model-ReferenceResolution
             tests:
               - WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop
 
@@ -77,6 +93,8 @@ sections:
               invalid in SysML v2. Reporting these as Warnings allows callers to diagnose invalid
               models while still returning a usable workspace. SupertypeWalker.WalkAll performs
               a DFS over the specialization graph and emits one Warning per back-edge detected.
+            children:
+              - SysML2Tools-Language-Semantic-Model-SupertypeWalking
             tests:
               - WorkspaceLoader_LoadAsync_CyclicSpecialization_ProducesWarning
 
@@ -87,6 +105,9 @@ sections:
             justification: |
               Callers need a simple boolean gate to decide whether to fail a build or report
               errors without inspecting the full diagnostic list themselves.
+            children:
+              - SysML2Tools-Language-Semantic-WorkspaceLoader-Load
+              - SysML2Tools-Language-Semantic-WorkspaceLoader-FileError
             tests:
               - WorkspaceLoader_LoadAsync_EmptyFile_ReturnsNonNullWorkspace
               - WorkspaceLoader_LoadAsync_StdlibDeclarations_Registered

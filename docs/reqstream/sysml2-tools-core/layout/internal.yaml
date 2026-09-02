@@ -18,6 +18,58 @@ sections:
           The renderers consume only the layout tree, so every supported view depends on a
           strategy that maps the relevant model elements to boxes, ports, lines, and markers.
           The produced tree is the observable result that proves the mapping occurred.
+        children:
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Definitions
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-PackageGrouping
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NestedDefinitionContainment
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Compartments
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Specialization
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CompositeMembership
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ReferenceMembership
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Connect
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Allocate
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Dependency
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Binding
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Subsetting
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NonStructuralMembership
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AttributeTyping
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-FilterEvaluation
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageLevelCandidates
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-QualifiedForm
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-BareNameForm
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-NoEdgeOnFailure
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AnnotationNote
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-RequirementConstraintCompartments
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Internals
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Ports
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Connectors
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NestedContainer
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-SingleLevelNoOp
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-CycleGuard
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ParallelConnectorPreservation
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PortLabeling
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-CrossBoundaryLabelResolution
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-States
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ImplicitStates
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-DistinctAnchors
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-TransitionArrowhead
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-TopToBottomFlow
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-PseudostateExclusion
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-SemanticInitialMarker
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-Actions
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-TopToBottom
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-SuccessionLineStyle
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-BranchAndJoin
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ControlNodeShapes
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-Lifelines
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-HorizontalMessages
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessageArrowhead
+          - SysML2Tools-Core-Layout-Internal-LayeredPlacement-EdgeOrder
+          - SysML2Tools-Core-Layout-Internal-LayeredPlacement-Orientation
+          - SysML2Tools-Core-Layout-Internal-LayeredPlacement-Direction
+          - SysML2Tools-Core-Layout-Internal-LayeredPlacement-MergeParallelEdgesOptOut
+          - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-IndentedTree
+          - SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-SpecializationMatrix
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_OneUserPartDef_ProducesLayoutBox
           - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
@@ -35,6 +87,14 @@ sections:
           A view with nothing to show must still yield a well-formed, empty layout tree so the
           renderer produces a valid (blank) diagram rather than failing. The empty node set is
           the observable evidence of this behavior.
+        children:
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-EmptyCanvas
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-EmptyCanvas
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-EmptyCanvas
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-EmptyCanvas
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-EmptyInput
+          - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-EmptyInput
+          - SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-EmptyInput
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
           - InterconnectionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas
@@ -50,6 +110,8 @@ sections:
         justification: |
           Diagrams are meant to show the user's model, not the imported standard library.
           Excluding standard-library elements keeps the rendered views focused and readable.
+        children:
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-StdlibExclusion
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_StdlibOnlyWorkspace_ReturnsMinimalCanvas
           - GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded
@@ -61,6 +123,17 @@ sections:
         justification: |
           Overlapping boxes produce unreadable diagrams. Non-overlap is an observable property
           of the produced geometry that every view layout must guarantee.
+        children:
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-LayeredPlacement
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NonOverlapping
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ContainerSizing
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ChildPositioning
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PortTitleCollisionAvoidance
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-OrthogonalFlow
+          - SysML2Tools-Core-Layout-Internal-LayeredPlacement-Adapt
+          - SysML2Tools-Core-Layout-Internal-LayeredPlacement-NodeOrder
+          - SysML2Tools-Core-Layout-Internal-LayeredPlacement-NamedPorts
+          - SysML2Tools-Core-Layout-Internal-LayeredPlacement-TitleAwarePorts
         tests:
           - InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap
 
@@ -77,6 +150,54 @@ sections:
           across all seven strategies is what makes that consistency observable rather than
           coincidental, including the critical "no expose statement renders everything unchanged"
           fallback and the "multiple expose targets union" case.
+        children:
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ScopedBarePackageFolderSuppression
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposeScoping
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposeBracketFilterEvaluation
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NoExposeFallback
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposeScopingRootSelection
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposeScopingPartFiltering
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposeScopingConnectionRetention
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ExposeScopingRecursionDepthLimit
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PerBranchRecursionIndependence
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NoExposeFallback
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedSpecificityTieBreak
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedTopLevelFeatureFallback
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedTopLevelFeatureFallbackConnections
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedTopLevelFeatureFallbackEmptyCanvas
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-TopLevelOwnerScopedConnections
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ExposeScopingRootSelection
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ExposeScopingStateFiltering
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ExposeScopingTransitionEndpointRetention
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-NoExposeFallback
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ScopedSpecificityTieBreak
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ResolveExposedTargets
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-UsageToTypeFallback
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-NoScopeFallback
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-SubjectScopeMembership
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-MembershipExactNarrowScope
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-NamespaceDirectChildrenNarrowScope
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-RecursiveWholeSubtreeUnchanged
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-NamespaceRecursiveExcludesSubject
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-RootRelevance
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-SpecificityTieBreak
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-BracketFilterUsageLevelCandidates
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-UnlimitedSubjectMatch
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExposeScopingRootSelection
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExposeScopingActionFiltering
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExposeScopingSuccessionEndpointRetention
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-NoExposeFallback
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ScopedSpecificityTieBreak
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-LifelineQualifiedNameReconstruction
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-ExposeScopingRootSelection
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-ExposeScopingLifelineFiltering
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-ExposeScopingMessageDropping
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-NoExposeFallback
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-ScopedSpecificityTieBreak
+          - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-ExposeScoping
+          - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-NoExposeFallback
+          - SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-ExposeScoping
+          - SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-NoExposeFallback
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_ExposedName_UnionsAdditionalSubtree
           - GeneralViewLayoutStrategy_BuildLayout_RenderTargetNameOnly_NoExposeEdges_RendersFullWorkspace
@@ -104,6 +225,13 @@ sections:
           Surfacing a warning lets the user judge and address the problem, while withholding a
           warning for a clean layout keeps attention on real issues. The warning text is the
           observable evidence of this behavior.
+        children:
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-FilterFallbackWarning
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-DroppedRelationshipEdgeWarning
+          - SysML2Tools-Core-Layout-Internal-LayoutWarnings-NoCrossings
+          - SysML2Tools-Core-Layout-Internal-LayoutWarnings-CrossingWarning
+          - SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedFilter
+          - SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedExposeBracketFilter
         tests:
           - ForCrossings_Zero_ReturnsEmpty
           - ForCrossings_One_ReturnsSingularWarning

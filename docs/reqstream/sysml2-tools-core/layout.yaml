@@ -23,6 +23,12 @@ sections:
           intermediate representation keeps SysML2Tools focused on mapping the SysML model to
           boxes, ports, lines, and markers rather than defining geometric primitives. A populated
           layout tree is the observable result that proves the mapping occurred.
+        children:
+          - SysML2Tools-Core-Layout-Internal-ViewLayout
+          - SysML2Tools-Core-Layout-Internal-EmptyCanvas
+          - SysML2Tools-Core-Layout-Internal-StdlibExclusion
+          - SysML2Tools-Core-Layout-Internal-SharedExposeScoping
+          - SysML2Tools-Core-Layout-Internal-LayoutWarnings
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_OneUserPartDef_ProducesLayoutBox
           - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
@@ -37,6 +43,8 @@ sections:
           Reusing the off-the-shelf layered algorithm avoids maintaining a bespoke geometric
           layout engine while still guaranteeing readable, non-overlapping geometry. Non-overlap
           is an observable property of the produced layout tree that every view must guarantee.
+        children:
+          - SysML2Tools-Core-Layout-Internal-NonOverlapping
         tests:
           - InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap
           - ActionFlowView_BuildLayout_NoOverlap
@@ -50,6 +58,8 @@ sections:
           Delegating routing to the view layout strategies (through the layered algorithm) keeps
           renderers stateless and free of path-finding logic. A renderer only needs to draw
           segments between consecutive absolute waypoints.
+        children:
+          - SysML2Tools-Core-Layout-Internal-ViewLayout
         tests:
           - ActionFlowView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally
           - StateTransitionView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally

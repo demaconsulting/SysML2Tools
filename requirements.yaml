@@ -1,6 +1,12 @@
 ---
 # Root requirements file - includes all system, unit, platform, and OTS requirements
+#
+# root-tags: requirements carrying any of these tags are treated as traceability roots.
+# `dotnet reqstream --requirements requirements.yaml --enforce` reports any requirement
+# that does not trace (via parent/child links) to a root-tagged requirement as orphaned.
+root-tags: [system, quality]
 includes:
+  - docs/reqstream/quality.yaml
   - docs/reqstream/sysml2-tools-language.yaml
   - docs/reqstream/sysml2-tools-language/parser.yaml
   - docs/reqstream/sysml2-tools-language/parser/workspace-parser.yaml

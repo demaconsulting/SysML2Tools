@@ -14,10 +14,15 @@ sections:
         title: >-
           The Language library shall parse SysML v2 source strings and return syntax
           diagnostics with file path, line number, and column offset.
+        tags: [system]
         justification: |
           Providing a stdlib-agnostic SysML v2 parser as a reusable library allows tools,
           tests, and build-time generators to parse SysML syntax without depending on any
           particular standard library version.
+        children:
+          - SysML2Tools-Language-Parser-Diagnostics
+          - SysML2Tools-Language-Parser-ParseSource
+          - SysML2Tools-Language-Parser-HasErrors
         tests:
           - ParseSource_EmptyFile_NoErrors
           - ParseSource_InvalidSyntax_ReportsError
@@ -26,10 +31,16 @@ sections:
         title: >-
           The Language library shall build a semantic workspace from provided SysML v2
           files, optionally seeded with a pre-populated symbol table.
+        tags: [system]
         justification: |
           A seeded loading API decouples the Language library from any specific standard
           library, enabling callers to supply a pre-compiled stdlib symbol table (or none
           at all) without recompiling the Language library.
+        children:
+          - SysML2Tools-Language-Semantic-LoadAsync
+          - SysML2Tools-Language-Semantic-SymbolRegistration
+          - SysML2Tools-Language-Semantic-StdlibDeclarations
+          - SysML2Tools-Language-Semantic-HasErrors
         tests:
           - WorkspaceLoader_LoadAsync_NoFiles_ReturnsNonNullWorkspace
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
@@ -39,11 +50,14 @@ sections:
           The Language library shall serialize a SymbolTable and diagnostics to a binary
           representation and faithfully deserialize them, preserving all node types,
           qualified names, supertype lists, and import names.
+        tags: [system]
         justification: |
           Round-trip serialization enables the StdlibGen tool to write a
           pre-compiled, gzip-compressed stdlib.json.gz and the runtime StdlibProvider to
           decompress and deserialize it, eliminating the 25-second cold-start parse at
           application launch.
+        children:
+          - SysML2Tools-Language-Semantic-StdlibDeclarations
         tests:
           - Serialize_EmptyTable_RoundTrips
           - Serialize_AllNodeTypes_RoundTrip
@@ -55,10 +69,16 @@ sections:
           The Language library shall persist resolved supertype, feature-typing, redefinition,
           and import references as edges on each AST node and expose a reverse-lookup index over
           all resolved edges via the loaded workspace.
+        tags: [system]
         justification: |
           A persisted, queryable reverse index over resolved qualified-name references is the
           foundational data structure required by the `query` command's uses/used-by/impact/
           hierarchy verbs, avoiding a re-resolution pass for every query invocation.
+        children:
+          - SysML2Tools-Language-Semantic-LoadAsync
+          - SysML2Tools-Language-Semantic-UnresolvedReference
+          - SysML2Tools-Language-Semantic-CircularImport
+          - SysML2Tools-Language-Semantic-Supertype
         tests:
           - WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge
           - WorkspaceLoader_LoadAsync_ResolvedFeatureTyping_RecordsTypingEdge
@@ -76,11 +96,14 @@ sections:
           The Language library shall capture comment (`comment`) and documentation (`doc`)
           annotating-element free text onto the AST node it lexically annotates, preserving
           the text verbatim and in source order.
+        tags: [system]
         justification: |
           SysML v2 comment/documentation text is fully parsed by the ANTLR grammar today but
           silently dropped by the AST builder. Capturing it onto each node is the foundational
           data required by the forthcoming `query` command's `describe` verb, and is purely
           additive to the in-memory semantic model.
+        children:
+          - SysML2Tools-Language-Semantic-LoadAsync
         tests:
           - WorkspaceLoader_LoadAsync_CommentOnly_CapturesCommentAnnotation
           - WorkspaceLoader_LoadAsync_DocumentationOnly_CapturesDocumentationAnnotation
@@ -97,10 +120,14 @@ sections:
           requirement verification (`verify`), and allocation (`allocate A to B`) references
           into Satisfy/Verify/Allocate-kind edges recorded on the semantic index, gracefully
           degrading to a Warning diagnostic with no edge when any side is unresolvable.
+        tags: [system]
         justification: |
           Satisfy/Verify/Allocate edges are the requirement-traceability data the forthcoming
           `query` command's trace/impact verbs need to answer "what satisfies/verifies this
           requirement" and "what is this part allocated to" without a separate resolution pass.
+        children:
+          - SysML2Tools-Language-Semantic-LoadAsync
+          - SysML2Tools-Language-Semantic-UnresolvedReference
         tests:
           - WorkspaceLoader_LoadAsync_SatisfyByName_RecordsSatisfyEdge
           - WorkspaceLoader_LoadAsync_SatisfyUnresolvedSubject_ProducesWarningNoEdge
@@ -128,10 +155,15 @@ sections:
           second, preserving an instance-relative qualified name for the resolved endpoint even
           when a segment resolves via the typing/supertype-inherited fallback branch, and
           gracefully degrading to a Warning diagnostic with no edge when any side is unresolvable.
+        tags: [system]
         justification: |
           Connect/Transition edges are the connector/state-topology data the forthcoming `query`
           command's uses/used-by/impact verbs need to answer "what is this port connected to" and
           "what transitions lead to/from this state" without a separate resolution pass.
+        children:
+          - SysML2Tools-Language-Semantic-LoadAsync
+          - SysML2Tools-Language-Semantic-UnresolvedReference
+          - SysML2Tools-Language-Semantic-Supertype
         tests:
           - WorkspaceLoader_LoadAsync_ConnectionSingleSegmentEndpoints_RecordsConnectEdge
           - WorkspaceLoader_LoadAsync_ConnectionTwoSegmentChain_ResolvesViaDirectChild

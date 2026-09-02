@@ -45,6 +45,8 @@ sections:
           A combined dependency view is a distinct output need from the separate `uses` and
           `used-by` queries. Reusing both traversals while tagging entry direction avoids
           duplicate analysis logic and keeps JSON and Markdown representations aligned.
+        children:
+          - SysML2Tools-Core-Query-DependenciesNameShortening
         tests:
           - Dependencies_CombinesOutgoingAndIncoming_ReportsBothDirections
           - Dependencies_NoOutgoingReferences_ReportsProseLineInsteadOfBulletList
@@ -64,6 +66,8 @@ sections:
           Related dependency sets often share a long package prefix that adds no distinguishing
           value in prose output. Applying the compaction only in the one Markdown rendering path
           that needs it keeps every other verb and every JSON payload unaffected.
+        children:
+          - SysML2Tools-Core-Query-QualifiedNameShortening
         tests:
           - RenderMarkdown_DependenciesVerb_NoCommonPrefix_LeavesNamesFullyQualified
           - RenderJson_DependenciesVerb_NamesRemainFullyQualified
@@ -114,6 +118,17 @@ sections:
           endpoint was a nested port the walk emitted qualified names that are not resolvable as
           query subjects. Correcting it makes the default result smaller than in releases before
           this change, and makes `IncludeConnections` a strict superset of the default.
+        children:
+          - SysML2Tools-Core-Query-ImpactConnections
+          - SysML2Tools-Core-Query-ImpactConnectionEndpoints
+          - SysML2Tools-Core-Query-ImpactConnectionRollUp
+          - SysML2Tools-Core-Query-ImpactConnectionPortSkip
+          - SysML2Tools-Core-Query-ImpactConnectionContainerDecline
+          - SysML2Tools-Core-Query-ImpactConnectionPortContinuation
+          - SysML2Tools-Core-Query-ImpactUniformDepth
+          - SysML2Tools-Core-Query-ImpactConnectionCycles
+          - SysML2Tools-Core-Query-ImpactHopMinimality
+          - SysML2Tools-Core-Query-EntryTraversalMetadata
         tests:
           - Impact_DepthOne_OnlyReachesDirectReferences
           - Impact_Unbounded_ReachesTransitiveClosure
@@ -305,6 +320,9 @@ sections:
           entry — a distinction that becomes essential once reference and connector results are
           combined in one answer. Exposing the values structurally makes the API contract
           authoritative, while retaining `Detail` keeps Markdown output human-readable.
+        children:
+          - SysML2Tools-Core-Query-EntryMetadataJsonOmission
+          - SysML2Tools-Core-Query-EntryRelationSerialization
         tests:
           - Impact_ConnectionEntry_RecordsDepthRelationAndViaQualifiedName
           - Impact_ConnectionEntry_WithoutRollUp_OmitsViaQualifiedName
@@ -429,6 +447,8 @@ sections:
         justification: |
           Workspace-wide enumeration is the discovery step that lets callers find element names
           before issuing an element-scoped query.
+        children:
+          - SysML2Tools-Core-Query-Find
         tests:
           - List_NoFilters_ReturnsAllNonStdlibElements
           - List_KindFilter_OnlyMatchesGivenKind

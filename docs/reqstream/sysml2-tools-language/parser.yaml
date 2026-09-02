@@ -19,6 +19,11 @@ sections:
               Structured diagnostics allow callers to present errors to users with precise
               location information (file, line, column) and enable programmatic filtering
               by severity level.
+            children:
+              - SysML2Tools-Language-Parser-WorkspaceParser-SyntaxErrorReporting
+              - SysML2Tools-Language-Parser-WorkspaceParser-PathAttribution
+              - SysML2Tools-Language-Parser-Internal-SysmlDiagnosticListener-CaptureSyntaxErrors
+              - SysML2Tools-Language-Parser-Internal-SysmlDiagnosticListener-PathPropagation
             tests:
               - ParseSource_InvalidSyntax_ReportsError
               - ParseSource_ErrorPath_MatchesSuppliedPath
@@ -31,6 +36,9 @@ sections:
               In-memory parsing without requiring a physical file is essential for testing
               and for future IDE integration scenarios where source text is provided directly
               by the editor without being written to disk.
+            children:
+              - SysML2Tools-Language-Parser-WorkspaceParser-ParseSourceString
+              - SysML2Tools-Language-Parser-WorkspaceParser-EmptySource
             tests:
               - ParseSource_EmptyFile_NoErrors
               - ParseSource_MinimalPackage_NoErrors
@@ -45,6 +53,9 @@ sections:
             justification: |
               Callers need a simple boolean gate to decide whether to fail a build or report
               errors without inspecting the full diagnostic list themselves.
+            children:
+              - SysML2Tools-Language-Parser-WorkspaceParser-EmptySource
+              - SysML2Tools-Language-Parser-WorkspaceParser-SyntaxErrorReporting
             tests:
               - ParseSource_EmptyFile_NoErrors
               - ParseSource_InvalidSyntax_ReportsError

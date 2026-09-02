@@ -21,6 +21,12 @@ sections:
           resolution to the shared GlobFileCollector (see the Core Io subsystem's own
           requirements for pattern-resolution semantics) ensures lint supports the same
           recursive/exclusion behavior as render and query.
+        children:
+          - SysML2Tools-Tool-Lint-NoFilesMatched
+          - SysML2Tools-Tool-Lint-Parse
+          - SysML2Tools-Tool-Lint-Report
+          - SysML2Tools-Tool-Lint-ExitCode
+          - SysML2Tools-Tool-Lint-LocalizableHelpText
         tests:
           - LintSubsystem_Patterns_AcceptsGlobPatterns_ResolvesFiles
           - LintSubsystem_Patterns_RecursiveGlob_ResolvesNestedFiles

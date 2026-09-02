@@ -16,6 +16,12 @@ sections:
           DEMA Consulting DotNet Tools. The Context class encapsulates all parsed flags
           so that the rest of the tool has a single, consistent entry point for reading
           CLI arguments.
+        children:
+          - Template-Context-ArgumentParsing
+          - Template-Context-RenderArgs
+          - SysML2Tools-Tool-Context-QueryDispatch
+          - SysML2Tools-Tool-Context-QueryOutputFile
+          - SysML2Tools-Tool-Context-CommandScoping
         tests:
           - CliSubsystem_VersionFlow_ContextAndProgram_DisplaysVersionAndExits
           - CliSubsystem_HelpFlow_ContextAndProgram_DisplaysHelpAndExits
@@ -32,6 +38,9 @@ sections:
           Decoupling output production from direct Console access enables testability
           and flexible output routing (console, log file, or both) without requiring
           callers to manage I/O directly.
+        children:
+          - Template-Context-ConsoleOutput
+          - Template-Context-LogOutput
         tests:
           - CliSubsystem_SilentFlow_ContextAndProgram_SuppressesOutput
           - CliSubsystem_ErrorOutput_ContextAndProgram_WritesErrorToStderr
@@ -50,6 +59,8 @@ sections:
         justification: |
           Users need access to command-line usage documentation without requiring
           external resources.
+        children:
+          - SysML2Tools-Tool-Context-HelpDispatch
         tests:
           - CliSubsystem_HelpFlow_ContextAndProgram_DisplaysHelpAndExits
           - CliSubsystem_HelpFlow_ContextAndProgram_DisplaysHelpAndExits_WithShortQuestionFlag
@@ -60,6 +71,8 @@ sections:
         justification: |
           Enables automated scripts and CI/CD pipelines to run the tool without
           cluttering output logs.
+        children:
+          - Template-Context-Silent
         tests:
           - CliSubsystem_SilentFlow_ContextAndProgram_SuppressesOutput
 
@@ -94,6 +107,8 @@ sections:
         title: The Cli subsystem shall support --log flag to write output to a log file.
         justification: |
           Provides persistent logging for debugging and audit trails.
+        children:
+          - Template-Context-LogFailure
         tests:
           - CliSubsystem_LogFlow_ContextAndProgram_WritesLogFile
 
@@ -102,6 +117,8 @@ sections:
         justification: |
           Error messages must be written to stderr so they remain visible to the user
           without polluting stdout, which consumers may pipe or redirect for data capture.
+        children:
+          - Template-Context-ErrorOutput
         tests:
           - CliSubsystem_ErrorOutput_ContextAndProgram_WritesErrorToStderr
 
@@ -110,6 +127,8 @@ sections:
         justification: |
           Providing clear feedback for invalid arguments helps users quickly correct
           mistakes and prevents silent misconfiguration.
+        children:
+          - Template-Context-InvalidArgs
         tests:
           - CliSubsystem_InvalidArgs_ContextAndProgram_RejectsUnknownArgumentsAndExitsNonZero
 
@@ -118,6 +137,8 @@ sections:
         justification: |
           Callers (scripts, CI/CD pipelines) must be able to detect failure conditions
           programmatically via the process exit code.
+        children:
+          - Template-Context-ExitCode
         tests:
           - CliSubsystem_InvalidArgs_ContextAndProgram_RejectsUnknownArgumentsAndExitsNonZero
 

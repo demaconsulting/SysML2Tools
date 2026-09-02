@@ -19,10 +19,32 @@ sections:
         title: >-
           The core library shall produce a rendered diagram output for each user-defined
           view in a loaded workspace.
+        tags: [system]
         justification: |
           The core library's purpose is to turn a loaded SysML workspace into rendered
           diagrams. Producing one output per user-defined view is the fundamental service
           the library offers to its callers (the CLI tool and library consumers).
+        children:
+          - SysML2Tools-Core-Layout-LayoutTree
+          - SysML2Tools-Core-Layout-DelegatedGeometry
+          - SysML2Tools-Core-Layout-PreRoutedLines
+          - SysML2Tools-Core-Rendering-ILayoutStrategy
+          - SysML2Tools-Core-Rendering-DiagramRenderer
+          - SysML2Tools-Core-Io-GlobFileCollector
+          - SysML2Tools-Core-Query-Uses
+          - SysML2Tools-Core-Query-UsedBy
+          - SysML2Tools-Core-Query-Dependencies
+          - SysML2Tools-Core-Query-Impact
+          - SysML2Tools-Core-Query-Describe
+          - SysML2Tools-Core-Query-Hierarchy
+          - SysML2Tools-Core-Query-Requirements
+          - SysML2Tools-Core-Query-Interface
+          - SysML2Tools-Core-Query-Connections
+          - SysML2Tools-Core-Query-States
+          - SysML2Tools-Core-Query-List
+          - SysML2Tools-Core-Query-StdlibFilter
+          - SysML2Tools-Core-Query-Exporter
+          - SysML2Tools-Core-Query-EntriesLabeling
         tests:
           - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsSvgOutput
           - DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames
@@ -31,11 +53,23 @@ sections:
         title: >-
           The core library shall render the views of a workspace to a caller-selected
           output format, supporting both vector (SVG) and raster (PNG) output.
+        tags: [system]
         justification: |
           Callers choose the delivery format for their documentation pipeline. Supporting
           both a vector format (SVG) and a raster format (PNG) from the same workspace lets
           consumers select the representation appropriate to their target without changing
           how the workspace is prepared.
+        children:
+          - SysML2Tools-Core-Layout-LayoutTree
+          - SysML2Tools-Core-Layout-PreRoutedLines
+          - SysML2Tools-Core-Rendering-IRenderer
+          - SysML2Tools-Core-Rendering-IRendererStateless
+          - SysML2Tools-Core-Rendering-Theme
+          - SysML2Tools-Core-Rendering-ThemeDepthWrap
+          - SysML2Tools-Core-Rendering-RenderOptions
+          - SysML2Tools-Core-Rendering-DiagramRenderer
+          - SysML2Tools-Core-Rendering-RenderOutput
+          - SysML2Tools-Core-Rendering-BuiltinThemes
         tests:
           - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsSvgOutput
           - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_PngRenderer_ReturnsPngOutput
@@ -44,9 +78,18 @@ sections:
       - id: SysML2Tools-Core-RenderDepictsViewElements
         title: >-
           A rendered diagram shall depict the model elements that belong to its view.
+        tags: [system]
         justification: |
           A diagram that omits the elements of its view has no value. Confirming that the
           rendered output contains the view's model elements proves the full workspace-to-diagram
           pipeline produces meaningful, non-empty results.
+        children:
+          - SysML2Tools-Core-Layout-LayoutTree
+          - SysML2Tools-Core-Layout-PreRoutedLines
+          - SysML2Tools-Core-Rendering-ILayoutStrategy
+          - SysML2Tools-Core-Rendering-ViewContextViewNode
+          - SysML2Tools-Core-Rendering-DiagramRenderer
+          - SysML2Tools-Core-Filtering-StandaloneViewFilterEvaluation
+          - SysML2Tools-Core-Filtering-BracketFormExposeEvaluation
         tests:
           - DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames

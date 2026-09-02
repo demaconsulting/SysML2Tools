@@ -21,6 +21,8 @@ sections:
         justification: |
           Users need access to command-line usage documentation without requiring
           external resources.
+        children:
+          - SysML2Tools-Tool-Program-LocalizableHelpText
         tests:
           - Program_Run_WithHelpFlag_DisplaysUsageInformation
           - Program_Run_WithShortHelpFlag_DisplaysUsage

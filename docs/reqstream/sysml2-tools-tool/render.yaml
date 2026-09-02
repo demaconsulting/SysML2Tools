@@ -21,6 +21,16 @@ sections:
           subsystem's own requirements for pattern-resolution semantics) fixes a
           pre-existing defect where render passed raw glob tokens straight to the
           workspace loader, which treats every entry as a literal file path.
+        children:
+          - SysML2Tools-Tool-Render-NoFilesMatched
+          - SysML2Tools-Tool-Render-Load
+          - SysML2Tools-Tool-Render-Format
+          - SysML2Tools-Tool-Render-Output
+          - SysML2Tools-Tool-Render-Empty
+          - SysML2Tools-Tool-Render-DepthLimit
+          - SysML2Tools-Tool-Render-AllViewsExport
+          - SysML2Tools-Tool-Render-LocalizableHelpText
+          - SysML2Tools-Tool-Render-DynamicView
         tests:
           - RenderSubsystem_NoFiles_ReportsError
           - RenderSubsystem_GlobPattern_ResolvesMultipleFiles
@@ -54,6 +64,8 @@ sections:
         justification: |
           Format selection through a named option makes the CLI self-documenting and
           avoids dependence on file extension inference.
+        children:
+          - SysML2Tools-Tool-Render-FormatValidation
         tests:
           - RenderSubsystem_FormatSvg_UsesSvgRenderer
           - RenderSubsystem_FormatPng_UsesPngRenderer
@@ -97,6 +109,8 @@ sections:
           Rendering every declared view by default supports bulk "render everything"
           exports for CI pipelines and design-doc publishing without requiring the user
           to invoke the command once per view.
+        children:
+          - SysML2Tools-Tool-Render-FileNameCollision
         tests:
           - RenderSubsystem_MultipleViews_NoViewFlag_RendersAllViews
 
@@ -118,6 +132,8 @@ sections:
           View selection enables targeting a single diagram for output in multi-view
           models without generating every diagram in the workspace; it is always
           optional, narrowing the default render-all behavior to one view on request.
+        children:
+          - SysML2Tools-Tool-Render-UnknownViewError
         tests:
           - RenderSubsystem_MultipleViews_WithViewFlag_RendersSelectedView
 

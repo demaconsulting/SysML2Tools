@@ -20,6 +20,17 @@ sections:
           A fixed, positional verb vocabulary keeps the query grammar simple and predictable
           for both human and AI-assisted callers, matching the verb set already fixed by
           ROADMAP.md's "Model query & analysis" design.
+        children:
+          - SysML2Tools-Tool-Query-UnknownVerb
+          - SysML2Tools-Tool-Query-ElementRequired
+          - SysML2Tools-Tool-Query-Format
+          - SysML2Tools-Tool-Query-NoFilesMatched
+          - SysML2Tools-Tool-Query-OutputFormat
+          - SysML2Tools-Tool-Query-ElementNotFound
+          - SysML2Tools-Tool-Query-Find
+          - SysML2Tools-Tool-Query-Help
+          - SysML2Tools-Tool-Query-ReportHeading
+          - SysML2Tools-Tool-Query-IncludeConnections
         tests:
           - Context_Create_QueryCommand_WithVerbToken_SetsQueryVerb
           - QuerySubsystem_AnyVerb_WithValidInput_DispatchesToRealLogic
@@ -116,6 +127,10 @@ sections:
         justification: |
           Per-verb help lets users discover each verb's specific options without needing
           --element to be present merely to view help output.
+        children:
+          - SysML2Tools-Tool-Query-LocalizableHelpText
+          - SysML2Tools-Tool-Query-HelpEnrichment
+          - SysML2Tools-Tool-Query-IncludeConnectionsHelp
         tests:
           - QuerySubsystem_QueryHelp_NoVerb_PrintsGeneralHelpWithoutThrowing
           - QuerySubsystem_QueryVerbHelp_WithVerb_PrintsVerbHelpWithoutThrowing
