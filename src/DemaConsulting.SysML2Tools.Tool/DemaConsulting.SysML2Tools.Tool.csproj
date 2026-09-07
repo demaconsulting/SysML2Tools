@@ -110,9 +110,9 @@
        below. Linux uses the "NoDependencies" flavor so the tool works on minimal containers
        lacking libfontconfig/libfreetype. -->
   <ItemGroup>
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.151.1" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.1" />
-    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="4.151.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.151.2" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.2" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="4.151.2" />
   </ItemGroup>
 
   <ItemGroup>
