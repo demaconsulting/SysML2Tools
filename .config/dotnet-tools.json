@@ -17,14 +17,14 @@
       "rollForward": false
     },
     "demaconsulting.weasyprinttool": {
-      "version": "69.0.0",
+      "version": "70.0.0",
       "commands": [
         "weasyprint"
       ],
       "rollForward": false
     },
     "demaconsulting.sarifmark": {
-      "version": "1.3.2",
+      "version": "1.4.0",
       "commands": [
         "sarifmark"
       ],
