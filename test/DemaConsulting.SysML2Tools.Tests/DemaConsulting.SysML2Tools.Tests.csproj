@@ -37,9 +37,9 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>compile; runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
-    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="2.4.0" />
-    <PackageReference Include="xunit.v3" Version="4.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="2.4.1" />
+    <PackageReference Include="xunit.v3" Version="4.0.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -48,11 +48,11 @@
 
   <!-- Code Analysis Dependencies -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.400">
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.401">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.33.0.1635">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.34.0.3385">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -74,7 +74,7 @@
        packed for cross-platform distribution. -->
   <ItemGroup>
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.151.1" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.151.2" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.152.1" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
     <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="4.151.1" Condition="$([MSBuild]::IsOSPlatform('macOS'))" />
   </ItemGroup>
 
