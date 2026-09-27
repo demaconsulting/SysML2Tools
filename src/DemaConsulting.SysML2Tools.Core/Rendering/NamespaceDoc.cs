@@ -28,7 +28,7 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 /// output format you need:
 /// <code>
 /// dotnet add package DemaConsulting.Rendering.Svg   # for SvgRenderer
-/// dotnet add package DemaConsulting.Rendering.Skia  # for PngRenderer
+/// dotnet add package DemaConsulting.Rendering.CanvasNet  # for PngRenderer
 /// </code>
 /// </para>
 /// </remarks>

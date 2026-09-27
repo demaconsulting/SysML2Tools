@@ -8,7 +8,7 @@
   suitable for architecture documentation, CI/CD pipelines, and AI-assisted modeling
   workflows.
 - **languages**: C#
-- **technologies**: .NET, ANTLR4, SkiaSharp
+- **technologies**: .NET, ANTLR4, CanvasNet
 
 # Project Structure
 

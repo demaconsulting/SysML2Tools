@@ -275,25 +275,11 @@ public class ValidationTests
     }
 
     /// <summary>
-    ///     Test that the PNG render self-test passes (or is skipped) when SkiaSharp is available.
+    ///     Test that the PNG render self-test passes for the built-in self-test model.
     /// </summary>
     [Fact]
-    public async Task Validation_RunRenderPngSelfTest_SkiaSharpAvailable_Passes()
+    public async Task Validation_RunRenderPngSelfTest_ValidModel_Passes()
     {
-        // Guard: check if SkiaSharp native library is loadable without triggering type
-        // initializers. If unavailable, the self-test skips internally and we only check
-        // that the suite still exits cleanly.
-        if (!System.Runtime.InteropServices.NativeLibrary.TryLoad("libSkiaSharp", out var nativeHandle))
-        {
-            // SkiaSharp unavailable — just verify the suite exits cleanly (skip is recorded as pass)
-            using var context = Context.Create(["--silent"]);
-            await Validation.RunAsync(context);
-            Assert.Equal(0, context.ExitCode);
-            return;
-        }
-
-        System.Runtime.InteropServices.NativeLibrary.Free(nativeHandle);
-
         // Arrange: capture validation output via log file
         var logFile = Path.Combine(Path.GetTempPath(), $"validation_test_{Guid.NewGuid()}.log");
         try
@@ -347,26 +333,12 @@ public class ValidationTests
     }
 
     /// <summary>
-    ///     Test that the dynamic-view PNG render self-test passes (or is skipped) when SkiaSharp
-    ///     is available.
+    ///     Test that the dynamic-view PNG render self-test passes for the built-in self-test
+    ///     model.
     /// </summary>
     [Fact]
-    public async Task Validation_RunRenderDynamicViewPngSelfTest_SkiaSharpAvailable_Passes()
+    public async Task Validation_RunRenderDynamicViewPngSelfTest_ValidModel_Passes()
     {
-        // Guard: check if SkiaSharp native library is loadable without triggering type
-        // initializers. If unavailable, the self-test skips internally and we only check
-        // that the suite still exits cleanly.
-        if (!System.Runtime.InteropServices.NativeLibrary.TryLoad("libSkiaSharp", out var nativeHandle))
-        {
-            // SkiaSharp unavailable — just verify the suite exits cleanly (skip is recorded as pass)
-            using var context = Context.Create(["--silent"]);
-            await Validation.RunAsync(context);
-            Assert.Equal(0, context.ExitCode);
-            return;
-        }
-
-        System.Runtime.InteropServices.NativeLibrary.Free(nativeHandle);
-
         // Arrange: capture validation output via log file
         var logFile = Path.Combine(Path.GetTempPath(), $"validation_test_{Guid.NewGuid()}.log");
         try

@@ -21,7 +21,7 @@
 using System.Runtime.InteropServices;
 
 using DemaConsulting.Rendering.Abstractions;
-using DemaConsulting.Rendering.Skia;
+using DemaConsulting.Rendering.CanvasNet;
 using DemaConsulting.Rendering.Svg;
 using DemaConsulting.SysML2Tools.Cli;
 using DemaConsulting.SysML2Tools.Parser;
@@ -382,7 +382,6 @@ internal static class Validation
 
     /// <summary>
     ///     Runs a PNG render self-test against the built-in <see cref="SelfTestModel"/>.
-    ///     Skips gracefully when the SkiaSharp native library is unavailable.
     /// </summary>
     /// <param name="context">The context for output.</param>
     /// <param name="testResults">The test results collection.</param>
@@ -393,19 +392,6 @@ internal static class Validation
 
         try
         {
-            // Check whether the SkiaSharp native library is loadable before attempting PNG rendering.
-            // If the native runtime is absent the test is skipped (recorded as Passed) so that
-            // environments without the SkiaSharp native assets do not fail the suite.
-            if (!NativeLibrary.TryLoad("libSkiaSharp", out var nativeHandle))
-            {
-                test.Outcome = DemaConsulting.TestResults.TestOutcome.Passed;
-                context.WriteLine($"↷ SysML2Tools_RenderPngSelfTest - Skipped (SkiaSharp unavailable)");
-                FinalizeTestResult(test, startTime, testResults);
-                return;
-            }
-
-            NativeLibrary.Free(nativeHandle);
-
             using var tempDir = new TemporaryDirectory();
             var modelFile = PathHelpers.SafePathCombine(tempDir.DirectoryPath, "self-test.sysml");
 
@@ -529,8 +515,7 @@ internal static class Validation
 
     /// <summary>
     ///     Runs a dynamic (ad-hoc) view PNG render self-test, mirroring
-    ///     <see cref="RunRenderDynamicViewSvgSelfTestAsync"/> but with the PNG renderer. Skips
-    ///     gracefully when the SkiaSharp native library is unavailable.
+    ///     <see cref="RunRenderDynamicViewSvgSelfTestAsync"/> but with the PNG renderer.
     /// </summary>
     /// <param name="context">The context for output.</param>
     /// <param name="testResults">The test results collection.</param>
@@ -541,17 +526,6 @@ internal static class Validation
 
         try
         {
-            // Check whether the SkiaSharp native library is loadable before attempting PNG rendering.
-            if (!NativeLibrary.TryLoad("libSkiaSharp", out var nativeHandle))
-            {
-                test.Outcome = DemaConsulting.TestResults.TestOutcome.Passed;
-                context.WriteLine($"↷ SysML2Tools_RenderDynamicViewPngSelfTest - Skipped (SkiaSharp unavailable)");
-                FinalizeTestResult(test, startTime, testResults);
-                return;
-            }
-
-            NativeLibrary.Free(nativeHandle);
-
             using var tempDir = new TemporaryDirectory();
             var modelFile = PathHelpers.SafePathCombine(tempDir.DirectoryPath, "self-test.sysml");
 

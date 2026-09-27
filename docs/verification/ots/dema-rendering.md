@@ -16,7 +16,7 @@ SysML2Tools:
 - `DemaConsulting.Rendering.Layout` — the `LayeredLayoutAlgorithm`, `LayoutEngine`, containment
   layout, and connector routing.
 - `DemaConsulting.Rendering.Svg` — the `SvgRenderer`.
-- `DemaConsulting.Rendering.Skia` — the Skia-based `PngRenderer` (and JPEG/WebP renderers).
+- `DemaConsulting.Rendering.CanvasNet` — the CanvasNet-based `PngRenderer` (and `JpegRenderer`).
 
 SysML2Tools relies on the family to lay a graph of sized nodes and directed edges out into placed
 boxes and routed orthogonal connectors, honor the requested layout direction (including a
@@ -141,7 +141,7 @@ package's `SvgRenderer`.
 
 #### PngRenderer_Render_EmptyTree_WritesPngBytes
 
-**Scenario**: The package's Skia-based `PngRenderer` renders an empty `LayoutTree`.
+**Scenario**: The package's CanvasNet-based `PngRenderer` renders an empty `LayoutTree`.
 
 **Expected**: Valid PNG image bytes are written to the output stream.
 

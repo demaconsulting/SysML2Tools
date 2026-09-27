@@ -403,7 +403,7 @@ sysml2tools render model.sysml --output out --walk-depth 3
 | Extension | Format | Notes |
 | --- | --- | --- |
 | `.svg` | SVG | Zero external dependencies |
-| `.png` | PNG | SkiaSharp (MIT); pixel-identical across platforms |
+| `.png` | PNG | CanvasNet (MIT); pixel-identical across platforms |
 
 PNG output uses an embedded Noto Sans font to guarantee pixel-identical output across
 Windows, Linux, and macOS.

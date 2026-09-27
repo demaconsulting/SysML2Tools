@@ -148,17 +148,6 @@ public class RenderSubsystemTests
     [Fact]
     public async Task RenderSubsystem_FormatPng_UsesPngRenderer()
     {
-        // Guard: check if SkiaSharp native library is loadable without triggering type
-        // initializers. Return early when the library is absent so no TypeInitializationException
-        // propagates through xUnit's cleanup infrastructure.
-        if (!System.Runtime.InteropServices.NativeLibrary.TryLoad("libSkiaSharp", out var nativeHandle))
-        {
-            // SkiaSharp native runtime unavailable in this build environment; skip rendering.
-            return;
-        }
-
-        System.Runtime.InteropServices.NativeLibrary.Free(nativeHandle);
-
         // Arrange: write a SysML model with a view definition; create temp output dir
         var tempDir = Path.Combine(Path.GetTempPath(), $"render_png_{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);

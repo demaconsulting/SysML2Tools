@@ -143,7 +143,7 @@ future-locale story, which applies identically here.
   qualified view names, and `SynthesizeDynamicView` used by `TryProcessDynamicView` to build the
   ad-hoc view node for `--view-type`/`--view-target`/`--filter`
 - `SvgRenderer` (in `DemaConsulting.Rendering.Svg`) — produces SVG output
-- `PngRenderer` (in `DemaConsulting.Rendering.Skia`) — produces PNG output
+- `PngRenderer` (in `DemaConsulting.Rendering.CanvasNet`) — produces PNG output
 - `Themes.Light` (in `DemaConsulting.Rendering.Abstractions`) — default theme
 - `Context`/`RenderCommandOptions`/`RenderArgumentParser` (in `DemaConsulting.SysML2Tools.Cli`
   and `DemaConsulting.SysML2Tools.Render`) — reads arguments; writes output

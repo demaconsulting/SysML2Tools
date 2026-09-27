@@ -4,7 +4,7 @@
 
 The Rendering subsystem wires together the rendering pipeline for SysML2 Tools. It bridges the
 Layout subsystem (which produces a `LayoutTree`) and the off-the-shelf renderer packages
-(`DemaConsulting.Rendering.Svg` and `DemaConsulting.Rendering.Skia`) using the contracts that
+(`DemaConsulting.Rendering.Svg` and `DemaConsulting.Rendering.CanvasNet`) using the contracts that
 both sides must satisfy.
 
 The SysML-agnostic rendering contracts — `IRenderer` (low-level render interface), `Theme`
@@ -179,7 +179,7 @@ flowchart TD
   `DemaConsulting.SysML2Tools.Semantic`; the `using` directive `using DemaConsulting.SysML2Tools.Semantic;`
   is required in `ILayoutStrategy.cs` and `DiagramRenderer.cs`.
 - The `IRenderer` implementations come from the off-the-shelf `DemaConsulting.Rendering.Svg` and
-  `DemaConsulting.Rendering.Skia` packages, referenced by the Tool via `<PackageReference>`.
+  `DemaConsulting.Rendering.CanvasNet` packages, referenced by the Tool via `<PackageReference>`.
 
 ### Requirements Traceability
 

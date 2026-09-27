@@ -3,7 +3,7 @@
 // </copyright>
 
 using DemaConsulting.Rendering.Abstractions;
-using DemaConsulting.Rendering.Skia;
+using DemaConsulting.Rendering.CanvasNet;
 using DemaConsulting.Rendering.Svg;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;

@@ -63,11 +63,10 @@ a silent context; the log output contains `"✓ SysML2Tools_RenderSvgSelfTest"`,
 that the SVG render pipeline produces output for the built-in model. This scenario is tested
 by `Validation_RunRenderSvgSelfTest_ValidModel_Passes`.
 
-**Validation_RunRenderPngSelfTest_SkiaSharpAvailable_Passes**: When SkiaSharp is available,
-the full validation suite is run; the log output contains
-`"✓ SysML2Tools_RenderPngSelfTest"`. When SkiaSharp is absent, the suite is run without a
-log and exit code is 0 (the test skips internally). This scenario is tested by
-`Validation_RunRenderPngSelfTest_SkiaSharpAvailable_Passes`.
+**Validation_RunRenderPngSelfTest_ValidModel_Passes**: The full validation suite is run with
+a silent context; the log output contains
+`"✓ SysML2Tools_RenderPngSelfTest"`. This scenario is tested by
+`Validation_RunRenderPngSelfTest_ValidModel_Passes`.
 
 **Validation_RunRenderDynamicViewSvgSelfTest_ValidModel_Passes**: The full validation suite is
 run with a silent context; the log output contains
@@ -75,12 +74,10 @@ run with a silent context; the log output contains
 `DiagramRenderer.SynthesizeDynamicView` (with no `view def` in the model) renders successfully.
 This scenario is tested by `Validation_RunRenderDynamicViewSvgSelfTest_ValidModel_Passes`.
 
-**Validation_RunRenderDynamicViewPngSelfTest_SkiaSharpAvailable_Passes**: When SkiaSharp is
-available, the full validation suite is run; the log output contains
-`"✓ SysML2Tools_RenderDynamicViewPngSelfTest"`. When SkiaSharp is absent, the suite is run
-without a log and exit code is 0 (the test skips internally, mirroring the existing PNG
-self-test's skip behavior). This scenario is tested by
-`Validation_RunRenderDynamicViewPngSelfTest_SkiaSharpAvailable_Passes`.
+**Validation_RunRenderDynamicViewPngSelfTest_ValidModel_Passes**: The full validation suite is
+run with a silent context; the log output contains
+`"✓ SysML2Tools_RenderDynamicViewPngSelfTest"`. This scenario is tested by
+`Validation_RunRenderDynamicViewPngSelfTest_ValidModel_Passes`.
 
 **Validation_RunRenderDynamicViewFilteredSelfTest_ValidModel_Passes**: The full validation
 suite is run with a silent context; the log output contains

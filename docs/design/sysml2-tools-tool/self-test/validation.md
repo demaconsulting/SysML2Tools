@@ -76,15 +76,12 @@ with `WorkspaceLoader.LoadAsync`, calls `DiagramRenderer.RenderWorkspace` with
 `outputs.Count > 0 && outputs[0].Data.Length > 0`. Records pass or fail. Any exception is
 caught and recorded via `HandleTestException`.
 
-**RunRenderPngSelfTestAsync**: Verifies that `SelfTestModel` renders to a non-empty PNG stream,
-or skips gracefully when SkiaSharp is unavailable.
+**RunRenderPngSelfTestAsync**: Verifies that `SelfTestModel` renders to a non-empty PNG stream.
 
 - *Parameters*: `Context context`, `DemaConsulting.TestResults.TestResults testResults`.
 - *Returns*: `Task`.
 
-Calls `NativeLibrary.TryLoad("libSkiaSharp", ...)` first. If the library is absent, records
-the test as `Passed` with a skip message and returns early. Otherwise frees the handle, writes
-`SelfTestModel` to a temp file, loads the workspace, calls `DiagramRenderer.RenderWorkspace`
+Writes `SelfTestModel` to a temp file, loads the workspace, calls `DiagramRenderer.RenderWorkspace`
 with `new PngRenderer()`, and asserts non-empty output. Records pass or fail. Any exception
 is caught and recorded via `HandleTestException`.
 
@@ -105,9 +102,7 @@ distinct failure message when `diagnostic` is non-null or workspace loading fail
 exception is caught and recorded via `HandleTestException`.
 
 **RunRenderDynamicViewPngSelfTestAsync**: Mirrors
-`RunRenderDynamicViewSvgSelfTestAsync` but with the PNG renderer, skipping gracefully (same
-`NativeLibrary.TryLoad("libSkiaSharp", ...)` guard) when the native SkiaSharp library is
-unavailable.
+`RunRenderDynamicViewSvgSelfTestAsync` but with the PNG renderer.
 
 - *Parameters*: `Context context`, `DemaConsulting.TestResults.TestResults testResults`.
 - *Returns*: `Task`.
