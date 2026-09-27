@@ -81,13 +81,11 @@ sections:
         title: >-
           The Validation class shall include a PNG render self-test that loads the
           built-in self-test model and verifies that at least one non-empty PNG stream
-          is produced, skipping gracefully when the SkiaSharp native library is absent.
+          is produced.
         justification: |
-          A PNG render self-test confirms SkiaSharp integration is operational. Skipping
-          when the native library is absent prevents false failures in environments that
-          only support SVG output.
+          A PNG render self-test confirms CanvasNet PNG rendering integration is operational.
         tests:
-          - Validation_RunRenderPngSelfTest_SkiaSharpAvailable_Passes
+          - Validation_RunRenderPngSelfTest_ValidModel_Passes
 
       - id: SysML2Tools-Tool-Validation-RenderDynamicViewSelfTests
         title: >-
@@ -96,9 +94,9 @@ sections:
           SysML2Tools_RenderDynamicViewFilteredSelfTest — that synthesize and render a dynamic
           view (via DiagramRenderer.SynthesizeDynamicView) targeting the built-in self-test
           model's package with no view def present, verifying: at least one non-empty SVG stream
-          is produced (Svg); at least one non-empty PNG stream is produced, skipping gracefully
-          when SkiaSharp is absent (Png, mirroring the existing PNG self-test's skip behavior);
-          and that applying a --filter expression which matches nothing produces a strictly
+          is produced (Svg); at least one non-empty PNG stream is produced (Png, mirroring
+          the existing PNG self-test); and that applying a --filter expression which matches
+          nothing produces a strictly
           smaller rendered SVG than the unfiltered equivalent (Filtered), confirming the filter
           genuinely narrows output rather than being merely accepted.
         justification: |
@@ -110,7 +108,7 @@ sections:
           not just accepted and ignored.
         tests:
           - Validation_RunRenderDynamicViewSvgSelfTest_ValidModel_Passes
-          - Validation_RunRenderDynamicViewPngSelfTest_SkiaSharpAvailable_Passes
+          - Validation_RunRenderDynamicViewPngSelfTest_ValidModel_Passes
           - Validation_RunRenderDynamicViewFilteredSelfTest_ValidModel_Passes
 
       - id: SysML2Tools-Tool-Validation-PassedSummary

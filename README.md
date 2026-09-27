@@ -42,7 +42,7 @@ documentation, CI/CD pipelines, and AI-assisted modeling workflows.
   engine with orthogonal specialization and membership edges, depth-coded fill colors, compartments,
   and configurable depth limiting
 - **SVG Output**: Zero external dependencies
-- **PNG Output**: Pixel-identical across Windows, Linux, and macOS via SkiaSharp and an
+- **PNG Output**: Pixel-identical across Windows, Linux, and macOS via CanvasNet and an
   embedded Noto Sans font
 - **NuGet Library**: Publishable packages with a stable public API — use the parser,
   semantic model, or layout engine independently of the CLI tool

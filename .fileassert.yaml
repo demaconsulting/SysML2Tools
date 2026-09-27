@@ -12,10 +12,12 @@ tests:
 
   # --- PACKAGE ---
   # The Tool package previously ballooned to ~435 MB because native SkiaSharp runtime
-  # assets shipped with their debug symbols (.pdb) alongside the binaries. These tests
-  # just guard against that regression: the packed size stays under budget, the tool's
-  # main assembly and README are present, and no .pdb files leak into the native
-  # runtimes folder.
+  # assets shipped with their debug symbols (.pdb) alongside the binaries. Since the
+  # CanvasNet migration replaced SkiaSharp with a pure-managed renderer, the tool no
+  # longer ships any native runtime assets at all. These tests guard against a
+  # regression back to native assets: the packed size stays under a much smaller
+  # budget, the tool's main assembly and README are present, and no "runtimes" folder
+  # (native or otherwise) exists in the package.
 
   - name: Package_ToolSizeWithinLimit
     description: "Tool package stays within its size budget"
@@ -23,10 +25,10 @@ tests:
     files:
       - pattern: "artifacts/packages/DemaConsulting.SysML2Tools.Tool.*.nupkg"
         count: 1
-        max-size: 73400320  # 70 MiB
+        max-size: 10485760  # 10 MiB
 
   - name: Package_ToolContentsValid
-    description: "Tool package contains its main assembly and README, with no stray native symbol files"
+    description: "Tool package contains its main assembly and README, with no native runtime assets"
     tags: [package]
     files:
       - pattern: "artifacts/packages/DemaConsulting.SysML2Tools.Tool.*.nupkg"
@@ -37,9 +39,9 @@ tests:
             - pattern: "tools/net10.0/any/DemaConsulting.SysML2Tools.dll"
               min: 1
               max: 1
-            # Native SkiaSharp runtime assets must not ship with .pdb symbol files -
-            # this is what caused the historical ~435 MB package-size bloat.
-            - pattern: "tools/net10.0/any/runtimes/**/*.pdb"
+            # The tool is now a pure-managed package (post-CanvasNet migration):
+            # no "runtimes" folder of any kind - native or otherwise - should ship.
+            - pattern: "tools/net10.0/any/runtimes/**"
               max: 0
 
   # --- BUILD NOTES ---

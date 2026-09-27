@@ -59,7 +59,7 @@ that the Phase 4 implementation produces a valid SVG document for the trivial ca
 **PngRenderer_Render_EmptyTree_WritesPngBytes**: A `PngRenderer` instance is constructed
 and `Render` is called with an empty `LayoutTree`, default `RenderOptions`, and a
 `MemoryStream`; the first four bytes of the output are asserted to equal the PNG magic
-number `0x89 0x50 0x4E 0x47`. This confirms that Phase 4 SkiaSharp encoding produces
+number `0x89 0x50 0x4E 0x47`. This confirms that Phase 4 CanvasNet encoding produces
 valid PNG output for the minimal canvas case.
 
 **DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList**: A `DiagramRenderer` instance

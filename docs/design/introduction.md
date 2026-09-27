@@ -274,14 +274,15 @@ Review-sets: defined in `.reviewmark.yaml`
 | Language / runtime | C# / .NET 8+ | MIT |
 | Parser generator | ANTLR4 (`Antlr4.Runtime.Standard`) | BSD-3-Clause |
 | SysML v2 grammar | `antlr/grammars-v4` (official OMG KEBNF) | MIT |
-| PNG rendering | SkiaSharp | MIT |
+| PNG rendering | CanvasNet | MIT |
 | Embedded font | Noto Sans | SIL OFL 1.1 |
 | Test results output | `DemaConsulting.TestResults` | — |
 | Unit testing | xUnit v3 | Apache 2.0 |
 
-No ImageSharp dependency. The off-the-shelf `DemaConsulting.Rendering.Skia` PNG renderer uses
-SkiaSharp, chosen over ImageSharp to avoid the Six Labors Split License, which would impose
-licensing obligations on library consumers embedding the renderer in commercial products.
+No ImageSharp dependency. The off-the-shelf `DemaConsulting.Rendering.CanvasNet` PNG renderer uses
+CanvasNet, a pure-managed rendering library, chosen over ImageSharp to avoid the Six Labors Split
+License, which would impose licensing obligations on library consumers embedding the renderer in
+commercial products.
 
 ## Architectural Decisions
 
@@ -293,10 +294,10 @@ in native graphics binaries. The `IRenderer` interface is the extension point.
 any user files are parsed. Single-file input is the degenerate case of a multi-file
 workspace; there is no single-file mode.
 
-**SkiaSharp over ImageSharp.** SkiaSharp is MIT-licensed. ImageSharp v2+ uses the
+**CanvasNet over ImageSharp.** CanvasNet is MIT-licensed. ImageSharp v2+ uses the
 Six Labors Split License which imposes obligations on commercial library consumers.
-SkiaSharp's native asset requirement is transparent for tool consumers (handled by
-NuGet at publish time) and is a known, documented constraint for library consumers.
+CanvasNet is a pure-managed library with no native asset requirement, so this
+constraint no longer applies to tool or library consumers.
 
 **Embedded Noto Sans font.** Ensures pixel-identical PNG output across all platforms.
 Noto Sans is licensed SIL OFL 1.1 which explicitly permits embedding in software.
@@ -351,10 +352,9 @@ tests the integrated tool, not just unit-level components.
 SARIF output can be added as a formatting option on the existing infrastructure
 without any breaking changes.
 
-**SkiaSharp native assets for library consumers.** Consumers referencing the off-the-shelf
-`DemaConsulting.Rendering.Skia` PNG renderer must ensure the appropriate
-`SkiaSharp.NativeAssets.*` package is included in their publish output. This must
-be documented clearly in the package README.
+**Pure-managed rendering — no native assets required.** Consumers referencing the
+off-the-shelf `DemaConsulting.Rendering.CanvasNet` PNG renderer have no native asset
+package to add: CanvasNet is a pure-managed .NET library with no P/Invoke dependency.
 
 **Noto Sans SIL OFL attribution.** OFL requires the copyright notice and license
 text to be included in distributions. Must appear in NuGet package notices and the

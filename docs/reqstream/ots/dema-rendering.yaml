@@ -3,7 +3,7 @@
 #
 # Requirements for the DemaConsulting.Rendering package family (DemaConsulting.Rendering,
 # DemaConsulting.Rendering.Abstractions, DemaConsulting.Rendering.Layout,
-# DemaConsulting.Rendering.Svg, DemaConsulting.Rendering.Skia) that SysML2Tools consumes for
+# DemaConsulting.Rendering.Svg, DemaConsulting.Rendering.CanvasNet) that SysML2Tools consumes for
 # SysML-agnostic layout and rendering. Each requirement is verified indirectly through SysML2Tools
 # tests that drive the package family end-to-end.
 
@@ -91,7 +91,7 @@ sections:
             title: >-
               DemaConsulting.Rendering shall render a laid-out layout tree to a valid PNG image.
             justification: |
-              SysML2Tools produces raster output through the package's Skia-based PngRenderer. The
+              SysML2Tools produces raster output through the package's CanvasNet-based PngRenderer. The
               renderer must turn a LayoutTree into a valid PNG image, evidenced by PNG bytes
               produced from an empty tree and from full workspace renders.
             tags: [ots]

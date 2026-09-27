@@ -101,7 +101,7 @@ runs 9 tests following the `SysML2Tools_{Capability}SelfTest` naming convention:
 lint, SVG render, PNG render, dynamic-view SVG/PNG render, dynamic-view filtered render, and
 export — but every render test (SVG, PNG, and dynamic-view) exercises only the **General View**
 (`SelfTestModel`'s `GeneralView`). Add one SVG+PNG-validating test per remaining view kind so
-SkiaSharp native assets and each view's layout strategy are exercised on every OS:
+the rendering pipeline and each view's layout strategy are exercised on every OS:
 
 | Test | Proves |
 |---|---|
@@ -126,17 +126,15 @@ size bloat and verifying the main assembly/README are present with no stray nati
 open:
 
 1. **Tool smoke test:** install the packed tool from a local feed into a clean directory → run
-   `--version`, render a sample to **both SVG and PNG** (PNG proves SkiaSharp natives resolve),
-   and `--licenses`.
+   `--version`, render a sample to **both SVG and PNG** (PNG exercises the managed CanvasNet
+   renderer), and `--licenses`.
 2. **Library-consumer smoke test:** a throwaway project referencing each library package from the
-   local feed → restore → exercise parse→layout→render-to-SVG-in-memory and render-to-PNG (again
-   proving SkiaSharp natives for `.Png` consumers).
+   local feed → restore → exercise parse→layout→render-to-SVG-in-memory and render-to-PNG.
 
 ### Licensing, docs, gallery, publish
 
 - **Licensing/attribution:** `--licenses` output covering Noto Sans (SIL OFL 1.1) and other OTS;
-  per-package README notes incl. the SkiaSharp native-assets requirement for
-  `DemaConsulting.SysML2Tools.Png` consumers.
+  per-package README notes.
 - **Documentation:** README and User Guide state that the Geometry View is not yet supported.
   Finalise the layout-algorithm reference in `docs/` and wire it into CI (`build.yaml`,
   `.fileassert.yaml`, `.reviewmark.yaml`).
