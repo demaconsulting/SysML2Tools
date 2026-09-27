@@ -62,7 +62,7 @@
     <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" />
     <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.13" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.401" PrivateAssets="All" />
-    <PackageReference Include="Polyfill" Version="11.4.0" PrivateAssets="All" />
+    <PackageReference Include="Polyfill" Version="11.4.1" PrivateAssets="All" />
     <!-- ApiMark: generate Markdown API reference docs from the XML doc comments (see
          GenerateDocumentationFile above) and bundle them into this project's own NuGet
          package (see ApiMarkPackDocs above). -->
