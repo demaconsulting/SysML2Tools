@@ -62,11 +62,11 @@
     <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" />
     <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.13" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.401" PrivateAssets="All" />
-    <PackageReference Include="Polyfill" Version="11.4.1" PrivateAssets="All" />
+    <PackageReference Include="Polyfill" Version="11.4.3" PrivateAssets="All" />
     <!-- ApiMark: generate Markdown API reference docs from the XML doc comments (see
          GenerateDocumentationFile above) and bundle them into this project's own NuGet
          package (see ApiMarkPackDocs above). -->
-    <PackageReference Include="DemaConsulting.ApiMark.MSBuild" Version="0.5.1" PrivateAssets="All" />
+    <PackageReference Include="DemaConsulting.ApiMark.MSBuild" Version="0.5.3" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>
@@ -86,7 +86,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.34.0.3385">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.35.0.4138">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
