@@ -10,7 +10,7 @@
       "rollForward": false
     },
     "demaconsulting.pandoctool": {
-      "version": "3.12.0",
+      "version": "3.12.1",
       "commands": [
         "pandoc"
       ],
@@ -38,7 +38,7 @@
       "rollForward": false
     },
     "demaconsulting.reqstream": {
-      "version": "1.11.0",
+      "version": "1.12.0",
       "commands": [
         "reqstream"
       ],

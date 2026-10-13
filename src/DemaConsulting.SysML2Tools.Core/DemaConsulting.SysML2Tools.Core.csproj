@@ -52,7 +52,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.13" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.401" PrivateAssets="All" />
-    <PackageReference Include="DemaConsulting.ApiMark.MSBuild" Version="0.5.3" PrivateAssets="All" />
+    <PackageReference Include="DemaConsulting.ApiMark.MSBuild" Version="0.5.7" PrivateAssets="All" />
     <PackageReference Include="DemaConsulting.Rendering.Layout" Version="0.3.0-beta.1" />
     <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="10.0.12" />
   </ItemGroup>
