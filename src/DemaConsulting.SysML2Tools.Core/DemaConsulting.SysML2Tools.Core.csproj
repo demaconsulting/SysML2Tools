@@ -51,10 +51,10 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.13" PrivateAssets="All" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.402" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.403" PrivateAssets="All" />
     <PackageReference Include="DemaConsulting.ApiMark.MSBuild" Version="0.5.11" PrivateAssets="All" />
     <PackageReference Include="DemaConsulting.Rendering.Layout" Version="0.3.0-beta.1" />
-    <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="10.0.14" />
   </ItemGroup>
 
   <!-- Language and Stdlib are independently packable NuGet packages of their own
@@ -82,7 +82,7 @@
            in packages that consume this tool.
          - IncludeAssets lists all asset types (including 'analyzers' and 'buildtransitive') to ensure
            Roslyn analyzers and MSBuild targets are fully activated during the build. -->
-    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.402">
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.403">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
