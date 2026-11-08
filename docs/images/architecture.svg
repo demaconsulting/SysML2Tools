@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="770" viewBox="0 0 960 770" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect x="14" y="16" width="935" height="745" rx="28" fill="#d5dce6"/>
+  <rect x="10" y="10" width="935" height="745" rx="28" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+
+  <g transform="translate(30,30)">
+    <rect x="170" y="0" width="520" height="60" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+    <text x="430" y="27" font-size="16" font-family="Consolas, monospace" font-weight="600" fill="#92400e" text-anchor="middle">sysml2tools (Program)</text>
+    <text x="430" y="47" font-size="13" fill="#92400e" text-anchor="middle">command-line tool run by you, your CI pipeline, or an AI agent</text>
+    <line x1="430" y1="64" x2="430" y2="100" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+    <text x="442" y="86" font-size="12" fill="#334155">lint | render | query | export | help</text>
+
+    <rect x="170" y="104" width="520" height="216" rx="14" fill="#f8fafc" stroke="#2563eb" stroke-width="2" stroke-dasharray="8 5"/>
+    <text x="186" y="126" font-size="14" font-weight="600" fill="#2563eb">DemaConsulting.SysML2Tools.Tool</text>
+
+    <rect x="190" y="136" width="480" height="48" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <text x="430" y="157" font-size="16" font-weight="600" fill="#166534" text-anchor="middle">Cli</text>
+    <text x="430" y="175" font-size="12" fill="#166534" text-anchor="middle">Parses flags into a Context that owns the output streams</text>
+
+    <g font-size="11" fill="#5b21b6" text-anchor="middle">
+      <rect x="190" y="196" width="88" height="56" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="234" y="218" font-size="14" font-weight="600" fill="#4c1d95">Lint</text>
+      <text x="234" y="238">diagnostics</text>
+      <rect x="288" y="196" width="88" height="56" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="332" y="218" font-size="14" font-weight="600" fill="#4c1d95">Render</text>
+      <text x="332" y="238">SVG, PNG</text>
+      <rect x="386" y="196" width="88" height="56" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="430" y="218" font-size="14" font-weight="600" fill="#4c1d95">Query</text>
+      <text x="430" y="238">12 verbs</text>
+      <rect x="484" y="196" width="88" height="56" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="528" y="218" font-size="14" font-weight="600" fill="#4c1d95">Export</text>
+      <text x="528" y="238">model JSON</text>
+      <rect x="582" y="196" width="88" height="56" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="626" y="218" font-size="14" font-weight="600" fill="#4c1d95">Help</text>
+      <text x="626" y="238">usage text</text>
+    </g>
+
+    <g font-size="12" fill="#1e40af" text-anchor="middle">
+      <rect x="190" y="264" width="235" height="44" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+      <text x="307" y="283" font-size="14" font-weight="600" fill="#1e3a8a">Utilities</text>
+      <text x="307" y="299">Safe path handling</text>
+      <rect x="435" y="264" width="235" height="44" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+      <text x="552" y="283" font-size="14" font-weight="600" fill="#1e3a8a">SelfTest</text>
+      <text x="552" y="299">With --validate, runs the built-in checks</text>
+    </g>
+
+    <line x1="430" y1="324" x2="430" y2="348" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+
+    <rect x="170" y="352" width="520" height="122" rx="14" fill="#f8fafc" stroke="#2563eb" stroke-width="2" stroke-dasharray="8 5"/>
+    <text x="186" y="374" font-size="14" font-weight="600" fill="#2563eb">DemaConsulting.SysML2Tools (Core)</text>
+    <g font-size="11" fill="#5b21b6" text-anchor="middle">
+      <rect x="190" y="386" width="88" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="234" y="408" font-size="14" font-weight="600" fill="#4c1d95">Io</text>
+      <text x="234" y="428">Finds files</text>
+      <text x="234" y="443">by glob</text>
+      <rect x="288" y="386" width="88" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="332" y="408" font-size="14" font-weight="600" fill="#4c1d95">Filtering</text>
+      <text x="332" y="428">Evaluates</text>
+      <text x="332" y="443">filter exprs</text>
+      <rect x="386" y="386" width="88" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="430" y="408" font-size="14" font-weight="600" fill="#4c1d95">Layout</text>
+      <text x="430" y="428">Places model</text>
+      <text x="430" y="443">elements</text>
+      <rect x="484" y="386" width="88" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="528" y="408" font-size="14" font-weight="600" fill="#4c1d95">Rendering</text>
+      <text x="528" y="428">Draws SVG</text>
+      <text x="528" y="443">and PNG</text>
+      <rect x="582" y="386" width="88" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="626" y="408" font-size="14" font-weight="600" fill="#4c1d95">Query</text>
+      <text x="626" y="428">Answers model</text>
+      <text x="626" y="443">questions</text>
+    </g>
+
+    <line x1="430" y1="478" x2="430" y2="502" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+
+    <rect x="170" y="506" width="520" height="104" rx="14" fill="#f8fafc" stroke="#2563eb" stroke-width="2" stroke-dasharray="8 5"/>
+    <text x="186" y="528" font-size="14" font-weight="600" fill="#2563eb">DemaConsulting.SysML2Tools.Language</text>
+    <g font-size="12" fill="#1e40af" text-anchor="middle">
+      <rect x="190" y="540" width="235" height="56" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+      <text x="307" y="562" font-size="14" font-weight="600" fill="#1e3a8a">Parser</text>
+      <text x="307" y="582">Reads .sysml text into a syntax tree</text>
+      <rect x="435" y="540" width="235" height="56" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+      <text x="552" y="562" font-size="14" font-weight="600" fill="#1e3a8a">Semantic</text>
+      <text x="552" y="582">Builds the model and resolves references</text>
+    </g>
+
+    <rect x="260" y="640" width="340" height="52" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+    <text x="430" y="663" font-size="15" font-weight="600" fill="#334155" text-anchor="middle">Stdlib</text>
+    <text x="430" y="682" font-size="12" fill="#475569" text-anchor="middle">Pre-compiled OMG standard library, embedded</text>
+    <line x1="430" y1="636" x2="430" y2="614" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+
+    <text x="70" y="206" font-size="13" font-weight="600" fill="#475569" text-anchor="middle">Inputs</text>
+    <rect x="0" y="220" width="140" height="66" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+    <text x="70" y="247" font-size="15" font-weight="600" fill="#334155" text-anchor="middle">Model files</text>
+    <text x="70" y="268" font-size="12" fill="#475569" text-anchor="middle">.sysml, by glob</text>
+    <line x1="144" y1="253" x2="166" y2="253" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+
+    <rect x="720" y="170" width="165" height="166" rx="12" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <text x="802" y="196" font-size="16" font-weight="600" fill="#166534" text-anchor="middle">Outputs</text>
+    <g font-size="13" fill="#14532d" text-anchor="middle">
+      <rect x="734" y="208" width="137" height="26" rx="5" fill="#ffffff" stroke="#16a34a"/>
+      <text x="802" y="226">Diagnostics</text>
+      <rect x="734" y="238" width="137" height="26" rx="5" fill="#ffffff" stroke="#16a34a"/>
+      <text x="802" y="256">SVG, PNG diagrams</text>
+      <rect x="734" y="268" width="137" height="26" rx="5" fill="#ffffff" stroke="#16a34a"/>
+      <text x="802" y="286">Query results</text>
+      <rect x="734" y="298" width="137" height="26" rx="5" fill="#ffffff" stroke="#16a34a"/>
+      <text x="802" y="316">Model JSON</text>
+    </g>
+    <line x1="694" y1="253" x2="716" y2="253" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+  </g>
+</svg>

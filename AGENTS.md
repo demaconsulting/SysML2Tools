@@ -84,6 +84,7 @@ from `.github/standards/`. Use this matrix to determine which to load:
 - **Requirements**: `requirements-principles.md`, `software-items.md`, `reqstream-usage.md`
 - **Design docs**: `software-items.md`, `design-documentation.md`, `technical-documentation.md`
 - **Verification docs**: `software-items.md`, `verification-documentation.md`, `technical-documentation.md`
+- **Diagrams in documentation**: `diagram-documentation.md` (and the `canvasnet` skill for tooling)
 - **Review configuration**: `software-items.md`, `reviewmark-usage.md`
 - **Any documentation**: `technical-documentation.md`
 

@@ -14,6 +14,8 @@ without requiring a rendered diagram, and the `query` command lets an AI agent a
 architecture and traceability questions (dependencies, requirement trace links, structure,
 behavior) directly from the semantic model instead of reading raw `.sysml` files.
 
+![SysML2Tools architecture: model files flow from the Tool commands through the Core library and the Language library, which is seeded by the Stdlib, to produce diagnostics, diagrams, query results, and model JSON](architecture.svg)
+
 ## Purpose
 
 This guide covers the installation, configuration, and use of SysML2Tools. It describes
