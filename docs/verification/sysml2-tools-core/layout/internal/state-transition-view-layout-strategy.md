@@ -19,7 +19,7 @@ configuration are required beyond a standard .NET SDK installation.
 ##### Acceptance Criteria
 
 - All `StateTransitionViewLayoutStrategyTests` pass with zero failures across all three target frameworks.
-- A state definition yields one state box per state, an initial-state badge, and guard-labelled
+- A state definition yields one state box per state, an initial-state badge, and guard-labeled
   transition lines.
 - A state named only by a transition is still rendered as a box.
 - An outgoing and an incoming transition on the same edge use distinct anchor points.

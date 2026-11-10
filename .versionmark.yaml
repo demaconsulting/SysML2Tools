@@ -77,3 +77,8 @@ tools:
   canvasnet:
     command: dotnet tool list
     regex: '(?i)demaconsulting\.canvasnet\.tool\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'
+
+  # TextLint (DemaConsulting.TextLint.Tool from dotnet tool list)
+  textlint:
+    command: dotnet tool list
+    regex: '(?i)demaconsulting\.textlint\.tool\s+(?<version>\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)'

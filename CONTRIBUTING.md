@@ -188,11 +188,11 @@ All markdown files must follow these rules (enforced by markdownlint):
 
 ### Spell Checking
 
-All files are spell-checked using cspell. **Never** add a word to the `.cspell.yaml` word list in order to silence a
+All files are spell-checked using TextLint. **Never** add a word to the `.textlint.yaml` word list in order to silence a
 spell-checking failure. Doing so defeats the purpose of spell-checking and reduces the quality of the repository.
 
-- If cspell flags a word that is **misspelled**, fix the spelling in the source file.
-- If cspell flags a word that is a **genuine technical term** (tool name, project identifier, etc.) and is spelled
+- If TextLint flags a word that is **misspelled**, fix the spelling in the source file.
+- If TextLint flags a word that is a **genuine technical term** (tool name, project identifier, etc.) and is spelled
   correctly, raise a **proposal** (e.g. comment in a pull request) explaining why the word should be added. The
   proposal must be reviewed and approved before the word is added to the list.
 

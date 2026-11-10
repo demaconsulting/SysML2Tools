@@ -1019,7 +1019,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Recursively translates a list of layout nodes by <paramref name="dx"/>/<paramref name="dy"/>,
-    /// shifting box positions (and their nested children), port centres, and connector waypoints.
+    /// shifting box positions (and their nested children), port centers, and connector waypoints.
     /// Used to re-anchor a container's interior content from its local origin to absolute coordinates.
     /// </summary>
     private static IReadOnlyList<LayoutNode> TranslateNodes(IReadOnlyList<LayoutNode> nodes, double dx, double dy)

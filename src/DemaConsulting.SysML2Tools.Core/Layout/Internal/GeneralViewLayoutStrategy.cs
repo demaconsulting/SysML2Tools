@@ -16,7 +16,7 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 
 /// <summary>
 /// Layout strategy for GeneralView diagrams. Renders every user-defined <c>def</c> element
-/// (part, port, interface, requirement, action, …) as a keyword-labelled box, groups boxes by
+/// (part, port, interface, requirement, action, …) as a keyword-labeled box, groups boxes by
 /// their owning package inside folder-shaped containers, and routes specialization, membership, and
 /// attribute-typing edges orthogonally between the boxes.
 /// </summary>

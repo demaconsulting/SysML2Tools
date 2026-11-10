@@ -33,7 +33,7 @@ Walks the membership forest and emits rows:
    times a fixed indentation, advancing a shared Y cursor downward. Each row becomes a `LayoutBox`
    whose label combines the element keyword and simple name and whose width fits the label.
 4. **Connectors.** For every non-root row a `LayoutLine` is emitted from a vertical stem dropped from
-   the parent row down to the child's vertical centre and across to the child box, so the connector
+   the parent row down to the child's vertical center and across to the child box, so the connector
    never crosses the parent's own box or text.
 5. **Canvas sizing.** The overall width follows the right-most box and the height follows the final
    Y cursor.

@@ -55,7 +55,7 @@ jobs:
           echo "Capturing tool versions..."
           dotnet versionmark --capture --job-id "quality" \
             --output "artifacts/versionmark-quality.json" -- \
-            dotnet git versionmark
+            dotnet git versionmark textlint
           echo "✓ Tool versions captured"
 
       # === CAPTURE OTS SELF-VALIDATION RESULTS ===
@@ -489,7 +489,7 @@ jobs:
           dotnet versionmark --capture --job-id "build-docs" \
             --output "artifacts/versionmark-build-docs.json" -- \
             dotnet git node npm pandoc weasyprint sarifmark sonarmark reqstream \
-            buildmark versionmark reviewmark fileassert canvasnet
+            buildmark versionmark reviewmark fileassert canvasnet textlint
           echo "✓ Tool versions captured"
 
       # === PREPARE DOCUMENT OUTPUT ===

@@ -24,7 +24,7 @@ query-filters:
       - src/DemaConsulting.SysML2Tools/PathHelpers.cs
 
   # Suppress false positives in ANTLR4-generated parser files.
-  # These are mechanical code generation artefacts, not hand-written logic.
+  # These are mechanical code generation artifacts, not hand-written logic.
   - exclude:
       id: cs/complex-condition
     paths:

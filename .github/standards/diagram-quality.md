@@ -32,7 +32,7 @@ For each **block** in the diagram:
 
 - Label is fully visible and not clipped by the box boundary
 - Does not overlap any other block
-- Has a non-zero gap to every neighbouring block — wide enough to fit the
+- Has a non-zero gap to every neighboring block — wide enough to fit the
   largest connector decoration (diamond, arrowhead) between them without clipping
 - Is positioned near the blocks it connects to — no block is isolated far
   from all its neighbours
@@ -101,7 +101,7 @@ Do NOT say "looks good" or "appears correct" in aggregate.
 
 [B1] No two blocks overlap.
 
-[B2] Every block has a non-zero visible gap to every neighbouring block —
+[B2] Every block has a non-zero visible gap to every neighboring block —
      large enough to fit the largest connector decoration (diamond, arrowhead)
      between them without clipping.
 

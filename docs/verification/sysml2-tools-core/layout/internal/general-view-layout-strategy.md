@@ -25,7 +25,7 @@ configuration are required beyond a standard .NET SDK installation.
 - All `GeneralViewLayoutStrategyTests` pass with zero failures across all three target frameworks.
 - Each user definition appears as a box carrying its definition keyword.
 - When the view has no resolved `expose` scope, a bare package's definitions appear inside a
-  folder-shaped box labelled with the package name.
+  folder-shaped box labeled with the package name.
 - A definition that owns nested definitions appears as exactly one box, with its nested
   definitions placed inside that box (as its own `Children`) rather than as a duplicate sibling
   container — regardless of whether the view is scoped or unscoped.

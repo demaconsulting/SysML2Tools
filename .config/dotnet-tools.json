@@ -78,6 +78,13 @@
         "canvasnet"
       ],
       "rollForward": false
+    },
+    "demaconsulting.textlint.tool": {
+      "version": "0.1.0-beta.2",
+      "commands": [
+        "textlint"
+      ],
+      "rollForward": false
     }
   }
 }

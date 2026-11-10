@@ -103,7 +103,7 @@ evaluated independently and combined with a boolean OR, since both are legitimat
 `@` classification-test semantics (metaclass membership *or* explicit domain metadata).
 
 `MatchesMetaclassKind` maps the candidate's own AST node kind — `SysmlDefinitionNode.DefinitionKeyword`
-or `SysmlFeatureNode.FeatureKeyword` — to a built-in SysML metaclass's bare (simple) name via the
+or `SysmlFeatureNode.FeatureKeyword` — to the bare (simple) name of a built-in SysML metaclass via the
 static `MetaclassNames` lookup table, then checks whether the requested `typeName` matches that
 bare name directly, or matches the canonical `SysML::`-qualified spelling (`"SysML::" + name`) —
 the spelling real-world corpus filters use (e.g. `filter @SysML::PartUsage;`), which does *not*

@@ -18,7 +18,7 @@ graph-drawing problems and use bespoke structured layouts.
 ## General View
 
 **What this view shows**: all user-defined SysML definitions (part def, port def, attribute def,
-action def, interface def, and so on) as labelled boxes with a stereotype keyword; specialization
+action def, interface def, and so on) as labeled boxes with a stereotype keyword; specialization
 and membership edges between them; optional grouping of definitions into package folders.
 
 **How the algorithm applies**: definitions and their relationship edges are laid out by the layered
@@ -74,7 +74,7 @@ from tangling; and orthogonal routing separates concurrent successions into dist
 
 ## Sequence View
 
-**What this view shows**: lifelines as vertical stems with labelled head boxes arranged horizontally;
+**What this view shows**: lifelines as vertical stems with labeled head boxes arranged horizontally;
 messages as horizontal arrows between lifelines, ordered top-to-bottom.
 
 **How the algorithm applies**: this is a hard-notation layout and does not use the graph-drawing

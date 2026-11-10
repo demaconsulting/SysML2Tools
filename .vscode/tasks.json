@@ -90,12 +90,10 @@
     },
     {
       "label": "spell check",
-      "command": "npx",
+      "command": "dotnet",
       "type": "shell",
       "args": [
-        "cspell",
-        "\"**/*.{cs,md,json,yaml,yml}\"",
-        "--no-progress"
+        "textlint"
       ],
       "problemMatcher": [],
       "presentation": {

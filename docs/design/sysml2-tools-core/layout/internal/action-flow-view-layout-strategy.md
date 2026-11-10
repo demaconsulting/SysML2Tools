@@ -53,7 +53,7 @@ collected item records its real `Kind` alongside its name.
 `"fork"`) to a fixed `ControlNodeBadgeSize` square, independent of the name's length; box-kind
 items (`"action"`, `"accept"`, `"send"`) keep the existing name-length-driven
 `MinActionWidth`/`CharWidthFactor` sizing. `MakeActionNode` is a router that replaces the former
-`MakeActionBox`: `"merge"`/`"decide"` map their placed rectangle's centre to a
+`MakeActionBox`: `"merge"`/`"decide"` map their placed rectangle's center to a
 `LayoutBadge(CentreX, CentreY, Size, BadgeShape.Diamond, Label)`; `"fork"`/`"join"` map to a
 `LayoutBadge(..., BadgeShape.HorizontalBar, Label)`; `"accept"`/`"send"` and ordinary `"action"`
 items map to an unchanged `LayoutBox(BoxShape.RoundedRectangle, ...)`, except that `"accept"`/
@@ -90,7 +90,7 @@ Each succession is emitted as a dashed `LayoutLine` with an open chevron end mar
 (`EndMarkerStyle.OpenChevron`) at the target, matching SysML v2 succession notation. The method counts
 and returns the number of successions whose polyline crosses a non-endpoint action box (`CrossesNonEndpointBox`
 / `SegmentIntersectsRect`). `AddStartAndDone` places a filled-circle start marker
-centred over the actions with no incoming edge and a bullseye done marker centred under the actions
+centered over the actions with no incoming edge and a bullseye done marker centered under the actions
 with no outgoing edge, joining each with a solid filled-arrow flow line.
 
 ##### Expose Scoping

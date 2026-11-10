@@ -307,7 +307,7 @@ public sealed class ActionFlowViewLayoutStrategyTests
             .ToList();
         Assert.Single(startFlows);
         Assert.True(Math.Abs(startFlows[0].Waypoints[^1].X - (a.X + (a.Width / 2.0))) < 1e-6,
-            "the start connector should enter the top centre of action 'a'.");
+            "the start connector should enter the top center of action 'a'.");
         var doneFlows = solidFlows
             .Where(l => Math.Abs(l.Waypoints[0].Y - (d.Y + d.Height)) < 1e-6)
             .ToList();

@@ -123,7 +123,7 @@ configuration are required beyond a standard .NET SDK installation.
 - A part with a high connection degree still produces non-overlapping boxes and a labeled port for
   every incident connection, now that box sizing and port spacing are fully delegated to the
   layered engine instead of the removed `MinPortSlot`/`ConnectorClearance` heuristic.
-- No left/right port's centre falls within its owning part box's own title area, even under a high
+- No left/right port's center falls within its owning part box's own title area, even under a high
   connection count — the layered algorithm's automatic title-vs-side-port reservation, activated by
   flagging every part node `HasLabel: true, HasKeyword: true`, keeps ports clear of the box's own
   "«keyword» / name : type" header row.
