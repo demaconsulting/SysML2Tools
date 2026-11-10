@@ -78,7 +78,7 @@ The placed coordinates
 are normalized so the content starts at a margin offset
 (reserving room at the top for the initial marker), and the canvas is sized to the full content
 extent, including routed transition polylines that can bulge beyond the box columns and the actual
-rendered extent of each guard label. Because guard labels are drawn centred on their segment
+rendered extent of each guard label. Because guard labels are drawn centered on their segment
 midpoints with `ConnectorLabelPlacer` from `DemaConsulting.Rendering.Abstractions`, only the part of a
 label that genuinely overhangs the content widens the canvas: labels sitting on interior vertical
 segments add little or nothing.
@@ -89,7 +89,7 @@ segments add little or nothing.
 transitions sharing one routed corridor are spread laterally so their anchor points and guard labels
 do not coincide. Each transition is emitted with an open chevron end marker
 (`EndMarkerStyle.OpenChevron`, drawn open in both renderers) at the target state, matching SysML v2
-state transition notation, and labelled with its bracketed guard. A self-transition is drawn as a
+state transition notation, and labeled with its bracketed guard. A self-transition is drawn as a
 small loop above its state, also terminated by an open chevron end marker. The method returns the
 number of transitions whose polyline crosses a non-endpoint state box.
 
@@ -123,7 +123,7 @@ than a genuine declared state — the OMG Annex A.7 idioms `first start then off
 `entry action initial; then off;` both produce a `SysmlTransitionNode` whose `Source` is such a
 name. Neither name is ever separately declared as a `state` usage, so before this exclusion
 existed, `CollectStates`'s "additional state referenced only by a transition endpoint" pass would
-synthesize a spurious box labelled `"start"` (or the entry action's name) purely because a
+synthesize a spurious box labeled `"start"` (or the entry action's name) purely because a
 transition referenced it — a state box for something that is not a state. `CollectStates` now
 seeds a `pseudoSourceNames` set with the literal names `"start"` and `"done"` plus every declared
 `entry`-keyword feature's `Name`, and skips adding a transition's source-side name to the state

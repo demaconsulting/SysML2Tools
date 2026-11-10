@@ -47,7 +47,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: two state boxes, an initial badge, and a guard-labelled transition line
+        // Assert: two state boxes, an initial badge, and a guard-labeled transition line
         Assert.Equal(2, layout.Nodes.OfType<LayoutBox>().Count(b => b.Keyword == "state"));
         Assert.Contains(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.FilledCircle);
         Assert.Contains(layout.Nodes.OfType<LayoutLine>(), l => l.MidpointLabel == "[t]");
@@ -572,7 +572,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     No state box is ever labelled <c>"start"</c> — a pseudostate-sourced transition's source
+    ///     No state box is ever labeled <c>"start"</c> — a pseudostate-sourced transition's source
     ///     must be excluded from ordinary state-box rendering (it would otherwise be synthesized as
     ///     an "additional state referenced only by a transition endpoint").
     /// </summary>

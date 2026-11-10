@@ -163,7 +163,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     No left/right port's centre falls within its owning part box's own title area. This
+    ///     No left/right port's center falls within its owning part box's own title area. This
     ///     guards the label-collision defect fixed by flagging every part node as carrying a title
     ///     (<c>HasLabel</c>/<c>HasKeyword</c>) when handed to the layered algorithm (see
     ///     <see cref="LayeredPlacement.PlaceWithPorts"/>), which activates the engine's automatic
@@ -201,7 +201,7 @@ public sealed class InterconnectionViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: every left/right port's centre sits at or below its owning box's title area, never
+        // Assert: every left/right port's center sits at or below its owning box's title area, never
         // inside the header row where the box's "«keyword» / name : type" title is drawn.
         var partBoxes = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
         var titleArea = BoxMetrics.TitleAreaHeight(options.Theme, hasLabel: true, hasKeyword: true);

@@ -128,7 +128,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
         // Size the canvas to the actual rendered content: state boxes plus routed transition
         // polylines (back edges can bulge beyond the box columns), the initial marker, and the
-        // guard labels. Guard labels are drawn centred on their segment midpoints, so most sit on
+        // guard labels. Guard labels are drawn centered on their segment midpoints, so most sit on
         // interior vertical segments already inside the content extent and add nothing; only the
         // part of a label that genuinely overhangs the polyline extent enlarges the canvas. We size
         // to each label's true rendered right edge (computed with the same placer the renderers use)
@@ -181,9 +181,9 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Returns the maximum X reached by any rendered guard label. Labels are placed with the same
-    /// <see cref="ConnectorLabelPlacer"/> the SVG and PNG renderers use and drawn centred
+    /// <see cref="ConnectorLabelPlacer"/> the SVG and PNG renderers use and drawn centered
     /// (<c>text-anchor="middle"</c>) on their chosen segment midpoint, so a label's true right edge
-    /// is its centre X plus half its rendered text width. Most guard labels sit on interior vertical
+    /// is its center X plus half its rendered text width. Most guard labels sit on interior vertical
     /// segments and do not overhang the content, so this typically adds little or nothing.
     /// </summary>
     private static double LabelRightExtent(IReadOnlyList<LayoutNode> nodes, Theme theme)
@@ -423,7 +423,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     /// <summary>Adds the initial pseudo-state marker and its arrow into the first state.</summary>
     private static void AddInitialMarker(Rect first, List<LayoutNode> nodes)
     {
-        // Place the marker above the first state, centred horizontally.
+        // Place the marker above the first state, centered horizontally.
         var markerX = first.X + (first.Width / 2.0);
         var markerY = first.Y - InitialMarkerSize - InitialMarkerGap;
 
@@ -635,7 +635,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             MidpointLabel: label);
     }
 
-    /// <summary>Returns the centre point of a rectangle.</summary>
+    /// <summary>Returns the center point of a rectangle.</summary>
     private static Point2D Centre(Rect rect) =>
         new(rect.X + (rect.Width / 2.0), rect.Y + (rect.Height / 2.0));
 

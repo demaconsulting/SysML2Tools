@@ -54,7 +54,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
     /// of <c>"action"</c> (ordinary action box, or a succession-endpoint-only fallback — the default),
     /// <c>"merge"</c>/<c>"decide"</c>/<c>"join"</c>/<c>"fork"</c> (rendered as a badge), or
     /// <c>"accept"</c>/<c>"send"</c> (rendered as a rounded-rectangle box, like an ordinary action,
-    /// but labelled with its own distinct keyword).
+    /// but labeled with its own distinct keyword).
     /// </summary>
     private sealed record ActionItem(string Name, double Width, double Height, string Kind = "action");
 
@@ -298,7 +298,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
     /// <summary>
     /// Creates the layout node for an action-flow item at the given placed rectangle: a
     /// <see cref="BadgeShape.Diamond"/> badge for decision/merge, a <see cref="BadgeShape.HorizontalBar"/>
-    /// badge for fork/join, or a rounded-rectangle box (labelled with its own distinct keyword) for
+    /// badge for fork/join, or a rounded-rectangle box (labeled with its own distinct keyword) for
     /// ordinary actions and accept/send nodes. Ordinary-action (<c>"action"</c>) rendering is
     /// byte-for-byte identical to before this branch. A synthetic <c>$</c>-prefixed internal name
     /// (assigned by <c>AstBuilder</c> to an anonymous control node) is never shown as a label.
@@ -373,7 +373,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             var poly = edgePolylines[e];
 
             // The algorithm routes every edge, so poly normally has >= 2 points; fall back to a
-            // straight segment between the (already-offset) box centres only if it does not.
+            // straight segment between the (already-offset) box centers only if it does not.
             var waypoints = poly.Count >= 2
                 ? poly.Select(p => new Point2D(p.X + offsetX, p.Y + offsetY)).ToList()
                 : [Centre(rects[from]), Centre(rects[to])];
@@ -563,7 +563,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         return lower < upper;
     }
 
-    /// <summary>Returns the centre point of a rectangle.</summary>
+    /// <summary>Returns the center point of a rectangle.</summary>
     private static Point2D Centre(Rect rect) =>
         new(rect.X + (rect.Width / 2.0), rect.Y + (rect.Height / 2.0));
 

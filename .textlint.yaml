@@ -1,0 +1,171 @@
+---
+# Spell-Checking with TextLint
+#
+# PURPOSE:
+# - Maintain professional documentation and code quality
+# - Catch spelling errors before publication
+# - Support consistent technical terminology usage
+# - Misspelled words should be fixed in the source
+# - NEVER add a misspelled word to the 'words' list
+# - PROPOSE only genuine technical terms/names as needed
+
+version: "0.2"
+language: en
+
+# Files to spell-check; enableGlobDot includes hidden paths such as .github/
+enableGlobDot: true
+files:
+  - "**/*.{md,yaml,yml,json,cs,cpp,hpp,h,txt}"
+
+# Project-specific technical terms and tool names
+words:
+  - Acyclicity
+  - Allman
+  - analyse
+  - analysing
+  - behaviour
+  - Behaviour
+  - Blockquotes
+  - boxless
+  - Boxless
+  - Brandes
+  - buildtransitive
+  - centre
+  - Centre
+  - centrepiece
+  - colour
+  - colours
+  - contentfiles
+  - daltskin
+  - dcterms
+  - dedup
+  - Dedup
+  - dema
+  - Dema
+  - DEMA
+  - demaconsulting
+  - DEMACONSULTINGNUGETKEY
+  - Dlanguage
+  - doctitle
+  - docversion
+  - Eades
+  - emphasised
+  - façade
+  - Fruchterman
+  - Gansner
+  - generalisation
+  - gmock
+  - Hanan
+  - hdir
+  - hier
+  - Hier
+  - Holten
+  - initialised
+  - Innovus
+  - interp
+  - KEBNF
+  - kerml
+  - Köpf
+  - Koutsofios
+  - LNCS
+  - longedge
+  - materialised
+  - materialises
+  - MBSE
+  - metaclass
+  - Metaclass
+  - metaclasses
+  - Metaobjects
+  - minimisation
+  - minimise
+  - minimiser
+  - minimises
+  - ncipollo
+  - neighbour
+  - Neighbour
+  - neighbours
+  - nestings
+  - NETSDK
+  - normalised
+  - noviews
+  - optimise
+  - optimised
+  - opto
+  - Opto
+  - ordinally
+  - pagetitle
+  - posis
+  - Precomputes
+  - Premul
+  - pseudostate
+  - Pseudostate
+  - pseudostates
+  - Quadcopter
+  - quadtree
+  - quantisation
+  - Quantisation
+  - quantise
+  - quantised
+  - quantises
+  - Quantises
+  - quantising
+  - Qube
+  - recognised
+  - recognises
+  - Reingold
+  - renderable
+  - resx
+  - Resx
+  - sarif
+  - Sarif
+  - SARIF
+  - selfloop
+  - Setext
+  - slnx
+  - Smyth
+  - snupkg
+  - sonarscanner
+  - subitising
+  - subsetted
+  - Subsetted
+  - subsetting
+  - Subsetting
+  - subsettings
+  - superclassing
+  - Superclassing
+  - supertypes
+  - Supertypes
+  - Tagawa
+  - tertile
+  - thirdparty
+  - Toda
+  - uncongested
+  - unidirectionality
+  - uppercased
+  - vdir
+  - venv
+  - visualisation
+  - VLSI
+  - Werror
+  - Wextra
+  - yamlfix
+  - Δlevel
+
+# Exclude common build artifacts, dependencies, and vendored third-party code
+ignorePaths:
+  - "**/.git/**"
+  - "**/node_modules/**"
+  - "**/.venv/**"
+  - "**/thirdparty/**"
+  - "**/third-party/**"
+  - "**/3rd-party/**"
+  - "**/generated/**"
+  - "**/api/**"  # ApiMark-generated Markdown API reference docs
+  - "**/Parser/Antlr/**"
+  - "**/Stdlib/**"
+  - "**/AGENT_REPORT_*.md"
+  - "**/.agent-logs/**"
+  - "ROADMAP.md"
+  - "**/bin/**"
+  - "**/obj/**"
+  - package-lock.json

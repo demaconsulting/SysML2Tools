@@ -239,7 +239,7 @@ node by its parent, which is laid out with the **same** flat placement.
 - **Positioning.** `MakePartBox` builds a leaf box with empty `Children` (unchanged), and a
   container box whose `Children` are its `InnerContent` translated from the child's local origin
   `(0, 0)` to the box's absolute top-left by `TranslateNodes`, which recursively shifts box
-  positions (and their nested children), port centres, and connector waypoints. The interior was
+  positions (and their nested children), port centers, and connector waypoints. The interior was
   laid out reserving its own title area, so the inner part boxes land below the container's
   "name : Type" title, inside its border. Box `Depth` increases by one per level (the renderer
   indexes `DepthFillColors` by modulo, so any depth is safe). The root container box mirrors this

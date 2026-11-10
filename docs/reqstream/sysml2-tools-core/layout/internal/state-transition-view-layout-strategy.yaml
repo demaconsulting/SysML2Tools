@@ -12,12 +12,12 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-States
         title: >-
           StateTransitionViewLayoutStrategy shall render a box for each state, an initial
-          pseudo-state marker, and connect transitions as arrows labelled with their guard
+          pseudo-state marker, and connect transitions as arrows labeled with their guard
           conditions.
         justification: |
           A State Transition View exists to show the states of a machine, where it starts, and how
           it moves between states under guarded transitions. The state boxes, initial marker, and
-          guard-labelled arrows are the observable content the view must provide.
+          guard-labeled arrows are the observable content the view must provide.
         tests:
           - StateTransitionView_BuildLayout_StatesAndTransitions_ProducesBoxesBadgeAndLines
 
@@ -154,7 +154,7 @@ sections:
           A pseudostate ("start"/"done") or entry-action-kind transition source is not itself a
           state and must never be drawn as one; without this exclusion, the existing
           "additional states referenced only by a transition endpoint" pass would synthesize a
-          spurious box labelled "start" (or the entry action's name) for every model using the
+          spurious box labeled "start" (or the entry action's name) for every model using the
           attached-transition or entry-action-transition idiom, since that source name is never
           separately declared as a state. Only the transition source side is excluded — the
           target side of any transition is unaffected.

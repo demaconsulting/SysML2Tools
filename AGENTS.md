@@ -61,7 +61,7 @@ before searching the filesystem.
 - **`.config/dotnet-tools.json`** - Local tool manifest for Continuous Compliance tools
 - **`.editorconfig`** - Code formatting rules
 - **`.clang-format`** - C/C++ formatting (if applicable)
-- **`.cspell.yaml`** - Spell-check configuration and technical term dictionary
+- **`.textlint.yaml`** - Spell-check configuration and technical term dictionary (TextLint)
 - **`.markdownlint-cli2.yaml`** - Markdown formatting rules
 - **`.yamllint.yaml`** - YAML formatting configuration
 - **`.reviewmark.yaml`** - File review definitions and tracking
@@ -139,7 +139,7 @@ responsibility - invoke the lint-fix agent once before submitting a pull request
 
 ## CI Quality Tools
 
-CI runs `lint.ps1` which checks: markdownlint-cli2, cspell, yamllint, dotnet format,
+CI runs `lint.ps1` which checks: markdownlint-cli2, textlint, yamllint, dotnet format,
 reqstream, versionmark, and reviewmark.
 
 # Scope Discipline (ALL Agents Must Follow)
@@ -160,7 +160,7 @@ These files contain carefully designed configuration with documented intent
 in header comments. Agents MUST NOT modify them unless the task explicitly
 requires it and the modification preserves the documented design intent:
 
-- `.reviewmark.yaml`, `.cspell.yaml`, `.editorconfig`
+- `.reviewmark.yaml`, `.textlint.yaml`, `.editorconfig`
 - `.markdownlint-cli2.yaml`, `.yamllint.yaml`
 - `requirements.yaml`, `fix.ps1`, `lint.ps1`
 
