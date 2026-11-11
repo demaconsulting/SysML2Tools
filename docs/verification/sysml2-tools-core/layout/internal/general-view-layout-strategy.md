@@ -274,6 +274,10 @@ configuration are required beyond a standard .NET SDK installation.
   Three sibling packages each defining and using a same-named `Checker` part def render three
   `Checker` boxes, and each package folder holds exactly one filled-diamond membership edge between
   its own two boxes (no cross-package wiring to the first same-named definition)
+- `GeneralViewLayoutStrategy_BuildLayout_SimpleNameFallback_ReportsWarning`:
+  A type reference that does not resolve by SysML v2 name resolution reports a warning naming it
+- `GeneralViewLayoutStrategy_BuildLayout_UnrenderedQualifiedEndpoint_IsNotMappedBySimpleName`:
+  A dependency endpoint outside the exposed scope is not re-mapped to a same-named rendered box
 - `GeneralViewLayoutStrategy_BuildLayout_RequirementSubject_UsesGuillemetTitle`:
   A `"subject"`-keyword feature compartment is titled `«subject»`, not the generic pluralized form
 - `GeneralViewLayoutStrategy_BuildLayout_ConstraintFeatures_ShowExpressionText`:

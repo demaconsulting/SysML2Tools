@@ -58,6 +58,9 @@ system, subsystem, and unit levels:
         redefinition, import, satisfy, verify, allocate, expose, and (in a second pass) dotted
         feature-chain connect/transition references; detects circular imports; returns a
         `SemanticIndex` of resolved edges
+      - **NameResolver** (Unit) — public KerML 8.2.3.5 name resolver (owned, imported, inherited,
+        aliased, and short-named memberships; full and visible resolution) used by layout
+        strategies for references the semantic model did not resolve
       - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
       - **SysmlEdge** (Unit) — public resolved-reference record (Supertype/Typing/MetadataType/
         Import/Expose/Redefinition/Satisfy/Verify/Allocate/Connect/Transition)
@@ -202,7 +205,7 @@ reviewers an explicit navigation aid from design to code:
       - **Internal/** — internal implementation (SysmlDiagnosticListener)
     - **Semantic/** — semantic model subsystem
       - **Model/** — public semantic model types (SysmlNode, SysmlMetadataNode, AstBuilder,
-        SymbolTable, ReferenceResolver, SupertypeWalker, SysmlEdge, SemanticIndex,
+        SymbolTable, ReferenceResolver, NameResolver, SupertypeWalker, SysmlEdge, SemanticIndex,
         SysmlAnnotation, SerializedStdlib, AstSerializerContext)
   - **DemaConsulting.SysML2Tools.Stdlib/** — stdlib library
     - **Stdlib/** — SysML v2 standard library source files (EPL-2.0; see Stdlib/README.md)

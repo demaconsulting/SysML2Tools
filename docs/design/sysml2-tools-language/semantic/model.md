@@ -5,9 +5,9 @@
 The Semantic Model subsystem provides the public semantic model types (`SysmlNode` and its
 subtypes, `SysmlMetadataNode`, `SysmlEdge`, `SysmlAnnotation`, `SemanticIndex`) alongside the
 internal build/resolve implementation of the semantic loading pipeline (`AstBuilder`,
-`SymbolTable`, `ReferenceResolver`, `SupertypeWalker`). It contains nine units: `AstBuilder`,
-`SymbolTable`, `ReferenceResolver`, `SupertypeWalker`, `SysmlNode`, `SysmlMetadataNode`,
-`SysmlEdge`, `SemanticIndex`, and `SysmlAnnotation`.
+`SymbolTable`, `ReferenceResolver`, `SupertypeWalker`) and the public `NameResolver`. It contains
+ten units: `AstBuilder`, `SymbolTable`, `ReferenceResolver`, `NameResolver`, `SupertypeWalker`,
+`SysmlNode`, `SysmlMetadataNode`, `SysmlEdge`, `SemanticIndex`, and `SysmlAnnotation`.
 
 #### Interfaces
 
@@ -35,6 +35,13 @@ and supertype/typing/metadata-type/import reference resolution over all loaded f
   chains; attaches resolved `SysmlEdge` entries to each node's `ResolvedEdges`; returns a
   `SemanticIndex` over all resolved edges.
 
+**`NameResolver.Resolve(string, string?)`**: Resolves qualified-name text per KerML 8.2.3.5.
+
+- *Type*: In-process .NET public method (also `ResolveRedefinedFeature`, `ResolveWithFallback`).
+- *Role*: Provider.
+- *Contract*: Accepts a reference and the local namespace's qualified name; returns the resolved
+  element's qualified name, or `null` when it does not resolve.
+
 **`SupertypeWalker.WalkAll()`**: Traverses all specialization chains to detect cyclic specialization.
 
 - *Type*: In-process .NET internal method.
@@ -58,6 +65,7 @@ over resolved edges.
 | `AstBuilder` | Visits ANTLR4 CST; builds typed AST nodes, metadata children, and raw view-filter text |
 | `SymbolTable` | Registry mapping fully-qualified names to their AST nodes |
 | `ReferenceResolver` | Resolves supertype, typing, redefinition, metadata-type, import, and other references |
+| `NameResolver` | Resolves names per KerML 8.2.3.5 (owned/imported/inherited/alias; full and visible) |
 | `SupertypeWalker` | Walks specialization chains; detects cyclic specialization |
 | `SysmlNode` | Public abstract base record (and core subtypes) modeling one parsed AST element |
 | `SysmlMetadataNode` | Public node type modeling one applied metadata annotation and its captured values |

@@ -3834,6 +3834,86 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     AstBuilder records each membership's declared visibility (public by default; imports
+    ///     private by default), short name, and alias memberships with their target text.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_VisibilityShortNameAndAlias_Captured()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    private part def <h> Hidden;
+                    part def Shown;
+                    import Other::*;
+                    public import Other::Thing;
+                    alias ShownAlias for Shown;
+                }
+                package Other { part def Thing; }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var hidden = result.Workspace.Declarations["P::Hidden"];
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlVisibility.Private, hidden.Visibility);
+            Assert.Equal("h", hidden.ShortName);
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlVisibility.Public, result.Workspace.Declarations["P::Shown"].Visibility);
+            var imports = result.Workspace.Declarations["P"].Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlImportNode>().ToList();
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlVisibility.Private, imports[0].Visibility);
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlVisibility.Public, imports[1].Visibility);
+            var alias = Assert.Single(result.Workspace.Declarations["P"].Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlAliasNode>());
+            Assert.Equal("ShownAlias", alias.Name);
+            Assert.Equal("Shown", alias.TargetName);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A simple name declared in an enclosing namespace resolves there before a same-named
+    ///     top-level element of another root namespace (here the standard library's <c>Base</c>
+    ///     package), per KerML 8.2.3.5.4 full resolution.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_LocalNameShadowsGlobalLibraryName_ResolvesLocal()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P { part def Base; part def Derived :> Base; }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var edge = Assert.Single(
+                result.Workspace.Declarations["P::Derived"].ResolvedEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Supertype);
+            Assert.Equal("P::Base", edge.TargetQualifiedName);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     When sibling packages each define and use a part def with the same simple name, each
     ///     usage's typing resolves to the definition in its own owning package (SysML v2 lexical
     ///     scoping), not to the first same-named definition in the workspace.

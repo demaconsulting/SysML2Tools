@@ -95,6 +95,15 @@ Reads the attribute value and compares it against the literal using `ValuesEqual
 or absent attributes evaluate conservatively as false regardless of operator; there is no implicit
 three-valued logic or default-value synthesis in Phase 1.
 
+##### `FilterExpressionEvaluator.CreateNameResolver(workspace)`
+
+Creates a Language `NameResolver` (KerML 8.2.3.5) over the workspace's declarations whose
+filtered-import predicate parses the import's bracketed filter text with
+`FilterExpressionParser.Parse` and admits a candidate only when `Evaluate` matches it (SysML 7.5.4:
+a filtered import imports a membership only if it satisfies all its filter conditions). A filter
+that does not parse admits every candidate. The layout strategies use this resolver for references
+the semantic model did not resolve.
+
 ##### Metaclass/kind classification-test matching (Phase 2d)
 
 A classification test (`@Type`/`@Pkg::Type`) matches when *either* `FindMetadata` succeeds
@@ -240,6 +249,9 @@ lexer/recursive-descent-parser internals could violate that contract despite `Pa
   pretty-printer, and evaluator directly.
 
 #### Requirements Traceability
+
+- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-FilteredImportNameResolution` —
+  `FilterExpressionEvaluator.CreateNameResolver`
 
 - `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-ClassificationTests` —
   `FilterExpressionParser.Parse`, `FilterExpressionEvaluator.FindMetadata`,

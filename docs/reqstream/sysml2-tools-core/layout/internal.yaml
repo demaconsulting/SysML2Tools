@@ -72,6 +72,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-MergeParallelEdgesOptOut
           - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-IndentedTree
           - SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-SpecializationMatrix
+          - SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-SameNamedSupertypes
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_OneUserPartDef_ProducesLayoutBox
           - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
@@ -234,6 +235,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-CrossingWarning
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedFilter
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedExposeBracketFilter
+          - SysML2Tools-Core-Layout-Internal-LayoutWarnings-SimpleNameFallback
         tests:
           - ForCrossings_Zero_ReturnsEmpty
           - ForCrossings_One_ReturnsSingularWarning

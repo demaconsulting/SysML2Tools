@@ -98,3 +98,15 @@ sections:
           - WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName
           - WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText
           - WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-MembershipVisibilityAndAliases
+        title: >-
+          SysmlNode shall expose each element's membership Visibility (public, protected, or
+          private) and ShortName, SysmlImportNode shall expose IsImportAll, and SysmlAliasNode shall
+          represent an alias membership's name, short name, and aliased qualified-name text.
+        justification: |
+          KerML 8.2.3.5.3 name resolution depends on member names, short names, alias memberships,
+          and visibility (visible resolution admits only public memberships), so these must be
+          observable in the semantic model.
+        tests:
+          - WorkspaceLoader_LoadAsync_VisibilityShortNameAndAlias_Captured

@@ -407,8 +407,12 @@ internal sealed class ReferenceResolver
         IReadOnlyList<SysmlImportNode> imports,
         out string resolvedName)
     {
-        // Step 1: Direct lookup — handles already-qualified names
-        if (_symbolTable.Contains(name))
+        // Step 1: Direct lookup — handles already-qualified names. A simple name is looked up in
+        // the global namespace only after the enclosing namespaces and imports (Steps 2-4), per
+        // KerML 8.2.3.5.4 full resolution (local resolution outward before the global namespace),
+        // so e.g. a local `Base` is not shadowed by the standard library's top-level `Base` package.
+        var isQualified = name.Contains("::", StringComparison.Ordinal);
+        if (isQualified && _symbolTable.Contains(name))
         {
             resolvedName = name;
             return true;
@@ -488,6 +492,13 @@ internal sealed class ReferenceResolver
                 resolvedName = candidate;
                 return true;
             }
+        }
+
+        // Step 5: Global namespace — a simple name naming a top-level element (see Step 1).
+        if (!isQualified && _symbolTable.Contains(name))
+        {
+            resolvedName = name;
+            return true;
         }
 
         resolvedName = string.Empty;

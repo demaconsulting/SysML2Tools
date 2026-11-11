@@ -215,8 +215,10 @@ node by its parent, which is laid out with the **same** flat placement.
   `CollectParts` resolves its type against that index (`TryResolveContainer` → `ResolveByTyping`):
   first via the part's resolved `Typing` edge from the semantic model (an authoritative target that
   is not a container makes the part a leaf — it never falls back to a same-named container
-  elsewhere); otherwise from the raw `FeatureTyping` text as a qualified name, then relative to each
-  namespace enclosing the part (innermost first), then by simple name. A part whose type resolves
+  elsewhere); otherwise by KerML 8.2.3.5 name resolution of the raw `FeatureTyping` text relative to the part's
+  owning namespace (the private `DefinitionIndex` wraps the container map and a `NameResolver`
+  from `FilterExpressionEvaluator.CreateNameResolver`), and only then by the bare simple-name
+  fallback, which records a `LayoutWarnings.ForSimpleNameFallback` warning on the returned tree. A part whose type resolves
   to a container, and whose type is not already
   on the recursion path, is a container, and every other part is a leaf. `FindRoot`'s
   composition-graph check uses the same `ResolveByTyping`.

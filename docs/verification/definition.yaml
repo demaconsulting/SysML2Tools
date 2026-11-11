@@ -39,6 +39,7 @@ input-files:
   - docs/verification/sysml2-tools-language/semantic/model/symbol-table.md
   - docs/verification/sysml2-tools-language/semantic/model/ast-builder.md
   - docs/verification/sysml2-tools-language/semantic/model/reference-resolver.md
+  - docs/verification/sysml2-tools-language/semantic/model/name-resolver.md
   - docs/verification/sysml2-tools-language/semantic/model/supertype-walker.md
   - docs/verification/sysml2-tools-stdlib.md
   - docs/verification/sysml2-tools-stdlib/stdlib-provider.md

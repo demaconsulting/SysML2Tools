@@ -544,6 +544,77 @@ public sealed class GeneralViewLayoutStrategyTests
         }
     }
 
+    /// <summary>
+    ///     A <c>dependency</c> whose endpoint is a definition outside the exposed scope is not
+    ///     re-mapped to a same-named definition that is rendered: endpoints from the semantic index
+    ///     are already qualified, so no simple-name matching is applied to them.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UnrenderedQualifiedEndpoint_IsNotMappedBySimpleName()
+    {
+        // Arrange: PkgA::X depends on PkgB::Y, and the view exposes only PkgB (which has its own X)
+        const string sysml = """
+            package PkgA { part def X; }
+            package PkgB { part def X; part def Y; }
+            package Diagrams { dependency PkgA::X to PkgB::Y; view V { expose PkgB::**; } }
+            """;
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<SysmlViewNode>(result.Workspace.Declarations["Diagrams::V"]);
+
+            // Act
+            var layout = new GeneralViewLayoutStrategy().BuildLayout(
+                new ViewContext("V", result.Workspace, view), new RenderOptions(Themes.Light));
+
+            // Assert: no dependency (dashed open-chevron) line between PkgB::X and PkgB::Y
+            Assert.DoesNotContain(CollectLines(layout.Nodes), l =>
+                l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A type reference that does not resolve by SysML v2 name resolution (no import, not in an
+    ///     enclosing namespace) is still matched by simple name, but a warning naming the reference
+    ///     is reported instead of silently guessing.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_SimpleNameFallback_ReportsWarning()
+    {
+        // Arrange: Consumer types its part by Engine without importing Lib
+        const string sysml = """
+            package Lib { part def TurboEngineX; }
+            package App { part def Consumer { part engine : TurboEngineX; } }
+            """;
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+
+            // Act
+            var layout = new GeneralViewLayoutStrategy().BuildLayout(
+                new ViewContext("v", result.Workspace), new RenderOptions(Themes.Light));
+
+            // Assert: a simple-name-fallback warning naming the reference is reported
+            Assert.Contains(layout.Warnings, w => w.Contains("'TurboEngineX'") && w.Contains("simple name only"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     /// <summary>Recursively collects all <see cref="LayoutBox"/> nodes from a node list.</summary>
     private static IReadOnlyList<LayoutBox> CollectBoxes(IReadOnlyList<LayoutNode> nodes)
     {

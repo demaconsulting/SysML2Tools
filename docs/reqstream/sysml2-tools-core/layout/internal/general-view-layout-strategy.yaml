@@ -484,17 +484,21 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-SameNamedDefinitions
         title: >-
-          When several rendered definitions share a simple name, GeneralViewLayoutStrategy shall
-          attach each specialization, membership, typing, redefinition, and subsetting edge to the
-          definition the referencing element's type reference actually resolves to (the semantic
-          model's resolved target, else the nearest enclosing namespace), never to the first
-          same-named definition found in the workspace.
+          GeneralViewLayoutStrategy shall attach each specialization, membership, typing,
+          redefinition, and subsetting edge to the definition the reference resolves to — the
+          semantic model's resolved target, else KerML 8.2.3.5 name resolution (redefined features
+          against the owning type's general types) — shall report a warning when only the bare
+          simple-name fallback matched, and shall map relationship endpoints that are already
+          qualified only to the box with that qualified name or its owning typed feature, never to a
+          same-named box elsewhere.
         justification: |
           Packages commonly reuse a simple name for distinct definitions. Wiring every usage to
           the first same-named box drew one box connected to several unrelated systems plus
           unconnected duplicates, misrepresenting the architecture.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_SameNamedDefsInSiblingPackages_WiresEachToItsOwn
+          - GeneralViewLayoutStrategy_BuildLayout_SimpleNameFallback_ReportsWarning
+          - GeneralViewLayoutStrategy_BuildLayout_UnrenderedQualifiedEndpoint_IsNotMappedBySimpleName
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-RequirementConstraintCompartments
         title: >-

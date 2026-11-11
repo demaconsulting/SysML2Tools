@@ -24,8 +24,9 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-SameNamedDefinitions
         title: >-
           When several container definitions share a simple name, InterconnectionViewLayoutStrategy
-          shall expand a nested part using the definition its type reference actually resolves to
-          (the semantic model's resolved target, else the nearest enclosing namespace), never the
+          shall expand a nested part using the definition its type reference resolves to (the
+          semantic model's resolved target, else KerML 8.2.3.5 name resolution from the part's
+          owning namespace, warning when only the bare simple-name fallback matched), never the
           first same-named definition found in the workspace.
         justification: |
           Expanding the wrong same-named container would draw another package's interior inside a

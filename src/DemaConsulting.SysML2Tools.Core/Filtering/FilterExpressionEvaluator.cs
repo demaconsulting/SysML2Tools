@@ -147,6 +147,24 @@ public static class FilterExpressionEvaluator
 
 
     /// <summary>
+    /// Creates a KerML <see cref="NameResolver"/> over <paramref name="workspace"/> whose filtered
+    /// imports (<c>import P::**[expr];</c>) admit only the elements their filter conditions match
+    /// (SysML 7.5.4). A filter expression that cannot be parsed admits every element.
+    /// </summary>
+    /// <param name="workspace">The loaded workspace.</param>
+    /// <returns>The name resolver.</returns>
+    public static NameResolver CreateNameResolver(SysmlWorkspace workspace)
+    {
+        ArgumentNullException.ThrowIfNull(workspace);
+        return new NameResolver(
+            workspace.Declarations,
+            (import, candidate) =>
+                import.BracketFilterExpressionText is not { } text ||
+                FilterExpressionParser.Parse(text).Expression is not { } expression ||
+                Evaluate(workspace, [candidate], expression).MatchedQualifiedNames.Count > 0);
+    }
+
+    /// <summary>
     /// Evaluates <paramref name="expression"/> against each candidate in
     /// <paramref name="candidateQualifiedNames"/>, returning the subset that matches.
     /// </summary>

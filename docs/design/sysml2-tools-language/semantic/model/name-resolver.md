@@ -1,0 +1,78 @@
+#### NameResolver
+
+##### Overview
+
+`NameResolver` is a public class that resolves qualified-name text against a loaded workspace's
+declarations following KerML 1.1 Beta 2 clause 8.2.3.5 (Name Resolution). It serves callers that
+hold raw reference text the semantic model did not already resolve into a `SysmlEdge` — the
+Core layout strategies use it as the fallback after a feature's or definition's resolved
+`Typing`/`Supertype` edge. It is constructed over `SysmlWorkspace.Declarations` with an optional
+`importFilter` predicate, and caches lookups per instance, so one instance serves one workspace.
+
+##### Data Model
+
+- Owning namespaces are derived from qualified names: the owner of `A::B::C` is `A::B`; an
+  element with no `::` is a top-level element of its root namespace.
+- Owned memberships of a namespace are its `Children` (excluding imports) plus any declaration
+  whose qualified name is `<namespace>::<name>`. Each has a `Name`, an optional `ShortName`, and
+  a `Visibility` (`SysmlVisibility`, default `Public`). `SysmlAliasNode` children contribute
+  their names for their `TargetName`, resolved relative to the owning namespace.
+- Imports are the namespace's `SysmlImportNode` children, with `Visibility` (default `Private`,
+  per KerML 7.2.5.4/SysML 7.5.3), `IsImportAll`, `IsMembershipImport`, `IsRecursive`, and
+  `BracketFilterExpressionText`.
+- A type's general types (`GeneralTypes`) are its resolved `Supertype`/`Typing`/`Redefinition`
+  edge targets; when it has none (e.g. standard-library elements, which are never resolved),
+  its raw `SupertypeNames` and `FeatureTyping` are resolved relative to its owning namespace
+  (KerML 8.2.3.5.2: a Specialization's local namespace is the owning namespace of its owning type).
+- The global namespace is every top-level declaration of every loaded root namespace, user and
+  standard library alike (KerML 8.2.3.5.2).
+- `NameResolution(QualifiedName, IsSimpleNameFallback, Candidates)` reports a fallback result.
+
+##### Key Methods
+
+- `Resolve(reference, localNamespace)` (KerML 8.2.3.5.1): a single segment by full resolution; a
+  `$::name` in the global namespace; otherwise the qualification part by this same process (it
+  must yield a namespace), then the last segment by visible resolution in that namespace.
+- `ResolveRedefinedFeature(reference, owningType)` (KerML 8.2.3.5.1, Redefinition): `Resolve`
+  with each general type of `owningType` as the local namespace, in turn.
+- `ResolveWithFallback(reference, localNamespace)` (tool extension, warned by callers): `Resolve`;
+  when that fails, the last segment is matched against every declaration's simple name (first in
+  declaration order) and the result is flagged with every candidate.
+- `GeneralTypes(typeName)` (KerML 8.2.3.5.3, inherited memberships): the general types described
+  under Data Model.
+
+Lookup scopes, applied per namespace (KerML 8.2.3.5.3):
+
+- **Local** (full resolution of a simple name, each namespace outward): every owned membership
+  and alias, every import, and the non-private memberships inherited from general types.
+- **Inheritable** (what a specialization inherits): non-private owned memberships and imports,
+  recursively inherited non-private memberships.
+- **Visible** (later qualified-name segments, and what an import brings in): public owned
+  memberships, public imports, public inherited memberships. `import all` brings in every
+  membership regardless of visibility (KerML 8.3.2.4.2 `isImportAll`).
+
+An import brings in (KerML 8.3.2.4.4/8.3.2.4.6): for a membership import `import A::B;` the
+membership `B` (by its last segment or its element's short name); if recursive (`A::B::**`),
+also the visible members of `B` and its nested namespaces, least-nested first; for a namespace
+import `import A::*;` the visible members of `A`; if recursive (`A::*::**`), also those of its
+nested namespaces. A filtered import (`[expr]`) admits a candidate only when the `importFilter`
+predicate accepts it (SysML 7.5.4); without a predicate, filter conditions are ignored.
+
+##### Error Handling
+
+Unresolvable names return `null` (`Resolve`, `ResolveRedefinedFeature`) or an unresolved
+`NameResolution`. Imports and specializations may be circular (KerML 8.2.3.5.1); a lookup already
+in progress for the same (name, namespace, scope) contributes nothing instead of recursing, so
+resolution always terminates. Null arguments throw `ArgumentNullException`.
+
+##### Dependencies
+
+- `SysmlNode` and its subclasses, `SysmlAliasNode`, `SysmlImportNode`, `SysmlVisibility`,
+  `SysmlEdge`/`SysmlEdgeKind` (Semantic Model subsystem).
+
+##### Callers
+
+- `FilterExpressionEvaluator.CreateNameResolver` (Core Filtering) constructs one with a
+  filtered-import predicate.
+- `GeneralViewLayoutStrategy`, `InterconnectionViewLayoutStrategy`, and `GridViewLayoutStrategy`
+  (Core Layout) use it to resolve raw type, supertype, redefinition, and subsetting references.

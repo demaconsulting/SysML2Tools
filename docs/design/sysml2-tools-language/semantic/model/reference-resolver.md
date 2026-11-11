@@ -30,9 +30,13 @@ the imported namespace that completes the cycle.
 
 ##### Reference Resolution
 
-`TryResolve(name, namespaceStack, imports, out resolvedName)` performs the four-step lookup
-(direct; enclosing-namespace prefixes; wildcard imports; named imports) and, on success, also
-outputs the exact qualified name that matched (`resolvedName`). Steps 3–4 resolve the imported
+`TryResolve(name, namespaceStack, imports, out resolvedName)` performs the lookup (a qualified
+name directly; enclosing-namespace prefixes, innermost first; wildcard imports; named imports;
+and only then, for a simple name, the global namespace) and, on success, also
+outputs the exact qualified name that matched (`resolvedName`). Looking a simple name up in the
+global namespace last follows KerML 8.2.3.5.4 (full resolution walks outward through owning
+namespaces before the global namespace), so a local `Base` is not shadowed by the standard
+library's top-level `Base` package. Steps 3–4 resolve the imported
 namespace name itself via `ResolveNamespaceName` before building the `"{ns}::{name}"` candidate
 (see the "Nested-Namespace Import Resolution" deviation below).
 

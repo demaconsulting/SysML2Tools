@@ -2095,7 +2095,105 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             IsRecursive = isRecursive,
             IsMembershipImport = decl.membershipImport() is not null,
             BracketFilterExpressionText = bracketFilterText,
+            IsImportAll = context.ALL() is not null,
+            Visibility = ToVisibility(context.visibilityIndicator(), SysmlVisibility.Private),
         };
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitAliasMember(SysMLv2Parser.AliasMemberContext context) =>
+        BuildAliasNode(context.LT() is not null, context.name(), context.qualifiedName());
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitDefinitionBodyItemContent(SysMLv2Parser.DefinitionBodyItemContentContext context) =>
+        context.ALIAS() is not null
+            ? BuildAliasNode(context.LT() is not null, context.name(), context.qualifiedName())
+            : base.VisitDefinitionBodyItemContent(context);
+
+    /// <summary>
+    ///     Builds a <see cref="SysmlAliasNode"/> from an alias member's optional short name, optional
+    ///     name, and aliased qualified name, or returns null when the alias declares neither name.
+    /// </summary>
+    private static SysmlAliasNode? BuildAliasNode(
+        bool hasShortName, SysMLv2Parser.NameContext[] names, SysMLv2Parser.QualifiedNameContext? target)
+    {
+        string? shortName = null;
+        string? name;
+        if (hasShortName)
+        {
+            shortName = names.Length > 0 ? names[0].GetText() : null;
+            name = names.Length > 1 ? names[1].GetText() : null;
+        }
+        else
+        {
+            name = names.FirstOrDefault()?.GetText();
+        }
+        if ((name is null && shortName is null) || target is null)
+        {
+            return null;
+        }
+
+        return new SysmlAliasNode { Name = name, ShortName = shortName, TargetName = target.GetText() };
+    }
+
+    /// <summary>
+    ///     Converts an optional visibility indicator to a <see cref="SysmlVisibility"/>, returning
+    ///     <paramref name="defaultVisibility"/> when no indicator is present.
+    /// </summary>
+    private static SysmlVisibility ToVisibility(
+        SysMLv2Parser.VisibilityIndicatorContext? indicator, SysmlVisibility defaultVisibility) =>
+        indicator switch
+        {
+            null => defaultVisibility,
+            _ when indicator.PRIVATE() is not null => SysmlVisibility.Private,
+            _ when indicator.PROTECTED() is not null => SysmlVisibility.Protected,
+            _ => SysmlVisibility.Public,
+        };
+
+    /// <summary>
+    ///     Applies a body element's declared membership visibility (from its <c>memberPrefix</c>)
+    ///     and its declared short name (from the element's own leading <c>identification</c>) to
+    ///     the node built from it. Imports carry their own visibility from
+    ///     <see cref="VisitImportRule"/> and aliases their own short name, so both are left as built.
+    /// </summary>
+    private static void ApplyMembershipDetails(
+        SysmlNode node, SysMLv2Parser.MemberPrefixContext? memberPrefix, Antlr4.Runtime.ParserRuleContext element)
+    {
+        if (node is SysmlImportNode or SysmlAliasNode)
+        {
+            return;
+        }
+
+        node.Visibility = ToVisibility(memberPrefix?.visibilityIndicator(), SysmlVisibility.Public);
+        if (node.Name is not null &&
+            FindFirstIdentification(element) is { } identification &&
+            identification.LT() is not null &&
+            GetDeclaredName(identification) == node.Name)
+        {
+            node.ShortName = identification.name()[0].GetText();
+        }
+    }
+
+    /// <summary>
+    ///     Returns the first <c>identification</c> in a pre-order walk of <paramref name="tree"/> —
+    ///     an element declaration's own identification, which precedes its body — or null.
+    /// </summary>
+    private static SysMLv2Parser.IdentificationContext? FindFirstIdentification(Antlr4.Runtime.Tree.IParseTree tree)
+    {
+        if (tree is SysMLv2Parser.IdentificationContext identification)
+        {
+            return identification;
+        }
+
+        for (var i = 0; i < tree.ChildCount; i++)
+        {
+            if (FindFirstIdentification(tree.GetChild(i)) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -2587,6 +2685,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             }
             else if (node is not null)
             {
+                ApplyMembershipDetails(node, element.packageMember()?.memberPrefix(), element);
                 children.Add(node);
             }
         }
@@ -2613,6 +2712,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             }
             else if (node is not null)
             {
+                ApplyMembershipDetails(node, item.memberPrefix(), item);
                 children.Add(node);
             }
         }

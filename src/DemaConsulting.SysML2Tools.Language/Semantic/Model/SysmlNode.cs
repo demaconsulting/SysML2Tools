@@ -33,12 +33,28 @@ namespace DemaConsulting.SysML2Tools.Semantic.Model;
 [JsonDerivedType(typeof(SysmlSatisfyNode), "satisfy")]
 [JsonDerivedType(typeof(SysmlMetadataNode), "metadata")]
 [JsonDerivedType(typeof(SysmlDependencyNode), "dependency")]
+[JsonDerivedType(typeof(SysmlAliasNode), "alias")]
 public abstract class SysmlNode
 {
     /// <summary>
     ///     Gets the simple (unqualified) name of this element, or null if anonymous.
     /// </summary>
     public string? Name { get; init; }
+
+    /// <summary>
+    ///     Gets the short name declared for this element (<c>&lt;shortName&gt;</c> in its
+    ///     identification), or null when none is declared. Per KerML 8.2.3.5.3 a membership is the
+    ///     local resolution of both its short name and its name.
+    /// </summary>
+    public string? ShortName { get; set; }
+
+    /// <summary>
+    ///     Gets the visibility of the membership that owns this element in its owning namespace
+    ///     (or, for an import, of the import itself). Defaults to
+    ///     <see cref="SysmlVisibility.Public"/>, the KerML/SysML default for owned memberships;
+    ///     <see cref="AstBuilder"/> sets an import's default to <see cref="SysmlVisibility.Private"/>.
+    /// </summary>
+    public SysmlVisibility Visibility { get; set; } = SysmlVisibility.Public;
 
     /// <summary>
     ///     Gets the fully-qualified name of this element in its containing namespace.
@@ -227,6 +243,45 @@ public sealed class SysmlImportNode : SysmlNode
     ///     evaluation is deferred future work — see the project ROADMAP.
     /// </summary>
     public string? BracketFilterExpressionText { get; init; }
+
+    /// <summary>
+    ///     Gets a value indicating whether this is an <c>import all</c>, which imports memberships
+    ///     regardless of their visibility (KerML 8.3.2.4.2 <c>isImportAll</c>).
+    /// </summary>
+    public bool IsImportAll { get; init; }
+}
+
+/// <summary>
+///     Visibility of a membership or import (KerML 7.2.5.3, 8.3.2.4.7 <c>VisibilityKind</c>).
+/// </summary>
+public enum SysmlVisibility
+{
+    /// <summary>Visible outside the owning namespace (the default for owned memberships).</summary>
+    Public,
+
+    /// <summary>Visible only within the owning namespace and its specializations.</summary>
+    Protected,
+
+    /// <summary>Visible only within the owning namespace (the default for imports).</summary>
+    Private,
+}
+
+/// <summary>
+///     AST node representing an alias membership (<c>alias &lt;s&gt; N for Q;</c>): an additional
+///     name and/or short name, in its owning namespace, for the element identified by
+///     <see cref="TargetName"/> (KerML 7.2.5.3).
+/// </summary>
+/// <remarks>
+///     An alias has no qualified name of its own, so it is not registered in the symbol table;
+///     <see cref="NameResolver"/> finds it as a <see cref="SysmlNode.Children"/> entry of its owning
+///     namespace and resolves <see cref="TargetName"/> relative to that namespace.
+/// </remarks>
+public sealed class SysmlAliasNode : SysmlNode
+{
+    /// <summary>
+    ///     Gets the raw qualified-name text of the aliased element.
+    /// </summary>
+    public string TargetName { get; init; } = string.Empty;
 }
 
 /// <summary>

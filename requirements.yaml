@@ -21,6 +21,7 @@ includes:
   - docs/reqstream/sysml2-tools-language/semantic/model/ast-builder.yaml
   - docs/reqstream/sysml2-tools-language/semantic/model/symbol-table.yaml
   - docs/reqstream/sysml2-tools-language/semantic/model/reference-resolver.yaml
+  - docs/reqstream/sysml2-tools-language/semantic/model/name-resolver.yaml
   - docs/reqstream/sysml2-tools-language/semantic/model/supertype-walker.yaml
   - docs/reqstream/sysml2-tools-language/platform-requirements.yaml
   - docs/reqstream/sysml2-tools-stdlib.yaml

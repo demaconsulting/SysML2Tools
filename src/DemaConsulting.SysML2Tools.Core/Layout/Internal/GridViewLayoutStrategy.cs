@@ -4,6 +4,7 @@
 
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
+using DemaConsulting.SysML2Tools.Filtering;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -36,17 +37,19 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
 
         var theme = options.Theme;
 
-        var defs = CollectDefinitions(context.Workspace, ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode));
+        var warnings = new List<string>();
+        var defs = CollectDefinitions(
+            context.Workspace, ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode), context.ViewName, warnings);
         if (defs.Count == 0)
         {
-            return new LayoutTree(200.0, 100.0, []);
+            return new LayoutTree(200.0, 100.0, []) { Warnings = warnings };
         }
 
-        // Resolve each definition's supertypes to column indices by simple name.
+        // Index the definitions by qualified name; supertypes are already resolved to qualified names.
         var indexByName = new Dictionary<string, int>(StringComparer.Ordinal);
         for (var i = 0; i < defs.Count; i++)
         {
-            indexByName.TryAdd(defs[i].Name, i);
+            indexByName.TryAdd(defs[i].QualifiedName, i);
         }
 
         var rowHeight = theme.FontSizeBody + (2.0 * theme.LabelPadding);
@@ -82,10 +85,10 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
 
         var width = (theme.LabelPadding * 4.0) + headerWidth + (defs.Count * dataWidth);
         var height = (theme.LabelPadding * 4.0) + ((defs.Count + 1) * rowHeight);
-        return new LayoutTree(width, height, [grid]);
+        return new LayoutTree(width, height, [grid]) { Warnings = warnings };
     }
 
-    /// <summary>A user-defined definition with its supertype references.</summary>
+    /// <summary>A user-defined definition with the qualified names its supertype references resolve to.</summary>
     private sealed record DefRow(string QualifiedName, string Name, IReadOnlyList<string> SupertypeNames);
 
     /// <summary>
@@ -101,9 +104,11 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
     /// specialization relationship visible in the matrix even when only one side was directly
     /// exposed, so the relationship mark is never rendered against a missing row or column.
     /// </remarks>
-    private static IReadOnlyList<DefRow> CollectDefinitions(SysmlWorkspace workspace, ExposedScope? scope)
+    private static IReadOnlyList<DefRow> CollectDefinitions(
+        SysmlWorkspace workspace, ExposedScope? scope, string viewName, List<string> warnings)
     {
-        // Phase 1: collect every non-stdlib definition, unfiltered, building a full simple-name index.
+        // Phase 1: collect every non-stdlib definition, unfiltered, with its supertypes resolved.
+        var resolver = FilterExpressionEvaluator.CreateNameResolver(workspace);
         var all = new List<DefRow>();
         foreach (var qn in workspace.Declarations.Keys.OrderBy(k => k, StringComparer.Ordinal))
         {
@@ -114,7 +119,7 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
 
             if (workspace.Declarations[qn] is SysmlDefinitionNode def)
             {
-                all.Add(new DefRow(qn, def.Name ?? qn, def.SupertypeNames));
+                all.Add(new DefRow(qn, def.Name ?? qn, ResolveSupertypes(qn, def, resolver, viewName, warnings)));
             }
         }
 
@@ -127,7 +132,7 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
         var fullIndexByName = new Dictionary<string, int>(StringComparer.Ordinal);
         for (var i = 0; i < all.Count; i++)
         {
-            fullIndexByName.TryAdd(all[i].Name, i);
+            fullIndexByName.TryAdd(all[i].QualifiedName, i);
         }
 
         // Phase 2: determine which indices are directly in the resolved scope.
@@ -186,17 +191,59 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
         return result;
     }
 
-    /// <summary>Resolves a definition's supertype references to column indices by simple name.</summary>
+    /// <summary>Maps a definition's resolved supertype qualified names to row/column indices.</summary>
     private static HashSet<int> ResolveSupertypeIndices(DefRow def, Dictionary<string, int> indexByName)
     {
         var result = new HashSet<int>();
         foreach (var supertype in def.SupertypeNames)
         {
-            var sep = supertype.LastIndexOf("::", StringComparison.Ordinal);
-            var simple = sep >= 0 ? supertype[(sep + 2)..] : supertype;
-            if (indexByName.TryGetValue(simple, out var i))
+            if (indexByName.TryGetValue(supertype, out var i))
             {
                 result.Add(i);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Resolves a definition's raw supertype references to qualified names: the semantic model's
+    /// resolved <see cref="SysmlEdgeKind.Supertype"/> target whose qualified name is, or ends with,
+    /// the reference; otherwise KerML 8.2.3.5 name resolution relative to the definition's owning
+    /// namespace, recording a warning when only the bare simple-name fallback matched.
+    /// </summary>
+    private static IReadOnlyList<string> ResolveSupertypes(
+        string qualifiedName, SysmlDefinitionNode def, NameResolver resolver, string viewName, List<string> warnings)
+    {
+        var resolvedEdges = def.ResolvedEdges
+            .Where(e => e.Kind == SysmlEdgeKind.Supertype)
+            .Select(e => e.TargetQualifiedName)
+            .ToList();
+        var sep = qualifiedName.LastIndexOf("::", StringComparison.Ordinal);
+        var owner = sep >= 0 ? qualifiedName[..sep] : null;
+
+        var result = new List<string>();
+        foreach (var supertype in def.SupertypeNames)
+        {
+            var resolved = resolvedEdges.FirstOrDefault(t =>
+                t == supertype || t.EndsWith("::" + supertype, StringComparison.Ordinal));
+            if (resolved is null)
+            {
+                var resolution = resolver.ResolveWithFallback(supertype, owner);
+                resolved = resolution.QualifiedName;
+                if (resolution.IsSimpleNameFallback && resolved is not null)
+                {
+                    var warning = LayoutWarnings.ForSimpleNameFallback(viewName, supertype, owner, resolved, resolution.Candidates);
+                    if (!warnings.Contains(warning))
+                    {
+                        warnings.Add(warning);
+                    }
+                }
+            }
+
+            if (resolved is not null)
+            {
+                result.Add(resolved);
             }
         }
 

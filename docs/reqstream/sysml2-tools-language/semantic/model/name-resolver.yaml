@@ -1,0 +1,75 @@
+---
+# NameResolver Unit Requirements
+#
+# PURPOSE:
+# - Define requirements for the NameResolver unit (Semantic Model subsystem)
+# - NameResolver resolves qualified names per KerML 8.2.3.5 for callers (e.g. layout strategies)
+#   that hold raw reference text the semantic model did not already resolve
+
+sections:
+  - title: NameResolver Requirements
+    requirements:
+      - id: SysML2Tools-Language-Semantic-Model-NameResolver-FullResolution
+        title: >-
+          NameResolver shall resolve a simple name by local resolution in the given namespace, then
+          in each owning namespace outward, then in the global namespace (the top-level elements of
+          every loaded root namespace), so a name declared in the owning package wins over a
+          same-named element in an unrelated package.
+        justification: |
+          KerML 8.2.3.5.4 (Full Resolution). Packages commonly reuse a simple name for distinct
+          elements; resolving to the first global match would cross-wire them.
+        tests:
+          - NameResolver_Resolve_SameNameInSiblingPackages_ResolvesOwningPackageFirst
+
+      - id: SysML2Tools-Language-Semantic-Model-NameResolver-LocalResolution
+        title: >-
+          NameResolver's local resolution in a namespace shall consider its owned memberships,
+          its imported memberships (membership and namespace imports, recursive or not, and
+          filtered imports through an optional filter predicate), and — for a type — the
+          non-private memberships inherited from its general types, matching each membership's
+          name, short name, or alias name.
+        justification: |
+          KerML 8.2.3.5.3 (Local and Visible Resolution): the local resolution of a name
+          includes owned, imported, and (for a Type) inherited memberships, by member name and
+          member short name. Aliases are memberships with their own names (KerML 7.2.5.3).
+        tests:
+          - NameResolver_Resolve_InheritedMember_ResolvesThroughSupertype
+          - NameResolver_Resolve_AliasAndShortName_ResolveToTheirElement
+          - NameResolver_Resolve_ImportedMember_HonorsImportVisibility
+
+      - id: SysML2Tools-Language-Semantic-Model-NameResolver-VisibleResolution
+        title: >-
+          NameResolver shall resolve the first segment of a qualified name by full resolution and
+          each later segment by visible resolution — public owned memberships, memberships
+          imported by public imports, and public inherited memberships only — so a private member
+          or a privately imported member does not resolve through a qualified name from outside.
+        justification: |
+          KerML 8.2.3.5.1 step 3 and 8.2.3.5.3 (visible resolution). Honoring visibility keeps
+          the tool's results consistent with the language's encapsulation rules.
+        tests:
+          - NameResolver_Resolve_PrivateMemberViaQualifiedName_DoesNotResolve
+          - NameResolver_Resolve_ImportedMember_HonorsImportVisibility
+          - NameResolver_Resolve_InheritedMember_ResolvesThroughSupertype
+
+      - id: SysML2Tools-Language-Semantic-Model-NameResolver-RedefinedFeature
+        title: >-
+          NameResolver shall resolve a redefined-feature reference with each general type of the
+          redefining feature's owning type as the local namespace, in turn, until one resolves.
+        justification: |
+          KerML 8.2.3.5.1: the basic resolution process is repeated against the owning type's
+          general types for a Redefinition's redefinedFeature.
+        tests:
+          - NameResolver_ResolveRedefinedFeature_ResolvesAgainstGeneralTypes
+
+      - id: SysML2Tools-Language-Semantic-Model-NameResolver-FlaggedFallback
+        title: >-
+          When a reference does not resolve by KerML name resolution, NameResolver's fallback
+          shall match the reference's last segment against every declaration's simple name and
+          report the result as a fallback, listing every matching candidate, so callers can warn
+          rather than silently guess.
+        justification: |
+          Real models are often incomplete (missing imports). Keeping a best-effort match keeps
+          diagrams useful, but the match is not standard name resolution and may be ambiguous,
+          so it must be visible to the user.
+        tests:
+          - NameResolver_ResolveWithFallback_AmbiguousSimpleName_IsFlaggedWithCandidates

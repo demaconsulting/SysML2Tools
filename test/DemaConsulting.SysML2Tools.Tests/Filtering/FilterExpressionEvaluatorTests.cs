@@ -59,6 +59,28 @@ public sealed class FilterExpressionEvaluatorTests
         }
         """;
 
+    /// <summary>
+    ///     The name resolver created by <see cref="FilterExpressionEvaluator.CreateNameResolver"/>
+    ///     resolves a name through a filtered import only when the imported element satisfies the
+    ///     import's filter condition (SysML 7.5.4).
+    /// </summary>
+    [Fact]
+    public async Task CreateNameResolver_FilteredImport_AdmitsOnlyMatchingElements()
+    {
+        // Arrange: Q imports P's members filtered to those carrying @Safety
+        var workspace = await LoadAsync(Source.TrimEnd() + """
+
+            package Q { private import P::**[@P::Safety]; part def User; }
+            """);
+
+        // Act
+        var resolver = FilterExpressionEvaluator.CreateNameResolver(workspace);
+
+        // Assert: Engine carries @Safety, Housing does not
+        Assert.Equal("P::Engine", resolver.Resolve("Engine", "Q::User"));
+        Assert.Null(resolver.Resolve("Housing", "Q::User"));
+    }
+
     /// <summary>A classification test matches only candidates carrying the referenced metadata annotation.</summary>
     [Fact]
     public async Task Evaluate_ClassificationTest_MatchesOnlyAnnotatedCandidates()

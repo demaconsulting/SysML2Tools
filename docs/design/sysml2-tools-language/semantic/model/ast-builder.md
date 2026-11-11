@@ -175,6 +175,13 @@ satisfied requirement's raw reference text is taken from `ownedReferenceSubsetti
 text comes from `satisfactionSubjectMember()` (the `by <subject>` clause), or is `null` when
 absent.
 
+**Membership details.** `CollectBodyElements` and `CollectDefinitionBodyItems` call
+`ApplyMembershipDetails` on each built child: it sets `Visibility` from the element's
+`memberPrefix` visibility indicator (public when omitted) and `ShortName` from the element's own
+leading `identification` (`FindFirstIdentification`, a pre-order search). `VisitImportRule` sets an
+import's `Visibility` (private when omitted) and `IsImportAll`. `VisitAliasMember` and the alias
+branch of `VisitDefinitionBodyItemContent` build `SysmlAliasNode`s.
+
 `VisitViewDefinition` builds a `SysmlViewNode` for `view def` definitions, additionally scanning
 `context.viewDefinitionBody()?.viewDefinitionBodyItem()` via the shared
 `ExtractViewRenderAndFilter<TItem>` helper (see below) to populate `RenderTargetName` and

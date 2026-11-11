@@ -29,9 +29,10 @@ sections:
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-OwningNamespaceFirst
         title: >-
-          ReferenceResolver.ResolveAll shall resolve a usage's type reference to the definition
-          visible from the usage's own owning namespaces (innermost first) before any same-named
-          definition declared in an unrelated namespace.
+          ReferenceResolver.ResolveAll shall resolve a simple name to the element visible from the
+          referencing element's own owning namespaces (innermost first) and its imports before any
+          same-named element declared in an unrelated namespace or at the top level of another root
+          namespace (including the standard library).
         justification: |
           SysML v2 name resolution looks in the owning namespace (and its imports) before outer
           scopes. Separate packages commonly reuse a simple name (e.g. one
@@ -39,6 +40,7 @@ sections:
           same-named definition in the workspace would silently cross-wire those packages.
         tests:
           - WorkspaceLoader_LoadAsync_SameNamedDefsInSiblingPackages_ResolveToOwningPackage
+          - WorkspaceLoader_LoadAsync_LocalNameShadowsGlobalLibraryName_ResolvesLocal
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-CircularImport
         title: >-

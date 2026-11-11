@@ -325,7 +325,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Resolve the specialization/membership/attribute-typing edge set by qualified name; the
         // graph-construction pass below drops any edge touching a definition that never received a
         // node (because its folder was depth-truncated).
-        var (modelEdges, droppedEdges) = BuildModelEdges(defs, context.Workspace, scope is not null);
+        var nameWarnings = new List<string>();
+        var (modelEdges, droppedEdges) = BuildModelEdges(defs, context.Workspace, scope is not null, context.ViewName, nameWarnings);
 
         // Build the single input graph: package folders as containers, definitions as leaves.
         var (graph, truncated) = BuildGraph(groups, childrenByParent, modelEdges, theme, options.DepthLimit, scope is not null);
@@ -356,6 +357,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             .Concat(LayoutWarnings.ForDroppedRelationshipEdges(context.ViewName, droppedEdges
                 .Select(d => (d.Kind, d.Source, d.Target, d.Reason))
                 .ToList()))
+            .Concat(nameWarnings)
             .ToList();
         return warnings.Count == 0 ? placed : placed with { Warnings = warnings };
     }
@@ -724,18 +726,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// is always reported, regardless of scoping, since it can never be an intended outcome.
     /// </summary>
     private static (List<ModelEdge> Edges, List<DroppedRelationshipEdge> Dropped) BuildModelEdges(
-        IReadOnlyList<DefBox> defs, SysmlWorkspace workspace, bool isScoped)
+        IReadOnlyList<DefBox> defs, SysmlWorkspace workspace, bool isScoped, string viewName, List<string> warnings)
     {
-        // Index every definition by qualified and simple name (first-seen wins for simple names,
-        // mirroring how packages may reuse a simple name across different qualified locations).
+        // Every reference is resolved to a rendered box by KerML name resolution (see TypeResolver).
         var byQualified = new HashSet<string>(defs.Select(d => d.QualifiedName), StringComparer.Ordinal);
-        var bySimple = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var def in defs)
-        {
-            bySimple.TryAdd(def.SimpleName, def.QualifiedName);
-        }
-
-        var defByQualified = defs.ToDictionary(d => d.QualifiedName, StringComparer.Ordinal);
+        var types = new TypeResolver(byQualified, FilterExpressionEvaluator.CreateNameResolver(workspace), viewName, warnings);
 
         var edges = new List<ModelEdge>();
         foreach (var def in defs)
@@ -749,7 +744,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             // Specialization: subtype → supertype, open arrowhead at the supertype (target) end.
             foreach (var supertype in def.SupertypeNames)
             {
-                if (TryResolveSupertype(supertype, def.QualifiedName, resolvedSupertypes, byQualified, bySimple, out var target) &&
+                if (types.TryResolveSupertype(supertype, def.QualifiedName, resolvedSupertypes, out var target) &&
                     target != def.QualifiedName)
                 {
                     edges.Add(new ModelEdge(def.QualifiedName, target, EndMarkerStyle.HollowTriangle, EdgeKind.Specialization));
@@ -769,7 +764,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 };
 
                 if (arrowhead != EndMarkerStyle.None &&
-                    TryResolveMemberType(membership, def.QualifiedName, byQualified, bySimple, out var memberType) &&
+                    types.TryResolveMemberType(membership, def.QualifiedName, out var memberType) &&
                     memberType != def.QualifiedName)
                 {
                     edges.Add(new ModelEdge(memberType, def.QualifiedName, arrowhead, EdgeKind.Membership));
@@ -787,7 +782,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     continue;
                 }
 
-                if (TryResolveMemberType(membership, def.QualifiedName, byQualified, bySimple, out var attrType) &&
+                if (types.TryResolveMemberType(membership, def.QualifiedName, out var attrType) &&
                     attrType != def.QualifiedName)
                 {
                     edges.Add(new ModelEdge(def.QualifiedName, attrType, EndMarkerStyle.OpenChevron, EdgeKind.Typing));
@@ -805,7 +800,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     continue;
                 }
 
-                if (TryResolveMemberType(membership, def.QualifiedName, byQualified, bySimple, out var refType) &&
+                if (types.TryResolveMemberType(membership, def.QualifiedName, out var refType) &&
                     refType != def.QualifiedName)
                 {
                     edges.Add(new ModelEdge(def.QualifiedName, refType, EndMarkerStyle.OpenChevron, EdgeKind.Dependency));
@@ -823,7 +818,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     continue;
                 }
 
-                var owner = ResolveRedefinitionOwner(def, redefinedRef, byQualified, bySimple, defByQualified);
+                var owner = types.ResolveRedefinitionOwner(def.QualifiedName, redefinedRef);
                 if (owner is not null && owner != def.QualifiedName)
                 {
                     edges.Add(new ModelEdge(def.QualifiedName, owner, EndMarkerStyle.HollowTriangleCrossbar, EdgeKind.Redefinition));
@@ -839,7 +834,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             {
                 foreach (var subsettedRef in membership.SubsettedFeatureNames)
                 {
-                    var owner = ResolveRedefinitionOwner(def, subsettedRef, byQualified, bySimple, defByQualified);
+                    var owner = types.ResolveSubsettedOwner(def.QualifiedName, subsettedRef);
                     if (owner is not null && owner != def.QualifiedName)
                     {
                         edges.Add(new ModelEdge(def.QualifiedName, owner, EndMarkerStyle.HollowTriangle, EdgeKind.Subsetting));
@@ -881,8 +876,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             {
                 case SysmlEdgeKind.Connect:
                     {
-                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
-                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified);
                         if (source is not null && target is not null && source != target)
                         {
                             edges.Add(new ModelEdge(source, target, EndMarkerStyle.None, EdgeKind.Connect));
@@ -897,8 +892,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
                 case SysmlEdgeKind.Allocate:
                     {
-                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
-                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified);
                         if (source is not null && target is not null && source != target)
                         {
                             edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Allocate, "«allocate»"));
@@ -913,8 +908,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
                 case SysmlEdgeKind.Dependency:
                     {
-                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
-                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified);
                         if (source is not null && target is not null && source != target)
                         {
                             edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Dependency));
@@ -929,8 +924,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
                 case SysmlEdgeKind.Binding:
                     {
-                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, bySimple);
-                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, bySimple);
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified);
                         if (source is not null && target is not null && source != target)
                         {
                             edges.Add(new ModelEdge(source, target, EndMarkerStyle.None, EdgeKind.Binding, "="));
@@ -991,12 +986,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     private static string? ResolveOwningBox(
         string qualifiedName,
         SysmlWorkspace workspace,
-        HashSet<string> byQualified,
-        Dictionary<string, string> bySimple)
+        HashSet<string> byQualified)
     {
-        if (TryResolveQualified(qualifiedName, null, byQualified, bySimple, out var direct))
+        if (byQualified.Contains(qualifiedName))
         {
-            return direct;
+            return qualifiedName;
         }
 
         var segments = qualifiedName.Split("::");
@@ -1018,154 +1012,123 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Resolves the owning definition of a redefined feature reference. A qualified reference
-    /// (containing <c>::</c>) resolves the owner directly by stripping the trailing feature-name
-    /// segment; a bare reference is resolved by walking the redefining definition's own supertype
-    /// chain (transitively, with a cycle guard) for a matching member name.
+    /// Resolves the type, supertype, redefinition, and subsetting references of rendered boxes to
+    /// other rendered boxes. A reference already resolved by the semantic model is used as-is;
+    /// otherwise it is resolved by KerML 8.2.3.5 name resolution (<see cref="NameResolver"/>:
+    /// owned, imported, and inherited memberships — including aliases and short names — of the
+    /// local namespace, then outward through owning namespaces to the global namespace, with later
+    /// qualified-name segments by visible resolution). Only when that fails is the tool's bare
+    /// simple-name fallback used, and then a warning is recorded rather than silently guessing.
     /// </summary>
-    private static string? ResolveRedefinitionOwner(
-        DefBox def,
-        string redefinedRef,
-        HashSet<string> byQualified,
-        Dictionary<string, string> bySimple,
-        IReadOnlyDictionary<string, DefBox> defByQualified)
+    private sealed class TypeResolver
     {
-        var sep = redefinedRef.LastIndexOf("::", StringComparison.Ordinal);
-        if (sep >= 0)
+        private readonly HashSet<string> _rendered;
+        private readonly NameResolver _resolver;
+        private readonly string _viewName;
+        private readonly List<string> _warnings;
+
+        /// <summary>Initializes the resolver.</summary>
+        public TypeResolver(HashSet<string> rendered, NameResolver resolver, string viewName, List<string> warnings)
         {
-            var ownerRef = redefinedRef[..sep];
-            return TryResolveQualified(ownerRef, def.QualifiedName, byQualified, bySimple, out var owner) ? owner : null;
+            _rendered = rendered;
+            _resolver = resolver;
+            _viewName = viewName;
+            _warnings = warnings;
         }
 
-        return ResolveBareRedefinitionOwner(def, redefinedRef, byQualified, bySimple, defByQualified, new HashSet<string>(StringComparer.Ordinal));
-    }
-
-    /// <summary>
-    /// Walks a definition's supertype chain (transitively, with a cycle guard) looking for a
-    /// definition that declares a member feature with the given simple name.
-    /// </summary>
-    private static string? ResolveBareRedefinitionOwner(
-        DefBox def,
-        string bareName,
-        HashSet<string> byQualified,
-        Dictionary<string, string> bySimple,
-        IReadOnlyDictionary<string, DefBox> defByQualified,
-        HashSet<string> visited)
-    {
-        if (!visited.Add(def.QualifiedName))
+        /// <summary>
+        /// Resolves a feature membership's type: the feature's resolved <see cref="SysmlEdgeKind.Typing"/>
+        /// target, else the raw type reference relative to the feature's owning namespace — the
+        /// owning definition (KerML 8.2.3.5.2, FeatureTyping is a Specialization).
+        /// </summary>
+        public bool TryResolveMemberType(
+            FeatureMembership membership, string ownerQualifiedName, [MaybeNullWhen(false)] out string qualified)
         {
-            return null;
-        }
-
-        foreach (var supertype in def.SupertypeNames)
-        {
-            if (!TryResolveQualified(supertype, def.QualifiedName, byQualified, bySimple, out var superQualified) ||
-                !defByQualified.TryGetValue(superQualified, out var superDef))
+            if (membership.ResolvedTypeName is { } resolved)
             {
-                continue;
+                qualified = resolved;
+                return _rendered.Contains(resolved);
             }
 
-            if (superDef.Memberships.Any(m => m.Name == bareName))
+            qualified = membership.TypeName is { Length: > 0 } typeName ? Resolve(typeName, ownerQualifiedName) : null;
+            return qualified is not null;
+        }
+
+        /// <summary>
+        /// Resolves a definition's raw supertype reference: the definition's resolved
+        /// <see cref="SysmlEdgeKind.Supertype"/> target whose qualified name is, or ends with, the
+        /// reference; else the reference relative to the definition's owning namespace
+        /// (KerML 8.2.3.5.2: a Specialization's local namespace is its owning type's owning namespace).
+        /// </summary>
+        public bool TryResolveSupertype(
+            string supertype,
+            string subtypeQualifiedName,
+            IReadOnlyList<string> resolvedSupertypes,
+            [MaybeNullWhen(false)] out string qualified)
+        {
+            var resolved = resolvedSupertypes.FirstOrDefault(target =>
+                target == supertype || target.EndsWith("::" + supertype, StringComparison.Ordinal));
+            if (resolved is not null)
             {
-                return superDef.QualifiedName;
+                qualified = resolved;
+                return _rendered.Contains(resolved);
             }
 
-            var found = ResolveBareRedefinitionOwner(superDef, bareName, byQualified, bySimple, defByQualified, visited);
-            if (found is not null)
+            qualified = Resolve(supertype, OwnerOf(subtypeQualifiedName));
+            return qualified is not null;
+        }
+
+        /// <summary>
+        /// Resolves the rendered box owning a redefined feature: per KerML 8.2.3.5.1 the reference is
+        /// resolved with each general type of the redefining feature's owning type as the local
+        /// namespace in turn; the owner is the resolved feature's owning namespace.
+        /// </summary>
+        public string? ResolveRedefinitionOwner(string owningType, string redefinedReference) =>
+            OwnerIfRendered(_resolver.ResolveRedefinedFeature(redefinedReference, owningType));
+
+        /// <summary>
+        /// Resolves the rendered box owning a subsetted feature: the reference is resolved relative
+        /// to the subsetting feature's owning namespace (its owning definition, whose inherited
+        /// memberships include the ancestor's features).
+        /// </summary>
+        public string? ResolveSubsettedOwner(string owningType, string subsettedReference) =>
+            OwnerIfRendered(_resolver.Resolve(subsettedReference, owningType));
+
+        /// <summary>
+        /// Resolves a raw reference to a rendered box, warning when only the simple-name fallback
+        /// matched; returns null when it resolves to nothing rendered.
+        /// </summary>
+        private string? Resolve(string reference, string? localNamespace)
+        {
+            var resolution = _resolver.ResolveWithFallback(reference, localNamespace);
+            if (resolution.QualifiedName is not { } qualified || !_rendered.Contains(qualified))
             {
-                return found;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Resolves a feature membership's type to a rendered definition's qualified name, preferring
-    /// the semantic model's already-resolved <see cref="SysmlEdgeKind.Typing"/> target and falling
-    /// back to <see cref="TryResolveQualified"/> on the raw reference text.
-    /// </summary>
-    private static bool TryResolveMemberType(
-        FeatureMembership membership,
-        string ownerQualifiedName,
-        HashSet<string> byQualified,
-        Dictionary<string, string> bySimple,
-        [MaybeNullWhen(false)] out string qualified)
-    {
-        if (membership.ResolvedTypeName is { } resolved && byQualified.Contains(resolved))
-        {
-            qualified = resolved;
-            return true;
-        }
-
-        qualified = null;
-        return membership.TypeName is { Length: > 0 } typeName &&
-            TryResolveQualified(typeName, ownerQualifiedName, byQualified, bySimple, out qualified);
-    }
-
-    /// <summary>
-    /// Resolves a raw supertype reference to a rendered definition's qualified name, preferring the
-    /// definition's already-resolved <see cref="SysmlEdgeKind.Supertype"/> target whose qualified
-    /// name is, or ends with, the raw reference, and falling back to
-    /// <see cref="TryResolveQualified"/>.
-    /// </summary>
-    private static bool TryResolveSupertype(
-        string supertype,
-        string subtypeQualifiedName,
-        IReadOnlyList<string> resolvedSupertypes,
-        HashSet<string> byQualified,
-        Dictionary<string, string> bySimple,
-        [MaybeNullWhen(false)] out string qualified)
-    {
-        var resolved = resolvedSupertypes.FirstOrDefault(target =>
-            byQualified.Contains(target) &&
-            (target == supertype || target.EndsWith("::" + supertype, StringComparison.Ordinal)));
-        if (resolved is not null)
-        {
-            qualified = resolved;
-            return true;
-        }
-
-        return TryResolveQualified(supertype, subtypeQualifiedName, byQualified, bySimple, out qualified);
-    }
-
-    /// <summary>
-    /// Resolves a supertype/type reference to a rendered definition's qualified name: first as an
-    /// exact qualified name; then, when <paramref name="contextQualifiedName"/> is supplied, by
-    /// SysML v2 lexical scoping — the reference is tried relative to each namespace enclosing the
-    /// referencing element, innermost first, so a reference resolves to the same-named definition
-    /// in its own owning package before one in an unrelated package; finally by simple name
-    /// (first-seen) for references that resolve through no enclosing namespace (e.g. via an import).
-    /// </summary>
-    private static bool TryResolveQualified(
-        string reference,
-        string? contextQualifiedName,
-        HashSet<string> byQualified,
-        Dictionary<string, string> bySimple,
-        [MaybeNullWhen(false)] out string qualified)
-    {
-        if (byQualified.Contains(reference))
-        {
-            qualified = reference;
-            return true;
-        }
-
-        for (var scope = contextQualifiedName; !string.IsNullOrEmpty(scope);)
-        {
-            var candidate = scope + "::" + reference;
-            if (byQualified.Contains(candidate))
-            {
-                qualified = candidate;
-                return true;
+                return null;
             }
 
-            var scopeSep = scope.LastIndexOf("::", StringComparison.Ordinal);
-            scope = scopeSep >= 0 ? scope[..scopeSep] : null;
+            if (resolution.IsSimpleNameFallback)
+            {
+                var warning = LayoutWarnings.ForSimpleNameFallback(
+                    _viewName, reference, localNamespace, qualified, resolution.Candidates);
+                if (!_warnings.Contains(warning))
+                {
+                    _warnings.Add(warning);
+                }
+            }
+
+            return qualified;
         }
 
-        var sep = reference.LastIndexOf("::", StringComparison.Ordinal);
-        var simple = sep >= 0 ? reference[(sep + 2)..] : reference;
-        return bySimple.TryGetValue(simple, out qualified);
+        /// <summary>Returns the owner of a resolved feature when that owner is rendered, else null.</summary>
+        private string? OwnerIfRendered(string? featureQualifiedName) =>
+            OwnerOf(featureQualifiedName) is { } owner && _rendered.Contains(owner) ? owner : null;
+
+        /// <summary>Returns the owning namespace's qualified name, or null at the root.</summary>
+        private static string? OwnerOf(string? qualifiedName)
+        {
+            var sep = qualifiedName?.LastIndexOf("::", StringComparison.Ordinal) ?? -1;
+            return sep >= 0 ? qualifiedName![..sep] : null;
+        }
     }
 
     /// <summary>

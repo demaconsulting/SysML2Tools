@@ -161,6 +161,7 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/AstBuilder.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SymbolTable.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/ReferenceResolver.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/NameResolver.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SupertypeWalker.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SerializedStdlib.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/AstSerializerContext.cs"
@@ -171,6 +172,7 @@ reviews:
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/OmgModelsTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/NameResolverTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstSerializerTests.cs"
 
   # SysML2Tools Stdlib Library
@@ -369,9 +371,11 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/AstBuilder.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SymbolTable.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/ReferenceResolver.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/NameResolver.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SupertypeWalker.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/NameResolverTests.cs"
 
   - id: SysML2Tools-Language-Semantic-WorkspaceLoader
     title: Review of DemaConsulting.SysML2Tools.Language WorkspaceLoader Unit Implementation
@@ -384,6 +388,7 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/WorkspaceLoader.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Semantic/NameResolverTests.cs"
 
   - id: SysML2Tools-Language-Parser-WorkspaceParser
     title: Review that DemaConsulting.SysML2Tools.Language Parser WorkspaceParser Implementation is Correct
@@ -460,6 +465,7 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SysmlNode.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/AstBuilder.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/ReferenceResolver.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/NameResolver.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SysmlEdge.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstBuilderMetadataTests.cs"
 
