@@ -20,6 +20,7 @@ resource-path:
   - docs/design/ots
   - docs/images
   - docs/template
+embed-resources: true
 
 input-files:
   - docs/design/title.txt
