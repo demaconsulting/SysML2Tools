@@ -1,6 +1,7 @@
 ---
 resource-path:
   - docs/design
+  - docs/design/generated
   - docs/design/sysml2-tools-language
   - docs/design/sysml2-tools-language/parser
   - docs/design/sysml2-tools-language/parser/internal
@@ -20,6 +21,7 @@ resource-path:
   - docs/design/ots
   - docs/images
   - docs/template
+embed-resources: true
 
 input-files:
   - docs/design/title.txt
