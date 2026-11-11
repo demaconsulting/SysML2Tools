@@ -64,7 +64,8 @@ analysis][workflow]
 
 ## Installation
 
-Install the tool globally using the .NET CLI (requires the [.NET 10 SDK or runtime][dotnet-download]):
+Install the tool globally using the .NET CLI (installing requires the [.NET SDK][dotnet-download];
+running the tool requires the .NET 10 runtime):
 
 ```bash
 dotnet tool install -g DemaConsulting.SysML2Tools.Tool

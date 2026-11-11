@@ -53,7 +53,8 @@ This user guide covers:
 
 # Installation
 
-Install the tool globally using the .NET CLI. The tool requires the .NET 10 SDK or runtime; the
+Install the tool globally using the .NET CLI. Installing requires the .NET SDK, and running the
+tool requires the .NET 10 runtime; the
 `DemaConsulting.SysML2Tools.Core`, `.Language`, and `.Stdlib` library packages support .NET 8, 9,
 10, and 11.
 
