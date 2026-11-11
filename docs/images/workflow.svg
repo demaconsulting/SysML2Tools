@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1076" height="400" viewBox="0 0 1076 400" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+  <!-- Transparent canvas; a white rounded card keeps the diagram readable in light and dark themes -->
+  <rect x="14" y="16" width="1050" height="378" rx="28" fill="#d5dce6"/>
+  <rect x="10" y="10" width="1050" height="378" rx="28" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+
+  <g transform="translate(30,34)">
+    <!-- Step 1: author -->
+    <rect x="0" y="0" width="230" height="306" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+    <text x="115" y="30" font-size="16" font-weight="600" fill="#1e3a8a" text-anchor="middle">1. Author the model</text>
+    <rect x="14" y="46" width="202" height="54" rx="6" fill="#ffffff" stroke="#2563eb"/>
+    <text x="115" y="68" font-size="14" font-weight="600" fill="#1e3a8a" text-anchor="middle">.sysml model files</text>
+    <text x="115" y="88" font-size="12" fill="#1e40af" text-anchor="middle">SysML v2 textual notation</text>
+    <rect x="14" y="110" width="202" height="54" rx="6" fill="#ffffff" stroke="#2563eb"/>
+    <text x="115" y="132" font-size="14" font-weight="600" font-family="Consolas, monospace" fill="#1e3a8a" text-anchor="middle">view</text>
+    <text x="115" y="152" font-size="12" fill="#1e40af" text-anchor="middle">what to show, via expose and render</text>
+    <rect x="14" y="174" width="202" height="54" rx="6" fill="#ffffff" stroke="#2563eb"/>
+    <text x="115" y="196" font-size="14" font-weight="600" fill="#1e3a8a" text-anchor="middle">Metadata annotations</text>
+    <text x="115" y="216" font-size="12" font-family="Consolas, monospace" fill="#1e40af" text-anchor="middle">e.g. @Safety</text>
+    <rect x="14" y="238" width="202" height="54" rx="6" fill="#ffffff" stroke="#2563eb"/>
+    <text x="115" y="260" font-size="14" font-weight="600" fill="#1e3a8a" text-anchor="middle">Multi-file workspace</text>
+    <text x="115" y="280" font-size="12" fill="#1e40af" text-anchor="middle">globs; OMG stdlib built in</text>
+
+    <line x1="234" y1="153" x2="256" y2="153" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+
+    <!-- Step 2: run -->
+    <rect x="260" y="0" width="230" height="306" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+    <text x="375" y="30" font-size="16" font-weight="600" fill="#92400e" text-anchor="middle">2. Run sysml2tools</text>
+    <rect x="274" y="46" width="202" height="54" rx="6" fill="#ffffff" stroke="#d97706"/>
+    <text x="375" y="68" font-size="14" font-weight="600" font-family="Consolas, monospace" fill="#92400e" text-anchor="middle">lint</text>
+    <text x="375" y="88" font-size="12" fill="#92400e" text-anchor="middle">check the model for errors</text>
+    <rect x="274" y="110" width="202" height="54" rx="6" fill="#ffffff" stroke="#d97706"/>
+    <text x="375" y="132" font-size="14" font-weight="600" font-family="Consolas, monospace" fill="#92400e" text-anchor="middle">render</text>
+    <text x="375" y="152" font-size="12" fill="#92400e" text-anchor="middle">declared or ad-hoc views</text>
+    <rect x="274" y="174" width="202" height="54" rx="6" fill="#ffffff" stroke="#d97706"/>
+    <text x="375" y="196" font-size="14" font-weight="600" font-family="Consolas, monospace" fill="#92400e" text-anchor="middle">query &lt;verb&gt;</text>
+    <text x="375" y="216" font-size="12" fill="#92400e" text-anchor="middle">uses, impact, requirements, ...</text>
+    <rect x="274" y="238" width="202" height="54" rx="6" fill="#ffffff" stroke="#d97706"/>
+    <text x="375" y="260" font-size="14" font-weight="600" font-family="Consolas, monospace" fill="#92400e" text-anchor="middle">export</text>
+    <text x="375" y="280" font-size="12" fill="#92400e" text-anchor="middle">dump the resolved model</text>
+
+    <line x1="494" y1="153" x2="516" y2="153" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+
+    <!-- Step 3: outputs -->
+    <rect x="520" y="0" width="230" height="306" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+    <text x="635" y="30" font-size="16" font-weight="600" fill="#5b21b6" text-anchor="middle">3. Get the outputs</text>
+    <rect x="534" y="46" width="202" height="54" rx="6" fill="#ffffff" stroke="#7c3aed"/>
+    <text x="635" y="68" font-size="14" font-weight="600" fill="#4c1d95" text-anchor="middle">Diagnostics</text>
+    <text x="635" y="88" font-size="12" fill="#5b21b6" text-anchor="middle">file:line:col, non-zero exit</text>
+    <rect x="534" y="110" width="202" height="54" rx="6" fill="#ffffff" stroke="#7c3aed"/>
+    <text x="635" y="132" font-size="14" font-weight="600" fill="#4c1d95" text-anchor="middle">SVG or PNG diagrams</text>
+    <text x="635" y="152" font-size="12" font-family="Consolas, monospace" fill="#5b21b6" text-anchor="middle">--format svg|png</text>
+    <rect x="534" y="174" width="202" height="54" rx="6" fill="#ffffff" stroke="#7c3aed"/>
+    <text x="635" y="196" font-size="14" font-weight="600" fill="#4c1d95" text-anchor="middle">Query reports</text>
+    <text x="635" y="216" font-size="12" font-family="Consolas, monospace" fill="#5b21b6" text-anchor="middle">--format markdown|json</text>
+    <rect x="534" y="238" width="202" height="54" rx="6" fill="#ffffff" stroke="#7c3aed"/>
+    <text x="635" y="260" font-size="14" font-weight="600" fill="#4c1d95" text-anchor="middle">Model export</text>
+    <text x="635" y="280" font-size="12" font-family="Consolas, monospace" fill="#5b21b6" text-anchor="middle">--format json|jsonl</text>
+
+    <line x1="754" y1="153" x2="776" y2="153" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+
+    <!-- Step 4: use -->
+    <rect x="780" y="0" width="230" height="306" rx="12" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <text x="895" y="30" font-size="16" font-weight="600" fill="#166534" text-anchor="middle">4. Use them</text>
+    <rect x="794" y="46" width="202" height="54" rx="6" fill="#ffffff" stroke="#16a34a"/>
+    <text x="895" y="68" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">CI quality gate</text>
+    <text x="895" y="88" font-size="12" fill="#166534" text-anchor="middle">fail the build on model errors</text>
+    <rect x="794" y="110" width="202" height="54" rx="6" fill="#ffffff" stroke="#16a34a"/>
+    <text x="895" y="132" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">Design documents</text>
+    <text x="895" y="152" font-size="12" fill="#166534" text-anchor="middle">embed diagrams and dependencies</text>
+    <rect x="794" y="174" width="202" height="54" rx="6" fill="#ffffff" stroke="#16a34a"/>
+    <text x="895" y="196" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">AI agents</text>
+    <text x="895" y="216" font-size="12" fill="#166534" text-anchor="middle">fix loops and model questions</text>
+    <rect x="794" y="238" width="202" height="54" rx="6" fill="#ffffff" stroke="#16a34a"/>
+    <text x="895" y="260" font-size="14" font-weight="600" fill="#14532d" text-anchor="middle">Bulk analysis</text>
+    <text x="895" y="280" font-size="12" fill="#166534" text-anchor="middle">whole-workspace offline review</text>
+
+    <text x="505" y="336" font-size="13" font-style="italic" fill="#475569" text-anchor="middle">Need tool qualification evidence? Run sysml2tools --validate --results validation-results.trx</text>
+  </g>
+</svg>

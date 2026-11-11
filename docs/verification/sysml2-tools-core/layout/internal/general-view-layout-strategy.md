@@ -17,12 +17,12 @@ unit's requirement coverage.
 
 ##### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. No external services, files, or
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. No external services, files, or
 configuration are required beyond a standard .NET SDK installation.
 
 ##### Acceptance Criteria
 
-- All `GeneralViewLayoutStrategyTests` pass with zero failures across all three target frameworks.
+- All `GeneralViewLayoutStrategyTests` pass with zero failures across all four target frameworks.
 - Each user definition appears as a box carrying its definition keyword.
 - When the view has no resolved `expose` scope, a bare package's definitions appear inside a
   folder-shaped box labeled with the package name.

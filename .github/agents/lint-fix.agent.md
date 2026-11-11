@@ -53,6 +53,8 @@ submission, not during normal development.
 - **reqstream / reviewmark / versionmark failures**: Fix the referenced
   requirements or review configuration per the standards in
   `.github/standards/reqstream-usage.md` and `.github/standards/reviewmark-usage.md`.
+  For an orphaned requirement, add the missing `children` link from the parent it
+  serves; if no parent clearly needs it, report it rather than inventing a link.
 
 # Rules
 

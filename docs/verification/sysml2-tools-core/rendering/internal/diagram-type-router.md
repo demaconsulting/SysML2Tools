@@ -8,12 +8,12 @@ expected concrete strategy type. No mocking is required; the router is pure and 
 
 ##### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. No external services, files, or
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. No external services, files, or
 configuration are required beyond a standard .NET SDK installation.
 
 ##### Acceptance Criteria
 
-- All `DiagramTypeRouterTests` pass with zero failures across all three target frameworks.
+- All `DiagramTypeRouterTests` pass with zero failures across all four target frameworks.
 - Each recognized view kind, whether identified by name or by a specialized supertype, routes to
   its corresponding strategy.
 - A view matching no recognized kind routes to the general view strategy.

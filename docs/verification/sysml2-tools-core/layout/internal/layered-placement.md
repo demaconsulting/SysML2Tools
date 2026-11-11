@@ -16,7 +16,7 @@ in the same way. No mocking is used; the real layered algorithm runs on every te
 
 ##### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. No external services, files, or
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. No external services, files, or
 configuration are required beyond a standard .NET SDK installation and the referenced
 `DemaConsulting.Rendering` packages.
 

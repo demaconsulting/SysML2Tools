@@ -64,6 +64,7 @@ reviews:
       - "docs/user_guide/**/*.md"
     paths:
       - "requirements.yaml"
+      - "docs/reqstream/quality.yaml"
       - "docs/design/introduction.md"
 ```
 
@@ -124,10 +125,12 @@ placeholders are always PascalCase (e.g., `{SystemName}`).
   the user-facing promise; the structural mirror of the decomposition decision
 - **Title**: "Review that {SystemName} Decomposition Addresses the Stated Purpose"
 - **ID**: `Decomposition` (no system prefix — one per repository)
-- **Scope**: introduction.md (the decomposition narrative) and requirements.yaml
-  (the structural tree); no system-level detail
+- **Scope**: introduction.md (the decomposition narrative), requirements.yaml (the
+  structural tree), and quality.yaml (the root requirements that tooling requirements
+  trace to); no system-level detail
 - **File Path Patterns**:
   - Root requirements: `requirements.yaml`
+  - Quality requirements: `docs/reqstream/quality.yaml`
   - Design introduction: `docs/design/introduction.md`
 - **Context Files**: `README.md`, `docs/user_guide/**/*.md`
 

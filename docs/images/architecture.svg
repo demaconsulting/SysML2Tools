@@ -51,7 +51,7 @@
     <line x1="430" y1="324" x2="430" y2="348" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
 
     <rect x="170" y="352" width="520" height="122" rx="14" fill="#f8fafc" stroke="#2563eb" stroke-width="2" stroke-dasharray="8 5"/>
-    <text x="186" y="374" font-size="14" font-weight="600" fill="#2563eb">DemaConsulting.SysML2Tools (Core)</text>
+    <text x="186" y="374" font-size="14" font-weight="600" fill="#2563eb">DemaConsulting.SysML2Tools.Core</text>
     <g font-size="11" fill="#5b21b6" text-anchor="middle">
       <rect x="190" y="386" width="88" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
       <text x="234" y="408" font-size="14" font-weight="600" fill="#4c1d95">Io</text>

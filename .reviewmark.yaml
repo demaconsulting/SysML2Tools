@@ -63,6 +63,7 @@ reviews:
       - "docs/user_guide/**/*.md"
     paths:
       - requirements.yaml
+      - docs/reqstream/quality.yaml
       - docs/design/introduction.md
 
   # SysML2Tools Tool - Specials
@@ -126,6 +127,7 @@ reviews:
     context:
       - docs/reqstream/sysml2-tools-language.yaml
     paths:
+      - "docs/reqstream/sysml2-tools-language/platform-requirements.yaml"
       - "docs/design/introduction.md"
       - "docs/design/sysml2-tools-language.md"
       - "docs/design/ots.md"
@@ -189,6 +191,7 @@ reviews:
     context:
       - docs/reqstream/sysml2-tools-stdlib.yaml
     paths:
+      - "docs/reqstream/sysml2-tools-stdlib/platform-requirements.yaml"
       - "docs/design/introduction.md"
       - "docs/design/sysml2-tools-stdlib.md"
       - "docs/design/sysml2-tools-stdlib/**/*.md"
@@ -254,6 +257,7 @@ reviews:
     context:
       - docs/reqstream/sysml2-tools-core.yaml
     paths:
+      - "docs/reqstream/sysml2-tools-core/platform-requirements.yaml"
       - "docs/design/introduction.md"
       - "docs/design/sysml2-tools-core.md"
       - "docs/design/sysml2-tools-core/**/*.md"

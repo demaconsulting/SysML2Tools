@@ -33,8 +33,8 @@ jobs:
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  # Cuts and publishes the release, creating a GitHub release with artifacts
-  # and optionally publishing the NuGet package.
+  # Cuts the release, creating a GitHub release with artifacts. This job has no
+  # OIDC access so third-party release actions cannot mint a NuGet token.
   release:
     name: Release
     runs-on: ubuntu-latest
@@ -50,6 +50,7 @@ jobs:
             8.x
             9.x
             10.x
+            11.x
 
       - name: Download package artifacts
         uses: actions/download-artifact@v8
@@ -72,11 +73,47 @@ jobs:
           bodyFile: artifacts/build_notes.md
           generateReleaseNotes: false
 
+  # Publishes the NuGet packages (the Core, Language, and Stdlib libraries and
+  # the Tool) using Trusted Publishing. This is the only job granted
+  # id-token: write, and it runs no third-party action other than the
+  # commit-pinned NuGet login.
+  publish:
+    name: Publish to NuGet
+    if: inputs.publish == 'publish'
+    runs-on: ubuntu-latest
+    needs: release
+    environment: release
+    permissions:
+      actions: read
+      contents: read
+      id-token: write  # lets GitHub issue the token NuGet checks
+
+    steps:
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.x
+            9.x
+            10.x
+            11.x
+
+      - name: Download package artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: packages-ubuntu-latest
+          path: artifacts
+
+      - name: NuGet login
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841  # v1.2.0
+        with:
+          user: ${{ secrets.NUGET_USER }}  # your nuget.org profile name, not your email address
+
       - name: Publish to NuGet.org
-        if: inputs.publish == 'publish'
         run: |-
           set -e
           dotnet nuget push artifacts/*.nupkg \
-            --api-key ${{ secrets.DEMACONSULTINGNUGETKEY }} \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate

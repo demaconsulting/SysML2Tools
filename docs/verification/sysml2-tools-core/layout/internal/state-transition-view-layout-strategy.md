@@ -13,12 +13,12 @@ model, `LayeredPlacement`, and render options.
 
 ##### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. No external services, files, or
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. No external services, files, or
 configuration are required beyond a standard .NET SDK installation.
 
 ##### Acceptance Criteria
 
-- All `StateTransitionViewLayoutStrategyTests` pass with zero failures across all three target frameworks.
+- All `StateTransitionViewLayoutStrategyTests` pass with zero failures across all four target frameworks.
 - A state definition yields one state box per state, an initial-state badge, and guard-labeled
   transition lines.
 - A state named only by a transition is still rendered as a box.

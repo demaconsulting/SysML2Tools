@@ -10,7 +10,7 @@ by a dedicated test that asserts an empty result.
 
 #### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. The integration tests load the
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. The integration tests load the
 embedded standard library through `StdlibProvider` and read the `test/SysMLModels` fixtures; no
 external services are required.
 

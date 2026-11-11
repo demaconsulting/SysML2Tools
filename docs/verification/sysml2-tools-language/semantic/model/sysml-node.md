@@ -9,7 +9,7 @@ types in `SysmlLoadResult.Workspace.Declarations`.
 
 ##### Test Environment
 
-Tests run via `dotnet test` against all three target frameworks: net8.0, net9.0, and net10.0.
+Tests run via `dotnet test` against all four target frameworks: net8.0, net9.0, net10.0, and net11.0.
 Temporary `.sysml` files are created in `Path.GetTempPath()` and deleted after each test. No
 external services or additional configuration are required beyond a standard .NET SDK installation.
 

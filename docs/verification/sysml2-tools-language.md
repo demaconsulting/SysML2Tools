@@ -9,13 +9,13 @@ test methods; results are captured in TRX files consumed by ReqStream.
 
 ## Test Environment
 
-Tests run via `dotnet test` against all three target frameworks: net8.0, net9.0, and net10.0.
+Tests run via `dotnet test` against all four target frameworks: net8.0, net9.0, net10.0, and net11.0.
 No external services, files, or environment configuration are required beyond a standard .NET
 SDK installation.
 
 ## Acceptance Criteria
 
-- All unit tests pass with zero failures across all three target frameworks.
+- All unit tests pass with zero failures across all four target frameworks.
 - `WorkspaceParser` correctly propagates the caller-supplied file path in all diagnostics.
 - Invalid SysML syntax produces at least one `Error`-severity diagnostic.
 - `WorkspaceLoader` correctly registers qualified names from SysML packages and definitions.

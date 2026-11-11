@@ -163,7 +163,7 @@ N/A — not a safety-classified software item.
 
 ## Design Constraints
 
-- Platform: multi-targets net8.0, net9.0, and net10.0 on Windows, Linux, and macOS.
+- Platform: multi-targets net8.0, net9.0, net10.0, and net11.0 on Windows, Linux, and macOS.
 - The ANTLR4-generated C# files under `Parser/Antlr/` are committed to the repository and
   must not be manually edited; they are regenerated using `antlr-4.13.1-complete.jar` as
   documented in `Grammar/README.md`.

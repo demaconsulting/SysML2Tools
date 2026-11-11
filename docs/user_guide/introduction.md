@@ -14,6 +14,22 @@ without requiring a rendered diagram, and the `query` command lets an AI agent a
 architecture and traceability questions (dependencies, requirement trace links, structure,
 behavior) directly from the semantic model instead of reading raw `.sysml` files.
 
+The workflow below shows how SysML2Tools is used: author SysML v2 models as `.sysml` text with
+views and metadata annotations, run the `sysml2tools` `lint`, `render`, `query`, and `export`
+commands locally or in a CI pipeline, and use the resulting diagnostics, diagrams, query reports,
+and model exports as a CI quality gate, in design documents, and to let AI agents fix and question
+the model.
+
+![SysML2Tools workflow: author .sysml model files with views and metadata annotations, run sysml2tools lint,
+render, query, or export, get diagnostics, SVG or PNG diagrams, Markdown or JSON query reports, and JSON or
+JSONL model exports, then use them as a CI quality gate, in design documents, with AI agents, or for bulk
+analysis](workflow.svg)
+
+For library consumers, the architecture diagram below shows how the NuGet packages fit together:
+the Tool's commands call into the Core library, which builds on the Language library seeded with
+the pre-compiled Stdlib, to turn model files into diagnostics, diagrams, query results, and model
+JSON.
+
 ![SysML2Tools architecture: model files flow from the Tool commands through the Core library and the Language library, which is seeded by the Stdlib, to produce diagnostics, diagrams, query results, and model JSON](architecture.svg)
 
 ## Purpose
@@ -37,7 +53,10 @@ This user guide covers:
 
 # Installation
 
-Install the tool globally using the .NET CLI:
+Install the tool globally using the .NET CLI. Installing requires the .NET SDK, and running the
+tool requires the .NET 10 runtime; the
+`DemaConsulting.SysML2Tools.Core`, `.Language`, and `.Stdlib` library packages support .NET 8, 9,
+10, and 11.
 
 ```bash
 dotnet tool install -g DemaConsulting.SysML2Tools.Tool

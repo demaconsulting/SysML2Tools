@@ -13,14 +13,14 @@ confirms the parser/evaluator behavior composes correctly into layout and render
 
 #### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. Parser tests are fully
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. Parser tests are fully
 in-memory. Evaluator tests create temporary `.sysml` files, load them through `WorkspaceLoader`,
 and delete them after each run. No external services or configuration are required beyond the .NET
 SDK and the repository's committed SysML fixtures.
 
 #### Acceptance Criteria
 
-- All parser and evaluator tests pass with zero failures across all three target frameworks.
+- All parser and evaluator tests pass with zero failures across all four target frameworks.
 - Classification tests match candidates carrying the referenced metadata annotation.
 - Boolean connectives and parentheses preserve the intended logical grouping.
 - `(as Type).attribute` reads work both as bare boolean predicates and as scalar comparisons.

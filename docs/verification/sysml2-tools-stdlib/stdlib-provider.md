@@ -9,7 +9,7 @@ list. No mocking is required; the unit's public method is exercised against the 
 
 #### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. The standard library binary is
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. The standard library binary is
 embedded in the assembly; no files on disk, network access, or additional configuration are required
 beyond a standard .NET SDK installation.
 

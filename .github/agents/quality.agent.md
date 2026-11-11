@@ -66,6 +66,8 @@ Priority-ordered list of issues that MUST be resolved for the next retry:
 
 - Were requirements created/updated for all functional changes?
 - Were source filters applied for platform-specific requirements?
+- Does `dotnet reqstream --requirements requirements.yaml --lint --enforce` report no orphaned
+  requirements?
 - Is forward traceability from requirements to verification artifacts preserved?
 
 ## Design Documentation Compliance: (PASS|FAIL|N/A)

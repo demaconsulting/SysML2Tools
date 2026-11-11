@@ -9,14 +9,14 @@ test exercises the complete semantic pipeline end-to-end.
 
 #### Test Environment
 
-Tests run via `dotnet test` against all three target frameworks: net8.0, net9.0, and net10.0.
+Tests run via `dotnet test` against all four target frameworks: net8.0, net9.0, net10.0, and net11.0.
 Temporary `.sysml` files are created in `Path.GetTempPath()` and deleted after each test. No
 external services, network access, or additional configuration are required beyond a standard
 .NET SDK installation.
 
 #### Acceptance Criteria
 
-- All `WorkspaceLoaderTests` pass with zero failures across all three target frameworks.
+- All `WorkspaceLoaderTests` pass with zero failures across all four target frameworks.
 - An empty `.sysml` file returns a non-null `SysmlWorkspace` with `HasErrors = false`.
 - A single-package file registers exactly the package qualified name in `Declarations`.
 - Nested packages register both parent and child qualified names.

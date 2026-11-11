@@ -12,12 +12,12 @@ diagnostic. No mocking is required; the unit is pure and deterministic.
 
 ##### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. No external services, files, or
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. No external services, files, or
 configuration are required beyond a standard .NET SDK installation.
 
 ##### Acceptance Criteria
 
-- All `DynamicViewSynthesizerTests` pass with zero failures across all three target frameworks.
+- All `DynamicViewSynthesizerTests` pass with zero failures across all four target frameworks.
 - Each of the seven `--view-type` kinds synthesizes successfully against a compatible target,
   with `RenderTargetName` set to the correct token.
 - An unrecognized `--view-type`, an unresolved `--view-target`, a wrong-kind target (view,

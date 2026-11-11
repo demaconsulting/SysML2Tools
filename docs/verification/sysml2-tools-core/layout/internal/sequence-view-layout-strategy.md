@@ -9,7 +9,7 @@ required; real workspace and rendering-option values are constructed directly.
 
 ##### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. No external services, files, or
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. No external services, files, or
 configuration are required beyond a standard .NET SDK installation.
 
 ##### Acceptance Criteria
