@@ -179,6 +179,10 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   original token spacing, not `RuleContext.GetText()`'s whitespace-stripped form) and never
   inspected by `ReferenceResolver`. The Core Filtering subsystem parses and evaluates this raw
   text later when `GeneralViewLayoutStrategy` renders the view.
+- `ShowDocumentation` — `true` when the view's own body declares
+  `attribute showDocumentation = true;` (set by `AstBuilder`), `false` otherwise. Read by
+  `GeneralViewLayoutStrategy` to decide whether to render `doc` annotations as a `doc`
+  compartment; documentation is hidden by default.
 
 ##### Error Handling
 

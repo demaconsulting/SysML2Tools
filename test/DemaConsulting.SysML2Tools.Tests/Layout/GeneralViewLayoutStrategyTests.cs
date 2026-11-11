@@ -1678,7 +1678,7 @@ public sealed class GeneralViewLayoutStrategyTests
     ///     (independently re-counted via <c>Select-String -Pattern '&lt;rect'</c>) when laid out
     ///     through the actual <see cref="GeneralViewLayoutStrategy"/>. Only <see cref="BoxShape.Rectangle"/>
     ///     boxes are counted (excluding the single package folder and the Battery definition's
-    ///     documentation-annotation note box, neither of which is drawn as a checked-in <c>&lt;rect&gt;</c>
+    ///     comment-annotation note box, neither of which is drawn as a checked-in <c>&lt;rect&gt;</c>
     ///     element), matching the checked-in SVG's own count basis. This converts the quality
     ///     agent's one-off manual <c>git stash</c> empirical check into a standing, automated test.
     /// </summary>
@@ -2286,19 +2286,19 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     BuildLayout emits a companion <see cref="BoxShape.Note"/> box (plus a connecting plain
-    ///     line) for a definition that carries a <c>doc</c>/<c>comment</c> annotation.
+    ///     line) for a definition that carries an explicit <c>comment</c> annotation.
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_AnnotatedDefinition_EmitsNoteBox()
     {
-        // Arrange: a part def with one Documentation annotation
+        // Arrange: a part def with one Comment annotation
         var strategy = new GeneralViewLayoutStrategy();
         var battery = new SysmlDefinitionNode
         {
             Name = "Battery",
             QualifiedName = "P::Battery",
             DefinitionKeyword = "part def",
-            Annotations = [new SysmlAnnotation(SysmlAnnotationKind.Documentation, "Nominal battery capacity is 5000mAh.")],
+            Annotations = [new SysmlAnnotation(SysmlAnnotationKind.Comment, "Nominal battery capacity is 5000mAh.")],
         };
         var workspace = new SysmlWorkspace
         {
@@ -2350,13 +2350,13 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     BuildLayout combines multiple annotations on one element into a single Note box (not
-    ///     one box per annotation), per this strategy's documented aggregation choice.
+    ///     BuildLayout combines multiple comment annotations on one element into a single Note box
+    ///     (not one box per annotation), per this strategy's documented aggregation choice.
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_MultipleAnnotations_ProduceOneNoteBox()
     {
-        // Arrange: a part def with two annotations (a doc and a comment)
+        // Arrange: a part def with two comment annotations
         var strategy = new GeneralViewLayoutStrategy();
         var battery = new SysmlDefinitionNode
         {
@@ -2365,7 +2365,7 @@ public sealed class GeneralViewLayoutStrategyTests
             DefinitionKeyword = "part def",
             Annotations =
             [
-                new SysmlAnnotation(SysmlAnnotationKind.Documentation, "Primary power source."),
+                new SysmlAnnotation(SysmlAnnotationKind.Comment, "Primary power source."),
                 new SysmlAnnotation(SysmlAnnotationKind.Comment, "TODO: revisit capacity."),
             ],
         };
@@ -2384,6 +2384,100 @@ public sealed class GeneralViewLayoutStrategyTests
         var note = Assert.Single(boxes, b => b.Shape == BoxShape.Note);
         Assert.Contains(note.Compartments, c => c.Rows.Any(r => r.Contains("Primary power source")));
         Assert.Contains(note.Compartments, c => c.Rows.Any(r => r.Contains("revisit capacity")));
+    }
+
+    /// <summary>
+    ///     Builds a single-definition workspace whose part def carries one Documentation and one
+    ///     Comment annotation, used by the documentation-visibility tests.
+    /// </summary>
+    private static SysmlWorkspace BuildDocumentedBatteryWorkspace(string docText) =>
+        new()
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Battery"] = new SysmlDefinitionNode
+                {
+                    Name = "Battery",
+                    QualifiedName = "P::Battery",
+                    DefinitionKeyword = "part def",
+                    Annotations =
+                    [
+                        new SysmlAnnotation(SysmlAnnotationKind.Documentation, docText),
+                        new SysmlAnnotation(SysmlAnnotationKind.Comment, "TODO: revisit capacity."),
+                    ],
+                },
+            },
+        };
+
+    /// <summary>
+    ///     By default (no opt-in on the view), BuildLayout draws no <c>doc</c> text at all — neither
+    ///     as a note nor as a compartment — while an explicit comment is still drawn as a note.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_DocumentationByDefault_IsHiddenButCommentShown()
+    {
+        // Arrange: a documented and commented part def rendered through a view with no opt-in
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = BuildDocumentedBatteryWorkspace("Primary power source.");
+        var context = new ViewContext("v", workspace, new SysmlViewNode { Name = "v", QualifiedName = "P::v" });
+
+        // Act
+        var layout = strategy.BuildLayout(context, new RenderOptions(Themes.Light));
+
+        // Assert: the comment note is present, and no box shows the documentation text
+        var boxes = CollectBoxes(layout.Nodes);
+        var note = Assert.Single(boxes, b => b.Shape == BoxShape.Note);
+        Assert.Contains(note.Compartments, c => c.Rows.Any(r => r.Contains("revisit capacity")));
+        Assert.DoesNotContain(boxes, b => b.Compartments.Any(c =>
+            c.Title == "doc" || c.Rows.Any(r => r.Contains("Primary power source"))));
+    }
+
+    /// <summary>
+    ///     When the view opts in (<c>ShowDocumentation</c>), BuildLayout renders the documentation as
+    ///     a <c>doc</c> compartment inside the element's own box, word-wrapped into several rows no
+    ///     wider than the box, and still never as a note.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_ShowDocumentation_RendersWrappedDocCompartment()
+    {
+        // Arrange: a long documentation string and a view that opts in to documentation
+        var strategy = new GeneralViewLayoutStrategy();
+        const string docText =
+            "The battery is the primary power source for the vehicle and supplies every subsystem " +
+            "with regulated power during all operating modes.";
+        var workspace = BuildDocumentedBatteryWorkspace(docText);
+        var view = new SysmlViewNode { Name = "v", QualifiedName = "P::v", ShowDocumentation = true };
+        var context = new ViewContext("v", workspace, view);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the Battery box carries a wrapped doc compartment preserving every word, sized
+        // within the box, and the doc text appears in no note
+        var boxes = CollectBoxes(layout.Nodes);
+        var battery = Assert.Single(boxes, b => b.Label == "Battery");
+        var doc = Assert.Single(battery.Compartments, c => c.Title == "doc");
+        Assert.True(doc.Rows.Count > 1, "Expected the documentation to wrap onto several rows");
+        Assert.Equal(docText, string.Join(" ", doc.Rows));
+        var charWidth = options.Theme.FontSizeBody * 0.62;
+        Assert.All(doc.Rows, r => Assert.True(r.Length * charWidth <= battery.Width, $"Row too wide: {r}"));
+        var note = Assert.Single(boxes, b => b.Shape == BoxShape.Note);
+        Assert.DoesNotContain(note.Compartments, c => c.Rows.Any(r => r.Contains("primary power source")));
+    }
+
+    /// <summary>
+    ///     WrapText hard-breaks a single word longer than the row limit and keeps every row within it.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_WrapText_LongWord_IsHardBroken()
+    {
+        // Act: wrap a paragraph containing a word longer than the limit
+        var rows = GeneralViewLayoutStrategy.WrapText("short 123456789012 end", 5);
+
+        // Assert: every row fits and the content is preserved in order
+        Assert.All(rows, r => Assert.True(r.Length <= 5));
+        Assert.Equal(["short", "12345", "67890", "12", "end"], rows);
     }
 
     /// <summary>

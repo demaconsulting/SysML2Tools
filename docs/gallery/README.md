@@ -44,9 +44,11 @@ standalone `dependency FlightController to Battery;` statement demonstrates the
 same dashed open-chevron line without a label, used for general OMG
 dependency relationships.
 
-`Battery`'s `doc /* ... */` annotation demonstrates the `BoxShape.Note`
-(folded-corner) box rendered for a documented element, connected to its box by
-a plain solid line. `FlightMode` is now an `enum def` with literal values
+`Battery`'s `comment /* ... */` annotation demonstrates the `BoxShape.Note`
+(folded-corner) box rendered for a commented element, connected to its box by
+a plain solid line. Its `doc /* ... */` annotation is not drawn here: `doc`
+text is hidden unless a view opts in (see section 1b). `FlightMode` is now an
+`enum def` with literal values
 (`idle`/`manual`/`autonomous`), demonstrating the `enum values` compartment.
 `FlightTimeRequirement` gains a `subject`/`require constraint` body,
 demonstrating the stereotype-titled `«subject»`/`«require constraint»`
@@ -65,7 +67,8 @@ that adds an `expose Battery;` statement. Instead of the full workspace, the dia
 is scoped to just the `Battery` definition — with no wrapping `QuadcopterDrone` folder,
 since the bare package `QuadcopterDrone` was never itself named by the `expose` statement,
 only `Battery` was — demonstrating that `expose` (not `render`) is what controls diagram
-content scope. See the user
+content scope. The view also declares `attribute showDocumentation = true;`, so
+`Battery`'s `doc` text is drawn as a word-wrapped `doc` compartment inside its box. See the user
 guide's [Expose vs. Render](../user_guide/introduction.md#expose-vs-render-worked-examples)
 section for the full explanation and more worked examples.
 

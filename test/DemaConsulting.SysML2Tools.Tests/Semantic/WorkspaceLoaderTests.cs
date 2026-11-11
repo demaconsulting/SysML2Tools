@@ -3834,6 +3834,50 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A view whose own body declares <c>attribute showDocumentation = true;</c> opts in to
+    ///     documentation rendering (for both <c>view</c> usages and <c>view def</c>s), while a view
+    ///     without it, one assigning <c>false</c>, and one where the attribute is nested inside
+    ///     another member's body do not.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ViewShowDocumentationAttribute_SetsShowDocumentation()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def A;
+                    view On { expose A; attribute showDocumentation = true; }
+                    view def OnDef { attribute showDocumentation = true; }
+                    view Off { expose A; }
+                    view False { attribute showDocumentation = false; }
+                    view Nested { part x { attribute showDocumentation = true; } }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            bool Shows(string name) => Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
+                result.Workspace.Declarations[$"P::{name}"]).ShowDocumentation;
+            Assert.True(Shows("On"));
+            Assert.True(Shows("OnDef"));
+            Assert.False(Shows("Off"));
+            Assert.False(Shows("False"));
+            Assert.False(Shows("Nested"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     A <c>view def</c> with a <c>render &lt;target&gt;;</c> member naming a rendering-style
     ///     identifier that is not declared anywhere in the file (which would have failed
     ///     resolution under the old, incorrect content-scoping semantics) produces zero

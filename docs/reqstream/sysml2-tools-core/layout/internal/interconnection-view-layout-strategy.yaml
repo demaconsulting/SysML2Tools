@@ -21,6 +21,16 @@ sections:
           - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
           - InterconnectionView_BuildLayout_RootContent_IsNestedAsRootBoxChildren
 
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NoDocumentation
+        title: >-
+          InterconnectionViewLayoutStrategy shall not draw `doc` (Documentation) annotation text
+          for the root definition or any nested part.
+        justification: |
+          Interconnection diagrams show structure and connections; documentation text would crowd
+          the nested boxes, so it is never drawn, consistent with the General View's default.
+        tests:
+          - InterconnectionView_BuildLayout_DocumentedDefinitions_DrawNoDocumentation
+
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Ports
         title: >-
           InterconnectionViewLayoutStrategy shall place a port on a part box for every connection

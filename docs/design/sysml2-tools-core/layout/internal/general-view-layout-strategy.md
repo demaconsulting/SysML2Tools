@@ -30,7 +30,7 @@ box title and folder-tab geometry come from `BoxMetrics` in `DemaConsulting.Rend
 parameters. Layout constants (`MinBoxWidth`, `CharWidthFactor`) are declared as `private const`
 fields. Private records carry intermediate data: `DefBox` (a user definition with its computed
 size, keyword, supertype names, memberships, compartments, and `Annotations` — the definition's
-own `SysmlNode.Annotations` list, threaded through by `CollectDefinitions` so `AddAnnotationNote`
+own `comment` annotations from `SysmlNode.Annotations`, threaded through by `CollectDefinitions` so `AddAnnotationNote`
 (below) can render them without a second workspace lookup), `ModelEdge` (a resolved
 specialization/membership/attribute-typing/redefinition/subsetting/connect/allocate/dependency/
 binding relationship expressed by qualified name, together with its target end marker, edge kind,
@@ -428,15 +428,32 @@ their placeholder identically.
 Adds one definition as a leaf node to the given scope (the root graph or a folder's `Children`),
 carrying its `Label`, `Shape = Rectangle`, `Keyword`, and `Compartments`.
 
+###### `BuildDocCompartment(annotations, boxWidth, theme)`
+
+Called by `CollectDefinitions` only when the view opts in (`SysmlViewNode.ShowDocumentation`,
+set by an `attribute showDocumentation = true;` view-body member; never for the synthesized
+`--auto` view). It returns `null` when the element has no non-empty `doc` annotation; otherwise it
+builds a `LayoutCompartment` titled `doc` that `CollectDefinitions` places first among the box's
+compartments before re-running `ComputeBoxSize`. `SplitParagraphs` normalizes each annotation's
+raw text (trimming lines, dropping a leading `*` continuation marker, joining consecutive lines,
+and splitting paragraphs on blank lines), and `WrapText` greedily word-wraps each paragraph to the
+number of characters that fit the box width computed without the doc compartment — using the same
+`FontSizeBody * CharWidthFactor` estimate and `3 * LabelPadding` inset as `ComputeBoxSize`, so a
+wrapped row never widens the box — but never fewer than `MinDocWrapChars` (36) characters, so a
+narrow box widens to a readable column instead of wrapping into a tall sliver. A word longer than
+the limit is hard-broken. Without the opt-in, `doc` text is not drawn at all.
+
 ###### `AddAnnotationNote(scope, def, defNode, theme)`
 
 Called immediately after `MakeDefNode` for every definition (both top-level and folder-scoped),
 this no-ops when `def.Annotations` is empty; otherwise it adds one `BoxShape.Note` node (id
 `note:{qualifiedName}`) to the same `scope` as `defNode`, plus a plain solid edge with no end
 marker (id `note-edge:{qualifiedName}`, `TargetEnd = EndMarkerStyle.None`) from the note to the
-definition. `BuildNoteText` concatenates every annotation's trimmed text with a blank-line
-separator, so **one note box renders per annotated element**, never one box per individual
-`comment`/`doc` — a definition with both a `doc` and two `comment`s still gets a single note.
+definition. `def.Annotations` holds only the element's `comment` annotations — `CollectDefinitions`
+filters out `doc` (Documentation) annotations, which are never drawn as notes (see
+`BuildDocCompartment` below). `BuildNoteText` concatenates every comment's trimmed text with a
+blank-line separator, so **one note box renders per commented element**, never one box per
+individual `comment` — a definition with two `comment`s still gets a single note.
 `ComputeNoteBoxSize` sizes the note from the longest line and total line count using
 `BoxMetrics.TitleAreaHeight(theme, hasLabel: false, hasKeyword: false)` for the (title-less) top
 band plus per-line height and padding — deliberately simpler than the full `ComputeBoxSize` used

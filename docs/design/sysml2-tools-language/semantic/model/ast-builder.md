@@ -181,7 +181,12 @@ absent.
 `FilterExpressionText`. `VisitViewUsage` builds a `SysmlViewNode` for named `view` usages (the
 only body form that may additionally contain `expose` members) the same way, plus
 `ExtractExposedNames` to populate `ExposeMembers`. Unnamed view usages are skipped (no declared
-name), mirroring the existing anonymous-element convention.
+name), mirroring the existing anonymous-element convention. Both visitors also set
+`ShowDocumentation` via `ExtractShowDocumentation`, which searches each of the view's own body
+items for an `attributeUsage` named `showDocumentation` whose `featureValue` expression text is
+exactly `true`, ignoring any attribute found inside a nested member's `definitionBody`
+(`IsNestedInBody`). The attribute itself is not registered as a symbol, since view bodies are not
+visited for child elements.
 
 **`VisitViewUsage` is an intentional capability addition, not merely an `expose`-capture
 prerequisite.** Before this override existed, named `view Name { ... }` usages were silently

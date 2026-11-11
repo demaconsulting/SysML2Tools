@@ -83,6 +83,16 @@ sections:
           - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
           - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
 
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewShowDocumentation
+        title: >-
+          SysmlViewNode shall expose ShowDocumentation: true when the view's own body declares
+          `attribute showDocumentation = true;`, and false otherwise.
+        justification: |
+          Layout strategies need a per-view signal for whether to draw `doc` annotations, which
+          are hidden by default to keep diagrams readable.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewShowDocumentationAttribute_SetsShowDocumentation
+
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-RedefinedFeatureName
         title: >-
           SysmlFeatureNode shall expose RedefinedFeatureName: the raw reference text of its

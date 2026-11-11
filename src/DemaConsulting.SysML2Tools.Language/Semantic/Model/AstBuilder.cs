@@ -1884,6 +1884,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             SupertypeNames = supertypeNames,
             RenderTargetName = renderTargetName,
             FilterExpressionText = filterExpressionText,
+            ShowDocumentation = ExtractShowDocumentation(context.viewDefinitionBody()?.viewDefinitionBodyItem() ?? []),
         };
     }
 
@@ -1919,7 +1920,65 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             RenderTargetName = renderTargetName,
             ExposeMembers = exposeMembers,
             FilterExpressionText = filterExpressionText,
+            ShowDocumentation = ExtractShowDocumentation(bodyItems),
         };
+    }
+
+    /// <summary>
+    ///     The name of the view-body attribute usage that opts a view in to rendering
+    ///     <c>doc</c> annotations (<c>attribute showDocumentation = true;</c>).
+    /// </summary>
+    private const string ShowDocumentationAttributeName = "showDocumentation";
+
+    /// <summary>
+    ///     Returns <see langword="true"/> when one of a view's own body items (not a member nested
+    ///     inside another body) is an <c>attribute showDocumentation = true;</c> usage.
+    /// </summary>
+    /// <param name="bodyItems">The view's <c>viewBodyItem</c> or <c>viewDefinitionBodyItem</c> contexts.</param>
+    /// <returns>Whether the view opts in to rendering documentation.</returns>
+    private static bool ExtractShowDocumentation(IEnumerable<Antlr4.Runtime.ParserRuleContext> bodyItems)
+    {
+        foreach (var item in bodyItems)
+        {
+            var attributes = Antlr4.Runtime.Tree.Trees
+                .FindAllRuleNodes(item, SysMLv2Parser.RULE_attributeUsage)
+                .OfType<SysMLv2Parser.AttributeUsageContext>();
+            foreach (var attribute in attributes)
+            {
+                var usage = attribute.usage();
+                if (!IsNestedInBody(attribute, item) &&
+                    string.Equals(
+                        GetDeclaredName(usage?.usageDeclaration()?.identification()),
+                        ShowDocumentationAttributeName,
+                        StringComparison.Ordinal) &&
+                    string.Equals(
+                        usage?.usageCompletion()?.valuePart()?.featureValue()?.ownedExpression()?.GetText(),
+                        "true",
+                        StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Returns <see langword="true"/> when <paramref name="node"/> lies inside a nested
+    ///     definition/usage body below <paramref name="item"/> rather than directly in it.
+    /// </summary>
+    private static bool IsNestedInBody(Antlr4.Runtime.RuleContext node, Antlr4.Runtime.RuleContext item)
+    {
+        for (var current = node.Parent; current is not null && current != item; current = current.Parent)
+        {
+            if (current is SysMLv2Parser.DefinitionBodyContext)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

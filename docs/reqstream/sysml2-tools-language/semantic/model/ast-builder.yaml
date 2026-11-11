@@ -17,6 +17,18 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
 
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewShowDocumentation
+        title: >-
+          AstBuilder shall set a view's ShowDocumentation flag (for both `view def` and `view`
+          usages) when the view's own body, not a nested member's body, contains an attribute
+          usage named `showDocumentation` whose assigned value is the literal `true`.
+        justification: |
+          An owned attribute usage is valid SysML v2 inside any view body, needs no extra
+          declarations or imports, and reads as a self-describing per-view rendering option, so it
+          is the least surprising opt-in for drawing documentation.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewShowDocumentationAttribute_SetsShowDocumentation
+
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-QualifiedNames
         title: >-
           AstBuilder shall compute fully-qualified names by joining ancestor names with

@@ -165,6 +165,7 @@ configuration are required beyond a standard .NET SDK installation.
 | --- | --- |
 | `InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines` | Box, parts, ports, and lines |
 | `InterconnectionView_BuildLayout_RootContent_IsNestedAsRootBoxChildren` | Root box nesting invariant |
+| `InterconnectionView_BuildLayout_DocumentedDefinitions_DrawNoDocumentation` | No `doc` text drawn |
 | `InterconnectionView_BuildLayout_TwoConnectionsSamePair_ProducesTwoConnectorsWithoutException` | Distinct waypoints |
 | `InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors` | Six labeled ports |
 | `InterconnectionView_BuildLayout_HighConnectionDegreePart_BoxesDoNotOverlapAndPortsAreLabeled` | No overlap |

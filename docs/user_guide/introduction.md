@@ -306,6 +306,25 @@ nested target (`cpu`), but the connector line itself still terminates at the con
 box's own boundary rather than continuing on to the inner part — routing a connector all the way
 into a nested container remains a known limitation.
 
+### Comments and Documentation
+
+An explicit `comment /* ... */` on an element is drawn in a General View as a folded-corner note
+attached to the element's box. `doc /* ... */` (Documentation) text is **not drawn by default** in
+any view type, so diagrams of fully documented models stay readable. A view opts in by owning a
+`showDocumentation` attribute set to `true`:
+
+```sysml
+view DocumentedOverview {
+    expose MySystem::**;
+    attribute showDocumentation = true;
+}
+```
+
+In an opted-in General View, each element's documentation is drawn as a `doc` compartment inside
+its own box, word-wrapped to the box width. Interconnection and other view types never draw
+documentation. The opt-in is an ordinary SysML v2 attribute usage owned by the view, so it needs no
+extra declarations or imports, and other SysML tools treat it as plain view data.
+
 ## Expose vs. Render: Worked Examples
 
 The three view body statements look similar but do very different jobs. This is a common point

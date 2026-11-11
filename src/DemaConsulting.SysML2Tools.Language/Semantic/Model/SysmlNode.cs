@@ -373,6 +373,15 @@ public sealed class SysmlViewNode : SysmlNode
     /// </summary>
     public string? FilterExpressionText { get; init; }
 
+    /// <summary>
+    ///     Gets a value indicating whether the view opts in to rendering each element's
+    ///     <c>doc</c> (Documentation) annotations, declared by an
+    ///     <c>attribute showDocumentation = true;</c> member directly in the view's body.
+    ///     <see langword="false"/> (the default) when the view declares no such member or assigns
+    ///     any value other than the literal <c>true</c>.
+    /// </summary>
+    public bool ShowDocumentation { get; init; }
+
 }
 
 /// <summary>
