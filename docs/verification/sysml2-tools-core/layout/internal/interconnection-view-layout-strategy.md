@@ -71,12 +71,12 @@ pre-fix collision this owner-scoped grouping resolves.
 
 ##### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. No external services, files, or
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. No external services, files, or
 configuration are required beyond a standard .NET SDK installation.
 
 ##### Acceptance Criteria
 
-- All `InterconnectionViewLayoutStrategyTests` pass with zero failures across all three target frameworks.
+- All `InterconnectionViewLayoutStrategyTests` pass with zero failures across all four target frameworks.
 - A part definition with nested parts and connections yields a container box, one rounded box per
   part, one port per connection endpoint, and one connector line per connection.
 - No two part boxes overlap.

@@ -18,7 +18,7 @@ subsystem's `Filtering-BracketFormExposeEvaluation` requirement.
 
 ### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. Parser tests operate entirely
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. Parser tests operate entirely
 in-memory. Evaluator and integration tests load temporary or repository-owned `.sysml` models
 through `WorkspaceLoader` with the seeded standard library. No external services or network access
 are required.
@@ -26,7 +26,7 @@ are required.
 ### Acceptance Criteria
 
 - All filtering parser, evaluator, layout, and rendering tests pass with zero failures across all
-  three target frameworks.
+  four target frameworks.
 - A standalone `filter [<expr>];` expression can narrow a candidate set by metadata annotation
   presence alone.
 - Boolean composition and metadata-attribute reads can combine to narrow the rendered scope to a

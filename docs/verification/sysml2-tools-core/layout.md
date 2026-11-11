@@ -14,13 +14,13 @@ every test.
 
 ### Test Environment
 
-Tests run via `dotnet test` against all three target frameworks: net8.0, net9.0, and net10.0.
+Tests run via `dotnet test` against all four target frameworks: net8.0, net9.0, net10.0, and net11.0.
 No external network access or services are required beyond a standard .NET SDK installation and
 the referenced `DemaConsulting.Rendering` packages. All test inputs are constructed inline.
 
 ### Acceptance Criteria
 
-- All view layout strategy tests pass with zero failures across all three target frameworks.
+- All view layout strategy tests pass with zero failures across all four target frameworks.
 - Each view strategy maps its relevant model elements onto a populated `LayoutTree` of boxes,
   ports, lines, and markers.
 - Geometric placement is delegated to the off-the-shelf layered algorithm and positions boxes so

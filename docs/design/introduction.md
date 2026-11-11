@@ -180,6 +180,15 @@ system, subsystem, and unit levels:
 
 Each local unit is described in detail in its own chapter within this document.
 
+The diagram below complements the structure list by showing how the systems relate at run
+time: the Tool's commands call into the Core library, which builds on the Language library
+seeded with the pre-compiled Stdlib, to turn `.sysml` model files into diagnostics, diagrams,
+query results, and model JSON.
+
+![SysML2Tools architecture: model files flow from the Tool commands through the Core library
+and the Language library, which is seeded by the Stdlib, to produce diagnostics, diagrams,
+query results, and model JSON](architecture.svg)
+
 ## Folder Layout
 
 The source code folder structure mirrors the top-level system breakdown above, giving
@@ -271,7 +280,7 @@ Review-sets: defined in `.reviewmark.yaml`
 
 | Concern | Choice | License |
 | --- | --- | --- |
-| Language / runtime | C# / .NET 8+ | MIT |
+| Language / runtime | C# / .NET 8, 9, 10, and 11 (libraries); .NET 10 (tool) | MIT |
 | Parser generator | ANTLR4 (`Antlr4.Runtime.Standard`) | BSD-3-Clause |
 | SysML v2 grammar | `antlr/grammars-v4` (official OMG KEBNF) | MIT |
 | PNG rendering | CanvasNet | MIT |

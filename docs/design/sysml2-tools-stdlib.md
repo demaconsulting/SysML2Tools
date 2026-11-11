@@ -117,7 +117,7 @@ API reference documentation and the embedded `stdlib.json.gz` resource. Consumer
 
 ## Design Constraints
 
-- Platform: multi-targets net8.0, net9.0, and net10.0 on Windows, Linux, and macOS.
+- Platform: multi-targets net8.0, net9.0, net10.0, and net11.0 on Windows, Linux, and macOS.
 - `StdlibGen` is not referenced by `Stdlib.csproj` (no `ProjectReference`, no MSBuild task) —
   it is invoked only as a separate, sequential process from `build.ps1`, so it never
   participates in the solution's MSBuild graph or shares in-flight build state with

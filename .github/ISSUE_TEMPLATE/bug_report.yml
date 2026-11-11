@@ -83,6 +83,7 @@ body:
         - ".NET 8"
         - ".NET 9"
         - ".NET 10"
+        - ".NET 11"
         - Other (please specify in additional context)
     validations:
       required: true

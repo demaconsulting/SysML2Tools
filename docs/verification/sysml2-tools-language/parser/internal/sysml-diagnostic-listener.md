@@ -9,7 +9,7 @@ path-attribution behavior.
 
 #### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. Source text is supplied inline; no
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. Source text is supplied inline; no
 files on disk, network access, or additional configuration are required beyond a standard .NET SDK
 installation.
 

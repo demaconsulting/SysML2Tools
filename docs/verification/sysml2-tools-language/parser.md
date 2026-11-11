@@ -19,7 +19,7 @@ repository root.
 
 ### Acceptance Criteria
 
-- All seven unit and integration tests pass with zero failures across net8.0, net9.0, and net10.0.
+- All seven unit and integration tests pass with zero failures across net8.0, net9.0, net10.0, and net11.0.
 - An empty source string produces zero diagnostics.
 - A valid SysML package declaration produces zero diagnostics.
 - A valid SysML part definition produces zero diagnostics.

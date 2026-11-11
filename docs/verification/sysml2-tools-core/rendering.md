@@ -14,12 +14,12 @@ filesystem access is required.
 
 ### Test Environment
 
-Tests run via `dotnet test` against all three target frameworks: net8.0, net9.0, and net10.0.
+Tests run via `dotnet test` against all four target frameworks: net8.0, net9.0, net10.0, and net11.0.
 All test inputs are constructed inline. No external network access or services are required.
 
 ### Acceptance Criteria
 
-- All unit tests pass with zero failures across all three target frameworks.
+- All unit tests pass with zero failures across all four target frameworks.
 - `SvgRenderer.MediaType` returns `"image/svg+xml"`.
 - `SvgRenderer.DefaultExtension` returns `".svg"`.
 - `SvgRenderer.Render` with an empty `LayoutTree` writes a non-empty SVG document to the output stream.

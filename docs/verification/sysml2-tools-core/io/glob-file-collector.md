@@ -10,13 +10,13 @@ cleanup.
 
 #### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. All test inputs are files and
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. All test inputs are files and
 directories created inline under `Path.GetTempPath()`; no external network access or services
 are required.
 
 #### Acceptance Criteria
 
-- All `GlobFileCollectorTests` pass with zero failures across all three target frameworks.
+- All `GlobFileCollectorTests` pass with zero failures across all four target frameworks.
 - `Collect` resolves literal paths, basic globs, and recursive `**` globs correctly.
 - `Collect` resolves relative patterns (both literal and glob) against the supplied working
   directory.

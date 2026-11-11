@@ -11,12 +11,12 @@ every method is a pure function over its parameters.
 
 ##### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. No external services, files, or
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. No external services, files, or
 configuration are required beyond a standard .NET SDK installation.
 
 ##### Acceptance Criteria
 
-- All `ExposeScopeResolverTests` pass with zero failures across all three target frameworks.
+- All `ExposeScopeResolverTests` pass with zero failures across all four target frameworks.
 - A `null` `ViewNode` resolves to a `null` scope.
 - A `ViewNode` with no resolved `Expose`-kind edges resolves to a `null` scope.
 - A resolved `Expose` edge targeting a definition resolves to an `ExposedScope` whose

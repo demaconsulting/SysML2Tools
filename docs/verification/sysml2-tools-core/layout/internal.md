@@ -10,12 +10,12 @@ model, the `DemaConsulting.Rendering` layout data types, `LayeredPlacement`, and
 
 #### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. No external services, files, or
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. No external services, files, or
 configuration are required beyond a standard .NET SDK installation.
 
 #### Acceptance Criteria
 
-- All view layout strategy test classes pass with zero failures across all three target frameworks.
+- All view layout strategy test classes pass with zero failures across all four target frameworks.
 - Each strategy produces a layout tree whose nodes match the elements of its synthetic input.
 - A workspace with no relevant elements yields a minimal empty canvas with no nodes.
 - Standard-library elements are absent from the produced diagrams.

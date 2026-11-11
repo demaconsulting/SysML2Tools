@@ -13,12 +13,12 @@ depends only on the in-memory model, `LayeredPlacement`, and render options.
 
 ##### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. No external services, files, or
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. No external services, files, or
 configuration are required beyond a standard .NET SDK installation.
 
 ##### Acceptance Criteria
 
-- All `ActionFlowViewLayoutStrategyTests` pass with zero failures across all three target frameworks.
+- All `ActionFlowViewLayoutStrategyTests` pass with zero failures across all four target frameworks.
 - An action definition yields one box per action, a start marker, a done marker, and flow lines.
 - A succession's target action is positioned below its source action.
 - Each succession flow edge is a dashed line with an open end marker at the target action.

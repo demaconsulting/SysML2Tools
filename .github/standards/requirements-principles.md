@@ -53,10 +53,15 @@ Before writing a subsystem or unit requirement ask: *"Am I decomposing a parent
 requirement into this item's responsibility, or describing what the code already does?"*
 Decomposing a parent requirement is valid. Describing existing code is back-driving.
 
+Every requirement MUST be reachable through `children` links from a root requirement
+(system-level, or a repository `quality` outcome) because an unreachable requirement has
+no need driving it - see `reqstream-usage.md` for root tags and orphan detection.
+
 # Test Independence
 
 - **Every requirement MUST link to at least one passing test** because untested
-  requirements have no compliance evidence
+  requirements have no compliance evidence; a `quality` requirement meets this through
+  its children's tests
 - **Requirements MUST link to tests at their own level** - system requirements to
   system-level tests, subsystem requirements to subsystem-level tests, unit
   requirements to unit-level tests; linking across levels produces misleading
@@ -72,4 +77,5 @@ Decomposing a parent requirement is valid. Describing existing code is back-driv
 - [ ] Every identified subsystem has a requirements file
 - [ ] Every identified software unit has a requirements file
 - [ ] Subsystem and unit requirements decompose parent requirements top-down, not bottom-up from code
+- [ ] Every requirement is reachable from a root requirement (no orphans)
 - [ ] Tests without a requirement are accepted as valid

@@ -10,7 +10,7 @@ originals. Round-trip testing verifies serialization and deserialization togethe
 
 #### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. Symbol tables are constructed
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. Symbol tables are constructed
 in-memory; no files on disk, network access, or additional configuration are required beyond a
 standard .NET SDK installation.
 

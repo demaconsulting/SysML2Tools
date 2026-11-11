@@ -10,7 +10,7 @@ directly.
 
 #### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0. Byte arrays are produced in-memory
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. Byte arrays are produced in-memory
 by `AstSerializer`; no files on disk, network access, or additional configuration are required
 beyond a standard .NET SDK installation.
 

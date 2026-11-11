@@ -10,12 +10,12 @@ test methods; results are captured in TRX files consumed by ReqStream.
 
 ### Test Environment
 
-Tests run via `dotnet test` against all three target frameworks: net8.0, net9.0, and net10.0.
+Tests run via `dotnet test` against all four target frameworks: net8.0, net9.0, net10.0, and net11.0.
 Temporary files are created in `Path.GetTempPath()` and cleaned up after each test.
 
 ### Acceptance Criteria
 
-- All unit tests pass with zero failures across all three target frameworks.
+- All unit tests pass with zero failures across all four target frameworks.
 - The stdlib loads without Error-level diagnostics (KerML parse errors are downgraded to Warnings).
 - Seeding a workspace from the pre-compiled stdlib symbol table yields a non-empty set of
   declarations with no Error-level diagnostics.

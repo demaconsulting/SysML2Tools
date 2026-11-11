@@ -28,7 +28,9 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 10.x
+          dotnet-version: |
+            10.x
+            11.x
 
       - name: Restore Tools
         run: >
@@ -121,6 +123,7 @@ jobs:
             8.x
             9.x
             10.x
+            11.x
 
       - name: Restore Tools
         run: >
@@ -271,6 +274,7 @@ jobs:
             8.x
             9.x
             10.x
+            11.x
 
       - name: Restore Tools
         run: >

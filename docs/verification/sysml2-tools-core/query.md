@@ -25,7 +25,7 @@ gap in Core-level verification.
 
 ### Test Environment
 
-Tests run via `dotnet test` against net8.0, net9.0, and net10.0 in the
+Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0 in the
 `DemaConsulting.SysML2Tools.Tests` project. OMG smoke tests read files under
 `test/SysMLModels/OMG/` when present in the checkout. Exporter tests create and clean up their
 own temporary files; no network access or external services are required.
@@ -38,7 +38,7 @@ scenarios listed under "Test Scenarios (Tool Test Project)" below run via `dotne
 
 - All `QueryOmgFixtureTests`, `QueryRenderingTests`, `QueryEngineImpactTests`,
   `QueryResultExporterTests`, and
-  `QualifiedNameShortenerTests` pass with zero failures across all three target frameworks.
+  `QualifiedNameShortenerTests` pass with zero failures across all four target frameworks.
 - The `uses`, `used-by`, `dependencies`, `impact`, `interface`, `list`, `find`, and stdlib-
   filtering behaviors are proven at the `QueryEngine`/`QueryOptions` level by the
   `Tool.Tests`-hosted scenarios cited below, in addition to the Core-project scenarios above;

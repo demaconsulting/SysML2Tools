@@ -1,0 +1,58 @@
+---
+# SysML2Tools Stdlib Library System-Level Platform Requirements
+#
+# These requirements specify the .NET runtimes the DemaConsulting.SysML2Tools.Stdlib library
+# must support. They ensure the library works for consumers on each supported runtime.
+#
+# Test links use a source filter prefix to restrict which test results count as evidence.
+# The CI build names each unit-test result file "{os}_{asm}_{tfm}_{arch}.trx", so the target
+# framework moniker identifies the runtime the test ran under. Removing these filters
+# invalidates the evidence-based proof.
+#
+# Source filter prefixes:
+#   net8.0@TestName   - proves the test passed under the .NET 8 runtime
+#   net9.0@TestName   - proves the test passed under the .NET 9 runtime
+#   net10.0@TestName  - proves the test passed under the .NET 10 runtime
+#   net11.0@TestName  - proves the test passed under the .NET 11 runtime
+
+sections:
+  - title: Platform Support
+    requirements:
+      - id: SysML2Tools-Stdlib-Platform-Net8
+        title: The Stdlib library shall support .NET 8 runtime.
+        tags: [system]
+        justification: |
+          .NET 8 is a Long-Term Support (LTS) release that reached end of support in November 2026.
+          The library continues to support this runtime so that users who have not yet migrated to
+          a newer release, such as enterprise environments with slow upgrade cycles, can keep
+          using it.
+        tests:
+          - "net8.0@WorkspaceLoader_LoadAsync_StdlibDeclarations_Registered"
+
+      - id: SysML2Tools-Stdlib-Platform-Net9
+        title: The Stdlib library shall support .NET 9 runtime.
+        tags: [system]
+        justification: |
+          .NET 9 is a Standard-Term Support (STS) release that has reached end of support. The
+          library continues to support this runtime so that users who have not yet migrated to a
+          newer release can keep using it.
+        tests:
+          - "net9.0@WorkspaceLoader_LoadAsync_StdlibDeclarations_Registered"
+
+      - id: SysML2Tools-Stdlib-Platform-Net10
+        title: The Stdlib library shall support .NET 10 runtime.
+        tags: [system]
+        justification: |
+          .NET 10 is the current Long-Term Support (LTS) release. Supporting this runtime provides
+          a stable, long-term supported target for users who prefer LTS releases.
+        tests:
+          - "net10.0@WorkspaceLoader_LoadAsync_StdlibDeclarations_Registered"
+
+      - id: SysML2Tools-Stdlib-Platform-Net11
+        title: The Stdlib library shall support .NET 11 runtime.
+        tags: [system]
+        justification: |
+          .NET 11 is the latest release in the .NET platform roadmap. Supporting this runtime
+          ensures the library works for users as they adopt the newest .NET version.
+        tests:
+          - "net11.0@WorkspaceLoader_LoadAsync_StdlibDeclarations_Registered"

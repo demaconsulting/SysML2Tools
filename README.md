@@ -13,7 +13,15 @@ SysML2Tools is a free, open-source .NET CLI tool and library that parses SysML v
 model files and renders them as professional nested block diagrams suitable for architecture
 documentation, CI/CD pipelines, and AI-assisted modeling workflows.
 
-![SysML2Tools architecture: model files flow from the Tool commands through the Core library and the Language library, which is seeded by the Stdlib, to produce diagnostics, diagrams, query results, and model JSON][architecture]
+The workflow below shows how to use it: author SysML v2 models as `.sysml` text, run the
+`sysml2tools` `lint`, `render`, `query`, and `export` commands from the command line or a CI
+pipeline, and use the resulting diagnostics, diagrams, query reports, and model exports as a CI
+quality gate, in design documents, and to let AI agents fix and question the model.
+
+![SysML2Tools workflow: author .sysml model files with views and metadata annotations, run sysml2tools lint,
+render, query, or export, get diagnostics, SVG or PNG diagrams, Markdown or JSON query reports, and JSON or
+JSONL model exports, then use them as a CI quality gate, in design documents, with AI agents, or for bulk
+analysis][workflow]
 
 ## Features
 
@@ -51,12 +59,12 @@ documentation, CI/CD pipelines, and AI-assisted modeling workflows.
 - **Self-Validation**: Built-in validation tests with TRX/JUnit output for regulated
   environments
 - **Multi-Platform Support**: Builds and runs on Windows, Linux, and macOS
-- **Multi-Runtime Support**: CLI tool targets .NET 10; library packages (`Core`/`Language`/
-  `Stdlib`) support .NET 8, 9, and 10
+- **Multi-Runtime Support**: CLI tool requires .NET 10; library packages (`Core`/`Language`/
+  `Stdlib`) support .NET 8, 9, 10, and 11
 
 ## Installation
 
-Install the tool globally using the .NET CLI:
+Install the tool globally using the .NET CLI (requires the [.NET 10 SDK or runtime][dotnet-download]):
 
 ```bash
 dotnet tool install -g DemaConsulting.SysML2Tools.Tool
@@ -337,7 +345,7 @@ Copyright (c) DEMA Consulting. Licensed under the MIT License. See [LICENSE][lin
 By contributing to this project, you agree that your contributions will be licensed under the MIT License.
 
 <!-- Badge References -->
-[architecture]: https://raw.githubusercontent.com/demaconsulting/SysML2Tools/main/docs/images/architecture.png
+[workflow]: https://raw.githubusercontent.com/demaconsulting/SysML2Tools/main/docs/images/workflow.png
 [badge-forks]: https://img.shields.io/github/forks/demaconsulting/SysML2Tools?style=plastic
 [badge-stars]: https://img.shields.io/github/stars/demaconsulting/SysML2Tools?style=plastic
 [badge-contributors]: https://img.shields.io/github/contributors/demaconsulting/SysML2Tools?style=plastic
@@ -356,3 +364,4 @@ By contributing to this project, you agree that your contributions will be licen
 [link-quality]: https://sonarcloud.io/dashboard?id=demaconsulting_SysML2Tools
 [link-security]: https://sonarcloud.io/dashboard?id=demaconsulting_SysML2Tools
 [link-nuget]: https://www.nuget.org/packages/DemaConsulting.SysML2Tools.Tool
+[dotnet-download]: https://dotnet.microsoft.com/download

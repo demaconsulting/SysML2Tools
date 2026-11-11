@@ -106,7 +106,7 @@ if (-not $skipDotnetTools) {
     dotnet textlint
     if ($LASTEXITCODE -ne 0) { $lintError = $true }
 
-    dotnet reqstream --lint --requirements requirements.yaml
+    dotnet reqstream --lint --enforce --requirements requirements.yaml
     if ($LASTEXITCODE -ne 0) { $lintError = $true }
 
     dotnet versionmark --lint

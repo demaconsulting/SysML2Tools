@@ -22,8 +22,10 @@ includes:
   - docs/reqstream/sysml2-tools-language/semantic/model/symbol-table.yaml
   - docs/reqstream/sysml2-tools-language/semantic/model/reference-resolver.yaml
   - docs/reqstream/sysml2-tools-language/semantic/model/supertype-walker.yaml
+  - docs/reqstream/sysml2-tools-language/platform-requirements.yaml
   - docs/reqstream/sysml2-tools-stdlib.yaml
   - docs/reqstream/sysml2-tools-stdlib/stdlib-provider.yaml
+  - docs/reqstream/sysml2-tools-stdlib/platform-requirements.yaml
   - docs/reqstream/sysml2-tools-core.yaml
   - docs/reqstream/sysml2-tools-core/filtering.yaml
   - docs/reqstream/sysml2-tools-core/filtering/filter-expression-evaluator.yaml
@@ -47,6 +49,7 @@ includes:
   - docs/reqstream/sysml2-tools-core/rendering/internal.yaml
   - docs/reqstream/sysml2-tools-core/rendering/internal/diagram-type-router.yaml
   - docs/reqstream/sysml2-tools-core/rendering/internal/dynamic-view-synthesizer.yaml
+  - docs/reqstream/sysml2-tools-core/platform-requirements.yaml
   - docs/reqstream/sysml2-tools-tool.yaml
   - docs/reqstream/sysml2-tools-tool/program.yaml
   - docs/reqstream/sysml2-tools-tool/cli.yaml
