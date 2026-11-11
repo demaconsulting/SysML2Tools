@@ -92,11 +92,11 @@ Entry point for the render command. Steps:
 11. Resolves the output directory (defaults to `Directory.GetCurrentDirectory()`), creates
     it via `Directory.CreateDirectory`, and writes each `RenderOutput.Data` stream to a
     file named `RenderOutput.SuggestedFileName`, followed by that output's layout warnings.
-12. Prints each collected empty-view diagnostic via `context.WriteLine` in the same
-    `file(line,col): warning: message` form the `lint` command uses (the location prefix is
-    omitted for a synthesized view with no source file). Empty views are still written, and the
-    warnings do not change the exit code, following the tool's convention that only errors fail
-    a run.
+12. Prints each collected view-level diagnostic (an empty-view `warning` or a lone-package
+    `info` hint) via `context.WriteLine` in the same `file(line,col): severity: message` form the
+    `lint` command uses (the location prefix is omitted for a synthesized view with no source
+    file). Every view is still written, and these diagnostics do not change the exit code,
+    following the tool's convention that only errors fail a run.
 
 **`PrintHelp(Context context)`**: Prints `render`'s usage line and its eight flags (`--output`,
 `--format`, `--view`, `--auto`, `--view-type`, `--view-target`, `--filter`, `--walk-depth`).
@@ -116,7 +116,8 @@ future-locale story, which applies identically here.
   workspace.
 - Load diagnostics: reported to the context; non-fatal; rendering proceeds regardless.
 - Empty view (diagram contains nothing renderable): reported as a located warning via
-  `context.WriteLine`; non-fatal; the output file is still written and the exit code is unchanged.
+  `context.WriteLine`; a lone exposed package drawn without contents is reported as an `info`
+  hint; both are non-fatal; the output file is still written and the exit code is unchanged.
 - Multiple views without `--view`: no error; every declared view is rendered (one output file
   per view), supporting bulk "render everything" exports.
 - Output file name collision: when rendering all views (`--view` not specified) with more than

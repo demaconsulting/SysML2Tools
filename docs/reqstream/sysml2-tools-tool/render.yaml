@@ -205,9 +205,10 @@ sections:
 
       - id: SysML2Tools-Tool-Render-EmptyViewWarning
         title: >-
-          The render command shall print a warning in `file(line,col): warning: message` form
-          for each rendered view whose diagram contains nothing renderable, naming the view and
-          suggesting `expose <Package>::**;` for each bare `expose <Package>;` statement, while
+          The render command shall print each view-level diagnostic in `file(line,col): severity:
+          message` form — a warning for a view whose diagram contains nothing renderable, and an
+          informational hint for a view that exposes a package with a bare `expose <Package>;`
+          (drawn as a package node without contents) suggesting `expose <Package>::**;` — while
           still writing the view's output file and without changing the exit code.
         justification: |
           An empty diagram produced by a bare `expose <Package>;` previously rendered silently
@@ -216,4 +217,4 @@ sections:
           keeping it a warning (not an error) follows the tool's existing convention that
           warnings never fail the run.
         tests:
-          - RenderSubsystem_ViewExposingBarePackage_PrintsEmptyViewWarning
+          - RenderSubsystem_ViewExposingBarePackage_PrintsInfoHint

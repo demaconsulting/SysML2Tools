@@ -61,16 +61,19 @@ sections:
 
       - id: SysML2Tools-Core-Rendering-DiagramRenderer-EmptyViewWarning
         title: >-
-          When a caller supplies a diagnostics collection, the diagram renderer shall report a
-          warning diagnostic, located at the view's declaration, for each rendered view whose
-          diagram contains nothing renderable, suggesting `expose <Package>::**;` for each bare
-          `expose <Package>;` statement, while still returning the view's rendered output.
+          When a caller supplies a diagnostics collection, the diagram renderer shall report, located
+          at the view's declaration, a warning for each rendered view whose diagram contains nothing
+          renderable, and otherwise an informational hint for each view that exposes a package with
+          a bare `expose <Package>;` while none of its members are exposed (suggesting
+          `expose <Package>::**;`), while still returning the view's rendered output.
         justification: |
-          A view such as `expose BuildMark;` exposes only the package element, so its diagram
-          renders as a blank canvas with no signal; such blank diagrams have gone unnoticed in
-          published design documents for weeks. A located warning makes the mistake visible
-          and actionable, and still returning the output keeps existing output files current.
+          A blank diagram is almost always a modeling mistake and has gone unnoticed in published
+          design documents for weeks, so it warrants a located warning. A bare `expose P;` is valid
+          SysML (SysML 8.3.26.3: a MembershipExpose of the package element itself) and renders as a
+          package node, so it only merits an informational hint that `expose P::**;` also shows
+          the members. Still returning the output keeps existing output files current.
         tests:
-          - DiagramRenderer_RenderWorkspace_ViewExposesBarePackage_ReportsEmptyViewWarning
+          - DiagramRenderer_RenderWorkspace_ViewExposesBarePackage_RendersPackageNodeWithInfoHint
+          - DiagramRenderer_RenderWorkspace_ViewWithNothingRenderable_ReportsEmptyViewWarning
           - DiagramRenderer_RenderWorkspace_ViewExposesPackageRecursively_ReportsNoWarning
           - DiagramRenderer_RenderWorkspace_ViewExposesRenderableElement_ReportsNoWarning

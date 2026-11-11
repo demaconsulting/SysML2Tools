@@ -597,13 +597,13 @@ public class RenderSubsystemTests
     }
 
     /// <summary>
-    ///     A view whose only expose is a bare <c>expose Pkg;</c> of a package with members renders
-    ///     an empty diagram: the render command still writes the output file and exits
-    ///     successfully, but prints a located <c>file(line,col): warning:</c> line naming the view
-    ///     and suggesting <c>expose Pkg::**;</c>.
+    ///     A view whose only expose is a bare <c>expose Pkg;</c> renders the package as a package
+    ///     node without contents (SysML 8.3.26.3): the render command writes the output file, exits
+    ///     successfully, and prints a located <c>file(line,col): info:</c> hint naming the view and
+    ///     suggesting <c>expose Pkg::**;</c>.
     /// </summary>
     [Fact]
-    public async Task RenderSubsystem_ViewExposingBarePackage_PrintsEmptyViewWarning()
+    public async Task RenderSubsystem_ViewExposingBarePackage_PrintsInfoHint()
     {
         // Arrange: a package with members exposed only as the bare package element
         const string sysml = """
@@ -632,13 +632,13 @@ public class RenderSubsystemTests
             using var context = Context.Create(["render", "--output", outputDir, tempFile]);
             await Program.RunAsync(context);
 
-            // Assert: the file is still written, the exit code is unaffected, and the warning
-            // is printed with the view's location and the '::**' hint
+            // Assert: the file is written, the exit code is unaffected, and the informational
+            // hint is printed with the view's location and the '::**' suggestion
             Assert.Equal(0, context.ExitCode);
             Assert.True(File.Exists(Path.Combine(outputDir, "StructureView.svg")));
             var output = outWriter.ToString();
-            Assert.Contains($"{tempFile}(5,4): warning: View 'StructureView'", output);
-            Assert.Contains("did you mean 'expose Pkg::**;'?", output);
+            Assert.Contains($"{tempFile}(5,4): info: View 'StructureView'", output);
+            Assert.Contains("use 'expose Pkg::**;'", output);
         }
         finally
         {

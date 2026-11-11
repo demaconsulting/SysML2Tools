@@ -131,6 +131,24 @@ internal static class LayoutWarnings
     }
 
     /// <summary>
+    /// Returns the informational hint for a view that exposes one or more packages with a bare
+    /// <c>expose &lt;Package&gt;;</c> (SysML 8.3.26.3, a MembershipExpose of the package element
+    /// itself) while none of their members are exposed: each is drawn as a package node without
+    /// contents, which is valid; <c>expose &lt;Package&gt;::**;</c> also shows the members.
+    /// </summary>
+    /// <param name="viewName">Name of the view.</param>
+    /// <param name="packages">The raw reference text of each such <c>expose</c> statement.</param>
+    /// <returns>The hint message.</returns>
+    public static string ForLonePackageExpose(string viewName, IReadOnlyList<string> packages)
+    {
+        var bare = string.Join(", ", packages.Select(name => $"'expose {name};'"));
+        var recursive = string.Join(", ", packages.Select(name => $"'expose {name}::**;'"));
+        var noun = packages.Count == 1 ? "a package node" : "package nodes";
+        return $"View '{viewName}': {bare} exposes the package element itself, so it is drawn as " +
+            $"{noun} without contents; use {recursive} to also show the members.";
+    }
+
+    /// <summary>
     /// Returns the warning message stating that a view's laid-out diagram contains nothing
     /// renderable, appending a corrective hint for each bare <c>expose &lt;Package&gt;;</c>
     /// statement (which exposes only the package element itself, not its members).

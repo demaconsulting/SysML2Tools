@@ -206,6 +206,13 @@ with the subset of definitions whose immediate parent is *not* itself an admitte
 its bucket keys — which is precisely what removes the duplicate-folder symptom, without any change
 to this method's own flat, first-seen-order bucketing logic.
 
+###### `CollectExposedPackages(workspace, scope)`
+
+Returns the non-stdlib `SysmlPackageNode` declarations that `ExposeScopeResolver.IsInSubjectScope`
+admits (an empty set for an unscoped view). `BuildLayout` applies the view's `filter` condition to
+these packages exactly as to definitions (a package is a candidate element), keeps the view
+non-empty when only packages are exposed, and passes the set to `BuildGraph`.
+
 ###### `BuildModelEdges(defs, workspace, isScoped)`
 
 Resolves every specialization (subtype → supertype), structural membership (member-type → owner),
@@ -319,7 +326,7 @@ longest-prefix-wins) would resolve *both* sides of the dominant real-world corpu
 — to the same box (`Drone`), producing a false self-loop where a real diagram must show two
 distinct boxes (`Controller` and `Battery`) connected.
 
-###### `BuildGraph(groups, childrenByParent, modelEdges, theme, depthLimit, isScoped)`
+###### `BuildGraph(groups, childrenByParent, modelEdges, theme, depthLimit, exposedPackages)`
 
 Builds the single input `LayoutGraph`, setting `CoreOptions.MergeParallelEdges` to `false` on the
 root graph so multiple distinct model relationship edges that happen to share the same source and
@@ -334,12 +341,17 @@ through the recursive `PlaceDef` helper (below), which is what actually creates 
 node and recurses into its own `childrenByParent` entry, if any.
 
 For each `(package, items)` group: an empty `package` key means top-level (unpackaged) items,
-placed via `PlaceDef` directly on the root graph. When `isScoped` is `true` (the view has a
-resolved `expose` scope), a non-empty `package` key is **never** turned into a folder — its items
-are placed via `PlaceDef` directly on the root graph instead, exactly like top-level items: a bare
-package that is merely an ancestor of admitted content is not something the `expose` scope actually
-requested, so no folder is drawn for it. When `isScoped` is `false`, a non-empty `package` key
-becomes a folder container node (`Shape = Folder`, `Keyword = "package"`, `Label` the simple
+placed via `PlaceDef` directly on the root graph. When `exposedPackages` is non-null (the view
+has a resolved `expose` scope), a non-empty `package` key becomes a folder only when the package is
+itself exposed: per SysML 2.1 Beta 2 8.3.26.3/8.3.26.4 (and KerML 8.3.2.4.4) a MembershipExpose
+(`expose P;`, `expose P::**;`) exposes the Package P itself, while a NamespaceExpose
+(`expose P::*;`, `expose P::*::**;`) exposes only P's members. A package that is merely an ancestor
+of admitted content is not exposed, so its items are placed via `PlaceDef` directly on the root
+graph, exactly like top-level items. An exposed package with no exposed members gets its own group
+with no items (added in `BuildLayout` from `CollectExposedPackages`) and is drawn as a leaf package
+node (`Shape = Folder`, name inside, sized to its label) — the SysML 8.2.3.5 `package-node`
+with no compartments — instead of an empty canvas. When `exposedPackages` is null, every non-empty
+`package` key becomes a folder container node (`Shape = Folder`, `Keyword = "package"`, `Label` the simple
 package name, `TitleHeight` set from
 `BoxMetrics.TitleAreaHeight` so the hierarchical engine reserves the exact title band the renderer
 will draw), and its items are placed via `PlaceDef` under `folder.Children`; the folder's own

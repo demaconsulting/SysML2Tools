@@ -46,6 +46,13 @@ parse or evaluate (Phase 2a):
    failed expression text, appending the reason parenthetically when present, and stating that the
    exposed path falls back to its whole containment subtree.
 
+###### `ForLonePackageExpose(viewName, packages)`
+
+Returns the informational hint for a view whose bare `expose <Package>;` statements expose
+packages none of whose members are exposed: it names the view, quotes each statement, states that
+each package is drawn as a package node without contents (valid per SysML 8.3.26.3), and suggests
+`expose <Package>::**;` to also show the members.
+
 ###### `ForEmptyView(viewName, barePackageExposes)`
 
 Returns the single warning message for a view whose laid-out diagram contains nothing
@@ -75,6 +82,7 @@ crossing warnings to the `LayoutTree` they produce. `GeneralViewLayoutStrategy` 
 view's `FilterExpressionText` cannot be evaluated, and (Phase 2a)
 `LayoutWarnings.ForUnevaluatedExposeBracketFilter` with `scope?.Failures ?? []` to attach one
 warning per bracket-filter expression that failed to parse or evaluate — never for a
-successfully-evaluated bracket filter. `DiagramRenderer` calls `LayoutWarnings.ForEmptyView` to
+successfully-evaluated bracket filter. `DiagramRenderer` calls
+`LayoutWarnings.ForLonePackageExpose` for the lone-package hint and `LayoutWarnings.ForEmptyView` to
 build the message of the empty-view warning diagnostic it reports for a view whose `LayoutTree`
 has no nodes.

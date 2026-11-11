@@ -248,9 +248,9 @@ report "cannot be combined with --view or --auto" and exit code 1.
 
 Verifies that `render --help` output contains `--view-type`, `--view-target`, and `--filter`.
 
-#### RenderSubsystem_ViewExposingBarePackage_PrintsEmptyViewWarning
+#### RenderSubsystem_ViewExposingBarePackage_PrintsInfoHint
 
 Verifies that rendering a view whose only expose is a bare `expose Pkg;` of a package with
-members still writes the view's `.svg` file and exits with code 0, and prints a
-`file(line,col): warning: View '...'` line located at the view's declaration that suggests
+members writes the view's `.svg` file, exits with code 0, and prints a
+`file(line,col): info: View '...'` hint located at the view's declaration that suggests
 `expose Pkg::**;`.

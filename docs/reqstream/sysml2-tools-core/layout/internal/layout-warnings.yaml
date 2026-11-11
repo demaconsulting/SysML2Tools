@@ -78,3 +78,14 @@ sections:
           lets the user fix the model without studying the SysML v2 expose semantics.
         tests:
           - ForEmptyView_MultipleBarePackages_SuggestsRecursiveExposeForEach
+
+      - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings-LonePackageExpose
+        title: >-
+          LayoutWarnings shall produce an informational hint for a view that exposes packages with
+          bare `expose <Package>;` statements, naming the view, stating that each package is drawn
+          as a package node without contents, and suggesting `expose <Package>::**;` for each.
+        justification: |
+          Exposing the package element alone is valid SysML; the hint must explain the result and
+          how to also show the members without implying the model is wrong.
+        tests:
+          - ForLonePackageExpose_TwoPackages_SuggestsRecursiveExposeForEach

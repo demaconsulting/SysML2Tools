@@ -26,15 +26,21 @@ view's own `SysmlViewNode` (so a strategy such as `GeneralViewLayoutStrategy` ca
 collects a `RenderOutput` with a sanitized file name and the layout warnings. Returns an empty list
 when the workspace declares no renderable views.
 
-When the optional `diagnostics` collection is supplied and a view's `LayoutTree` has no nodes, the
-method appends one `Warning`-severity `SysmlDiagnostic` located at the view's declaration
+When the optional `diagnostics` collection is supplied, `BuildViewDiagnostic` appends at most one
+`SysmlDiagnostic` per view, located at the view's declaration
 (`SysmlViewNode.SourceFilePath`/`SourceLine`/`SourceColumn`; an empty path and line 0 for
-synthesized views). Its message comes from `LayoutWarnings.ForEmptyView`, passing the raw text
-of each of the view's resolved `expose` entries that is non-recursive (`MembershipExact`), carries
-no bracket filter, and targets a `SysmlPackageNode` — the bare `expose <Package>;` form, which
-exposes only the package element itself and is the usual cause of an empty diagram. The empty
-view is still rendered and returned, so callers that write files keep them current. The check is
-strategy-agnostic because it inspects only the produced `LayoutTree`.
+synthesized views). It first collects the view's *lone packages*: resolved `expose` entries that
+are non-recursive (`MembershipExact`), carry no bracket filter, target a `SysmlPackageNode`, and
+whose package has no member in the view's exposed scope (`ExposeScopeResolver`) — the bare
+`expose <Package>;` form, which per SysML 2.1 Beta 2 8.3.26.3 exposes the package element itself
+and is drawn by the General View as a package node without contents. When the `LayoutTree` has no
+nodes, a `Warning` with `LayoutWarnings.ForEmptyView` (including any lone-package suggestion) is
+appended — the only case reported as a warning, since an empty diagram is almost always a modeling
+mistake. Otherwise, when lone packages exist, an `Info` hint from
+`LayoutWarnings.ForLonePackageExpose` explains the package node and suggests `expose <Package>::**;`
+without implying the model is wrong. The view is always rendered and returned, so callers that
+write files keep them current. The empty check is strategy-agnostic because it inspects only the
+produced `LayoutTree`.
 
 ##### `GetViewNames(workspace)`
 
@@ -97,4 +103,4 @@ workspace.
 | SysML2Tools-Core-Rendering-DiagramRenderer-RendererAgnostic | `RenderWorkspace` using only the `IRenderer` contract |
 | SysML2Tools-Core-Rendering-DiagramRenderer-NoViews | `RenderWorkspace` empty result for a view-free workspace |
 | SysML2Tools-Core-Rendering-DiagramRenderer-SynthesizeDynamicView | `SynthesizeDynamicView` delegation |
-| SysML2Tools-Core-Rendering-DiagramRenderer-EmptyViewWarning | `RenderWorkspace` empty-tree warning |
+| SysML2Tools-Core-Rendering-DiagramRenderer-EmptyViewWarning | `BuildViewDiagnostic` warning / info hint |

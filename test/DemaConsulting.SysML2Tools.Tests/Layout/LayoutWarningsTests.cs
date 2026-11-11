@@ -112,6 +112,23 @@ public sealed class LayoutWarningsTests
     }
 
     /// <summary>
+    ///     The lone-package hint names the view and suggests the recursive form for each package
+    ///     without implying the model is wrong.
+    /// </summary>
+    [Fact]
+    public void ForLonePackageExpose_TwoPackages_SuggestsRecursiveExposeForEach()
+    {
+        // Act
+        var message = LayoutWarnings.ForLonePackageExpose("MyView", ["PkgA", "PkgB"]);
+
+        // Assert
+        Assert.Contains("'MyView'", message);
+        Assert.Contains("package nodes without contents", message);
+        Assert.Contains("'expose PkgA::**;'", message);
+        Assert.Contains("'expose PkgB::**;'", message);
+    }
+
+    /// <summary>
     ///     An empty view with several bare package exposes names the view and suggests the
     ///     recursive <c>::**</c> form for every one of them in a single message.
     /// </summary>

@@ -211,11 +211,12 @@ public sealed class DiagramRenderer
             // Build the layout tree for this view
             var layout = strategy.BuildLayout(context, options);
 
-            // A diagram with no content is almost always a modeling mistake (e.g. a bare
-            // 'expose Pkg;' that exposes only the package element); report it but still render.
-            if (diagnostics is not null && layout.Nodes.Count == 0)
+            // Report a view with nothing renderable (a warning), or a lone exposed package drawn
+            // without its contents (an informational hint); the view is still rendered either way.
+            if (diagnostics is not null &&
+                BuildViewDiagnostic(viewName, viewNode, workspace, layout.Nodes.Count == 0) is { } diagnostic)
             {
-                diagnostics.Add(BuildEmptyViewDiagnostic(viewName, viewNode, workspace));
+                diagnostics.Add(diagnostic);
             }
 
             // Render the layout tree to an in-memory stream
@@ -361,31 +362,56 @@ public sealed class DiagramRenderer
     }
 
     /// <summary>
-    /// Builds the warning diagnostic for a view whose laid-out diagram is empty, located at the
-    /// view's declaration and hinting at each bare <c>expose &lt;Package&gt;;</c> statement.
+    /// Builds the view-level diagnostic, located at the view's declaration: a warning when the
+    /// laid-out diagram contains nothing renderable; otherwise an informational hint when the view
+    /// exposes a package with a bare <c>expose &lt;Package&gt;;</c> (SysML 8.3.26.3, a
+    /// MembershipExpose of the package element itself) while none of that package's members are
+    /// exposed, so it is drawn as a package node without contents. Returns null when neither applies.
     /// </summary>
     /// <param name="viewName">The view's display name.</param>
     /// <param name="viewNode">The view's AST node.</param>
     /// <param name="workspace">The workspace used to classify each exposed target.</param>
-    /// <returns>The warning diagnostic.</returns>
-    private static SysmlDiagnostic BuildEmptyViewDiagnostic(
-        string viewName, SysmlViewNode viewNode, SysmlWorkspace workspace)
+    /// <param name="isEmpty">Whether the laid-out diagram has no nodes.</param>
+    /// <returns>The diagnostic, or null.</returns>
+    private static SysmlDiagnostic? BuildViewDiagnostic(
+        string viewName, SysmlViewNode viewNode, SysmlWorkspace workspace, bool isEmpty)
     {
-        var barePackageExposes = viewNode.ResolvedExposeMembers
+        var scope = Layout.Internal.ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
+        var lonePackages = viewNode.ResolvedExposeMembers
             .Where(entry =>
                 entry.Member.RecursionKind == ExposeRecursionKind.MembershipExact &&
                 entry.Member.BracketFilterExpressionText is null &&
                 workspace.Declarations.TryGetValue(entry.ResolvedQualifiedName, out var target) &&
-                target is SysmlPackageNode)
+                target is SysmlPackageNode &&
+                (scope is null || !workspace.Declarations.Keys.Any(name =>
+                    name.StartsWith(entry.ResolvedQualifiedName + "::", StringComparison.Ordinal) &&
+                    Layout.Internal.ExposeScopeResolver.IsInSubjectScope(name, scope))))
             .Select(entry => entry.Member.QualifiedName)
             .ToList();
+
+        string message;
+        DiagnosticSeverity severity;
+        if (isEmpty)
+        {
+            severity = DiagnosticSeverity.Warning;
+            message = Layout.Internal.LayoutWarnings.ForEmptyView(viewName, lonePackages);
+        }
+        else if (lonePackages.Count > 0)
+        {
+            severity = DiagnosticSeverity.Info;
+            message = Layout.Internal.LayoutWarnings.ForLonePackageExpose(viewName, lonePackages);
+        }
+        else
+        {
+            return null;
+        }
 
         return new SysmlDiagnostic(
             viewNode.SourceFilePath ?? string.Empty,
             viewNode.SourceLine,
             viewNode.SourceColumn,
-            DiagnosticSeverity.Warning,
-            Layout.Internal.LayoutWarnings.ForEmptyView(viewName, barePackageExposes));
+            severity,
+            message);
     }
 
     /// <summary>

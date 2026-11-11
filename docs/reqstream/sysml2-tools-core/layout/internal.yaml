@@ -39,6 +39,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-BareNameForm
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-NoEdgeOnFailure
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AnnotationNote
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposedPackageNodes
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-RequirementConstraintCompartments
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Internals
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Ports
@@ -233,6 +234,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedFilter
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedExposeBracketFilter
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-EmptyView
+          - SysML2Tools-Core-Layout-Internal-LayoutWarnings-LonePackageExpose
         tests:
           - ForCrossings_Zero_ReturnsEmpty
           - ForCrossings_One_ReturnsSingularWarning

@@ -344,12 +344,13 @@ public sealed class RenderIntegrationTests
     }
 
     /// <summary>
-    ///     A view whose only expose is a bare <c>expose Pkg;</c> of a package with members renders
-    ///     an empty diagram; the renderer still returns the output but reports a located warning
-    ///     naming the view and suggesting <c>expose Pkg::**;</c>.
+    ///     A view whose only expose is a bare <c>expose Pkg;</c> (a MembershipExpose of the package
+    ///     element itself, SysML 8.3.26.3) renders the package as a package node without its
+    ///     contents; the renderer reports a located informational hint (not a warning) suggesting
+    ///     <c>expose Pkg::**;</c> to show the members.
     /// </summary>
     [Fact]
-    public async Task DiagramRenderer_RenderWorkspace_ViewExposesBarePackage_ReportsEmptyViewWarning()
+    public async Task DiagramRenderer_RenderWorkspace_ViewExposesBarePackage_RendersPackageNodeWithInfoHint()
     {
         // Arrange: a package with members exposed only as the bare package element
         const string sysml = """
@@ -369,14 +370,53 @@ public sealed class RenderIntegrationTests
             // Act: render the workspace collecting diagnostics
             var (outputs, diagnostics) = await RenderWithDiagnosticsAsync(sysml, tempFile);
 
-            // Assert: the (empty) view is still rendered, and one located warning is reported
-            Assert.Single(outputs);
+            // Assert: the package node is drawn (its name, not its members), and one located
+            // informational hint is reported
+            var output = Assert.Single(outputs);
+            var svg = System.Text.Encoding.UTF8.GetString(((MemoryStream)output.Data).ToArray());
+            Assert.Contains(">Pkg<", svg);
+            Assert.DoesNotContain("Block1", svg);
             var diagnostic = Assert.Single(diagnostics);
-            Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+            Assert.Equal(DiagnosticSeverity.Info, diagnostic.Severity);
             Assert.Equal(tempFile, diagnostic.FilePath);
             Assert.Equal(6, diagnostic.Line);
             Assert.Contains("'StructureView'", diagnostic.Message);
             Assert.Contains("'expose Pkg::**;'", diagnostic.Message);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A view whose exposed scope contains nothing renderable (here the members of an empty
+    ///     package, <c>expose Pkg::*;</c>) is still rendered, and a located warning is reported.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_ViewWithNothingRenderable_ReportsEmptyViewWarning()
+    {
+        // Arrange
+        const string sysml = """
+            package Pkg { }
+            package Diagrams {
+                view EmptyView {
+                    expose Pkg::*;
+                }
+            }
+            """;
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            // Act
+            var (outputs, diagnostics) = await RenderWithDiagnosticsAsync(sysml, tempFile);
+
+            // Assert
+            Assert.Single(outputs);
+            var diagnostic = Assert.Single(diagnostics);
+            Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+            Assert.Contains("'EmptyView'", diagnostic.Message);
+            Assert.Contains("nothing renderable", diagnostic.Message);
         }
         finally
         {

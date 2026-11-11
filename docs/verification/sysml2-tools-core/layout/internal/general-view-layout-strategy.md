@@ -265,6 +265,12 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_AnnotatedDefinition_EmitsNoteBox`:
   A definition with a `Documentation`/`Comment` annotation gets a `BoxShape.Note` box connected by
   a plain solid line with no end marker
+- `GeneralViewLayoutStrategy_BuildLayout_BarePackageExpose_DrawsEmptyPackageNode`:
+  `expose Pkg;` draws exactly one folder-shaped package node labeled `Pkg` with no children
+- `GeneralViewLayoutStrategy_BuildLayout_NamespaceExpose_DrawsMembersWithoutPackageNode`:
+  `expose Pkg::*;` draws the member boxes and no package node
+- `GeneralViewLayoutStrategy_BuildLayout_RecursivePackageExpose_DrawsPackageNodeWithMembers`:
+  `expose Pkg::**;` draws the `Pkg` package node containing the member boxes
 - `GeneralViewLayoutStrategy_BuildLayout_UnannotatedDefinition_EmitsNoNoteBox`:
   A definition with no annotations gets no note box (regression guard)
 - `GeneralViewLayoutStrategy_BuildLayout_MultipleAnnotations_ProduceOneNoteBox`:
