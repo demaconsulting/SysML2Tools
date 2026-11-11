@@ -118,7 +118,7 @@ public static class WorkspaceLoader
 
         var diagnostics = new List<SysmlDiagnostic>();
         var cst = WorkspaceParser.ParseSourceToCst(filePath, content, diagnostics);
-        var builder = new AstBuilder();
+        var builder = new AstBuilder(filePath);
         var root = builder.Build(cst);
         return (filePath, root, diagnostics);
     }

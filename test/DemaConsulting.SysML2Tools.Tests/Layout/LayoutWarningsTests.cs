@@ -110,4 +110,20 @@ public sealed class LayoutWarningsTests
 
         Assert.Equal(2, warnings.Count);
     }
+
+    /// <summary>
+    ///     An empty view with several bare package exposes names the view and suggests the
+    ///     recursive <c>::**</c> form for every one of them in a single message.
+    /// </summary>
+    [Fact]
+    public void ForEmptyView_MultipleBarePackages_SuggestsRecursiveExposeForEach()
+    {
+        // Act: build the message for a view with two bare package exposes
+        var message = LayoutWarnings.ForEmptyView("MyView", ["PkgA", "PkgB"]);
+
+        // Assert: the view is named and each package gets a '::**' suggestion
+        Assert.Contains("'MyView'", message);
+        Assert.Contains("'expose PkgA::**;'", message);
+        Assert.Contains("'expose PkgB::**;'", message);
+    }
 }

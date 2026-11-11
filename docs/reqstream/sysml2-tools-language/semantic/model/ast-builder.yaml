@@ -17,6 +17,18 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
 
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewSourceLocation
+        title: >-
+          AstBuilder shall record, on each SysmlViewNode it builds (`view def` and `view` usage),
+          the path of the source file being built and the line and column at which the view's
+          declaration starts.
+        justification: |
+          Recording the declaration location during AST construction, where the parse tree's
+          token positions are available, lets later stages report view-level diagnostics at the
+          view's source location.
+        tests:
+          - WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation
+
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-QualifiedNames
         title: >-
           AstBuilder shall compute fully-qualified names by joining ancestor names with

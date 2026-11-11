@@ -21,6 +21,7 @@ sections:
           - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewRenderTarget
           - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewExposedNames
           - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewFilterExpression
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewSourceLocation
           - SysML2Tools-Language-Semantic-Model-SysmlNode-RedefinedFeatureName
           - SysML2Tools-Language-Semantic-Model-SysmlMetadataNode-CaptureForms
           - SysML2Tools-Language-Semantic-Model-SysmlMetadataNode-LiteralAttributes
@@ -31,6 +32,7 @@ sections:
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewRenderTarget
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewFilterExpression
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewExposedNames
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewSourceLocation
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ExposeRecursionKindDerivation
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ViewUsageExpose
           - SysML2Tools-Language-Semantic-Model-AstBuilder-RedefinedFeature

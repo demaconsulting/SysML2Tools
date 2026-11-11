@@ -597,6 +597,57 @@ public class RenderSubsystemTests
     }
 
     /// <summary>
+    ///     A view whose only expose is a bare <c>expose Pkg;</c> of a package with members renders
+    ///     an empty diagram: the render command still writes the output file and exits
+    ///     successfully, but prints a located <c>file(line,col): warning:</c> line naming the view
+    ///     and suggesting <c>expose Pkg::**;</c>.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_ViewExposingBarePackage_PrintsEmptyViewWarning()
+    {
+        // Arrange: a package with members exposed only as the bare package element
+        const string sysml = """
+            package Pkg {
+                part def Block1 {}
+            }
+            package Diagrams {
+                view StructureView {
+                    expose Pkg;
+                }
+            }
+            """;
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_empty_view_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+        var outputDir = Path.Combine(tempDir, "out");
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: render the model
+            using var context = Context.Create(["render", "--output", outputDir, tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert: the file is still written, the exit code is unaffected, and the warning
+            // is printed with the view's location and the '::**' hint
+            Assert.Equal(0, context.ExitCode);
+            Assert.True(File.Exists(Path.Combine(outputDir, "StructureView.svg")));
+            var output = outWriter.ToString();
+            Assert.Contains($"{tempFile}(5,4): warning: View 'StructureView'", output);
+            Assert.Contains("did you mean 'expose Pkg::**;'?", output);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
     ///     Regression guard for the <c>AstBuilder.VisitViewUsage</c> capability addition: rendering
     ///     the real OMG corpus fixture
     ///     <c>test/SysMLModels/OMG/validation/11-ViewAndViewpoint/11b-SafetyAndSecurityFeatureViews.sysml</c>

@@ -16,7 +16,7 @@ off-the-shelf `RenderOptions` and `RenderOutput` records from `DemaConsulting.Re
 
 #### Key Methods
 
-##### `RenderWorkspace(workspace, renderer, options, viewFilter = null)`
+##### `RenderWorkspace(workspace, renderer, options, viewFilter = null, diagnostics = null)`
 
 For each declaration in the workspace it skips non-view nodes and standard-library views (via
 `StdlibFilter`), routes the view to an `ILayoutStrategy` (via `DiagramTypeRouter`), skips views with
@@ -25,6 +25,16 @@ view's own `SysmlViewNode` (so a strategy such as `GeneralViewLayoutStrategy` ca
 `render`/`expose`/`filter` data), builds the `LayoutTree`, renders it to an in-memory stream, and
 collects a `RenderOutput` with a sanitized file name and the layout warnings. Returns an empty list
 when the workspace declares no renderable views.
+
+When the optional `diagnostics` collection is supplied and a view's `LayoutTree` has no nodes, the
+method appends one `Warning`-severity `SysmlDiagnostic` located at the view's declaration
+(`SysmlViewNode.SourceFilePath`/`SourceLine`/`SourceColumn`; an empty path and line 0 for
+synthesized views). Its message comes from `LayoutWarnings.ForEmptyView`, passing the raw text
+of each of the view's resolved `expose` entries that is non-recursive (`MembershipExact`), carries
+no bracket filter, and targets a `SysmlPackageNode` — the bare `expose <Package>;` form, which
+exposes only the package element itself and is the usual cause of an empty diagram. The empty
+view is still rendered and returned, so callers that write files keep them current. The check is
+strategy-agnostic because it inspects only the produced `LayoutTree`.
 
 ##### `GetViewNames(workspace)`
 
@@ -63,7 +73,9 @@ parameter instead.
 
 #### Dependencies
 
-- `SysmlWorkspace`, `SysmlViewNode`, `SysmlDefinitionNode` (Semantic subsystem).
+- `SysmlWorkspace`, `SysmlViewNode`, `SysmlDefinitionNode`, `SysmlPackageNode` (Semantic subsystem).
+- `SysmlDiagnostic`, `DiagnosticSeverity` (Parser subsystem) — the empty-view warning record.
+- `LayoutWarnings` (Layout Internal subsystem) — builds the empty-view warning message.
 - `ILayoutStrategy`, `ViewContext` (retained SysML-coupled Rendering subsystem contract).
 - `LayoutTree`, `IRenderer`, `RenderOptions`, `RenderOutput` (off-the-shelf, from the
   `DemaConsulting.Rendering` and `DemaConsulting.Rendering.Abstractions` OTS packages).
@@ -85,3 +97,4 @@ workspace.
 | SysML2Tools-Core-Rendering-DiagramRenderer-RendererAgnostic | `RenderWorkspace` using only the `IRenderer` contract |
 | SysML2Tools-Core-Rendering-DiagramRenderer-NoViews | `RenderWorkspace` empty result for a view-free workspace |
 | SysML2Tools-Core-Rendering-DiagramRenderer-SynthesizeDynamicView | `SynthesizeDynamicView` delegation |
+| SysML2Tools-Core-Rendering-DiagramRenderer-EmptyViewWarning | `RenderWorkspace` empty-tree warning |

@@ -4,6 +4,7 @@
 
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
+using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
 
@@ -131,6 +132,13 @@ public sealed class DiagramRenderer
     /// When non-null, only the view whose display name equals this value is rendered.
     /// When null, all renderable views are rendered.
     /// </param>
+    /// <param name="diagnostics">
+    /// When non-null, receives one <see cref="DiagnosticSeverity.Warning"/> diagnostic per view
+    /// whose laid-out diagram contains nothing renderable, located at the view's declaration
+    /// (empty file path and line 0 for synthesized views). The message names the view and, for
+    /// each bare <c>expose &lt;Package&gt;;</c> statement, suggests
+    /// <c>expose &lt;Package&gt;::**;</c>. Empty views are still rendered and returned.
+    /// </param>
     /// <returns>
     /// An ordered list of <see cref="RenderOutput"/> instances, one per view in declaration order.
     /// Returns an empty list when the workspace contains no view declarations.
@@ -155,7 +163,8 @@ public sealed class DiagramRenderer
         SysmlWorkspace workspace,
         IRenderer renderer,
         RenderOptions options,
-        string? viewFilter = null)
+        string? viewFilter = null,
+        ICollection<SysmlDiagnostic>? diagnostics = null)
 #pragma warning restore S2325
     {
         // Validate inputs — null workspace or renderer would produce silent failures
@@ -201,6 +210,13 @@ public sealed class DiagramRenderer
 
             // Build the layout tree for this view
             var layout = strategy.BuildLayout(context, options);
+
+            // A diagram with no content is almost always a modeling mistake (e.g. a bare
+            // 'expose Pkg;' that exposes only the package element); report it but still render.
+            if (diagnostics is not null && layout.Nodes.Count == 0)
+            {
+                diagnostics.Add(BuildEmptyViewDiagnostic(viewName, viewNode, workspace));
+            }
 
             // Render the layout tree to an in-memory stream
             var stream = new MemoryStream();
@@ -342,6 +358,34 @@ public sealed class DiagramRenderer
             workspace, viewType, targetQualifiedName, filterExpressionText);
         diagnostic = message;
         return viewNode;
+    }
+
+    /// <summary>
+    /// Builds the warning diagnostic for a view whose laid-out diagram is empty, located at the
+    /// view's declaration and hinting at each bare <c>expose &lt;Package&gt;;</c> statement.
+    /// </summary>
+    /// <param name="viewName">The view's display name.</param>
+    /// <param name="viewNode">The view's AST node.</param>
+    /// <param name="workspace">The workspace used to classify each exposed target.</param>
+    /// <returns>The warning diagnostic.</returns>
+    private static SysmlDiagnostic BuildEmptyViewDiagnostic(
+        string viewName, SysmlViewNode viewNode, SysmlWorkspace workspace)
+    {
+        var barePackageExposes = viewNode.ResolvedExposeMembers
+            .Where(entry =>
+                entry.Member.RecursionKind == ExposeRecursionKind.MembershipExact &&
+                entry.Member.BracketFilterExpressionText is null &&
+                workspace.Declarations.TryGetValue(entry.ResolvedQualifiedName, out var target) &&
+                target is SysmlPackageNode)
+            .Select(entry => entry.Member.QualifiedName)
+            .ToList();
+
+        return new SysmlDiagnostic(
+            viewNode.SourceFilePath ?? string.Empty,
+            viewNode.SourceLine,
+            viewNode.SourceColumn,
+            DiagnosticSeverity.Warning,
+            Layout.Internal.LayoutWarnings.ForEmptyView(viewName, barePackageExposes));
     }
 
     /// <summary>

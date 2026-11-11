@@ -46,6 +46,15 @@ parse or evaluate (Phase 2a):
    failed expression text, appending the reason parenthetically when present, and stating that the
    exposed path falls back to its whole containment subtree.
 
+###### `ForEmptyView(viewName, barePackageExposes)`
+
+Returns the single warning message for a view whose laid-out diagram contains nothing
+renderable. The message names the view and states that the rendered diagram is empty. When
+`barePackageExposes` (the raw reference text of each non-recursive `expose <X>;` statement whose
+target resolved to a package) is non-empty, the message adds one combined hint quoting each bare
+statement, explaining that it exposes only the package element itself, not its members, and
+suggesting the recursive `expose <X>::**;` form for each.
+
 ##### Error Handling
 
 N/A - the method performs no validation and does not throw; a non-positive count or empty failure
@@ -66,4 +75,6 @@ crossing warnings to the `LayoutTree` they produce. `GeneralViewLayoutStrategy` 
 view's `FilterExpressionText` cannot be evaluated, and (Phase 2a)
 `LayoutWarnings.ForUnevaluatedExposeBracketFilter` with `scope?.Failures ?? []` to attach one
 warning per bracket-filter expression that failed to parse or evaluate — never for a
-successfully-evaluated bracket filter.
+successfully-evaluated bracket filter. `DiagramRenderer` calls `LayoutWarnings.ForEmptyView` to
+build the message of the empty-view warning diagnostic it reports for a view whose `LayoutTree`
+has no nodes.

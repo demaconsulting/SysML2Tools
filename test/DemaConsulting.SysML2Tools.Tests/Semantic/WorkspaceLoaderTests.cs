@@ -3834,6 +3834,50 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A <c>view</c> usage and a <c>view def</c> each record their declaring file path and the
+    ///     one-based line and zero-based column of their declaration, so view-level diagnostics
+    ///     can be located in the source.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    view def VD {}
+                    view V {
+                        expose P;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var viewDef = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
+                result.Workspace.Declarations["P::VD"]);
+            Assert.Equal(tempFile, viewDef.SourceFilePath);
+            Assert.Equal(2, viewDef.SourceLine);
+            Assert.Equal(4, viewDef.SourceColumn);
+            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
+                result.Workspace.Declarations["P::V"]);
+            Assert.Equal(tempFile, view.SourceFilePath);
+            Assert.Equal(3, view.SourceLine);
+            Assert.Equal(4, view.SourceColumn);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     A <c>view def</c> with a <c>render &lt;target&gt;;</c> member naming a rendering-style
     ///     identifier that is not declared anywhere in the file (which would have failed
     ///     resolution under the old, incorrect content-scoping semantics) produces zero

@@ -409,6 +409,23 @@ that exposing a `def` reaches directly; in both cases, recursion (`::**`) is wha
 whether descendants are included, independent of whether the initial target was a usage or a
 definition.
 
+## Empty View Warning
+
+When a view's diagram contains nothing renderable, `render` still writes the (blank) output file
+but prints a warning located at the view's declaration, in the same `file(line,col): warning:`
+form `lint` uses. The most common cause is exposing a package with the bare form, which exposes
+only the package element itself, not its members — use `expose <Package>::**;` (or
+`expose <Package>::*;` for direct members only) instead:
+
+```text
+  design-views.sysml(9,4): warning: View 'SoftwareStructureView' resolved to nothing renderable;
+  the rendered diagram is empty. 'expose BuildMark;' exposes only the package element itself,
+  not its members; did you mean 'expose BuildMark::**;'?
+```
+
+The warning is printed on a single line. Like all warnings, it does not change the exit code.
+The `lint` command does not lay views out, so it does not report this condition.
+
 ## Depth Limiting
 
 Use `--walk-depth <n>` to limit the nesting depth rendered. Parts beyond the limit are replaced

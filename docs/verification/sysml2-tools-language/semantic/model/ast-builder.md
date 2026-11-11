@@ -113,6 +113,7 @@ external services or additional configuration are required beyond a standard .NE
 | Metadata literal attribute capture | `AstBuilder_MetadataAnnotationWithBooleanAttribute_CapturesLiteralValue` |
 | `VisitViewDefinition` render | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | `VisitViewDefinition` filter capture | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
+| View declaration source location (`view def` and `view`) | `WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation` |
 | `VisitViewUsage` expose capture | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | `VisitViewUsage` bracket-filter capture | `AstBuilder_ExposeBracketFilter_CapturesRawText` |
 | Bracket filter paired to entry | `AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath` |

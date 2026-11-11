@@ -134,8 +134,9 @@ internal static class RenderCommand
         // Render all views in the workspace (or the selected view when --view is specified)
         var diagramRenderer = new DiagramRenderer();
         var renderOptions = new RenderOptions(Themes.Light, DepthLimit: options.WalkDepth ?? 0);
+        var renderDiagnostics = new List<SysmlDiagnostic>();
         var outputs = diagramRenderer.RenderWorkspace(
-            loadResult.Workspace, renderer, renderOptions, viewFilter: effectiveViewFilter);
+            loadResult.Workspace, renderer, renderOptions, effectiveViewFilter, diagnostics: renderDiagnostics);
 
         if (outputs.Count == 0)
         {
@@ -170,6 +171,17 @@ internal static class RenderCommand
             {
                 context.WriteLine($"  warning: {warning}");
             }
+        }
+
+        // Surface empty-view warnings (files are still written so existing outputs are replaced);
+        // warnings do not affect the exit code.
+        foreach (var diagnostic in renderDiagnostics)
+        {
+            var location = diagnostic.FilePath.Length > 0
+                ? $"{diagnostic.FilePath}({diagnostic.Line},{diagnostic.Column}): "
+                : string.Empty;
+            context.WriteLine(
+                $"  {location}{diagnostic.Severity.ToString().ToLowerInvariant()}: {diagnostic.Message}");
         }
 
         context.WriteLine($"Rendered {outputs.Count} view(s).");

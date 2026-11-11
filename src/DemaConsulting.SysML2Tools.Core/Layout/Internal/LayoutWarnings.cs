@@ -129,4 +129,30 @@ internal static class LayoutWarnings
                 $"rendered ({edge.Reason}).")
             .ToList();
     }
+
+    /// <summary>
+    /// Returns the warning message stating that a view's laid-out diagram contains nothing
+    /// renderable, appending a corrective hint for each bare <c>expose &lt;Package&gt;;</c>
+    /// statement (which exposes only the package element itself, not its members).
+    /// </summary>
+    /// <param name="viewName">Name of the view being laid out.</param>
+    /// <param name="barePackageExposes">
+    /// The raw reference text of each of the view's non-recursive <c>expose &lt;X&gt;;</c>
+    /// statements whose target resolved to a package, in source order.
+    /// </param>
+    /// <returns>The warning message for the view.</returns>
+    public static string ForEmptyView(string viewName, IReadOnlyList<string> barePackageExposes)
+    {
+        var message = $"View '{viewName}' resolved to nothing renderable; the rendered diagram is empty.";
+        if (barePackageExposes.Count == 0)
+        {
+            return message;
+        }
+
+        var bare = string.Join(", ", barePackageExposes.Select(name => $"'expose {name};'"));
+        var recursive = string.Join(", ", barePackageExposes.Select(name => $"'expose {name}::**;'"));
+        var verb = barePackageExposes.Count == 1 ? "exposes" : "each expose";
+        return $"{message} {bare} {verb} only the package element itself, not its members; " +
+            $"did you mean {recursive}?";
+    }
 }

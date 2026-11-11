@@ -247,3 +247,10 @@ report "cannot be combined with --view or --auto" and exit code 1.
 #### RenderSubsystem_Help_DocumentsDynamicViewFlags
 
 Verifies that `render --help` output contains `--view-type`, `--view-target`, and `--filter`.
+
+#### RenderSubsystem_ViewExposingBarePackage_PrintsEmptyViewWarning
+
+Verifies that rendering a view whose only expose is a bare `expose Pkg;` of a package with
+members still writes the view's `.svg` file and exits with code 0, and prints a
+`file(line,col): warning: View '...'` line located at the view's declaration that suggests
+`expose Pkg::**;`.

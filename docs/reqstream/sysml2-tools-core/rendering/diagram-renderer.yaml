@@ -58,3 +58,19 @@ sections:
         tests:
           - Synthesize_GeneralKind_ResolvableTarget_Succeeds
           - Synthesize_UnresolvedTarget_Fails
+
+      - id: SysML2Tools-Core-Rendering-DiagramRenderer-EmptyViewWarning
+        title: >-
+          When a caller supplies a diagnostics collection, the diagram renderer shall report a
+          warning diagnostic, located at the view's declaration, for each rendered view whose
+          diagram contains nothing renderable, suggesting `expose <Package>::**;` for each bare
+          `expose <Package>;` statement, while still returning the view's rendered output.
+        justification: |
+          A view such as `expose BuildMark;` exposes only the package element, so its diagram
+          renders as a blank canvas with no signal; such blank diagrams have gone unnoticed in
+          published design documents for weeks. A located warning makes the mistake visible
+          and actionable, and still returning the output keeps existing output files current.
+        tests:
+          - DiagramRenderer_RenderWorkspace_ViewExposesBarePackage_ReportsEmptyViewWarning
+          - DiagramRenderer_RenderWorkspace_ViewExposesPackageRecursively_ReportsNoWarning
+          - DiagramRenderer_RenderWorkspace_ViewExposesRenderableElement_ReportsNoWarning

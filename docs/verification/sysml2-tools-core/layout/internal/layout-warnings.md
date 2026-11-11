@@ -44,3 +44,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `ForUnevaluatedExposeBracketFilter_Empty_ReturnsEmpty` | No failures yields an empty list |
 | `ForUnevaluatedExposeBracketFilter_SingleFailure_ReturnsWarningWithReason` | One failure yields a warning |
 | `ForUnevaluatedExposeBracketFilter_MultipleFailures_ReturnsOneWarningPerFailure` | One warning per failure |
+| `ForEmptyView_MultipleBarePackages_SuggestsRecursiveExposeForEach` | Names view; `::**` hint each |

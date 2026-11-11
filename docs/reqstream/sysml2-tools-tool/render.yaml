@@ -31,6 +31,7 @@ sections:
           - SysML2Tools-Tool-Render-AllViewsExport
           - SysML2Tools-Tool-Render-LocalizableHelpText
           - SysML2Tools-Tool-Render-DynamicView
+          - SysML2Tools-Tool-Render-EmptyViewWarning
         tests:
           - RenderSubsystem_NoFiles_ReportsError
           - RenderSubsystem_GlobPattern_ResolvesMultipleFiles
@@ -201,3 +202,18 @@ sections:
           - RenderSubsystem_DynamicViewCombinedWithView_ReportsError
           - RenderSubsystem_DynamicViewCombinedWithAuto_ReportsError
           - RenderSubsystem_Help_DocumentsDynamicViewFlags
+
+      - id: SysML2Tools-Tool-Render-EmptyViewWarning
+        title: >-
+          The render command shall print a warning in `file(line,col): warning: message` form
+          for each rendered view whose diagram contains nothing renderable, naming the view and
+          suggesting `expose <Package>::**;` for each bare `expose <Package>;` statement, while
+          still writing the view's output file and without changing the exit code.
+        justification: |
+          An empty diagram produced by a bare `expose <Package>;` previously rendered silently
+          as a blank canvas while the command reported success, so the mistake went unnoticed
+          in published documents. A located, actionable warning surfaces it during the build;
+          keeping it a warning (not an error) follows the tool's existing convention that
+          warnings never fail the run.
+        tests:
+          - RenderSubsystem_ViewExposingBarePackage_PrintsEmptyViewWarning

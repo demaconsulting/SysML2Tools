@@ -84,13 +84,19 @@ Entry point for the render command. Steps:
    throws only once the command actually runs. Selects `PngRenderer` when `format` equals
    `"png"`; `SvgRenderer` otherwise.
 9. Calls `DiagramRenderer.RenderWorkspace` passing
-   `new RenderOptions(Themes.Light, DepthLimit: options.WalkDepth ?? 0)` and
-   `viewFilter: effectiveViewFilter` (the synthesized dynamic view's name when one was
-   synthesized in step 5; `options.ViewName` unchanged otherwise).
+   `new RenderOptions(Themes.Light, DepthLimit: options.WalkDepth ?? 0)`,
+   `effectiveViewFilter` as the view filter (the synthesized dynamic view's name when one was
+   synthesized in step 5; `options.ViewName` unchanged otherwise), and a `diagnostics` list
+   that collects one empty-view warning per view whose diagram contains nothing renderable.
 10. Writes a "No views found" message and returns when `outputs` is empty.
 11. Resolves the output directory (defaults to `Directory.GetCurrentDirectory()`), creates
     it via `Directory.CreateDirectory`, and writes each `RenderOutput.Data` stream to a
-    file named `RenderOutput.SuggestedFileName`.
+    file named `RenderOutput.SuggestedFileName`, followed by that output's layout warnings.
+12. Prints each collected empty-view diagnostic via `context.WriteLine` in the same
+    `file(line,col): warning: message` form the `lint` command uses (the location prefix is
+    omitted for a synthesized view with no source file). Empty views are still written, and the
+    warnings do not change the exit code, following the tool's convention that only errors fail
+    a run.
 
 **`PrintHelp(Context context)`**: Prints `render`'s usage line and its eight flags (`--output`,
 `--format`, `--view`, `--auto`, `--view-type`, `--view-target`, `--filter`, `--walk-depth`).
@@ -109,6 +115,8 @@ future-locale story, which applies identically here.
   `"render: no files matched the given pattern(s)."` and the method returns before loading a
   workspace.
 - Load diagnostics: reported to the context; non-fatal; rendering proceeds regardless.
+- Empty view (diagram contains nothing renderable): reported as a located warning via
+  `context.WriteLine`; non-fatal; the output file is still written and the exit code is unchanged.
 - Multiple views without `--view`: no error; every declared view is rendered (one output file
   per view), supporting bulk "render everything" exports.
 - Output file name collision: when rendering all views (`--view` not specified) with more than
@@ -170,3 +178,4 @@ future-locale story, which applies identically here.
 | SysML2Tools-Tool-Render-FormatValidation | Eager `--format` value guard in `RunAsync` |
 | SysML2Tools-Tool-Render-FileNameCollision | Output file name collision guard in `RunAsync` |
 | SysML2Tools-Tool-Render-DynamicView | `TryProcessDynamicView` helper, called from `RunAsync` |
+| SysML2Tools-Tool-Render-EmptyViewWarning | Empty-view diagnostics printed in `RunAsync` |

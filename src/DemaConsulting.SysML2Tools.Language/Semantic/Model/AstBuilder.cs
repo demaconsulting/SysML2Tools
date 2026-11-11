@@ -19,6 +19,23 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     private readonly List<string> _namespaceStack = new();
 
     /// <summary>
+    ///     The source file path recorded on view nodes, or null when unknown.
+    /// </summary>
+    private readonly string? _filePath;
+
+    /// <summary>
+    ///     Initializes a new <see cref="AstBuilder"/>.
+    /// </summary>
+    /// <param name="filePath">
+    ///     The path of the source file being built, recorded on each <see cref="SysmlViewNode"/>
+    ///     so view-level diagnostics can name their declaring file; null when unknown.
+    /// </param>
+    public AstBuilder(string? filePath = null)
+    {
+        _filePath = filePath;
+    }
+
+    /// <summary>
     ///     Gets the current namespace prefix by joining the stack with "::".
     /// </summary>
     private string CurrentPrefix => _namespaceStack.Count > 0
@@ -1884,6 +1901,9 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             SupertypeNames = supertypeNames,
             RenderTargetName = renderTargetName,
             FilterExpressionText = filterExpressionText,
+            SourceFilePath = _filePath,
+            SourceLine = context.Start.Line,
+            SourceColumn = context.Start.Column,
         };
     }
 
@@ -1919,6 +1939,9 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             RenderTargetName = renderTargetName,
             ExposeMembers = exposeMembers,
             FilterExpressionText = filterExpressionText,
+            SourceFilePath = _filePath,
+            SourceLine = context.Start.Line,
+            SourceColumn = context.Start.Column,
         };
     }
 
