@@ -270,6 +270,10 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_MultipleAnnotations_ProduceOneNoteBox`:
   A definition with multiple `Documentation`/`Comment` annotations gets exactly one note box, with
   every annotation's text concatenated into it
+- `GeneralViewLayoutStrategy_BuildLayout_SameNamedDefsInSiblingPackages_WiresEachToItsOwn`:
+  Three sibling packages each defining and using a same-named `Checker` part def render three
+  `Checker` boxes, and each package folder holds exactly one filled-diamond membership edge between
+  its own two boxes (no cross-package wiring to the first same-named definition)
 - `GeneralViewLayoutStrategy_BuildLayout_RequirementSubject_UsesGuillemetTitle`:
   A `"subject"`-keyword feature compartment is titled `«subject»`, not the generic pluralized form
 - `GeneralViewLayoutStrategy_BuildLayout_ConstraintFeatures_ShowExpressionText`:

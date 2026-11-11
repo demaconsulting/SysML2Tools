@@ -500,6 +500,50 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Contains(box.Compartments, c => c.Title == "ports" && c.Rows.Contains("fuel : FuelPort"));
     }
 
+    /// <summary>
+    ///     Three packages each define a part def with the same simple name (<c>Checker</c>) and use
+    ///     it from their own system definition. Each usage must be wired to its own package's
+    ///     definition: every package folder contains exactly one composition (filled-diamond) edge
+    ///     between its own two boxes, rather than all three edges converging on the first
+    ///     same-named definition found workspace-wide.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_SameNamedDefsInSiblingPackages_WiresEachToItsOwn()
+    {
+        // Arrange: three sibling packages, each with its own Checker and a System using it
+        const string sysml = """
+            package PkgA { part def Checker; part def SystemA { part checker : Checker; } }
+            package PkgB { part def Checker; part def SystemB { part checker : Checker; } }
+            package PkgC { part def Checker; part def SystemC { part checker : Checker; } }
+            """;
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            var context = new ViewContext("v", result.Workspace);
+
+            // Act
+            var layout = new GeneralViewLayoutStrategy().BuildLayout(context, new RenderOptions(Themes.Light));
+
+            // Assert: three distinct Checker boxes, and each package folder holds exactly one
+            // filled-diamond membership edge among its own children (Checker -> its own System)
+            var boxes = CollectBoxes(layout.Nodes);
+            Assert.Equal(3, boxes.Count(b => b.Label == "Checker"));
+            foreach (var package in new[] { "PkgA", "PkgB", "PkgC" })
+            {
+                var folder = Assert.Single(boxes, b => b.Label == package);
+                Assert.Single(folder.Children.OfType<LayoutLine>(), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+            }
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     /// <summary>Recursively collects all <see cref="LayoutBox"/> nodes from a node list.</summary>
     private static IReadOnlyList<LayoutBox> CollectBoxes(IReadOnlyList<LayoutNode> nodes)
     {

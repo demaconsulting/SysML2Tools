@@ -477,7 +477,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                     continue;
                 }
 
-                if (ResolveByTyping(feature.FeatureTyping, defsByName)?.QualifiedName is { Length: > 0 } usedName)
+                if (ResolveByTyping(feature, defsByName)?.QualifiedName is { Length: > 0 } usedName)
                 {
                     usedAsChildType.Add(usedName);
                 }
@@ -645,7 +645,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     {
         var name = feature.Name ?? feature.FeatureTyping ?? "part";
 
-        if (unlimitedRecursion && TryResolveContainer(feature.FeatureTyping, defsByName, visited, out var childDef))
+        if (unlimitedRecursion && TryResolveContainer(feature, defsByName, visited, out var childDef))
         {
             // Container part: lay out its interior bottom-up and treat it as an atomic node.
             // Scope is intentionally not carried into this recursive call — see the remarks on
@@ -880,13 +880,13 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// on the path — or does not resolve to a container — is treated as a leaf.
     /// </summary>
     private static bool TryResolveContainer(
-        string? typing,
+        SysmlFeatureNode feature,
         IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
         ISet<string> visited,
         out SysmlDefinitionNode childDef)
     {
         childDef = null!;
-        var def = ResolveByTyping(typing, defsByName);
+        var def = ResolveByTyping(feature, defsByName);
         if (def?.QualifiedName is null || visited.Contains(def.QualifiedName))
         {
             return false;
@@ -897,22 +897,46 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Resolves a feature typing reference to its definition by qualified name, falling back to
-    /// simple (last-segment) name if no qualified match exists. Returns <see langword="null"/> if
-    /// neither form resolves.
+    /// Resolves a part feature's type to its container definition: first via the semantic model's
+    /// resolved <see cref="SysmlEdgeKind.Typing"/> edge (which honors the feature's own owning
+    /// namespace and imports); otherwise from the raw typing text — as a qualified name, then
+    /// relative to each namespace enclosing the feature (innermost first, per SysML v2 lexical
+    /// scoping), then by simple (last-segment) name. Returns <see langword="null"/> if nothing
+    /// resolves to a container definition.
     /// </summary>
     private static SysmlDefinitionNode? ResolveByTyping(
-        string? typing,
+        SysmlFeatureNode feature,
         IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName)
     {
+        var typing = feature.FeatureTyping;
         if (string.IsNullOrEmpty(typing))
         {
             return null;
         }
 
+        var resolved = feature.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Typing)?.TargetQualifiedName;
+        if (resolved is not null)
+        {
+            // An authoritative resolution that is not a container means the part is a leaf;
+            // never fall back to a same-named container elsewhere in the workspace.
+            return defsByName.TryGetValue(resolved, out var resolvedDef) && resolvedDef.QualifiedName == resolved
+                ? resolvedDef
+                : null;
+        }
+
         if (defsByName.TryGetValue(typing, out var def))
         {
             return def;
+        }
+
+        for (var scope = feature.QualifiedName; !string.IsNullOrEmpty(scope);)
+        {
+            var scopeSep = scope.LastIndexOf("::", StringComparison.Ordinal);
+            scope = scopeSep >= 0 ? scope[..scopeSep] : null;
+            if (scope is not null && defsByName.TryGetValue(scope + "::" + typing, out def))
+            {
+                return def;
+            }
         }
 
         var sep = typing.LastIndexOf("::", StringComparison.Ordinal);

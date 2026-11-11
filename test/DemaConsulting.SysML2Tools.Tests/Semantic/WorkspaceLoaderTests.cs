@@ -3834,6 +3834,41 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     When sibling packages each define and use a part def with the same simple name, each
+    ///     usage's typing resolves to the definition in its own owning package (SysML v2 lexical
+    ///     scoping), not to the first same-named definition in the workspace.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SameNamedDefsInSiblingPackages_ResolveToOwningPackage()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package PkgA { part def Checker; part def SystemA { part checker : Checker; } }
+                package PkgB { part def Checker; part def SystemB { part checker : Checker; } }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: each usage's Typing edge targets its own package's Checker
+            Assert.NotNull(result.Workspace);
+            string TypeOf(string usage) => Assert.Single(
+                result.Workspace.Declarations[usage].ResolvedEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Typing).TargetQualifiedName;
+            Assert.Equal("PkgA::Checker", TypeOf("PkgA::SystemA::checker"));
+            Assert.Equal("PkgB::Checker", TypeOf("PkgB::SystemB::checker"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     A <c>view def</c> with a <c>render &lt;target&gt;;</c> member naming a rendering-style
     ///     identifier that is not declared anywhere in the file (which would have failed
     ///     resolution under the old, incorrect content-scoping semantics) produces zero

@@ -66,6 +66,7 @@ sections:
           - SysML2Tools-Language-Semantic-Model-SysmlMetadataNode-UnresolvedTypeWarning
           - SysML2Tools-Language-Semantic-Model-SymbolTable-Lookup
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-Resolve
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-OwningNamespaceFirst
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-CircularImport
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewExposeResolution
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewExposeUnresolvedWarning

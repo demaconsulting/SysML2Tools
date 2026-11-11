@@ -21,6 +21,18 @@ sections:
           - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
           - InterconnectionView_BuildLayout_RootContent_IsNestedAsRootBoxChildren
 
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-SameNamedDefinitions
+        title: >-
+          When several container definitions share a simple name, InterconnectionViewLayoutStrategy
+          shall expand a nested part using the definition its type reference actually resolves to
+          (the semantic model's resolved target, else the nearest enclosing namespace), never the
+          first same-named definition found in the workspace.
+        justification: |
+          Expanding the wrong same-named container would draw another package's interior inside a
+          part, misrepresenting its internal structure.
+        tests:
+          - InterconnectionView_BuildLayout_SameNamedContainerDefs_ExpandsOwnPackagesDefinition
+
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Ports
         title: >-
           InterconnectionViewLayoutStrategy shall place a port on a part box for every connection

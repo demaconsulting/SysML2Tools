@@ -52,14 +52,18 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// A feature membership: the keyword, raw typing reference (if any), simple name, raw
     /// redefined-feature reference (if any), and raw subsetted-feature reference(s) (if any) of
     /// one owned feature. <see cref="TypeName"/> is nullable because a feature may declare a
-    /// redefinition/subsetting without an explicit type annotation.
+    /// redefinition/subsetting without an explicit type annotation. <see cref="ResolvedTypeName"/>
+    /// is the qualified name the semantic model's <see cref="SysmlEdgeKind.Typing"/> edge resolved
+    /// <see cref="TypeName"/> to (honoring the feature's own namespace and imports), or
+    /// <see langword="null"/> when the feature carries no resolved typing edge.
     /// </summary>
     private sealed record FeatureMembership(
         string Keyword,
         string? TypeName,
         string? Name,
         string? RedefinedFeatureName,
-        IReadOnlyList<string> SubsettedFeatureNames);
+        IReadOnlyList<string> SubsettedFeatureNames,
+        string? ResolvedTypeName = null);
 
     /// <summary>
     /// The classification of an edge, which selects its line style so the renderer can distinguish
@@ -611,7 +615,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             if (typing is not null || feature.RedefinedFeatureName is not null || feature.SupertypeNames.Count > 0)
             {
                 var keyword = string.IsNullOrEmpty(feature.FeatureKeyword) ? "feature" : feature.FeatureKeyword;
-                result.Add(new FeatureMembership(keyword, typing, feature.Name, feature.RedefinedFeatureName, feature.SupertypeNames));
+                var resolvedType = feature.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Typing)?.TargetQualifiedName;
+                result.Add(new FeatureMembership(keyword, typing, feature.Name, feature.RedefinedFeatureName, feature.SupertypeNames, resolvedType));
             }
         }
 
@@ -735,10 +740,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var edges = new List<ModelEdge>();
         foreach (var def in defs)
         {
+            // Supertype targets already resolved by ReferenceResolver (owning namespace and imports
+            // first), used in preference to re-resolving the raw reference text below.
+            var resolvedSupertypes = workspace.Declarations.TryGetValue(def.QualifiedName, out var declaration)
+                ? declaration.ResolvedEdges.Where(e => e.Kind == SysmlEdgeKind.Supertype).Select(e => e.TargetQualifiedName).ToList()
+                : [];
+
             // Specialization: subtype → supertype, open arrowhead at the supertype (target) end.
             foreach (var supertype in def.SupertypeNames)
             {
-                if (TryResolveQualified(supertype, byQualified, bySimple, out var target) &&
+                if (TryResolveSupertype(supertype, def.QualifiedName, resolvedSupertypes, byQualified, bySimple, out var target) &&
                     target != def.QualifiedName)
                 {
                     edges.Add(new ModelEdge(def.QualifiedName, target, EndMarkerStyle.HollowTriangle, EdgeKind.Specialization));
@@ -758,8 +769,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 };
 
                 if (arrowhead != EndMarkerStyle.None &&
-                    membership.TypeName is { Length: > 0 } memberTypeName &&
-                    TryResolveQualified(memberTypeName, byQualified, bySimple, out var memberType) &&
+                    TryResolveMemberType(membership, def.QualifiedName, byQualified, bySimple, out var memberType) &&
                     memberType != def.QualifiedName)
                 {
                     edges.Add(new ModelEdge(memberType, def.QualifiedName, arrowhead, EdgeKind.Membership));
@@ -777,8 +787,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     continue;
                 }
 
-                if (membership.TypeName is { Length: > 0 } attrTypeName &&
-                    TryResolveQualified(attrTypeName, byQualified, bySimple, out var attrType) &&
+                if (TryResolveMemberType(membership, def.QualifiedName, byQualified, bySimple, out var attrType) &&
                     attrType != def.QualifiedName)
                 {
                     edges.Add(new ModelEdge(def.QualifiedName, attrType, EndMarkerStyle.OpenChevron, EdgeKind.Typing));
@@ -796,8 +805,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     continue;
                 }
 
-                if (membership.TypeName is { Length: > 0 } refTypeName &&
-                    TryResolveQualified(refTypeName, byQualified, bySimple, out var refType) &&
+                if (TryResolveMemberType(membership, def.QualifiedName, byQualified, bySimple, out var refType) &&
                     refType != def.QualifiedName)
                 {
                     edges.Add(new ModelEdge(def.QualifiedName, refType, EndMarkerStyle.OpenChevron, EdgeKind.Dependency));
@@ -986,7 +994,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         HashSet<string> byQualified,
         Dictionary<string, string> bySimple)
     {
-        if (TryResolveQualified(qualifiedName, byQualified, bySimple, out var direct))
+        if (TryResolveQualified(qualifiedName, null, byQualified, bySimple, out var direct))
         {
             return direct;
         }
@@ -1026,7 +1034,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         if (sep >= 0)
         {
             var ownerRef = redefinedRef[..sep];
-            return TryResolveQualified(ownerRef, byQualified, bySimple, out var owner) ? owner : null;
+            return TryResolveQualified(ownerRef, def.QualifiedName, byQualified, bySimple, out var owner) ? owner : null;
         }
 
         return ResolveBareRedefinitionOwner(def, redefinedRef, byQualified, bySimple, defByQualified, new HashSet<string>(StringComparer.Ordinal));
@@ -1051,7 +1059,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         foreach (var supertype in def.SupertypeNames)
         {
-            if (!TryResolveQualified(supertype, byQualified, bySimple, out var superQualified) ||
+            if (!TryResolveQualified(supertype, def.QualifiedName, byQualified, bySimple, out var superQualified) ||
                 !defByQualified.TryGetValue(superQualified, out var superDef))
             {
                 continue;
@@ -1072,9 +1080,66 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         return null;
     }
 
-    /// <summary>Resolves a supertype/type reference to a definition's qualified name, by qualified then simple name.</summary>
+    /// <summary>
+    /// Resolves a feature membership's type to a rendered definition's qualified name, preferring
+    /// the semantic model's already-resolved <see cref="SysmlEdgeKind.Typing"/> target and falling
+    /// back to <see cref="TryResolveQualified"/> on the raw reference text.
+    /// </summary>
+    private static bool TryResolveMemberType(
+        FeatureMembership membership,
+        string ownerQualifiedName,
+        HashSet<string> byQualified,
+        Dictionary<string, string> bySimple,
+        [MaybeNullWhen(false)] out string qualified)
+    {
+        if (membership.ResolvedTypeName is { } resolved && byQualified.Contains(resolved))
+        {
+            qualified = resolved;
+            return true;
+        }
+
+        qualified = null;
+        return membership.TypeName is { Length: > 0 } typeName &&
+            TryResolveQualified(typeName, ownerQualifiedName, byQualified, bySimple, out qualified);
+    }
+
+    /// <summary>
+    /// Resolves a raw supertype reference to a rendered definition's qualified name, preferring the
+    /// definition's already-resolved <see cref="SysmlEdgeKind.Supertype"/> target whose qualified
+    /// name is, or ends with, the raw reference, and falling back to
+    /// <see cref="TryResolveQualified"/>.
+    /// </summary>
+    private static bool TryResolveSupertype(
+        string supertype,
+        string subtypeQualifiedName,
+        IReadOnlyList<string> resolvedSupertypes,
+        HashSet<string> byQualified,
+        Dictionary<string, string> bySimple,
+        [MaybeNullWhen(false)] out string qualified)
+    {
+        var resolved = resolvedSupertypes.FirstOrDefault(target =>
+            byQualified.Contains(target) &&
+            (target == supertype || target.EndsWith("::" + supertype, StringComparison.Ordinal)));
+        if (resolved is not null)
+        {
+            qualified = resolved;
+            return true;
+        }
+
+        return TryResolveQualified(supertype, subtypeQualifiedName, byQualified, bySimple, out qualified);
+    }
+
+    /// <summary>
+    /// Resolves a supertype/type reference to a rendered definition's qualified name: first as an
+    /// exact qualified name; then, when <paramref name="contextQualifiedName"/> is supplied, by
+    /// SysML v2 lexical scoping — the reference is tried relative to each namespace enclosing the
+    /// referencing element, innermost first, so a reference resolves to the same-named definition
+    /// in its own owning package before one in an unrelated package; finally by simple name
+    /// (first-seen) for references that resolve through no enclosing namespace (e.g. via an import).
+    /// </summary>
     private static bool TryResolveQualified(
         string reference,
+        string? contextQualifiedName,
         HashSet<string> byQualified,
         Dictionary<string, string> bySimple,
         [MaybeNullWhen(false)] out string qualified)
@@ -1083,6 +1148,19 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         {
             qualified = reference;
             return true;
+        }
+
+        for (var scope = contextQualifiedName; !string.IsNullOrEmpty(scope);)
+        {
+            var candidate = scope + "::" + reference;
+            if (byQualified.Contains(candidate))
+            {
+                qualified = candidate;
+                return true;
+            }
+
+            var scopeSep = scope.LastIndexOf("::", StringComparison.Ordinal);
+            scope = scopeSep >= 0 ? scope[..scopeSep] : null;
         }
 
         var sep = reference.LastIndexOf("::", StringComparison.Ordinal);

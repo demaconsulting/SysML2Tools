@@ -226,6 +226,17 @@ than a membership diamond, and it connects otherwise-disconnected attribute and 
 definitions into the cluster near the definitions that reference them. Unresolved types and
 self-references are skipped.
 
+**Resolving a reference to a box.** Because packages may reuse a simple name for distinct
+definitions, every type/supertype reference is resolved in this order: (1) the semantic model's
+already-resolved target — a membership's `FeatureMembership.ResolvedTypeName` (the feature's own
+`Typing` edge) via `TryResolveMemberType`, or the definition's own `Supertype` edge whose target is,
+or ends with, the raw reference via `TryResolveSupertype` — since `ReferenceResolver` already
+honors the owning namespace and its imports; otherwise (2) `TryResolveQualified`, which tries the
+raw text as an exact qualified name, then relative to each namespace enclosing the referencing
+definition (innermost first, per SysML v2 lexical scoping), and only then by simple name
+(first-seen) as a last resort. Without steps (1)–(2), every usage of a reused simple name was wired
+to the first same-named box in the workspace, leaving the others unconnected.
+
 Each `ref`-keyword feature (previously rendered with an obsolete hollow-diamond membership marker —
 a bug fixed by this unit) instead contributes a **dependency** edge from the owner to the
 referenced type, sharing the exact same rendering (dashed line, open chevron, `EdgeKind.Dependency`)

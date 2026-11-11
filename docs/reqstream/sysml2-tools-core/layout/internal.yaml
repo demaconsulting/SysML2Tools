@@ -39,8 +39,10 @@ sections:
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-BareNameForm
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-NoEdgeOnFailure
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AnnotationNote
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-SameNamedDefinitions
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-RequirementConstraintCompartments
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Internals
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-SameNamedDefinitions
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Ports
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Connectors
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NestedContainer

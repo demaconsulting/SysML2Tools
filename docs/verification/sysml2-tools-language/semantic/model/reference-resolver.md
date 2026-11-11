@@ -66,6 +66,7 @@ external services or additional configuration are required beyond a standard .NE
 | Scenario | Verified By |
 | --- | --- |
 | Unresolved supertype reference | `WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning` |
+| Same-named defs, own package | `WorkspaceLoader_LoadAsync_SameNamedDefsInSiblingPackages_ResolveToOwningPackage` |
 | Circular import — terminates | `WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop` |
 | Resolved reference — no Warning | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
 | Resolved supertype records edge | `WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge` |

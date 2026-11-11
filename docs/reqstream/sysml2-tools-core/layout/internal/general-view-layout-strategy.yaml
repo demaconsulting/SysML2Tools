@@ -482,6 +482,20 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_UnannotatedDefinition_EmitsNoNoteBox
           - GeneralViewLayoutStrategy_BuildLayout_MultipleAnnotations_ProduceOneNoteBox
 
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-SameNamedDefinitions
+        title: >-
+          When several rendered definitions share a simple name, GeneralViewLayoutStrategy shall
+          attach each specialization, membership, typing, redefinition, and subsetting edge to the
+          definition the referencing element's type reference actually resolves to (the semantic
+          model's resolved target, else the nearest enclosing namespace), never to the first
+          same-named definition found in the workspace.
+        justification: |
+          Packages commonly reuse a simple name for distinct definitions. Wiring every usage to
+          the first same-named box drew one box connected to several unrelated systems plus
+          unconnected duplicates, misrepresenting the architecture.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_SameNamedDefsInSiblingPackages_WiresEachToItsOwn
+
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-RequirementConstraintCompartments
         title: >-
           GeneralViewLayoutStrategy's Pluralize helper shall title a "subject", "assume
