@@ -38,6 +38,7 @@ sections:
           - NameResolver_Resolve_ImportedMember_HonorsImportVisibility
           - NameResolver_Resolve_FilteredRecursiveImport_SkipsRejectedCandidate
           - NameResolver_GeneralTypes_PartiallyResolvedSupertypes_IncludesEveryGeneralType
+          - NameResolver_Resolve_MembershipImportedAlias_ResolvesItsShortName
 
       - id: SysML2Tools-Language-Semantic-Model-NameResolver-VisibleResolution
         title: >-
@@ -52,6 +53,7 @@ sections:
           - NameResolver_Resolve_PrivateMemberViaQualifiedName_DoesNotResolve
           - NameResolver_Resolve_ImportedMember_HonorsImportVisibility
           - NameResolver_Resolve_InheritedMember_ResolvesThroughSupertype
+          - NameResolver_Resolve_SpecializedBodyMembers_HonorVisibilityAndShortName
 
       - id: SysML2Tools-Language-Semantic-Model-NameResolver-RedefinedFeature
         title: >-
@@ -62,6 +64,18 @@ sections:
           general types for a Redefinition's redefinedFeature.
         tests:
           - NameResolver_ResolveRedefinedFeature_ResolvesAgainstGeneralTypes
+
+      - id: SysML2Tools-Language-Semantic-Model-NameResolver-Recheck
+        title: >-
+          NameResolver shall re-check a target the semantic model already resolved a reference to,
+          returning the element KerML 8.2.3.5 resolution of the reference finds when that differs,
+          and otherwise keeping the semantic target.
+        justification: |
+          The semantic reference resolver shares imports file-wide; re-checking its answer with
+          KerML resolution, which uses only the referencing namespace's own imports, keeps
+          diagrams from wiring a reference to a same-named element imported elsewhere.
+        tests:
+          - NameResolver_Recheck_DifferentKerMLResolution_ReplacesSemanticTarget
 
       - id: SysML2Tools-Language-Semantic-Model-NameResolver-FlaggedFallback
         title: >-

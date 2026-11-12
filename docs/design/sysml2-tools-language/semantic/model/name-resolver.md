@@ -40,6 +40,10 @@ Core layout strategies use it as the fallback after a feature's or definition's 
 - `ResolveWithFallback(reference, localNamespace)` (tool extension, warned by callers): `Resolve`;
   when that fails, the last segment is matched against every declaration's simple name (first in
   declaration order) and the result is flagged with every candidate.
+- `Recheck(semanticTarget, reference, localNamespace)`: re-checks a target the semantic model
+  already resolved `reference` to — when `Resolve` (which honors visibility, filtered imports, and
+  only the imports of the referencing namespace and its owners) yields a different element, that
+  element is returned; when it agrees or finds nothing, `semanticTarget` is kept.
 - `GeneralTypes(typeName)` (KerML 8.2.3.5.3, inherited memberships): the general types described
   under Data Model.
 
@@ -54,7 +58,8 @@ Lookup scopes, applied per namespace (KerML 8.2.3.5.3):
   membership regardless of visibility (KerML 8.3.2.4.2 `isImportAll`).
 
 An import brings in (KerML 8.3.2.4.4/8.3.2.4.6): for a membership import `import A::B;` the
-membership `B` (by its last segment or its element's short name); if recursive (`A::B::**`),
+membership `B` (by its last segment, its element's short name, or — when `B` is an alias — the
+alias's own short name); if recursive (`A::B::**`),
 also the visible members of `B` and its nested namespaces, least-nested first; for a namespace
 import `import A::*;` the visible members of `A`; if recursive (`A::*::**`), also those of its
 nested namespaces. A filtered import (`[expr]`) admits a candidate only when the `importFilter`

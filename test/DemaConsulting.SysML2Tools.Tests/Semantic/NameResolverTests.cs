@@ -220,4 +220,73 @@ public sealed class NameResolverTests
         // Assert
         Assert.Equal(["P::A", "P::B"], generals);
     }
+
+    /// <summary>
+    ///     A membership import of an alias brings in the alias's short name as well as its name,
+    ///     both resolving to the aliased element.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_Resolve_MembershipImportedAlias_ResolvesItsShortName()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package A { part def Thing; alias <s> Al for Thing; }
+            package Q { private import A::Al; part def User; }
+            """);
+
+        // Act / Assert
+        Assert.Equal("A::Thing", resolver.Resolve("s", "Q::User"));
+        Assert.Equal("A::Thing", resolver.Resolve("Al", "Q::User"));
+    }
+
+    /// <summary>
+    ///     Members of KerML type, action, state, and requirement bodies carry their declared
+    ///     visibility and short name: each resolves by its short name inside its owner, and a
+    ///     private one does not resolve through a qualified name from outside.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_Resolve_SpecializedBodyMembers_HonorVisibilityAndShortName()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package P {
+                class Cls { private class <c1> Nested; }
+                action def Act { private action <a1> step1; }
+                state def St { private state <s1> idle; }
+                requirement def Req { private attribute <r1> limit; }
+            }
+            """);
+
+        // Act / Assert
+        foreach (var (owner, shortName, member) in new[]
+                 {
+                     ("P::Cls", "c1", "Nested"), ("P::Act", "a1", "step1"),
+                     ("P::St", "s1", "idle"), ("P::Req", "r1", "limit"),
+                 })
+        {
+            Assert.Equal($"{owner}::{member}", resolver.Resolve(shortName, owner));
+            Assert.Null(resolver.Resolve($"{owner}::{member}", "P"));
+        }
+    }
+
+    /// <summary>
+    ///     Re-checking a semantic target keeps it when KerML resolution agrees or finds nothing,
+    ///     and replaces it when KerML resolution, using only the referencing namespace's imports,
+    ///     finds a different element.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_Recheck_DifferentKerMLResolution_ReplacesSemanticTarget()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package A { part def X; }
+            package B { part def X; }
+            package PkgB { private import B::*; part def User; }
+            """);
+
+        // Act / Assert
+        Assert.Equal("B::X", resolver.Recheck("A::X", "X", "PkgB::User"));
+        Assert.Equal("B::X", resolver.Recheck("B::X", "X", "PkgB::User"));
+        Assert.Equal("A::X", resolver.Recheck("A::X", "Missing", "PkgB::User"));
+    }
 }

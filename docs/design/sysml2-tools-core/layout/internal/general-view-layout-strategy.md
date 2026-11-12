@@ -236,7 +236,9 @@ self-references are skipped.
 distinct definitions, every reference is resolved in this order: (1) the semantic model's
 already-resolved target — a membership's `FeatureMembership.ResolvedTypeName` (the feature's own
 `Typing` edge) via `TryResolveMemberType`, or the definition's own `Supertype` edge whose target is,
-or ends with, the raw reference via `TryResolveSupertype`; otherwise (2) KerML 1.1 Beta 2
+or ends with, the raw reference via `TryResolveSupertype` — re-checked with `NameResolver.Recheck`,
+so a different element found by KerML resolution (e.g. through the referencing namespace's own
+imports) wins; otherwise (2) KerML 1.1 Beta 2
 8.2.3.5 name resolution through the Language `NameResolver` (created by
 `FilterExpressionEvaluator.CreateNameResolver`, so filtered imports honor their conditions):
 owned, imported, and inherited memberships — including aliases and short names — of the local

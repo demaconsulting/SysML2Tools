@@ -1159,7 +1159,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Resolves the type, supertype, redefinition, and subsetting references of rendered boxes to
-    /// other rendered boxes. A reference already resolved by the semantic model is used as-is;
+    /// other rendered boxes. A reference already resolved by the semantic model is re-checked with
+    /// <see cref="NameResolver.Recheck"/> (KerML resolution wins when it finds a different element);
     /// otherwise it is resolved by KerML 8.2.3.5 name resolution (<see cref="NameResolver"/>:
     /// owned, imported, and inherited memberships — including aliases and short names — of the
     /// local namespace, then outward through owning namespaces to the global namespace, with later
@@ -1192,8 +1193,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         {
             if (membership.ResolvedTypeName is { } resolved)
             {
-                qualified = resolved;
-                return _rendered.Contains(resolved);
+                qualified = membership.TypeName is { Length: > 0 } raw
+                    ? _resolver.Recheck(resolved, raw, ownerQualifiedName)
+                    : resolved;
+                return _rendered.Contains(qualified);
             }
 
             qualified = membership.TypeName is { Length: > 0 } typeName ? Resolve(typeName, ownerQualifiedName) : null;
@@ -1216,8 +1219,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 target == supertype || target.EndsWith("::" + supertype, StringComparison.Ordinal));
             if (resolved is not null)
             {
-                qualified = resolved;
-                return _rendered.Contains(resolved);
+                qualified = _resolver.Recheck(resolved, supertype, OwnerOf(subtypeQualifiedName));
+                return _rendered.Contains(qualified);
             }
 
             qualified = Resolve(supertype, OwnerOf(subtypeQualifiedName));

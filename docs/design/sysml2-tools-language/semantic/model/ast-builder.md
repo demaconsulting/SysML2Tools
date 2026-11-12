@@ -175,10 +175,15 @@ satisfied requirement's raw reference text is taken from `ownedReferenceSubsetti
 text comes from `satisfactionSubjectMember()` (the `by <subject>` clause), or is `null` when
 absent.
 
-**Membership details.** `CollectBodyElements` and `CollectDefinitionBodyItems` call
-`ApplyMembershipDetails` on each built child: it sets `Visibility` from the element's
+**Membership details.** Every body collector — `CollectBodyElements`, `CollectDefinitionBodyItems`,
+`CollectTypeBodyItems` (KerML type bodies), `CollectChildren` (state and requirement bodies), and
+`CollectActionBodyChildren` — calls `ApplyMembershipDetails` on each built child (every node of an
+expanded `MultiNodeCapture`): it sets `Visibility` from the element's
 `memberPrefix` visibility indicator (public when omitted) and `ShortName` from the element's own
-leading `identification` (`FindFirstIdentification`, a pre-order search). `VisitImportRule` sets an
+leading `identification` (`FindFirstIdentification`, a pre-order search). For the specialized
+bodies, whose item rules nest the member prefix at varying depths, `FindMemberPrefix` takes the
+first `memberPrefix` in a pre-order walk that stops at the item's first `identification`, `{`, or
+`;`, so a nested member's prefix is never taken for its owner's. `VisitImportRule` sets an
 import's `Visibility` (private when omitted) and `IsImportAll`. `VisitAliasMember` and the alias
 branch of `VisitDefinitionBodyItemContent` build `SysmlAliasNode`s, which take their visibility
 from the alias member's own `memberPrefix` (package level) or the enclosing body item's, but keep

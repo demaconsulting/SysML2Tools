@@ -156,6 +156,23 @@ public sealed class NameResolver
     }
 
     /// <summary>
+    ///     Re-checks a target the semantic model already resolved <paramref name="reference"/> to:
+    ///     when KerML resolution (which honors visibility, filtered imports, and the imports of the
+    ///     referencing namespace only) resolves the reference to a different element, that element
+    ///     is returned; otherwise <paramref name="semanticTarget"/> is kept.
+    /// </summary>
+    /// <param name="semanticTarget">The semantic model's resolved target.</param>
+    /// <param name="reference">The raw reference text the target was resolved from.</param>
+    /// <param name="localNamespace">The local namespace's qualified name, or null.</param>
+    /// <returns>The confirmed or corrected target's qualified name.</returns>
+    public string Recheck(string semanticTarget, string reference, string? localNamespace)
+    {
+        ArgumentNullException.ThrowIfNull(semanticTarget);
+        ArgumentNullException.ThrowIfNull(reference);
+        return Resolve(reference, localNamespace) ?? semanticTarget;
+    }
+
+    /// <summary>
     ///     Returns the qualified names of the general types of the type <paramref name="typeName"/>
     ///     (its supertypes, and for a feature its types and redefined features), or an empty list
     ///     when it is not a type.
@@ -358,7 +375,8 @@ public sealed class NameResolver
 
             var lastSegment = SplitSegments(import.ImportedNamespace)[^1];
             if (lastSegment == name ||
-                (_declarations.TryGetValue(target, out var targetNode) && targetNode.ShortName == name))
+                (_declarations.TryGetValue(target, out var targetNode) && targetNode.ShortName == name) ||
+                ImportedAliasShortName(import, importingNamespace) == name)
             {
                 found = target;
             }
@@ -384,6 +402,26 @@ public sealed class NameResolver
         }
 
         return found is not null && PassesImportFilter(import, found) ? found : null;
+    }
+
+    /// <summary>
+    ///     Returns the short name of the alias membership a membership import names (the alias
+    ///     itself, not its target), or null when the imported membership is not a short-named alias.
+    /// </summary>
+    private string? ImportedAliasShortName(SysmlImportNode import, string importingNamespace)
+    {
+        var segments = SplitSegments(import.ImportedNamespace);
+        var owner = segments.Count > 1
+            ? Resolve(string.Join("::", segments.Take(segments.Count - 1)), importingNamespace)
+            : null;
+        if (owner is null || !_declarations.TryGetValue(owner, out var ownerNode))
+        {
+            return null;
+        }
+
+        return ownerNode.Children
+            .OfType<SysmlAliasNode>()
+            .FirstOrDefault(alias => alias.Name == segments[^1])?.ShortName;
     }
 
     /// <summary>Returns whether <paramref name="candidate"/> satisfies a filtered import's conditions (always true for an unfiltered import).</summary>

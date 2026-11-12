@@ -935,6 +935,10 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         public bool TryGetValue(string qualifiedName, [MaybeNullWhen(false)] out SysmlDefinitionNode def) =>
             _byQualifiedName.TryGetValue(qualifiedName, out def);
 
+        /// <summary>Re-checks a semantically resolved target (see <see cref="NameResolver.Recheck"/>).</summary>
+        public string Recheck(string semanticTarget, string reference, string? localNamespace) =>
+            _resolver.Recheck(semanticTarget, reference, localNamespace);
+
         /// <summary>
         /// Resolves a raw type reference relative to <paramref name="localNamespace"/> by KerML
         /// name resolution, recording a warning when only the bare simple-name fallback matched.
@@ -1009,7 +1013,8 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Resolves a part feature's type to its container definition: first via the semantic model's
-    /// resolved <see cref="SysmlEdgeKind.Typing"/> edge; otherwise by KerML 8.2.3.5 name resolution
+    /// resolved <see cref="SysmlEdgeKind.Typing"/> edge, re-checked with
+    /// <see cref="NameResolver.Recheck"/>; otherwise by KerML 8.2.3.5 name resolution
     /// of the raw typing text relative to the feature's owning namespace (owned, imported, and
     /// inherited memberships, then outward), and only then by the warned bare simple-name
     /// fallback. Returns <see langword="null"/> if nothing resolves to a container definition.
@@ -1026,8 +1031,10 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
         // An authoritative resolution that is not a container means the part is a leaf; never
         // fall back to a same-named container elsewhere in the workspace.
-        var resolved = feature.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Typing)?.TargetQualifiedName
-            ?? defsByName.Resolve(typing, OwnerOf(feature.QualifiedName));
+        var owner = OwnerOf(feature.QualifiedName);
+        var resolved = feature.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Typing)?.TargetQualifiedName is { } semantic
+            ? defsByName.Recheck(semantic, typing, owner)
+            : defsByName.Resolve(typing, owner);
         return resolved is not null && defsByName.TryGetValue(resolved, out var def) ? def : null;
     }
 

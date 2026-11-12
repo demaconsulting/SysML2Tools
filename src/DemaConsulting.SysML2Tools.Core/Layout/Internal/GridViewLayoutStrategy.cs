@@ -209,7 +209,8 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
     /// <summary>
     /// Resolves a definition's raw supertype references to qualified names: the semantic model's
     /// resolved <see cref="SysmlEdgeKind.Supertype"/> target whose qualified name is, or ends with,
-    /// the reference; otherwise KerML 8.2.3.5 name resolution relative to the definition's owning
+    /// the reference (re-checked with <see cref="NameResolver.Recheck"/>); otherwise KerML 8.2.3.5
+    /// name resolution relative to the definition's owning
     /// namespace, recording a warning when only the bare simple-name fallback matched.
     /// </summary>
     private static IReadOnlyList<string> ResolveSupertypes(
@@ -227,7 +228,11 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
         {
             var resolved = resolvedEdges.FirstOrDefault(t =>
                 t == supertype || t.EndsWith("::" + supertype, StringComparison.Ordinal));
-            if (resolved is null)
+            if (resolved is not null)
+            {
+                resolved = resolver.Recheck(resolved, supertype, owner);
+            }
+            else
             {
                 var resolution = resolver.ResolveWithFallback(supertype, owner);
                 resolved = resolution.QualifiedName;

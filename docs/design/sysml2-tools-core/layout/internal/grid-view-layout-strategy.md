@@ -12,7 +12,8 @@ definitions and their supertype references into a positioned `LayoutTree`.
 The strategy is a stateless `ILayoutStrategy`. Inputs are a `ViewContext` (carrying the
 `SysmlWorkspace`) and `RenderOptions` (carrying the `Theme`). It uses a private `DefRow` record
 holding a definition's qualified name, its simple name, and the qualified names its supertype
-references resolve to (`ResolveSupertypes`: the semantic model's resolved `Supertype` target, else
+references resolve to (`ResolveSupertypes`: the semantic model's resolved `Supertype` target,
+re-checked with `NameResolver.Recheck`, else
 KerML 8.2.3.5 name resolution via `FilterExpressionEvaluator.CreateNameResolver` relative to the
 definition's owning namespace, warning via `LayoutWarnings.ForSimpleNameFallback` when only the
 bare simple-name fallback matched). Output is a

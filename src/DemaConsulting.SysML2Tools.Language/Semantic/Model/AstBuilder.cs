@@ -2178,6 +2178,65 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <summary>
+    ///     Applies <see cref="ApplyMembershipDetails(SysmlNode, SysMLv2Parser.MemberPrefixContext?, Antlr4.Runtime.ParserRuleContext)"/>
+    ///     to every node built from one body item of a specialized (type, state, action, or
+    ///     requirement) body, using the item's own member prefix.
+    /// </summary>
+    private static void ApplyMembershipDetails(IEnumerable<SysmlNode> nodes, Antlr4.Runtime.Tree.IParseTree item)
+    {
+        if (item is not Antlr4.Runtime.ParserRuleContext context)
+        {
+            return;
+        }
+
+        var memberPrefix = FindMemberPrefix(context);
+        foreach (var node in nodes)
+        {
+            ApplyMembershipDetails(node, memberPrefix, context);
+        }
+    }
+
+    /// <summary>
+    ///     Returns a body item's own <c>memberPrefix</c>: the first one in a pre-order walk that
+    ///     precedes the item's first <c>identification</c>, <c>{</c>, or <c>;</c> (a member prefix
+    ///     always precedes the member's declaration, so prefixes of nested body members — even
+    ///     of an anonymous member — are never reached), or null.
+    /// </summary>
+    private static SysMLv2Parser.MemberPrefixContext? FindMemberPrefix(Antlr4.Runtime.Tree.IParseTree tree)
+    {
+        var stop = false;
+        return Find(tree);
+
+        SysMLv2Parser.MemberPrefixContext? Find(Antlr4.Runtime.Tree.IParseTree node)
+        {
+            if (stop)
+            {
+                return null;
+            }
+
+            switch (node)
+            {
+                case SysMLv2Parser.MemberPrefixContext prefix:
+                    return prefix;
+                case SysMLv2Parser.IdentificationContext:
+                case Antlr4.Runtime.Tree.ITerminalNode { Symbol.Text: "{" or ";" }:
+                    stop = true;
+                    return null;
+            }
+
+            for (var i = 0; i < node.ChildCount && !stop; i++)
+            {
+                if (Find(node.GetChild(i)) is { } found)
+                {
+                    return found;
+                }
+            }
+
+            return null;
+        }
+    }
+
+    /// <summary>
     ///     Returns the first <c>identification</c> in a pre-order walk of <paramref name="tree"/> —
     ///     an element declaration's own identification, which precedes its body — or null.
     /// </summary>
@@ -2405,6 +2464,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             }
             else if (node is not null)
             {
+                ApplyMembershipDetails(node, FindMemberPrefix(item), item);
                 children.Add(node);
             }
         }
@@ -2580,10 +2640,12 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             }
             else if (node is MultiNodeCapture multi)
             {
+                ApplyMembershipDetails(multi.Nodes, item);
                 children.AddRange(multi.Nodes);
             }
             else if (node is not null)
             {
+                ApplyMembershipDetails([node], item);
                 children.Add(node);
             }
         }
@@ -2623,10 +2685,12 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
                 if (node is MultiNodeCapture multi)
                 {
+                    ApplyMembershipDetails(multi.Nodes, item);
                     children.AddRange(multi.Nodes);
                 }
                 else if (node is not null)
                 {
+                    ApplyMembershipDetails([node], item);
                     children.Add(node);
                 }
 

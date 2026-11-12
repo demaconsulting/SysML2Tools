@@ -219,7 +219,8 @@ node by its parent, which is laid out with the **same** flat placement.
   of candidate containers — non-standard-library `part def`s that have at least one nested `part`
   usage — keyed by both qualified and simple name (qualified preferred). For each part,
   `CollectParts` resolves its type against that index (`TryResolveContainer` → `ResolveByTyping`):
-  first via the part's resolved `Typing` edge from the semantic model (an authoritative target that
+  first via the part's resolved `Typing` edge from the semantic model, re-checked with
+  `NameResolver.Recheck` so a different element found by KerML resolution wins (a target that
   is not a container makes the part a leaf — it never falls back to a same-named container
   elsewhere); otherwise by KerML 8.2.3.5 name resolution of the raw `FeatureTyping` text relative to the part's
   owning namespace (the private `DefinitionIndex` wraps the container map and a `NameResolver`
