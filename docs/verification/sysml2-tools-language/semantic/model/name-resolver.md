@@ -33,3 +33,5 @@ created in `Path.GetTempPath()` and deleted after each test.
 | `NameResolver_Resolve_ImportedMember_HonorsImportVisibility` | Private vs public import |
 | `NameResolver_ResolveRedefinedFeature_ResolvesAgainstGeneralTypes` | Redefinition target |
 | `NameResolver_ResolveWithFallback_AmbiguousSimpleName_IsFlaggedWithCandidates` | Ambiguous fallback |
+| `NameResolver_Resolve_FilteredRecursiveImport_SkipsRejectedCandidate` | Filtered recursive import |
+| `NameResolver_GeneralTypes_PartiallyResolvedSupertypes_IncludesEveryGeneralType` | Partly resolved supertypes |

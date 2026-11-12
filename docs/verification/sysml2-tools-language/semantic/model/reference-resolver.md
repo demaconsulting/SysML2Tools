@@ -68,6 +68,7 @@ external services or additional configuration are required beyond a standard .NE
 | Unresolved supertype reference | `WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning` |
 | Same-named defs, own package | `WorkspaceLoader_LoadAsync_SameNamedDefsInSiblingPackages_ResolveToOwningPackage` |
 | Local name before global library name | `WorkspaceLoader_LoadAsync_LocalNameShadowsGlobalLibraryName_ResolvesLocal` |
+| Local short name and alias win | `WorkspaceLoader_LoadAsync_LocalShortNameAndAlias_WinOverGlobalNames` |
 | Circular import — terminates | `WorkspaceLoader_LoadAsync_CircularImport_ProducesWarningNoInfiniteLoop` |
 | Resolved reference — no Warning | `WorkspaceLoader_LoadAsync_SpecializesChain_Registered` |
 | Resolved supertype records edge | `WorkspaceLoader_LoadAsync_ResolvedSupertype_RecordsSupertypeEdge` |

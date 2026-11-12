@@ -15,7 +15,8 @@ public sealed class NameResolverTests
     /// <summary>
     ///     Loads <paramref name="sysml"/> (with the standard library) and returns a resolver over it.
     /// </summary>
-    private static async Task<NameResolver> LoadAsync(string sysml)
+    private static async Task<NameResolver> LoadAsync(
+        string sysml, Func<SysmlImportNode, string, bool>? importFilter = null)
     {
         var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
         try
@@ -24,7 +25,7 @@ public sealed class NameResolverTests
             var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
             Assert.NotNull(result.Workspace);
-            return new NameResolver(result.Workspace.Declarations);
+            return new NameResolver(result.Workspace.Declarations, importFilter);
         }
         finally
         {
@@ -168,5 +169,55 @@ public sealed class NameResolverTests
         Assert.Contains("PkgA::Checker", resolution.Candidates);
         Assert.Contains("PkgB::Checker", resolution.Candidates);
         Assert.False(resolver.ResolveWithFallback("Checker", "PkgA").IsSimpleNameFallback);
+    }
+
+    /// <summary>
+    ///     A filtered recursive import whose first same-named nested candidate fails the filter
+    ///     keeps searching and resolves a later candidate that satisfies it.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_Resolve_FilteredRecursiveImport_SkipsRejectedCandidate()
+    {
+        // Arrange: the filter rejects P::A::Engine but admits P::B::Engine
+        var resolver = await LoadAsync(
+            """
+            package P { package A { part def Engine; } package B { part def Engine; } }
+            package Q { private import P::**[@Safety]; part def User; }
+            """,
+            (_, candidate) => candidate != "P::A::Engine");
+
+        // Act / Assert
+        Assert.Equal("P::B::Engine", resolver.Resolve("Engine", "Q::User"));
+    }
+
+    /// <summary>
+    ///     A type's general types merge its resolved supertype edges with raw resolution of any
+    ///     supertype reference that has no resolved edge.
+    /// </summary>
+    [Fact]
+    public void NameResolver_GeneralTypes_PartiallyResolvedSupertypes_IncludesEveryGeneralType()
+    {
+        // Arrange: Derived :> A, B with only the A edge resolved
+        var derived = new SysmlDefinitionNode
+        {
+            Name = "Derived",
+            QualifiedName = "P::Derived",
+            DefinitionKeyword = "part def",
+            SupertypeNames = ["A", "B"],
+            ResolvedEdges = [new SysmlEdge("P::Derived", "P::A", SysmlEdgeKind.Supertype)],
+        };
+        var declarations = new Dictionary<string, SysmlNode>
+        {
+            ["P"] = new SysmlPackageNode { Name = "P", QualifiedName = "P" },
+            ["P::A"] = new SysmlDefinitionNode { Name = "A", QualifiedName = "P::A", DefinitionKeyword = "part def" },
+            ["P::B"] = new SysmlDefinitionNode { Name = "B", QualifiedName = "P::B", DefinitionKeyword = "part def" },
+            ["P::Derived"] = derived,
+        };
+
+        // Act
+        var generals = new NameResolver(declarations).GeneralTypes("P::Derived");
+
+        // Assert
+        Assert.Equal(["P::A", "P::B"], generals);
     }
 }

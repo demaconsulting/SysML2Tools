@@ -245,9 +245,11 @@ namespace, then outward to the global namespace, later qualified-name segments b
 subsetted feature resolve relative to the feature's owning definition; a definition's supertype
 relative to the definition's owning namespace; a redefined feature against each general type of
 the owning definition (`ResolveRedefinitionOwner`, KerML 8.2.3.5.1). (3) Only when KerML
-resolution fails is the reference matched by bare simple name, and then a
-`LayoutWarnings.ForSimpleNameFallback` warning names the reference and every candidate instead of
-silently picking the first match. Relationship endpoints from `workspace.Index` are already
+resolution fails is the reference matched by bare simple name (for type, supertype, subsetted, and
+redefined references alike), and then a `LayoutWarnings.ForSimpleNameFallback` warning names the
+reference and every candidate instead of silently picking the first match. The warning is recorded
+before the match is checked against the rendered boxes, so a fallback to an element outside the
+exposed scope is still reported even though it draws no edge. Relationship endpoints from `workspace.Index` are already
 qualified, so `ResolveOwningBox` maps them only to the box with that exact qualified name or via
 the owning typed-feature walk — never by simple name.
 

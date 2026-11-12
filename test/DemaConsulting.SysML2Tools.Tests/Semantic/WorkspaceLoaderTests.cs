@@ -3851,6 +3851,7 @@ public sealed class WorkspaceLoaderTests
                     import Other::*;
                     public import Other::Thing;
                     alias ShownAlias for Shown;
+                    private alias HiddenAlias for Shown;
                 }
                 package Other { part def Thing; }
                 """, TestContext.Current.CancellationToken);
@@ -3869,10 +3870,52 @@ public sealed class WorkspaceLoaderTests
                 .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlImportNode>().ToList();
             Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlVisibility.Private, imports[0].Visibility);
             Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlVisibility.Public, imports[1].Visibility);
-            var alias = Assert.Single(result.Workspace.Declarations["P"].Children
-                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlAliasNode>());
-            Assert.Equal("ShownAlias", alias.Name);
-            Assert.Equal("Shown", alias.TargetName);
+            var aliases = result.Workspace.Declarations["P"].Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlAliasNode>().ToList();
+            Assert.Equal(["ShownAlias", "HiddenAlias"], aliases.Select(a => a.Name));
+            Assert.Equal("Shown", aliases[0].TargetName);
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlVisibility.Public, aliases[0].Visibility);
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlVisibility.Private, aliases[1].Visibility);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A simple name that is a local member's short name or a local alias resolves to that
+    ///     member (KerML 8.2.3.5.2 local resolution) rather than to a same-named top-level element.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_LocalShortNameAndAlias_WinOverGlobalNames()
+    {
+        // Arrange: top-level k and K2 would win if local short names and aliases were ignored
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                part def k;
+                part def K2;
+                package P {
+                    part def <k> Kind;
+                    alias K2 for Kind;
+                    part def A :> k;
+                    part def B :> K2;
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            string SupertypeOf(string name) => Assert.Single(
+                result.Workspace.Declarations[name].ResolvedEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Supertype).TargetQualifiedName;
+            Assert.Equal("P::Kind", SupertypeOf("P::A"));
+            Assert.Equal("P::Kind", SupertypeOf("P::B"));
         }
         finally
         {

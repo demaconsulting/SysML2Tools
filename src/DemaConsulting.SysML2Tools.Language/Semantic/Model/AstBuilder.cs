@@ -2155,18 +2155,20 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     Applies a body element's declared membership visibility (from its <c>memberPrefix</c>)
     ///     and its declared short name (from the element's own leading <c>identification</c>) to
     ///     the node built from it. Imports carry their own visibility from
-    ///     <see cref="VisitImportRule"/> and aliases their own short name, so both are left as built.
+    ///     <see cref="VisitImportRule"/> and so are left as built; aliases take the member
+    ///     visibility but keep the short name <see cref="BuildAliasNode"/> already extracted.
     /// </summary>
     private static void ApplyMembershipDetails(
         SysmlNode node, SysMLv2Parser.MemberPrefixContext? memberPrefix, Antlr4.Runtime.ParserRuleContext element)
     {
-        if (node is SysmlImportNode or SysmlAliasNode)
+        if (node is SysmlImportNode)
         {
             return;
         }
 
         node.Visibility = ToVisibility(memberPrefix?.visibilityIndicator(), SysmlVisibility.Public);
-        if (node.Name is not null &&
+        if (node is not SysmlAliasNode &&
+            node.Name is not null &&
             FindFirstIdentification(element) is { } identification &&
             identification.LT() is not null &&
             GetDeclaredName(identification) == node.Name)
@@ -2686,7 +2688,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             }
             else if (node is not null)
             {
-                ApplyMembershipDetails(node, element.packageMember()?.memberPrefix(), element);
+                ApplyMembershipDetails(
+                    node, element.packageMember()?.memberPrefix() ?? element.aliasMember()?.memberPrefix(), element);
                 children.Add(node);
             }
         }

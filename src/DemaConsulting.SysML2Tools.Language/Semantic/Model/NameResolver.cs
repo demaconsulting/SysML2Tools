@@ -177,23 +177,25 @@ public sealed class NameResolver
             .Where(target => target != typeName)
             .Distinct(StringComparer.Ordinal)
             .ToList();
-        if (resolved.Count > 0)
-        {
-            return resolved;
-        }
 
-        // Unresolved (e.g. standard library) types: resolve the raw references, which per
-        // KerML 8.2.3.5.2 are resolved relative to the owning namespace of the specializing type.
+        // References without a resolved edge (e.g. standard library types, or a supertype the
+        // semantic pass did not resolve): resolve the raw references, which per KerML 8.2.3.5.2
+        // are resolved relative to the owning namespace of the specializing type, and merge them
+        // with the resolved targets.
         var raw = new List<string>(node.SupertypeNames);
         if (node is SysmlFeatureNode { FeatureTyping: { Length: > 0 } typing })
         {
             raw.Add(typing);
         }
 
+        if (resolved.Count >= raw.Count)
+        {
+            return resolved;
+        }
+
         var owner = OwnerOf(typeName);
-        return raw
-            .Select(reference => Resolve(reference, owner))
-            .OfType<string>()
+        return resolved
+            .Concat(raw.Select(reference => Resolve(reference, owner)).OfType<string>())
             .Where(target => target != typeName)
             .Distinct(StringComparer.Ordinal)
             .ToList();
@@ -362,7 +364,7 @@ public sealed class NameResolver
             }
             else if (import.IsRecursive)
             {
-                found = LookupRecursive(name, target, memberScope, new HashSet<string>(StringComparer.Ordinal));
+                return LookupRecursive(name, target, memberScope, candidate => PassesImportFilter(import, candidate));
             }
         }
         else
@@ -373,26 +375,30 @@ public sealed class NameResolver
                 return null;
             }
 
-            found = import.IsRecursive
-                ? LookupRecursive(name, namespaceTarget, memberScope, new HashSet<string>(StringComparer.Ordinal))
-                : Lookup(name, namespaceTarget, memberScope);
+            if (import.IsRecursive)
+            {
+                return LookupRecursive(name, namespaceTarget, memberScope, candidate => PassesImportFilter(import, candidate));
+            }
+
+            found = Lookup(name, namespaceTarget, memberScope);
         }
 
-        if (found is not null && import.BracketFilterExpressionText is not null &&
-            _importFilter is not null && !_importFilter(import, found))
-        {
-            return null;
-        }
-
-        return found;
+        return found is not null && PassesImportFilter(import, found) ? found : null;
     }
+
+    /// <summary>Returns whether <paramref name="candidate"/> satisfies a filtered import's conditions (always true for an unfiltered import).</summary>
+    private bool PassesImportFilter(SysmlImportNode import, string candidate) =>
+        import.BracketFilterExpressionText is null || _importFilter is null || _importFilter(import, candidate);
 
     /// <summary>
     ///     Breadth-first lookup of <paramref name="name"/> in <paramref name="namespaceName"/> and,
-    ///     recursively, in each of its owned member namespaces, so the least-nested match wins.
+    ///     recursively, in each of its owned member namespaces, so the least-nested match wins. A
+    ///     match that <paramref name="accept"/> rejects (a filtered import's conditions) is skipped
+    ///     and the search continues.
     /// </summary>
-    private string? LookupRecursive(string name, string namespaceName, Scope scope, HashSet<string> visited)
+    private string? LookupRecursive(string name, string namespaceName, Scope scope, Func<string, bool> accept)
     {
+        var visited = new HashSet<string>(StringComparer.Ordinal);
         var queue = new Queue<string>();
         queue.Enqueue(namespaceName);
         while (queue.Count > 0)
@@ -403,7 +409,7 @@ public sealed class NameResolver
                 continue;
             }
 
-            if (Lookup(name, current, scope) is { } found)
+            if (Lookup(name, current, scope) is { } found && accept(found))
             {
                 return found;
             }

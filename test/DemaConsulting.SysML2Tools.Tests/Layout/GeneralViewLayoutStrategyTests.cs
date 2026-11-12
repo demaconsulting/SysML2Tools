@@ -615,6 +615,27 @@ public sealed class GeneralViewLayoutStrategyTests
         }
     }
 
+    /// <summary>
+    ///     Type, subsetting, and redefinition references that resolve only by the simple-name
+    ///     fallback are each reported, even when the matched element is outside the view's exposed
+    ///     scope and so draws no edge.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_FallbackToUnrenderedTarget_StillReportsWarning()
+    {
+        // Act: only App is exposed; every Lib match is reached by simple name only
+        var layout = await LayOutViewVAsync("""
+            package Lib { part def TurboEngineX; part def Holder { part slotX; part spareX; } }
+            package App { part def Consumer { part engine : TurboEngineX; part s :> slotX; part r redefines spareX; } }
+            package Diagrams { view V { expose App::**; } }
+            """);
+
+        // Assert
+        Assert.Contains(layout.Warnings, w => w.Contains("'TurboEngineX'") && w.Contains("simple name only"));
+        Assert.Contains(layout.Warnings, w => w.Contains("'slotX'") && w.Contains("simple name only"));
+        Assert.Contains(layout.Warnings, w => w.Contains("'spareX'") && w.Contains("simple name only"));
+    }
+
     /// <summary>Recursively collects all <see cref="LayoutBox"/> nodes from a node list.</summary>
     private static IReadOnlyList<LayoutBox> CollectBoxes(IReadOnlyList<LayoutNode> nodes)
     {

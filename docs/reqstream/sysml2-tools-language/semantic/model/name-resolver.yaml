@@ -36,6 +36,8 @@ sections:
           - NameResolver_Resolve_InheritedMember_ResolvesThroughSupertype
           - NameResolver_Resolve_AliasAndShortName_ResolveToTheirElement
           - NameResolver_Resolve_ImportedMember_HonorsImportVisibility
+          - NameResolver_Resolve_FilteredRecursiveImport_SkipsRejectedCandidate
+          - NameResolver_GeneralTypes_PartiallyResolvedSupertypes_IncludesEveryGeneralType
 
       - id: SysML2Tools-Language-Semantic-Model-NameResolver-VisibleResolution
         title: >-

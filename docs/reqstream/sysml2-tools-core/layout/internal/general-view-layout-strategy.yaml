@@ -502,6 +502,7 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_SameNamedDefsInSiblingPackages_WiresEachToItsOwn
           - GeneralViewLayoutStrategy_BuildLayout_SimpleNameFallback_ReportsWarning
           - GeneralViewLayoutStrategy_BuildLayout_UnrenderedQualifiedEndpoint_IsNotMappedBySimpleName
+          - GeneralViewLayoutStrategy_BuildLayout_FallbackToUnrenderedTarget_StillReportsWarning
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ViewConditions
         title: >-

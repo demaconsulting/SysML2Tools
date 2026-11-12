@@ -21,9 +21,11 @@ Core layout strategies use it as the fallback after a feature's or definition's 
   per KerML 7.2.5.4/SysML 7.5.3), `IsImportAll`, `IsMembershipImport`, `IsRecursive`, and
   `BracketFilterExpressionText`.
 - A type's general types (`GeneralTypes`) are its resolved `Supertype`/`Typing`/`Redefinition`
-  edge targets; when it has none (e.g. standard-library elements, which are never resolved),
-  its raw `SupertypeNames` and `FeatureTyping` are resolved relative to its owning namespace
-  (KerML 8.2.3.5.2: a Specialization's local namespace is the owning namespace of its owning type).
+  edge targets; when it has fewer of those than raw references (e.g. standard-library elements,
+  which are never resolved, or a supertype the semantic pass did not resolve), its raw
+  `SupertypeNames` and `FeatureTyping` are also resolved relative to its owning namespace
+  (KerML 8.2.3.5.2: a Specialization's local namespace is the owning namespace of its owning
+  type) and merged with the resolved targets, without duplicates.
 - The global namespace is every top-level declaration of every loaded root namespace, user and
   standard library alike (KerML 8.2.3.5.2).
 - `NameResolution(QualifiedName, IsSimpleNameFallback, Candidates)` reports a fallback result.
@@ -56,7 +58,9 @@ membership `B` (by its last segment or its element's short name); if recursive (
 also the visible members of `B` and its nested namespaces, least-nested first; for a namespace
 import `import A::*;` the visible members of `A`; if recursive (`A::*::**`), also those of its
 nested namespaces. A filtered import (`[expr]`) admits a candidate only when the `importFilter`
-predicate accepts it (SysML 7.5.4); without a predicate, filter conditions are ignored.
+predicate accepts it (SysML 7.5.4); without a predicate, filter conditions are ignored. For a
+recursive filtered import the predicate is applied while enumerating nested candidates, so a
+rejected match does not stop the search for a later one that satisfies the conditions.
 
 ##### Error Handling
 

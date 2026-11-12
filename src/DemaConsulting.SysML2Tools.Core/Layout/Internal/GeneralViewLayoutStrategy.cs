@@ -1227,32 +1227,41 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         /// <summary>
         /// Resolves the rendered box owning a redefined feature: per KerML 8.2.3.5.1 the reference is
         /// resolved with each general type of the redefining feature's owning type as the local
-        /// namespace in turn; the owner is the resolved feature's owning namespace.
+        /// namespace in turn; the owner is the resolved feature's owning namespace. When that fails,
+        /// the flagged simple-name fallback is used and warned about.
         /// </summary>
         public string? ResolveRedefinitionOwner(string owningType, string redefinedReference) =>
-            OwnerIfRendered(_resolver.ResolveRedefinedFeature(redefinedReference, owningType));
+            OwnerIfRendered(
+                _resolver.ResolveRedefinedFeature(redefinedReference, owningType) ??
+                ResolveFlagged(redefinedReference, owningType));
 
         /// <summary>
         /// Resolves the rendered box owning a subsetted feature: the reference is resolved relative
         /// to the subsetting feature's owning namespace (its owning definition, whose inherited
-        /// memberships include the ancestor's features).
+        /// memberships include the ancestor's features), falling back to the flagged simple-name
+        /// match with a warning.
         /// </summary>
         public string? ResolveSubsettedOwner(string owningType, string subsettedReference) =>
-            OwnerIfRendered(_resolver.Resolve(subsettedReference, owningType));
+            OwnerIfRendered(ResolveFlagged(subsettedReference, owningType));
 
         /// <summary>
         /// Resolves a raw reference to a rendered box, warning when only the simple-name fallback
         /// matched; returns null when it resolves to nothing rendered.
         /// </summary>
-        private string? Resolve(string reference, string? localNamespace)
+        private string? Resolve(string reference, string? localNamespace) =>
+            ResolveFlagged(reference, localNamespace) is { } qualified && _rendered.Contains(qualified)
+                ? qualified
+                : null;
+
+        /// <summary>
+        /// Resolves a raw reference by name resolution, else by the simple-name fallback; a
+        /// fallback match is warned about whether or not its target is rendered, so a reference the
+        /// rules do not resolve never disappears silently from a scoped view.
+        /// </summary>
+        private string? ResolveFlagged(string reference, string? localNamespace)
         {
             var resolution = _resolver.ResolveWithFallback(reference, localNamespace);
-            if (resolution.QualifiedName is not { } qualified || !_rendered.Contains(qualified))
-            {
-                return null;
-            }
-
-            if (resolution.IsSimpleNameFallback)
+            if (resolution.QualifiedName is { } qualified && resolution.IsSimpleNameFallback)
             {
                 var warning = LayoutWarnings.ForSimpleNameFallback(
                     _viewName, reference, localNamespace, qualified, resolution.Candidates);
@@ -1262,7 +1271,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 }
             }
 
-            return qualified;
+            return resolution.QualifiedName;
         }
 
         /// <summary>Returns the owner of a resolved feature when that owner is rendered, else null.</summary>

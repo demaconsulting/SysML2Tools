@@ -180,7 +180,9 @@ absent.
 `memberPrefix` visibility indicator (public when omitted) and `ShortName` from the element's own
 leading `identification` (`FindFirstIdentification`, a pre-order search). `VisitImportRule` sets an
 import's `Visibility` (private when omitted) and `IsImportAll`. `VisitAliasMember` and the alias
-branch of `VisitDefinitionBodyItemContent` build `SysmlAliasNode`s.
+branch of `VisitDefinitionBodyItemContent` build `SysmlAliasNode`s, which take their visibility
+from the alias member's own `memberPrefix` (package level) or the enclosing body item's, but keep
+the short name the alias declaration itself captured.
 
 `VisitViewDefinition` builds a `SysmlViewNode` for `view def` definitions, additionally scanning
 `context.viewDefinitionBody()?.viewDefinitionBodyItem()` via the shared
