@@ -83,15 +83,16 @@ sections:
           - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge
           - WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty
 
-      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewShowDocumentation
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewConditionsAndDefinition
         title: >-
-          SysmlViewNode shall expose ShowDocumentation: true when the view's own body declares
-          `attribute showDocumentation = true;`, and false otherwise.
+          SysmlViewNode shall expose FilterExpressionTexts (every owned `filter` view condition's raw
+          text, in source order) and ViewDefinitionName (a view usage's raw view definition
+          reference, or null).
         justification: |
-          Layout strategies need a per-view signal for whether to draw `doc` annotations, which
-          are hidden by default to keep diagrams readable.
+          Layout strategies need every owned view condition and the view definition whose
+          conditions are inherited (SysML 7.26.2, 8.3.26.11).
         tests:
-          - WorkspaceLoader_LoadAsync_ViewShowDocumentationAttribute_SetsShowDocumentation
+          - WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured
 
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-RedefinedFeatureName
         title: >-

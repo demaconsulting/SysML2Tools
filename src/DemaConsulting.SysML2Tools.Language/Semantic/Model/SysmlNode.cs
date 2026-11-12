@@ -374,13 +374,20 @@ public sealed class SysmlViewNode : SysmlNode
     public string? FilterExpressionText { get; init; }
 
     /// <summary>
-    ///     Gets a value indicating whether the view opts in to rendering each element's
-    ///     <c>doc</c> (Documentation) annotations, declared by an
-    ///     <c>attribute showDocumentation = true;</c> member directly in the view's body.
-    ///     <see langword="false"/> (the default) when the view declares no such member or assigns
-    ///     any value other than the literal <c>true</c>.
+    ///     Gets the raw source text of every <c>filter [&lt;expression&gt;];</c> member of this view,
+    ///     in source order — the view's owned view conditions (SysML 8.3.26.11
+    ///     <c>viewCondition</c>), all of which an exposed element must satisfy.
+    ///     <see cref="FilterExpressionText"/> is the first of these.
     /// </summary>
-    public bool ShowDocumentation { get; init; }
+    public IReadOnlyList<string> FilterExpressionTexts { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    ///     Gets the raw reference text of a view usage's view definition (<c>view v : Def;</c>), or
+    ///     <see langword="null"/> when the usage declares none (and always for a <c>view def</c>).
+    ///     Resolved by <see cref="ReferenceResolver"/> into a <see cref="SysmlEdgeKind.Typing"/>
+    ///     edge; the usage inherits the definition's view conditions and rendering (SysML 7.26.2).
+    /// </summary>
+    public string? ViewDefinitionName { get; init; }
 
 }
 

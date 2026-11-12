@@ -8,7 +8,7 @@ as boxes placed through `LayeredPlacement`, ports on the box boundaries for the 
 and the connection usages routed as orthogonal connector lines between the ports, all enclosed by a
 container box for the host definition. Annotations (`comment` and `doc`) are never drawn: the
 strategy reads no `SysmlNode.Annotations`, so documentation never crowds the nested part boxes,
-and a view's `showDocumentation` opt-in has no effect here.
+regardless of the view's conditions.
 
 ##### Data Model
 

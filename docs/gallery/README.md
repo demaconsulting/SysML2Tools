@@ -46,8 +46,8 @@ dependency relationships.
 
 `Battery`'s `comment /* ... */` annotation demonstrates the `BoxShape.Note`
 (folded-corner) box rendered for a commented element, connected to its box by
-a plain solid line. Its `doc /* ... */` annotation is not drawn here: `doc`
-text is hidden unless a view opts in (see section 1b). `FlightMode` is now an
+a plain solid line, and its `doc /* ... */` documentation is drawn as a
+word-wrapped `doc` compartment inside the `Battery` box. `FlightMode` is now an
 `enum def` with literal values
 (`idle`/`manual`/`autonomous`), demonstrating the `enum values` compartment.
 `FlightTimeRequirement` gains a `subject`/`require constraint` body,
@@ -63,12 +63,12 @@ SVG: [`svg/DroneGeneralView.svg`](svg/DroneGeneralView.svg)
 ### 1b. View-scoped rendering — `expose` narrows the same model to one subsystem
 
 The same `01-drone-general.sysml` model also declares a second, named `view` usage
-that adds an `expose Battery;` statement. Instead of the full workspace, the diagram
-is scoped to just the `Battery` definition — with no wrapping `QuadcopterDrone` folder,
-since the bare package `QuadcopterDrone` was never itself named by the `expose` statement,
-only `Battery` was — demonstrating that `expose` (not `render`) is what controls diagram
-content scope. The view also declares `attribute showDocumentation = true;`, so
-`Battery`'s `doc` text is drawn as a word-wrapped `doc` compartment inside its box. See the user
+that adds an `expose Battery::**;` statement. Instead of the full workspace, the diagram
+is scoped to the `Battery` definition and its members — with no wrapping `QuadcopterDrone`
+folder, since the package `QuadcopterDrone` was never itself exposed — demonstrating that
+`expose` (not `render`) is what controls diagram content scope. The view also declares the
+view condition `filter not @SysML::Documentation;`, so `Battery`'s documentation is not drawn
+while its comment note still is. See the user
 guide's [Expose vs. Render](../user_guide/introduction.md#expose-vs-render-worked-examples)
 section for the full explanation and more worked examples.
 

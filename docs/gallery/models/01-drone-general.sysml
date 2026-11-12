@@ -24,7 +24,7 @@ package QuadcopterDrone {
     part def Battery {
         doc /* Rechargeable lithium-polymer battery pack supplying the drone's
              * flight controller, motors, and sensor bus via the PowerPort
-             * interface. Shown as a doc compartment only in views that opt in. */
+             * interface. Drawn as a doc compartment inside the Battery box. */
         comment /* Demonstrates the BoxShape.Note comment rendering. */
         attribute capacity : Voltage;
         port output : PowerPort;
@@ -110,10 +110,10 @@ package QuadcopterDrone {
     // A view-scoped rendering example: `expose` narrows the diagram to just
     // the Battery subsystem's containment subtree, instead of the whole
     // workspace. See docs/gallery/README.md section 1b and the user guide's
-    // "Expose vs. Render" section for more detail. It also opts in to
-    // documentation, so Battery's doc text appears as a "doc" compartment.
+    // "Expose vs. Render" section for more detail. Its view condition hides
+    // documentation, so Battery is drawn without its doc compartment.
     view BatterySubsystemView {
-        expose Battery;
-        attribute showDocumentation = true;
+        expose Battery::**;
+        filter not @SysML::Documentation;
     }
 }

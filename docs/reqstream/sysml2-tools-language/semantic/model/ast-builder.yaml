@@ -17,17 +17,16 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
 
-      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewShowDocumentation
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewConditionsAndDefinition
         title: >-
-          AstBuilder shall set a view's ShowDocumentation flag (for both `view def` and `view`
-          usages) when the view's own body, not a nested member's body, contains an attribute
-          usage named `showDocumentation` whose assigned value is the literal `true`.
+          AstBuilder shall capture every `filter` view condition of a `view def` or `view` usage in
+          source order, and a `view` usage's view definition reference (`view V : Def`).
         justification: |
-          An owned attribute usage is valid SysML v2 inside any view body, needs no extra
-          declarations or imports, and reads as a self-describing per-view rendering option, so it
-          is the least surprising opt-in for drawing documentation.
+          SysML 7.26.2/8.3.26.11: an exposed element must meet all owned and inherited view
+          conditions, and a view usage inherits the conditions of its view definition, so every
+          condition and the definition reference must be captured.
         tests:
-          - WorkspaceLoader_LoadAsync_ViewShowDocumentationAttribute_SetsShowDocumentation
+          - WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-QualifiedNames
         title: >-

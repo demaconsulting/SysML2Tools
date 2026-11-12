@@ -3834,13 +3834,12 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
-    ///     A view whose own body declares <c>attribute showDocumentation = true;</c> opts in to
-    ///     documentation rendering (for both <c>view</c> usages and <c>view def</c>s), while a view
-    ///     without it, one assigning <c>false</c>, and one where the attribute is nested inside
-    ///     another member's body do not.
+    ///     A view captures every owned <c>filter</c> view condition in source order, and a view
+    ///     usage's view definition (<c>view V : Def</c>) is captured and resolved into a
+    ///     <c>Typing</c> edge (SysML 7.26.2).
     /// </summary>
     [Fact]
-    public async Task WorkspaceLoader_LoadAsync_ViewShowDocumentationAttribute_SetsShowDocumentation()
+    public async Task WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured()
     {
         // Arrange
         var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
@@ -3849,11 +3848,8 @@ public sealed class WorkspaceLoaderTests
             await File.WriteAllTextAsync(tempFile, """
                 package P {
                     part def A;
-                    view On { expose A; attribute showDocumentation = true; }
-                    view def OnDef { attribute showDocumentation = true; }
-                    view Off { expose A; }
-                    view False { attribute showDocumentation = false; }
-                    view Nested { part x { attribute showDocumentation = true; } }
+                    view def Def { filter @SysML::PartUsage; filter not @SysML::Documentation; }
+                    view V : Def { expose A; }
                 }
                 """, TestContext.Current.CancellationToken);
 
@@ -3863,13 +3859,12 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            bool Shows(string name) => Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(
-                result.Workspace.Declarations[$"P::{name}"]).ShowDocumentation;
-            Assert.True(Shows("On"));
-            Assert.True(Shows("OnDef"));
-            Assert.False(Shows("Off"));
-            Assert.False(Shows("False"));
-            Assert.False(Shows("Nested"));
+            var def = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(result.Workspace.Declarations["P::Def"]);
+            Assert.Equal(["@SysML::PartUsage", "not @SysML::Documentation"], def.FilterExpressionTexts);
+            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(result.Workspace.Declarations["P::V"]);
+            Assert.Equal("Def", view.ViewDefinitionName);
+            Assert.Contains(view.ResolvedEdges, e =>
+                e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Typing && e.TargetQualifiedName == "P::Def");
         }
         finally
         {

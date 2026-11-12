@@ -270,12 +270,20 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_MultipleAnnotations_ProduceOneNoteBox`:
   A definition with multiple `Comment` annotations gets exactly one note box, with
   every comment's text concatenated into it
-- `GeneralViewLayoutStrategy_BuildLayout_DocumentationByDefault_IsHiddenButCommentShown`:
-  Without the view opt-in, a definition's `Documentation` text appears in no note and no
-  compartment, while its `Comment` note is still drawn
-- `GeneralViewLayoutStrategy_BuildLayout_ShowDocumentation_RendersWrappedDocCompartment`:
-  With `ShowDocumentation`, the definition's box carries a `doc` compartment whose rows preserve
-  every word, wrap onto several rows, and each fit within the box width; the doc text is in no note
+- `GeneralViewLayoutStrategy_BuildLayout_DocumentationByDefault_RendersWrappedDocCompartment`:
+  By default the definition's box carries a `doc` compartment whose rows preserve every word, wrap
+  onto several rows, and each fit within the box width; the comment note is drawn and the doc
+  text is in no note
+- `GeneralViewLayoutStrategy_BuildLayout_FilterNotDocumentation_HidesDocButKeepsComment`:
+  `filter not @SysML::Documentation;` hides the `doc` compartment but keeps the comment note
+- `GeneralViewLayoutStrategy_BuildLayout_PositiveFilterExcludingDocumentation_HidesDoc`:
+  `filter @SysML::PartDefinition;` keeps the part definition but hides its doc and comment
+- `GeneralViewLayoutStrategy_BuildLayout_InheritedViewCondition_HidesDoc`:
+  a view typed by a view definition owning `filter not @SysML::Documentation;` hides the doc
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeFilterNotDocumentation_HidesDoc`:
+  `expose P::**[not @SysML::Documentation];` hides the doc but keeps the definition and comment
+- `GeneralViewLayoutStrategy_BuildLayout_MembershipExpose_ExposesDocOnlyWhenRecursive`:
+  a bare `expose P::Battery;` draws no doc compartment; `expose P::**;` does
 - `GeneralViewLayoutStrategy_WrapText_LongWord_IsHardBroken`:
   Word wrapping keeps every row within the limit, hard-breaking a word longer than the limit
 - `GeneralViewLayoutStrategy_BuildLayout_RequirementSubject_UsesGuillemetTitle`:

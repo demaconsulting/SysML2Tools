@@ -211,3 +211,26 @@ sections:
           - MatchesUnlimitedSubject_NamespaceDirectChildren_ReturnsFalse
           - MatchesUnlimitedSubject_ExplicitMembersOnly_ReturnsFalse
           - MatchesUnlimitedSubject_UnrelatedName_ReturnsFalse
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ViewConditionInheritance
+        title: >-
+          ExposeScopeResolver shall collect a view's view conditions as its own `filter` conditions
+          followed by those of its view definition and, transitively, that definition's general
+          view definitions.
+        justification: |
+          SysML 7.26.2: a view usage inherits any view conditions from its view definition;
+          SysML 8.3.26.11: exposed elements must meet all owned and inherited view conditions.
+        tests:
+          - CollectViewConditions_ViewTypedByDefinition_IncludesInheritedConditions
+
+      - id: SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-AnnotationExposure
+        title: >-
+          ExposeScopeResolver shall report an owned annotating element (documentation or comment)
+          as exposed when its owner's members are exposed — by a recursive expose covering the
+          owner, by `expose X::*;` of the owner, by a covering expose filter the annotating element
+          satisfies, or when the view has no expose scope — and not by a bare `expose X;`.
+        justification: |
+          KerML 7.2.4.2: documentation is an owned member of its element; SysML 8.3.26.3/8.3.26.4
+          define which memberships each expose form imports.
+        tests:
+          - IsAnnotationExposed_DependsOnExposeForm

@@ -900,5 +900,59 @@ public sealed class ExposeScopeResolverTests
         Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::SomeDefinition::Nested", membershipScope));
         Assert.True(ExposeScopeResolver.IsInSubjectScope("Root::SomeDefinition::Nested::Deep", membershipScope));
     }
-}
 
+    /// <summary>
+    ///     A view's view conditions are its own <c>filter</c> conditions followed by those inherited
+    ///     from its view definition and, transitively, that definition's general view definitions.
+    /// </summary>
+    [Fact]
+    public void CollectViewConditions_ViewTypedByDefinition_IncludesInheritedConditions()
+    {
+        // Arrange: V : Def, Def :> Base; each owns one condition
+        var baseDef = new SysmlViewNode { Name = "Base", QualifiedName = "P::Base", FilterExpressionTexts = ["@SysML::PartUsage"] };
+        var def = new SysmlViewNode
+        {
+            Name = "Def",
+            QualifiedName = "P::Def",
+            FilterExpressionTexts = ["not @SysML::Documentation"],
+            ResolvedEdges = [new SysmlEdge("P::Def", "P::Base", SysmlEdgeKind.Supertype)],
+        };
+        var view = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "P::V",
+            FilterExpressionTexts = ["@Safety"],
+            ResolvedEdges = [new SysmlEdge("P::V", "P::Def", SysmlEdgeKind.Typing)],
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::Base"] = baseDef, ["P::Def"] = def, ["P::V"] = view },
+        };
+
+        // Act
+        var conditions = ExposeScopeResolver.CollectViewConditions(workspace, view);
+
+        // Assert
+        Assert.Equal(["@Safety", "not @SysML::Documentation", "@SysML::PartUsage"], conditions);
+    }
+
+    /// <summary>
+    ///     An owned annotating element is exposed with its owner's members: by a recursive expose
+    ///     covering the owner, by <c>expose X::*;</c> of the owner, but not by a bare
+    ///     <c>expose X;</c>; with no expose scope everything is exposed.
+    /// </summary>
+    [Fact]
+    public void IsAnnotationExposed_DependsOnExposeForm()
+    {
+        // Arrange
+        var workspace = new SysmlWorkspace();
+        ExposedScope ScopeOf(ExposeRecursionKind kind) => new([new ExposeSubject("P::A", kind)], []);
+
+        // Act / Assert
+        Assert.True(ExposeScopeResolver.IsAnnotationExposed(workspace, "P::A", "Documentation", null));
+        Assert.True(ExposeScopeResolver.IsAnnotationExposed(workspace, "P::A::B", "Documentation", ScopeOf(ExposeRecursionKind.MembershipRecursive)));
+        Assert.True(ExposeScopeResolver.IsAnnotationExposed(workspace, "P::A", "Documentation", ScopeOf(ExposeRecursionKind.NamespaceDirectChildren)));
+        Assert.False(ExposeScopeResolver.IsAnnotationExposed(workspace, "P::A", "Documentation", ScopeOf(ExposeRecursionKind.MembershipExact)));
+        Assert.False(ExposeScopeResolver.IsAnnotationExposed(workspace, "P::Other", "Documentation", ScopeOf(ExposeRecursionKind.MembershipRecursive)));
+    }
+}

@@ -2410,51 +2410,27 @@ public sealed class GeneralViewLayoutStrategyTests
         };
 
     /// <summary>
-    ///     By default (no opt-in on the view), BuildLayout draws no <c>doc</c> text at all — neither
-    ///     as a note nor as a compartment — while an explicit comment is still drawn as a note.
+    ///     By default, exposed documentation is drawn as a <c>doc</c> compartment inside its owner's
+    ///     box (SysML 8.2.3.4 documentation-compartment), word-wrapped into rows no wider than the
+    ///     box, and never as a note; an explicit comment is still drawn as an attached note.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_DocumentationByDefault_IsHiddenButCommentShown()
+    public void GeneralViewLayoutStrategy_BuildLayout_DocumentationByDefault_RendersWrappedDocCompartment()
     {
-        // Arrange: a documented and commented part def rendered through a view with no opt-in
-        var strategy = new GeneralViewLayoutStrategy();
-        var workspace = BuildDocumentedBatteryWorkspace("Primary power source.");
-        var context = new ViewContext("v", workspace, new SysmlViewNode { Name = "v", QualifiedName = "P::v" });
-
-        // Act
-        var layout = strategy.BuildLayout(context, new RenderOptions(Themes.Light));
-
-        // Assert: the comment note is present, and no box shows the documentation text
-        var boxes = CollectBoxes(layout.Nodes);
-        var note = Assert.Single(boxes, b => b.Shape == BoxShape.Note);
-        Assert.Contains(note.Compartments, c => c.Rows.Any(r => r.Contains("revisit capacity")));
-        Assert.DoesNotContain(boxes, b => b.Compartments.Any(c =>
-            c.Title == "doc" || c.Rows.Any(r => r.Contains("Primary power source"))));
-    }
-
-    /// <summary>
-    ///     When the view opts in (<c>ShowDocumentation</c>), BuildLayout renders the documentation as
-    ///     a <c>doc</c> compartment inside the element's own box, word-wrapped into several rows no
-    ///     wider than the box, and still never as a note.
-    /// </summary>
-    [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_ShowDocumentation_RendersWrappedDocCompartment()
-    {
-        // Arrange: a long documentation string and a view that opts in to documentation
+        // Arrange: a long documentation string and a view with no view conditions
         var strategy = new GeneralViewLayoutStrategy();
         const string docText =
             "The battery is the primary power source for the vehicle and supplies every subsystem " +
             "with regulated power during all operating modes.";
         var workspace = BuildDocumentedBatteryWorkspace(docText);
-        var view = new SysmlViewNode { Name = "v", QualifiedName = "P::v", ShowDocumentation = true };
-        var context = new ViewContext("v", workspace, view);
+        var context = new ViewContext("v", workspace, new SysmlViewNode { Name = "v", QualifiedName = "P::v" });
         var options = new RenderOptions(Themes.Light);
 
         // Act
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: the Battery box carries a wrapped doc compartment preserving every word, sized
-        // within the box, and the doc text appears in no note
+        // within the box; the comment note is present and does not repeat the documentation
         var boxes = CollectBoxes(layout.Nodes);
         var battery = Assert.Single(boxes, b => b.Label == "Battery");
         var doc = Assert.Single(battery.Compartments, c => c.Title == "doc");
@@ -2463,7 +2439,146 @@ public sealed class GeneralViewLayoutStrategyTests
         var charWidth = options.Theme.FontSizeBody * 0.62;
         Assert.All(doc.Rows, r => Assert.True(r.Length * charWidth <= battery.Width, $"Row too wide: {r}"));
         var note = Assert.Single(boxes, b => b.Shape == BoxShape.Note);
+        Assert.Contains(note.Compartments, c => c.Rows.Any(r => r.Contains("revisit capacity")));
         Assert.DoesNotContain(note.Compartments, c => c.Rows.Any(r => r.Contains("primary power source")));
+    }
+
+    /// <summary>
+    ///     A view condition <c>filter not @SysML::Documentation;</c> (SysML 7.26.2) hides the
+    ///     <c>doc</c> compartment, while the element itself and its comment note remain.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_FilterNotDocumentation_HidesDocButKeepsComment()
+    {
+        // Arrange
+        var workspace = BuildDocumentedBatteryWorkspace("Primary power source.");
+        var view = new SysmlViewNode { Name = "v", QualifiedName = "P::v", FilterExpressionTexts = ["not @SysML::Documentation"] };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace, view), new RenderOptions(Themes.Light));
+
+        // Assert
+        var boxes = CollectBoxes(layout.Nodes);
+        var battery = Assert.Single(boxes, b => b.Label == "Battery");
+        Assert.DoesNotContain(battery.Compartments, c => c.Title == "doc");
+        Assert.Contains(boxes, b => b.Shape == BoxShape.Note);
+    }
+
+    /// <summary>
+    ///     A positive view condition that Documentation does not satisfy
+    ///     (<c>filter @SysML::PartDefinition;</c>) keeps the part definition but hides its
+    ///     <c>doc</c> compartment and its comment note.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_PositiveFilterExcludingDocumentation_HidesDoc()
+    {
+        // Arrange
+        var workspace = BuildDocumentedBatteryWorkspace("Primary power source.");
+        var view = new SysmlViewNode { Name = "v", QualifiedName = "P::v", FilterExpressionTexts = ["@SysML::PartDefinition"] };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace, view), new RenderOptions(Themes.Light));
+
+        // Assert
+        var boxes = CollectBoxes(layout.Nodes);
+        var battery = Assert.Single(boxes, b => b.Label == "Battery");
+        Assert.DoesNotContain(battery.Compartments, c => c.Title == "doc");
+        Assert.DoesNotContain(boxes, b => b.Shape == BoxShape.Note);
+    }
+
+    /// <summary>
+    ///     Loads <paramref name="sysml"/> and lays out the general view <c>Diagrams::V</c>.
+    /// </summary>
+    private static async Task<LayoutTree> LayOutViewVAsync(string sysml)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<SysmlViewNode>(result.Workspace.Declarations["Diagrams::V"]);
+            return new GeneralViewLayoutStrategy().BuildLayout(
+                new ViewContext("V", result.Workspace, view), new RenderOptions(Themes.Light));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>Documented part def used by the expose/inheritance documentation tests.</summary>
+    private const string DocumentedPackageSysml = """
+        package P {
+            part def Battery {
+                doc /* Primary power source. */
+                comment /* Revisit capacity. */
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     A view inherits the view conditions of its view definition (SysML 7.26.2): a view typed
+    ///     by a view definition owning <c>filter not @SysML::Documentation;</c> hides documentation.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_InheritedViewCondition_HidesDoc()
+    {
+        // Act
+        var layout = await LayOutViewVAsync(DocumentedPackageSysml + """
+
+            package Diagrams {
+                view def NoDocs { filter not @SysML::Documentation; }
+                view V : NoDocs { expose P::**; }
+            }
+            """);
+
+        // Assert
+        var battery = Assert.Single(CollectBoxes(layout.Nodes), b => b.Label == "Battery");
+        Assert.DoesNotContain(battery.Compartments, c => c.Title == "doc");
+    }
+
+    /// <summary>
+    ///     An expose filter (<c>expose P::**[not @SysML::Documentation];</c>, SysML 7.26.2) excludes
+    ///     the exposed documentation while still exposing the definitions and comments.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeFilterNotDocumentation_HidesDoc()
+    {
+        // Act
+        var layout = await LayOutViewVAsync(DocumentedPackageSysml + """
+
+            package Diagrams { view V { expose P::**[not @SysML::Documentation]; } }
+            """);
+
+        // Assert
+        var boxes = CollectBoxes(layout.Nodes);
+        var battery = Assert.Single(boxes, b => b.Label == "Battery");
+        Assert.DoesNotContain(battery.Compartments, c => c.Title == "doc");
+        Assert.Contains(boxes, b => b.Shape == BoxShape.Note);
+    }
+
+    /// <summary>
+    ///     A bare <c>expose P::Battery;</c> exposes only the element, not its owned documentation
+    ///     (SysML 8.3.26.3), whereas <c>expose P::**;</c> exposes the documentation too.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_MembershipExpose_ExposesDocOnlyWhenRecursive()
+    {
+        // Act
+        var bare = await LayOutViewVAsync(DocumentedPackageSysml + """
+
+            package Diagrams { view V { expose P::Battery; } }
+            """);
+        var recursive = await LayOutViewVAsync(DocumentedPackageSysml + """
+
+            package Diagrams { view V { expose P::**; } }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(Assert.Single(CollectBoxes(bare.Nodes), b => b.Label == "Battery").Compartments, c => c.Title == "doc");
+        Assert.Contains(Assert.Single(CollectBoxes(recursive.Nodes), b => b.Label == "Battery").Compartments, c => c.Title == "doc");
     }
 
     /// <summary>

@@ -428,11 +428,29 @@ their placeholder identically.
 Adds one definition as a leaf node to the given scope (the root graph or a folder's `Children`),
 carrying its `Label`, `Shape = Rectangle`, `Keyword`, and `Compartments`.
 
+###### View conditions and annotation visibility
+
+`BuildLayout` gathers the view's conditions with `ExposeScopeResolver.CollectViewConditions` —
+every `filter` the view owns followed by those inherited from its view definition and its general
+view definitions (SysML 2.1 Beta 2 7.26.2; 8.3.26.11 `viewCondition`/`includeAsExposed`) — and
+parses each with `FilterExpressionParser.Parse`; a condition that does not parse is reported with
+`LayoutWarnings.ForUnevaluatedFilter` and skipped. Every exposed definition or usage must satisfy
+all parsed conditions (`FilterExpressionEvaluator.Evaluate`, with abstract-syntax metaclass tests
+such as `@SysML::PartUsage`, SysML 7.5.4). An owned `doc` or `comment` is visible when
+`ExposeScopeResolver.IsAnnotationExposed` reports it exposed (including through an expose filter,
+`expose P::**[expr];`) and it satisfies every condition for its metaclass (`Documentation` or
+`Comment`) via `FilterExpressionEvaluator.EvaluateForMetaclass` — so
+`filter not @SysML::Documentation;` hides documentation while keeping comments, and a positive
+condition such as `filter @SysML::PartDefinition;` hides both.
+
 ###### `BuildDocCompartment(annotations, boxWidth, theme)`
 
-Called by `CollectDefinitions` only when the view opts in (`SysmlViewNode.ShowDocumentation`,
-set by an `attribute showDocumentation = true;` view-body member; never for the synthesized
-`--auto` view). It returns `null` when the element has no non-empty `doc` annotation; otherwise it
+Called by `CollectDefinitions` when the element's documentation is visible: it is exposed with
+its owner's members (`ExposeScopeResolver.IsAnnotationExposed`, KerML 7.2.4.2 — documentation is
+an owned member of its element) and satisfies every view condition
+(`FilterExpressionEvaluator.EvaluateForMetaclass(…, "Documentation", …)`). It draws the SysML 2.1
+Beta 2 8.2.3.4 `documentation-compartment` notation. It returns `null` when the element has no
+non-empty `doc` annotation; otherwise it
 builds a `LayoutCompartment` titled `doc` that `CollectDefinitions` places first among the box's
 compartments before re-running `ComputeBoxSize`. `SplitParagraphs` normalizes each annotation's
 raw text (trimming lines, dropping a leading `*` continuation marker, joining consecutive lines,
@@ -441,7 +459,7 @@ number of characters that fit the box width computed without the doc compartment
 `FontSizeBody * CharWidthFactor` estimate and `3 * LabelPadding` inset as `ComputeBoxSize`, so a
 wrapped row never widens the box — but never fewer than `MinDocWrapChars` (36) characters, so a
 narrow box widens to a readable column instead of wrapping into a tall sliver. A word longer than
-the limit is hard-broken. Without the opt-in, `doc` text is not drawn at all.
+the limit is hard-broken. Documentation is never drawn as a separate note.
 
 ###### `AddAnnotationNote(scope, def, defNode, theme)`
 
@@ -449,11 +467,13 @@ Called immediately after `MakeDefNode` for every definition (both top-level and 
 this no-ops when `def.Annotations` is empty; otherwise it adds one `BoxShape.Note` node (id
 `note:{qualifiedName}`) to the same `scope` as `defNode`, plus a plain solid edge with no end
 marker (id `note-edge:{qualifiedName}`, `TargetEnd = EndMarkerStyle.None`) from the note to the
-definition. `def.Annotations` holds only the element's `comment` annotations — `CollectDefinitions`
-filters out `doc` (Documentation) annotations, which are never drawn as notes (see
-`BuildDocCompartment` below). `BuildNoteText` concatenates every comment's trimmed text with a
-blank-line separator, so **one note box renders per commented element**, never one box per
-individual `comment` — a definition with two `comment`s still gets a single note.
+definition. `def.Annotations` holds only the element's `comment` annotations that are visible —
+exposed with the owner's members and satisfying every view condition for metaclass `Comment` —
+so this draws the SysML 8.2.3.4 `comment-node` with its `annotation-link`; `doc` (Documentation)
+annotations are never drawn as notes (see `BuildDocCompartment` below). `BuildNoteText`
+concatenates every comment's trimmed text with a blank-line separator, so **one note box renders
+per commented element**, never one box per individual `comment` — a definition with two
+`comment`s still gets a single note.
 `ComputeNoteBoxSize` sizes the note from the longest line and total line count using
 `BoxMetrics.TitleAreaHeight(theme, hasLabel: false, hasKeyword: false)` for the (title-less) top
 band plus per-line height and padding — deliberately simpler than the full `ComputeBoxSize` used

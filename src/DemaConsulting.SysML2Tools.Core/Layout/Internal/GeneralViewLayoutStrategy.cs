@@ -229,39 +229,54 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // FilterExpressionText never affect this decision.
         var scope = ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode);
 
-        // Collect all user-defined definitions, sized for rendering, restricted to the resolved
-        // scope when one applies.
-        var defs = CollectDefinitions(context.Workspace, theme, scope, context.ViewNode?.ShowDocumentation == true);
-        if (defs.Count == 0)
+        // The view conditions (SysML 8.3.26.11 viewCondition): every `filter` the view owns plus
+        // those inherited from its view definition (SysML 7.26.2). An exposed element is rendered
+        // only when it satisfies all of them. A condition that fails to parse (or uses a construct
+        // outside the supported subset) is skipped with a warning rather than dropped silently.
+        var conditions = new List<FilterExpression>();
+        var conditionWarnings = new List<string>();
+        foreach (var conditionText in ExposeScopeResolver.CollectViewConditions(context.Workspace, context.ViewNode))
         {
-            return new LayoutTree(200.0, 100.0, []);
-        }
-
-        // Apply the view's standalone `filter [<expr>];` statement (SysmlViewNode.FilterExpressionText),
-        // narrowing `defs` to the subset the Phase 1 expression subset matches. A parse/evaluation
-        // failure (syntax error or a construct outside the Phase 1 subset — see
-        // FilterExpressionParser) falls back to rendering the unfiltered resolved scope, surfaced
-        // via a warning rather than silently dropping the filter or crashing.
-        string? filterFailureReason = null;
-        var filterExpressionText = context.ViewNode?.FilterExpressionText;
-        if (filterExpressionText is { Length: > 0 })
-        {
-            var parseResult = FilterExpressionParser.Parse(filterExpressionText);
+            var parseResult = FilterExpressionParser.Parse(conditionText);
             if (parseResult.Expression is { } expression)
             {
-                var matched = FilterExpressionEvaluator.Evaluate(
-                    context.Workspace, defs.Select(d => d.QualifiedName).ToList(), expression).MatchedQualifiedNames;
-                var matchedSet = new HashSet<string>(matched, StringComparer.Ordinal);
-                defs = defs.Where(d => matchedSet.Contains(d.QualifiedName)).ToList();
-                if (defs.Count == 0)
-                {
-                    return new LayoutTree(200.0, 100.0, []);
-                }
+                conditions.Add(expression);
             }
             else
             {
-                filterFailureReason = parseResult.Diagnostics.FirstOrDefault()?.Message;
+                conditionWarnings.AddRange(LayoutWarnings.ForUnevaluatedFilter(
+                    context.ViewName, conditionText, parseResult.Diagnostics.FirstOrDefault()?.Message));
             }
+        }
+
+        // An owned `doc`/`comment` of a rendered element is itself an exposed element when the
+        // expose that exposed its owner also exposes the owner's members (KerML 7.2.4.2:
+        // documentation is an owned member of the documented element), and it is drawn only when
+        // it also satisfies every view condition (e.g. `filter not @SysML::Documentation;`).
+        bool AnnotationVisible(string ownerQualifiedName, string metaclass) =>
+            ExposeScopeResolver.IsAnnotationExposed(context.Workspace, ownerQualifiedName, metaclass, scope) &&
+            conditions.TrueForAll(condition => FilterExpressionEvaluator.EvaluateForMetaclass(context.Workspace, metaclass, condition));
+
+        // Collect all user-defined definitions, sized for rendering, restricted to the resolved
+        // scope when one applies.
+        var defs = CollectDefinitions(context.Workspace, theme, scope, AnnotationVisible);
+        if (defs.Count == 0)
+        {
+            return new LayoutTree(200.0, 100.0, []) { Warnings = conditionWarnings };
+        }
+
+        // Narrow `defs` to the elements satisfying every view condition.
+        foreach (var condition in conditions)
+        {
+            var matched = FilterExpressionEvaluator.Evaluate(
+                context.Workspace, defs.Select(d => d.QualifiedName).ToList(), condition).MatchedQualifiedNames;
+            var matchedSet = new HashSet<string>(matched, StringComparer.Ordinal);
+            defs = defs.Where(d => matchedSet.Contains(d.QualifiedName)).ToList();
+        }
+
+        if (defs.Count == 0)
+        {
+            return new LayoutTree(200.0, 100.0, []) { Warnings = conditionWarnings };
         }
 
         // Drop any usage-level box that would duplicate content already shown as a compartment row
@@ -347,7 +362,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // (see ExposeScopeResolver.ResolveExposedScope's ExposedScope.Failures) — a
         // successfully-evaluated bracket filter already narrowed `scope` above and needs no
         // warning — through the standard layout-warnings channel.
-        var warnings = LayoutWarnings.ForUnevaluatedFilter(context.ViewName, filterFailureReason is null ? null : filterExpressionText, filterFailureReason)
+        var warnings = conditionWarnings
             .Concat(LayoutWarnings.ForUnevaluatedExposeBracketFilter(context.ViewName, scope?.Failures ?? []))
             .Concat(LayoutWarnings.ForDroppedRelationshipEdges(context.ViewName, droppedEdges
                 .Select(d => (d.Kind, d.Source, d.Target, d.Reason))
@@ -388,7 +403,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         SysmlWorkspace workspace,
         Theme theme,
         ExposedScope? scope,
-        bool showDocumentation)
+        Func<string, string, bool> annotationVisible)
     {
         var result = new List<DefBox>();
 
@@ -434,16 +449,20 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             var memberships = CollectMemberships(declaration);
             var (width, height) = ComputeBoxSize(simpleName, keyword, compartments, theme);
 
-            // Documentation is hidden unless the view opts in; when shown it becomes a "doc"
-            // compartment inside the box, wrapped to the box width, instead of a floating note.
-            if (showDocumentation && BuildDocCompartment(declaration.Annotations, width, theme) is { } docCompartment)
+            // Exposed, unfiltered documentation is drawn as a "doc" compartment inside its owner's
+            // box (SysML 8.2.3.4 documentation-compartment), wrapped to the box width.
+            if (annotationVisible(qualifiedName, "Documentation") &&
+                BuildDocCompartment(declaration.Annotations, width, theme) is { } docCompartment)
             {
                 compartments = [docCompartment, .. compartments];
                 (width, height) = ComputeBoxSize(simpleName, keyword, compartments, theme);
             }
 
-            // Only explicit comments are drawn as attached notes; documentation never is.
-            var comments = declaration.Annotations.Where(a => a.Kind == SysmlAnnotationKind.Comment).ToList();
+            // Exposed, unfiltered explicit comments are drawn as notes attached to their owner
+            // (SysML 8.2.3.4 comment-node with annotation-link); documentation never is.
+            var comments = annotationVisible(qualifiedName, "Comment")
+                ? declaration.Annotations.Where(a => a.Kind == SysmlAnnotationKind.Comment).ToList()
+                : new List<SysmlAnnotation>();
             result.Add(new DefBox(qualifiedName, simpleName, keyword, specializationSupertypeNames, memberships, compartments, width, height, comments, declaration is SysmlFeatureNode));
         }
 

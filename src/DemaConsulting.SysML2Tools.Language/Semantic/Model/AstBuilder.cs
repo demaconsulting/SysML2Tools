@@ -1874,7 +1874,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var supertypeNames = GetSubclassificationSupertypes(
             context.definitionDeclaration()?.subclassificationPart());
 
-        var (renderTargetName, filterExpressionText) =
+        var (renderTargetName, filterExpressionTexts) =
             ExtractViewRenderAndFilter(context.viewDefinitionBody()?.viewDefinitionBodyItem() ?? []);
 
         return new SysmlViewNode
@@ -1883,8 +1883,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             QualifiedName = qualifiedName,
             SupertypeNames = supertypeNames,
             RenderTargetName = renderTargetName,
-            FilterExpressionText = filterExpressionText,
-            ShowDocumentation = ExtractShowDocumentation(context.viewDefinitionBody()?.viewDefinitionBodyItem() ?? []),
+            FilterExpressionText = filterExpressionTexts.FirstOrDefault(),
+            FilterExpressionTexts = filterExpressionTexts,
         };
     }
 
@@ -1910,7 +1910,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var qualifiedName = QualifyName(name);
         var bodyItems = context.viewBody()?.viewBodyItem() ?? [];
 
-        var (renderTargetName, filterExpressionText) = ExtractViewRenderAndFilter(bodyItems);
+        var (renderTargetName, filterExpressionTexts) = ExtractViewRenderAndFilter(bodyItems);
         var exposeMembers = ExtractExposedNames(bodyItems);
 
         return new SysmlViewNode
@@ -1919,72 +1919,16 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             QualifiedName = qualifiedName,
             RenderTargetName = renderTargetName,
             ExposeMembers = exposeMembers,
-            FilterExpressionText = filterExpressionText,
-            ShowDocumentation = ExtractShowDocumentation(bodyItems),
+            FilterExpressionText = filterExpressionTexts.FirstOrDefault(),
+            FilterExpressionTexts = filterExpressionTexts,
+            ViewDefinitionName = ExtractFeatureTyping(context.usageDeclaration()?.featureSpecializationPart()),
         };
     }
 
     /// <summary>
-    ///     The name of the view-body attribute usage that opts a view in to rendering
-    ///     <c>doc</c> annotations (<c>attribute showDocumentation = true;</c>).
-    /// </summary>
-    private const string ShowDocumentationAttributeName = "showDocumentation";
-
-    /// <summary>
-    ///     Returns <see langword="true"/> when one of a view's own body items (not a member nested
-    ///     inside another body) is an <c>attribute showDocumentation = true;</c> usage.
-    /// </summary>
-    /// <param name="bodyItems">The view's <c>viewBodyItem</c> or <c>viewDefinitionBodyItem</c> contexts.</param>
-    /// <returns>Whether the view opts in to rendering documentation.</returns>
-    private static bool ExtractShowDocumentation(IEnumerable<Antlr4.Runtime.ParserRuleContext> bodyItems)
-    {
-        foreach (var item in bodyItems)
-        {
-            var attributes = Antlr4.Runtime.Tree.Trees
-                .FindAllRuleNodes(item, SysMLv2Parser.RULE_attributeUsage)
-                .OfType<SysMLv2Parser.AttributeUsageContext>();
-            foreach (var attribute in attributes)
-            {
-                var usage = attribute.usage();
-                if (!IsNestedInBody(attribute, item) &&
-                    string.Equals(
-                        GetDeclaredName(usage?.usageDeclaration()?.identification()),
-                        ShowDocumentationAttributeName,
-                        StringComparison.Ordinal) &&
-                    string.Equals(
-                        usage?.usageCompletion()?.valuePart()?.featureValue()?.ownedExpression()?.GetText(),
-                        "true",
-                        StringComparison.Ordinal))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    ///     Returns <see langword="true"/> when <paramref name="node"/> lies inside a nested
-    ///     definition/usage body below <paramref name="item"/> rather than directly in it.
-    /// </summary>
-    private static bool IsNestedInBody(Antlr4.Runtime.RuleContext node, Antlr4.Runtime.RuleContext item)
-    {
-        for (var current = node.Parent; current is not null && current != item; current = current.Parent)
-        {
-            if (current is SysMLv2Parser.DefinitionBodyContext)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    ///     Scans a view's body items for a <c>render &lt;target&gt;;</c> member and a
-    ///     <c>filter [&lt;expression&gt;];</c> member, returning the raw reference text and raw
-    ///     expression source text respectively (or <see langword="null"/> for either when absent).
+    ///     Scans a view's body items for a <c>render &lt;target&gt;;</c> member and every
+    ///     <c>filter [&lt;expression&gt;];</c> member, returning the raw reference text (or
+    ///     <see langword="null"/> when absent) and each filter's raw expression source text in order.
     ///     Shared by <see cref="VisitViewDefinition"/> (<c>viewDefinitionBodyItem</c>) and
     ///     <see cref="VisitViewUsage"/> (<c>viewBodyItem</c>) since both context types expose
     ///     identically-shaped <c>viewRenderingMember()</c>/<c>elementFilterMember()</c> accessors.
@@ -1992,12 +1936,12 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     than one render subject per view, so this is a defensive tie-break, not a validated
     ///     constraint enforced by this tool.
     /// </summary>
-    private static (string? RenderTargetName, string? FilterExpressionText) ExtractViewRenderAndFilter<TItem>(
+    private static (string? RenderTargetName, IReadOnlyList<string> FilterExpressionTexts) ExtractViewRenderAndFilter<TItem>(
         IEnumerable<TItem> bodyItems)
         where TItem : Antlr4.Runtime.ParserRuleContext
     {
         string? renderTargetName = null;
-        string? filterExpressionText = null;
+        var filterExpressionTexts = new List<string>();
 
         foreach (var item in bodyItems)
         {
@@ -2007,16 +1951,14 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 renderTargetName = ExtractRenderTargetName(renderingMember.viewRenderingUsage());
             }
 
-            if (filterExpressionText is null &&
-                GetElementFilterMember(item) is { } filterMember)
+            // Every `filter` member is a view condition (SysML 8.3.26.11 viewCondition); all apply.
+            if (GetElementFilterMember(item)?.ownedExpression() is { } filterExpr)
             {
-                filterExpressionText = filterMember.ownedExpression() is { } filterExpr
-                    ? GetOriginalText(filterExpr)
-                    : null;
+                filterExpressionTexts.Add(GetOriginalText(filterExpr));
             }
         }
 
-        return (renderTargetName, filterExpressionText);
+        return (renderTargetName, filterExpressionTexts);
     }
 
     /// <summary>

@@ -146,6 +146,23 @@ ties between candidates of equal containment depth (e.g. unrelated siblings), vi
 `currentScoreIsBetter`. Used only by the four single-root strategies, in place of a plain score
 comparison, whenever `scope` is non-null.
 
+###### `CollectViewConditions(SysmlWorkspace workspace, SysmlViewNode viewNode)`
+
+Returns the view's conditions in evaluation order: its own `FilterExpressionTexts` (falling back
+to `FilterExpressionText`), then those of the view definition reached through its `Typing` edge
+and, transitively, that definition's `Supertype` general view definitions (cycle-guarded). A view
+usage inherits the view conditions of its definitions (SysML 2.1 Beta 2 7.26.2; 8.3.26.11).
+
+###### `IsAnnotationExposed(workspace, ownerQualifiedName, metaclass, scope)`
+
+Reports whether an owned annotation (documentation or comment) of the owner is exposed. Because
+documentation and comments are owned members of their element (KerML 7.2.4.2), they are exposed
+when the owner's members are: an unscoped view, a `::*`/`::**` expose whose subject is the owner,
+or a recursive expose of an ancestor; a bare membership `expose P::X;` exposes only X itself
+(SysML 8.3.26.2–4). A filtered expose (`ExposedScope.FilteredEntries`) covering the owner exposes the annotation
+when its condition accepts the annotation's `metaclass`
+(`FilterExpressionEvaluator.EvaluateForMetaclass`).
+
 ##### Design
 
 `ResolveExposedScope` re-pairs each resolved `Expose` edge with the `ExposeMember` it originated

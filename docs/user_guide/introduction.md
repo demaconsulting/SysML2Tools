@@ -308,22 +308,30 @@ into a nested container remains a known limitation.
 
 ### Comments and Documentation
 
-An explicit `comment /* ... */` on an element is drawn in a General View as a folded-corner note
-attached to the element's box. `doc /* ... */` (Documentation) text is **not drawn by default** in
-any view type, so diagrams of fully documented models stay readable. A view opts in by owning a
-`showDocumentation` attribute set to `true`:
+In SysML v2, `doc /* ... */` documentation and `comment /* ... */` comments are owned members of
+the element they annotate, so `expose X::**;` (or `expose X::*;`) exposes them along with X's other
+members, while a bare `expose X;` does not. In a General View, exposed documentation is drawn as a
+word-wrapped `doc` compartment inside its element's box, and an exposed comment as a folded-corner
+note attached to its element. Interconnection and other view types never draw them.
+
+Like any exposed element, documentation and comments are only drawn when they satisfy the view's
+conditions. Use the standard view condition to hide documentation (comments remain):
 
 ```sysml
-view DocumentedOverview {
+view Overview {
     expose MySystem::**;
-    attribute showDocumentation = true;
+    filter not @SysML::Documentation;
 }
 ```
 
-In an opted-in General View, each element's documentation is drawn as a `doc` compartment inside
-its own box, word-wrapped to the box width. Interconnection and other view types never draw
-documentation. The opt-in is an ordinary SysML v2 attribute usage owned by the view, so it needs no
-extra declarations or imports, and other SysML tools treat it as plain view data.
+View conditions (`filter <expr>;`) select exposed elements by metaclass (`@SysML::PartUsage`,
+`@SysML::PartDefinition`, `@SysML::Documentation`, `@SysML::Comment`, and so on, also accepted as
+`@KerML::…`) or by applied metadata, combined with `not`, `and`, `or`, and `xor`. All of a view's
+conditions apply, including those inherited from its view definition
+(`view def NoDocs { filter not @SysML::Documentation; }` then `view Overview : NoDocs { … }`). A
+positive condition such as `filter @SysML::PartDefinition;` also hides documentation and comments,
+since they are not part definitions. An expose filter applies a condition to one expose only:
+`expose MySystem::**[not @SysML::Documentation];`.
 
 ## Expose vs. Render: Worked Examples
 

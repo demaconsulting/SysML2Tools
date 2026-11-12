@@ -56,6 +56,11 @@ within a file; `TryResolve` may be called again for an already-warned name (a mi
 correctness-preserving redundancy — see Error Handling), but no duplicate diagnostic is
 produced.
 
+A `SysmlViewNode`'s `ViewDefinitionName` (`view V : Def`) is resolved the same way into a
+`SysmlEdgeKind.Typing` edge, or reported with the same unresolved-reference Warning; callers use
+the edge to find the view definition whose view conditions and rendering the usage inherits
+(SysML 2.1 Beta 2 7.26.2).
+
 `ResolveAll` returns a `SemanticIndex` built from the aggregate edge list once all file roots
 have been traversed.
 
