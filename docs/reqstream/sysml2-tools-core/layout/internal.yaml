@@ -39,10 +39,12 @@ sections:
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-BareNameForm
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-NoEdgeOnFailure
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AnnotationNote
-          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ViewConditions
-          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-DocumentationCompartment
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-SameNamedDefinitions
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-RequirementConstraintCompartments
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Internals
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-SameNamedDefinitions
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ViewConditions
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-DocumentationCompartment
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NoDocumentation
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Ports
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Connectors
@@ -73,6 +75,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-MergeParallelEdgesOptOut
           - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-IndentedTree
           - SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-SpecializationMatrix
+          - SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-SameNamedSupertypes
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_OneUserPartDef_ProducesLayoutBox
           - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
@@ -238,6 +241,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-CrossingWarning
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedFilter
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedExposeBracketFilter
+          - SysML2Tools-Core-Layout-Internal-LayoutWarnings-SimpleNameFallback
         tests:
           - ForCrossings_Zero_ReturnsEmpty
           - ForCrossings_One_ReturnsSingularWarning

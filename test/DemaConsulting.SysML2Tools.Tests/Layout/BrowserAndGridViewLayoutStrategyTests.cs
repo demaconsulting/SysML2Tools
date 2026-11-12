@@ -76,6 +76,38 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
         Assert.Equal(1, markCount);
     }
 
+    /// <summary>
+    ///     When two packages each declare a <c>Base</c> and a <c>Derived :&gt; Base</c>, each
+    ///     <c>Derived</c> row is marked against its own package's <c>Base</c> column (KerML name
+    ///     resolution from the owning namespace), not the first same-named definition.
+    /// </summary>
+    [Fact]
+    public void GridView_BuildLayout_SameNamedSupertypes_MarkOwnPackagesColumn()
+    {
+        // Arrange: rows/columns are sorted by qualified name: PkgA::Base, PkgA::Derived, PkgB::Base, PkgB::Derived
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["PkgA::Base"] = new SysmlDefinitionNode { Name = "Base", QualifiedName = "PkgA::Base", DefinitionKeyword = "part def" },
+                ["PkgA::Derived"] = new SysmlDefinitionNode { Name = "Derived", QualifiedName = "PkgA::Derived", DefinitionKeyword = "part def", SupertypeNames = ["Base"] },
+                ["PkgB::Base"] = new SysmlDefinitionNode { Name = "Base", QualifiedName = "PkgB::Base", DefinitionKeyword = "part def" },
+                ["PkgB::Derived"] = new SysmlDefinitionNode { Name = "Derived", QualifiedName = "PkgB::Derived", DefinitionKeyword = "part def", SupertypeNames = ["Base"] },
+            }
+        };
+
+        // Act
+        var layout = new GridViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert: row 2 (PkgA::Derived) marks column 1 (PkgA::Base); row 4 (PkgB::Derived) marks column 3 (PkgB::Base)
+        var grid = Assert.Single(layout.Nodes.OfType<LayoutGrid>());
+        string Cell(int row, int column) => grid.Rows[row].Cells[column].Text;
+        Assert.Equal("X", Cell(2, 1));
+        Assert.Equal("X", Cell(4, 3));
+        Assert.Equal(string.Empty, Cell(4, 1));
+        Assert.Empty(layout.Warnings);
+    }
+
     /// <summary>Both strategies return a minimal canvas for an empty workspace.</summary>
     [Fact]
     public void BrowserAndGrid_BuildLayout_EmptyWorkspace_ReturnMinimalCanvas()

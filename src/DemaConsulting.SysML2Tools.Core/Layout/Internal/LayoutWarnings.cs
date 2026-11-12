@@ -129,4 +129,27 @@ internal static class LayoutWarnings
                 $"rendered ({edge.Reason}).")
             .ToList();
     }
+
+    /// <summary>
+    /// Returns the warning stating that a type or supertype reference did not resolve by KerML
+    /// name resolution (KerML 8.2.3.5) and was matched only by the tool's bare simple-name
+    /// fallback, naming every candidate when the choice was ambiguous.
+    /// </summary>
+    /// <param name="viewName">Name of the view being laid out.</param>
+    /// <param name="reference">The raw reference text.</param>
+    /// <param name="localNamespace">The namespace it was resolved relative to, or null.</param>
+    /// <param name="chosen">The qualified name the fallback chose.</param>
+    /// <param name="candidates">Every declaration whose simple name matched.</param>
+    /// <returns>The warning message.</returns>
+    public static string ForSimpleNameFallback(
+        string viewName, string reference, string? localNamespace, string chosen, IReadOnlyList<string> candidates)
+    {
+        var context = localNamespace is { Length: > 0 } ? $" in '{localNamespace}'" : string.Empty;
+        var ambiguity = candidates.Count > 1
+            ? $" (ambiguous: {string.Join(", ", candidates.Select(c => $"'{c}'"))})"
+            : string.Empty;
+        return $"Reference '{reference}'{context} in '{viewName}' does not resolve by SysML v2 name " +
+            $"resolution; matched '{chosen}' by simple name only{ambiguity}. Qualify the reference or " +
+            "add an import.";
+    }
 }

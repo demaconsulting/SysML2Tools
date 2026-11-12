@@ -60,23 +60,25 @@ public sealed class FilterExpressionEvaluatorTests
         """;
 
     /// <summary>
-    ///     An element known only by its metaclass (e.g. a <c>doc</c>, metaclass <c>Documentation</c>)
-    ///     satisfies classification tests for its metaclass and its general metaclasses
-    ///     (<c>Comment</c>), with either the <c>SysML::</c> or <c>KerML::</c> qualification, and
-    ///     boolean connectives combine them.
+    ///     The name resolver created by <see cref="FilterExpressionEvaluator.CreateNameResolver"/>
+    ///     resolves a name through a filtered import only when the imported element satisfies the
+    ///     import's filter condition (SysML 7.5.4).
     /// </summary>
     [Fact]
-    public async Task EvaluateForMetaclass_Documentation_ConformsToCommentAndCombines()
+    public async Task CreateNameResolver_FilteredImport_AdmitsOnlyMatchingElements()
     {
-        // Arrange
-        var workspace = await LoadAsync(Source);
+        // Arrange: Q imports P's members filtered to those carrying @Safety
+        var workspace = await LoadAsync(Source.TrimEnd() + """
 
-        // Act / Assert
-        Assert.True(FilterExpressionEvaluator.EvaluateForMetaclass(workspace, "Documentation", new ClassificationTestExpression("SysML::Documentation")));
-        Assert.True(FilterExpressionEvaluator.EvaluateForMetaclass(workspace, "Documentation", new ClassificationTestExpression("KerML::Comment")));
-        Assert.False(FilterExpressionEvaluator.EvaluateForMetaclass(workspace, "Comment", new ClassificationTestExpression("SysML::Documentation")));
-        Assert.False(FilterExpressionEvaluator.EvaluateForMetaclass(workspace, "Documentation", new NotFilterExpression(new ClassificationTestExpression("SysML::Documentation"))));
-        Assert.False(FilterExpressionEvaluator.EvaluateForMetaclass(workspace, "Documentation", new ClassificationTestExpression("SysML::PartUsage")));
+            package Q { private import P::**[@P::Safety]; part def User; }
+            """);
+
+        // Act
+        var resolver = FilterExpressionEvaluator.CreateNameResolver(workspace);
+
+        // Assert: Engine carries @Safety, Housing does not
+        Assert.Equal("P::Engine", resolver.Resolve("Engine", "Q::User"));
+        Assert.Null(resolver.Resolve("Housing", "Q::User"));
     }
 
     /// <summary>A classification test matches only candidates carrying the referenced metadata annotation.</summary>
@@ -383,4 +385,24 @@ public sealed class FilterExpressionEvaluatorTests
             part def RequirementUsage;
         }
         """;
+
+    /// <summary>
+    ///     An element known only by its metaclass (e.g. a <c>doc</c>, metaclass <c>Documentation</c>)
+    ///     satisfies classification tests for its metaclass and its general metaclasses
+    ///     (<c>Comment</c>), with either the <c>SysML::</c> or <c>KerML::</c> qualification, and
+    ///     boolean connectives combine them.
+    /// </summary>
+    [Fact]
+    public async Task EvaluateForMetaclass_Documentation_ConformsToCommentAndCombines()
+    {
+        // Arrange
+        var workspace = await LoadAsync(Source);
+
+        // Act / Assert
+        Assert.True(FilterExpressionEvaluator.EvaluateForMetaclass(workspace, "Documentation", new ClassificationTestExpression("SysML::Documentation")));
+        Assert.True(FilterExpressionEvaluator.EvaluateForMetaclass(workspace, "Documentation", new ClassificationTestExpression("KerML::Comment")));
+        Assert.False(FilterExpressionEvaluator.EvaluateForMetaclass(workspace, "Comment", new ClassificationTestExpression("SysML::Documentation")));
+        Assert.False(FilterExpressionEvaluator.EvaluateForMetaclass(workspace, "Documentation", new NotFilterExpression(new ClassificationTestExpression("SysML::Documentation"))));
+        Assert.False(FilterExpressionEvaluator.EvaluateForMetaclass(workspace, "Documentation", new ClassificationTestExpression("SysML::PartUsage")));
+    }
 }

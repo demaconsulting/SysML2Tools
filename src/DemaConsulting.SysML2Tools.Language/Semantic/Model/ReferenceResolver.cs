@@ -10,6 +10,9 @@ namespace DemaConsulting.SysML2Tools.Semantic.Model;
 /// </summary>
 internal sealed class ReferenceResolver
 {
+    /// <summary>Maximum number of chained aliases followed when resolving one reference.</summary>
+    private const int MaxAliasDepth = 8;
+
     /// <summary>
     ///     The symbol table used to check whether supertype names are registered.
     /// </summary>
@@ -19,6 +22,9 @@ internal sealed class ReferenceResolver
     ///     The shared diagnostics list to which Warning entries are appended.
     /// </summary>
     private readonly List<SysmlDiagnostic> _diagnostics;
+
+    /// <summary>Number of aliases currently being followed, guarding against alias cycles.</summary>
+    private int _aliasDepth;
 
     /// <summary>
     ///     Initializes a new instance of <see cref="ReferenceResolver"/> with the given symbol
@@ -407,8 +413,12 @@ internal sealed class ReferenceResolver
         IReadOnlyList<SysmlImportNode> imports,
         out string resolvedName)
     {
-        // Step 1: Direct lookup — handles already-qualified names
-        if (_symbolTable.Contains(name))
+        // Step 1: Direct lookup — handles already-qualified names. A simple name is looked up in
+        // the global namespace only after the enclosing namespaces and imports (Steps 2-4), per
+        // KerML 8.2.3.5.4 full resolution (local resolution outward before the global namespace),
+        // so e.g. a local `Base` is not shadowed by the standard library's top-level `Base` package.
+        var isQualified = name.Contains("::", StringComparison.Ordinal);
+        if (isQualified && _symbolTable.Contains(name))
         {
             resolvedName = name;
             return true;
@@ -423,6 +433,15 @@ internal sealed class ReferenceResolver
             if (_symbolTable.Contains(candidate))
             {
                 resolvedName = candidate;
+                return true;
+            }
+
+            // A local membership may also be named by its short name or be an alias
+            // (KerML 8.2.3.5.2 local resolution), which must win over any outer or global match.
+            if (!isQualified &&
+                TryResolveLocalShortNameOrAlias(name, prefix, namespaceStack.Take(i).ToList(), imports) is { } local)
+            {
+                resolvedName = local;
                 return true;
             }
         }
@@ -490,8 +509,59 @@ internal sealed class ReferenceResolver
             }
         }
 
+        // Step 5: Global namespace — a simple name naming a top-level element (see Step 1).
+        if (!isQualified && _symbolTable.Contains(name))
+        {
+            resolvedName = name;
+            return true;
+        }
+
         resolvedName = string.Empty;
         return false;
+    }
+
+    /// <summary>
+    ///     Finds an owned membership of <paramref name="namespaceName"/> whose short name is
+    ///     <paramref name="name"/>, or an alias member named (or short-named) <paramref name="name"/>,
+    ///     returning the member element's qualified name (an alias's target resolved from the
+    ///     namespace), or null when there is none.
+    /// </summary>
+    private string? TryResolveLocalShortNameOrAlias(
+        string name, string namespaceName, IReadOnlyList<string> namespaceStack, IReadOnlyList<SysmlImportNode> imports)
+    {
+        if (_symbolTable.Lookup(namespaceName) is not { } ns)
+        {
+            return null;
+        }
+
+        foreach (var child in ns.Children)
+        {
+            if (child is SysmlAliasNode alias && (alias.Name == name || alias.ShortName == name))
+            {
+                // An alias of an alias is followed at most a bounded number of times.
+                if (_aliasDepth < MaxAliasDepth)
+                {
+                    _aliasDepth++;
+                    try
+                    {
+                        if (TryResolve(alias.TargetName, namespaceStack, imports, out var target))
+                        {
+                            return target;
+                        }
+                    }
+                    finally
+                    {
+                        _aliasDepth--;
+                    }
+                }
+            }
+            else if (child is not SysmlImportNode && child.ShortName == name && child.QualifiedName is { Length: > 0 } qualified)
+            {
+                return qualified;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

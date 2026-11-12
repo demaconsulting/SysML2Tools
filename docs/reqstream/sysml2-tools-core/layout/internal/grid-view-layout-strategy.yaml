@@ -66,3 +66,15 @@ sections:
           default in both cases.
         tests:
           - GridView_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged
+
+      - id: SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-SameNamedSupertypes
+        title: >-
+          GridViewLayoutStrategy shall mark each row against the column of the definition its
+          supertype reference resolves to (the semantic model's resolved target, else KerML 8.2.3.5
+          name resolution from the definition's owning namespace, warning when only the bare
+          simple-name fallback matched), never the first same-named definition.
+        justification: |
+          A specialization matrix that marks a same-named definition in another package
+          misreports the model's specialization structure.
+        tests:
+          - GridView_BuildLayout_SameNamedSupertypes_MarkOwnPackagesColumn

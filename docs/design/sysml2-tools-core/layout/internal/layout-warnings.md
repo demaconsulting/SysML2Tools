@@ -46,6 +46,13 @@ parse or evaluate (Phase 2a):
    failed expression text, appending the reason parenthetically when present, and stating that the
    exposed path falls back to its whole containment subtree.
 
+###### `ForSimpleNameFallback(viewName, reference, localNamespace, chosen, candidates)`
+
+Returns the warning for a reference that did not resolve by KerML 8.2.3.5 name resolution and was
+matched only by the bare simple-name fallback: it names the reference, the namespace it was
+resolved from, the chosen element, and — when more than one declaration matched — every candidate,
+and advises qualifying the reference or adding an import.
+
 ##### Error Handling
 
 N/A - the method performs no validation and does not throw; a non-positive count or empty failure

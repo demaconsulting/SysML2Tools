@@ -110,4 +110,22 @@ public sealed class LayoutWarningsTests
 
         Assert.Equal(2, warnings.Count);
     }
+
+    /// <summary>
+    ///     The simple-name-fallback warning names the reference, its namespace, the chosen element,
+    ///     and — when ambiguous — every candidate.
+    /// </summary>
+    [Fact]
+    public void ForSimpleNameFallback_Ambiguous_ListsEveryCandidate()
+    {
+        // Act
+        var message = LayoutWarnings.ForSimpleNameFallback("V", "Checker", "App::Sys", "A::Checker", ["A::Checker", "B::Checker"]);
+
+        // Assert
+        Assert.Contains("'Checker'", message);
+        Assert.Contains("'App::Sys'", message);
+        Assert.Contains("'A::Checker'", message);
+        Assert.Contains("'B::Checker'", message);
+        Assert.Contains("ambiguous", message);
+    }
 }

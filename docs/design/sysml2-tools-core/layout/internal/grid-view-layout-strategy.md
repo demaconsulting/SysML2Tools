@@ -11,7 +11,12 @@ definitions and their supertype references into a positioned `LayoutTree`.
 
 The strategy is a stateless `ILayoutStrategy`. Inputs are a `ViewContext` (carrying the
 `SysmlWorkspace`) and `RenderOptions` (carrying the `Theme`). It uses a private `DefRow` record
-holding a definition's qualified name, its simple name, and its supertype references. Output is a
+holding a definition's qualified name, its simple name, and the qualified names its supertype
+references resolve to (`ResolveSupertypes`: the semantic model's resolved `Supertype` target,
+re-checked with `NameResolver.Recheck`, else
+KerML 8.2.3.5 name resolution via `FilterExpressionEvaluator.CreateNameResolver` relative to the
+definition's owning namespace, warning via `LayoutWarnings.ForSimpleNameFallback` when only the
+bare simple-name fallback matched). Output is a
 `LayoutTree` containing a single `LayoutGrid` of `LayoutGridRow` and `LayoutGridCell` values.
 
 ##### Key Methods
@@ -24,14 +29,14 @@ Builds the matrix:
    scope once (or `null` when none applies).
 2. **Definition collection.** `CollectDefinitions` gathers the non-stdlib definitions in
    deterministic (ordinal qualified-name) order, narrowed by the relation-preserving rule
-   described in *Expose Scoping* below when a scope was resolved. An index map from simple name to
+   described in *Expose Scoping* below when a scope was resolved. An index map from qualified name to
    column is built from the (possibly narrowed) set.
 3. **Sizing.** Row height derives from the body font size and label padding; the header column width
    and the data column width derive from `MaxLabelWidth`, the widest definition label.
 4. **Header row.** An empty corner cell is followed by one centered header cell per definition.
 5. **Data rows.** For each row definition, a left-aligned header cell carries its name, then one
    cell per column carries the mark where `ResolveSupertypeIndices` reports that the row definition
-   specializes the column definition (matching supertype references to columns by simple name) and
+   specializes the column definition (matching resolved supertype qualified names to columns) and
    an empty cell otherwise.
 6. **Assembly.** The rows are wrapped in a `LayoutGrid` positioned with a small padding offset, and
    the overall canvas width and height are computed from the column counts and sizes.

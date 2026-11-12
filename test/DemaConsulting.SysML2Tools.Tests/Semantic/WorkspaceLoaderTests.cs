@@ -3834,12 +3834,11 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
-    ///     A view captures every owned <c>filter</c> view condition in source order, and a view
-    ///     usage's view definition (<c>view V : Def</c>) is captured and resolved into a
-    ///     <c>Typing</c> edge (SysML 7.26.2).
+    ///     AstBuilder records each membership's declared visibility (public by default; imports
+    ///     private by default), short name, and alias memberships with their target text.
     /// </summary>
     [Fact]
-    public async Task WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured()
+    public async Task WorkspaceLoader_LoadAsync_VisibilityShortNameAndAlias_Captured()
     {
         // Arrange
         var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
@@ -3847,9 +3846,62 @@ public sealed class WorkspaceLoaderTests
         {
             await File.WriteAllTextAsync(tempFile, """
                 package P {
-                    part def A;
-                    view def Def { filter @SysML::PartUsage; filter not @SysML::Documentation; }
-                    view V : Def { expose A; }
+                    private part def <h> Hidden;
+                    part def Shown;
+                    import Other::*;
+                    public import Other::Thing;
+                    alias ShownAlias for Shown;
+                    private alias HiddenAlias for Shown;
+                }
+                package Other { part def Thing; }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var hidden = result.Workspace.Declarations["P::Hidden"];
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlVisibility.Private, hidden.Visibility);
+            Assert.Equal("h", hidden.ShortName);
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlVisibility.Public, result.Workspace.Declarations["P::Shown"].Visibility);
+            var imports = result.Workspace.Declarations["P"].Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlImportNode>().ToList();
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlVisibility.Private, imports[0].Visibility);
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlVisibility.Public, imports[1].Visibility);
+            var aliases = result.Workspace.Declarations["P"].Children
+                .OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlAliasNode>().ToList();
+            Assert.Equal(["ShownAlias", "HiddenAlias"], aliases.Select(a => a.Name));
+            Assert.Equal("Shown", aliases[0].TargetName);
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlVisibility.Public, aliases[0].Visibility);
+            Assert.Equal(DemaConsulting.SysML2Tools.Semantic.Model.SysmlVisibility.Private, aliases[1].Visibility);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A simple name that is a local member's short name or a local alias resolves to that
+    ///     member (KerML 8.2.3.5.2 local resolution) rather than to a same-named top-level element.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_LocalShortNameAndAlias_WinOverGlobalNames()
+    {
+        // Arrange: top-level k and K2 would win if local short names and aliases were ignored
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                part def k;
+                part def K2;
+                package P {
+                    part def <k> Kind;
+                    alias K2 for Kind;
+                    part def A :> k;
+                    part def B :> K2;
                 }
                 """, TestContext.Current.CancellationToken);
 
@@ -3859,12 +3911,79 @@ public sealed class WorkspaceLoaderTests
 
             // Assert
             Assert.NotNull(result.Workspace);
-            var def = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(result.Workspace.Declarations["P::Def"]);
-            Assert.Equal(["@SysML::PartUsage", "not @SysML::Documentation"], def.FilterExpressionTexts);
-            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(result.Workspace.Declarations["P::V"]);
-            Assert.Equal("Def", view.ViewDefinitionName);
-            Assert.Contains(view.ResolvedEdges, e =>
-                e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Typing && e.TargetQualifiedName == "P::Def");
+            string SupertypeOf(string name) => Assert.Single(
+                result.Workspace.Declarations[name].ResolvedEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Supertype).TargetQualifiedName;
+            Assert.Equal("P::Kind", SupertypeOf("P::A"));
+            Assert.Equal("P::Kind", SupertypeOf("P::B"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A simple name declared in an enclosing namespace resolves there before a same-named
+    ///     top-level element of another root namespace (here the standard library's <c>Base</c>
+    ///     package), per KerML 8.2.3.5.4 full resolution.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_LocalNameShadowsGlobalLibraryName_ResolvesLocal()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P { part def Base; part def Derived :> Base; }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var edge = Assert.Single(
+                result.Workspace.Declarations["P::Derived"].ResolvedEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Supertype);
+            Assert.Equal("P::Base", edge.TargetQualifiedName);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     When sibling packages each define and use a part def with the same simple name, each
+    ///     usage's typing resolves to the definition in its own owning package (SysML v2 lexical
+    ///     scoping), not to the first same-named definition in the workspace.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SameNamedDefsInSiblingPackages_ResolveToOwningPackage()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package PkgA { part def Checker; part def SystemA { part checker : Checker; } }
+                package PkgB { part def Checker; part def SystemB { part checker : Checker; } }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert: each usage's Typing edge targets its own package's Checker
+            Assert.NotNull(result.Workspace);
+            string TypeOf(string usage) => Assert.Single(
+                result.Workspace.Declarations[usage].ResolvedEdges,
+                e => e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Typing).TargetQualifiedName;
+            Assert.Equal("PkgA::Checker", TypeOf("PkgA::SystemA::checker"));
+            Assert.Equal("PkgB::Checker", TypeOf("PkgB::SystemB::checker"));
         }
         finally
         {
@@ -4971,6 +5090,45 @@ public sealed class WorkspaceLoaderTests
         Assert.True(workspace.Declarations.TryGetValue(qualifiedName, out var node), $"Missing {qualifiedName}");
         var def = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(node);
         Assert.Equal(expectedKeyword, def.DefinitionKeyword);
+    }
+
+    /// <summary>
+    ///     A view captures every owned <c>filter</c> view condition in source order, and a view
+    ///     usage's view definition (<c>view V : Def</c>) is captured and resolved into a
+    ///     <c>Typing</c> edge (SysML 7.26.2).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def A;
+                    view def Def { filter @SysML::PartUsage; filter not @SysML::Documentation; }
+                    view V : Def { expose A; }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var def = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(result.Workspace.Declarations["P::Def"]);
+            Assert.Equal(["@SysML::PartUsage", "not @SysML::Documentation"], def.FilterExpressionTexts);
+            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(result.Workspace.Declarations["P::V"]);
+            Assert.Equal("Def", view.ViewDefinitionName);
+            Assert.Contains(view.ResolvedEdges, e =>
+                e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Typing && e.TargetQualifiedName == "P::Def");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
     }
 }
 

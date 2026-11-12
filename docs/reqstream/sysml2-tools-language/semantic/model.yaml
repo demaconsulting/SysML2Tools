@@ -21,6 +21,8 @@ sections:
           - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewRenderTarget
           - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewExposedNames
           - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewFilterExpression
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-MembershipVisibilityAndAliases
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-MembershipVisibilityAndAliases
           - SysML2Tools-Language-Semantic-Model-SysmlNode-ViewConditionsAndDefinition
           - SysML2Tools-Language-Semantic-Model-SysmlNode-RedefinedFeatureName
           - SysML2Tools-Language-Semantic-Model-SysmlMetadataNode-CaptureForms
@@ -68,6 +70,13 @@ sections:
           - SysML2Tools-Language-Semantic-Model-SysmlMetadataNode-UnresolvedTypeWarning
           - SysML2Tools-Language-Semantic-Model-SymbolTable-Lookup
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-Resolve
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-OwningNamespaceFirst
+          - SysML2Tools-Language-Semantic-Model-NameResolver-FullResolution
+          - SysML2Tools-Language-Semantic-Model-NameResolver-LocalResolution
+          - SysML2Tools-Language-Semantic-Model-NameResolver-VisibleResolution
+          - SysML2Tools-Language-Semantic-Model-NameResolver-RedefinedFeature
+          - SysML2Tools-Language-Semantic-Model-NameResolver-Recheck
+          - SysML2Tools-Language-Semantic-Model-NameResolver-FlaggedFallback
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewDefinitionTyping
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-CircularImport
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewExposeResolution
