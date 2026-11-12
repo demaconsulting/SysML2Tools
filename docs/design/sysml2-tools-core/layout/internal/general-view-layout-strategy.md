@@ -174,6 +174,12 @@ because an intermediate ancestor between it and the nearest rendered box was its
 Definitions (`DefBox.IsUsage` is `false`) are never excluded by this rule, preserving all
 pre-Phase-2d definition-rendering behavior.
 
+Known limitation: a usage removed by this rule appears only as its parent's compartment row, so
+its own exposed `doc` compartment and `comment` note are not drawn (comments were already lost
+this way before view conditions applied to annotations). Documentation of such a nested usage is
+visible when the usage is itself rendered as a box, for example when the view exposes it directly
+or a view condition excludes its parent.
+
 This exists because `CollectDefinitions`'s usage-level widening (Phase 2d) admits every named
 usage regardless of nesting depth — necessary so a metaclass-kind filter like
 `filter @SysML::PartUsage;` has a complete candidate pool to narrow — but that superset, if

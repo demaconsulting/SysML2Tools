@@ -363,13 +363,12 @@ public sealed class SysmlViewNode : SysmlNode
         Array.Empty<(ExposeMember Member, string ResolvedQualifiedName)>();
 
     /// <summary>
-    ///     Gets the raw source text of this view's <c>filter [&lt;expression&gt;];</c> statement
-    ///     (from <c>elementFilterMember().ownedExpression().GetText()</c>), or
-    ///     <see langword="null"/> when the view declares no filter member. Captured verbatim only
-    ///     — no expression tree is built and no evaluation is performed; a non-null value causes
-    ///     <c>GeneralViewLayoutStrategy</c> to emit a "not yet evaluated" warning while still
-    ///     rendering the (unfiltered) resolved scope. Full filter-expression evaluation is
-    ///     deferred future work — see the project ROADMAP.
+    ///     Gets the raw source text of this view's first <c>filter [&lt;expression&gt;];</c>
+    ///     member, or <see langword="null"/> when the view declares no filter member. Kept as a
+    ///     first-filter compatibility value (and as the single condition carried by synthesized
+    ///     dynamic views); <see cref="FilterExpressionTexts"/> holds every condition. Layout
+    ///     strategies parse and evaluate all of the view's own and inherited conditions, reporting
+    ///     a warning only for a condition that cannot be parsed or evaluated.
     /// </summary>
     public string? FilterExpressionText { get; init; }
 
