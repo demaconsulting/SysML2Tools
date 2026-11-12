@@ -285,9 +285,10 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedSpecificityTieBreak
         title: >-
-          When more than one candidate root is relevant to the resolved expose scope,
-          InterconnectionViewLayoutStrategy shall select the most specific (deepest-qualified-name)
-          relevant candidate, using its connections/parts heuristic only to break ties among
+          When more than one candidate root is relevant to the resolved expose scope and they are
+          not independent composition roots, InterconnectionViewLayoutStrategy shall select the
+          most specific (deepest-qualified-name) relevant candidate, using its connections/parts
+          heuristic only to break ties among
           equally specific candidates.
         justification: |
           Because SysML v2 definitions may nest, an ancestor definition and a nested descendant
@@ -297,7 +298,21 @@ sections:
           defeating the intended scoping.
         tests:
           - InterconnectionView_BuildLayout_ExposeInnerPartOfNestedDefinition_SelectsNestedDefinitionNotAncestor
-          - InterconnectionView_BuildLayout_ExposeBothSameDepthSiblings_ScoreBreaksTieNotLength
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-MultipleRoots
+        title: >-
+          When the resolved expose scope makes more than one independent composition root relevant,
+          InterconnectionViewLayoutStrategy shall draw every such root as its own container box, side
+          by side in declaration order with aligned tops, each holding only its own parts.
+        justification: |
+          SysML v2.1 Beta 2 8.2.3.11 defines the interconnection view as a repeated list of
+          interconnection elements, so a view exposing several systems (`expose A::**; expose B::**;`)
+          must show all of them rather than silently drawing only the first. A root that is merely a
+          namespace ancestor of another relevant root is not drawn separately, and a single root is
+          laid out exactly as before.
+        tests:
+          - InterconnectionView_BuildLayout_ExposeTwoIndependentRoots_DrawsBothSideBySide
+          - InterconnectionView_BuildLayout_ExposeInnerPartOfNestedDefinition_SelectsNestedDefinitionNotAncestor
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PortTitleCollisionAvoidance
         title: >-

@@ -53,7 +53,7 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// Not every resolved <c>expose</c> scope names a single <c>part def</c> worth treating as "the"
 /// subject: per SysML v2 §8.3.26.11/§9.2.20.2.6, an InterconnectionView's exposed content can be one
 /// or more concrete feature usages directly, with no enclosing definition of its own. When
-/// <see cref="FindRoot"/> selects no root but the scope directly includes one or more top-level
+/// <see cref="FindRoots"/> selects no root but the scope directly includes one or more top-level
 /// <c>part</c> feature usages, those features are rendered as boxless nodes side by side (via
 /// <see cref="CollectTopLevelScopedParts"/>) instead of the diagram falling back to an empty canvas
 /// — each one recursing into its own interior exactly as a normal nested container part would,
@@ -138,12 +138,18 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         var scope = ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode);
 
         // Index of candidate container definitions (non-stdlib part defs with at least one part child).
-        // Built before FindRoot so root-selection can resolve which candidates are themselves used as
-        // another candidate's nested part type (see FindRoot's composition-graph-root preference).
+        // Built before FindRoots so root-selection can resolve which candidates are themselves used as
+        // another candidate's nested part type (see FindRoots' composition-graph-root preference).
         var defsByName = BuildDefinitionIndex(context.Workspace);
 
-        // Choose the part definition whose internals to show.
-        var root = FindRoot(context.Workspace, scope, defsByName);
+        // Choose the part definition(s) whose internals to show.
+        var roots = FindRoots(context.Workspace, scope, defsByName);
+        if (roots.Count > 1)
+        {
+            return LayOutRootsSideBySide(roots, theme, defsByName, scope);
+        }
+
+        var root = roots.Count == 1 ? roots[0] : null;
         if (root is null)
         {
             // No single part def qualifies as "the" root. Per SysML v2 §8.3.26.11/§9.2.20.2.6, an
@@ -177,7 +183,48 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             return new LayoutTree(200.0, 100.0, []);
         }
 
-        // Lay out the root's interior, recursing into any container parts.
+        var rootBox = BuildRootBox(root, theme, defsByName, scope);
+        return new LayoutTree(rootBox.Width, rootBox.Height, [rootBox]);
+    }
+
+    /// <summary>
+    /// Lays out several independently exposed root definitions side by side, left to right in
+    /// declaration order, separated by a fixed gap, with their tops aligned. SysML v2 §8.2.3.11
+    /// defines <c>interconnection-view</c> as a repeated list of interconnection elements, so a view
+    /// exposing several disjoint composition trees draws every root, not just one.
+    /// </summary>
+    private static LayoutTree LayOutRootsSideBySide(
+        IReadOnlyList<SysmlDefinitionNode> roots,
+        Theme theme,
+        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        ExposedScope? scope)
+    {
+        var gap = theme.LabelPadding * 6.0;
+        var nodes = new List<LayoutNode>();
+        var x = 0.0;
+        var height = 0.0;
+        foreach (var root in roots)
+        {
+            var rootBox = BuildRootBox(root, theme, defsByName, scope);
+            nodes.AddRange(TranslateNodes([rootBox], x, 0.0));
+            x += rootBox.Width + gap;
+            height = Math.Max(height, rootBox.Height);
+        }
+
+        return new LayoutTree(x - gap, height, nodes);
+    }
+
+    /// <summary>
+    /// Lays out one root definition's interior (recursing into container parts) and wraps it in
+    /// the root's container box at origin <c>(0, 0)</c>, the same origin the interior content is
+    /// positioned relative to, so the content nests directly as the box's children.
+    /// </summary>
+    private static LayoutBox BuildRootBox(
+        SysmlDefinitionNode root,
+        Theme theme,
+        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        ExposedScope? scope)
+    {
         var visited = new HashSet<string>(StringComparer.Ordinal);
         if (root.QualifiedName is { Length: > 0 })
         {
@@ -186,11 +233,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
         var interior = LayOutInterior(root, theme, depth: 0, defsByName, visited, scope, ancestorUnlimitedRecursion: null);
 
-        // Container box for the root part definition. The root sits at the same origin (0, 0)
-        // that interior.Content is already positioned relative to, so the interior content is
-        // nested directly as this box's Children (mirroring MakePartBox's own nesting pattern)
-        // with no translation needed.
-        var rootBox = new LayoutBox(
+        return new LayoutBox(
             X: 0,
             Y: 0,
             Width: interior.Width,
@@ -201,8 +244,6 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             Compartments: [],
             Children: interior.Content,
             Keyword: string.IsNullOrEmpty(root.DefinitionKeyword) ? "part def" : root.DefinitionKeyword);
-
-        return new LayoutTree(interior.Width, interior.Height, [rootBox]);
     }
 
     /// <summary>
@@ -422,17 +463,19 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// actually identifies "the" root — a plain specificity/qualified-name-depth comparison cannot,
     /// since sibling leaf definitions are equally specific to each other regardless of which one
     /// happens to be the true top of the tree. When one or more candidates qualify as composition-graph
-    /// roots — including the case of several disjoint composition trees all independently exposed at
-    /// once — selection narrows to just that set, and ties among them (or among the full candidate
+    /// roots, selection narrows to just that set, and ties among them (or among the full candidate
     /// set, when none qualify — e.g. a cyclic composition graph where every candidate is someone's
     /// child) are broken by specificity (deepest/longest qualified name wins) via
     /// <see cref="ExposeScopeResolver.IsMoreSpecificCandidate"/>, with the connections/parts heuristic
     /// used only to break ties between equally specific candidates. When no candidate is
     /// scope-relevant, no root is chosen (an empty canvas results, matching the existing null-root
     /// path). When <paramref name="scope"/> is <see langword="null"/>, selection is the plain
-    /// connections/parts heuristic, unchanged.
+    /// connections/parts heuristic, unchanged. When <paramref name="scope"/> is non-null and more
+    /// than one candidate qualifies as a composition-graph root — ignoring any that is merely a
+    /// namespace ancestor of another — every one of them is returned, in declaration order, so
+    /// independently exposed systems are all drawn (SysML v2 §8.2.3.11).
     /// </summary>
-    private static SysmlDefinitionNode? FindRoot(
+    private static IReadOnlyList<SysmlDefinitionNode> FindRoots(
         SysmlWorkspace workspace,
         ExposedScope? scope,
         IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName)
@@ -462,7 +505,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
         if (candidates.Count == 0)
         {
-            return null;
+            return [];
         }
 
         // Every candidate that some other candidate's own nested part feature resolves to as its
@@ -489,6 +532,19 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         // qualify as "unused," and could then win the specificity tie-break below purely by having
         // a longer qualified name, even though it has no interior worth rendering at all.
         var topCandidates = candidates.Where(c => c.Parts > 0 && !usedAsChildType.Contains(c.QualifiedName)).ToList();
+        if (scope is not null)
+        {
+            // An ancestor is only relevant because it contains a more specific exposed root, so
+            // only the most specific of nested candidates is drawn as its own root.
+            var independentRoots = topCandidates
+                .Where(c => !topCandidates.Any(d => d.QualifiedName.StartsWith(c.QualifiedName + "::", StringComparison.Ordinal)))
+                .ToList();
+            if (independentRoots.Count > 1)
+            {
+                return independentRoots.Select(c => c.Def).ToList();
+            }
+        }
+
         var pool = topCandidates.Count > 0 ? topCandidates : candidates;
 
         SysmlDefinitionNode? best = null;
@@ -512,7 +568,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             }
         }
 
-        return best;
+        return best is null ? [] : [best];
     }
 
     /// <summary>
@@ -668,7 +724,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Collects every top-level <c>part</c> feature usage the resolved <c>expose</c> scope directly
-    /// includes, for the no-single-root fallback path: <see cref="FindRoot"/> found no <c>part def</c>
+    /// includes, for the no-single-root fallback path: <see cref="FindRoots"/> found no <c>part def</c>
     /// worth rendering as a container, but the scope itself names one or more concrete features to
     /// draw. Per SysML v2 spec §9.2.20.2.6 ("exposed features as nodes, nested features as nested
     /// nodes") and §8.3.26.11 (an InterconnectionView's subject need not be a single definition),
