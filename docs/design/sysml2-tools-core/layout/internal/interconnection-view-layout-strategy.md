@@ -218,9 +218,17 @@ node by its parent, which is laid out with the **same** flat placement.
 - **Container detection.** `BuildDefinitionIndex` builds a `Dictionary<string, SysmlDefinitionNode>`
   of candidate containers — non-standard-library `part def`s that have at least one nested `part`
   usage — keyed by both qualified and simple name (qualified preferred). For each part,
-  `CollectParts` resolves its `FeatureTyping` against that index by qualified-then-simple name
-  (`TryResolveContainer`); a part whose type resolves to a container, and whose type is not already
-  on the recursion path, is a container, and every other part is a leaf.
+  `CollectParts` resolves its type against that index (`TryResolveContainer` → `ResolveByTyping`):
+  first via the part's resolved `Typing` edge from the semantic model, re-checked with
+  `NameResolver.Recheck` so a different element found by KerML resolution wins (a target that
+  is not a container makes the part a leaf — it never falls back to a same-named container
+  elsewhere); otherwise by KerML 8.2.3.5 name resolution of the raw `FeatureTyping` text relative to the part's
+  owning namespace (the private `DefinitionIndex` wraps the container map and a `NameResolver`
+  from `FilterExpressionEvaluator.CreateNameResolver`), and only then by the bare simple-name
+  fallback, which records a `LayoutWarnings.ForSimpleNameFallback` warning on the returned tree. A part whose type resolves
+  to a container, and whose type is not already
+  on the recursion path, is a container, and every other part is a leaf. `FindRoot`'s
+  composition-graph check uses the same `ResolveByTyping`.
 - **Recursion.** A container part is laid out by calling `LayOutInterior` on its type definition at
   `depth + 1`, with the type's qualified name added to a `visited` set — but only when this
   branch's own decided `unlimitedRecursion` value is `true` (see _Per-Branch Depth-Limited

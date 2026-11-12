@@ -152,6 +152,16 @@ sections:
           - Evaluate_ClassificationTest_AppliedAnnotationMatchingUnaffectedByMetaclassKindAddition
           - Evaluate_MetaclassKind_SpecializationConformance_MatchesAncestorMetaclass
 
+      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-FilteredImportNameResolution
+        title: >-
+          FilterExpressionEvaluator shall provide a name resolver whose filtered imports
+          (`import P::**[expr];`) admit only the elements that satisfy the import's filter condition.
+        justification: |
+          SysML 7.5.4: a filtered import imports a membership only if it satisfies all the given
+          filter conditions, so name resolution through it must honor the same conditions.
+        tests:
+          - CreateNameResolver_FilteredImport_AdmitsOnlyMatchingElements
+
       - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-MetaclassEvaluation
         title: >-
           FilterExpressionEvaluator shall evaluate a filter expression for an element known only by

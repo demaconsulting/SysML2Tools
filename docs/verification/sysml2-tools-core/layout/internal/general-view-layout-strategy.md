@@ -280,6 +280,17 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_MultipleAnnotations_ProduceOneNoteBox`:
   A definition with multiple `Comment` annotations gets exactly one note box, with
   every comment's text concatenated into it
+- `GeneralViewLayoutStrategy_BuildLayout_SameNamedDefsInSiblingPackages_WiresEachToItsOwn`:
+  Three sibling packages each defining and using a same-named `Checker` part def render three
+  `Checker` boxes, and each package folder holds exactly one filled-diamond membership edge between
+  its own two boxes (no cross-package wiring to the first same-named definition)
+- `GeneralViewLayoutStrategy_BuildLayout_SimpleNameFallback_ReportsWarning`:
+  A type reference that does not resolve by SysML v2 name resolution reports a warning naming it
+- `GeneralViewLayoutStrategy_BuildLayout_UnrenderedQualifiedEndpoint_IsNotMappedBySimpleName`:
+  A dependency endpoint outside the exposed scope is not re-mapped to a same-named rendered box
+- `GeneralViewLayoutStrategy_BuildLayout_FallbackToUnrenderedTarget_StillReportsWarning`:
+  Type, subsetting, and redefinition references matched only by simple name to elements outside
+  the exposed scope are each still reported
 - `GeneralViewLayoutStrategy_BuildLayout_DocumentationByDefault_RendersWrappedDocCompartment`:
   By default the definition's box carries a `doc` compartment whose rows preserve every word, wrap
   onto several rows, and each fit within the box width; the comment note is drawn and the doc

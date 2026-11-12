@@ -89,3 +89,14 @@ sections:
           how to also show the members without implying the model is wrong.
         tests:
           - ForLonePackageExpose_TwoPackages_SuggestsRecursiveExposeForEach
+
+      - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings-SimpleNameFallback
+        title: >-
+          LayoutWarnings shall produce a warning naming a reference that matched only by the
+          simple-name fallback, its namespace, the chosen element, and every candidate when the
+          match was ambiguous.
+        justification: |
+          A fallback match is not standard SysML v2 name resolution; naming every candidate lets
+          the user qualify the reference or add the missing import.
+        tests:
+          - ForSimpleNameFallback_Ambiguous_ListsEveryCandidate

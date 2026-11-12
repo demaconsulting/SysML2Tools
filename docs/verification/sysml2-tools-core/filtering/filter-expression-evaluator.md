@@ -114,6 +114,9 @@ SDK and the repository's committed SysML fixtures.
   instead of exceptions
 - `Evaluate_ClassificationTest_MatchesOnlyAnnotatedCandidates` — only candidates carrying the
   requested metadata annotation match
+- `CreateNameResolver_FilteredImport_AdmitsOnlyMatchingElements` — a name resolves through a
+  filtered import only when the imported element satisfies the import's filter condition
+
 - `EvaluateForMetaclass_Documentation_ConformsToCommentAndCombines` — documentation matches
   `@SysML::Documentation`, `@KerML::Comment`, and boolean combinations, but not `@SysML::PartUsage`
 - `Evaluate_BareAttributeRead_TrueOnlyWhenBooleanValueTrue` — bare attribute reads are true only

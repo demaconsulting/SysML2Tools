@@ -239,6 +239,29 @@ than a membership diamond, and it connects otherwise-disconnected attribute and 
 definitions into the cluster near the definitions that reference them. Unresolved types and
 self-references are skipped.
 
+**Resolving a reference to a box (`TypeResolver`).** Because packages may reuse a simple name for
+distinct definitions, every reference is resolved in this order: (1) the semantic model's
+already-resolved target — a membership's `FeatureMembership.ResolvedTypeName` (the feature's own
+`Typing` edge) via `TryResolveMemberType`, or the definition's own `Supertype` edge whose target is,
+or ends with, the raw reference via `TryResolveSupertype` — re-checked with `NameResolver.Recheck`,
+so a different element found by KerML resolution (e.g. through the referencing namespace's own
+imports) wins; otherwise (2) KerML 1.1 Beta 2
+8.2.3.5 name resolution through the Language `NameResolver` (created by
+`FilterExpressionEvaluator.CreateNameResolver`, so filtered imports honor their conditions):
+owned, imported, and inherited memberships — including aliases and short names — of the local
+namespace, then outward to the global namespace, later qualified-name segments by visible
+(public-only) resolution. The local namespace follows KerML 8.2.3.5.2: a feature's type and a
+subsetted feature resolve relative to the feature's owning definition; a definition's supertype
+relative to the definition's owning namespace; a redefined feature against each general type of
+the owning definition (`ResolveRedefinitionOwner`, KerML 8.2.3.5.1). (3) Only when KerML
+resolution fails is the reference matched by bare simple name (for type, supertype, subsetted, and
+redefined references alike), and then a `LayoutWarnings.ForSimpleNameFallback` warning names the
+reference and every candidate instead of silently picking the first match. The warning is recorded
+before the match is checked against the rendered boxes, so a fallback to an element outside the
+exposed scope is still reported even though it draws no edge. Relationship endpoints from `workspace.Index` are already
+qualified, so `ResolveOwningBox` maps them only to the box with that exact qualified name or via
+the owning typed-feature walk — never by simple name.
+
 Each `ref`-keyword feature (previously rendered with an obsolete hollow-diamond membership marker —
 a bug fixed by this unit) instead contributes a **dependency** edge from the owner to the
 referenced type, sharing the exact same rendering (dashed line, open chevron, `EdgeKind.Dependency`)

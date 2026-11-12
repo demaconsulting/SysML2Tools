@@ -46,3 +46,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `ForUnevaluatedExposeBracketFilter_MultipleFailures_ReturnsOneWarningPerFailure` | One warning per failure |
 | `ForEmptyView_MultipleBarePackages_SuggestsRecursiveExposeForEach` | Names view; `::**` hint each |
 | `ForLonePackageExpose_TwoPackages_SuggestsRecursiveExposeForEach` | Info hint per package |
+| `ForSimpleNameFallback_Ambiguous_ListsEveryCandidate` | Fallback warning lists candidates |

@@ -2,9 +2,11 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // </copyright>
 
+using System.Diagnostics.CodeAnalysis;
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.Rendering.Layout;
+using DemaConsulting.SysML2Tools.Filtering;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -133,15 +135,24 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(options);
 
-        var theme = options.Theme;
-
-        var scope = ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode);
-
         // Index of candidate container definitions (non-stdlib part defs with at least one part child).
         // Built before FindRoots so root-selection can resolve which candidates are themselves used as
         // another candidate's nested part type (see FindRoots' composition-graph-root preference).
-        var defsByName = BuildDefinitionIndex(context.Workspace);
+        var defsByName = BuildDefinitionIndex(context.Workspace, context.ViewName);
+        var tree = BuildTree(context, options, defsByName);
 
+        // Surface any type reference that resolved only by the bare simple-name fallback.
+        return defsByName.Warnings.Count == 0
+            ? tree
+            : tree with { Warnings = [.. tree.Warnings, .. defsByName.Warnings] };
+    }
+
+    /// <summary>Builds the interconnection layout tree for <see cref="BuildLayout"/>.</summary>
+    private static LayoutTree BuildTree(ViewContext context, RenderOptions options, DefinitionIndex defsByName)
+    {
+        var theme = options.Theme;
+
+        var scope = ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode);
         // Choose the part definition(s) whose internals to show.
         var roots = FindRoots(context.Workspace, scope, defsByName);
         if (roots.Count > 1)
@@ -196,7 +207,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     private static LayoutTree LayOutRootsSideBySide(
         IReadOnlyList<SysmlDefinitionNode> roots,
         Theme theme,
-        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        DefinitionIndex defsByName,
         ExposedScope? scope)
     {
         var gap = theme.LabelPadding * 6.0;
@@ -222,7 +233,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     private static LayoutBox BuildRootBox(
         SysmlDefinitionNode root,
         Theme theme,
-        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        DefinitionIndex defsByName,
         ExposedScope? scope)
     {
         var visited = new HashSet<string>(StringComparer.Ordinal);
@@ -257,7 +268,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <param name="def">The definition whose interior to lay out.</param>
     /// <param name="theme">The active rendering theme.</param>
     /// <param name="depth">Nesting depth of this definition's container box (0 for the root).</param>
-    /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
+    /// <param name="defsByName">Container-definition index and type resolver.</param>
     /// <param name="visited">Qualified names already on the recursion path, guarding against cycles.</param>
     /// <param name="scope">
     /// The view's resolved <c>expose</c> containment-subtree scope, or null when no scoping applies.
@@ -275,7 +286,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         SysmlDefinitionNode def,
         Theme theme,
         int depth,
-        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        DefinitionIndex defsByName,
         ISet<string> visited,
         ExposedScope? scope,
         bool? ancestorUnlimitedRecursion)
@@ -478,7 +489,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     private static IReadOnlyList<SysmlDefinitionNode> FindRoots(
         SysmlWorkspace workspace,
         ExposedScope? scope,
-        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName)
+        DefinitionIndex defsByName)
     {
         var candidates = new List<(string QualifiedName, SysmlDefinitionNode Def, int Connections, int Parts)>();
         foreach (var (qualifiedName, node) in workspace.Declarations)
@@ -520,7 +531,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
                     continue;
                 }
 
-                if (ResolveByTyping(feature.FeatureTyping, defsByName)?.QualifiedName is { Length: > 0 } usedName)
+                if (ResolveByTyping(feature, defsByName)?.QualifiedName is { Length: > 0 } usedName)
                 {
                     usedAsChildType.Add(usedName);
                 }
@@ -599,7 +610,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <param name="root">The definition whose direct part children to collect.</param>
     /// <param name="theme">The active rendering theme.</param>
     /// <param name="depth">Nesting depth of this call (0 for the root definition's own children).</param>
-    /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
+    /// <param name="defsByName">Container-definition index and type resolver.</param>
     /// <param name="visited">Qualified names already on the recursion path, guarding against cycles.</param>
     /// <param name="scope">
     /// The view's resolved <c>expose</c> containment-subtree scope, or null when no scoping applies.
@@ -613,7 +624,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         SysmlDefinitionNode root,
         Theme theme,
         int depth,
-        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        DefinitionIndex defsByName,
         ISet<string> visited,
         ExposedScope? scope,
         bool? ancestorUnlimitedRecursion)
@@ -678,7 +689,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <param name="feature">The part feature usage to build a <see cref="PartItem"/> for.</param>
     /// <param name="theme">The active rendering theme.</param>
     /// <param name="depth">Nesting depth of the feature's own container box (0 for a top-level part).</param>
-    /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
+    /// <param name="defsByName">Container-definition index and type resolver.</param>
     /// <param name="visited">Qualified names already on the recursion path, guarding against cycles.</param>
     /// <param name="unlimitedRecursion">
     /// This branch's already-decided unlimited-recursion flag — computed once at depth 0 by
@@ -695,13 +706,13 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         SysmlFeatureNode feature,
         Theme theme,
         int depth,
-        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        DefinitionIndex defsByName,
         ISet<string> visited,
         bool unlimitedRecursion)
     {
         var name = feature.Name ?? feature.FeatureTyping ?? "part";
 
-        if (unlimitedRecursion && TryResolveContainer(feature.FeatureTyping, defsByName, visited, out var childDef))
+        if (unlimitedRecursion && TryResolveContainer(feature, defsByName, visited, out var childDef))
         {
             // Container part: lay out its interior bottom-up and treat it as an atomic node.
             // Scope is intentionally not carried into this recursive call — see the remarks on
@@ -734,7 +745,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <param name="workspace">The workspace, scanned for every non-stdlib <c>part</c> feature usage.</param>
     /// <param name="scope">The view's resolved <c>expose</c> containment-subtree scope.</param>
     /// <param name="theme">The active rendering theme.</param>
-    /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
+    /// <param name="defsByName">Container-definition index and type resolver.</param>
     /// <returns>
     /// The matched top-level parts paired with their owning definition's qualified name, each
     /// recursively laid out via <see cref="BuildPartItem"/> exactly as a normal nested container part
@@ -745,7 +756,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         SysmlWorkspace workspace,
         ExposedScope scope,
         Theme theme,
-        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName)
+        DefinitionIndex defsByName)
     {
         var matched = new List<SysmlFeatureNode>();
         foreach (var (qualifiedName, node) in workspace.Declarations)
@@ -830,7 +841,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// list position, matching the part ordering the caller lays out), then resolves each definition's
     /// own connections only against its own restricted, unambiguous index — never the flat union.
     /// </remarks>
-    /// <param name="defsByName">Container-definition index keyed by qualified and simple name.</param>
+    /// <param name="defsByName">Container-definition index and type resolver.</param>
     /// <param name="topLevelParts">
     /// The top-level parts collected by <see cref="CollectTopLevelScopedParts"/>, each paired with
     /// its owning definition's qualified name.
@@ -838,7 +849,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <param name="scope">The view's resolved <c>expose</c> containment-subtree scope.</param>
     /// <returns>The resolved connection pairs between top-level parts, if any.</returns>
     private static IReadOnlyList<ConnPair> ResolveTopLevelConnections(
-        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        DefinitionIndex defsByName,
         IReadOnlyList<TopLevelPart> topLevelParts,
         ExposedScope scope)
     {
@@ -894,12 +905,64 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Builds an index of candidate container definitions — non-standard-library <c>part def</c>s
-    /// that have at least one nested <c>part</c> usage — keyed by both qualified and simple name
-    /// (qualified preferred), mirroring the resolve-by-qualified-then-simple pattern used by the
-    /// General view strategy.
+    /// The candidate container definitions — non-standard-library <c>part def</c>s that have at
+    /// least one nested <c>part</c> usage — keyed by qualified name, together with the KerML
+    /// <see cref="NameResolver"/> used to resolve a part's type reference and the name-resolution
+    /// warnings collected while doing so.
     /// </summary>
-    private static IReadOnlyDictionary<string, SysmlDefinitionNode> BuildDefinitionIndex(SysmlWorkspace workspace)
+    private sealed class DefinitionIndex
+    {
+        private readonly Dictionary<string, SysmlDefinitionNode> _byQualifiedName;
+        private readonly NameResolver _resolver;
+        private readonly string _viewName;
+        private readonly List<string> _warnings = [];
+
+        /// <summary>Initializes the index.</summary>
+        public DefinitionIndex(Dictionary<string, SysmlDefinitionNode> byQualifiedName, NameResolver resolver, string viewName)
+        {
+            _byQualifiedName = byQualifiedName;
+            _resolver = resolver;
+            _viewName = viewName;
+        }
+
+        /// <summary>Gets every indexed container definition.</summary>
+        public IEnumerable<SysmlDefinitionNode> Values => _byQualifiedName.Values;
+
+        /// <summary>Gets the name-resolution warnings collected so far, without duplicates.</summary>
+        public IReadOnlyList<string> Warnings => _warnings;
+
+        /// <summary>Looks up a container definition by qualified name.</summary>
+        public bool TryGetValue(string qualifiedName, [MaybeNullWhen(false)] out SysmlDefinitionNode def) =>
+            _byQualifiedName.TryGetValue(qualifiedName, out def);
+
+        /// <summary>Re-checks a semantically resolved target (see <see cref="NameResolver.Recheck"/>).</summary>
+        public string Recheck(string semanticTarget, string reference, string? localNamespace) =>
+            _resolver.Recheck(semanticTarget, reference, localNamespace);
+
+        /// <summary>
+        /// Resolves a raw type reference relative to <paramref name="localNamespace"/> by KerML
+        /// name resolution, recording a warning when only the bare simple-name fallback matched.
+        /// </summary>
+        public string? Resolve(string reference, string? localNamespace)
+        {
+            var resolution = _resolver.ResolveWithFallback(reference, localNamespace);
+            if (resolution.IsSimpleNameFallback && resolution.QualifiedName is { } chosen)
+            {
+                var warning = LayoutWarnings.ForSimpleNameFallback(_viewName, reference, localNamespace, chosen, resolution.Candidates);
+                if (!_warnings.Contains(warning))
+                {
+                    _warnings.Add(warning);
+                }
+            }
+
+            return resolution.QualifiedName;
+        }
+    }
+
+    /// <summary>
+    /// Builds the <see cref="DefinitionIndex"/> of candidate container definitions.
+    /// </summary>
+    private static DefinitionIndex BuildDefinitionIndex(SysmlWorkspace workspace, string viewName)
     {
         var index = new Dictionary<string, SysmlDefinitionNode>(StringComparer.Ordinal);
         foreach (var (qualifiedName, node) in workspace.Declarations)
@@ -921,13 +984,9 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             }
 
             index.TryAdd(qualifiedName, def);
-            if (def.Name is { Length: > 0 })
-            {
-                index.TryAdd(def.Name, def);
-            }
         }
 
-        return index;
+        return new DefinitionIndex(index, FilterExpressionEvaluator.CreateNameResolver(workspace), viewName);
     }
 
     /// <summary>
@@ -936,13 +995,13 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// on the path — or does not resolve to a container — is treated as a leaf.
     /// </summary>
     private static bool TryResolveContainer(
-        string? typing,
-        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName,
+        SysmlFeatureNode feature,
+        DefinitionIndex defsByName,
         ISet<string> visited,
         out SysmlDefinitionNode childDef)
     {
         childDef = null!;
-        var def = ResolveByTyping(typing, defsByName);
+        var def = ResolveByTyping(feature, defsByName);
         if (def?.QualifiedName is null || visited.Contains(def.QualifiedName))
         {
             return false;
@@ -953,27 +1012,37 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Resolves a feature typing reference to its definition by qualified name, falling back to
-    /// simple (last-segment) name if no qualified match exists. Returns <see langword="null"/> if
-    /// neither form resolves.
+    /// Resolves a part feature's type to its container definition: first via the semantic model's
+    /// resolved <see cref="SysmlEdgeKind.Typing"/> edge, re-checked with
+    /// <see cref="NameResolver.Recheck"/>; otherwise by KerML 8.2.3.5 name resolution
+    /// of the raw typing text relative to the feature's owning namespace (owned, imported, and
+    /// inherited memberships, then outward), and only then by the warned bare simple-name
+    /// fallback. Returns <see langword="null"/> if nothing resolves to a container definition.
     /// </summary>
     private static SysmlDefinitionNode? ResolveByTyping(
-        string? typing,
-        IReadOnlyDictionary<string, SysmlDefinitionNode> defsByName)
+        SysmlFeatureNode feature,
+        DefinitionIndex defsByName)
     {
+        var typing = feature.FeatureTyping;
         if (string.IsNullOrEmpty(typing))
         {
             return null;
         }
 
-        if (defsByName.TryGetValue(typing, out var def))
-        {
-            return def;
-        }
+        // An authoritative resolution that is not a container means the part is a leaf; never
+        // fall back to a same-named container elsewhere in the workspace.
+        var owner = OwnerOf(feature.QualifiedName);
+        var resolved = feature.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Typing)?.TargetQualifiedName is { } semantic
+            ? defsByName.Recheck(semantic, typing, owner)
+            : defsByName.Resolve(typing, owner);
+        return resolved is not null && defsByName.TryGetValue(resolved, out var def) ? def : null;
+    }
 
-        var sep = typing.LastIndexOf("::", StringComparison.Ordinal);
-        var simple = sep >= 0 ? typing[(sep + 2)..] : typing;
-        return defsByName.TryGetValue(simple, out def) ? def : null;
+    /// <summary>Returns the owning namespace's qualified name (the prefix before the last <c>::</c>), or null.</summary>
+    private static string? OwnerOf(string? qualifiedName)
+    {
+        var sep = qualifiedName?.LastIndexOf("::", StringComparison.Ordinal) ?? -1;
+        return sep >= 0 ? qualifiedName![..sep] : null;
     }
 
     /// <summary>Builds a name → index lookup for the nested parts.</summary>

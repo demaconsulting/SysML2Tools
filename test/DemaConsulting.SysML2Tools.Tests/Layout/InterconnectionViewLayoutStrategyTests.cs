@@ -2093,6 +2093,93 @@ public sealed class InterconnectionViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     When two packages each define a container part def with the same simple name
+    ///     (<c>Inner</c>), a part typed <c>Inner</c> inside <c>PkgB::Outer</c> must expand to
+    ///     <c>PkgB::Inner</c>'s own interior, not to the first same-named <c>PkgA::Inner</c> found
+    ///     workspace-wide.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_SameNamedContainerDefs_ExpandsOwnPackagesDefinition()
+    {
+        // Arrange: PkgA::Inner (declared first) and PkgB::Inner have different interiors
+        const string sysml = """
+            package PkgA { part def Leaf; part def Inner { part a1 : Leaf; } }
+            package PkgB {
+                part def Leaf;
+                part def Inner { part b1 : Leaf; }
+                part def Outer { part inner : Inner; part other : Leaf; }
+                view OuterView { expose Outer::**; render asInterconnectionDiagram; }
+            }
+            """;
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = DemaConsulting.SysML2Tools.Stdlib.StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<SysmlViewNode>(result.Workspace.Declarations["PkgB::OuterView"]);
+            var context = new ViewContext("OuterView", result.Workspace, view);
+
+            // Act
+            var layout = new InterconnectionViewLayoutStrategy().BuildLayout(context, new RenderOptions(Themes.Light));
+
+            // Assert: the nested inner part shows PkgB::Inner's own b1 part, never PkgA's a1
+            var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+            Assert.Contains(labels, l => l?.StartsWith("b1", StringComparison.Ordinal) == true);
+            Assert.DoesNotContain(labels, l => l?.StartsWith("a1", StringComparison.Ordinal) == true);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A part typed through an import of its own package expands the definition that import
+    ///     brings in, even when another package in the same file imports a same-named definition
+    ///     first: the semantic typing is re-checked by KerML name resolution, which uses only the
+    ///     referencing namespace's imports.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_SameNamedImportsInOneFile_ExpandsOwnImportsDefinition()
+    {
+        // Arrange: UseA imports A::* (declared first); UseB imports B::*
+        const string sysml = """
+            package A { part def Leaf; part def Inner { part a1 : Leaf; } }
+            package B { part def Leaf; part def Inner { part b1 : Leaf; } }
+            package UseA { private import A::*; part def OuterA { part inner : Inner; } }
+            package UseB {
+                private import B::*;
+                part def OuterB { part inner : Inner; part other : Leaf; }
+                view OuterView { expose OuterB::**; render asInterconnectionDiagram; }
+            }
+            """;
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = DemaConsulting.SysML2Tools.Stdlib.StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<SysmlViewNode>(result.Workspace.Declarations["UseB::OuterView"]);
+            var context = new ViewContext("OuterView", result.Workspace, view);
+
+            // Act
+            var layout = new InterconnectionViewLayoutStrategy().BuildLayout(context, new RenderOptions(Themes.Light));
+
+            // Assert: the inner part shows B::Inner's own b1 part, never A::Inner's a1
+            var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+            Assert.Contains(labels, l => l?.StartsWith("b1", StringComparison.Ordinal) == true);
+            Assert.DoesNotContain(labels, l => l?.StartsWith("a1", StringComparison.Ordinal) == true);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     Determines whether either end of <paramref name="line"/>'s waypoints falls within
     ///     <paramref name="box"/>'s bounds (with a small tolerance for port placement on the box's
     ///     own border), used to identify which rendered box a connector actually terminates at.

@@ -485,6 +485,25 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_UnannotatedDefinition_EmitsNoNoteBox
           - GeneralViewLayoutStrategy_BuildLayout_MultipleAnnotations_ProduceOneNoteBox
 
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-SameNamedDefinitions
+        title: >-
+          GeneralViewLayoutStrategy shall attach each specialization, membership, typing,
+          redefinition, and subsetting edge to the definition the reference resolves to — the
+          semantic model's resolved target, else KerML 8.2.3.5 name resolution (redefined features
+          against the owning type's general types) — shall report a warning when only the bare
+          simple-name fallback matched, and shall map relationship endpoints that are already
+          qualified only to the box with that qualified name or its owning typed feature, never to a
+          same-named box elsewhere.
+        justification: |
+          Packages commonly reuse a simple name for distinct definitions. Wiring every usage to
+          the first same-named box drew one box connected to several unrelated systems plus
+          unconnected duplicates, misrepresenting the architecture.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_SameNamedDefsInSiblingPackages_WiresEachToItsOwn
+          - GeneralViewLayoutStrategy_BuildLayout_SimpleNameFallback_ReportsWarning
+          - GeneralViewLayoutStrategy_BuildLayout_UnrenderedQualifiedEndpoint_IsNotMappedBySimpleName
+          - GeneralViewLayoutStrategy_BuildLayout_FallbackToUnrenderedTarget_StillReportsWarning
+
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ViewConditions
         title: >-
           GeneralViewLayoutStrategy shall render an exposed element — a definition, usage, `doc`, or

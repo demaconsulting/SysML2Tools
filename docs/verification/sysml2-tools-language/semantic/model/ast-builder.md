@@ -114,6 +114,7 @@ external services or additional configuration are required beyond a standard .NE
 | `VisitViewDefinition` render | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | `VisitViewDefinition` filter capture | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
 | View declaration source location (`view def` and `view`) | `WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation` |
+| Visibility, short name, and alias capture | `WorkspaceLoader_LoadAsync_VisibilityShortNameAndAlias_Captured` |
 | View conditions and view definition | `WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured` |
 | `VisitViewUsage` expose capture | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | `VisitViewUsage` bracket-filter capture | `AstBuilder_ExposeBracketFilter_CapturesRawText` |

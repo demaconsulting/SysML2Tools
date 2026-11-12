@@ -29,6 +29,17 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation
 
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-MembershipVisibilityAndAliases
+        title: >-
+          AstBuilder shall record each package or definition body member's declared visibility
+          (public when omitted), each import's visibility (private when omitted, per KerML/SysML
+          import default) and `all` flag, each named member's short name, and each `alias` member.
+        justification: |
+          These are the inputs KerML 8.2.3.5 name resolution needs; capturing them at AST
+          construction, where the parse tree is available, avoids re-parsing later.
+        tests:
+          - WorkspaceLoader_LoadAsync_VisibilityShortNameAndAlias_Captured
+
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewConditionsAndDefinition
         title: >-
           AstBuilder shall capture every `filter` view condition of a `view def` or `view` usage in

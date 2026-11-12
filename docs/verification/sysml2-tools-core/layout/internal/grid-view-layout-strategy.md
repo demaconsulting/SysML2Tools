@@ -38,6 +38,7 @@ configuration are required beyond a standard .NET SDK installation.
 | Test | Assertion |
 | --- | --- |
 | `GridView_BuildLayout_Specialization_ProducesMarkedMatrix` | Grid has a header row and one specialization mark |
+| `GridView_BuildLayout_SameNamedSupertypes_MarkOwnPackagesColumn` | Same-named supertypes mark own package |
 | `BrowserAndGrid_BuildLayout_EmptyWorkspace_ReturnMinimalCanvas` | Empty workspace yields no nodes |
 | `GridView_BuildLayout_ExposedName_UnionsAdditionalSubtree` | Resolved `Expose` scopes the matrix to fewer rows |
 | `GridView_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged` | Null `ViewNode` renders all defs unchanged |

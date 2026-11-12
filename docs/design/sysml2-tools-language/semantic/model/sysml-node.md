@@ -174,6 +174,12 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   an equally flattened `ExposedNames` list, making it impossible to tell which exposed path a given
   bracket filter belonged to when a view declared more than one `expose` member; `ExposeMembers`
   fixes this defect by pairing the two (and now, the recursion kind) together at capture time.
+- `ShortName`, `Visibility` (on every node) — the element's declared short name
+  (`<shortName>`) and its membership's visibility (`SysmlVisibility.Public` by default, per KerML
+  7.2.5.3; for a `SysmlImportNode`, the import's own visibility, `Private` by default per SysML
+  7.5.3). `SysmlImportNode.IsImportAll` records `import all`. `SysmlAliasNode` represents an
+  `alias <s> N for Q;` membership (name, short name, raw `TargetName`); it has no qualified name
+  and is not registered in the symbol table. These feed `NameResolver` (KerML 8.2.3.5.3).
 - `FilterExpressionText` — the raw source text of the view's `filter [<expr>];` member's
   bracketed expression, or null when absent. Captured verbatim by `AstBuilder` (using the
   original token spacing, not `RuleContext.GetText()`'s whitespace-stripped form) and never

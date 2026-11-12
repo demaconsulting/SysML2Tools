@@ -25,6 +25,7 @@ sections:
           outside the supported Phase 1 boundary.
         children:
           - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-ClassificationTests
+          - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-FilteredImportNameResolution
           - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-MetaclassEvaluation
           - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-BooleanConnectives
           - SysML2Tools-Core-Filtering-FilterExpressionEvaluator-AttributeReads
