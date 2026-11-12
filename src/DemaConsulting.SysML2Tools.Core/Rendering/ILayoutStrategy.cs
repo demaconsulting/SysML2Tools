@@ -14,7 +14,7 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 /// </summary>
 /// <param name="ViewName">
 /// Name of the view being rendered — the display name resolved by
-/// <see cref="DiagramRenderer.RenderWorkspace"/> (the view's simple <c>Name</c> when set,
+/// <see cref="DiagramRenderer.RenderWorkspace(SysmlWorkspace, IRenderer, RenderOptions, string)"/> (the view's simple <c>Name</c> when set,
 /// otherwise its fully-qualified name).
 /// </param>
 /// <param name="Workspace">
@@ -42,7 +42,7 @@ public sealed record ViewContext(
 /// Implement this interface to add support for a new diagram kind (e.g. a new SysML view
 /// keyword), or to swap in an alternative layout algorithm for an existing kind. Strategy
 /// selection for a given view is performed by <c>Internal.DiagramTypeRouter</c>, which
-/// <see cref="DiagramRenderer.RenderWorkspace"/> consults for each view declaration in the
+/// <see cref="DiagramRenderer.RenderWorkspace(SysmlWorkspace, IRenderer, RenderOptions, string)"/> consults for each view declaration in the
 /// workspace.
 /// </remarks>
 public interface ILayoutStrategy

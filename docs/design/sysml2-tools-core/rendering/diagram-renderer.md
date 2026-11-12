@@ -16,7 +16,11 @@ off-the-shelf `RenderOptions` and `RenderOutput` records from `DemaConsulting.Re
 
 #### Key Methods
 
-##### `RenderWorkspace(workspace, renderer, options, viewFilter = null, diagnostics = null)`
+##### `RenderWorkspace(workspace, renderer, options, viewFilter, diagnostics)`
+
+A four-argument overload `RenderWorkspace(workspace, renderer, options, viewFilter = null)` keeps
+the original public signature (binary compatibility for already-compiled callers) and delegates
+with `diagnostics: null`.
 
 For each declaration in the workspace it skips non-view nodes and standard-library views (via
 `StdlibFilter`), routes the view to an `ILayoutStrategy` (via `DiagramTypeRouter`), skips views with
@@ -26,7 +30,7 @@ view's own `SysmlViewNode` (so a strategy such as `GeneralViewLayoutStrategy` ca
 collects a `RenderOutput` with a sanitized file name and the layout warnings. Returns an empty list
 when the workspace declares no renderable views.
 
-When the optional `diagnostics` collection is supplied, `BuildViewDiagnostic` appends at most one
+When the `diagnostics` collection is supplied, `BuildViewDiagnostic` appends at most one
 `SysmlDiagnostic` per view, located at the view's declaration
 (`SysmlViewNode.SourceFilePath`/`SourceLine`/`SourceColumn`; an empty path and line 0 for
 synthesized views). It first collects the view's *lone packages*: resolved `expose` entries that

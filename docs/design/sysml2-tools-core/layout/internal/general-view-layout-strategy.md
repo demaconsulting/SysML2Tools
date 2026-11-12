@@ -356,7 +356,11 @@ of admitted content is not exposed, so its items are placed via `PlaceDef` direc
 graph, exactly like top-level items. An exposed package with no exposed members gets its own group
 with no items (added in `BuildLayout` from `CollectExposedPackages`) and is drawn as a leaf package
 node (`Shape = Folder`, name inside, sized to its label) — the SysML 8.2.3.5 `package-node`
-with no compartments — instead of an empty canvas. When `exposedPackages` is null, every non-empty
+with no compartments — instead of an empty canvas. This case is handled before depth
+truncation, so a depth limit never decorates an empty package node with a `+0 more…` indicator.
+Exposed packages are grouped flat by qualified name, as for unscoped views: a nested exposed
+package (`P::Sub` under `expose P::**;`) is drawn as its own package node beside `P`, not inside
+it. When `exposedPackages` is null, every non-empty
 `package` key becomes a folder container node (`Shape = Folder`, `Keyword = "package"`, `Label` the simple
 package name, `TitleHeight` set from
 `BoxMetrics.TitleAreaHeight` so the hierarchical engine reserves the exact title band the renderer

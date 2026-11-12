@@ -1386,6 +1386,20 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
+            if (items.Count == 0)
+            {
+                // An exposed package with no exposed members (checked before
+                // depth truncation, which has nothing to hide here): a leaf package node (name inside)
+                // sized to its label, since an empty container has no contents to size it.
+                var label = SimplePackageName(package);
+                var width = Math.Max(MinBoxWidth, (label.Length * theme.FontSizeTitle * CharWidthFactor) + (4.0 * theme.LabelPadding));
+                var packageNode = graph.AddNode($"folder:{package}", width, folderTitleHeight + theme.FontSizeTitle + (2.0 * theme.LabelPadding));
+                packageNode.Label = label;
+                packageNode.Shape = BoxShape.Folder;
+                packageNode.Keyword = "package";
+                continue;
+            }
+
             if (truncateFolderContents)
             {
                 // Replace the folder's definition boxes with a single leaf ellipsis indicator. It
@@ -1399,19 +1413,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 truncated.Add(new TruncatedContainer(placeholder, items.Count, folderTitleHeight));
 
                 // None of the folder's definitions receive a node: every edge touching one is dropped.
-                continue;
-            }
-
-            if (items.Count == 0)
-            {
-                // An exposed package with no exposed members: a leaf package node (name inside)
-                // sized to its label, since an empty container has no contents to size it.
-                var label = SimplePackageName(package);
-                var width = Math.Max(MinBoxWidth, (label.Length * theme.FontSizeTitle * CharWidthFactor) + (4.0 * theme.LabelPadding));
-                var packageNode = graph.AddNode($"folder:{package}", width, folderTitleHeight + theme.FontSizeTitle + (2.0 * theme.LabelPadding));
-                packageNode.Label = label;
-                packageNode.Shape = BoxShape.Folder;
-                packageNode.Keyword = "package";
                 continue;
             }
 

@@ -339,7 +339,7 @@ public sealed class RenderIntegrationTests
 
         var diagnostics = new List<SysmlDiagnostic>();
         var outputs = new DiagramRenderer().RenderWorkspace(
-            result.Workspace, new SvgRenderer(), new RenderOptions(Themes.Light), diagnostics: diagnostics);
+            result.Workspace, new SvgRenderer(), new RenderOptions(Themes.Light), viewFilter: null, diagnostics: diagnostics);
         return (outputs, diagnostics);
     }
 

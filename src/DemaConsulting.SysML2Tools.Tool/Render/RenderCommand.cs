@@ -276,7 +276,7 @@ internal static class RenderCommand
     /// <c>Warnings</c> — it carries no reference back to the originating view — so the qualified
     /// name for each output must be sourced separately, by index, from
     /// <see cref="DiagramRenderer.GetViewIdentities"/>. Both that method and
-    /// <see cref="DiagramRenderer.RenderWorkspace"/> apply the identical filter/iteration over
+    /// <see cref="DiagramRenderer.RenderWorkspace(SysmlWorkspace, IRenderer, RenderOptions, string)"/> apply the identical filter/iteration over
     /// <see cref="SysmlWorkspace.Declarations"/> with no mutation in between (the same
     /// invariant this command already relies on when calling <c>GetViewNames</c> once for
     /// <c>--view</c> validation and <c>RenderWorkspace</c> separately), so the two lists line up

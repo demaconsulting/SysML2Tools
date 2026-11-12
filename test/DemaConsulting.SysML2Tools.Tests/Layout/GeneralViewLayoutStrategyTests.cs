@@ -504,7 +504,7 @@ public sealed class GeneralViewLayoutStrategyTests
     ///     Loads <paramref name="sysml"/>, then lays out the view <paramref name="viewName"/>
     ///     (declared in package <c>Diagrams</c>) with the general view strategy.
     /// </summary>
-    private static async Task<LayoutTree> LayOutDeclaredViewAsync(string sysml, string viewName)
+    private static async Task<LayoutTree> LayOutDeclaredViewAsync(string sysml, string viewName, int depthLimit = 0)
     {
         var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
         try
@@ -515,7 +515,7 @@ public sealed class GeneralViewLayoutStrategyTests
             Assert.NotNull(result.Workspace);
             var view = Assert.IsType<SysmlViewNode>(result.Workspace.Declarations[$"Diagrams::{viewName}"]);
             return new GeneralViewLayoutStrategy().BuildLayout(
-                new ViewContext(viewName, result.Workspace, view), new RenderOptions(Themes.Light));
+                new ViewContext(viewName, result.Workspace, view), new RenderOptions(Themes.Light, DepthLimit: depthLimit));
         }
         finally
         {
@@ -547,6 +547,22 @@ public sealed class GeneralViewLayoutStrategyTests
         var box = Assert.Single(CollectBoxes(layout.Nodes));
         Assert.Equal(BoxShape.Folder, box.Shape);
         Assert.Equal("Pkg", box.Label);
+        Assert.Empty(box.Children);
+    }
+
+    /// <summary>
+    ///     With a depth limit of 1, a bare-exposed package is still drawn as an empty package node,
+    ///     never decorated with a "+0 more…" truncation indicator.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_BarePackageExposeWithDepthLimitOne_HasNoTruncationIndicator()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeFormsSysml, "Bare", depthLimit: 1);
+
+        // Assert
+        var box = Assert.Single(CollectBoxes(layout.Nodes));
+        Assert.Equal(BoxShape.Folder, box.Shape);
         Assert.Empty(box.Children);
     }
 

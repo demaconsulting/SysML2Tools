@@ -17,12 +17,12 @@ namespace DemaConsulting.SysML2Tools.Rendering;
 /// an <see cref="IRenderer"/>.
 /// </summary>
 /// <remarks>
-/// <see cref="RenderWorkspace"/> is the single entry point for the rendering pipeline.
+/// <see cref="RenderWorkspace(SysmlWorkspace, IRenderer, RenderOptions, string)"/> is the single entry point for the rendering pipeline.
 /// It delegates layout selection to <see cref="Internal.DiagramTypeRouter"/> and collects
 /// one <see cref="RenderOutput"/> per view found in <see cref="SysmlWorkspace.Declarations"/>.
 /// Views whose type is not supported by any available strategy are silently skipped.
 /// <para>
-/// The <see cref="RenderWorkspace"/> example below requires a concrete <c>IRenderer</c>
+/// The <see cref="RenderWorkspace(SysmlWorkspace, IRenderer, RenderOptions, string)"/> example below requires a concrete <c>IRenderer</c>
 /// implementation from a renderer package — see the <c>DemaConsulting.SysML2Tools.Rendering</c>
 /// namespace remarks for the exact package reference(s) needed (e.g.
 /// <c>DemaConsulting.Rendering.Svg</c> for <c>SvgRenderer</c>).
@@ -32,7 +32,7 @@ public sealed class DiagramRenderer
 {
     /// <summary>
     /// Initializes a new <see cref="DiagramRenderer"/> instance. The renderer is stateless; a
-    /// single instance may be reused across multiple <see cref="RenderWorkspace"/> calls.
+    /// single instance may be reused across multiple <see cref="RenderWorkspace(SysmlWorkspace, IRenderer, RenderOptions, string)"/> calls.
     /// </summary>
     public DiagramRenderer()
     {
@@ -54,7 +54,7 @@ public sealed class DiagramRenderer
 
     /// <summary>
     /// Returns the display names of all renderable user-defined views in the workspace,
-    /// mirroring the filtering applied by <see cref="RenderWorkspace"/>.
+    /// mirroring the filtering applied by <see cref="RenderWorkspace(SysmlWorkspace, IRenderer, RenderOptions, string)"/>.
     /// </summary>
     /// <param name="workspace">The SysML workspace whose view declarations are inspected.</param>
     /// <returns>
@@ -66,7 +66,7 @@ public sealed class DiagramRenderer
 
     /// <summary>
     /// Returns the qualified and display names of all renderable user-defined views in the
-    /// workspace, in the same order that <see cref="RenderWorkspace"/> produces its outputs.
+    /// workspace, in the same order that <see cref="RenderWorkspace(SysmlWorkspace, IRenderer, RenderOptions, string)"/> produces its outputs.
     /// </summary>
     /// <param name="workspace">The SysML workspace whose view declarations are inspected.</param>
     /// <returns>
@@ -75,9 +75,9 @@ public sealed class DiagramRenderer
     /// </returns>
     /// <remarks>
     /// Callers that need to correlate each <see cref="RenderOutput"/> produced by
-    /// <see cref="RenderWorkspace"/> with the originating view's qualified name (for example, to
+    /// <see cref="RenderWorkspace(SysmlWorkspace, IRenderer, RenderOptions, string)"/> with the originating view's qualified name (for example, to
     /// report a collision between two views that sanitize to the same output file name) may zip
-    /// this list by index against the <see cref="RenderWorkspace"/> result, because both methods
+    /// this list by index against the <see cref="RenderWorkspace(SysmlWorkspace, IRenderer, RenderOptions, string)"/> result, because both methods
     /// apply the identical filter/iteration over <see cref="SysmlWorkspace.Declarations"/> with no
     /// intervening mutation.
     /// </remarks>
@@ -122,8 +122,9 @@ public sealed class DiagramRenderer
     }
 
     /// <summary>
-    /// Renders every view in the workspace and returns a collection of output streams,
-    /// one per view.
+    /// Renders every view in the workspace and returns a collection of output streams, one per
+    /// view, without collecting view-level diagnostics. Kept so assemblies compiled against the
+    /// original signature continue to bind.
     /// </summary>
     /// <param name="workspace">The SysML workspace whose view declarations are rendered.</param>
     /// <param name="renderer">The format-specific renderer used to write each view.</param>
@@ -132,12 +133,36 @@ public sealed class DiagramRenderer
     /// When non-null, only the view whose display name equals this value is rendered.
     /// When null, all renderable views are rendered.
     /// </param>
+    /// <returns>
+    /// An ordered list of <see cref="RenderOutput"/> instances, one per view in declaration order.
+    /// </returns>
+    public IReadOnlyList<RenderOutput> RenderWorkspace(
+        SysmlWorkspace workspace,
+        IRenderer renderer,
+        RenderOptions options,
+        string? viewFilter = null) =>
+        RenderWorkspace(workspace, renderer, options, viewFilter, diagnostics: null);
+
+    /// <summary>
+    /// Renders every view in the workspace and returns a collection of output streams,
+    /// one per view.
+    /// </summary>
+    /// <remarks>Equivalent to the four-argument overload, additionally collecting view-level diagnostics.</remarks>
+    /// <param name="workspace">The SysML workspace whose view declarations are rendered.</param>
+    /// <param name="renderer">The format-specific renderer used to write each view.</param>
+    /// <param name="options">Render options supplying theme, scale, and depth-limit settings.</param>
+    /// <param name="viewFilter">
+    /// When non-null, only the view whose display name equals this value is rendered.
+    /// When null, all renderable views are rendered.
+    /// </param>
     /// <param name="diagnostics">
-    /// When non-null, receives one <see cref="DiagnosticSeverity.Warning"/> diagnostic per view
-    /// whose laid-out diagram contains nothing renderable, located at the view's declaration
-    /// (empty file path and line 0 for synthesized views). The message names the view and, for
-    /// each bare <c>expose &lt;Package&gt;;</c> statement, suggests
-    /// <c>expose &lt;Package&gt;::**;</c>. Empty views are still rendered and returned.
+    /// When non-null, receives view-level diagnostics located at each view's declaration (empty
+    /// file path and line 0 for synthesized views): a <see cref="DiagnosticSeverity.Warning"/> for
+    /// a view whose laid-out diagram contains nothing renderable (naming the view and, for each
+    /// bare <c>expose &lt;Package&gt;;</c> statement, suggesting <c>expose &lt;Package&gt;::**;</c>),
+    /// or an <see cref="DiagnosticSeverity.Info"/> hint for a view that draws a bare-exposed
+    /// package as an empty package node (suggesting <c>expose &lt;Package&gt;::**;</c> to show its
+    /// members). Views with neither condition add nothing. Every view is still rendered and returned.
     /// </param>
     /// <returns>
     /// An ordered list of <see cref="RenderOutput"/> instances, one per view in declaration order.
@@ -163,8 +188,8 @@ public sealed class DiagramRenderer
         SysmlWorkspace workspace,
         IRenderer renderer,
         RenderOptions options,
-        string? viewFilter = null,
-        ICollection<SysmlDiagnostic>? diagnostics = null)
+        string? viewFilter,
+        ICollection<SysmlDiagnostic>? diagnostics)
 #pragma warning restore S2325
     {
         // Validate inputs — null workspace or renderer would produce silent failures

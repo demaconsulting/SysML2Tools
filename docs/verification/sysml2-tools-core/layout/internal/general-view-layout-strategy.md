@@ -267,6 +267,8 @@ configuration are required beyond a standard .NET SDK installation.
   a plain solid line with no end marker
 - `GeneralViewLayoutStrategy_BuildLayout_BarePackageExpose_DrawsEmptyPackageNode`:
   `expose Pkg;` draws exactly one folder-shaped package node labeled `Pkg` with no children
+- `GeneralViewLayoutStrategy_BuildLayout_BarePackageExposeWithDepthLimitOne_HasNoTruncationIndicator`:
+  with a depth limit of 1 the empty package node still has no children (no `+0 more…` indicator)
 - `GeneralViewLayoutStrategy_BuildLayout_NamespaceExpose_DrawsMembersWithoutPackageNode`:
   `expose Pkg::*;` draws the member boxes and no package node
 - `GeneralViewLayoutStrategy_BuildLayout_RecursivePackageExpose_DrawsPackageNodeWithMembers`:

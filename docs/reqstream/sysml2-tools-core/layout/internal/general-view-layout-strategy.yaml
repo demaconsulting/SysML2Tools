@@ -557,5 +557,6 @@ sections:
           package-node notation of SysML 8.2.3.5.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_BarePackageExpose_DrawsEmptyPackageNode
+          - GeneralViewLayoutStrategy_BuildLayout_BarePackageExposeWithDepthLimitOne_HasNoTruncationIndicator
           - GeneralViewLayoutStrategy_BuildLayout_NamespaceExpose_DrawsMembersWithoutPackageNode
           - GeneralViewLayoutStrategy_BuildLayout_RecursivePackageExpose_DrawsPackageNodeWithMembers
