@@ -67,6 +67,7 @@ external services or additional configuration are required beyond a standard .NE
 | `Annotations` populated | `WorkspaceLoader_LoadAsync_CommentAndDocumentation_CapturesBothInSourceOrder` |
 | `RenderTargetName` unresolved | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | `FilterExpressionText` verbatim | `WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge` |
+| `FilterExpressionTexts`, `ViewDefinitionName` | `WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured` |
 | `ExposeMembers` from a `view` usage | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | `ExposeMember` bracket-filter text paired to its path | `AstBuilder_ExposeBracketFilter_CapturesRawText` |
 | Bracket filter paired to entry | `AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath` |

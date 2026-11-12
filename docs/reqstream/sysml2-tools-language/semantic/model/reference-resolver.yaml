@@ -27,6 +27,16 @@ sections:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
           - WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings
 
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ViewDefinitionTyping
+        title: >-
+          ReferenceResolver.ResolveAll shall resolve a view usage's view definition reference into a
+          Typing-kind SysmlEdge, or produce a Warning naming it when it does not resolve.
+        justification: |
+          The view usage inherits the view conditions and rendering of its view definition
+          (SysML 7.26.2), which callers find through this edge.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured
+
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-CircularImport
         title: >-
           ReferenceResolver.ResolveAll shall detect circular import chains in the import

@@ -1678,7 +1678,7 @@ public sealed class GeneralViewLayoutStrategyTests
     ///     (independently re-counted via <c>Select-String -Pattern '&lt;rect'</c>) when laid out
     ///     through the actual <see cref="GeneralViewLayoutStrategy"/>. Only <see cref="BoxShape.Rectangle"/>
     ///     boxes are counted (excluding the single package folder and the Battery definition's
-    ///     documentation-annotation note box, neither of which is drawn as a checked-in <c>&lt;rect&gt;</c>
+    ///     comment-annotation note box, neither of which is drawn as a checked-in <c>&lt;rect&gt;</c>
     ///     element), matching the checked-in SVG's own count basis. This converts the quality
     ///     agent's one-off manual <c>git stash</c> empirical check into a standing, automated test.
     /// </summary>
@@ -2286,19 +2286,19 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     BuildLayout emits a companion <see cref="BoxShape.Note"/> box (plus a connecting plain
-    ///     line) for a definition that carries a <c>doc</c>/<c>comment</c> annotation.
+    ///     line) for a definition that carries an explicit <c>comment</c> annotation.
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_AnnotatedDefinition_EmitsNoteBox()
     {
-        // Arrange: a part def with one Documentation annotation
+        // Arrange: a part def with one Comment annotation
         var strategy = new GeneralViewLayoutStrategy();
         var battery = new SysmlDefinitionNode
         {
             Name = "Battery",
             QualifiedName = "P::Battery",
             DefinitionKeyword = "part def",
-            Annotations = [new SysmlAnnotation(SysmlAnnotationKind.Documentation, "Nominal battery capacity is 5000mAh.")],
+            Annotations = [new SysmlAnnotation(SysmlAnnotationKind.Comment, "Nominal battery capacity is 5000mAh.")],
         };
         var workspace = new SysmlWorkspace
         {
@@ -2350,13 +2350,13 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     BuildLayout combines multiple annotations on one element into a single Note box (not
-    ///     one box per annotation), per this strategy's documented aggregation choice.
+    ///     BuildLayout combines multiple comment annotations on one element into a single Note box
+    ///     (not one box per annotation), per this strategy's documented aggregation choice.
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_MultipleAnnotations_ProduceOneNoteBox()
     {
-        // Arrange: a part def with two annotations (a doc and a comment)
+        // Arrange: a part def with two comment annotations
         var strategy = new GeneralViewLayoutStrategy();
         var battery = new SysmlDefinitionNode
         {
@@ -2365,7 +2365,7 @@ public sealed class GeneralViewLayoutStrategyTests
             DefinitionKeyword = "part def",
             Annotations =
             [
-                new SysmlAnnotation(SysmlAnnotationKind.Documentation, "Primary power source."),
+                new SysmlAnnotation(SysmlAnnotationKind.Comment, "Primary power source."),
                 new SysmlAnnotation(SysmlAnnotationKind.Comment, "TODO: revisit capacity."),
             ],
         };
@@ -2384,6 +2384,236 @@ public sealed class GeneralViewLayoutStrategyTests
         var note = Assert.Single(boxes, b => b.Shape == BoxShape.Note);
         Assert.Contains(note.Compartments, c => c.Rows.Any(r => r.Contains("Primary power source")));
         Assert.Contains(note.Compartments, c => c.Rows.Any(r => r.Contains("revisit capacity")));
+    }
+
+    /// <summary>
+    ///     Builds a single-definition workspace whose part def carries one Documentation and one
+    ///     Comment annotation, used by the documentation-visibility tests.
+    /// </summary>
+    private static SysmlWorkspace BuildDocumentedBatteryWorkspace(string docText) =>
+        new()
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Battery"] = new SysmlDefinitionNode
+                {
+                    Name = "Battery",
+                    QualifiedName = "P::Battery",
+                    DefinitionKeyword = "part def",
+                    Annotations =
+                    [
+                        new SysmlAnnotation(SysmlAnnotationKind.Documentation, docText),
+                        new SysmlAnnotation(SysmlAnnotationKind.Comment, "TODO: revisit capacity."),
+                    ],
+                },
+            },
+        };
+
+    /// <summary>
+    ///     By default, exposed documentation is drawn as a <c>doc</c> compartment inside its owner's
+    ///     box (SysML 8.2.3.4 documentation-compartment), word-wrapped into rows no wider than the
+    ///     box, and never as a note; an explicit comment is still drawn as an attached note.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_DocumentationByDefault_RendersWrappedDocCompartment()
+    {
+        // Arrange: a long documentation string and a view with no view conditions
+        var strategy = new GeneralViewLayoutStrategy();
+        const string docText =
+            "The battery is the primary power source for the vehicle and supplies every subsystem " +
+            "with regulated power during all operating modes.";
+        var workspace = BuildDocumentedBatteryWorkspace(docText);
+        var context = new ViewContext("v", workspace, new SysmlViewNode { Name = "v", QualifiedName = "P::v" });
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the Battery box carries a wrapped doc compartment preserving every word, sized
+        // within the box; the comment note is present and does not repeat the documentation
+        var boxes = CollectBoxes(layout.Nodes);
+        var battery = Assert.Single(boxes, b => b.Label == "Battery");
+        var doc = Assert.Single(battery.Compartments, c => c.Title == "doc");
+        Assert.True(doc.Rows.Count > 1, "Expected the documentation to wrap onto several rows");
+        Assert.Equal(docText, string.Join(" ", doc.Rows));
+        var charWidth = options.Theme.FontSizeBody * 0.62;
+        Assert.All(doc.Rows, r => Assert.True(r.Length * charWidth <= battery.Width, $"Row too wide: {r}"));
+        var note = Assert.Single(boxes, b => b.Shape == BoxShape.Note);
+        Assert.Contains(note.Compartments, c => c.Rows.Any(r => r.Contains("revisit capacity")));
+        Assert.DoesNotContain(note.Compartments, c => c.Rows.Any(r => r.Contains("primary power source")));
+    }
+
+    /// <summary>
+    ///     A view condition <c>filter not @SysML::Documentation;</c> (SysML 7.26.2) hides the
+    ///     <c>doc</c> compartment, while the element itself and its comment note remain.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_FilterNotDocumentation_HidesDocButKeepsComment()
+    {
+        // Arrange
+        var workspace = BuildDocumentedBatteryWorkspace("Primary power source.");
+        var view = new SysmlViewNode { Name = "v", QualifiedName = "P::v", FilterExpressionTexts = ["not @SysML::Documentation"] };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace, view), new RenderOptions(Themes.Light));
+
+        // Assert
+        var boxes = CollectBoxes(layout.Nodes);
+        var battery = Assert.Single(boxes, b => b.Label == "Battery");
+        Assert.DoesNotContain(battery.Compartments, c => c.Title == "doc");
+        Assert.Contains(boxes, b => b.Shape == BoxShape.Note);
+    }
+
+    /// <summary>
+    ///     A positive view condition that Documentation does not satisfy
+    ///     (<c>filter @SysML::PartDefinition;</c>) keeps the part definition but hides its
+    ///     <c>doc</c> compartment and its comment note.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_PositiveFilterExcludingDocumentation_HidesDoc()
+    {
+        // Arrange
+        var workspace = BuildDocumentedBatteryWorkspace("Primary power source.");
+        var view = new SysmlViewNode { Name = "v", QualifiedName = "P::v", FilterExpressionTexts = ["@SysML::PartDefinition"] };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace, view), new RenderOptions(Themes.Light));
+
+        // Assert
+        var boxes = CollectBoxes(layout.Nodes);
+        var battery = Assert.Single(boxes, b => b.Label == "Battery");
+        Assert.DoesNotContain(battery.Compartments, c => c.Title == "doc");
+        Assert.DoesNotContain(boxes, b => b.Shape == BoxShape.Note);
+    }
+
+    /// <summary>
+    ///     Loads <paramref name="sysml"/> and lays out the general view <c>Diagrams::V</c>.
+    /// </summary>
+    private static async Task<LayoutTree> LayOutViewVAsync(string sysml)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<SysmlViewNode>(result.Workspace.Declarations["Diagrams::V"]);
+            return new GeneralViewLayoutStrategy().BuildLayout(
+                new ViewContext("V", result.Workspace, view), new RenderOptions(Themes.Light));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>Documented part def used by the expose/inheritance documentation tests.</summary>
+    private const string DocumentedPackageSysml = """
+        package P {
+            part def Battery {
+                doc /* Primary power source. */
+                comment /* Revisit capacity. */
+            }
+        }
+        """;
+
+    /// <summary>
+    ///     A view inherits the view conditions of its view definition (SysML 7.26.2): a view typed
+    ///     by a view definition owning <c>filter not @SysML::Documentation;</c> hides documentation.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_InheritedViewCondition_HidesDoc()
+    {
+        // Act
+        var layout = await LayOutViewVAsync(DocumentedPackageSysml + """
+
+            package Diagrams {
+                view def NoDocs { filter not @SysML::Documentation; }
+                view V : NoDocs { expose P::**; }
+            }
+            """);
+
+        // Assert
+        var battery = Assert.Single(CollectBoxes(layout.Nodes), b => b.Label == "Battery");
+        Assert.DoesNotContain(battery.Compartments, c => c.Title == "doc");
+    }
+
+    /// <summary>
+    ///     A view typed by a standard library view definition (<c>StandardViewDefinitions::GeneralView</c>,
+    ///     whose node is deserialized from the bundled standard library) applies its own view
+    ///     conditions without failing on the library definition.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ViewTypedByStandardViewDefinition_AppliesOwnConditions()
+    {
+        // Act
+        var layout = await LayOutViewVAsync(DocumentedPackageSysml + """
+
+            package Diagrams {
+                view V : StandardViewDefinitions::GeneralView { expose P::**; filter not @SysML::Documentation; }
+            }
+            """);
+
+        // Assert
+        var battery = Assert.Single(CollectBoxes(layout.Nodes), b => b.Label == "Battery");
+        Assert.DoesNotContain(battery.Compartments, c => c.Title == "doc");
+    }
+
+    /// <summary>
+    ///     An expose filter (<c>expose P::**[not @SysML::Documentation];</c>, SysML 7.26.2) excludes
+    ///     the exposed documentation while still exposing the definitions and comments.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExposeFilterNotDocumentation_HidesDoc()
+    {
+        // Act
+        var layout = await LayOutViewVAsync(DocumentedPackageSysml + """
+
+            package Diagrams { view V { expose P::**[not @SysML::Documentation]; } }
+            """);
+
+        // Assert
+        var boxes = CollectBoxes(layout.Nodes);
+        var battery = Assert.Single(boxes, b => b.Label == "Battery");
+        Assert.DoesNotContain(battery.Compartments, c => c.Title == "doc");
+        Assert.Contains(boxes, b => b.Shape == BoxShape.Note);
+    }
+
+    /// <summary>
+    ///     A bare <c>expose P::Battery;</c> exposes only the element, not its owned documentation
+    ///     (SysML 8.3.26.3), whereas <c>expose P::**;</c> exposes the documentation too.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_MembershipExpose_ExposesDocOnlyWhenRecursive()
+    {
+        // Act
+        var bare = await LayOutViewVAsync(DocumentedPackageSysml + """
+
+            package Diagrams { view V { expose P::Battery; } }
+            """);
+        var recursive = await LayOutViewVAsync(DocumentedPackageSysml + """
+
+            package Diagrams { view V { expose P::**; } }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(Assert.Single(CollectBoxes(bare.Nodes), b => b.Label == "Battery").Compartments, c => c.Title == "doc");
+        Assert.Contains(Assert.Single(CollectBoxes(recursive.Nodes), b => b.Label == "Battery").Compartments, c => c.Title == "doc");
+    }
+
+    /// <summary>
+    ///     WrapText hard-breaks a single word longer than the row limit and keeps every row within it.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_WrapText_LongWord_IsHardBroken()
+    {
+        // Act: wrap a paragraph containing a word longer than the limit
+        var rows = GeneralViewLayoutStrategy.WrapText("short 123456789012 end", 5);
+
+        // Assert: every row fits and the content is preserved in order
+        Assert.All(rows, r => Assert.True(r.Length <= 5));
+        Assert.Equal(["short", "12345", "67890", "12", "end"], rows);
     }
 
     /// <summary>

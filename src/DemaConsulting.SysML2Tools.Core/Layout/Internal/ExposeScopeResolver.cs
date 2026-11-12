@@ -41,7 +41,22 @@ internal sealed record ExposedScope(
     /// every bracket filter in the view (if any) parsed and evaluated successfully.
     /// </summary>
     public IReadOnlyList<BracketFilterFailure> Failures { get; init; } = Array.Empty<BracketFilterFailure>();
+
+    /// <summary>
+    /// Gets each successfully-parsed bracket-filtered expose entry (<c>expose P::**[expr];</c>) with
+    /// its resolved target and filter, so elements that are not definitions or usages (e.g. owned
+    /// <c>doc</c>/<c>comment</c> annotating elements) can be tested against the same filter
+    /// (see <see cref="ExposeScopeResolver.IsAnnotationExposed"/>).
+    /// </summary>
+    public IReadOnlyList<FilteredExpose> FilteredEntries { get; init; } = Array.Empty<FilteredExpose>();
 }
+
+/// <summary>
+/// A bracket-filtered expose entry whose filter parsed successfully.
+/// </summary>
+/// <param name="QualifiedName">The exposed path's resolved qualified name.</param>
+/// <param name="Filter">The parsed bracket filter expression.</param>
+internal sealed record FilteredExpose(string QualifiedName, FilterExpression Filter);
 
 /// <summary>
 /// A single resolved <c>expose</c> subject qualified name paired with the
@@ -107,6 +122,7 @@ internal static class ExposeScopeResolver
         var subjects = new List<ExposeSubject>();
         var explicitMembers = new List<string>();
         var failures = new List<BracketFilterFailure>();
+        var filteredEntries = new List<FilteredExpose>();
 
         // Each entry directly pairs a resolved qualified name with the specific ExposeMember it
         // originated from (populated by ReferenceResolver), so a bracket-filtered entry's
@@ -146,9 +162,104 @@ internal static class ExposeScopeResolver
                 .ToList();
             var evaluation = FilterExpressionEvaluator.Evaluate(workspace, candidates, expression);
             explicitMembers.AddRange(evaluation.MatchedQualifiedNames);
+            filteredEntries.Add(new FilteredExpose(target, expression));
         }
 
-        return new ExposedScope(subjects, explicitMembers) { Failures = failures };
+        return new ExposedScope(subjects, explicitMembers) { Failures = failures, FilteredEntries = filteredEntries };
+    }
+
+    /// <summary>
+    /// Returns the raw text of every view condition that applies to <paramref name="viewNode"/>:
+    /// the <c>filter</c> conditions it owns, followed by those of its view definition (resolved
+    /// <see cref="SysmlEdgeKind.Typing"/> edge) and, transitively, of that definition's general view
+    /// definitions (resolved <see cref="SysmlEdgeKind.Supertype"/> edges) — SysML 7.26.2: "A view
+    /// usage inherits any view conditions from its view definition"; SysML 8.3.26.11: exposed
+    /// elements must meet all owned and inherited view conditions. Empty for a null view node.
+    /// </summary>
+    /// <param name="workspace">The workspace used to look up view definitions.</param>
+    /// <param name="viewNode">The view, or null for the synthetic <c>--auto</c> view.</param>
+    /// <returns>The view conditions' raw expression texts, owned first.</returns>
+    public static IReadOnlyList<string> CollectViewConditions(SysmlWorkspace workspace, SysmlViewNode? viewNode)
+    {
+        var result = new List<string>();
+        var visited = new HashSet<SysmlNode>();
+        var pending = new Queue<SysmlNode>();
+        if (viewNode is not null)
+        {
+            pending.Enqueue(viewNode);
+        }
+
+        while (pending.Count > 0)
+        {
+            var node = pending.Dequeue();
+            if (!visited.Add(node))
+            {
+                continue;
+            }
+
+            if (node is SysmlViewNode view)
+            {
+                // FilterExpressionText alone is honored for view nodes built without the full list
+                // (e.g. a synthesized dynamic view carrying the `render --filter` expression).
+                // Standard library view nodes are deserialized and may carry a null list.
+                if (view.FilterExpressionTexts is { Count: > 0 } texts)
+                {
+                    result.AddRange(texts);
+                }
+                else if (view.FilterExpressionText is { Length: > 0 } single)
+                {
+                    result.Add(single);
+                }
+            }
+
+            foreach (var edge in node.ResolvedEdges ?? [])
+            {
+                if (edge.Kind is SysmlEdgeKind.Typing or SysmlEdgeKind.Supertype &&
+                    workspace.Declarations.TryGetValue(edge.TargetQualifiedName, out var general))
+                {
+                    pending.Enqueue(general);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Returns whether an owned annotating element (metaclass <paramref name="metaclass"/>, e.g.
+    /// <c>Documentation</c> or <c>Comment</c>) of the element <paramref name="ownerQualifiedName"/> is
+    /// exposed by the view's <c>expose</c> statements. Documentation and owned comments are owned
+    /// members of their element (KerML 7.2.4.2), so they are exposed exactly when the owner's
+    /// members are: by a recursive expose covering the owner (<c>expose X::**;</c>,
+    /// <c>expose X::*::**;</c>), by <c>expose X::*;</c> of the owner itself, or by a bracket-filtered
+    /// expose covering the owner whose filter the annotating element satisfies. A bare
+    /// <c>expose X;</c> exposes only X, not its members. With no <c>expose</c> scope (a null
+    /// <paramref name="scope"/>) everything is rendered, annotations included.
+    /// </summary>
+    /// <param name="workspace">The workspace (standard library metaclasses for filter tests).</param>
+    /// <param name="ownerQualifiedName">The annotated (owning) element's qualified name.</param>
+    /// <param name="metaclass">The annotating element's metaclass.</param>
+    /// <param name="scope">The view's resolved expose scope, or null.</param>
+    /// <returns>Whether the annotating element is exposed.</returns>
+    public static bool IsAnnotationExposed(SysmlWorkspace workspace, string ownerQualifiedName, string metaclass, ExposedScope? scope)
+    {
+        if (scope is null)
+        {
+            return true;
+        }
+
+        bool Covers(string subject) =>
+            ownerQualifiedName == subject || ownerQualifiedName.StartsWith(subject + "::", StringComparison.Ordinal);
+
+        return scope.Subjects.Any(subject => subject.Recursion switch
+            {
+                ExposeRecursionKind.MembershipRecursive or ExposeRecursionKind.NamespaceRecursive => Covers(subject.QualifiedName),
+                ExposeRecursionKind.NamespaceDirectChildren => ownerQualifiedName == subject.QualifiedName,
+                _ => false,
+            }) ||
+            scope.FilteredEntries.Any(entry =>
+                Covers(entry.QualifiedName) &&
+                FilterExpressionEvaluator.EvaluateForMetaclass(workspace, metaclass, entry.Filter));
     }
 
     /// <summary>

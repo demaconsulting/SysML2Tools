@@ -17,6 +17,17 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
 
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ViewConditionsAndDefinition
+        title: >-
+          AstBuilder shall capture every `filter` view condition of a `view def` or `view` usage in
+          source order, and a `view` usage's view definition reference (`view V : Def`).
+        justification: |
+          SysML 7.26.2/8.3.26.11: an exposed element must meet all owned and inherited view
+          conditions, and a view usage inherits the conditions of its view definition, so every
+          condition and the definition reference must be captured.
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured
+
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-QualifiedNames
         title: >-
           AstBuilder shall compute fully-qualified names by joining ancestor names with

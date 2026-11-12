@@ -114,6 +114,8 @@ SDK and the repository's committed SysML fixtures.
   instead of exceptions
 - `Evaluate_ClassificationTest_MatchesOnlyAnnotatedCandidates` — only candidates carrying the
   requested metadata annotation match
+- `EvaluateForMetaclass_Documentation_ConformsToCommentAndCombines` — documentation matches
+  `@SysML::Documentation`, `@KerML::Comment`, and boolean combinations, but not `@SysML::PartUsage`
 - `Evaluate_BareAttributeRead_TrueOnlyWhenBooleanValueTrue` — bare attribute reads are true only
   for Boolean `true` values
 - `Evaluate_ComparisonNotEqual_MatchesDifferingValue` — `!=` comparisons match differing captured

@@ -179,6 +179,11 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   original token spacing, not `RuleContext.GetText()`'s whitespace-stripped form) and never
   inspected by `ReferenceResolver`. The Core Filtering subsystem parses and evaluates this raw
   text later when `GeneralViewLayoutStrategy` renders the view.
+- `FilterExpressionTexts` — the raw text of every `filter` member (the view's owned view
+  conditions, SysML 8.3.26.11), in source order.
+- `ViewDefinitionName` — a view usage's raw view definition reference (`view V : Def`), resolved by
+  `ReferenceResolver` into a `Typing` edge; the usage inherits that definition's view conditions
+  and rendering (SysML 7.26.2).
 
 ##### Error Handling
 

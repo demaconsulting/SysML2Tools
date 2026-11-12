@@ -39,8 +39,11 @@ sections:
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-BareNameForm
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-NoEdgeOnFailure
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AnnotationNote
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ViewConditions
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-DocumentationCompartment
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-RequirementConstraintCompartments
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Internals
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NoDocumentation
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Ports
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Connectors
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NestedContainer
@@ -172,6 +175,8 @@ sections:
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-NoExposeFallback
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ScopedSpecificityTieBreak
           - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ResolveExposedTargets
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-ViewConditionInheritance
+          - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-AnnotationExposure
           - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-UsageToTypeFallback
           - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-NoScopeFallback
           - SysML2Tools-Core-Layout-Internal-ExposeScopeResolver-SubjectScopeMembership

@@ -181,7 +181,11 @@ absent.
 `FilterExpressionText`. `VisitViewUsage` builds a `SysmlViewNode` for named `view` usages (the
 only body form that may additionally contain `expose` members) the same way, plus
 `ExtractExposedNames` to populate `ExposeMembers`. Unnamed view usages are skipped (no declared
-name), mirroring the existing anonymous-element convention.
+name), mirroring the existing anonymous-element convention. `ExtractViewRenderAndFilter` collects
+every `filter` member's original text, in source order, into `FilterExpressionTexts` (the first
+is also kept as `FilterExpressionText`), and `VisitViewUsage` records the usage's view definition
+reference (`view V : Def`, from its `featureSpecializationPart` via `ExtractFeatureTyping`) as
+`ViewDefinitionName`.
 
 **`VisitViewUsage` is an intentional capability addition, not merely an `expose`-capture
 prerequisite.** Before this override existed, named `view Name { ... }` usages were silently

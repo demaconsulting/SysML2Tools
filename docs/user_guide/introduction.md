@@ -306,6 +306,33 @@ nested target (`cpu`), but the connector line itself still terminates at the con
 box's own boundary rather than continuing on to the inner part — routing a connector all the way
 into a nested container remains a known limitation.
 
+### Comments and Documentation
+
+In SysML v2, `doc /* ... */` documentation and `comment /* ... */` comments are owned members of
+the element they annotate, so `expose X::**;` (or `expose X::*;`) exposes them along with X's other
+members, while a bare `expose X;` does not. In a General View, exposed documentation is drawn as a
+word-wrapped `doc` compartment inside its element's box, and an exposed comment as a folded-corner
+note attached to its element. Interconnection and other view types never draw them.
+
+Like any exposed element, documentation and comments are only drawn when they satisfy the view's
+conditions. Use the standard view condition to hide documentation (comments remain):
+
+```sysml
+view Overview {
+    expose MySystem::**;
+    filter not @SysML::Documentation;
+}
+```
+
+View conditions (`filter <expr>;`) select exposed elements by metaclass (`@SysML::PartUsage`,
+`@SysML::PartDefinition`, `@SysML::Documentation`, `@SysML::Comment`, and so on, also accepted as
+`@KerML::…`) or by applied metadata, combined with `not`, `and`, `or`, and `xor`. All of a view's
+conditions apply, including those inherited from its view definition
+(`view def NoDocs { filter not @SysML::Documentation; }` then `view Overview : NoDocs { … }`). A
+positive condition such as `filter @SysML::PartDefinition;` also hides documentation and comments,
+since they are not part definitions. An expose filter applies a condition to one expose only:
+`expose MySystem::**[not @SysML::Documentation];`.
+
 ## Expose vs. Render: Worked Examples
 
 The three view body statements look similar but do very different jobs. This is a common point

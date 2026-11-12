@@ -156,7 +156,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <param name="Compartments">The computed compartments to render inside the box.</param>
     /// <param name="Width">The computed box width.</param>
     /// <param name="Height">The computed box height.</param>
-    /// <param name="Annotations">The applied annotation metadata associated with this node.</param>
+    /// <param name="Annotations">The element's <c>comment</c> annotations, drawn as an attached note.</param>
     /// <param name="IsUsage">
     /// <see langword="true"/> when this box represents a <see cref="SysmlFeatureNode"/> usage
     /// (rather than a <see cref="SysmlDefinitionNode"/> definition). Used by
@@ -229,39 +229,54 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // FilterExpressionText never affect this decision.
         var scope = ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode);
 
-        // Collect all user-defined definitions, sized for rendering, restricted to the resolved
-        // scope when one applies.
-        var defs = CollectDefinitions(context.Workspace, theme, scope);
-        if (defs.Count == 0)
+        // The view conditions (SysML 8.3.26.11 viewCondition): every `filter` the view owns plus
+        // those inherited from its view definition (SysML 7.26.2). An exposed element is rendered
+        // only when it satisfies all of them. A condition that fails to parse (or uses a construct
+        // outside the supported subset) is skipped with a warning rather than dropped silently.
+        var conditions = new List<FilterExpression>();
+        var conditionWarnings = new List<string>();
+        foreach (var conditionText in ExposeScopeResolver.CollectViewConditions(context.Workspace, context.ViewNode))
         {
-            return new LayoutTree(200.0, 100.0, []);
-        }
-
-        // Apply the view's standalone `filter [<expr>];` statement (SysmlViewNode.FilterExpressionText),
-        // narrowing `defs` to the subset the Phase 1 expression subset matches. A parse/evaluation
-        // failure (syntax error or a construct outside the Phase 1 subset — see
-        // FilterExpressionParser) falls back to rendering the unfiltered resolved scope, surfaced
-        // via a warning rather than silently dropping the filter or crashing.
-        string? filterFailureReason = null;
-        var filterExpressionText = context.ViewNode?.FilterExpressionText;
-        if (filterExpressionText is { Length: > 0 })
-        {
-            var parseResult = FilterExpressionParser.Parse(filterExpressionText);
+            var parseResult = FilterExpressionParser.Parse(conditionText);
             if (parseResult.Expression is { } expression)
             {
-                var matched = FilterExpressionEvaluator.Evaluate(
-                    context.Workspace, defs.Select(d => d.QualifiedName).ToList(), expression).MatchedQualifiedNames;
-                var matchedSet = new HashSet<string>(matched, StringComparer.Ordinal);
-                defs = defs.Where(d => matchedSet.Contains(d.QualifiedName)).ToList();
-                if (defs.Count == 0)
-                {
-                    return new LayoutTree(200.0, 100.0, []);
-                }
+                conditions.Add(expression);
             }
             else
             {
-                filterFailureReason = parseResult.Diagnostics.FirstOrDefault()?.Message;
+                conditionWarnings.AddRange(LayoutWarnings.ForUnevaluatedFilter(
+                    context.ViewName, conditionText, parseResult.Diagnostics.FirstOrDefault()?.Message));
             }
+        }
+
+        // An owned `doc`/`comment` of a rendered element is itself an exposed element when the
+        // expose that exposed its owner also exposes the owner's members (KerML 7.2.4.2:
+        // documentation is an owned member of the documented element), and it is drawn only when
+        // it also satisfies every view condition (e.g. `filter not @SysML::Documentation;`).
+        bool AnnotationVisible(string ownerQualifiedName, string metaclass) =>
+            ExposeScopeResolver.IsAnnotationExposed(context.Workspace, ownerQualifiedName, metaclass, scope) &&
+            conditions.TrueForAll(condition => FilterExpressionEvaluator.EvaluateForMetaclass(context.Workspace, metaclass, condition));
+
+        // Collect all user-defined definitions, sized for rendering, restricted to the resolved
+        // scope when one applies.
+        var defs = CollectDefinitions(context.Workspace, theme, scope, AnnotationVisible);
+        if (defs.Count == 0)
+        {
+            return new LayoutTree(200.0, 100.0, []) { Warnings = conditionWarnings };
+        }
+
+        // Narrow `defs` to the elements satisfying every view condition.
+        foreach (var condition in conditions)
+        {
+            var matched = FilterExpressionEvaluator.Evaluate(
+                context.Workspace, defs.Select(d => d.QualifiedName).ToList(), condition).MatchedQualifiedNames;
+            var matchedSet = new HashSet<string>(matched, StringComparer.Ordinal);
+            defs = defs.Where(d => matchedSet.Contains(d.QualifiedName)).ToList();
+        }
+
+        if (defs.Count == 0)
+        {
+            return new LayoutTree(200.0, 100.0, []) { Warnings = conditionWarnings };
         }
 
         // Drop any usage-level box that would duplicate content already shown as a compartment row
@@ -347,7 +362,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // (see ExposeScopeResolver.ResolveExposedScope's ExposedScope.Failures) — a
         // successfully-evaluated bracket filter already narrowed `scope` above and needs no
         // warning — through the standard layout-warnings channel.
-        var warnings = LayoutWarnings.ForUnevaluatedFilter(context.ViewName, filterFailureReason is null ? null : filterExpressionText, filterFailureReason)
+        var warnings = conditionWarnings
             .Concat(LayoutWarnings.ForUnevaluatedExposeBracketFilter(context.ViewName, scope?.Failures ?? []))
             .Concat(LayoutWarnings.ForDroppedRelationshipEdges(context.ViewName, droppedEdges
                 .Select(d => (d.Kind, d.Source, d.Target, d.Reason))
@@ -387,7 +402,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     private static IReadOnlyList<DefBox> CollectDefinitions(
         SysmlWorkspace workspace,
         Theme theme,
-        ExposedScope? scope)
+        ExposedScope? scope,
+        Func<string, string, bool> annotationVisible)
     {
         var result = new List<DefBox>();
 
@@ -432,7 +448,22 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
             var memberships = CollectMemberships(declaration);
             var (width, height) = ComputeBoxSize(simpleName, keyword, compartments, theme);
-            result.Add(new DefBox(qualifiedName, simpleName, keyword, specializationSupertypeNames, memberships, compartments, width, height, declaration.Annotations, declaration is SysmlFeatureNode));
+
+            // Exposed, unfiltered documentation is drawn as a "doc" compartment inside its owner's
+            // box (SysML 8.2.3.4 documentation-compartment), wrapped to the box width.
+            if (annotationVisible(qualifiedName, "Documentation") &&
+                BuildDocCompartment(declaration.Annotations, width, theme) is { } docCompartment)
+            {
+                compartments = [docCompartment, .. compartments];
+                (width, height) = ComputeBoxSize(simpleName, keyword, compartments, theme);
+            }
+
+            // Exposed, unfiltered explicit comments are drawn as notes attached to their owner
+            // (SysML 8.2.3.4 comment-node with annotation-link); documentation never is.
+            var comments = annotationVisible(qualifiedName, "Comment")
+                ? declaration.Annotations.Where(a => a.Kind == SysmlAnnotationKind.Comment).ToList()
+                : new List<SysmlAnnotation>();
+            result.Add(new DefBox(qualifiedName, simpleName, keyword, specializationSupertypeNames, memberships, compartments, width, height, comments, declaration is SysmlFeatureNode));
         }
 
         return result;
@@ -555,6 +586,121 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         }
 
         return [.. order.Select(k => new LayoutCompartment(Pluralize(k), groups[k]))];
+    }
+
+    /// <summary>
+    /// Minimum number of characters per wrapped <c>doc</c> compartment row, so documentation on a
+    /// narrow box widens it to a readable column instead of wrapping into a tall sliver.
+    /// </summary>
+    private const int MinDocWrapChars = 36;
+
+    /// <summary>
+    /// Builds the <c>doc</c> compartment for an element's Documentation annotations, word-wrapped
+    /// to fit <paramref name="boxWidth"/> (never narrower than <see cref="MinDocWrapChars"/>
+    /// characters), or <see langword="null"/> when the element carries no non-empty documentation.
+    /// Comment annotations are excluded; they are drawn as attached notes instead.
+    /// </summary>
+    /// <param name="annotations">The element's captured annotations.</param>
+    /// <param name="boxWidth">The box width computed without the doc compartment.</param>
+    /// <param name="theme">The theme supplying font size and padding.</param>
+    /// <returns>The <c>doc</c> compartment, or null.</returns>
+    private static LayoutCompartment? BuildDocCompartment(
+        IReadOnlyList<SysmlAnnotation> annotations, double boxWidth, Theme theme)
+    {
+        var paragraphs = annotations
+            .Where(a => a.Kind == SysmlAnnotationKind.Documentation)
+            .SelectMany(a => SplitParagraphs(a.Text))
+            .ToList();
+        if (paragraphs.Count == 0)
+        {
+            return null;
+        }
+
+        var fitChars = (int)Math.Floor(((boxWidth - (3.0 * theme.LabelPadding)) / (theme.FontSizeBody * CharWidthFactor)) + 1e-9);
+        var maxChars = Math.Max(MinDocWrapChars, fitChars);
+        var rows = paragraphs.SelectMany(p => WrapText(p, maxChars)).ToList();
+        return new LayoutCompartment("doc", rows);
+    }
+
+    /// <summary>
+    /// Splits raw annotation text into paragraphs of single-spaced words: lines are trimmed (with a
+    /// leading <c>*</c> comment-continuation marker removed), consecutive non-blank lines are
+    /// joined, and blank lines separate paragraphs.
+    /// </summary>
+    private static IEnumerable<string> SplitParagraphs(string text)
+    {
+        var current = new List<string>();
+        foreach (var rawLine in text.Split('\n'))
+        {
+            var line = rawLine.Trim();
+            if (line.StartsWith('*'))
+            {
+                line = line[1..].Trim();
+            }
+
+            if (line.Length == 0)
+            {
+                if (current.Count > 0)
+                {
+                    yield return string.Join(' ', current);
+                    current.Clear();
+                }
+
+                continue;
+            }
+
+            current.AddRange(line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        if (current.Count > 0)
+        {
+            yield return string.Join(' ', current);
+        }
+    }
+
+    /// <summary>
+    /// Greedily word-wraps a single-spaced paragraph into rows of at most
+    /// <paramref name="maxChars"/> characters, hard-breaking any single word longer than that.
+    /// </summary>
+    internal static IReadOnlyList<string> WrapText(string paragraph, int maxChars)
+    {
+        var rows = new List<string>();
+        var row = new System.Text.StringBuilder();
+        foreach (var word in paragraph.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var remaining = word;
+            while (remaining.Length > maxChars)
+            {
+                if (row.Length > 0)
+                {
+                    rows.Add(row.ToString());
+                    row.Clear();
+                }
+
+                rows.Add(remaining[..maxChars]);
+                remaining = remaining[maxChars..];
+            }
+
+            if (row.Length > 0 && row.Length + 1 + remaining.Length > maxChars)
+            {
+                rows.Add(row.ToString());
+                row.Clear();
+            }
+
+            if (row.Length > 0)
+            {
+                row.Append(' ');
+            }
+
+            row.Append(remaining);
+        }
+
+        if (row.Length > 0)
+        {
+            rows.Add(row.ToString());
+        }
+
+        return rows;
     }
 
     /// <summary>Formats a usage feature as a compartment row: <c>name : Type [n]</c>.</summary>
@@ -1353,7 +1499,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Emits a companion <see cref="BoxShape.Note"/> node (plus a plain connecting edge) for a
-    /// definition that carries <c>comment</c>/<c>doc</c> annotations, in the same scope the
+    /// definition that carries explicit <c>comment</c> annotations (<c>doc</c> annotations are never
+    /// drawn as notes — see <see cref="BuildDocCompartment"/>), in the same scope the
     /// definition's own node was just added to (folder or root — mirrors the existing per-package
     /// folder scoping already used for def nodes and model edges). Implemented as an ordinary
     /// <see cref="LayoutGraph"/> node/edge (rather than a post-layout coordinate-decoration pass
@@ -1390,7 +1537,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Combines an element's comment/documentation annotations into a single note's text: one note
+    /// Combines an element's comment annotations into a single note's text: one note
     /// box per annotated element, not one per annotation, to avoid uncontrolled box proliferation
     /// for well-annotated elements — matches this renderer's existing "one compartment per
     /// keyword, not per feature" aggregation philosophy already used in <see cref="BuildCompartments"/>.

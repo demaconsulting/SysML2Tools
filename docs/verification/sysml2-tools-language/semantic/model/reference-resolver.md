@@ -75,6 +75,7 @@ external services or additional configuration are required beyond a standard .NE
 | Named import records edge | `WorkspaceLoader_LoadAsync_NamedImport_RecordsImportEdge` |
 | Unresolved import — Warning, no crash | `WorkspaceLoader_LoadAsync_UnresolvedImport_ProducesWarningNoCrash` |
 | RenderTargetName captured raw | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
+| View definition typing edge | `WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured` |
 | Resolved expose name records edge | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | E2E diagnostic visibility | `RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic` |
 | Resolved redefinition records edge | `WorkspaceLoader_LoadAsync_ResolvedRedefinition_RecordsRedefinitionEdge` |
