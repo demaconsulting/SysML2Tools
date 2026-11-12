@@ -6,7 +6,9 @@
 View diagram. It shows the internal structure of a single part definition: its nested part usages
 as boxes placed through `LayeredPlacement`, ports on the box boundaries for the incident connections,
 and the connection usages routed as orthogonal connector lines between the ports, all enclosed by a
-container box for the host definition.
+container box for the host definition. Annotations (`comment` and `doc`) are never drawn: the
+strategy reads no `SysmlNode.Annotations`, so documentation never crowds the nested part boxes,
+regardless of the view's conditions.
 
 ##### Data Model
 
@@ -26,7 +28,7 @@ container size and content produced by laying out one definition's interior).
 ###### `BuildLayout(ViewContext context, RenderOptions options)`
 
 Entry point. Resolves the view's `expose` scope via `ExposeScopeResolver.ResolveExposedScope`,
-selects the root part definition via `FindRoot(workspace, scope)`, builds the container-definition
+selects the root part definition(s) via `FindRoots(workspace, scope)`, builds the container-definition
 index via `BuildDefinitionIndex`, lays out the root's interior via `LayOutInterior` (applying
 `scope`'s namespace-prefix filter only at the root's own direct children, depth 0; every deeper
 recursive call passes `scope: null`, since a nested container's own interior's membership in the
@@ -38,9 +40,13 @@ _Per-Branch Depth-Limited Recursion_ below; the true root call passes `ancestorU
 null`, since no branch decision exists yet at that point), and assembles the root container box
 with the interior content nested as that box's own `Children` (mirroring the nesting `MakePartBox`
 already uses for a container part, so the root box is never a bare sibling of its own content) into
-the `LayoutTree`. When `FindRoot` selects no root, falls back to the **no-single-root scoped
-fallback** described below when the resolved scope directly includes one or more top-level `part`
-feature usages; otherwise returns a minimal 200×100 empty `LayoutTree`.
+the `LayoutTree`. When `FindRoots` returns several roots, `LayOutRootsSideBySide` builds each
+root's container box with `BuildRootBox` and places them left to right in declaration order,
+separated by `6 × LabelPadding`, with aligned tops (SysML v2.1 Beta 2 8.2.3.11:
+`interconnection-view = (interconnection-element)*`). When `FindRoots` selects no root, falls
+back to the **no-single-root scoped fallback** described below when the resolved scope directly
+includes one or more top-level `part` feature usages; otherwise returns a minimal 200×100 empty
+`LayoutTree`.
 
 ###### Per-Branch Depth-Limited Recursion (`DetermineBranchUnlimitedRecursion`, `MatchesUnlimitedSubject`)
 
@@ -111,10 +117,10 @@ and §9.2.20.2.6 ("exposed features as nodes, nested features as nested nodes"),
 can be one or more concrete `part` feature usages directly, with no enclosing definition of its own
 — e.g. `expose PublishingSubsystem::*;` where `PublishingSubsystem` is itself only a namespace-like
 `part def` whose sole nested `part markdownFormatter : MarkdownFormatter;` is the only thing worth
-drawing. Before this fallback existed, `FindRoot` returning `null` always produced a totally empty
+drawing. Before this fallback existed, `FindRoots` returning no root always produced a totally empty
 canvas in this shape, even though the scope named something concrete.
 
-When `FindRoot` returns `null` and a scope is resolved, `BuildLayout` calls
+When `FindRoots` returns no root and a scope is resolved, `BuildLayout` calls
 `CollectTopLevelScopedParts(workspace, scope, theme, defsByName)`, which scans
 `workspace.Declarations` for every non-standard-library `SysmlFeatureNode` with
 `FeatureKeyword == "part"` whose qualified name satisfies `ExposeScopeResolver.IsInSubjectScope`,
@@ -299,7 +305,7 @@ real 3-axis-gantry wiring model) are never collapsed onto one shared routed poly
 connection keeps its own independently-routed connector with distinct waypoints (a separate
 parallel lane), and its own pair of labeled ports.
 
-###### `FindRoot(workspace, scope)`
+###### `FindRoots(workspace, scope)`
 
 Chooses the non-standard-library `part def` with the most connection usages (breaking ties by the
 most part usages) as the definition whose interior to render, restricted — when a scope is
@@ -309,7 +315,11 @@ falls back to considering every candidate when `scope` is `null`. When multiple 
 relevant to a non-null scope (possible because a nested definition and its ancestor can both be
 relevant), the most specific (deepest/longest qualified name) relevant candidate is preferred via
 `ExposeScopeResolver.IsMoreSpecificCandidate`, with the connections/parts tie-break used only to
-break ties among equally specific candidates; this ordering does not apply when `scope` is `null`.
+break ties among equally specific candidates; this ordering does not apply when `scope` is `null`. When `scope` is
+non-null and more than one candidate is an independent composition-graph root (composes at least
+one part, is not used as another candidate's part type, and is not a namespace ancestor of another
+such root), every one of them is returned, in declaration order, and drawn side by side; a single
+root and the unscoped case are unchanged.
 
 ###### `CollectParts` and `ResolveConnections(root, partIndex)`
 
@@ -325,13 +335,13 @@ needed.
 
 ##### Expose Scoping
 
-Because this strategy renders exactly one selected root's interior, scoping cannot narrow a
+Because this strategy renders the interior of each selected root, scoping cannot narrow a
 workspace-wide collection the way `GridViewLayoutStrategy` and `BrowserViewLayoutStrategy` do;
 instead it restricts **which root is selected**, then narrows **which of that root's parts are
 shown**, and finally — via `DetermineBranchUnlimitedRecursion`/`MatchesUnlimitedSubject` (see
 _Per-Branch Depth-Limited Recursion_ above) — governs **how deep into each shown part's own
 interior the diagram recurses, decided independently per branch**.
-`FindRoot` only considers candidates `ExposeScopeResolver.IsRootRelevantToScope` accepts,
+`FindRoots` only considers candidates `ExposeScopeResolver.IsRootRelevantToScope` accepts,
 so exposing the current heuristic root itself, an inner part of it, or a definition that itself
 contains the heuristic default all correctly select a root, while exposing an unrelated
 definition yields no root and thus the minimal empty canvas. When more than one candidate is
@@ -343,7 +353,7 @@ the selected root's own part features to those within the resolved scope (via
 `ExposeScopeResolver.IsInSubjectScope`), and `ResolveConnections`'s existing "skip connections
 whose endpoint did not resolve" behavior transparently drops any connection touching an excluded
 part — no new edge-side logic was required. A view with no `expose` statement (including the
-synthesized `--auto` view, whose `ViewNode` is `null`) resolves no scope, so `FindRoot` considers
+synthesized `--auto` view, whose `ViewNode` is `null`) resolves no scope, so `FindRoots` considers
 every candidate, `CollectParts` keeps every part, and every branch's decided recursion flag is
 always `true` — completely unchanged from the pre-scoping behavior.
 
@@ -393,7 +403,7 @@ diagnostics, so the returned `LayoutTree` carries no layout-quality warnings.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 - `ExposeScopeResolver` (Layout Internal subsystem) — `ResolveExposedScope`,
   `IsRootRelevantToScope`, `IsInSubjectScope`, and `IsMoreSpecificCandidate` supply the shared
-  `expose`-scoping used by `BuildLayout`, `FindRoot`, and `CollectParts`; `MatchesUnlimitedSubject`
+  `expose`-scoping used by `BuildLayout`, `FindRoots`, and `CollectParts`; `MatchesUnlimitedSubject`
   (via `DetermineBranchUnlimitedRecursion`) is the primary per-branch depth-limiting gate, deciding
   once per depth-0/top-level branch whether that branch's specific matching subject is recursive,
   with `HasUnlimitedRecursion` retained only as the depth-0 fallback when no qualified name is

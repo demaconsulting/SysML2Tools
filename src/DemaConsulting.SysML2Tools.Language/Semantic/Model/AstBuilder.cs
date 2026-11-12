@@ -1874,7 +1874,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var supertypeNames = GetSubclassificationSupertypes(
             context.definitionDeclaration()?.subclassificationPart());
 
-        var (renderTargetName, filterExpressionText) =
+        var (renderTargetName, filterExpressionTexts) =
             ExtractViewRenderAndFilter(context.viewDefinitionBody()?.viewDefinitionBodyItem() ?? []);
 
         return new SysmlViewNode
@@ -1883,7 +1883,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             QualifiedName = qualifiedName,
             SupertypeNames = supertypeNames,
             RenderTargetName = renderTargetName,
-            FilterExpressionText = filterExpressionText,
+            FilterExpressionText = filterExpressionTexts.FirstOrDefault(),
+            FilterExpressionTexts = filterExpressionTexts,
         };
     }
 
@@ -1909,7 +1910,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var qualifiedName = QualifyName(name);
         var bodyItems = context.viewBody()?.viewBodyItem() ?? [];
 
-        var (renderTargetName, filterExpressionText) = ExtractViewRenderAndFilter(bodyItems);
+        var (renderTargetName, filterExpressionTexts) = ExtractViewRenderAndFilter(bodyItems);
         var exposeMembers = ExtractExposedNames(bodyItems);
 
         return new SysmlViewNode
@@ -1918,14 +1919,16 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             QualifiedName = qualifiedName,
             RenderTargetName = renderTargetName,
             ExposeMembers = exposeMembers,
-            FilterExpressionText = filterExpressionText,
+            FilterExpressionText = filterExpressionTexts.FirstOrDefault(),
+            FilterExpressionTexts = filterExpressionTexts,
+            ViewDefinitionName = ExtractFeatureTyping(context.usageDeclaration()?.featureSpecializationPart()),
         };
     }
 
     /// <summary>
-    ///     Scans a view's body items for a <c>render &lt;target&gt;;</c> member and a
-    ///     <c>filter [&lt;expression&gt;];</c> member, returning the raw reference text and raw
-    ///     expression source text respectively (or <see langword="null"/> for either when absent).
+    ///     Scans a view's body items for a <c>render &lt;target&gt;;</c> member and every
+    ///     <c>filter [&lt;expression&gt;];</c> member, returning the raw reference text (or
+    ///     <see langword="null"/> when absent) and each filter's raw expression source text in order.
     ///     Shared by <see cref="VisitViewDefinition"/> (<c>viewDefinitionBodyItem</c>) and
     ///     <see cref="VisitViewUsage"/> (<c>viewBodyItem</c>) since both context types expose
     ///     identically-shaped <c>viewRenderingMember()</c>/<c>elementFilterMember()</c> accessors.
@@ -1933,12 +1936,12 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     than one render subject per view, so this is a defensive tie-break, not a validated
     ///     constraint enforced by this tool.
     /// </summary>
-    private static (string? RenderTargetName, string? FilterExpressionText) ExtractViewRenderAndFilter<TItem>(
+    private static (string? RenderTargetName, IReadOnlyList<string> FilterExpressionTexts) ExtractViewRenderAndFilter<TItem>(
         IEnumerable<TItem> bodyItems)
         where TItem : Antlr4.Runtime.ParserRuleContext
     {
         string? renderTargetName = null;
-        string? filterExpressionText = null;
+        var filterExpressionTexts = new List<string>();
 
         foreach (var item in bodyItems)
         {
@@ -1948,16 +1951,14 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 renderTargetName = ExtractRenderTargetName(renderingMember.viewRenderingUsage());
             }
 
-            if (filterExpressionText is null &&
-                GetElementFilterMember(item) is { } filterMember)
+            // Every `filter` member is a view condition (SysML 8.3.26.11 viewCondition); all apply.
+            if (GetElementFilterMember(item)?.ownedExpression() is { } filterExpr)
             {
-                filterExpressionText = filterMember.ownedExpression() is { } filterExpr
-                    ? GetOriginalText(filterExpr)
-                    : null;
+                filterExpressionTexts.Add(GetOriginalText(filterExpr));
             }
         }
 
-        return (renderTargetName, filterExpressionText);
+        return (renderTargetName, filterExpressionTexts);
     }
 
     /// <summary>

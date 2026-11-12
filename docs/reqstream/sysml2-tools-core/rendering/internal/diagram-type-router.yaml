@@ -27,10 +27,28 @@ sections:
           - GetStrategy_BrowserNamedView_ReturnsBrowserStrategy
           - GetStrategy_SequenceNamedView_ReturnsSequenceStrategy
 
+      - id: SysML2Tools-Core-Rendering-Internal-DiagramTypeRouter-StandardViewDefinition
+        title: >-
+          When a view declares no recognized render target, DiagramTypeRouter shall select the layout
+          strategy of the nearest view definition, reached through the view's resolved typing and then
+          the general view definitions it specializes, that declares a recognized render target or is
+          one of the standard view definitions GeneralView, InterconnectionView, ActionFlowView,
+          StateTransitionView, SequenceView, GridView, or BrowserView.
+        justification: |
+          SysML v2.1 Beta 2 9.2.20 defines the standard view definitions that select a view's
+          notation (`view X : InterconnectionView { ... }`), and 7.26.2 makes a view usage inherit
+          the rendering of its view definition. Honoring them lets models use the standard,
+          tool-independent form instead of relying on view naming conventions; an explicit render
+          on the view usage itself still takes precedence.
+        tests:
+          - GetStrategy_ViewTypedByStandardViewDefinition_RoutesToItsNotation
+          - GetStrategy_ViewTypedByUserViewDefinition_InheritsNotationAndRendering
+          - GetStrategy_RenderOnTypedView_OverridesViewDefinition
+
       - id: SysML2Tools-Core-Rendering-Internal-DiagramTypeRouter-DefaultGeneral
         title: >-
-          When a view matches no recognized view kind, DiagramTypeRouter shall select the
-          general view strategy.
+          When a view has no recognized render target or standard view definition and matches no
+          recognized view kind, DiagramTypeRouter shall select the general view strategy.
         justification: |
           A sensible default keeps every view renderable. The general view is the most
           broadly applicable layout and is the natural fallback for an unspecified view kind.
@@ -41,8 +59,9 @@ sections:
         title: >-
           When a view declares a render target of asTreeDiagram, asInterconnectionDiagram,
           asGeneralDiagram, asStateTransitionDiagram, asActionFlowDiagram, asSequenceDiagram, or
-          asGridDiagram, DiagramTypeRouter shall select the corresponding layout strategy, taking
-          precedence over the name/supertype heuristic.
+          asGridDiagram (optionally qualified as Views::<name>), DiagramTypeRouter shall select the
+          corresponding layout strategy, taking precedence over its view definition and the
+          name/supertype heuristic.
         justification: |
           A view's declared render target is an explicit, author-specified rendering-style
           selection per the SysML v2 grammar. Honoring it ahead of the name/supertype heuristic

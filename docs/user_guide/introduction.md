@@ -181,6 +181,52 @@ sysml2tools render model.sysml --view-type general --view-target Pkg::Vehicle --
   > `ROADMAP.md`'s "View dynamics refinements" item); this is a documented gap, not a silent
   > omission.
 
+## Choosing the Diagram Type
+
+The standard SysML v2 way to choose a diagram type is to type the view by one of the standard
+view definitions from the `StandardViewDefinitions` library package:
+
+```sysml
+package MyDesignViews {
+    private import StandardViewDefinitions::*;
+
+    view SystemStructure : GeneralView {
+        expose MySystem::**;
+        filter not @SysML::Documentation;
+    }
+
+    view SystemInternals : InterconnectionView {
+        expose MySystem::**;
+    }
+}
+```
+
+`GeneralView`, `InterconnectionView`, `ActionFlowView`, `StateTransitionView`, `SequenceView`,
+`GridView`, and `BrowserView` select the matching diagram. The name must resolve, so either
+import `StandardViewDefinitions::*` as above or write it qualified
+(`view SystemStructure : StandardViewDefinitions::GeneralView { ... }`). A view may also be typed
+by your own `view def` that specializes a standard one (`view def SystemsView :> InterconnectionView;`);
+it then inherits that definition's diagram type, its `render` member, and its `filter` conditions.
+`GeometryView` is not supported and renders as a General View.
+
+The diagram type is chosen in this order:
+
+1. The view's own `render` member: `render asTreeDiagram;` (browser) or
+   `render asInterconnectionDiagram;`, plus the tool-defined `asGeneralDiagram`,
+   `asStateTransitionDiagram`, `asActionFlowDiagram`, `asSequenceDiagram`, and `asGridDiagram`.
+   `Views::asTreeDiagram` is accepted too. `asElementTable` and `asTextualNotation` have no
+   matching diagram and are ignored.
+2. The view's view definition, nearest first: a definition's `render` member, or a standard view
+   definition.
+3. Otherwise, a tool-defined fallback that looks for `Interconnection`, `StateTransition`/`State`,
+   `ActionFlow`/`Action`, `Grid`/`Matrix`/`Tabular`, `Browser`/`Tree`, or `Sequence` in the view's
+   name or declared supertypes, and renders a General View when none matches. Prefer typing the
+   view, since this fallback depends on naming.
+
+An Interconnection View that exposes several independent systems (for example
+`expose SystemA::**; expose SystemB::**;`) draws every system's frame side by side, in declaration
+order.
+
 ## View Body Statements
 
 A `view def`/`view` declaration's body may contain `render <target>;` and `filter [<expr>];`
@@ -249,7 +295,9 @@ entire workspace:
 
 Every view kind honors `expose` scoping: General, Grid, and Browser Views apply the resolved
 scope directly as a filter over their full applicable content. Interconnection, State
-Transition, Action Flow, and Sequence Views each render exactly one selected root's contents, so
+Transition, Action Flow, and Sequence Views render the contents of a selected root (an
+Interconnection View draws several roots side by side when the scope exposes several independent
+systems), so
 they instead use the resolved scope in two steps: first, restricting which root the view's own
 heuristic selects to one relevant to the scope (the current heuristic root itself, an inner
 element of it, or a definition that contains it) — an `expose` statement naming an unrelated
@@ -305,6 +353,33 @@ inside a container (for example `connect psu to board.cpu`) shows the port label
 nested target (`cpu`), but the connector line itself still terminates at the containing `board`
 box's own boundary rather than continuing on to the inner part — routing a connector all the way
 into a nested container remains a known limitation.
+
+### Comments and Documentation
+
+In SysML v2, `doc /* ... */` documentation and `comment /* ... */` comments are owned members of
+the element they annotate, so `expose X::**;` (or `expose X::*;`) exposes them along with X's other
+members, while a bare `expose X;` does not. In a General View, exposed documentation is drawn as a
+word-wrapped `doc` compartment inside its element's box, and an exposed comment as a folded-corner
+note attached to its element. Interconnection and other view types never draw them.
+
+Like any exposed element, documentation and comments are only drawn when they satisfy the view's
+conditions. Use the standard view condition to hide documentation (comments remain):
+
+```sysml
+view Overview {
+    expose MySystem::**;
+    filter not @SysML::Documentation;
+}
+```
+
+View conditions (`filter <expr>;`) select exposed elements by metaclass (`@SysML::PartUsage`,
+`@SysML::PartDefinition`, `@SysML::Documentation`, `@SysML::Comment`, and so on, also accepted as
+`@KerML::…`) or by applied metadata, combined with `not`, `and`, `or`, and `xor`. All of a view's
+conditions apply, including those inherited from its view definition
+(`view def NoDocs { filter not @SysML::Documentation; }` then `view Overview : NoDocs { … }`). A
+positive condition such as `filter @SysML::PartDefinition;` also hides documentation and comments,
+since they are not part definitions. An expose filter applies a condition to one expose only:
+`expose MySystem::**[not @SysML::Documentation];`.
 
 ## Expose vs. Render: Worked Examples
 

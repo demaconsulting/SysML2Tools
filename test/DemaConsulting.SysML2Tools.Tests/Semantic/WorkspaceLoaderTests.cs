@@ -5048,5 +5048,44 @@ public sealed class WorkspaceLoaderTests
         var def = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(node);
         Assert.Equal(expectedKeyword, def.DefinitionKeyword);
     }
+
+    /// <summary>
+    ///     A view captures every owned <c>filter</c> view condition in source order, and a view
+    ///     usage's view definition (<c>view V : Def</c>) is captured and resolved into a
+    ///     <c>Typing</c> edge (SysML 7.26.2).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured()
+    {
+        // Arrange
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, """
+                package P {
+                    part def A;
+                    view def Def { filter @SysML::PartUsage; filter not @SysML::Documentation; }
+                    view V : Def { expose A; }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var def = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(result.Workspace.Declarations["P::Def"]);
+            Assert.Equal(["@SysML::PartUsage", "not @SysML::Documentation"], def.FilterExpressionTexts);
+            var view = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlViewNode>(result.Workspace.Declarations["P::V"]);
+            Assert.Equal("Def", view.ViewDefinitionName);
+            Assert.Contains(view.ResolvedEdges, e =>
+                e.Kind == DemaConsulting.SysML2Tools.Semantic.Model.SysmlEdgeKind.Typing && e.TargetQualifiedName == "P::Def");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
 }
 

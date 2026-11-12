@@ -226,6 +226,11 @@ public static class FilterExpressionEvaluator
     /// </summary>
     private static bool MatchesMetaclassKind(SysmlWorkspace workspace, SysmlNode node, string typeName)
     {
+        if (node is SysmlPackageNode)
+        {
+            return ConformsTo(workspace, "Package", typeName);
+        }
+
         var keyword = node switch
         {
             SysmlDefinitionNode definition => definition.DefinitionKeyword,
@@ -238,8 +243,7 @@ public static class FilterExpressionEvaluator
             return false;
         }
 
-        return MetaclassNameMatches(bareMetaclassName, typeName) ||
-            ConformsToMetaclass(workspace, bareMetaclassName, typeName, new HashSet<string>(StringComparer.Ordinal));
+        return ConformsTo(workspace, bareMetaclassName, typeName);
     }
 
     /// <summary>
@@ -255,8 +259,67 @@ public static class FilterExpressionEvaluator
     /// </summary>
     private static bool MetaclassNameMatches(string bareMetaclassName, string typeName) =>
         typeName == bareMetaclassName ||
-        (typeName.StartsWith("SysML::", StringComparison.Ordinal) &&
+        ((typeName.StartsWith("SysML::", StringComparison.Ordinal) ||
+            typeName.StartsWith("KerML::", StringComparison.Ordinal)) &&
             typeName.EndsWith("::" + bareMetaclassName, StringComparison.Ordinal));
+
+    /// <summary>
+    /// The KerML abstract-syntax metaclasses (KerML.kerml in the Kernel Semantic Library) that the
+    /// tool classifies elements by but that are not captured as standard-library declarations, each
+    /// with its own name followed by its general metaclasses: <c>Documentation</c> specializes
+    /// <c>Comment</c>, which specializes <c>AnnotatingElement</c>; <c>Package</c> specializes
+    /// <c>Namespace</c>; all specialize <c>Element</c>.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string[]> KernelMetaclassLineage = new Dictionary<string, string[]>(StringComparer.Ordinal)
+    {
+        ["Documentation"] = ["Documentation", "Comment", "AnnotatingElement", "Element"],
+        ["Comment"] = ["Comment", "AnnotatingElement", "Element"],
+        ["Package"] = ["Package", "Namespace", "Element"],
+    };
+
+    /// <summary>
+    /// Returns whether an element whose abstract-syntax metaclass is <paramref name="bareMetaclassName"/>
+    /// conforms to the classification test's <paramref name="typeName"/>: the metaclass itself, one
+    /// of its KerML general metaclasses (<see cref="KernelMetaclassLineage"/>), or a standard-library
+    /// metaclass it specializes.
+    /// </summary>
+    private static bool ConformsTo(SysmlWorkspace workspace, string bareMetaclassName, string typeName) =>
+        (KernelMetaclassLineage.TryGetValue(bareMetaclassName, out var lineage)
+            ? lineage.Any(name => MetaclassNameMatches(name, typeName))
+            : MetaclassNameMatches(bareMetaclassName, typeName)) ||
+        ConformsToMetaclass(workspace, bareMetaclassName, typeName, new HashSet<string>(StringComparer.Ordinal));
+
+    /// <summary>
+    /// Evaluates <paramref name="expression"/> for an element known only by its abstract-syntax
+    /// metaclass — e.g. a <c>doc</c> (<c>Documentation</c>) or <c>comment</c> (<c>Comment</c>)
+    /// annotating element, which carries no metadata annotations of its own. Per SysML 7.5.4 the
+    /// element is tested as if it had an implicit metadata usage of its metaclass, so a
+    /// classification test (<c>@SysML::Documentation</c>) matches when the metaclass conforms to the
+    /// tested type; attribute reads and comparisons evaluate to <see langword="false"/>.
+    /// </summary>
+    /// <param name="workspace">The workspace whose standard library supplies metaclass specializations.</param>
+    /// <param name="bareMetaclassName">The element's metaclass, e.g. <c>Documentation</c>.</param>
+    /// <param name="expression">The parsed filter expression.</param>
+    /// <returns>Whether the element satisfies the expression.</returns>
+    public static bool EvaluateForMetaclass(SysmlWorkspace workspace, string bareMetaclassName, FilterExpression expression)
+    {
+        ArgumentNullException.ThrowIfNull(workspace);
+        ArgumentNullException.ThrowIfNull(bareMetaclassName);
+        ArgumentNullException.ThrowIfNull(expression);
+        return expression switch
+        {
+            ClassificationTestExpression classificationTest => ConformsTo(workspace, bareMetaclassName, classificationTest.TypeName),
+            NotFilterExpression not => !EvaluateForMetaclass(workspace, bareMetaclassName, not.Operand),
+            BooleanFilterExpression boolean => boolean.Connective switch
+            {
+                BooleanConnective.And => EvaluateForMetaclass(workspace, bareMetaclassName, boolean.Left) && EvaluateForMetaclass(workspace, bareMetaclassName, boolean.Right),
+                BooleanConnective.Or => EvaluateForMetaclass(workspace, bareMetaclassName, boolean.Left) || EvaluateForMetaclass(workspace, bareMetaclassName, boolean.Right),
+                BooleanConnective.Xor => EvaluateForMetaclass(workspace, bareMetaclassName, boolean.Left) ^ EvaluateForMetaclass(workspace, bareMetaclassName, boolean.Right),
+                _ => false,
+            },
+            _ => false,
+        };
+    }
 
     /// <summary>
     /// Walks the stdlib <c>specializes</c> chain starting from the stdlib <c>metadata def</c>

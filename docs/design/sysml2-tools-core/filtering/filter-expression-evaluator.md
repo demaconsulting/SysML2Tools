@@ -166,6 +166,22 @@ confirmed against the compiled stdlib rather than assumed:
    empirically (via a probe against `StdlibProvider.GetSymbolTable()`) that it does not work for
    stdlib nodes, rather than by assumption.
 
+**KerML spellings, packages, and annotations.** `MetaclassNameMatches` also accepts the
+`KerML::`-prefixed spelling, since SysML publicly imports KerML (SysML 2.1 Beta 2 7.5.4) and
+`Documentation`, `Comment`, and `Package` are KerML metaclasses. A `SysmlPackageNode` maps to
+`Package`. KerML `metaclass` declarations are not captured as stdlib nodes, so the private
+`KernelMetaclassLineage` table supplies their general metaclasses (`Documentation` → `Comment` →
+`AnnotatingElement` → `Element`; `Package` → `Namespace` → `Element`), walked by `ConformsTo`.
+
+##### `FilterExpressionEvaluator.EvaluateForMetaclass(workspace, metaclass, expression)`
+
+Evaluates a view condition for an element that has no `Declarations` entry — an owned `doc`
+(`Documentation`) or `comment` (`Comment`) annotation — treating it as an instance of the given
+metaclass with no metadata and no attributes: a classification test is true when the metaclass
+conforms to the tested type, attribute reads are false, and `not`/`and`/`or`/`xor` combine as in
+`Evaluate`. `GeneralViewLayoutStrategy` uses it to apply view conditions to documentation and
+comments (SysML 7.26.2: every exposed element must satisfy every view condition).
+
 #### Error Handling
 
 `FilterExpressionParser` never throws for unsupported constructs or malformed syntax. Syntax errors

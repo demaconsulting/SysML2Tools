@@ -919,6 +919,24 @@ internal sealed class ReferenceResolver
             }
 
             view.ResolvedExposeMembers = resolvedExposeMembers;
+
+            // A view usage's view definition (`view v : Def;`) resolves like feature typing; the
+            // usage inherits the definition's view conditions and rendering (SysML 7.26.2).
+            if (view.ViewDefinitionName is { Length: > 0 } viewDefinitionName)
+            {
+                if (TryResolve(viewDefinitionName, namespaceStack, imports, out var resolvedDefinition))
+                {
+                    nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedDefinition, SysmlEdgeKind.Typing));
+                }
+                else if (resolvedInFile.Add(viewDefinitionName))
+                {
+                    _diagnostics.Add(new SysmlDiagnostic(
+                        filePath,
+                        0, 0,
+                        DiagnosticSeverity.Warning,
+                        $"Unresolved reference: '{viewDefinitionName}'"));
+                }
+            }
         }
 
         // Metadata annotations (SysmlMetadataNode, a Children entry of the element it annotates)

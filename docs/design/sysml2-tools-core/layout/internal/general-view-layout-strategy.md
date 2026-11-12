@@ -30,7 +30,7 @@ box title and folder-tab geometry come from `BoxMetrics` in `DemaConsulting.Rend
 parameters. Layout constants (`MinBoxWidth`, `CharWidthFactor`) are declared as `private const`
 fields. Private records carry intermediate data: `DefBox` (a user definition with its computed
 size, keyword, supertype names, memberships, compartments, and `Annotations` — the definition's
-own `SysmlNode.Annotations` list, threaded through by `CollectDefinitions` so `AddAnnotationNote`
+own `comment` annotations from `SysmlNode.Annotations`, threaded through by `CollectDefinitions` so `AddAnnotationNote`
 (below) can render them without a second workspace lookup), `ModelEdge` (a resolved
 specialization/membership/attribute-typing/redefinition/subsetting/connect/allocate/dependency/
 binding relationship expressed by qualified name, together with its target end marker, edge kind,
@@ -173,6 +173,12 @@ correctly in this single ordered pass, so a deeper-nested usage is never silentl
 because an intermediate ancestor between it and the nearest rendered box was itself excluded.
 Definitions (`DefBox.IsUsage` is `false`) are never excluded by this rule, preserving all
 pre-Phase-2d definition-rendering behavior.
+
+Known limitation: a usage removed by this rule appears only as its parent's compartment row, so
+its own exposed `doc` compartment and `comment` note are not drawn (comments were already lost
+this way before view conditions applied to annotations). Documentation of such a nested usage is
+visible when the usage is itself rendered as a box, for example when the view exposes it directly
+or a view condition excludes its parent.
 
 This exists because `CollectDefinitions`'s usage-level widening (Phase 2d) admits every named
 usage regardless of nesting depth — necessary so a metaclass-kind filter like
@@ -447,15 +453,52 @@ their placeholder identically.
 Adds one definition as a leaf node to the given scope (the root graph or a folder's `Children`),
 carrying its `Label`, `Shape = Rectangle`, `Keyword`, and `Compartments`.
 
+###### View conditions and annotation visibility
+
+`BuildLayout` gathers the view's conditions with `ExposeScopeResolver.CollectViewConditions` —
+every `filter` the view owns followed by those inherited from its view definition and its general
+view definitions (SysML 2.1 Beta 2 7.26.2; 8.3.26.11 `viewCondition`/`includeAsExposed`) — and
+parses each with `FilterExpressionParser.Parse`; a condition that does not parse is reported with
+`LayoutWarnings.ForUnevaluatedFilter` and skipped. Every exposed definition or usage must satisfy
+all parsed conditions (`FilterExpressionEvaluator.Evaluate`, with abstract-syntax metaclass tests
+such as `@SysML::PartUsage`, SysML 7.5.4). An owned `doc` or `comment` is visible when
+`ExposeScopeResolver.IsAnnotationExposed` reports it exposed (including through an expose filter,
+`expose P::**[expr];`) and it satisfies every condition for its metaclass (`Documentation` or
+`Comment`) via `FilterExpressionEvaluator.EvaluateForMetaclass` — so
+`filter not @SysML::Documentation;` hides documentation while keeping comments, and a positive
+condition such as `filter @SysML::PartDefinition;` hides both.
+
+###### `BuildDocCompartment(annotations, boxWidth, theme)`
+
+Called by `CollectDefinitions` when the element's documentation is visible: it is exposed with
+its owner's members (`ExposeScopeResolver.IsAnnotationExposed`, KerML 7.2.4.2 — documentation is
+an owned member of its element) and satisfies every view condition
+(`FilterExpressionEvaluator.EvaluateForMetaclass(…, "Documentation", …)`). It draws the SysML 2.1
+Beta 2 8.2.3.4 `documentation-compartment` notation. It returns `null` when the element has no
+non-empty `doc` annotation; otherwise it
+builds a `LayoutCompartment` titled `doc` that `CollectDefinitions` places first among the box's
+compartments before re-running `ComputeBoxSize`. `SplitParagraphs` normalizes each annotation's
+raw text (trimming lines, dropping a leading `*` continuation marker, joining consecutive lines,
+and splitting paragraphs on blank lines), and `WrapText` greedily word-wraps each paragraph to the
+number of characters that fit the box width computed without the doc compartment — using the same
+`FontSizeBody * CharWidthFactor` estimate and `3 * LabelPadding` inset as `ComputeBoxSize`, so a
+wrapped row never widens the box — but never fewer than `MinDocWrapChars` (36) characters, so a
+narrow box widens to a readable column instead of wrapping into a tall sliver. A word longer than
+the limit is hard-broken. Documentation is never drawn as a separate note.
+
 ###### `AddAnnotationNote(scope, def, defNode, theme)`
 
 Called immediately after `MakeDefNode` for every definition (both top-level and folder-scoped),
 this no-ops when `def.Annotations` is empty; otherwise it adds one `BoxShape.Note` node (id
 `note:{qualifiedName}`) to the same `scope` as `defNode`, plus a plain solid edge with no end
 marker (id `note-edge:{qualifiedName}`, `TargetEnd = EndMarkerStyle.None`) from the note to the
-definition. `BuildNoteText` concatenates every annotation's trimmed text with a blank-line
-separator, so **one note box renders per annotated element**, never one box per individual
-`comment`/`doc` — a definition with both a `doc` and two `comment`s still gets a single note.
+definition. `def.Annotations` holds only the element's `comment` annotations that are visible —
+exposed with the owner's members and satisfying every view condition for metaclass `Comment` —
+so this draws the SysML 8.2.3.4 `comment-node` with its `annotation-link`; `doc` (Documentation)
+annotations are never drawn as notes (see `BuildDocCompartment` below). `BuildNoteText`
+concatenates every comment's trimmed text with a blank-line separator, so **one note box renders
+per commented element**, never one box per individual `comment` — a definition with two
+`comment`s still gets a single note.
 `ComputeNoteBoxSize` sizes the note from the longest line and total line count using
 `BoxMetrics.TitleAreaHeight(theme, hasLabel: false, hasKeyword: false)` for the (title-less) top
 band plus per-line height and padding — deliberately simpler than the full `ComputeBoxSize` used
