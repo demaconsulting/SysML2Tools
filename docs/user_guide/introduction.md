@@ -241,9 +241,9 @@ entire workspace:
   independent scoping behavior, driven by whether the grammar alternative is
   MembershipExpose or NamespaceExpose and whether a trailing `::**` requests recursion:
   - `expose X;` (bare MembershipExpose) — scopes to **`X` itself only**, not its containment
-    subtree. If `X` resolves to a usage (e.g. `part myVehicle : Vehicle;`) rather than a
-    definition, its resolved type (`Vehicle`) is also included, itself only (not the type's
-    subtree either).
+    subtree. When `X` is a package, the General View draws it as an empty package node. If `X`
+    resolves to a usage (e.g. `part myVehicle : Vehicle;`) rather than a definition, its resolved
+    type (`Vehicle`) is also included, itself only (not the type's subtree either).
   - `expose X::**;` (recursive MembershipExpose) — scopes to `X` **and its entire containment
     subtree**: `X` plus every declaration whose qualified name is `X` or is contained within it.
   - `expose X::*;` (bare NamespaceExpose) — scopes to only `X`'s **direct (one-level) children**,
@@ -483,6 +483,26 @@ extra hop — through the usage's type reference — to add the same kind of def
 that exposing a `def` reaches directly; in both cases, recursion (`::**`) is what controls
 whether descendants are included, independent of whether the initial target was a usage or a
 definition.
+
+## Empty Views and Lone Package Exposes
+
+Per SysML v2 (8.3.26.3), `expose P;` exposes the package element `P` itself, so the General View
+draws it as a package node (tabbed folder symbol with its name) without its contents; `expose P::*;`
+exposes only `P`'s members (no package node); and `expose P::**;` exposes `P` and all its members
+recursively (the package node containing its members). When a package is exposed alone in a view
+laid out as a General View, `render`
+prints an informational hint, located at the view's declaration in the same
+`file(line,col): severity:` form `lint` uses:
+
+```text
+  design-views.sysml(9,4): info: View 'SoftwareStructureView': 'expose BuildMark;' exposes the
+  package element itself, so it is drawn as a package node without contents; use
+  'expose BuildMark::**;' to also show the members.
+```
+
+Only a view whose diagram contains nothing renderable at all is reported as a `warning`. In both
+cases the output file is still written, and the exit code is unchanged (each message is printed on
+a single line). The `lint` command does not lay views out, so it does not report these conditions.
 
 ## Depth Limiting
 

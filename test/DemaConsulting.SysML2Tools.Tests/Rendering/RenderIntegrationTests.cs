@@ -5,6 +5,7 @@
 using DemaConsulting.Rendering.Abstractions;
 using DemaConsulting.Rendering.CanvasNet;
 using DemaConsulting.Rendering.Svg;
+using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Stdlib;
@@ -314,6 +315,214 @@ public sealed class RenderIntegrationTests
                 .ToList();
 
             Assert.Empty(unresolvedFromUserFiles);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Loads <paramref name="sysml"/> from a temp file, renders it to SVG while collecting
+    ///     render diagnostics, and returns the outputs and diagnostics.
+    /// </summary>
+    /// <param name="sysml">The SysML source text to render.</param>
+    /// <param name="tempFile">The temp file the source was written to (caller deletes it).</param>
+    /// <returns>The render outputs and the collected render diagnostics.</returns>
+    private static async Task<(IReadOnlyList<RenderOutput> Outputs, List<SysmlDiagnostic> Diagnostics)>
+        RenderWithDiagnosticsAsync(string sysml, string tempFile)
+    {
+        await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+        Assert.NotNull(result.Workspace); // Pre-condition: workspace must load
+
+        var diagnostics = new List<SysmlDiagnostic>();
+        var outputs = new DiagramRenderer().RenderWorkspace(
+            result.Workspace, new SvgRenderer(), new RenderOptions(Themes.Light), viewFilter: null, diagnostics: diagnostics);
+        return (outputs, diagnostics);
+    }
+
+    /// <summary>
+    ///     A view whose only expose is a bare <c>expose Pkg;</c> (a MembershipExpose of the package
+    ///     element itself, SysML 8.3.26.3) renders the package as a package node without its
+    ///     contents; the renderer reports a located informational hint (not a warning) suggesting
+    ///     <c>expose Pkg::**;</c> to show the members.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_ViewExposesBarePackage_RendersPackageNodeWithInfoHint()
+    {
+        // Arrange: a package with members exposed only as the bare package element
+        const string sysml = """
+            package Pkg {
+                part def Block1 {}
+                part def Block2 {}
+            }
+            package Diagrams {
+                view StructureView {
+                    expose Pkg;
+                }
+            }
+            """;
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            // Act: render the workspace collecting diagnostics
+            var (outputs, diagnostics) = await RenderWithDiagnosticsAsync(sysml, tempFile);
+
+            // Assert: the package node is drawn (its name, not its members), and one located
+            // informational hint is reported
+            var output = Assert.Single(outputs);
+            var svg = System.Text.Encoding.UTF8.GetString(((MemoryStream)output.Data).ToArray());
+            Assert.Contains(">Pkg<", svg);
+            Assert.DoesNotContain("Block1", svg);
+            var diagnostic = Assert.Single(diagnostics);
+            Assert.Equal(DiagnosticSeverity.Info, diagnostic.Severity);
+            Assert.Equal(tempFile, diagnostic.FilePath);
+            Assert.Equal(6, diagnostic.Line);
+            Assert.Contains("'StructureView'", diagnostic.Message);
+            Assert.Contains("'expose Pkg::**;'", diagnostic.Message);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A bare <c>expose Pkg;</c> in a view routed to a layout that does not draw package nodes
+    ///     (here an interconnection view, which draws its exposed root part def) reports no
+    ///     lone-package hint, since no package node is drawn.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_NonGeneralViewExposesBarePackage_ReportsNoHint()
+    {
+        // Arrange: an interconnection view exposing a renderable root plus a bare package
+        const string sysml = """
+            package Pkg { part def Block1 {} }
+            package Sys { part def Leaf; part def Root { part a : Leaf; part b : Leaf; } }
+            package Diagrams {
+                view WiringView {
+                    expose Sys::Root::**;
+                    expose Pkg;
+                    render asInterconnectionDiagram;
+                }
+            }
+            """;
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            // Act
+            var (outputs, diagnostics) = await RenderWithDiagnosticsAsync(sysml, tempFile);
+
+            // Assert: the view renders and no diagnostic claims a package node was drawn
+            Assert.Single(outputs);
+            Assert.Empty(diagnostics);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A view whose exposed scope contains nothing renderable (here the members of an empty
+    ///     package, <c>expose Pkg::*;</c>) is still rendered, and a located warning is reported.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_ViewWithNothingRenderable_ReportsEmptyViewWarning()
+    {
+        // Arrange
+        const string sysml = """
+            package Pkg { }
+            package Diagrams {
+                view EmptyView {
+                    expose Pkg::*;
+                }
+            }
+            """;
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            // Act
+            var (outputs, diagnostics) = await RenderWithDiagnosticsAsync(sysml, tempFile);
+
+            // Assert
+            Assert.Single(outputs);
+            var diagnostic = Assert.Single(diagnostics);
+            Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+            Assert.Contains("'EmptyView'", diagnostic.Message);
+            Assert.Contains("nothing renderable", diagnostic.Message);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A view exposing a package's members recursively (<c>expose Pkg::**;</c>) renders
+    ///     content and reports no empty-view warning.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_ViewExposesPackageRecursively_ReportsNoWarning()
+    {
+        // Arrange: the same package exposed with the recursive '::**' form
+        const string sysml = """
+            package Pkg {
+                part def Block1 {}
+                part def Block2 {}
+            }
+            package Diagrams {
+                view StructureView {
+                    expose Pkg::**;
+                }
+            }
+            """;
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            // Act: render the workspace collecting diagnostics
+            var (outputs, diagnostics) = await RenderWithDiagnosticsAsync(sysml, tempFile);
+
+            // Assert: the view is rendered and no diagnostic is reported
+            Assert.Single(outputs);
+            Assert.Empty(diagnostics);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A view exposing a single element that has renderable content (a bare
+    ///     <c>expose Pkg::Block1;</c> of a part definition) reports no empty-view warning.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_ViewExposesRenderableElement_ReportsNoWarning()
+    {
+        // Arrange: a non-recursive expose of a part definition, which renders as its own box
+        const string sysml = """
+            package Pkg {
+                part def Block1 {}
+                part def Block2 {}
+            }
+            package Diagrams {
+                view BlockView {
+                    expose Pkg::Block1;
+                }
+            }
+            """;
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            // Act: render the workspace collecting diagnostics
+            var (outputs, diagnostics) = await RenderWithDiagnosticsAsync(sysml, tempFile);
+
+            // Assert: the view is rendered and no diagnostic is reported
+            Assert.Single(outputs);
+            Assert.Empty(diagnostics);
         }
         finally
         {

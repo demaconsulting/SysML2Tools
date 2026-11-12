@@ -133,6 +133,7 @@ sections:
           - SysML2Tools-Core-Rendering-DiagramRenderer-RendererAgnostic
           - SysML2Tools-Core-Rendering-DiagramRenderer-NoViews
           - SysML2Tools-Core-Rendering-DiagramRenderer-SynthesizeDynamicView
+          - SysML2Tools-Core-Rendering-DiagramRenderer-EmptyViewWarning
         tests:
           - DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList
 

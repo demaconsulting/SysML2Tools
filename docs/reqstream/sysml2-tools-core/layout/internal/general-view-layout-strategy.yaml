@@ -561,3 +561,23 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_RequirementSubject_UsesGuillemetTitle
           - GeneralViewLayoutStrategy_BuildLayout_ConstraintFeatures_ShowExpressionText
           - GeneralViewLayoutStrategy_BuildLayout_EnumDefLiteralValues_ProducesEnumValuesCompartment
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposedPackageNodes
+        title: >-
+          In an `expose`-scoped view, GeneralViewLayoutStrategy shall draw each package that is
+          itself exposed (`expose P;` or `expose P::**;`) and satisfies the view conditions as a
+          package node containing whichever
+          of its members are also exposed — an empty package node when none are — and shall not draw
+          a package that is only an ancestor of exposed elements (`expose P::*;` exposes P's members
+          but not P).
+        justification: |
+          SysML 8.3.26.3/8.3.26.4 and KerML 8.3.2.4.4: a MembershipExpose exposes the named
+          membership (the package element itself) and, if recursive, its members; a
+          NamespaceExpose exposes only the namespace's members. Exposed packages render with the
+          package-node notation of SysML 8.2.3.5.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_BarePackageExpose_DrawsEmptyPackageNode
+          - GeneralViewLayoutStrategy_BuildLayout_BarePackageExposeWithDepthLimitOne_HasNoTruncationIndicator
+          - GeneralViewLayoutStrategy_BuildLayout_ViewConditionOnExposedPackage_KeepsOrRemovesPackageNode
+          - GeneralViewLayoutStrategy_BuildLayout_NamespaceExpose_DrawsMembersWithoutPackageNode
+          - GeneralViewLayoutStrategy_BuildLayout_RecursivePackageExpose_DrawsPackageNodeWithMembers

@@ -195,7 +195,11 @@ the short name the alias declaration itself captured.
 `FilterExpressionText`. `VisitViewUsage` builds a `SysmlViewNode` for named `view` usages (the
 only body form that may additionally contain `expose` members) the same way, plus
 `ExtractExposedNames` to populate `ExposeMembers`. Unnamed view usages are skipped (no declared
-name), mirroring the existing anonymous-element convention. `ExtractViewRenderAndFilter` collects
+name), mirroring the existing anonymous-element convention. Both visitors also record the view's
+declaration location on `SourceFilePath` (the optional `filePath` constructor argument, which
+`WorkspaceLoader` supplies for each user file; null when constructed without one, as `StdlibGen`
+does), `SourceLine` (`context.Start.Line`), and `SourceColumn` (`context.Start.Column`).
+`ExtractViewRenderAndFilter` collects
 every `filter` member's original text, in source order, into `FilterExpressionTexts` (the first
 is also kept as `FilterExpressionText`), and `VisitViewUsage` records the usage's view definition
 reference (`view V : Def`, from its `featureSpecializationPart` via `ExtractFeatureTyping`) as

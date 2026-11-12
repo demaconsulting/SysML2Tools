@@ -67,6 +67,29 @@ sections:
           - ForUnevaluatedExposeBracketFilter_SingleFailure_ReturnsWarningWithReason
           - ForUnevaluatedExposeBracketFilter_MultipleFailures_ReturnsOneWarningPerFailure
 
+      - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings-EmptyView
+        title: >-
+          When a view's diagram is empty, LayoutWarnings shall produce a warning naming the view
+          and, for each bare `expose <Package>;` statement in the view, suggesting the recursive
+          `expose <Package>::**;` form.
+        justification: |
+          A bare `expose <Package>;` exposes only the package element itself, not its members, so
+          the diagram silently renders blank. Naming the view and suggesting the corrected form
+          lets the user fix the model without studying the SysML v2 expose semantics.
+        tests:
+          - ForEmptyView_MultipleBarePackages_SuggestsRecursiveExposeForEach
+
+      - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings-LonePackageExpose
+        title: >-
+          LayoutWarnings shall produce an informational hint for a view that exposes packages with
+          bare `expose <Package>;` statements, naming the view, stating that each package is drawn
+          as a package node without contents, and suggesting `expose <Package>::**;` for each.
+        justification: |
+          Exposing the package element alone is valid SysML; the hint must explain the result and
+          how to also show the members without implying the model is wrong.
+        tests:
+          - ForLonePackageExpose_TwoPackages_SuggestsRecursiveExposeForEach
+
       - id: SysML2Tools-Core-Layout-Internal-LayoutWarnings-SimpleNameFallback
         title: >-
           LayoutWarnings shall produce a warning naming a reference that matched only by the

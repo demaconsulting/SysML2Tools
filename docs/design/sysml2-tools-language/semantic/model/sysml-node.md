@@ -185,6 +185,12 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   original token spacing, not `RuleContext.GetText()`'s whitespace-stripped form) and never
   inspected by `ReferenceResolver`. The Core Filtering subsystem parses and evaluates this raw
   text later when `GeneralViewLayoutStrategy` renders the view.
+- `SourceFilePath`, `SourceLine`, `SourceColumn` — the path of the file declaring the view (null
+  for a view not built from a source file, such as a synthesized `--auto` or dynamic view) and
+  the one-based line and zero-based column (matching the `SysmlDiagnostic.Column` convention) of
+  the view's declaration, 0 when unknown. Recorded by `AstBuilder` so view-level diagnostics
+  produced after loading — such as `DiagramRenderer`'s empty-view warning — can be located.
+
 - `FilterExpressionTexts` — the raw text of every `filter` member (the view's owned view
   conditions, SysML 8.3.26.11), in source order.
 - `ViewDefinitionName` — a view usage's raw view definition reference (`view V : Def`), resolved by
@@ -209,7 +215,8 @@ elements are filtered out by `AstBuilder` before a node is constructed.
   `VerifiedRequirementNames` via the recursive verification-member finder; builds `SysmlSatisfyNode`
   instances from `satisfyRequirementUsage` via `VisitSatisfyRequirementUsage`, and the
   `"allocation"` `SysmlConnectionNode` variant via `VisitAllocationUsage`; builds `SysmlViewNode`
-  instances (setting `RenderTargetName`/`FilterExpressionText`, and additionally `ExposeMembers`
+  instances (setting `RenderTargetName`/`FilterExpressionText`/`SourceFilePath`/`SourceLine`/
+  `SourceColumn`, and additionally `ExposeMembers`
   for usages) from both `VisitViewDefinition` (`view def`) and
   `VisitViewUsage` (`view`, the only form that can carry `expose`); builds `SysmlMetadataNode`
   children from `metadataFeature` annotations.

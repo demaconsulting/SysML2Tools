@@ -39,6 +39,11 @@ external services are required.
 | `DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames` | The SVG output contains element names |
 | `DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput` | The PNG output carries the PNG signature |
 | `DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList` | A view-free workspace yields an empty result |
+| `DiagramRenderer_RenderWorkspace_ViewExposesBarePackage_RendersPackageNodeWithInfoHint` | Package node + info hint |
+| `DiagramRenderer_RenderWorkspace_NonGeneralViewExposesBarePackage_ReportsNoHint` | No hint without package node |
+| `DiagramRenderer_RenderWorkspace_ViewWithNothingRenderable_ReportsEmptyViewWarning` | Empty view warning |
+| `DiagramRenderer_RenderWorkspace_ViewExposesPackageRecursively_ReportsNoWarning` | `Pkg::**` - no warning |
+| `DiagramRenderer_RenderWorkspace_ViewExposesRenderableElement_ReportsNoWarning` | Part def - no warning |
 | `RenderSubsystem_ViewsWithDistinctExposeTargets_ProduceDifferingOutputsAndDiagnostic` | Produces scoped output |
 | `Synthesize_GeneralKind_ResolvableTarget_Succeeds` (via `SynthesizeDynamicView`) | Delegates successfully |
 | `Synthesize_UnresolvedTarget_Fails` (via `SynthesizeDynamicView`) | Delegates diagnostic on failure |

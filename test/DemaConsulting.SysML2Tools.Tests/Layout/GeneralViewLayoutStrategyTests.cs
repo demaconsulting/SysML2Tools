@@ -501,6 +501,127 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Loads <paramref name="sysml"/>, then lays out the view <paramref name="viewName"/>
+    ///     (declared in package <c>Diagrams</c>) with the general view strategy.
+    /// </summary>
+    private static async Task<LayoutTree> LayOutDeclaredViewAsync(string sysml, string viewName, int depthLimit = 0)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<SysmlViewNode>(result.Workspace.Declarations[$"Diagrams::{viewName}"]);
+            return new GeneralViewLayoutStrategy().BuildLayout(
+                new ViewContext(viewName, result.Workspace, view), new RenderOptions(Themes.Light, DepthLimit: depthLimit));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>Model with one package of two definitions and one view per expose form.</summary>
+    private const string ExposeFormsSysml = """
+        package Pkg { part def Block1; part def Block2; }
+        package Diagrams {
+            view Bare { expose Pkg; }
+            view Members { expose Pkg::*; }
+            view Recursive { expose Pkg::**; }
+            view BareKeptByFilter { expose Pkg; filter @SysML::Package; }
+            view BareExcludedByFilter { expose Pkg; filter @SysML::PartDefinition; }
+        }
+        """;
+
+    /// <summary>
+    ///     <c>expose Pkg;</c> (MembershipExpose, SysML 8.3.26.3) exposes the package element itself:
+    ///     the general view draws a single package node with no member boxes.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_BarePackageExpose_DrawsEmptyPackageNode()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeFormsSysml, "Bare");
+
+        // Assert
+        var box = Assert.Single(CollectBoxes(layout.Nodes));
+        Assert.Equal(BoxShape.Folder, box.Shape);
+        Assert.Equal("Pkg", box.Label);
+        Assert.Empty(box.Children);
+    }
+
+    /// <summary>
+    ///     View conditions apply to an exposed package node like any exposed element: a condition the
+    ///     package satisfies (<c>@SysML::Package</c>) keeps it, one it does not
+    ///     (<c>@SysML::PartDefinition</c>) removes it.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ViewConditionOnExposedPackage_KeepsOrRemovesPackageNode()
+    {
+        // Act
+        var kept = await LayOutDeclaredViewAsync(ExposeFormsSysml, "BareKeptByFilter");
+        var excluded = await LayOutDeclaredViewAsync(ExposeFormsSysml, "BareExcludedByFilter");
+
+        // Assert
+        var box = Assert.Single(CollectBoxes(kept.Nodes));
+        Assert.Equal(BoxShape.Folder, box.Shape);
+        Assert.Equal("Pkg", box.Label);
+        Assert.Empty(CollectBoxes(excluded.Nodes));
+    }
+
+    /// <summary>
+    ///     With a depth limit of 1, a bare-exposed package is still drawn as an empty package node,
+    ///     never decorated with a "+0 more…" truncation indicator.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_BarePackageExposeWithDepthLimitOne_HasNoTruncationIndicator()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeFormsSysml, "Bare", depthLimit: 1);
+
+        // Assert
+        var box = Assert.Single(CollectBoxes(layout.Nodes));
+        Assert.Equal(BoxShape.Folder, box.Shape);
+        Assert.Empty(box.Children);
+    }
+
+    /// <summary>
+    ///     <c>expose Pkg::*;</c> (NamespaceExpose, SysML 8.3.26.4) exposes only the package's members:
+    ///     the member boxes are drawn without a package node.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_NamespaceExpose_DrawsMembersWithoutPackageNode()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeFormsSysml, "Members");
+
+        // Assert
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.DoesNotContain(boxes, b => b.Shape == BoxShape.Folder);
+        Assert.Contains(boxes, b => b.Label == "Block1");
+        Assert.Contains(boxes, b => b.Label == "Block2");
+    }
+
+    /// <summary>
+    ///     <c>expose Pkg::**;</c> (recursive MembershipExpose) exposes the package and all its members:
+    ///     the package node is drawn containing the member boxes.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_RecursivePackageExpose_DrawsPackageNodeWithMembers()
+    {
+        // Act
+        var layout = await LayOutDeclaredViewAsync(ExposeFormsSysml, "Recursive");
+
+        // Assert
+        var folder = Assert.Single(CollectBoxes(layout.Nodes), b => b.Shape == BoxShape.Folder);
+        Assert.Equal("Pkg", folder.Label);
+        Assert.Contains(folder.Children.OfType<LayoutBox>(), b => b.Label == "Block1");
+        Assert.Contains(folder.Children.OfType<LayoutBox>(), b => b.Label == "Block2");
+    }
+
+    /// <summary>
     ///     Three packages each define a part def with the same simple name (<c>Checker</c>) and use
     ///     it from their own system definition. Each usage must be wired to its own package's
     ///     definition: every package folder contains exactly one composition (filled-diamond) edge

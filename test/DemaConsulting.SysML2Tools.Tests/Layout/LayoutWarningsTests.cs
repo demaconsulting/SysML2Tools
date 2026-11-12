@@ -112,6 +112,39 @@ public sealed class LayoutWarningsTests
     }
 
     /// <summary>
+    ///     The lone-package hint names the view and suggests the recursive form for each package
+    ///     without implying the model is wrong.
+    /// </summary>
+    [Fact]
+    public void ForLonePackageExpose_TwoPackages_SuggestsRecursiveExposeForEach()
+    {
+        // Act
+        var message = LayoutWarnings.ForLonePackageExpose("MyView", ["PkgA", "PkgB"]);
+
+        // Assert
+        Assert.Contains("'MyView'", message);
+        Assert.Contains("package nodes without contents", message);
+        Assert.Contains("'expose PkgA::**;'", message);
+        Assert.Contains("'expose PkgB::**;'", message);
+    }
+
+    /// <summary>
+    ///     An empty view with several bare package exposes names the view and suggests the
+    ///     recursive <c>::**</c> form for every one of them in a single message.
+    /// </summary>
+    [Fact]
+    public void ForEmptyView_MultipleBarePackages_SuggestsRecursiveExposeForEach()
+    {
+        // Act: build the message for a view with two bare package exposes
+        var message = LayoutWarnings.ForEmptyView("MyView", ["PkgA", "PkgB"]);
+
+        // Assert: the view is named and each package gets a '::**' suggestion
+        Assert.Contains("'MyView'", message);
+        Assert.Contains("'expose PkgA::**;'", message);
+        Assert.Contains("'expose PkgB::**;'", message);
+    }
+
+    /// <summary>
     ///     The simple-name-fallback warning names the reference, its namespace, the chosen element,
     ///     and — when ambiguous — every candidate.
     /// </summary>

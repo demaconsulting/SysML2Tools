@@ -264,21 +264,30 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Collect all user-defined definitions, sized for rendering, restricted to the resolved
         // scope when one applies.
         var defs = CollectDefinitions(context.Workspace, theme, scope, AnnotationVisible);
-        if (defs.Count == 0)
+
+        // Packages that are themselves exposed (SysML 8.3.26.3: `expose P;` and `expose P::**;`
+        // expose the Package element P) are drawn as package nodes (SysML 8.2.3.5 package-node),
+        // containing whichever of their members are also exposed — an empty package node when
+        // none are. Packages that are only ancestors of exposed elements are not drawn.
+        var exposedPackages = CollectExposedPackages(context.Workspace, scope);
+        if (defs.Count == 0 && exposedPackages.Count == 0)
         {
             return new LayoutTree(200.0, 100.0, []) { Warnings = conditionWarnings };
         }
 
-        // Narrow `defs` to the elements satisfying every view condition.
+        // Narrow `defs` and the exposed packages to the elements satisfying every view condition.
         foreach (var condition in conditions)
         {
             var matched = FilterExpressionEvaluator.Evaluate(
-                context.Workspace, defs.Select(d => d.QualifiedName).ToList(), condition).MatchedQualifiedNames;
+                context.Workspace,
+                defs.Select(d => d.QualifiedName).Concat(exposedPackages).ToList(),
+                condition).MatchedQualifiedNames;
             var matchedSet = new HashSet<string>(matched, StringComparer.Ordinal);
             defs = defs.Where(d => matchedSet.Contains(d.QualifiedName)).ToList();
+            exposedPackages.IntersectWith(matchedSet);
         }
 
-        if (defs.Count == 0)
+        if (defs.Count == 0 && exposedPackages.Count == 0)
         {
             return new LayoutTree(200.0, 100.0, []) { Warnings = conditionWarnings };
         }
@@ -293,7 +302,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // correctly kept as its own standalone box instead of being wrongly dropped by an
         // earlier-run dedup pass that saw the parent still present in a pre-filter set.
         defs = RemoveRedundantNestedUsages(defs);
-        if (defs.Count == 0)
+        if (defs.Count == 0 && exposedPackages.Count == 0)
         {
             return new LayoutTree(200.0, 100.0, []);
         }
@@ -337,6 +346,15 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // the duplicate-folder symptom.
         var groups = GroupByPackage(packageOrRootItems);
 
+        // An exposed package none of whose members are exposed still gets its (empty) package node.
+        var groupedPackages = groups.Select(g => g.Package).ToHashSet(StringComparer.Ordinal);
+        groups = groups
+            .Concat(exposedPackages
+                .Where(package => !groupedPackages.Contains(package))
+                .OrderBy(package => package, StringComparer.Ordinal)
+                .Select(package => (Package: package, Items: new List<DefBox>())))
+            .ToList();
+
         // Resolve the specialization/membership/attribute-typing edge set by qualified name; the
         // graph-construction pass below drops any edge touching a definition that never received a
         // node (because its folder was depth-truncated).
@@ -344,7 +362,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var (modelEdges, droppedEdges) = BuildModelEdges(defs, context.Workspace, scope is not null, context.ViewName, nameWarnings);
 
         // Build the single input graph: package folders as containers, definitions as leaves.
-        var (graph, truncated) = BuildGraph(groups, childrenByParent, modelEdges, theme, options.DepthLimit, scope is not null);
+        var (graph, truncated) = BuildGraph(groups, childrenByParent, modelEdges, theme, options.DepthLimit, scope is not null ? exposedPackages : null);
 
         // Lay out the whole graph in one call, delegating root-scope algorithm selection to "auto":
         // it classifies the root's own folders/top-level definitions by connectivity, routing
@@ -375,6 +393,34 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             .Concat(nameWarnings)
             .ToList();
         return warnings.Count == 0 ? placed : placed with { Warnings = warnings };
+    }
+
+    /// <summary>
+    /// Returns the qualified names of the non-stdlib packages that are themselves members of the
+    /// view's exposed scope (SysML 8.3.26.3/8.3.26.4: a MembershipExpose <c>expose P;</c> or
+    /// <c>expose P::**;</c> exposes the Package P; a NamespaceExpose <c>expose P::*;</c> exposes only
+    /// P's members). Empty when <paramref name="scope"/> is null (an unscoped view keeps drawing every
+    /// package that contains definitions, as before).
+    /// </summary>
+    private static HashSet<string> CollectExposedPackages(SysmlWorkspace workspace, ExposedScope? scope)
+    {
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        if (scope is null)
+        {
+            return result;
+        }
+
+        foreach (var (qualifiedName, declaration) in workspace.Declarations)
+        {
+            if (declaration is SysmlPackageNode &&
+                !StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames) &&
+                ExposeScopeResolver.IsInSubjectScope(qualifiedName, scope))
+            {
+                result.Add(qualifiedName);
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -1299,11 +1345,13 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <see cref="PlaceDef"/>, instead of being handed to <see cref="GroupByPackage"/> a second time
     /// under the parent's qualified name, which is what used to render the parent definition twice
     /// (once as an empty leaf inside its own package folder, once as a duplicate sibling folder
-    /// holding its children). When <paramref name="isScoped"/> is <see langword="true"/> (the view is
-    /// narrowed by a resolved <c>expose</c> scope), a bare package is never rendered as a wrapping
-    /// folder purely because it is an ancestor of admitted content: its items are promoted directly
+    /// holding its children). When <paramref name="exposedPackages"/> is non-null (the view is
+    /// narrowed by a resolved <c>expose</c> scope), only a package that is itself exposed (SysML
+    /// 8.3.26.3: <c>expose P;</c> or <c>expose P::**;</c>) becomes a package node — an empty leaf
+    /// package node when none of its members are exposed — while a package that is only an ancestor
+    /// of admitted content is never rendered as a wrapping folder: its items are promoted directly
     /// onto the root graph instead, exactly like top-level (unpackaged) definitions. When
-    /// <paramref name="isScoped"/> is <see langword="false"/>, every bare package still becomes a
+    /// <paramref name="exposedPackages"/> is null, every bare package still becomes a
     /// folder, unchanged from the pre-fix behavior. Model edges are added once every definition's
     /// node placement is known: an edge whose endpoints share the same non-empty container scope
     /// (a package folder or a definition-as-container) is added to that scope (an intra-container
@@ -1327,7 +1375,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         IReadOnlyList<ModelEdge> modelEdges,
         Theme theme,
         int depthLimit,
-        bool isScoped)
+        IReadOnlySet<string>? exposedPackages)
     {
         var graph = new LayoutGraph();
 
@@ -1378,16 +1426,30 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            if (isScoped)
+            if (exposedPackages is not null && !exposedPackages.Contains(package))
             {
-                // The view is narrowed by a resolved expose scope: a bare package is never rendered
-                // as a wrapping folder purely because it is an ancestor of admitted content — promote
-                // its items directly to the root graph instead.
+                // The view is narrowed by a resolved expose scope and this package is not itself
+                // exposed: it is never rendered as a wrapping folder purely because it is an
+                // ancestor of admitted content — promote its items directly to the root graph.
                 foreach (var def in items)
                 {
                     PlaceDef(def, graph, package, childrenByParent, located, containerScopes, theme, rootDepth, depthLimit, truncated);
                 }
 
+                continue;
+            }
+
+            if (items.Count == 0)
+            {
+                // An exposed package with no exposed members (checked before
+                // depth truncation, which has nothing to hide here): a leaf package node (name inside)
+                // sized to its label, since an empty container has no contents to size it.
+                var label = SimplePackageName(package);
+                var width = Math.Max(MinBoxWidth, (label.Length * theme.FontSizeTitle * CharWidthFactor) + (4.0 * theme.LabelPadding));
+                var packageNode = graph.AddNode($"folder:{package}", width, folderTitleHeight + theme.FontSizeTitle + (2.0 * theme.LabelPadding));
+                packageNode.Label = label;
+                packageNode.Shape = BoxShape.Folder;
+                packageNode.Keyword = "package";
                 continue;
             }
 
