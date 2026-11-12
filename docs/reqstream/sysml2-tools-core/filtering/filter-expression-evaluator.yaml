@@ -151,3 +151,18 @@ sections:
           - Evaluate_MetaclassKind_NonMatchingMetaclass_DoesNotMatch
           - Evaluate_ClassificationTest_AppliedAnnotationMatchingUnaffectedByMetaclassKindAddition
           - Evaluate_MetaclassKind_SpecializationConformance_MatchesAncestorMetaclass
+
+      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-MetaclassEvaluation
+        title: >-
+          FilterExpressionEvaluator shall evaluate a filter expression for an element known only by
+          its abstract-syntax metaclass (such as Documentation or Comment), matching a
+          classification test (`@SysML::X` or `@KerML::X`) when the metaclass is X or specializes
+          X, combining tests with `not`/`and`/`or`/`xor`, and treating attribute reads and
+          comparisons as false.
+        justification: |
+          SysML 7.5.4: when a filter condition is evaluated on an element, its abstract syntax
+          metadata can be tested as if it had an implicit metadata usage of its metaclass; the
+          SysML package publicly imports KerML. Documentation and comments carry no metadata of
+          their own, so only their metaclass can be tested.
+        tests:
+          - EvaluateForMetaclass_Documentation_ConformsToCommentAndCombines

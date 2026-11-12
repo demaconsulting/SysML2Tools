@@ -363,13 +363,12 @@ public sealed class SysmlViewNode : SysmlNode
         Array.Empty<(ExposeMember Member, string ResolvedQualifiedName)>();
 
     /// <summary>
-    ///     Gets the raw source text of this view's <c>filter [&lt;expression&gt;];</c> statement
-    ///     (from <c>elementFilterMember().ownedExpression().GetText()</c>), or
-    ///     <see langword="null"/> when the view declares no filter member. Captured verbatim only
-    ///     — no expression tree is built and no evaluation is performed; a non-null value causes
-    ///     <c>GeneralViewLayoutStrategy</c> to emit a "not yet evaluated" warning while still
-    ///     rendering the (unfiltered) resolved scope. Full filter-expression evaluation is
-    ///     deferred future work — see the project ROADMAP.
+    ///     Gets the raw source text of this view's first <c>filter [&lt;expression&gt;];</c>
+    ///     member, or <see langword="null"/> when the view declares no filter member. Kept as a
+    ///     first-filter compatibility value (and as the single condition carried by synthesized
+    ///     dynamic views); <see cref="FilterExpressionTexts"/> holds every condition. Layout
+    ///     strategies parse and evaluate all of the view's own and inherited conditions, reporting
+    ///     a warning only for a condition that cannot be parsed or evaluated.
     /// </summary>
     public string? FilterExpressionText { get; init; }
 
@@ -391,6 +390,22 @@ public sealed class SysmlViewNode : SysmlNode
     ///     matching the <c>SysmlDiagnostic.Column</c> convention, or 0 when unknown.
     /// </summary>
     public int SourceColumn { get; init; }
+
+    /// <summary>
+    ///     Gets the raw source text of every <c>filter [&lt;expression&gt;];</c> member of this view,
+    ///     in source order — the view's owned view conditions (SysML 8.3.26.11
+    ///     <c>viewCondition</c>), all of which an exposed element must satisfy.
+    ///     <see cref="FilterExpressionText"/> is the first of these.
+    /// </summary>
+    public IReadOnlyList<string> FilterExpressionTexts { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    ///     Gets the raw reference text of a view usage's view definition (<c>view v : Def;</c>), or
+    ///     <see langword="null"/> when the usage declares none (and always for a <c>view def</c>).
+    ///     Resolved by <see cref="ReferenceResolver"/> into a <see cref="SysmlEdgeKind.Typing"/>
+    ///     edge; the usage inherits the definition's view conditions and rendering (SysML 7.26.2).
+    /// </summary>
+    public string? ViewDefinitionName { get; init; }
 }
 
 /// <summary>

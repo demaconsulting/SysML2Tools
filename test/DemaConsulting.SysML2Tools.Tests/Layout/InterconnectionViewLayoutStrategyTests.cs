@@ -56,6 +56,55 @@ public sealed class InterconnectionViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Documentation annotations on the root part definition and its part types are never drawn
+    ///     by the interconnection view: no box label or compartment row contains the doc text.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_DocumentedDefinitions_DrawNoDocumentation()
+    {
+        // Arrange: a documented part def with one documented nested part type
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var engine = new SysmlDefinitionNode
+        {
+            Name = "Engine",
+            QualifiedName = "M::Engine",
+            DefinitionKeyword = "part def",
+            Annotations = [new SysmlAnnotation(SysmlAnnotationKind.Documentation, "Engine documentation text.")],
+        };
+        var powerSystem = new SysmlDefinitionNode
+        {
+            Name = "PowerSystem",
+            QualifiedName = "M::PowerSystem",
+            DefinitionKeyword = "part def",
+            Annotations = [new SysmlAnnotation(SysmlAnnotationKind.Documentation, "PowerSystem documentation text.")],
+            Children =
+            [
+                new SysmlFeatureNode { Name = "engine", QualifiedName = "M::PowerSystem::engine", FeatureKeyword = "part", FeatureTyping = "Engine" },
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["M::Engine"] = engine,
+                ["M::PowerSystem"] = powerSystem,
+            }
+        };
+        var context = new ViewContext("PowerSystemInterconnectionView", workspace);
+
+        // Act
+        var layout = strategy.BuildLayout(context, new RenderOptions(Themes.Light));
+
+        // Assert: boxes are drawn, but no label or compartment row carries documentation text
+        var boxes = CollectBoxes(layout.Nodes).ToList();
+        Assert.NotEmpty(boxes);
+        Assert.DoesNotContain(boxes, b =>
+            (b.Label?.Contains("documentation text") ?? false) ||
+            b.Compartments.Any(c => c.Title == "doc" || c.Rows.Any(r => r.Contains("documentation text"))));
+        Assert.DoesNotContain(boxes, b => b.Shape == BoxShape.Note);
+    }
+
+    /// <summary>
     ///     The root container box nests its interior content (part boxes, ports, and connector
     ///     lines) as its own <see cref="LayoutBox.Children"/> rather than as flat top-level
     ///     siblings: <see cref="LayoutTree.Nodes"/> contains exactly one element (the root box), and
@@ -1010,14 +1059,13 @@ public sealed class InterconnectionViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     When both same-depth sibling roots are made scope-relevant by their own <c>expose</c>
-    ///     edges, <c>FindRoot</c> falls back to the connections/parts score heuristic — proving the
-    ///     tie-break is depth-based, not a raw qualified-name-length comparison, since the shorter
-    ///     name (<c>M::AB</c>) wins purely because it has the better score, not because it happens
-    ///     to be shorter.
+    ///     When two independent composition roots are both exposed, every root is drawn (SysML v2
+    ///     §8.2.3.11 interconnection-view is a repeated element list): each gets its own container box,
+    ///     in declaration order, side by side with aligned tops and no overlap, each holding only its
+    ///     own parts.
     /// </summary>
     [Fact]
-    public void InterconnectionView_BuildLayout_ExposeBothSameDepthSiblings_ScoreBreaksTieNotLength()
+    public void InterconnectionView_BuildLayout_ExposeTwoIndependentRoots_DrawsBothSideBySide()
     {
         var strategy = new InterconnectionViewLayoutStrategy();
         var workspace = BuildSameDepthDifferentLengthWorkspace();
@@ -1037,8 +1085,16 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var container = CollectBoxes(layout.Nodes).First(b => b.Keyword == "part def");
-        Assert.Equal("AB", container.Label);
+        var roots = layout.Nodes.OfType<LayoutBox>().ToList();
+        Assert.Equal(["AB", "MuchLongerSiblingName"], roots.Select(r => r.Label));
+        Assert.Equal(roots[0].Y, roots[1].Y);
+        Assert.True(roots[0].X + roots[0].Width < roots[1].X);
+        Assert.True(layout.Width >= roots[1].X + roots[1].Width);
+        Assert.All(roots[1].Children.OfType<LayoutBox>(), child =>
+        {
+            Assert.StartsWith("b", child.Label, StringComparison.Ordinal);
+            Assert.True(child.X >= roots[1].X);
+        });
     }
 
     /// <summary>

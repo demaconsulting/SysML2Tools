@@ -191,3 +191,8 @@ configuration are required beyond a standard .NET SDK installation.
 - `IsMoreSpecificCandidate_SameDepthSiblingsDifferentLength_ShorterWithWorseScoreLoses`:
   Same-depth siblings with different qualified-name lengths fall back to score — shorter
   candidate with a worse score loses
+- `CollectViewConditions_ViewTypedByDefinition_IncludesInheritedConditions`:
+  A view's own conditions come first, followed by those inherited from its view definition
+- `IsAnnotationExposed_DependsOnExposeForm`:
+  Annotations are exposed by `::*`/`::**` exposes of the owner (or recursive ancestors) and by an
+  unscoped view, but not by a bare membership expose

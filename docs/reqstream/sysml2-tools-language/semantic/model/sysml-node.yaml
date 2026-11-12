@@ -94,6 +94,17 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_Views_CaptureSourceLocation
 
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ViewConditionsAndDefinition
+        title: >-
+          SysmlViewNode shall expose FilterExpressionTexts (every owned `filter` view condition's raw
+          text, in source order) and ViewDefinitionName (a view usage's raw view definition
+          reference, or null).
+        justification: |
+          Layout strategies need every owned view condition and the view definition whose
+          conditions are inherited (SysML 7.26.2, 8.3.26.11).
+        tests:
+          - WorkspaceLoader_LoadAsync_ViewConditionsAndViewDefinition_Captured
+
       - id: SysML2Tools-Language-Semantic-Model-SysmlNode-RedefinedFeatureName
         title: >-
           SysmlFeatureNode shall expose RedefinedFeatureName: the raw reference text of its

@@ -263,7 +263,7 @@ configuration are required beyond a standard .NET SDK installation.
   A self-referential subsetting reference (resolving back to the subtype's own owning definition)
   produces no edge
 - `GeneralViewLayoutStrategy_BuildLayout_AnnotatedDefinition_EmitsNoteBox`:
-  A definition with a `Documentation`/`Comment` annotation gets a `BoxShape.Note` box connected by
+  A definition with a `Comment` annotation gets a `BoxShape.Note` box connected by
   a plain solid line with no end marker
 - `GeneralViewLayoutStrategy_BuildLayout_BarePackageExpose_DrawsEmptyPackageNode`:
   `expose Pkg;` draws exactly one folder-shaped package node labeled `Pkg` with no children
@@ -274,8 +274,26 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_UnannotatedDefinition_EmitsNoNoteBox`:
   A definition with no annotations gets no note box (regression guard)
 - `GeneralViewLayoutStrategy_BuildLayout_MultipleAnnotations_ProduceOneNoteBox`:
-  A definition with multiple `Documentation`/`Comment` annotations gets exactly one note box, with
-  every annotation's text concatenated into it
+  A definition with multiple `Comment` annotations gets exactly one note box, with
+  every comment's text concatenated into it
+- `GeneralViewLayoutStrategy_BuildLayout_DocumentationByDefault_RendersWrappedDocCompartment`:
+  By default the definition's box carries a `doc` compartment whose rows preserve every word, wrap
+  onto several rows, and each fit within the box width; the comment note is drawn and the doc
+  text is in no note
+- `GeneralViewLayoutStrategy_BuildLayout_FilterNotDocumentation_HidesDocButKeepsComment`:
+  `filter not @SysML::Documentation;` hides the `doc` compartment but keeps the comment note
+- `GeneralViewLayoutStrategy_BuildLayout_PositiveFilterExcludingDocumentation_HidesDoc`:
+  `filter @SysML::PartDefinition;` keeps the part definition but hides its doc and comment
+- `GeneralViewLayoutStrategy_BuildLayout_InheritedViewCondition_HidesDoc`:
+  a view typed by a view definition owning `filter not @SysML::Documentation;` hides the doc
+- `GeneralViewLayoutStrategy_BuildLayout_ViewTypedByStandardViewDefinition_AppliesOwnConditions`:
+  a view typed by the library's `StandardViewDefinitions::GeneralView` applies its own conditions
+- `GeneralViewLayoutStrategy_BuildLayout_ExposeFilterNotDocumentation_HidesDoc`:
+  `expose P::**[not @SysML::Documentation];` hides the doc but keeps the definition and comment
+- `GeneralViewLayoutStrategy_BuildLayout_MembershipExpose_ExposesDocOnlyWhenRecursive`:
+  a bare `expose P::Battery;` draws no doc compartment; `expose P::**;` does
+- `GeneralViewLayoutStrategy_WrapText_LongWord_IsHardBroken`:
+  Word wrapping keeps every row within the limit, hard-breaking a word longer than the limit
 - `GeneralViewLayoutStrategy_BuildLayout_RequirementSubject_UsesGuillemetTitle`:
   A `"subject"`-keyword feature compartment is titled `«subject»`, not the generic pluralized form
 - `GeneralViewLayoutStrategy_BuildLayout_ConstraintFeatures_ShowExpressionText`:

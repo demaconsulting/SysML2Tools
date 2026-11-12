@@ -185,6 +185,12 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   the view's declaration, 0 when unknown. Recorded by `AstBuilder` so view-level diagnostics
   produced after loading — such as `DiagramRenderer`'s empty-view warning — can be located.
 
+- `FilterExpressionTexts` — the raw text of every `filter` member (the view's owned view
+  conditions, SysML 8.3.26.11), in source order.
+- `ViewDefinitionName` — a view usage's raw view definition reference (`view V : Def`), resolved by
+  `ReferenceResolver` into a `Typing` edge; the usage inherits that definition's view conditions
+  and rendering (SysML 7.26.2).
+
 ##### Error Handling
 
 N/A — node types are pure data containers with no logic or validation. Invalid or anonymous

@@ -13,26 +13,25 @@ namespace DemaConsulting.SysML2Tools.Rendering.Internal;
 /// based on the view type.
 /// </summary>
 /// <remarks>
-/// Dispatch first checks the view's declared <c>render</c> target (<see
-/// cref="SysmlViewNode.RenderTargetName"/>) for an exact, case-sensitive (<see
-/// cref="StringComparison.Ordinal"/>) match against a recognized rendering-kind name:
-/// <c>asTreeDiagram</c> and <c>asInterconnectionDiagram</c> route to the browser (tree) and
-/// interconnection strategies respectively (the original two tokens, recognized since these views
-/// could be authored directly in SysML source); <c>asGeneralDiagram</c>, <c>asStateTransitionDiagram</c>,
-/// <c>asActionFlowDiagram</c>, <c>asSequenceDiagram</c>, and <c>asGridDiagram</c> route to the
-/// general, state-transition, action-flow, sequence, and grid strategies respectively (five
-/// additional tokens added so every view kind — including "general" — has an unambiguous,
-/// name-independent selector; see <c>DynamicViewSynthesizer</c>, the sole current producer of
-/// these five tokens for synthesized ad-hoc views). Each of these seven tokens takes precedence
-/// over the name/supertype heuristic below, regardless of the view's own name or declared
-/// supertypes. Any other value — including <see langword="null"/>, <c>asElementTable</c>,
-/// <c>asTextualNotation</c>, or an unrecognized name — has no effect and falls through unchanged,
-/// with no diagnostic, to the existing name/supertype heuristic: the view's declared supertype
-/// names (and its own name) are inspected for a recognized view kind. A view that specializes a
-/// name containing <c>Interconnection</c> routes to the interconnection strategy;
-/// <c>StateTransition</c>/<c>State</c>, <c>ActionFlow</c>/<c>Action</c>,
-/// <c>Grid</c>/<c>Matrix</c>/<c>Tabular</c>, <c>Browser</c>/<c>Tree</c>, and <c>Sequence</c> route
-/// to their corresponding strategies; everything else falls back to the general view strategy.
+/// Dispatch order: (1) the view's own <c>render</c> target (<see cref="SysmlViewNode.RenderTargetName"/>,
+/// exact <see cref="StringComparison.Ordinal"/> match, optionally qualified with <c>Views::</c>):
+/// <c>asTreeDiagram</c> and <c>asInterconnectionDiagram</c> (the Views library renderings) route to
+/// the browser and interconnection strategies, and the tool-defined <c>asGeneralDiagram</c>,
+/// <c>asStateTransitionDiagram</c>, <c>asActionFlowDiagram</c>, <c>asSequenceDiagram</c>, and
+/// <c>asGridDiagram</c> (produced by <c>DynamicViewSynthesizer</c>) route to their strategies.
+/// (2) The view's view definition — its resolved <c>Typing</c> edge, then transitively the general
+/// view definitions it specializes, nearest first: the first one that declares a recognized
+/// <c>render</c> target, or is a standard view definition from <c>StandardViewDefinitions</c>
+/// (SysML v2 §9.2.20: <c>GeneralView</c>, <c>InterconnectionView</c>, <c>ActionFlowView</c>,
+/// <c>StateTransitionView</c>, <c>SequenceView</c>, <c>GridView</c>, <c>BrowserView</c>), selects the
+/// strategy, since a view inherits its definition's rendering (§7.26.2). <c>GeometryView</c> has no
+/// strategy and falls through. (3) Otherwise — including <c>asElementTable</c>,
+/// <c>asTextualNotation</c>, and views with neither a recognized rendering nor a standard view
+/// definition — the tool-defined name/supertype heuristic: the view's declared supertype names (and
+/// its own name) are inspected for <c>Interconnection</c>, <c>StateTransition</c>/<c>State</c>,
+/// <c>ActionFlow</c>/<c>Action</c>, <c>Grid</c>/<c>Matrix</c>/<c>Tabular</c>,
+/// <c>Browser</c>/<c>Tree</c>, and <c>Sequence</c>; everything else falls back to the general view
+/// strategy.
 /// </remarks>
 internal static class DiagramTypeRouter
 {
@@ -54,33 +53,19 @@ internal static class DiagramTypeRouter
         SysmlWorkspace workspace,
         out string? unsupportedMessage)
     {
-        _ = workspace;
+        ArgumentNullException.ThrowIfNull(workspace);
         unsupportedMessage = null;
 
         if (viewNode is SysmlViewNode view)
         {
-            switch (view.RenderTargetName)
+            if (FromRenderTarget(view.RenderTargetName) is { } rendered)
             {
-                case "asTreeDiagram":
-                    return new BrowserViewLayoutStrategy();
+                return rendered;
+            }
 
-                case "asInterconnectionDiagram":
-                    return new InterconnectionViewLayoutStrategy();
-
-                case "asGeneralDiagram":
-                    return new GeneralViewLayoutStrategy();
-
-                case "asStateTransitionDiagram":
-                    return new StateTransitionViewLayoutStrategy();
-
-                case "asActionFlowDiagram":
-                    return new ActionFlowViewLayoutStrategy();
-
-                case "asSequenceDiagram":
-                    return new SequenceViewLayoutStrategy();
-
-                case "asGridDiagram":
-                    return new GridViewLayoutStrategy();
+            if (FromViewDefinitions(view, workspace) is { } defined)
+            {
+                return defined;
             }
 
             if (Matches(view, "Interconnection"))
@@ -116,6 +101,95 @@ internal static class DiagramTypeRouter
 
         return new GeneralViewLayoutStrategy();
     }
+
+    /// <summary>
+    /// Returns the strategy selected by a recognized <c>render</c> target name, or
+    /// <see langword="null"/> for any other value.
+    /// </summary>
+    private static ILayoutStrategy? FromRenderTarget(string? renderTargetName) => StripViewsPrefix(renderTargetName) switch
+    {
+        "asTreeDiagram" => new BrowserViewLayoutStrategy(),
+        "asInterconnectionDiagram" => new InterconnectionViewLayoutStrategy(),
+        "asGeneralDiagram" => new GeneralViewLayoutStrategy(),
+        "asStateTransitionDiagram" => new StateTransitionViewLayoutStrategy(),
+        "asActionFlowDiagram" => new ActionFlowViewLayoutStrategy(),
+        "asSequenceDiagram" => new SequenceViewLayoutStrategy(),
+        "asGridDiagram" => new GridViewLayoutStrategy(),
+        _ => null,
+    };
+
+    /// <summary>
+    /// Removes a leading <c>Views::</c> qualifier, so the qualified spelling of a standard
+    /// rendering (e.g. <c>Views::asTreeDiagram</c>) is recognized like its simple name.
+    /// </summary>
+    private static string? StripViewsPrefix(string? renderTargetName) =>
+        renderTargetName is not null && renderTargetName.StartsWith("Views::", StringComparison.Ordinal)
+            ? renderTargetName["Views::".Length..]
+            : renderTargetName;
+
+    /// <summary>
+    /// Returns the strategy for a standard view definition qualified name (SysML v2 §9.2.20), or
+    /// <see langword="null"/> when the name is not one this tool renders.
+    /// </summary>
+    private static ILayoutStrategy? FromStandardViewDefinition(string qualifiedName) => qualifiedName switch
+    {
+        "StandardViewDefinitions::GeneralView" => new GeneralViewLayoutStrategy(),
+        "StandardViewDefinitions::InterconnectionView" => new InterconnectionViewLayoutStrategy(),
+        "StandardViewDefinitions::ActionFlowView" => new ActionFlowViewLayoutStrategy(),
+        "StandardViewDefinitions::StateTransitionView" => new StateTransitionViewLayoutStrategy(),
+        "StandardViewDefinitions::SequenceView" => new SequenceViewLayoutStrategy(),
+        "StandardViewDefinitions::GridView" => new GridViewLayoutStrategy(),
+        "StandardViewDefinitions::BrowserView" => new BrowserViewLayoutStrategy(),
+        _ => null,
+    };
+
+    /// <summary>
+    /// Walks a view's resolved view definition (its <c>Typing</c> edge) and, transitively, the
+    /// general view definitions it specializes (<c>Supertype</c> edges), nearest first. The first
+    /// definition reached that either declares a recognized <c>render</c> target or is a standard
+    /// view definition selects the strategy, since a view usage inherits its definition's rendering
+    /// and notation (SysML v2 §7.26.2, §9.2.20).
+    /// </summary>
+    private static ILayoutStrategy? FromViewDefinitions(SysmlViewNode view, SysmlWorkspace workspace)
+    {
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new Queue<string>(DefinitionTargets(view));
+        while (pending.TryDequeue(out var qualifiedName))
+        {
+            if (!visited.Add(qualifiedName))
+            {
+                continue;
+            }
+
+            if (FromStandardViewDefinition(qualifiedName) is { } standard)
+            {
+                return standard;
+            }
+
+            if (!workspace.Declarations.TryGetValue(qualifiedName, out var node) || node is not SysmlViewNode definition)
+            {
+                continue;
+            }
+
+            if (FromRenderTarget(definition.RenderTargetName) is { } rendered)
+            {
+                return rendered;
+            }
+
+            foreach (var target in DefinitionTargets(definition))
+            {
+                pending.Enqueue(target);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Returns the targets of a view node's resolved <c>Typing</c> and <c>Supertype</c> edges.</summary>
+    private static IEnumerable<string> DefinitionTargets(SysmlViewNode view) =>
+        (view.ResolvedEdges ?? [])
+            .Where(edge => edge.Kind is SysmlEdgeKind.Typing or SysmlEdgeKind.Supertype)
+            .Select(edge => edge.TargetQualifiedName);
 
     /// <summary>
     /// Determines whether a view declares the given view-kind marker in its name or a supertype.

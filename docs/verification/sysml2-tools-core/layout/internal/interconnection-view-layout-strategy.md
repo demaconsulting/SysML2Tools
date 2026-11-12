@@ -165,6 +165,7 @@ configuration are required beyond a standard .NET SDK installation.
 | --- | --- |
 | `InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines` | Box, parts, ports, and lines |
 | `InterconnectionView_BuildLayout_RootContent_IsNestedAsRootBoxChildren` | Root box nesting invariant |
+| `InterconnectionView_BuildLayout_DocumentedDefinitions_DrawNoDocumentation` | No `doc` text drawn |
 | `InterconnectionView_BuildLayout_TwoConnectionsSamePair_ProducesTwoConnectorsWithoutException` | Distinct waypoints |
 | `InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors` | Six labeled ports |
 | `InterconnectionView_BuildLayout_HighConnectionDegreePart_BoxesDoNotOverlapAndPortsAreLabeled` | No overlap |
@@ -186,7 +187,7 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_ExposeMultipleParts_UnionsBothSubtrees` | Two exposed parts union both subtrees |
 | `InterconnectionView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
 | `InterconnectionView_BuildLayout_ExposeInnerPartOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested wins |
-| `InterconnectionView_BuildLayout_ExposeBothSameDepthSiblings_ScoreBreaksTieNotLength` | Score breaks the tie |
+| `InterconnectionView_BuildLayout_ExposeTwoIndependentRoots_DrawsBothSideBySide` | Every exposed root drawn |
 | `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_NoRootDef_RendersTopLevelFeatureWithoutFrame` | Alone |
 | `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_TwoTopLevelParts_ArrangesSideBySideNoFrame` | 2 boxes |
 | `InterconnectionView_BuildLayout_ExposeNamespaceDirectChildren_ContainerFeature_RendersAsLeaf` | Leaf |
