@@ -239,7 +239,12 @@ public sealed class DiagramRenderer
             // Report a view with nothing renderable (a warning), or a lone exposed package drawn
             // without its contents (an informational hint); the view is still rendered either way.
             if (diagnostics is not null &&
-                BuildViewDiagnostic(viewName, viewNode, workspace, layout.Nodes.Count == 0) is { } diagnostic)
+                BuildViewDiagnostic(
+                    viewName,
+                    viewNode,
+                    workspace,
+                    layout.Nodes.Count == 0,
+                    strategy is Layout.Internal.GeneralViewLayoutStrategy) is { } diagnostic)
             {
                 diagnostics.Add(diagnostic);
             }
@@ -388,7 +393,8 @@ public sealed class DiagramRenderer
 
     /// <summary>
     /// Builds the view-level diagnostic, located at the view's declaration: a warning when the
-    /// laid-out diagram contains nothing renderable; otherwise an informational hint when the view
+    /// laid-out diagram contains nothing renderable; otherwise, for a layout that draws exposed
+    /// packages as package nodes (the general view), an informational hint when the view
     /// exposes a package with a bare <c>expose &lt;Package&gt;;</c> (SysML 8.3.26.3, a
     /// MembershipExpose of the package element itself) while none of that package's members are
     /// exposed, so it is drawn as a package node without contents. Returns null when neither applies.
@@ -397,9 +403,10 @@ public sealed class DiagramRenderer
     /// <param name="viewNode">The view's AST node.</param>
     /// <param name="workspace">The workspace used to classify each exposed target.</param>
     /// <param name="isEmpty">Whether the laid-out diagram has no nodes.</param>
+    /// <param name="drawsPackageNodes">Whether the layout strategy draws exposed packages as package nodes.</param>
     /// <returns>The diagnostic, or null.</returns>
     private static SysmlDiagnostic? BuildViewDiagnostic(
-        string viewName, SysmlViewNode viewNode, SysmlWorkspace workspace, bool isEmpty)
+        string viewName, SysmlViewNode viewNode, SysmlWorkspace workspace, bool isEmpty, bool drawsPackageNodes)
     {
         var scope = Layout.Internal.ExposeScopeResolver.ResolveExposedScope(workspace, viewNode);
         var lonePackages = viewNode.ResolvedExposeMembers
@@ -421,7 +428,7 @@ public sealed class DiagramRenderer
             severity = DiagnosticSeverity.Warning;
             message = Layout.Internal.LayoutWarnings.ForEmptyView(viewName, lonePackages);
         }
-        else if (lonePackages.Count > 0)
+        else if (lonePackages.Count > 0 && drawsPackageNodes)
         {
             severity = DiagnosticSeverity.Info;
             message = Layout.Internal.LayoutWarnings.ForLonePackageExpose(viewName, lonePackages);

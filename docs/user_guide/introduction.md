@@ -489,7 +489,8 @@ definition.
 Per SysML v2 (8.3.26.3), `expose P;` exposes the package element `P` itself, so the General View
 draws it as a package node (tabbed folder symbol with its name) without its contents; `expose P::*;`
 exposes only `P`'s members (no package node); and `expose P::**;` exposes `P` and all its members
-recursively (the package node containing its members). When a package is exposed alone, `render`
+recursively (the package node containing its members). When a package is exposed alone in a view
+laid out as a General View, `render`
 prints an informational hint, located at the view's declaration in the same
 `file(line,col): severity:` form `lint` uses:
 

@@ -40,6 +40,7 @@ external services are required.
 | `DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput` | The PNG output carries the PNG signature |
 | `DiagramRenderer_RenderWorkspace_NoViews_ReturnsEmptyList` | A view-free workspace yields an empty result |
 | `DiagramRenderer_RenderWorkspace_ViewExposesBarePackage_RendersPackageNodeWithInfoHint` | Package node + info hint |
+| `DiagramRenderer_RenderWorkspace_NonGeneralViewExposesBarePackage_ReportsNoHint` | No hint without package node |
 | `DiagramRenderer_RenderWorkspace_ViewWithNothingRenderable_ReportsEmptyViewWarning` | Empty view warning |
 | `DiagramRenderer_RenderWorkspace_ViewExposesPackageRecursively_ReportsNoWarning` | `Pkg::**` - no warning |
 | `DiagramRenderer_RenderWorkspace_ViewExposesRenderableElement_ReportsNoWarning` | Part def - no warning |

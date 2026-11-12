@@ -390,6 +390,42 @@ public sealed class RenderIntegrationTests
     }
 
     /// <summary>
+    ///     A bare <c>expose Pkg;</c> in a view routed to a layout that does not draw package nodes
+    ///     (here an interconnection view, which draws its exposed root part def) reports no
+    ///     lone-package hint, since no package node is drawn.
+    /// </summary>
+    [Fact]
+    public async Task DiagramRenderer_RenderWorkspace_NonGeneralViewExposesBarePackage_ReportsNoHint()
+    {
+        // Arrange: an interconnection view exposing a renderable root plus a bare package
+        const string sysml = """
+            package Pkg { part def Block1 {} }
+            package Sys { part def Leaf; part def Root { part a : Leaf; part b : Leaf; } }
+            package Diagrams {
+                view WiringView {
+                    expose Sys::Root::**;
+                    expose Pkg;
+                    render asInterconnectionDiagram;
+                }
+            }
+            """;
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            // Act
+            var (outputs, diagnostics) = await RenderWithDiagnosticsAsync(sysml, tempFile);
+
+            // Assert: the view renders and no diagnostic claims a package node was drawn
+            Assert.Single(outputs);
+            Assert.Empty(diagnostics);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     A view whose exposed scope contains nothing renderable (here the members of an empty
     ///     package, <c>expose Pkg::*;</c>) is still rendered, and a located warning is reported.
     /// </summary>

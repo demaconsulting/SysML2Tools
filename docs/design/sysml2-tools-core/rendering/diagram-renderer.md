@@ -40,9 +40,11 @@ whose package has no member in the view's exposed scope (`ExposeScopeResolver`) 
 and is drawn by the General View as a package node without contents. When the `LayoutTree` has no
 nodes, a `Warning` with `LayoutWarnings.ForEmptyView` (including any lone-package suggestion) is
 appended — the only case reported as a warning, since an empty diagram is almost always a modeling
-mistake. Otherwise, when lone packages exist, an `Info` hint from
-`LayoutWarnings.ForLonePackageExpose` explains the package node and suggests `expose <Package>::**;`
-without implying the model is wrong. The view is always rendered and returned, so callers that
+mistake. Otherwise, when lone packages exist and the view was laid out by the
+`GeneralViewLayoutStrategy` (the only strategy that draws exposed packages as package nodes), an
+`Info` hint from `LayoutWarnings.ForLonePackageExpose` explains the package node and suggests
+`expose <Package>::**;` without implying the model is wrong; other strategies draw no package
+node, so they get no hint. The view is always rendered and returned, so callers that
 write files keep them current. The empty check is strategy-agnostic because it inspects only the
 produced `LayoutTree`.
 

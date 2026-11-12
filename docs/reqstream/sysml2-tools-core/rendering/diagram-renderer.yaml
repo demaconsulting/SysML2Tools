@@ -63,7 +63,8 @@ sections:
         title: >-
           When a caller supplies a diagnostics collection, the diagram renderer shall report, located
           at the view's declaration, a warning for each rendered view whose diagram contains nothing
-          renderable, and otherwise an informational hint for each view that exposes a package with
+          renderable, and otherwise an informational hint for each view laid out as a General View
+          that exposes a package with
           a bare `expose <Package>;` while none of its members are exposed (suggesting
           `expose <Package>::**;`), while still returning the view's rendered output.
         justification: |
@@ -74,6 +75,7 @@ sections:
           the members. Still returning the output keeps existing output files current.
         tests:
           - DiagramRenderer_RenderWorkspace_ViewExposesBarePackage_RendersPackageNodeWithInfoHint
+          - DiagramRenderer_RenderWorkspace_NonGeneralViewExposesBarePackage_ReportsNoHint
           - DiagramRenderer_RenderWorkspace_ViewWithNothingRenderable_ReportsEmptyViewWarning
           - DiagramRenderer_RenderWorkspace_ViewExposesPackageRecursively_ReportsNoWarning
           - DiagramRenderer_RenderWorkspace_ViewExposesRenderableElement_ReportsNoWarning
