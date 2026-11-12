@@ -501,6 +501,7 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_FilterNotDocumentation_HidesDocButKeepsComment
           - GeneralViewLayoutStrategy_BuildLayout_PositiveFilterExcludingDocumentation_HidesDoc
           - GeneralViewLayoutStrategy_BuildLayout_InheritedViewCondition_HidesDoc
+          - GeneralViewLayoutStrategy_BuildLayout_ViewTypedByStandardViewDefinition_AppliesOwnConditions
           - GeneralViewLayoutStrategy_BuildLayout_ExposeFilterNotDocumentation_HidesDoc
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-DocumentationCompartment

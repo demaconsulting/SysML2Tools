@@ -201,9 +201,10 @@ internal static class ExposeScopeResolver
             {
                 // FilterExpressionText alone is honored for view nodes built without the full list
                 // (e.g. a synthesized dynamic view carrying the `render --filter` expression).
-                if (view.FilterExpressionTexts.Count > 0)
+                // Standard library view nodes are deserialized and may carry a null list.
+                if (view.FilterExpressionTexts is { Count: > 0 } texts)
                 {
-                    result.AddRange(view.FilterExpressionTexts);
+                    result.AddRange(texts);
                 }
                 else if (view.FilterExpressionText is { Length: > 0 } single)
                 {
@@ -211,7 +212,7 @@ internal static class ExposeScopeResolver
                 }
             }
 
-            foreach (var edge in node.ResolvedEdges)
+            foreach (var edge in node.ResolvedEdges ?? [])
             {
                 if (edge.Kind is SysmlEdgeKind.Typing or SysmlEdgeKind.Supertype &&
                     workspace.Declarations.TryGetValue(edge.TargetQualifiedName, out var general))

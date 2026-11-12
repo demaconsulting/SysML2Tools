@@ -2540,6 +2540,27 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A view typed by a standard library view definition (<c>StandardViewDefinitions::GeneralView</c>,
+    ///     whose node is deserialized from the bundled standard library) applies its own view
+    ///     conditions without failing on the library definition.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ViewTypedByStandardViewDefinition_AppliesOwnConditions()
+    {
+        // Act
+        var layout = await LayOutViewVAsync(DocumentedPackageSysml + """
+
+            package Diagrams {
+                view V : StandardViewDefinitions::GeneralView { expose P::**; filter not @SysML::Documentation; }
+            }
+            """);
+
+        // Assert
+        var battery = Assert.Single(CollectBoxes(layout.Nodes), b => b.Label == "Battery");
+        Assert.DoesNotContain(battery.Compartments, c => c.Title == "doc");
+    }
+
+    /// <summary>
     ///     An expose filter (<c>expose P::**[not @SysML::Documentation];</c>, SysML 7.26.2) excludes
     ///     the exposed documentation while still exposing the definitions and comments.
     /// </summary>

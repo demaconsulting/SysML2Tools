@@ -280,6 +280,8 @@ configuration are required beyond a standard .NET SDK installation.
   `filter @SysML::PartDefinition;` keeps the part definition but hides its doc and comment
 - `GeneralViewLayoutStrategy_BuildLayout_InheritedViewCondition_HidesDoc`:
   a view typed by a view definition owning `filter not @SysML::Documentation;` hides the doc
+- `GeneralViewLayoutStrategy_BuildLayout_ViewTypedByStandardViewDefinition_AppliesOwnConditions`:
+  a view typed by the library's `StandardViewDefinitions::GeneralView` applies its own conditions
 - `GeneralViewLayoutStrategy_BuildLayout_ExposeFilterNotDocumentation_HidesDoc`:
   `expose P::**[not @SysML::Documentation];` hides the doc but keeps the definition and comment
 - `GeneralViewLayoutStrategy_BuildLayout_MembershipExpose_ExposesDocOnlyWhenRecursive`:
