@@ -530,6 +530,8 @@ public sealed class GeneralViewLayoutStrategyTests
             view Bare { expose Pkg; }
             view Members { expose Pkg::*; }
             view Recursive { expose Pkg::**; }
+            view BareKeptByFilter { expose Pkg; filter @SysML::Package; }
+            view BareExcludedByFilter { expose Pkg; filter @SysML::PartDefinition; }
         }
         """;
 
@@ -548,6 +550,25 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Equal(BoxShape.Folder, box.Shape);
         Assert.Equal("Pkg", box.Label);
         Assert.Empty(box.Children);
+    }
+
+    /// <summary>
+    ///     View conditions apply to an exposed package node like any exposed element: a condition the
+    ///     package satisfies (<c>@SysML::Package</c>) keeps it, one it does not
+    ///     (<c>@SysML::PartDefinition</c>) removes it.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ViewConditionOnExposedPackage_KeepsOrRemovesPackageNode()
+    {
+        // Act
+        var kept = await LayOutDeclaredViewAsync(ExposeFormsSysml, "BareKeptByFilter");
+        var excluded = await LayOutDeclaredViewAsync(ExposeFormsSysml, "BareExcludedByFilter");
+
+        // Assert
+        var box = Assert.Single(CollectBoxes(kept.Nodes));
+        Assert.Equal(BoxShape.Folder, box.Shape);
+        Assert.Equal("Pkg", box.Label);
+        Assert.Empty(CollectBoxes(excluded.Nodes));
     }
 
     /// <summary>

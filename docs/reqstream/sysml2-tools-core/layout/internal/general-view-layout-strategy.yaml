@@ -546,7 +546,8 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposedPackageNodes
         title: >-
           In an `expose`-scoped view, GeneralViewLayoutStrategy shall draw each package that is
-          itself exposed (`expose P;` or `expose P::**;`) as a package node containing whichever
+          itself exposed (`expose P;` or `expose P::**;`) and satisfies the view conditions as a
+          package node containing whichever
           of its members are also exposed — an empty package node when none are — and shall not draw
           a package that is only an ancestor of exposed elements (`expose P::*;` exposes P's members
           but not P).
@@ -558,5 +559,6 @@ sections:
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_BarePackageExpose_DrawsEmptyPackageNode
           - GeneralViewLayoutStrategy_BuildLayout_BarePackageExposeWithDepthLimitOne_HasNoTruncationIndicator
+          - GeneralViewLayoutStrategy_BuildLayout_ViewConditionOnExposedPackage_KeepsOrRemovesPackageNode
           - GeneralViewLayoutStrategy_BuildLayout_NamespaceExpose_DrawsMembersWithoutPackageNode
           - GeneralViewLayoutStrategy_BuildLayout_RecursivePackageExpose_DrawsPackageNodeWithMembers
