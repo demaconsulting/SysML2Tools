@@ -3,7 +3,8 @@
 ##### Verification Approach
 
 `DiagramTypeRouter` is verified through unit tests in `DiagramTypeRouterTests` that construct a
-view node of each kind (by name and by specialization) and assert that `GetStrategy` returns the
+view node of each kind (by name and by specialization), or load small SysML models typing views by
+the standard view definitions, and assert that `GetStrategy` returns the
 expected concrete strategy type. No mocking is required; the router is pure and deterministic.
 
 ##### Test Environment
@@ -17,6 +18,8 @@ configuration are required beyond a standard .NET SDK installation.
 - Each recognized view kind, whether identified by name or by a specialized supertype, routes to
   its corresponding strategy.
 - A view matching no recognized kind routes to the general view strategy.
+- A view typed by a standard view definition, directly or through a specializing user view
+  definition, routes to that definition's strategy unless its own render target says otherwise.
 - A view declaring `render asTreeDiagram;`, `render asInterconnectionDiagram;`,
   `render asGeneralDiagram;`, `render asStateTransitionDiagram;`, `render asActionFlowDiagram;`,
   `render asSequenceDiagram;`, or `render asGridDiagram;` routes to the corresponding strategy,
@@ -49,3 +52,6 @@ configuration are required beyond a standard .NET SDK installation.
 | `GetStrategy_RenderAsElementTable_FallsThroughUnchanged` | `render asElementTable;` has no effect |
 | `GetStrategy_RenderAsTextualNotation_FallsThroughUnchanged` | `render asTextualNotation;` has no effect |
 | `GetStrategy_UnrecognizedRenderTarget_FallsThroughUnchanged` | Unrecognized render target has no effect |
+| `GetStrategy_ViewTypedByStandardViewDefinition_RoutesToItsNotation` | Standard view definition selects strategy |
+| `GetStrategy_ViewTypedByUserViewDefinition_InheritsNotationAndRendering` | Inherited definition and render |
+| `GetStrategy_RenderOnTypedView_OverridesViewDefinition` | Usage render wins over its view definition |

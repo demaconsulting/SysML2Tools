@@ -165,6 +165,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PerBranchRecursionIndependence
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NoExposeFallback
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedSpecificityTieBreak
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-MultipleRoots
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedTopLevelFeatureFallback
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedTopLevelFeatureFallbackConnections
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedTopLevelFeatureFallbackEmptyCanvas

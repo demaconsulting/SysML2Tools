@@ -6,6 +6,7 @@ using DemaConsulting.SysML2Tools.Layout.Internal;
 using DemaConsulting.SysML2Tools.Rendering.Internal;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
+using DemaConsulting.SysML2Tools.Stdlib;
 
 namespace DemaConsulting.SysML2Tools.Tests.Rendering;
 
@@ -378,5 +379,84 @@ public sealed class DiagramTypeRouterTests
         var strategy = DiagramTypeRouter.GetStrategy(view, workspace, out _);
 
         Assert.IsType<GeneralViewLayoutStrategy>(strategy);
+    }
+    /// <summary>
+    /// A view usage typed by a standard view definition (SysML v2 §9.2.20) routes to that
+    /// definition's notation, regardless of a conflicting name heuristic.
+    /// </summary>
+    /// <param name="definition">The standard view definition's simple name.</param>
+    /// <param name="expected">The expected strategy type.</param>
+    [Theory]
+    [InlineData("GeneralView", typeof(GeneralViewLayoutStrategy))]
+    [InlineData("InterconnectionView", typeof(InterconnectionViewLayoutStrategy))]
+    [InlineData("ActionFlowView", typeof(ActionFlowViewLayoutStrategy))]
+    [InlineData("StateTransitionView", typeof(StateTransitionViewLayoutStrategy))]
+    [InlineData("SequenceView", typeof(SequenceViewLayoutStrategy))]
+    [InlineData("GridView", typeof(GridViewLayoutStrategy))]
+    [InlineData("BrowserView", typeof(BrowserViewLayoutStrategy))]
+    public async Task GetStrategy_ViewTypedByStandardViewDefinition_RoutesToItsNotation(string definition, Type expected)
+    {
+        var workspace = await LoadAsync($$"""
+            package P {
+                private import StandardViewDefinitions::*;
+                view MatrixTreeView : {{definition}};
+            }
+            """);
+
+        var strategy = DiagramTypeRouter.GetStrategy(workspace.Declarations["P::MatrixTreeView"], workspace, out var unsupported);
+
+        Assert.Null(unsupported);
+        Assert.IsType(expected, strategy);
+    }
+
+    /// <summary>
+    /// A view usage typed by a user view definition inherits the notation of the standard view
+    /// definition it specializes, and a definition's own <c>render</c> member takes precedence.
+    /// </summary>
+    [Fact]
+    public async Task GetStrategy_ViewTypedByUserViewDefinition_InheritsNotationAndRendering()
+    {
+        var workspace = await LoadAsync("""
+            package P {
+                view def SystemsView :> StandardViewDefinitions::InterconnectionView;
+                view def OutlineView :> SystemsView { render Views::asTreeDiagram; }
+                view A : SystemsView;
+                view B : OutlineView;
+            }
+            """);
+
+        Assert.IsType<InterconnectionViewLayoutStrategy>(DiagramTypeRouter.GetStrategy(workspace.Declarations["P::A"], workspace, out _));
+        Assert.IsType<BrowserViewLayoutStrategy>(DiagramTypeRouter.GetStrategy(workspace.Declarations["P::B"], workspace, out _));
+    }
+
+    /// <summary>A view usage's own <c>render</c> member overrides its standard view definition.</summary>
+    [Fact]
+    public async Task GetStrategy_RenderOnTypedView_OverridesViewDefinition()
+    {
+        var workspace = await LoadAsync("""
+            package P {
+                view V : StandardViewDefinitions::GeneralView { render Views::asInterconnectionDiagram; }
+            }
+            """);
+
+        Assert.IsType<InterconnectionViewLayoutStrategy>(DiagramTypeRouter.GetStrategy(workspace.Declarations["P::V"], workspace, out _));
+    }
+
+    /// <summary>Loads SysML source text into a workspace with the standard library.</summary>
+    private static async Task<SysmlWorkspace> LoadAsync(string sysml)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            return result.Workspace;
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
     }
 }

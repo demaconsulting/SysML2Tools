@@ -44,7 +44,31 @@ fundamentally different from `GridViewLayoutStrategy`'s matrix layout, not merel
 variant of it; `asTextualNotation` is left unmapped because it is a non-graphical rendering
 style with no corresponding `ILayoutStrategy` implementation.
 
-When no render target matches, the router falls back to testing the view's name and its
+A `Views::`-qualified render target (e.g. `render Views::asTreeDiagram;`) is matched by its
+simple name.
+
+When the view's own render target is not recognized, the router walks its view definitions
+(`FromViewDefinitions`): the target of the view's resolved `Typing` edge (`view V : Def`), then
+transitively the targets of each definition's `Supertype` edges, breadth-first and cycle-guarded.
+The first definition reached that either declares a recognized `render` target or is one of the
+standard view definitions (SysML v2.1 Beta 2 9.2.20) selects the strategy, because a view usage
+inherits its definition's rendering (7.26.2):
+
+- `StandardViewDefinitions::GeneralView` → general view strategy
+- `StandardViewDefinitions::InterconnectionView` → interconnection strategy
+- `StandardViewDefinitions::ActionFlowView` → action flow strategy
+- `StandardViewDefinitions::StateTransitionView` → state transition strategy
+- `StandardViewDefinitions::SequenceView` → sequence strategy
+- `StandardViewDefinitions::GridView` → grid strategy
+- `StandardViewDefinitions::BrowserView` → browser (tree) strategy
+
+`GeometryView` has no strategy and is not mapped, so it falls through to the heuristic below.
+Matching uses the resolved qualified name, so `view V : GeneralView` needs the standard library
+name to be visible (for example through `private import StandardViewDefinitions::*;`) or written
+qualified (`StandardViewDefinitions::GeneralView`).
+
+When neither a render target nor a view definition selects a strategy, the router falls back to
+testing the view's name and its
 declared supertype names (case-insensitively) for a recognized view-kind marker, in a fixed
 priority order: Interconnection, then StateTransition/State, then ActionFlow/Action, then
 Grid/Matrix/Tabular, then Browser/Tree, then Sequence. The first marker that matches selects the
@@ -61,7 +85,8 @@ cannot be rendered; it is currently always null because every view resolves to a
 ##### Dependencies
 
 - The view-strategy units in the Layout Internal subsystem (the strategies it returns).
-- `SysmlViewNode` and `SysmlWorkspace` (Semantic subsystem) for the view's identity.
+- `SysmlViewNode` and `SysmlWorkspace` (Semantic subsystem) for the view's identity, its
+  resolved `Typing`/`Supertype` edges, and its view definitions' declarations.
 
 ##### Callers
 
