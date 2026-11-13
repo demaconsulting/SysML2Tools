@@ -5491,6 +5491,62 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     Two files declaring a top-level package of the same name each resolve their references
+    ///     only through their own file-root imports (the roots are keyed by file, not by name).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SameTopLevelNameInTwoFiles_EachUsesItsOwnRootImports()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(
+            "package LibA { part def T; part def OnlyA; } package LibB { part def T; part def OnlyB; }",
+            """
+            private import LibA::*;
+            package Vehicle { part a : T; part c : OnlyB; }
+            """,
+            """
+            private import LibB::*;
+            package Vehicle { part b : T; part d : OnlyA; }
+            """);
+
+        // Assert: each file's bare name resolves through its own import only
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle::a", "LibA::T"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle::b", "LibB::T"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle::b", "LibA::T"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle::c", "LibB::OnlyB"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Vehicle::d", "LibA::OnlyA"));
+        Assert.True(HasUnresolvedWarning(result, "OnlyB"));
+        Assert.True(HasUnresolvedWarning(result, "OnlyA"));
+    }
+
+    /// <summary>
+    ///     With a top-level package split across two files, each file's definitions derive their
+    ///     general types (and so the inherited members they redefine) from that file's own
+    ///     root imports.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SameTopLevelNameInTwoFiles_GeneralTypesUseOwnRootImports()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(
+            "package LibA { part def T; } package LibB { part def T { attribute m; } }",
+            """
+            private import LibA::*;
+            package Vehicle { part def Car1 :> T; }
+            """,
+            """
+            private import LibB::*;
+            package Vehicle { part def Car2 :> T { attribute :>> m; } }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Supertype, "Vehicle::Car1", "LibA::T"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Supertype, "Vehicle::Car2", "LibB::T"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Redefinition, "Vehicle::Car2::m", "LibB::T::m"));
+        Assert.False(HasUnresolvedWarning(result, "m"));
+    }
+
+    /// <summary>
     ///     A top-level definition whose supertype is reachable only through a file-root import still
     ///     has that supertype among its general types, so a bare redefinition or subsetting of an
     ///     inherited member resolves (the general types are resolved with the file-root imports).

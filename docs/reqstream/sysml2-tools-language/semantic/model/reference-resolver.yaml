@@ -78,6 +78,8 @@ sections:
           - WorkspaceLoader_LoadAsync_ImportInOuterPackage_AppliesToNestedPackage
           - WorkspaceLoader_LoadAsync_FileRootImport_AppliesToItsOwnFileOnly
           - WorkspaceLoader_LoadAsync_TopLevelSupertypeViaRootImport_ResolvesMembers
+          - WorkspaceLoader_LoadAsync_SameTopLevelNameInTwoFiles_EachUsesItsOwnRootImports
+          - WorkspaceLoader_LoadAsync_SameTopLevelNameInTwoFiles_GeneralTypesUseOwnRootImports
           - WorkspaceLoader_LoadAsync_PrivateImport_IsNotReExported
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-OwningNamespaceFirst

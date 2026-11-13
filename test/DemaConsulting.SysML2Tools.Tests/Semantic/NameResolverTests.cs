@@ -373,7 +373,7 @@ public sealed class NameResolverTests
     ///     Imports written at the root of a file apply to that file's top-level declarations.
     /// </summary>
     [Fact]
-    public async Task NameResolver_ResolvingMode_Resolve_FileRootImport_AppliesToRegisteredTopLevelDeclarations()
+    public async Task NameResolver_ResolvingMode_Resolve_FileRootImport_AppliesToRegisteredDeclarations()
     {
         // Arrange
         var workspace = await LoadWorkspaceAsync("""
@@ -383,12 +383,36 @@ public sealed class NameResolverTests
             """);
         var rootImport = new SysmlImportNode { ImportedNamespace = "Lib", IsWildcard = true };
         var resolver = new NameResolver(workspace.Declarations, null, declaredReferencesOnly: true);
-        resolver.RegisterRootImports(["P"], [rootImport]);
+        resolver.RegisterRootImports(["P", "P::A"], [rootImport]);
 
-        // Act / Assert: only P (a registered top-level declaration) sees the import
+        // Act / Assert: only P's declarations (registered ones) see the import
         Assert.Equal("Lib::Y", resolver.Resolve("Y", "P::A"));
         Assert.Equal("Lib::Y", resolver.Resolve("Y", null, [rootImport]));
         Assert.Null(resolver.Resolve("Y", "Other::B"));
+    }
+
+    /// <summary>
+    ///     The file-root imports a caller supplies for the referencing file take precedence over
+    ///     those registered against a declaration of the same name from another file.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ResolvingMode_Resolve_SuppliedFileRootImports_OverrideRegisteredByName()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package LibA { part def T; }
+            package LibB { part def T; }
+            package P { part def A; }
+            """);
+        var importA = new SysmlImportNode { ImportedNamespace = "LibA", IsWildcard = true };
+        var importB = new SysmlImportNode { ImportedNamespace = "LibB", IsWildcard = true };
+        var resolver = new NameResolver(workspace.Declarations, null, declaredReferencesOnly: true);
+        resolver.RegisterRootImports(["P"], [importA]);
+
+        // Act / Assert: the referencing file's own imports decide, not the by-name registration
+        Assert.Equal("LibB::T", resolver.Resolve("T", "P", [importB]));
+        Assert.Equal("LibB::T", resolver.Resolve("T", "P::A", [importB]));
+        Assert.Equal("LibA::T", resolver.Resolve("T", "P"));
     }
 
     /// <summary>

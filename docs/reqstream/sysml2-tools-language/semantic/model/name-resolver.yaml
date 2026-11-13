@@ -84,7 +84,8 @@ sections:
           - NameResolver_ResolvingMode_GeneralTypes_IgnoresResolvedEdges
           - NameResolver_ResolvingMode_Resolve_SupertypeDeclaredLater_IsOrderIndependent
           - NameResolver_ResolvingMode_GeneralTypes_SpecializationCycle_Terminates
-          - NameResolver_ResolvingMode_Resolve_FileRootImport_AppliesToRegisteredTopLevelDeclarations
+          - NameResolver_ResolvingMode_Resolve_FileRootImport_AppliesToRegisteredDeclarations
+          - NameResolver_ResolvingMode_Resolve_SuppliedFileRootImports_OverrideRegisteredByName
           - NameResolver_ResolveRedefinition_ExcludesRedefiningFeatureAndFallsBack
 
       - id: SysML2Tools-Language-Semantic-Model-NameResolver-FlaggedFallback

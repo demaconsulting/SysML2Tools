@@ -21,7 +21,8 @@ created in `Path.GetTempPath()` and deleted after each test.
 - A redefined feature resolves against the redefining feature's owning type's general types.
 - In the internal resolving mode the general types come only from raw references (a wrong resolved
   edge is ignored), answers do not depend on lookup order, specialization cycles terminate, file-root
-  imports apply to the registered top-level declarations, and a redefinition never resolves to the
+  imports apply to the registered declarations (and the referencing file's own supplied imports take
+  precedence over a same-named declaration's from another file), and a redefinition never resolves to the
   redefining feature itself.
 - A name that does not resolve by KerML rules is reported as a simple-name fallback listing every
   candidate.
@@ -44,5 +45,6 @@ created in `Path.GetTempPath()` and deleted after each test.
 | `NameResolver_ResolvingMode_GeneralTypes_IgnoresResolvedEdges` | Resolving mode ignores edges |
 | `NameResolver_ResolvingMode_Resolve_SupertypeDeclaredLater_IsOrderIndependent` | Order independence |
 | `NameResolver_ResolvingMode_GeneralTypes_SpecializationCycle_Terminates` | Cycle guard |
-| `NameResolver_ResolvingMode_Resolve_FileRootImport_AppliesToRegisteredTopLevelDeclarations` | File-root imports |
+| `NameResolver_ResolvingMode_Resolve_FileRootImport_AppliesToRegisteredDeclarations` | File-root imports |
+| `NameResolver_ResolvingMode_Resolve_SuppliedFileRootImports_OverrideRegisteredByName` | Supplied imports win |
 | `NameResolver_ResolveRedefinition_ExcludesRedefiningFeatureAndFallsBack` | Redefinition target rules |

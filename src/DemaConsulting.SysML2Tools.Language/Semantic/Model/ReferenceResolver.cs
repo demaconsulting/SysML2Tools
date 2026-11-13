@@ -167,13 +167,36 @@ internal sealed class ReferenceResolver
     private NameResolver CreateResolver(IEnumerable<LoadedFile> files, Func<SysmlImportNode, string, bool>? importFilter)
     {
         var resolver = new NameResolver(_symbolTable.Symbols, importFilter, declaredReferencesOnly: true);
-        foreach (var file in files)
+        foreach (var file in files.Where(file => file.RootImports.Count > 0))
         {
-            resolver.RegisterRootImports(
-                file.Root.Children.Select(child => child.Name).OfType<string>(), file.RootImports);
+            // Key by declaration (not top-level name): a package may be split across files, each
+            // with its own root imports. Only nodes that ARE the symbol-table entry for their
+            // qualified name belong to this file's registration.
+            var declarations = new List<string>();
+            CollectDeclarationNames(file.Root, declarations);
+            resolver.RegisterRootImports(declarations, file.RootImports);
         }
 
         return resolver;
+    }
+
+    /// <summary>
+    ///     Collects the qualified names of the symbol-table declarations in <paramref name="node"/>'s
+    ///     subtree (the nodes the symbol table holds for their qualified names).
+    /// </summary>
+    private void CollectDeclarationNames(SysmlNode node, List<string> names)
+    {
+        foreach (var child in node.Children)
+        {
+            if (child.QualifiedName is { Length: > 0 } qualified &&
+                _symbolTable.Symbols.TryGetValue(qualified, out var symbol) &&
+                ReferenceEquals(symbol, child))
+            {
+                names.Add(qualified);
+            }
+
+            CollectDeclarationNames(child, names);
+        }
     }
 
     /// <summary>Returns whether any import in <paramref name="node"/>'s subtree carries a bracket filter.</summary>

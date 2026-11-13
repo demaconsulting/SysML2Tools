@@ -41,11 +41,15 @@ instance serves one workspace.
   standard library alike (KerML 8.2.3.5.2).
 - *File-root imports* (resolving mode only): the imports written at the root of a source file are
   not part of any namespace's `Children` in the declarations, so `RegisterRootImports` records
-  them against the file's top-level declarations; full resolution consults them after the owning
-  namespaces and before the global namespace. A top-level type has no owning namespace, so its own
-  general types (and a top-level feature's redefined feature) are resolved with the imports
-  registered for that type — otherwise a supertype reachable only through a file-root import would
-  be missing from `GeneralTypes` and the inherited members it supplies would not resolve.
+  them against the qualified name of **every declaration the file contributes** (not merely its
+  top-level names: a package may be split across files, each with its own root imports, so a
+  top-level name cannot identify the file). Full resolution consults them after the owning
+  namespaces and before the global namespace: the referencing file's imports when the caller
+  supplies them (the semantic pass always does), otherwise those registered for the local
+  namespace's declaration. A type's own general types (and a feature's redefined feature) are
+  resolved with the imports registered for that type's declaration — otherwise a supertype
+  reachable only through a file-root import would be missing from `GeneralTypes` and the inherited
+  members it supplies would not resolve.
 - `NameResolution(QualifiedName, IsSimpleNameFallback, Candidates)` reports a fallback result.
 
 ##### Key Methods

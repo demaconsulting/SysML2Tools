@@ -41,7 +41,7 @@ public sealed record NameResolution(string? QualifiedName, bool IsSimpleNameFall
 ///     type's raw references (never from <see cref="SysmlNode.ResolvedEdges"/>), which makes
 ///     every answer independent of the order in which nodes are visited and keeps the cache valid
 ///     as edges appear. In that mode the imports written at the root of a source file (outside
-///     any package) apply to that file's top-level declarations, as KerML scopes them.
+///     any package) apply to the declarations of that file, as KerML scopes them.
 ///     </para>
 /// </remarks>
 public sealed class NameResolver
@@ -66,7 +66,7 @@ public sealed class NameResolver
     private readonly HashSet<(string Name, string Namespace, Scope Scope)> _inProgress = new();
     private readonly Dictionary<string, IReadOnlyList<string>> _declaredGeneralTypes = new(StringComparer.Ordinal);
     private readonly HashSet<string> _declaredGeneralTypesInProgress = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, IReadOnlyList<SysmlImportNode>> _rootImportsByTopLevel = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IReadOnlyList<SysmlImportNode>> _rootImportsByDeclaration = new(StringComparer.Ordinal);
     private Dictionary<string, List<string>>? _bySimpleName;
 
     /// <summary>
@@ -107,23 +107,31 @@ public sealed class NameResolver
 
     /// <summary>
     ///     Registers the imports written at the root of a source file (outside any package) as
-    ///     applying to that file's top-level declarations, which are then consulted after the
-    ///     owning namespaces and before the global namespace.
+    ///     applying to the declarations of that file, which are then consulted after the owning
+    ///     namespaces and before the global namespace.
     /// </summary>
-    /// <param name="topLevelNames">The simple names of the file's top-level declarations.</param>
+    /// <remarks>
+    ///     The imports are keyed by declaration qualified name, never by top-level name alone: two
+    ///     files may each declare a top-level package of the same name (a package split across
+    ///     files), and each must see only its own file's root imports. Callers register the
+    ///     qualified names of every declaration the file contributes; a name already registered
+    ///     (a duplicate declaration in another file) keeps its first registration.
+    /// </remarks>
+    /// <param name="declarationNames">The qualified names of the file's declarations.</param>
     /// <param name="rootImports">The file-root import nodes.</param>
-    internal void RegisterRootImports(IEnumerable<string> topLevelNames, IReadOnlyList<SysmlImportNode> rootImports)
+    internal void RegisterRootImports(IEnumerable<string> declarationNames, IReadOnlyList<SysmlImportNode> rootImports)
     {
         if (rootImports.Count == 0)
         {
             return;
         }
 
-        foreach (var name in topLevelNames)
+        foreach (var name in declarationNames)
         {
-            _rootImportsByTopLevel.TryAdd(name, rootImports);
+            _rootImportsByDeclaration.TryAdd(name, rootImports);
         }
     }
+
 
     /// <summary>
     ///     Resolves <paramref name="reference"/> relative to <paramref name="localNamespace"/>
@@ -290,7 +298,7 @@ public sealed class NameResolver
         }
 
         var owner = OwnerOf(typeName);
-        var rootImports = RootImportsOf(typeName, owner);
+        var rootImports = RootImportsOf(typeName);
         return resolved
             .Concat(raw.Select(reference => Resolve(reference, owner, rootImports)).OfType<string>())
             .Where(target => target != typeName)
@@ -299,12 +307,12 @@ public sealed class NameResolver
     }
 
     /// <summary>
-    ///     The file-root imports that apply to <paramref name="typeName"/>'s own references when it
-    ///     is itself a top-level declaration (<paramref name="owner"/> is null: no owning namespace
-    ///     carries them); null for a nested type, whose outermost owning namespace carries them.
+    ///     The file-root imports that apply to <paramref name="typeName"/>'s own references: those
+    ///     of the file that declares it (registered against its qualified name), or null when that
+    ///     file has none.
     /// </summary>
-    private IReadOnlyList<SysmlImportNode>? RootImportsOf(string typeName, string? owner) =>
-        owner is null ? _rootImportsByTopLevel.GetValueOrDefault(typeName) : null;
+    private IReadOnlyList<SysmlImportNode>? RootImportsOf(string typeName) =>
+        _rootImportsByDeclaration.GetValueOrDefault(typeName);
 
     /// <summary>The raw supertype, typing, and view-definition references that name a type's general types.</summary>
     private static List<string> RawGeneralReferences(SysmlNode node)
@@ -344,7 +352,7 @@ public sealed class NameResolver
         try
         {
             var owner = OwnerOf(typeName);
-            var rootImports = RootImportsOf(typeName, owner);
+            var rootImports = RootImportsOf(typeName);
             var general = RawGeneralReferences(node)
                 .Select(reference => Resolve(reference, owner, rootImports))
                 .OfType<string>()
@@ -385,10 +393,12 @@ public sealed class NameResolver
 
     /// <summary>
     ///     Full resolution (KerML 8.2.3.5.4): local resolution in the namespace, then each owning
-    ///     namespace outward, then the imports at the root of the file (when known), then the
-    ///     global namespace. <paramref name="localScope"/> selects which memberships of
-    ///     <paramref name="localNamespace"/> itself are considered (the outer namespaces always
-    ///     use local resolution).
+    ///     namespace outward, then the imports at the root of the file, then the global namespace.
+    ///     The file is the referencing one when the caller supplies its root imports; otherwise it is
+    ///     the file declaring <paramref name="localNamespace"/> (a top-level name alone cannot say,
+    ///     as a package may be split across files). <paramref name="localScope"/> selects which
+    ///     memberships of <paramref name="localNamespace"/> itself are considered (the outer
+    ///     namespaces always use local resolution).
     /// </summary>
     private string? FullResolve(
         string name,
@@ -396,17 +406,16 @@ public sealed class NameResolver
         IReadOnlyList<SysmlImportNode>? fileRootImports,
         Scope localScope = Scope.Local)
     {
-        string? topLevel = null;
         for (var scope = localNamespace; !string.IsNullOrEmpty(scope); scope = OwnerOf(scope))
         {
-            topLevel = scope;
             if (Lookup(name, scope, scope == localNamespace ? localScope : Scope.Local) is { } found)
             {
                 return found;
             }
         }
 
-        var rootImports = topLevel is null ? fileRootImports : _rootImportsByTopLevel.GetValueOrDefault(topLevel);
+        var rootImports = fileRootImports ??
+            (string.IsNullOrEmpty(localNamespace) ? null : _rootImportsByDeclaration.GetValueOrDefault(localNamespace));
         if (rootImports is not null)
         {
             foreach (var import in rootImports)

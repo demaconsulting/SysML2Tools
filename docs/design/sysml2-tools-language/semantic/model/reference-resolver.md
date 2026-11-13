@@ -113,9 +113,10 @@ visits only the namespaces enclosing the reference. `PkgB`'s `part q : X;` there
 resolves through `PkgA`'s `import A::*;`. The imports written at the root of a source file
 (outside any package — `private import …::*;` before the first package) apply to every
 declaration in that file and to no other file: `ResolveAll` collects each file root's direct
-`SysmlImportNode` children and registers them (`NameResolver.RegisterRootImports`) against that
-file's top-level declarations, and they are consulted after the owning namespaces and before the
-global namespace.
+`SysmlImportNode` children and registers them (`NameResolver.RegisterRootImports`) against the
+qualified name of every declaration in that file (keyed by declaration, not top-level name, so a
+package of the same name split across two files keeps each file's imports separate), and they are
+consulted after the owning namespaces and before the global namespace.
 
 ##### Redefinition and Subsetting
 
