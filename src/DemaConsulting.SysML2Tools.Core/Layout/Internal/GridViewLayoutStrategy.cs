@@ -207,9 +207,10 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Resolves a definition's raw supertype references to qualified names: the semantic model's
-    /// resolved <see cref="SysmlEdgeKind.Supertype"/> target whose qualified name is, or ends with,
-    /// the reference (used as resolved: the semantic resolver already applies KerML 8.2.3.5);
+    /// Resolves a definition's raw supertype references to qualified names: each reference is
+    /// paired with its own resolved <see cref="SysmlEdgeKind.Supertype"/> edge target (see
+    /// <see cref="GeneralViewLayoutStrategy.PairSupertypeReferences"/>; used as resolved, since the
+    /// semantic resolver already applies KerML 8.2.3.5);
     /// otherwise KerML 8.2.3.5
     /// name resolution relative to the definition's owning
     /// namespace, recording a warning when only the bare simple-name fallback matched.
@@ -225,10 +226,11 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
         var owner = sep >= 0 ? qualifiedName[..sep] : null;
 
         var result = new List<string>();
-        foreach (var supertype in def.SupertypeNames)
+        var paired = GeneralViewLayoutStrategy.PairSupertypeReferences(def.SupertypeNames, resolvedEdges);
+        for (var i = 0; i < def.SupertypeNames.Count; i++)
         {
-            var resolved = resolvedEdges.FirstOrDefault(t =>
-                t == supertype || t.EndsWith("::" + supertype, StringComparison.Ordinal));
+            var supertype = def.SupertypeNames[i];
+            var resolved = paired[i];
             if (resolved is null)
             {
                 var resolution = resolver.ResolveWithFallback(supertype, owner);

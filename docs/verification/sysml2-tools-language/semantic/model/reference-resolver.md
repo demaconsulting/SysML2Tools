@@ -113,6 +113,7 @@ external services or additional configuration are required beyond a standard .NE
 | Import scoped to its package | `WorkspaceLoader_LoadAsync_ImportInSiblingPackage_DoesNotApplyToOtherPackage` |
 | Outer import seen by nested package | `WorkspaceLoader_LoadAsync_ImportInOuterPackage_AppliesToNestedPackage` |
 | File-root import scoped to its file | `WorkspaceLoader_LoadAsync_FileRootImport_AppliesToItsOwnFileOnly` |
+| Top-level supertype via root import | `WorkspaceLoader_LoadAsync_TopLevelSupertypeViaRootImport_ResolvesMembers` |
 | Private import not re-exported | `WorkspaceLoader_LoadAsync_PrivateImport_IsNotReExported` |
 | OMG `RedefinitionExample` | `WorkspaceLoader_LoadAsync_RedefinitionExampleFixture_NoUnresolvedReferenceWarnings` |
 | OMG PartsTree fixture | `WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings` |

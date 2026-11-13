@@ -2807,6 +2807,39 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Each raw supertype reference is paired with its own resolved edge: for
+    ///     <c>part def C :&gt; Y::X, X;</c> where the bare <c>X</c> resolves (through an import) to
+    ///     <c>P::X</c>, the resolved targets are <c>[Y::X, P::X]</c> and the bare reference is paired
+    ///     with <c>P::X</c> — not with <c>Y::X</c> merely because it is a name suffix of it.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_PairSupertypeReferences_QualifiedAndBareSharingName_PairsEachOwnTarget()
+    {
+        // Act
+        var paired = GeneralViewLayoutStrategy.PairSupertypeReferences(["Y::X", "X"], ["Y::X", "P::X"]);
+
+        // Assert
+        Assert.Equal(["Y::X", "P::X"], paired);
+    }
+
+    /// <summary>
+    ///     The pairing is independent of reference order and never claims a target twice: bare first
+    ///     still pairs the qualified reference with its exact target, a target is not reused, and a
+    ///     reference with no remaining candidate is left unpaired for the caller to resolve itself.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_PairSupertypeReferences_ReversedOrderAndUnclaimedTargets_PairsWithoutReuse()
+    {
+        // Act
+        var reversed = GeneralViewLayoutStrategy.PairSupertypeReferences(["X", "Y::X"], ["P::X", "Y::X"]);
+        var duplicate = GeneralViewLayoutStrategy.PairSupertypeReferences(["X", "X"], ["P::X"]);
+
+        // Assert
+        Assert.Equal(["P::X", "Y::X"], reversed);
+        Assert.Equal(["P::X", null], duplicate);
+    }
+
+    /// <summary>
     ///     Loads <paramref name="sysml"/> and lays out the general view <c>Diagrams::V</c>.
     /// </summary>
     private static async Task<LayoutTree> LayOutViewVAsync(string sysml)

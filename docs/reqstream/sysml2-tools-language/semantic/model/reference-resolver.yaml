@@ -66,8 +66,9 @@ sections:
         title: >-
           ReferenceResolver.ResolveAll shall scope an import to the namespace that declares it and
           the namespaces nested in it, so a sibling namespace does not resolve a name through it,
-          shall apply the imports written at the root of a file to that file only, and shall not
-          re-export a private import.
+          shall apply the imports written at the root of a file to that file only (including when
+          a top-level definition's own inherited members are looked up through a supertype that
+          only that import reaches), and shall not re-export a private import.
         justification: |
           KerML 8.2.3.5.3 and 8.3.2.4: an import contributes memberships to the importing
           namespace only, and only public imports are visible to its importers. Collecting imports
@@ -76,6 +77,7 @@ sections:
           - WorkspaceLoader_LoadAsync_ImportInSiblingPackage_DoesNotApplyToOtherPackage
           - WorkspaceLoader_LoadAsync_ImportInOuterPackage_AppliesToNestedPackage
           - WorkspaceLoader_LoadAsync_FileRootImport_AppliesToItsOwnFileOnly
+          - WorkspaceLoader_LoadAsync_TopLevelSupertypeViaRootImport_ResolvesMembers
           - WorkspaceLoader_LoadAsync_PrivateImport_IsNotReExported
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-OwningNamespaceFirst

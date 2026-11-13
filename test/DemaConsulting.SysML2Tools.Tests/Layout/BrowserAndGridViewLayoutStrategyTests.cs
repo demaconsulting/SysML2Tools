@@ -156,6 +156,31 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
         Assert.DoesNotContain(layout.Warnings, w => w.Contains("'Other' in 'PkgA'"));
     }
 
+    /// <summary>
+    ///     Each raw supertype reference is paired with its own resolved edge: for
+    ///     <c>part def C :&gt; Y::X, X;</c> where the bare <c>X</c> resolves (through an import) to
+    ///     <c>P::X</c>, the row of <c>C</c> is marked in both the <c>Y::X</c> and <c>P::X</c> columns.
+    /// </summary>
+    [Fact]
+    public async Task GridView_BuildLayout_QualifiedAndBareSupertypesSharingName_MarkEachOwnTarget()
+    {
+        // Arrange / Act: rows/columns sorted by qualified name: P::X, Q::C, Y::X
+        var layout = await LayOutAsync("""
+            package P { part def X; }
+            package Y { part def X; }
+            package Q {
+                private import P::*;
+                part def C :> Y::X, X;
+            }
+            """);
+
+        // Assert: row 2 (Q::C) marks column 1 (P::X) and column 3 (Y::X)
+        var grid = Assert.Single(layout.Nodes.OfType<LayoutGrid>());
+        string Cell(int row, int column) => grid.Rows[row].Cells[column].Text;
+        Assert.Equal("X", Cell(2, 1));
+        Assert.Equal("X", Cell(2, 3));
+    }
+
     /// <summary>Loads <paramref name="sysml"/> (with the standard library) and lays out a grid view over it.</summary>
     private static async Task<LayoutTree> LayOutAsync(string sysml)
     {

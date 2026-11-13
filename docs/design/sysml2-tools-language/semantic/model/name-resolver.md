@@ -42,7 +42,10 @@ instance serves one workspace.
 - *File-root imports* (resolving mode only): the imports written at the root of a source file are
   not part of any namespace's `Children` in the declarations, so `RegisterRootImports` records
   them against the file's top-level declarations; full resolution consults them after the owning
-  namespaces and before the global namespace.
+  namespaces and before the global namespace. A top-level type has no owning namespace, so its own
+  general types (and a top-level feature's redefined feature) are resolved with the imports
+  registered for that type — otherwise a supertype reachable only through a file-root import would
+  be missing from `GeneralTypes` and the inherited members it supplies would not resolve.
 - `NameResolution(QualifiedName, IsSimpleNameFallback, Candidates)` reports a fallback result.
 
 ##### Key Methods

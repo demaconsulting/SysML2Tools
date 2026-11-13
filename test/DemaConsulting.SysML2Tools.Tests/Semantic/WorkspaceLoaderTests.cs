@@ -5491,6 +5491,30 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A top-level definition whose supertype is reachable only through a file-root import still
+    ///     has that supertype among its general types, so a bare redefinition or subsetting of an
+    ///     inherited member resolves (the general types are resolved with the file-root imports).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_TopLevelSupertypeViaRootImport_ResolvesMembers()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(
+            "package Base { part def Vehicle { attribute mass; attribute len; } }",
+            """
+            private import Base::*;
+            part def Car :> Vehicle { attribute :>> mass; attribute m2 :> len; }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Supertype, "Car", "Base::Vehicle"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Redefinition, "Car::mass", "Base::Vehicle::mass"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Supertype, "Car::m2", "Base::Vehicle::len"));
+        Assert.False(HasUnresolvedWarning(result, "mass"));
+        Assert.False(HasUnresolvedWarning(result, "len"));
+    }
+
+    /// <summary>
     ///     A private import is not re-exported to a package that imports the importing package;
     ///     a public import is.
     /// </summary>

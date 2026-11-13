@@ -177,6 +177,11 @@ configuration are required beyond a standard .NET SDK installation.
   Folder box with package keyword
 - `GeneralViewLayoutStrategy_BuildLayout_Subclassification_ProducesEdge`:
   Line with open end marker at supertype
+- `GeneralViewLayoutStrategy_PairSupertypeReferences_QualifiedAndBareSharingName_PairsEachOwnTarget`:
+  For `:> Y::X, X` with resolved targets `[Y::X, P::X]`, the references pair with `Y::X` and `P::X`
+- `GeneralViewLayoutStrategy_PairSupertypeReferences_ReversedOrderAndUnclaimedTargets_PairsWithoutReuse`:
+  Pairing is order-independent, never claims a target twice, and leaves an unmatched reference
+  unpaired
 - `GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded`:
   Seed-listed definitions excluded; empty canvas
 - `GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments`:

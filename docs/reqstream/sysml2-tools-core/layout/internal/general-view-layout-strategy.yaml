@@ -80,13 +80,16 @@ sections:
         title: >-
           GeneralViewLayoutStrategy shall connect a specialized definition to each of its
           supertypes present in the workspace with a line ending in an open end marker at the
-          supertype.
+          supertype, pairing each supertype reference with its own resolved target.
         justification: |
           Specialization (generalization) relationships are core model structure. Drawing them
           as open-end-marker lines toward the supertype matches diagram notation and makes the
-          inheritance hierarchy visible.
+          inheritance hierarchy visible. Two references that share a simple name (`:> Y::X, X`)
+          must each reach their own target rather than both reaching the first name match.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_Subclassification_ProducesEdge
+          - GeneralViewLayoutStrategy_PairSupertypeReferences_QualifiedAndBareSharingName_PairsEachOwnTarget
+          - GeneralViewLayoutStrategy_PairSupertypeReferences_ReversedOrderAndUnclaimedTargets_PairsWithoutReuse
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-StdlibExclusion
         title: >-

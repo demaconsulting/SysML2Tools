@@ -281,12 +281,21 @@ public sealed class NameResolver
         }
 
         var owner = OwnerOf(typeName);
+        var rootImports = RootImportsOf(typeName, owner);
         return resolved
-            .Concat(raw.Select(reference => Resolve(reference, owner)).OfType<string>())
+            .Concat(raw.Select(reference => Resolve(reference, owner, rootImports)).OfType<string>())
             .Where(target => target != typeName)
             .Distinct(StringComparer.Ordinal)
             .ToList();
     }
+
+    /// <summary>
+    ///     The file-root imports that apply to <paramref name="typeName"/>'s own references when it
+    ///     is itself a top-level declaration (<paramref name="owner"/> is null: no owning namespace
+    ///     carries them); null for a nested type, whose outermost owning namespace carries them.
+    /// </summary>
+    private IReadOnlyList<SysmlImportNode>? RootImportsOf(string typeName, string? owner) =>
+        owner is null ? _rootImportsByTopLevel.GetValueOrDefault(typeName) : null;
 
     /// <summary>The raw supertype, typing, and view-definition references that name a type's general types.</summary>
     private static List<string> RawGeneralReferences(SysmlNode node)
@@ -326,12 +335,13 @@ public sealed class NameResolver
         try
         {
             var owner = OwnerOf(typeName);
+            var rootImports = RootImportsOf(typeName, owner);
             var general = RawGeneralReferences(node)
-                .Select(reference => Resolve(reference, owner))
+                .Select(reference => Resolve(reference, owner, rootImports))
                 .OfType<string>()
                 .ToList();
             if (node is SysmlFeatureNode { RedefinedFeatureName: { Length: > 0 } redefined } &&
-                ResolveRedefinition(redefined, owner ?? string.Empty, typeName, null) is { } redefinedFeature)
+                ResolveRedefinition(redefined, owner ?? string.Empty, typeName, rootImports) is { } redefinedFeature)
             {
                 general.Add(redefinedFeature);
             }
