@@ -244,7 +244,6 @@ sections:
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedExposeBracketFilter
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-EmptyView
           - SysML2Tools-Core-Layout-Internal-LayoutWarnings-LonePackageExpose
-          - SysML2Tools-Core-Layout-Internal-LayoutWarnings-SimpleNameFallback
         tests:
           - ForCrossings_Zero_ReturnsEmpty
           - ForCrossings_One_ReturnsSingularWarning

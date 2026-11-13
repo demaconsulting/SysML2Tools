@@ -177,11 +177,22 @@ configuration are required beyond a standard .NET SDK installation.
   Folder box with package keyword
 - `GeneralViewLayoutStrategy_BuildLayout_Subclassification_ProducesEdge`:
   Line with open end marker at supertype
-- `GeneralViewLayoutStrategy_PairSupertypeReferences_QualifiedAndBareSharingName_PairsEachOwnTarget`:
-  For `:> Y::X, X` with resolved targets `[Y::X, P::X]`, the references pair with `Y::X` and `P::X`
-- `GeneralViewLayoutStrategy_PairSupertypeReferences_ReversedOrderAndUnclaimedTargets_PairsWithoutReuse`:
-  Pairing is order-independent, never claims a target twice, and leaves an unmatched reference
-  unpaired
+- `GeneralViewLayoutStrategy_BuildLayout_UnresolvedSupertypeAndAliasOfSameTarget_DrawsOneEdge`:
+  `:> X, A` / `:> A, X` where `X` is unresolved and the alias `A` resolves to `P::X` draws exactly one
+  specialization edge, in either reference order
+- `GeneralViewLayoutStrategy_BuildLayout_QualifiedAndBareSupertypesSharingName_DrawsBothEdges`:
+  `:> Y::X, X` (bare `X` resolved through an import to `P::X`) draws two specialization edges
+- `GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndAliasOfSameFeature_DrawsOneEdge`:
+  `part s :> slotX, Alias` where `slotX` is unresolved and `Alias` resolves to the feature draws exactly
+  one subsetting edge
+- `GeneralViewLayoutStrategy_TryGetResolvedTarget_IdentifiedEdges_MatchesExactTextOnly`:
+  With edges identified only as `A`, asking for `X` is a known answer with no target and asking for `A`
+  returns its target
+- `GeneralViewLayoutStrategy_TryGetResolvedTarget_NoIdentifiedEdges_ReportsNotKnown`:
+  No declaration, no edges, edges without `RawReference`, or edges of another kind report "not known" so the
+  caller falls back to name resolution
+- `GeneralViewLayoutStrategy_TryGetResolvedTarget_DuplicateAndQualifiedText_UsesExactKey`:
+  A duplicated reference text answers the same target; a qualified text is a different key from the bare text
 - `GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded`:
   Seed-listed definitions excluded; empty canvas
 - `GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments`:
@@ -289,21 +300,26 @@ configuration are required beyond a standard .NET SDK installation.
   Three sibling packages each defining and using a same-named `Checker` part def render three
   `Checker` boxes, and each package folder holds exactly one filled-diamond membership edge between
   its own two boxes (no cross-package wiring to the first same-named definition)
-- `GeneralViewLayoutStrategy_BuildLayout_SimpleNameFallback_ReportsWarning`:
-  A type reference that does not resolve by SysML v2 name resolution reports a warning naming it
+- `GeneralViewLayoutStrategy_BuildLayout_SameSimpleNameInUnrelatedPackage_DrawsNoEdge`:
+  A type reference that does not resolve by SysML v2 name resolution (a same-named definition
+  exists only in an unrelated package, no import) draws no composition edge and no layout warning
 - `GeneralViewLayoutStrategy_BuildLayout_UnrenderedQualifiedEndpoint_IsNotMappedBySimpleName`:
   A dependency endpoint outside the exposed scope is not re-mapped to a same-named rendered box
-- `GeneralViewLayoutStrategy_BuildLayout_FallbackToUnrenderedTarget_StillReportsWarning`:
-  Type, subsetting, and redefinition references matched only by simple name to elements outside
-  the exposed scope are each still reported
-- `GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_IsFlaggedNotSilent`:
-  A reference to a private member of another package has no semantic edge and is flagged by the
-  simple-name-fallback warning, while a public reference is wired without a fallback warning
-- `GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_IsFlaggedNotSilent`:
-  A candidate a filtered import rejects is flagged by the fallback warning; the accepted one is not
+- `GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndRedefinition_DrawNoEdge`:
+  Subsetting and redefinition references that do not resolve draw no edge and no warning, while the
+  same references in a specialization of the declaring type draw exactly one edge of each kind
+- `GeneralViewLayoutStrategy_BuildLayout_FileRootImportSubsettingAndRedefinition_DrawsEdges`:
+  A subsetting and a redefinition reachable only through a file-root import (invisible to the
+  layout's own name resolver) still draw their edges, because the semantic edge is used first
+  (regression guard for removing the simple-name fallback)
+- `GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_DrawsNoEdge`:
+  A reference to a private member of another package has no semantic edge and draws no edge and no
+  layout warning, while a public reference is wired through its semantic edge
+- `GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_DrawsNoEdge`:
+  A candidate a filtered import rejects draws no edge; the accepted one does
 - `GeneralViewLayoutStrategy_BuildLayout_ImportOfSiblingPackage_DoesNotResolveForThisPackage`:
-  A name reachable only through a sibling package's import is flagged for the package that did not
-  import it, and not for the one that did
+  A name reachable only through a sibling package's import draws an edge for the package that
+  imported it and none for the package that did not
 - `GeneralViewLayoutStrategy_BuildLayout_DocumentationByDefault_RendersWrappedDocCompartment`:
   By default the definition's box carries a `doc` compartment whose rows preserve every word, wrap
   onto several rows, and each fit within the box width; the comment note is drawn and the doc

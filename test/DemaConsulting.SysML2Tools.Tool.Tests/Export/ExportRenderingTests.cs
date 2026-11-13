@@ -181,6 +181,51 @@ public class ExportRenderingTests
     }
 
     /// <summary>
+    ///     The JSON export keeps an edge's <see cref="SysmlEdge.RawReference"/> through a round
+    ///     trip, and omits the property entirely when it is <see langword="null"/>.
+    /// </summary>
+    [Fact]
+    public void ExportResultSerializerContext_EdgeRawReference_RoundTripsAndIsOmittedWhenNull()
+    {
+        var result = new ExportResult
+        {
+            Declarations = new Dictionary<string, SysmlNode>(),
+            Edges =
+            [
+                new SysmlEdge("Model::Sub", "Model::X", SysmlEdgeKind.Supertype) { RawReference = "A" },
+                new SysmlEdge("Model::Req", "Model::Spec", SysmlEdgeKind.Satisfy),
+            ],
+            Diagnostics = []
+        };
+
+        var json = JsonSerializer.Serialize(result, ExportResultSerializerContext.Default.ExportResult);
+        var deserialized = JsonSerializer.Deserialize(json, ExportResultSerializerContext.Default.ExportResult);
+
+        Assert.Contains("\"RawReference\": \"A\"", json);
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Count(json, "RawReference"));
+        Assert.NotNull(deserialized);
+        Assert.Equal("A", deserialized.Edges[0].RawReference);
+        Assert.Null(deserialized.Edges[1].RawReference);
+    }
+
+    /// <summary>
+    ///     The JSONL edge line includes <c>RawReference</c> when the edge carries one and omits the
+    ///     property when it does not.
+    /// </summary>
+    [Fact]
+    public void ExportLineSerializerContext_EdgeLine_IncludesRawReferenceOnlyWhenPresent()
+    {
+        var with = ExportEdgeLine.Create(new SysmlEdge("Model::Sub", "Model::X", SysmlEdgeKind.Supertype) { RawReference = "A" });
+        var without = ExportEdgeLine.Create(new SysmlEdge("Model::A", "Model::B", SysmlEdgeKind.Typing));
+
+        var withJson = JsonSerializer.Serialize(with, ExportLineSerializerContext.Default.ExportEdgeLine);
+        var withoutJson = JsonSerializer.Serialize(without, ExportLineSerializerContext.Default.ExportEdgeLine);
+
+        Assert.Contains("\"RawReference\":\"A\"", withJson);
+        Assert.DoesNotContain("RawReference", withoutJson);
+    }
+
+    /// <summary>
     ///     The JSONL diagnostic line wraps a "kind": "diagnostic" discriminator and the flattened
     ///     diagnostic fields, on a single compact line.
     /// </summary>

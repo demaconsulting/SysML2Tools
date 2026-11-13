@@ -217,18 +217,18 @@ node by its parent, which is laid out with the **same** flat placement.
 
 - **Container detection.** `BuildDefinitionIndex` builds a `Dictionary<string, SysmlDefinitionNode>`
   of candidate containers — non-standard-library `part def`s that have at least one nested `part`
-  usage — keyed by both qualified and simple name (qualified preferred). For each part,
+  usage — keyed by qualified name. For each part,
   `CollectParts` resolves its type against that index (`TryResolveContainer` → `ResolveByTyping`):
   first via the part's resolved `Typing` edge from the semantic model, used as resolved (the
   semantic resolver already applies KerML name resolution — member visibility, filtered imports,
   and import scoping — so the layout does not re-check it; a target that
-  is not a container makes the part a leaf — it never falls back to a same-named container
+  is not a container makes the part a leaf — it never matches a same-named container
   elsewhere); otherwise by KerML 8.2.3.5 name resolution of the raw `FeatureTyping` text relative to the part's
   owning namespace (the private `DefinitionIndex` wraps the container map and a `NameResolver`
-  from `FilterExpressionEvaluator.CreateNameResolver`), and only then by the bare simple-name
-  fallback, which records a `LayoutWarnings.ForSimpleNameFallback` warning on the returned tree
-  (so a typing the KerML rules reject, such as a private or filtered-out definition, is expanded
-  only through that warned fallback, never silently). A part whose type resolves
+  from `FilterExpressionEvaluator.CreateNameResolver`). A typing neither step resolves, such as a
+  private or filtered-out definition, makes the part a leaf: there is no bare simple-name
+  matching and the layout emits no warning (the load-time `Unresolved reference` diagnostic is the
+  single report). A part whose type resolves
   to a container, and whose type is not already
   on the recursion path, is a container, and every other part is a leaf. `FindRoot`'s
   composition-graph check uses the same `ResolveByTyping`.

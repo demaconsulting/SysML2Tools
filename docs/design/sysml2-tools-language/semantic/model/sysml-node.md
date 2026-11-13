@@ -70,6 +70,12 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
 - `IsWildcard` — `true` if the import ends with `::*`.
 - `BracketFilterExpressionText` — the raw source text of an `import`/`expose` bracket filter
   (`::**[<expr>]`), or null when absent. Preserved as capture-only Phase 1 data.
+- `RawReferenceText` — the import's reference as written, wildcard/recursive markers included
+  (`P`, `P::*`, `P::**`, `P::*::**`) but excluding the bracket filter and inter-token whitespace,
+  or null for hand-built nodes and data serialized before the property existed. Captured by
+  `AstBuilder.ExtractImportTarget` from the parse tree and used only as the `RawReference` of the
+  resolved `Import` edge (falling back to the stripped `ImportedNames` entry when null); it never
+  affects resolution. Omitted from JSON when null.
 
 `SysmlDefinitionNode` adds:
 
@@ -148,7 +154,7 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   strategies — see the project ROADMAP.
 - `ExposeMembers` — each `expose <name>[::**[<expr>]];` member in a `view` usage's body, in
   source order, paired as an
-  `ExposeMember(string QualifiedName, string? BracketFilterExpressionText, ExposeRecursionKind RecursionKind)`
+  `ExposeMember(string QualifiedName, string? BracketFilterExpressionText, ExposeRecursionKind RecursionKind, string? RawReferenceText)`
   record — the qualified-name reference text, that specific entry's own bracket-filter expression
   text (or null when the entry carries none), and an `ExposeRecursionKind` classifying which SysML
   v2 `expose` grammar form (MembershipExpose/NamespaceExpose) and recursion setting (a trailing
@@ -157,7 +163,11 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   (`expose X::*::**;`) — a bracket-filtered entry is always classified as one of the two
   *Recursive variants (matching its form), since `ExposeScopeResolver` only consults this
   classification for its unfiltered/fallback whole-subtree-vs-narrow behavior, never for a
-  successfully-evaluated bracket filter's own already-exact `ExplicitMembers`. Empty when no
+  successfully-evaluated bracket filter's own already-exact `ExplicitMembers`. The optional fourth
+  component, `RawReferenceText` (default null), holds the entry's reference as written, wildcard and
+  recursive markers included but bracket filter excluded (`P`, `P::*`, `P::**`, `P::*::**`); it is
+  used only as the `RawReference` of the resolved `Expose` edge (falling back to `QualifiedName`
+  when null) and is omitted from JSON when null. Empty when no
   `expose` members are present (and always empty for a `view def` definition — `expose` is only
   valid grammar inside a `view` usage's body). Extracted by `AstBuilder.ExtractExposedNames`,
   sharing the same `ExtractImportTarget` helper `VisitImportRule` uses for plain `import`.

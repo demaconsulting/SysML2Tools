@@ -168,31 +168,6 @@ public sealed class NameResolverTests
     }
 
     /// <summary>
-    ///     A name that does not resolve by KerML rules is matched only by the flagged simple-name
-    ///     fallback, which lists every candidate when the match is ambiguous.
-    /// </summary>
-    [Fact]
-    public async Task NameResolver_ResolveWithFallback_AmbiguousSimpleName_IsFlaggedWithCandidates()
-    {
-        // Arrange
-        var resolver = await LoadAsync("""
-            package PkgA { part def Checker; }
-            package PkgB { part def Checker; }
-            package Other { part def User; }
-            """);
-
-        // Act
-        var resolution = resolver.ResolveWithFallback("Checker", "Other::User");
-
-        // Assert
-        Assert.True(resolution.IsSimpleNameFallback);
-        Assert.NotNull(resolution.QualifiedName);
-        Assert.Contains("PkgA::Checker", resolution.Candidates);
-        Assert.Contains("PkgB::Checker", resolution.Candidates);
-        Assert.False(resolver.ResolveWithFallback("Checker", "PkgA").IsSimpleNameFallback);
-    }
-
-    /// <summary>
     ///     A filtered recursive import whose first same-named nested candidate fails the filter
     ///     keeps searching and resolves a later candidate that satisfies it.
     /// </summary>

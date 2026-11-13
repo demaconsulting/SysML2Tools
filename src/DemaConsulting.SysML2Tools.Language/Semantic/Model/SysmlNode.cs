@@ -245,6 +245,20 @@ public sealed class SysmlImportNode : SysmlNode
     public string? BracketFilterExpressionText { get; init; }
 
     /// <summary>
+    ///     Gets the reference text of this import as written in the source — the qualified name
+    ///     plus any wildcard/recursive marker (<c>P</c>, <c>P::*</c>, <c>P::**</c>,
+    ///     <c>P::*::**</c>) — or <see langword="null"/> for a hand-built node or data that
+    ///     predates this property. The bracketed filter expression (<c>[expr]</c>) is
+    ///     <b>not</b> part of this text (it is carried by <see cref="BracketFilterExpressionText"/>),
+    ///     and inter-token whitespace is dropped (<c>P :: *</c> is recorded as <c>P::*</c>).
+    ///     Unlike <see cref="SysmlNode.ImportedNames"/> and <see cref="ImportedNamespace"/>, which
+    ///     hold the stripped name that drives resolution, this is used only as the
+    ///     <see cref="SysmlEdge.RawReference"/> of the resolved <see cref="SysmlEdgeKind.Import"/> edge.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RawReferenceText { get; init; }
+
+    /// <summary>
     ///     Gets a value indicating whether this is an <c>import all</c>, which imports memberships
     ///     regardless of their visibility (KerML 8.3.2.4.2 <c>isImportAll</c>).
     /// </summary>
@@ -496,10 +510,22 @@ public sealed class SysmlViewNode : SysmlNode
 ///     previous two-argument form continues to compile and behave exactly as before this
 ///     parameter was added.
 /// </param>
+/// <param name="RawReferenceText">
+///     The reference text of this entry as written in the source — the qualified name plus any
+///     wildcard/recursive marker (<c>P</c>, <c>P::*</c>, <c>P::**</c>, <c>P::*::**</c>) — or
+///     <see langword="null"/> for a hand-built member or data that predates this property. The
+///     bracketed filter expression is <b>not</b> part of this text (see
+///     <paramref name="BracketFilterExpressionText"/>). Used only as the
+///     <see cref="SysmlEdge.RawReference"/> of the resolved <see cref="SysmlEdgeKind.Expose"/>
+///     edge (falling back to <paramref name="QualifiedName"/> when <see langword="null"/>);
+///     resolution always uses <paramref name="QualifiedName"/>. Defaults to <see langword="null"/>
+///     so existing two- and three-argument constructions continue to compile.
+/// </param>
 public sealed record ExposeMember(
     string QualifiedName,
     string? BracketFilterExpressionText,
-    ExposeRecursionKind RecursionKind = ExposeRecursionKind.MembershipRecursive);
+    ExposeRecursionKind RecursionKind = ExposeRecursionKind.MembershipRecursive,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RawReferenceText = null);
 
 /// <summary>
 ///     Classifies which SysML v2 <c>expose</c> grammar form and recursion setting produced an

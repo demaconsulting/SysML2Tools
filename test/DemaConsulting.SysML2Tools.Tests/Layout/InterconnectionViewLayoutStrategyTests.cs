@@ -1278,7 +1278,14 @@ public sealed class InterconnectionViewLayoutStrategyTests
             DefinitionKeyword = "part def",
             Children =
             [
-                new SysmlFeatureNode { Name = "sub", QualifiedName = "Root::NsA::System::sub", FeatureKeyword = "part", FeatureTyping = "Sub" }
+                new SysmlFeatureNode
+                {
+                    Name = "sub",
+                    QualifiedName = "Root::NsA::System::sub",
+                    FeatureKeyword = "part",
+                    FeatureTyping = "Sub",
+                    ResolvedEdges = [new SysmlEdge("Root::NsA::System::sub", "Root::NsB::Sub", SysmlEdgeKind.Typing)]
+                }
             ]
         };
         return new SysmlWorkspace
@@ -2181,11 +2188,11 @@ public sealed class InterconnectionViewLayoutStrategyTests
 
     /// <summary>
     ///     A part typed by a private member of another package gets no semantic typing edge, so the
-    ///     definition is expanded only through the warned simple-name fallback; the public control
-    ///     is wired through its semantic edge without a fallback warning.
+    ///     hidden definition is not expanded (the part is a leaf, no layout warning); the public
+    ///     control is wired through its semantic edge and expands.
     /// </summary>
     [Fact]
-    public async Task InterconnectionView_BuildLayout_PrivateMemberTyping_IsFlaggedNotSilent()
+    public async Task InterconnectionView_BuildLayout_PrivateMemberTyping_IsLeaf()
     {
         // Arrange / Act
         var layout = await LayOutOuterViewAsync("""
@@ -2201,18 +2208,18 @@ public sealed class InterconnectionViewLayoutStrategyTests
             """);
 
         // Assert
-        Assert.Contains(layout.Warnings, w => w.Contains("'P::Hidden'") && w.Contains("simple name only"));
-        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'P::Shown'"));
         var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
         Assert.Contains(labels, l => l?.StartsWith("s1", StringComparison.Ordinal) == true);
+        Assert.DoesNotContain(labels, l => l?.StartsWith("h1", StringComparison.Ordinal) == true);
+        Assert.Empty(layout.Warnings);
     }
 
     /// <summary>
-    ///     A part typed through another package's import (not its own) is flagged by the warned
-    ///     simple-name fallback instead of silently expanding the definition that import brings in.
+    ///     A part typed through another package's import (not its own) is a leaf: it does not
+    ///     expand the definition that import brings in, and the layout reports no warning.
     /// </summary>
     [Fact]
-    public async Task InterconnectionView_BuildLayout_ImportOfSiblingPackage_IsFlaggedNotSilent()
+    public async Task InterconnectionView_BuildLayout_ImportOfSiblingPackage_IsLeaf()
     {
         // Arrange / Act
         var layout = await LayOutOuterViewAsync("""
@@ -2225,15 +2232,17 @@ public sealed class InterconnectionViewLayoutStrategyTests
             """, "UseB::OuterView");
 
         // Assert
-        Assert.Contains(layout.Warnings, w => w.Contains("'Inner' in 'UseB::OuterB'") && w.Contains("simple name only"));
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.DoesNotContain(labels, l => l?.StartsWith("a1", StringComparison.Ordinal) == true);
+        Assert.Empty(layout.Warnings);
     }
 
     /// <summary>
-    ///     A part typed through a filtered import that rejects the definition is flagged by the
-    ///     warned simple-name fallback; the definition the filter accepts expands without a warning.
+    ///     A part typed through a filtered import that rejects the definition is a leaf; the
+    ///     definition the filter accepts expands. The layout reports no warning.
     /// </summary>
     [Fact]
-    public async Task InterconnectionView_BuildLayout_FilteredOutImportCandidate_IsFlaggedNotSilent()
+    public async Task InterconnectionView_BuildLayout_FilteredOutImportCandidate_IsLeaf()
     {
         // Arrange / Act
         var layout = await LayOutOuterViewAsync("""
@@ -2251,8 +2260,33 @@ public sealed class InterconnectionViewLayoutStrategyTests
             """, "Q::OuterView");
 
         // Assert
-        Assert.Contains(layout.Warnings, w => w.Contains("'Plain'") && w.Contains("simple name only"));
-        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'Marked'"));
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains(labels, l => l?.StartsWith("m1", StringComparison.Ordinal) == true);
+        Assert.DoesNotContain(labels, l => l?.StartsWith("p1", StringComparison.Ordinal) == true);
+        Assert.Empty(layout.Warnings);
+    }
+
+    /// <summary>
+    ///     A part typed by a name that exists only in an unrelated package (no import, not in an
+    ///     enclosing namespace) is a leaf: the same-named definition is not expanded and the layout
+    ///     reports no warning.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_SameSimpleNameInUnrelatedPackage_IsLeaf()
+    {
+        // Arrange / Act
+        var layout = await LayOutOuterViewAsync("""
+            package A { part def Leaf; part def Inner { part a1 : Leaf; } }
+            package Q {
+                part def Outer { part inner : Inner; }
+                view OuterView { expose Outer::**; render asInterconnectionDiagram; }
+            }
+            """);
+
+        // Assert
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.DoesNotContain(labels, l => l?.StartsWith("a1", StringComparison.Ordinal) == true);
+        Assert.Empty(layout.Warnings);
     }
 
     /// <summary>Loads <paramref name="sysml"/> and lays out the interconnection view named <paramref name="viewQualifiedName"/>.</summary>

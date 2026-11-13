@@ -2052,7 +2052,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             }
 
             var isNamespaceForm = expose.namespaceExpose() is not null;
-            var (qn, _, bracketFilterText, isRecursive) = ExtractImportTarget(
+            var (qn, _, bracketFilterText, isRecursive, referenceText) = ExtractImportTarget(
                 expose.namespaceExpose()?.namespaceImport(),
                 expose.membershipExpose()?.membershipImport());
             if (qn is { Length: > 0 })
@@ -2067,7 +2067,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                     (false, true, false) => ExposeRecursionKind.MembershipRecursive,
                     (false, false, false) => ExposeRecursionKind.MembershipExact,
                 };
-                members.Add(new ExposeMember(qn, bracketFilterText, recursionKind));
+                members.Add(new ExposeMember(qn, bracketFilterText, recursionKind, referenceText));
             }
         }
 
@@ -2104,7 +2104,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             return null;
         }
 
-        var (qn, isWildcard, bracketFilterText, isRecursive) = ExtractImportTarget(decl.namespaceImport(), decl.membershipImport());
+        var (qn, isWildcard, bracketFilterText, isRecursive, referenceText) = ExtractImportTarget(decl.namespaceImport(), decl.membershipImport());
         if (qn is null)
         {
             return null;
@@ -2114,6 +2114,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         {
             ImportedNamespace = qn,
             ImportedNames = [qn],
+            RawReferenceText = referenceText,
             IsWildcard = isWildcard,
             IsRecursive = isRecursive,
             IsMembershipImport = decl.membershipImport() is not null,
@@ -2295,11 +2296,13 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <returns>
     ///     The extracted qualified/dotted name text (or null when neither alternative yielded
     ///     text), whether the import/expose is a wildcard, the bracket-filter expression text (if
-    ///     any), and whether this entry is recursive (derived from a trailing <c>::**</c>, or
+    ///     any), whether this entry is recursive (derived from a trailing <c>::**</c>, or
     ///     always true for bracket-filtered forms by design, since the grammar only reaches that
-    ///     alternative via <c>::**[filterExpr]</c>).
+    ///     alternative via <c>::**[filterExpr]</c>), and the reference text as written
+    ///     (<c>GetText()</c> of the innermost import-shaped context: the qualified name plus any
+    ///     <c>::*</c>/<c>::**</c> marker, never the bracket-filter members).
     /// </returns>
-    private static (string? QualifiedName, bool IsWildcard, string? BracketFilterExpressionText, bool IsRecursive) ExtractImportTarget(
+    private static (string? QualifiedName, bool IsWildcard, string? BracketFilterExpressionText, bool IsRecursive, string? ReferenceText) ExtractImportTarget(
         SysMLv2Parser.NamespaceImportContext? namespaceImport,
         SysMLv2Parser.MembershipImportContext? membershipImport)
     {
@@ -2309,7 +2312,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             var qn = namespaceImport.qualifiedName()?.GetText();
             if (qn is { Length: > 0 })
             {
-                return (qn, true, null, namespaceImport.STAR_STAR() is not null);
+                return (qn, true, null, namespaceImport.STAR_STAR() is not null, namespaceImport.GetText());
             }
 
             // Bracketed-filter form: qualifiedName::**[filterExpr] — the dominant expose form in
@@ -2338,7 +2341,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                     var filterQn = filterMembershipImport.qualifiedName()?.GetText();
                     if (filterQn is { Length: > 0 })
                     {
-                        return (filterQn, filterMembershipImport.STAR_STAR() is not null, bracketFilterText, true);
+                        return (filterQn, filterMembershipImport.STAR_STAR() is not null, bracketFilterText, true, filterMembershipImport.GetText());
                     }
                 }
 
@@ -2348,7 +2351,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                     var directQn = namespaceImportDirect.qualifiedName()?.GetText();
                     if (directQn is { Length: > 0 })
                     {
-                        return (directQn, true, bracketFilterText, true);
+                        return (directQn, true, bracketFilterText, true, namespaceImportDirect.GetText());
                     }
                 }
             }
@@ -2362,11 +2365,11 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             if (qn is { Length: > 0 })
             {
                 var isRecursive = membershipImport.STAR_STAR() is not null;
-                return (qn, isRecursive, null, isRecursive);
+                return (qn, isRecursive, null, isRecursive, membershipImport.GetText());
             }
         }
 
-        return (null, false, null, false);
+        return (null, false, null, false, null);
     }
 
     /// <inheritdoc/>

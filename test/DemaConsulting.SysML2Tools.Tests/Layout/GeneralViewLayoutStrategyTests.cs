@@ -704,85 +704,103 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     A type reference that does not resolve by SysML v2 name resolution (no import, not in an
-    ///     enclosing namespace) is still matched by simple name, but a warning naming the reference
-    ///     is reported instead of silently guessing.
+    ///     enclosing namespace) is unresolved even though a same-named definition exists in an
+    ///     unrelated package: no edge is drawn and the layout reports no warning (the load-time
+    ///     <c>Unresolved reference</c> diagnostic is the single report).
     /// </summary>
     [Fact]
-    public async Task GeneralViewLayoutStrategy_BuildLayout_SimpleNameFallback_ReportsWarning()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_SameSimpleNameInUnrelatedPackage_DrawsNoEdge()
     {
-        // Arrange: Consumer types its part by Engine without importing Lib
-        const string sysml = """
+        // Act: Consumer types its part by TurboEngineX without importing Lib; both packages are exposed
+        var layout = await LayOutViewVAsync("""
             package Lib { part def TurboEngineX; }
             package App { part def Consumer { part engine : TurboEngineX; } }
-            """;
-        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
-        try
-        {
-            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
-            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
-            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
-            Assert.NotNull(result.Workspace);
+            package Diagrams { view V { expose Lib::*; expose App::*; } }
+            """);
 
-            // Act
-            var layout = new GeneralViewLayoutStrategy().BuildLayout(
-                new ViewContext("v", result.Workspace), new RenderOptions(Themes.Light));
-
-            // Assert: a simple-name-fallback warning naming the reference is reported
-            Assert.Contains(layout.Warnings, w => w.Contains("'TurboEngineX'") && w.Contains("simple name only"));
-        }
-        finally
-        {
-            File.Delete(tempFile);
-        }
+        // Assert: both definitions are drawn, with no composition edge and no layout warning
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.Contains(boxes, b => b.Label == "TurboEngineX");
+        Assert.Contains(boxes, b => b.Label == "Consumer");
+        Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.Empty(layout.Warnings);
     }
 
     /// <summary>
-    ///     Type, subsetting, and redefinition references that resolve only by the simple-name
-    ///     fallback are each reported, even when the matched element is outside the view's exposed
-    ///     scope and so draws no edge.
+    ///     Subsetting and redefinition references that do not resolve (only a same-named feature in
+    ///     an unrelated package exists) draw no edge and no warning, while the same references
+    ///     written in a specialization of the declaring type still draw theirs.
     /// </summary>
     [Fact]
-    public async Task GeneralViewLayoutStrategy_BuildLayout_FallbackToUnrenderedTarget_StillReportsWarning()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndRedefinition_DrawNoEdge()
     {
-        // Act: only App is exposed; every Lib match is reached by simple name only
+        // Act: Consumer's references are unresolvable; Child's resolve through its supertype Holder
         var layout = await LayOutViewVAsync("""
-            package Lib { part def TurboEngineX; part def Holder { part slotX; part spareX; } }
-            package App { part def Consumer { part engine : TurboEngineX; part s :> slotX; part r redefines spareX; } }
-            package Diagrams { view V { expose App::**; } }
+            package Lib {
+                part def Holder { part slotX; part spareX; }
+                part def Child :> Holder { part s :> slotX; part r redefines spareX; }
+            }
+            package App { part def Consumer { part s :> slotX; part r redefines spareX; } }
+            package Diagrams { view V { expose Lib::*; expose App::*; } }
+            """);
+
+        // Assert: exactly one subsetting and one redefinition edge (Child's), no warning
+        var lines = CollectLines(layout.Nodes);
+        Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Dashed);
+        Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.Empty(layout.Warnings);
+    }
+
+    /// <summary>
+    ///     A subsetting and a redefinition whose targets are reachable only through an import written
+    ///     at the root of the file (outside any package) are resolved by the semantic model, whose
+    ///     edges the layout prefers: both still draw their edge although the layout's own name
+    ///     resolver cannot see file-root imports.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_FileRootImportSubsettingAndRedefinition_DrawsEdges()
+    {
+        // Act
+        var layout = await LayOutViewVAsync("""
+            package Lib { part def Holder { part slot; part spare; } }
+            import Lib::Holder::*;
+            package App { part def Consumer { part s :> slot; part r redefines spare; } }
+            package Diagrams { view V { expose Lib::*; expose App::*; } }
             """);
 
         // Assert
-        Assert.Contains(layout.Warnings, w => w.Contains("'TurboEngineX'") && w.Contains("simple name only"));
-        Assert.Contains(layout.Warnings, w => w.Contains("'slotX'") && w.Contains("simple name only"));
-        Assert.Contains(layout.Warnings, w => w.Contains("'spareX'") && w.Contains("simple name only"));
+        var lines = CollectLines(layout.Nodes);
+        Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Dashed);
+        Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.Empty(layout.Warnings);
     }
 
     /// <summary>
     ///     A reference to a private member of another package gets no semantic typing edge and is
-    ///     never drawn silently: it is flagged by the simple-name-fallback warning, while an accepted
-    ///     (public) reference is wired through its semantic edge without any fallback warning.
+    ///     not drawn (and not reported by the layout), while an accepted (public) reference is wired
+    ///     through its semantic edge.
     /// </summary>
     [Fact]
-    public async Task GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_IsFlaggedNotSilent()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_DrawsNoEdge()
     {
         // Act
         var layout = await LayOutViewVAsync("""
             package P { private part def Hidden; part def Shown; }
             package Q { part def Owner { part a : P::Hidden; part b : P::Shown; } }
-            package Diagrams { view V { expose P::**; expose Q::**; } }
+            package Diagrams { view V { expose P::*; expose Q::*; } }
             """);
 
-        // Assert
-        Assert.Contains(layout.Warnings, w => w.Contains("'P::Hidden'") && w.Contains("simple name only"));
-        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'P::Shown'"));
+        // Assert: only the Owner-Shown composition edge exists; Hidden is not wired to Owner
+        Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.Empty(layout.Warnings);
     }
 
     /// <summary>
-    ///     A candidate a filtered import rejects gets no semantic typing edge and is flagged by the
-    ///     simple-name-fallback warning; the candidate the filter accepts is wired without a warning.
+    ///     A candidate a filtered import rejects gets no semantic typing edge and is not drawn; the
+    ///     candidate the filter accepts is wired.
     /// </summary>
     [Fact]
-    public async Task GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_IsFlaggedNotSilent()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_DrawsNoEdge()
     {
         // Act
         var layout = await LayOutViewVAsync("""
@@ -792,32 +810,40 @@ public sealed class GeneralViewLayoutStrategyTests
                 private import P::*[@X];
                 part def Owner { part a : Marked; part b : Plain; }
             }
-            package Diagrams { view V { expose P::**; expose Q::**; } }
+            package Diagrams { view V { expose P::*; expose Q::*; } }
             """);
 
-        // Assert
-        Assert.Contains(layout.Warnings, w => w.Contains("'Plain'") && w.Contains("simple name only"));
-        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'Marked'"));
+        // Assert: only the Owner-Marked composition edge exists
+        Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.Empty(layout.Warnings);
     }
 
     /// <summary>
     ///     An import applies only to its own package: a sibling package that merely shares the
-    ///     simple name is flagged by the simple-name-fallback warning, the importing package is not.
+    ///     simple name gets no edge, while the importing package does.
     /// </summary>
     [Fact]
     public async Task GeneralViewLayoutStrategy_BuildLayout_ImportOfSiblingPackage_DoesNotResolveForThisPackage()
     {
-        // Act
-        var layout = await LayOutViewVAsync("""
+        // Act: one view exposes the importing package, the other only the sibling package
+        var importing = await LayOutViewVAsync("""
             package A { part def Thing; }
             package PkgA { private import A::*; part def OwnerA { part p : Thing; } }
             package PkgB { part def OwnerB { part q : Thing; } }
-            package Diagrams { view V { expose A::**; expose PkgA::**; expose PkgB::**; } }
+            package Diagrams { view V { expose A::*; expose PkgA::*; } }
+            """);
+        var sibling = await LayOutViewVAsync("""
+            package A { part def Thing; }
+            package PkgA { private import A::*; part def OwnerA { part p : Thing; } }
+            package PkgB { part def OwnerB { part q : Thing; } }
+            package Diagrams { view V { expose A::*; expose PkgB::*; } }
             """);
 
-        // Assert
-        Assert.Contains(layout.Warnings, w => w.Contains("'Thing' in 'PkgB::OwnerB'") && w.Contains("simple name only"));
-        Assert.DoesNotContain(layout.Warnings, w => w.Contains("PkgA::OwnerA"));
+        // Assert: PkgA::OwnerA is wired to A::Thing, PkgB::OwnerB is not
+        Assert.Single(CollectLines(importing.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.DoesNotContain(CollectLines(sibling.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.Empty(importing.Warnings);
+        Assert.Empty(sibling.Warnings);
     }
 
     /// <summary>Recursively collects all <see cref="LayoutBox"/> nodes from a node list.</summary>
@@ -2807,36 +2833,163 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     Each raw supertype reference is paired with its own resolved edge: for
-    ///     <c>part def C :&gt; Y::X, X;</c> where the bare <c>X</c> resolves (through an import) to
-    ///     <c>P::X</c>, the resolved targets are <c>[Y::X, P::X]</c> and the bare reference is paired
-    ///     with <c>P::X</c> — not with <c>Y::X</c> merely because it is a name suffix of it.
+    ///     A supertype reference that does not resolve (<c>X</c> with no import) listed before an
+    ///     alias of the same target (<c>A</c> for <c>P::X</c>) draws only the alias's edge: the
+    ///     unresolved reference must not be paired with the target the alias resolved to, in either
+    ///     reference order.
     /// </summary>
-    [Fact]
-    public void GeneralViewLayoutStrategy_PairSupertypeReferences_QualifiedAndBareSharingName_PairsEachOwnTarget()
+    /// <param name="supertypes">The supertype list of <c>Sub</c>.</param>
+    [Theory]
+    [InlineData("X, A")]
+    [InlineData("A, X")]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UnresolvedSupertypeAndAliasOfSameTarget_DrawsOneEdge(
+        string supertypes)
     {
-        // Act
-        var paired = GeneralViewLayoutStrategy.PairSupertypeReferences(["Y::X", "X"], ["Y::X", "P::X"]);
+        // Act: X is unresolved from Q (no import); A is an alias that resolves to P::X
+        var layout = await LayOutViewVAsync($$"""
+            package P { part def X; }
+            package Q { alias A for P::X; part def Sub :> {{supertypes}}; }
+            package Diagrams { view V { expose P::*; expose Q::*; } }
+            """);
 
-        // Assert
-        Assert.Equal(["Y::X", "P::X"], paired);
+        // Assert: exactly one specialization edge (the alias's)
+        Assert.Single(
+            CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Solid);
     }
 
     /// <summary>
-    ///     The pairing is independent of reference order and never claims a target twice: bare first
-    ///     still pairs the qualified reference with its exact target, a target is not reused, and a
-    ///     reference with no remaining candidate is left unpaired for the caller to resolve itself.
+    ///     A subsetted-feature reference that does not resolve (<c>slotX</c> with no import) listed
+    ///     before an alias of the same feature draws only the alias's subsetting edge.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_PairSupertypeReferences_ReversedOrderAndUnclaimedTargets_PairsWithoutReuse()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndAliasOfSameFeature_DrawsOneEdge()
+    {
+        // Act: slotX is unresolved from Consumer; Alias resolves to Lib::Holder::slotX
+        var layout = await LayOutViewVAsync("""
+            package Lib { part def Holder { part slotX; } }
+            package App {
+                alias Alias for Lib::Holder::slotX;
+                part def Consumer { part s :> slotX, Alias; }
+            }
+            package Diagrams { view V { expose Lib::*; expose App::*; } }
+            """);
+
+        // Assert: exactly one subsetting edge (the alias's)
+        Assert.Single(
+            CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Dashed);
+    }
+
+    /// <summary>
+    ///     A qualified and a bare supertype reference sharing a simple name each draw their own
+    ///     edge: for <c>part def C :&gt; Y::X, X;</c> where the bare <c>X</c> resolves (through an
+    ///     import) to <c>P::X</c>, one edge goes to <c>Y::X</c> and one to <c>P::X</c>.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_QualifiedAndBareSupertypesSharingName_DrawsBothEdges()
     {
         // Act
-        var reversed = GeneralViewLayoutStrategy.PairSupertypeReferences(["X", "Y::X"], ["P::X", "Y::X"]);
-        var duplicate = GeneralViewLayoutStrategy.PairSupertypeReferences(["X", "X"], ["P::X"]);
+        var layout = await LayOutViewVAsync("""
+            package P { part def X; }
+            package Y { part def X; }
+            package Q { private import P::*; part def C :> Y::X, X; }
+            package Diagrams { view V { expose P::*; expose Y::*; expose Q::*; } }
+            """);
+
+        // Assert: two distinct specialization edges
+        var lines = CollectLines(layout.Nodes)
+            .Where(l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Solid)
+            .ToList();
+        Assert.Equal(2, lines.Count);
+    }
+
+    /// <summary>
+    ///     When the semantic model identified edges only for some references (here only <c>A</c>),
+    ///     an exact-text lookup of an unmatched reference is authoritative: it reports "known" with
+    ///     no target (so the caller draws nothing) and never answers with another reference's
+    ///     target merely because the target's name ends with the reference.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_TryGetResolvedTarget_IdentifiedEdges_MatchesExactTextOnly()
+    {
+        // Arrange: only the alias "A" resolved (to P::X); "X" did not
+        var declaration = new SysmlDefinitionNode
+        {
+            Name = "Sub",
+            QualifiedName = "Q::Sub",
+            ResolvedEdges = [new SysmlEdge("Q::Sub", "P::X", SysmlEdgeKind.Supertype) { RawReference = "A" }],
+        };
+
+        // Act
+        var forUnresolved = GeneralViewLayoutStrategy.TryGetResolvedTarget(declaration, SysmlEdgeKind.Supertype, "X", out var unresolvedTarget);
+        var forAlias = GeneralViewLayoutStrategy.TryGetResolvedTarget(declaration, SysmlEdgeKind.Supertype, "A", out var aliasTarget);
 
         // Assert
-        Assert.Equal(["P::X", "Y::X"], reversed);
-        Assert.Equal(["P::X", null], duplicate);
+        Assert.True(forUnresolved);
+        Assert.Null(unresolvedTarget);
+        Assert.True(forAlias);
+        Assert.Equal("P::X", aliasTarget);
+    }
+
+    /// <summary>
+    ///     With no declaration, no edges of the kind, or only edges that carry no raw reference
+    ///     (hand-built workspaces, older data), the semantic model gave no identity: the helper
+    ///     reports "not known" so the caller resolves the reference itself.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_TryGetResolvedTarget_NoIdentifiedEdges_ReportsNotKnown()
+    {
+        // Arrange
+        var noEdges = new SysmlDefinitionNode { Name = "Sub", QualifiedName = "Q::Sub" };
+        var unidentified = new SysmlDefinitionNode
+        {
+            Name = "Sub",
+            QualifiedName = "Q::Sub",
+            ResolvedEdges = [new SysmlEdge("Q::Sub", "P::X", SysmlEdgeKind.Supertype)],
+        };
+        var otherKind = new SysmlDefinitionNode
+        {
+            Name = "Sub",
+            QualifiedName = "Q::Sub",
+            ResolvedEdges = [new SysmlEdge("Q::Sub", "P::X", SysmlEdgeKind.Typing) { RawReference = "X" }],
+        };
+
+        // Act / Assert
+        Assert.False(GeneralViewLayoutStrategy.TryGetResolvedTarget(null, SysmlEdgeKind.Supertype, "X", out var nullTarget));
+        Assert.False(GeneralViewLayoutStrategy.TryGetResolvedTarget(noEdges, SysmlEdgeKind.Supertype, "X", out _));
+        Assert.False(GeneralViewLayoutStrategy.TryGetResolvedTarget(unidentified, SysmlEdgeKind.Supertype, "X", out _));
+        Assert.False(GeneralViewLayoutStrategy.TryGetResolvedTarget(otherKind, SysmlEdgeKind.Supertype, "X", out _));
+        Assert.Null(nullTarget);
+    }
+
+    /// <summary>
+    ///     A reference written twice (<c>X, X</c>) resolves to the same target both times: the
+    ///     lookup answers the same target for the text (first matching edge), and a qualified text
+    ///     is a different key from the bare text even when it names the same symbol.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_TryGetResolvedTarget_DuplicateAndQualifiedText_UsesExactKey()
+    {
+        // Arrange
+        var declaration = new SysmlDefinitionNode
+        {
+            Name = "Sub",
+            QualifiedName = "Q::Sub",
+            ResolvedEdges =
+            [
+                new SysmlEdge("Q::Sub", "P::X", SysmlEdgeKind.Supertype) { RawReference = "X" },
+                new SysmlEdge("Q::Sub", "P::X", SysmlEdgeKind.Supertype) { RawReference = "X" },
+            ],
+        };
+
+        // Act
+        var bare = GeneralViewLayoutStrategy.TryGetResolvedTarget(declaration, SysmlEdgeKind.Supertype, "X", out var bareTarget);
+        var qualified = GeneralViewLayoutStrategy.TryGetResolvedTarget(declaration, SysmlEdgeKind.Supertype, "P::X", out var qualifiedTarget);
+
+        // Assert
+        Assert.True(bare);
+        Assert.Equal("P::X", bareTarget);
+        Assert.True(qualified);
+        Assert.Null(qualifiedTarget);
     }
 
     /// <summary>

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Text.Json.Serialization;
 using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Semantic.Model;
 
@@ -98,12 +99,19 @@ internal sealed record ExportDeclarationLine(string Kind, string QualifiedName, 
 internal sealed record ExportEdgeLine(string Kind, string? SourceQualifiedName, string TargetQualifiedName, SysmlEdgeKind EdgeKind)
 {
     /// <summary>
+    ///     Gets the reference text the edge was resolved from (see <see cref="SysmlEdge.RawReference"/>);
+    ///     omitted from the line when <see langword="null"/>.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RawReference { get; init; }
+
+    /// <summary>
     ///     Creates an <see cref="ExportEdgeLine"/> for the given edge.
     /// </summary>
     /// <param name="edge">The edge to flatten into a JSONL line.</param>
     /// <returns>The constructed line record, with <see cref="Kind"/> set to <c>"edge"</c>.</returns>
     public static ExportEdgeLine Create(SysmlEdge edge) =>
-        new("edge", edge.SourceQualifiedName, edge.TargetQualifiedName, edge.Kind);
+        new("edge", edge.SourceQualifiedName, edge.TargetQualifiedName, edge.Kind) { RawReference = edge.RawReference };
 }
 
 /// <summary>

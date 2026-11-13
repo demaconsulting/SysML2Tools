@@ -37,7 +37,7 @@ external services or additional configuration are required beyond a standard .NE
   `render`/`filter` body members (raw reference/expression text, never resolved into an edge or
   diagnostic here), and are `null` for a view with no such members. `SysmlViewNode.ExposeMembers`
   is populated with one paired
-  `ExposeMember(QualifiedName, BracketFilterExpressionText, RecursionKind)` entry per
+  `ExposeMember(QualifiedName, BracketFilterExpressionText, RecursionKind, RawReferenceText)` entry per
   `expose <name>[::**[<expr>]];` member, in source order, and is empty for a view with none;
   `GetExposedNames()`'s projected qualified names are the only data independently resolved by
   `ReferenceResolver` into `Expose`-kind edges. Each entry's own `BracketFilterExpressionText` is
@@ -46,6 +46,9 @@ external services or additional configuration are required beyond a standard .NE
   reliably associate a bracket filter with the exposed path it was declared on. Each entry's
   `RecursionKind` is correctly classified as `MembershipExact`/`MembershipRecursive`/
   `NamespaceDirectChildren`/`NamespaceRecursive` per its grammar form and recursion setting.
+  `SysmlImportNode.RawReferenceText` and each entry's `RawReferenceText` hold the reference as
+  written (`P`, `P::*`, `P::**`, `P::*::**`; bracket filter excluded), are `null` when not captured,
+  and round-trip through serialization with `null` omitted.
   `AstBuilder` itself never evaluates a captured bracket-filter expression; real evaluation
   (Phase 2a) is `ExposeScopeResolver`'s responsibility.
 - `SysmlFeatureNode.RedefinedFeatureName` is populated verbatim from a feature's
@@ -77,6 +80,8 @@ external services or additional configuration are required beyond a standard .NE
 | `RecursionKind` recursive membership | `AstBuilder_ExposeRecursiveMembership_CapturesMembershipRecursive` |
 | `RecursionKind` bare namespace | `AstBuilder_ExposeNamespaceDirectChildren_CapturesNamespaceDirectChildren` |
 | `RecursionKind` recursive namespace | `AstBuilder_ExposeNamespaceRecursive_CapturesNamespaceRecursive` |
+| `RawReferenceText` on import nodes | `AstBuilder_ImportForms_CaptureWrittenReferenceText` |
+| `RawReferenceText` round trip, null omitted | `Serialize_ImportAndExposeRawReferenceText_RoundTripsAndNullIsOmitted` |
 | Empty view body leaves all fields null/empty | `WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty` |
 | `RedefinedFeatureName` — `redefines` | `WorkspaceLoader_LoadAsync_RedefinesKeyword_CapturesRedefinedFeatureName` |
 | `RedefinedFeatureName` — `:>>` operator | `WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName` |

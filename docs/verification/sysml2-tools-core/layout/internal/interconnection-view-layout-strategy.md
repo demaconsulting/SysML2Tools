@@ -167,9 +167,10 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_RootContent_IsNestedAsRootBoxChildren` | Root box nesting invariant |
 | `InterconnectionView_BuildLayout_SameNamedContainerDefs_ExpandsOwnPackagesDefinition` | Own same-named def |
 | `InterconnectionView_BuildLayout_SameNamedImportsInOneFile_ExpandsOwnImportsDefinition` | Own import's def |
-| `InterconnectionView_BuildLayout_PrivateMemberTyping_IsFlaggedNotSilent` | Private typing flagged |
-| `InterconnectionView_BuildLayout_ImportOfSiblingPackage_IsFlaggedNotSilent` | Another package's import flagged |
-| `InterconnectionView_BuildLayout_FilteredOutImportCandidate_IsFlaggedNotSilent` | Filtered-out typing flagged |
+| `InterconnectionView_BuildLayout_PrivateMemberTyping_IsLeaf` | Private typing is a leaf, no warning |
+| `InterconnectionView_BuildLayout_ImportOfSiblingPackage_IsLeaf` | Another package's import is a leaf |
+| `InterconnectionView_BuildLayout_FilteredOutImportCandidate_IsLeaf` | Filtered-out typing is a leaf |
+| `InterconnectionView_BuildLayout_SameSimpleNameInUnrelatedPackage_IsLeaf` | Unrelated same-named def not expanded |
 | `InterconnectionView_BuildLayout_DocumentedDefinitions_DrawNoDocumentation` | No `doc` text drawn |
 | `InterconnectionView_BuildLayout_TwoConnectionsSamePair_ProducesTwoConnectorsWithoutException` | Distinct waypoints |
 | `InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors` | Six labeled ports |

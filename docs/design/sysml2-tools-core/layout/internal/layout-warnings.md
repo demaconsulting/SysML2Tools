@@ -62,12 +62,10 @@ target resolved to a package) is non-empty, the message adds one combined hint q
 statement, explaining that it exposes only the package element itself, not its members, and
 suggesting the recursive `expose <X>::**;` form for each.
 
-###### `ForSimpleNameFallback(viewName, reference, localNamespace, chosen, candidates)`
-
-Returns the warning for a reference that did not resolve by KerML 8.2.3.5 name resolution and was
-matched only by the bare simple-name fallback: it names the reference, the namespace it was
-resolved from, the chosen element, and — when more than one declaration matched — every candidate,
-and advises qualifying the reference or adding an import.
+An unresolved reference (a type, supertype, subsetted, or redefined reference that does not
+resolve by KerML 8.2.3.5 name resolution) has no message here by design: it is reported once, by
+the load-time `Unresolved reference` diagnostic of `ReferenceResolver`, and the layouts draw no
+relationship for it, so a layout-level message would only duplicate that diagnostic.
 
 ##### Error Handling
 

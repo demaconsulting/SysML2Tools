@@ -20,6 +20,7 @@
 
 using DemaConsulting.SysML2Tools.Cli;
 using DemaConsulting.SysML2Tools.Export;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 
 namespace DemaConsulting.SysML2Tools.Tests.Export;
 
@@ -290,6 +291,54 @@ public class ExportSubsystemTests
     }
 
     // ---- --target / --filter ----
+
+    /// <summary>
+    ///     Import and expose edges show the reference text as written, wildcard and recursive
+    ///     markers included, in both the JSON and JSONL output, so <c>import P;</c> and
+    ///     <c>import P::*;</c> are distinguishable.
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_ImportAndExposeEdges_ShowWrittenReferenceText()
+    {
+        const string model = """
+            package P { part def X; }
+            package A { import P; }
+            package B { import P::*; }
+            package C { import P::**; }
+            package D {
+                view V { expose P::*; }
+            }
+            """;
+
+        var (json, jsonExit) = await ExportTestFixtures.RunExportAsync(model, "--format", "json");
+        var (jsonl, jsonlExit) = await ExportTestFixtures.RunExportAsync(model, "--format", "jsonl");
+
+        Assert.Equal(0, jsonExit);
+        Assert.Equal(0, jsonlExit);
+
+        // Edges array: the import edges (A, B, C) and the expose edge (V) carry the written text.
+        // The captured output may carry non-JSON status text; keep only the JSON portion.
+        using var document = System.Text.Json.JsonDocument.Parse(json[json.IndexOf('{')..(json.LastIndexOf('}') + 1)]);
+        var jsonRaw = document.RootElement.GetProperty("Edges").EnumerateArray()
+            .Where(e => IsImportOrExpose(e.GetProperty("Kind").GetInt32()))
+            .Select(e => e.GetProperty("RawReference").GetString())
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        Assert.Equal(["P", "P::*", "P::*", "P::**"], jsonRaw);
+
+        var jsonlRaw = jsonl.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(line => line.StartsWith('{'))
+            .Select(line => System.Text.Json.JsonDocument.Parse(line).RootElement)
+            .Where(e => e.GetProperty("Kind").GetString() == "edge" && IsImportOrExpose(e.GetProperty("EdgeKind").GetInt32()))
+            .Select(e => e.GetProperty("RawReference").GetString())
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        Assert.Equal(["P", "P::*", "P::*", "P::**"], jsonlRaw);
+    }
+
+    /// <summary>Returns whether the serialized (numeric) edge kind is Import or Expose.</summary>
+    private static bool IsImportOrExpose(int kind) =>
+        kind == (int)SysmlEdgeKind.Import || kind == (int)SysmlEdgeKind.Expose;
 
     /// <summary>
     ///     --target restricts the exported declarations to the target's containment subtree,

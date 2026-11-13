@@ -141,7 +141,11 @@ statement but no `expose` statement.
 
 - `Declarations` (`IReadOnlyDictionary<string, SysmlNode>`) — every visible declaration,
   keyed by its qualified name.
-- `Edges` (`IReadOnlyList<SysmlEdge>`) — every visible semantic edge.
+- `Edges` (`IReadOnlyList<SysmlEdge>`) — every visible semantic edge. An edge carries its optional
+  `RawReference` (the reference text it was resolved from; see `SysmlEdge`) only when it has one: the
+  property is omitted from the JSON when `null`, so the field is additive for existing consumers.
+  For `Import` and `Expose` edges the text keeps the wildcard/recursive markers as written
+  (`P`, `P::*`, `P::**`) and excludes any `[filter]` expression.
 - `Diagnostics` (`IReadOnlyList<SysmlDiagnostic>`) — every diagnostic produced while loading
   the workspace, unfiltered.
 
@@ -164,7 +168,10 @@ first, then edges, then diagnostics, each serialized independently via
 `JsonSerializer.Serialize(line, ExportLineSerializerContext.Default.ExportXxxLine)` and
 joined with `\n`. JSONL's entire value proposition (line-oriented, grep/tail-friendly
 streaming) requires one complete JSON value per line; a single envelope-per-line would defeat
-that, hence three small dedicated wrapper types rather than one `ExportResult`-per-line.
+that, hence three small dedicated wrapper types rather than one `ExportResult`-per-line. The edge
+line is flat (`ExportEdgeLine`) and mirrors the JSON edge: it includes `RawReference` only when the
+edge carries one (`JsonIgnoreCondition.WhenWritingNull`, set by `ExportEdgeLine.Create`), so both
+formats expose the same additive, null-omitted field.
 
 ##### Serialization Contexts
 

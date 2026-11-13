@@ -138,13 +138,8 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         // Index of candidate container definitions (non-stdlib part defs with at least one part child).
         // Built before FindRoots so root-selection can resolve which candidates are themselves used as
         // another candidate's nested part type (see FindRoots' composition-graph-root preference).
-        var defsByName = BuildDefinitionIndex(context.Workspace, context.ViewName);
-        var tree = BuildTree(context, options, defsByName);
-
-        // Surface any type reference that resolved only by the bare simple-name fallback.
-        return defsByName.Warnings.Count == 0
-            ? tree
-            : tree with { Warnings = [.. tree.Warnings, .. defsByName.Warnings] };
+        var defsByName = BuildDefinitionIndex(context.Workspace);
+        return BuildTree(context, options, defsByName);
     }
 
     /// <summary>Builds the interconnection layout tree for <see cref="BuildLayout"/>.</summary>
@@ -907,29 +902,22 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// <summary>
     /// The candidate container definitions — non-standard-library <c>part def</c>s that have at
     /// least one nested <c>part</c> usage — keyed by qualified name, together with the KerML
-    /// <see cref="NameResolver"/> used to resolve a part's type reference and the name-resolution
-    /// warnings collected while doing so.
+    /// <see cref="NameResolver"/> used to resolve a part's type reference.
     /// </summary>
     private sealed class DefinitionIndex
     {
         private readonly Dictionary<string, SysmlDefinitionNode> _byQualifiedName;
         private readonly NameResolver _resolver;
-        private readonly string _viewName;
-        private readonly List<string> _warnings = [];
 
         /// <summary>Initializes the index.</summary>
-        public DefinitionIndex(Dictionary<string, SysmlDefinitionNode> byQualifiedName, NameResolver resolver, string viewName)
+        public DefinitionIndex(Dictionary<string, SysmlDefinitionNode> byQualifiedName, NameResolver resolver)
         {
             _byQualifiedName = byQualifiedName;
             _resolver = resolver;
-            _viewName = viewName;
         }
 
         /// <summary>Gets every indexed container definition.</summary>
         public IEnumerable<SysmlDefinitionNode> Values => _byQualifiedName.Values;
-
-        /// <summary>Gets the name-resolution warnings collected so far, without duplicates.</summary>
-        public IReadOnlyList<string> Warnings => _warnings;
 
         /// <summary>Looks up a container definition by qualified name.</summary>
         public bool TryGetValue(string qualifiedName, [MaybeNullWhen(false)] out SysmlDefinitionNode def) =>
@@ -937,28 +925,16 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
 
         /// <summary>
         /// Resolves a raw type reference relative to <paramref name="localNamespace"/> by KerML
-        /// name resolution, recording a warning when only the bare simple-name fallback matched.
+        /// name resolution; returns null when it does not resolve.
         /// </summary>
-        public string? Resolve(string reference, string? localNamespace)
-        {
-            var resolution = _resolver.ResolveWithFallback(reference, localNamespace);
-            if (resolution.IsSimpleNameFallback && resolution.QualifiedName is { } chosen)
-            {
-                var warning = LayoutWarnings.ForSimpleNameFallback(_viewName, reference, localNamespace, chosen, resolution.Candidates);
-                if (!_warnings.Contains(warning))
-                {
-                    _warnings.Add(warning);
-                }
-            }
-
-            return resolution.QualifiedName;
-        }
+        public string? Resolve(string reference, string? localNamespace) =>
+            _resolver.Resolve(reference, localNamespace);
     }
 
     /// <summary>
     /// Builds the <see cref="DefinitionIndex"/> of candidate container definitions.
     /// </summary>
-    private static DefinitionIndex BuildDefinitionIndex(SysmlWorkspace workspace, string viewName)
+    private static DefinitionIndex BuildDefinitionIndex(SysmlWorkspace workspace)
     {
         var index = new Dictionary<string, SysmlDefinitionNode>(StringComparer.Ordinal);
         foreach (var (qualifiedName, node) in workspace.Declarations)
@@ -982,11 +958,12 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             index.TryAdd(qualifiedName, def);
         }
 
-        return new DefinitionIndex(index, FilterExpressionEvaluator.CreateNameResolver(workspace), viewName);
+        return new DefinitionIndex(index, FilterExpressionEvaluator.CreateNameResolver(workspace));
     }
 
     /// <summary>
-    /// Resolves a part's type reference to a container definition by qualified then simple name,
+    /// Resolves a part's type reference to a container definition by qualified name (see
+    /// <see cref="ResolveByTyping"/>),
     /// excluding any definition already on the recursion path (cycle guard). A part whose type is
     /// on the path — or does not resolve to a container — is treated as a leaf.
     /// </summary>
@@ -1013,8 +990,8 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// already applies KerML 8.2.3.5 member visibility, filtered imports, and import scoping);
     /// otherwise by KerML 8.2.3.5 name resolution
     /// of the raw typing text relative to the feature's owning namespace (owned, imported, and
-    /// inherited memberships, then outward), and only then by the warned bare simple-name
-    /// fallback. Returns <see langword="null"/> if nothing resolves to a container definition.
+    /// inherited memberships, then outward). Returns <see langword="null"/> if nothing resolves to
+    /// a container definition; an unresolved reference makes the part a leaf.
     /// </summary>
     private static SysmlDefinitionNode? ResolveByTyping(
         SysmlFeatureNode feature,
@@ -1027,7 +1004,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         }
 
         // An authoritative resolution that is not a container means the part is a leaf; never
-        // fall back to a same-named container elsewhere in the workspace.
+        // match a same-named container elsewhere in the workspace.
         var owner = OwnerOf(feature.QualifiedName);
         var resolved = feature.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Typing)?.TargetQualifiedName
             ?? defsByName.Resolve(typing, owner);

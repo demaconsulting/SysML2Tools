@@ -36,11 +36,15 @@ sections:
       - id: SysML2Tools-Language-Semantic-AstSerializer-PreservesNodeData
         title: >-
           AstSerializer.Serialize shall preserve each node's supertype names and imported names and
-          all diagnostics through the serialization.
+          all diagnostics through the serialization, and shall preserve each resolved edge's
+          optional raw reference text (omitting it from the JSON when null).
         justification: |
           Supertype and import relationships, together with any diagnostics, are required by
           reference resolution consumers of the deserialized symbol table and must survive the
-          round trip intact.
+          round trip intact. The pre-resolved standard library carries its resolved edges, and
+          layout consumers match a reference to its edge by that raw reference text.
         tests:
           - Serialize_SupertypeAndImportedNames_Preserved
+          - Serialize_EdgeRawReference_RoundTripsAndNullIsOmitted
+          - Serialize_ImportAndExposeRawReferenceText_RoundTripsAndNullIsOmitted
           - Serialize_Diagnostics_RoundTrip

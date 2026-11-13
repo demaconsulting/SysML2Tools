@@ -37,12 +37,11 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
 
         var theme = options.Theme;
 
-        var warnings = new List<string>();
         var defs = CollectDefinitions(
-            context.Workspace, ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode), context.ViewName, warnings);
+            context.Workspace, ExposeScopeResolver.ResolveExposedScope(context.Workspace, context.ViewNode));
         if (defs.Count == 0)
         {
-            return new LayoutTree(200.0, 100.0, []) { Warnings = warnings };
+            return new LayoutTree(200.0, 100.0, []);
         }
 
         // Index the definitions by qualified name; supertypes are already resolved to qualified names.
@@ -85,7 +84,7 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
 
         var width = (theme.LabelPadding * 4.0) + headerWidth + (defs.Count * dataWidth);
         var height = (theme.LabelPadding * 4.0) + ((defs.Count + 1) * rowHeight);
-        return new LayoutTree(width, height, [grid]) { Warnings = warnings };
+        return new LayoutTree(width, height, [grid]);
     }
 
     /// <summary>A user-defined definition with the qualified names its supertype references resolve to.</summary>
@@ -105,7 +104,7 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
     /// exposed, so the relationship mark is never rendered against a missing row or column.
     /// </remarks>
     private static IReadOnlyList<DefRow> CollectDefinitions(
-        SysmlWorkspace workspace, ExposedScope? scope, string viewName, List<string> warnings)
+        SysmlWorkspace workspace, ExposedScope? scope)
     {
         // Phase 1: collect every non-stdlib definition, unfiltered, with its supertypes resolved.
         var resolver = FilterExpressionEvaluator.CreateNameResolver(workspace);
@@ -119,7 +118,7 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
 
             if (workspace.Declarations[qn] is SysmlDefinitionNode def)
             {
-                all.Add(new DefRow(qn, def.Name ?? qn, ResolveSupertypes(qn, def, resolver, viewName, warnings)));
+                all.Add(new DefRow(qn, def.Name ?? qn, ResolveSupertypes(qn, def, resolver)));
             }
         }
 
@@ -208,43 +207,25 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Resolves a definition's raw supertype references to qualified names: each reference is
-    /// paired with its own resolved <see cref="SysmlEdgeKind.Supertype"/> edge target (see
-    /// <see cref="GeneralViewLayoutStrategy.PairSupertypeReferences"/>; used as resolved, since the
-    /// semantic resolver already applies KerML 8.2.3.5);
-    /// otherwise KerML 8.2.3.5
-    /// name resolution relative to the definition's owning
-    /// namespace, recording a warning when only the bare simple-name fallback matched.
+    /// matched to its own resolved <see cref="SysmlEdgeKind.Supertype"/> edge by exact reference
+    /// text (see <see cref="GeneralViewLayoutStrategy.TryGetResolvedTarget"/>; used as resolved,
+    /// since the semantic resolver already applies KerML 8.2.3.5, and a reference with no matching
+    /// edge is unresolved); where the definition carries no edge identity (a hand-built workspace)
+    /// the reference is resolved by KerML 8.2.3.5 name resolution relative to the definition's
+    /// owning namespace. A reference neither step resolves is omitted (the row is not marked for it).
     /// </summary>
     private static IReadOnlyList<string> ResolveSupertypes(
-        string qualifiedName, SysmlDefinitionNode def, NameResolver resolver, string viewName, List<string> warnings)
+        string qualifiedName, SysmlDefinitionNode def, NameResolver resolver)
     {
-        var resolvedEdges = def.ResolvedEdges
-            .Where(e => e.Kind == SysmlEdgeKind.Supertype)
-            .Select(e => e.TargetQualifiedName)
-            .ToList();
         var sep = qualifiedName.LastIndexOf("::", StringComparison.Ordinal);
         var owner = sep >= 0 ? qualifiedName[..sep] : null;
 
         var result = new List<string>();
-        var paired = GeneralViewLayoutStrategy.PairSupertypeReferences(def.SupertypeNames, resolvedEdges);
-        for (var i = 0; i < def.SupertypeNames.Count; i++)
+        foreach (var reference in def.SupertypeNames)
         {
-            var supertype = def.SupertypeNames[i];
-            var resolved = paired[i];
-            if (resolved is null)
-            {
-                var resolution = resolver.ResolveWithFallback(supertype, owner);
-                resolved = resolution.QualifiedName;
-                if (resolution.IsSimpleNameFallback && resolved is not null)
-                {
-                    var warning = LayoutWarnings.ForSimpleNameFallback(viewName, supertype, owner, resolved, resolution.Candidates);
-                    if (!warnings.Contains(warning))
-                    {
-                        warnings.Add(warning);
-                    }
-                }
-            }
-
+            var resolved = GeneralViewLayoutStrategy.TryGetResolvedTarget(def, SysmlEdgeKind.Supertype, reference, out var target)
+                ? target
+                : resolver.Resolve(reference, owner);
             if (resolved is not null)
             {
                 result.Add(resolved);

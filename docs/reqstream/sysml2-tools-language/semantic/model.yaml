@@ -43,6 +43,8 @@ sections:
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ImplicitRedefinitionName
           - SysML2Tools-Language-Semantic-Model-AstBuilder-MetadataAnnotations
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ExposeBracketFilterText
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ImportExposeReferenceText
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-ImportExposeReferenceText
           - SysML2Tools-Language-Semantic-Model-AstBuilder-Dependency
           - SysML2Tools-Language-Semantic-Model-AstBuilder-BindingConnector
           - SysML2Tools-Language-Semantic-Model-AstBuilder-AttachedTransitionStateBody
@@ -78,7 +80,6 @@ sections:
           - SysML2Tools-Language-Semantic-Model-NameResolver-VisibleResolution
           - SysML2Tools-Language-Semantic-Model-NameResolver-RedefinedFeature
           - SysML2Tools-Language-Semantic-Model-NameResolver-ResolvingMode
-          - SysML2Tools-Language-Semantic-Model-NameResolver-FlaggedFallback
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-MemberVisibility
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-FilteredImports
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ImportScoping
@@ -91,6 +92,7 @@ sections:
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-DependencyCrossProduct
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-BindingFeatureChain
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-InheritedTransitionSource
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-EdgeRawReference
         tests:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered

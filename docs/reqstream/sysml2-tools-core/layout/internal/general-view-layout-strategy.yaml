@@ -80,16 +80,23 @@ sections:
         title: >-
           GeneralViewLayoutStrategy shall connect a specialized definition to each of its
           supertypes present in the workspace with a line ending in an open end marker at the
-          supertype, pairing each supertype reference with its own resolved target.
+          supertype, matching each supertype reference to its own resolved edge by the
+          reference's exact text (never by name suffix), and shall draw no edge for a
+          reference that has no resolved edge.
         justification: |
           Specialization (generalization) relationships are core model structure. Drawing them
           as open-end-marker lines toward the supertype matches diagram notation and makes the
           inheritance hierarchy visible. Two references that share a simple name (`:> Y::X, X`)
-          must each reach their own target rather than both reaching the first name match.
+          must each reach their own target rather than both reaching the first name match, and
+          an unresolved reference (`:> X, A` where only the alias `A` resolves to `P::X`) must
+          not borrow the target another reference resolved to.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_Subclassification_ProducesEdge
-          - GeneralViewLayoutStrategy_PairSupertypeReferences_QualifiedAndBareSharingName_PairsEachOwnTarget
-          - GeneralViewLayoutStrategy_PairSupertypeReferences_ReversedOrderAndUnclaimedTargets_PairsWithoutReuse
+          - GeneralViewLayoutStrategy_BuildLayout_UnresolvedSupertypeAndAliasOfSameTarget_DrawsOneEdge
+          - GeneralViewLayoutStrategy_BuildLayout_QualifiedAndBareSupertypesSharingName_DrawsBothEdges
+          - GeneralViewLayoutStrategy_TryGetResolvedTarget_IdentifiedEdges_MatchesExactTextOnly
+          - GeneralViewLayoutStrategy_TryGetResolvedTarget_NoIdentifiedEdges_ReportsNotKnown
+          - GeneralViewLayoutStrategy_TryGetResolvedTarget_DuplicateAndQualifiedText_UsesExactKey
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-StdlibExclusion
         title: >-
@@ -207,8 +214,11 @@ sections:
           GeneralViewLayoutStrategy shall connect a subtype feature that declares a `subsets`/`:>`
           reference to the owning definition of the subsetted (ancestor) feature — resolved via
           the same owner-resolution walk used for Redefinition — with a dashed line ending in a
-          hollow-triangle end marker at the owner, and shall draw no edge when the reference
-          cannot be resolved or resolves back to the subtype's own owning definition.
+          hollow-triangle end marker at the owner, matching each subsetted reference to its own
+          resolved edge by the reference's exact text, and shall draw no edge when the reference
+          cannot be resolved (including when only another reference of the same feature, such as
+          an alias of the same feature, resolved) or resolves back to the subtype's own owning
+          definition.
         justification: |
           Subsetting (`subsets`/`:>` on a feature) is a distinct SysML v2 relationship from
           redefinition, but shares the same "reference to an inherited member" resolution shape;
@@ -222,6 +232,7 @@ sections:
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_Subsetting_CrossesSpecializationBoundary_ProducesDashedHollowTriangleEdge
           - GeneralViewLayoutStrategy_BuildLayout_SelfReferentialSubsetting_ProducesNoEdge
+          - GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndAliasOfSameFeature_DrawsOneEdge
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NonStructuralMembership
         title: >-
@@ -493,26 +504,29 @@ sections:
           GeneralViewLayoutStrategy shall attach each specialization, membership, typing,
           redefinition, and subsetting edge to the definition the reference resolves to — the
           semantic model's resolved target, else KerML 8.2.3.5 name resolution (redefined features
-          against the owning type's general types) — shall report a warning when only the bare
-          simple-name fallback matched, and shall map relationship endpoints that are already
-          qualified only to the box with that qualified name or its owning typed feature, never to a
-          same-named box elsewhere. The semantic model's resolved target already applies KerML member
-          visibility, filtered imports, and import scoping, so it is used as resolved; a reference
-          those rules reject has no semantic edge and is drawn, if at all, only through the warned
-          simple-name fallback.
+          against the owning type's general types) — shall not draw an edge for a reference that
+          does not resolve (no bare simple-name matching), and shall map relationship endpoints
+          that are already qualified only to the box with that qualified name or its owning typed
+          feature, never to a same-named box elsewhere. The semantic model's resolved target
+          already applies KerML member visibility, filtered imports, import scoping, and file-root
+          imports, so it is used as resolved; a reference those rules reject has no semantic edge
+          and is not drawn.
         justification: |
           Packages commonly reuse a simple name for distinct definitions. Wiring every usage to
           the first same-named box drew one box connected to several unrelated systems plus
           unconnected duplicates, misrepresenting the architecture. Trusting the semantic edge
-          keeps the diagram consistent with the model's resolved references, while the retained
-          warned fallback keeps incomplete models drawable without ever guessing silently.
+          keeps the diagram consistent with the model's resolved references; matching an
+          unresolved reference to a same-named element elsewhere would draw a relationship the
+          model does not contain, so an unresolved reference is rendered as unresolved (the load
+          diagnostic reports it).
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_SameNamedDefsInSiblingPackages_WiresEachToItsOwn
-          - GeneralViewLayoutStrategy_BuildLayout_SimpleNameFallback_ReportsWarning
+          - GeneralViewLayoutStrategy_BuildLayout_SameSimpleNameInUnrelatedPackage_DrawsNoEdge
           - GeneralViewLayoutStrategy_BuildLayout_UnrenderedQualifiedEndpoint_IsNotMappedBySimpleName
-          - GeneralViewLayoutStrategy_BuildLayout_FallbackToUnrenderedTarget_StillReportsWarning
-          - GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_IsFlaggedNotSilent
-          - GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_IsFlaggedNotSilent
+          - GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndRedefinition_DrawNoEdge
+          - GeneralViewLayoutStrategy_BuildLayout_FileRootImportSubsettingAndRedefinition_DrawsEdges
+          - GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_DrawsNoEdge
+          - GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_DrawsNoEdge
           - GeneralViewLayoutStrategy_BuildLayout_ImportOfSiblingPackage_DoesNotResolveForThisPackage
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ViewConditions

@@ -115,10 +115,12 @@ where it is used:
   import written at the root of a file applies to that whole file.
 
 Add an import to the package that needs the name, qualify the reference, make the member
-public (or use `import all`), or adjust the filter. Layout views still draw such a reference
-when a same-named element exists, but only through the simple-name fallback, which always
-adds a "does not resolve by SysML v2 name resolution ... matched ... by simple name only"
-warning. A package-level `filter` statement is not honored when resolving imports.
+public (or use `import all`), or adjust the filter. Such a reference is reported once, by the
+`Unresolved reference` warning, and is **not drawn** by the layout views: a General view draws no
+edge for it, an Interconnection view does not expand the part, and a Grid view does not mark the
+specialization (compartment rows still show the written `: Type` text). The layouts never match
+it to a same-named element elsewhere, and add no second warning. A package-level `filter`
+statement is not honored when resolving imports.
 
 # Rendering
 
@@ -793,7 +795,10 @@ sysml2tools export "src/**/*.sysml" --target Vehicle::Engine --filter @Deprecate
     "Model::Engine": { "$type": "definition", "Kind": "part def", "...": "..." }
   },
   "Edges": [
-    { "SourceQualifiedName": "Model::Engine", "TargetQualifiedName": "Model::Vehicle", "Kind": "Composition" }
+    { "SourceQualifiedName": "Model::Engine", "TargetQualifiedName": "Model::Vehicle", "Kind": "Composition" },
+    { "SourceQualifiedName": "Model::Truck", "TargetQualifiedName": "Model::Vehicle",
+      "Kind": "Supertype", "RawReference": "Vehicle" },
+    { "SourceQualifiedName": null, "TargetQualifiedName": "Model", "Kind": "Import", "RawReference": "Model::*" }
   ],
   "Diagnostics": []
 }
@@ -806,6 +811,18 @@ sysml2tools export "src/**/*.sysml" --target Vehicle::Engine --filter @Deprecate
   faithful, round-trip-capable dump — not a separate, narrower summary shape like `query`'s
   result.
 - `Edges` and `Diagnostics` are plain JSON arrays.
+- An edge may carry an optional `RawReference`: the reference text as written in the
+  model (`Vehicle`, `P::Vehicle`) that the edge was resolved from, so a consumer can tell which
+  reference of a declaration an edge answers (for example, which of `:> X, A` resolved).
+  Tokens are concatenated without whitespace (`P :: X` is `P::X`). For `import` and `expose`
+  edges the text keeps the wildcard and recursive markers as written — `import P;` is `P`,
+  `import P::*;` is `P::*`, `import P::**;` is `P::**`, and `expose P::*::**;` is `P::*::**` — so
+  they stay distinguishable even though they resolve to the same target; a trailing `[filter]`
+  expression is not part of the text (`expose P::**[@Safety];` is `P::**`).
+  It is present for supertype, typing, redefinition, import, verify, expose, and metadata-type
+  edges, and omitted for the two-ended edge kinds (satisfy, allocate, dependency, connect,
+  binding, transition) and when no reference text is recorded. The field is additive: consumers
+  that do not know it can ignore it.
 
 **`--format jsonl`** emits one compact JSON object per line, each tagged with a `"Kind"`
 discriminator so a line-oriented consumer (`grep`, `jq -c`, streaming parsers) can process
@@ -814,10 +831,12 @@ records without buffering the whole document:
 ```jsonl
 {"Kind":"declaration","QualifiedName":"Model::Vehicle","Node":{"$type":"definition","...":"..."}}
 {"Kind":"edge","SourceQualifiedName":"Model::Engine","TargetQualifiedName":"Model::Vehicle","EdgeKind":"Composition"}
+{"Kind":"edge","SourceQualifiedName":"Model::Truck","TargetQualifiedName":"Model::Vehicle","EdgeKind":"Supertype","RawReference":"Vehicle"}
 {"Kind":"diagnostic","FilePath":"model.sysml","Line":1,"Column":1,"Severity":"Error","Message":"..."}
 ```
 
-Declarations are emitted first, then edges, then diagnostics. Both output shapes exclude
+Declarations are emitted first, then edges, then diagnostics. An edge line includes
+`RawReference` under the same conditions as the JSON form. Both output shapes exclude
 OMG standard-library declarations and edges by default (mirroring `query`'s
 `--include-stdlib` convention exactly); diagnostics are always included, since
 `WorkspaceLoader` diagnostics only ever come from the user's own supplied files (the stdlib

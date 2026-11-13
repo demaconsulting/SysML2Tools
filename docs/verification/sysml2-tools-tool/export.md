@@ -34,9 +34,12 @@ shape. Tests run against the tool's target framework.
   matching zero files produces the "no files matched" error and exit code 1.
 - JSON output is a single indented document with a qualified-name-keyed `Declarations`
   object, an `Edges` array, and a `Diagnostics` array; declaration nodes carry their
-  polymorphic `$type` discriminator and round-trip through `SysmlNode`'s own converter.
+  polymorphic `$type` discriminator and round-trip through `SysmlNode`'s own converter; an
+  edge carries its optional `RawReference` only when it has one; for import and expose edges
+  the text keeps the wildcard/recursive markers as written (`P`, `P::*`, `P::**`).
 - JSONL output is one compact JSON object per line, each carrying a `"Kind"` discriminator
-  (`"declaration"`/`"edge"`/`"diagnostic"`), with declarations, then edges, then diagnostics.
+  (`"declaration"`/`"edge"`/`"diagnostic"`), with declarations, then edges, then diagnostics;
+  an edge line includes `RawReference` only when the edge has one.
 - A full CLI invocation (`export --format json`/`export --format jsonl --output <path>`)
   against a real `test/SysMLModels` fixture produces valid, deserializable JSON/JSONL
   containing non-empty declarations, edges, and diagnostics, with stdlib content correctly
@@ -165,6 +168,18 @@ deserializes back to an equivalent node.
 
 **`ExportResultSerializerContext_Diagnostic_AllFieldsPresent`**: Verifies diagnostic entries
 in JSON output carry their expected fields (message, severity, location).
+
+**`ExportResultSerializerContext_EdgeRawReference_RoundTripsAndIsOmittedWhenNull`**: Verifies a
+JSON edge's optional `RawReference` round-trips and that an edge without one carries no
+`RawReference` property.
+
+**`ExportSubsystem_ImportAndExposeEdges_ShowWrittenReferenceText`**: Verifies a model with
+`import P;`, `import P::*;`, `import P::**;`, and `expose P::*;` exports edges whose `RawReference`
+is `P`, `P::*`, `P::**`, and `P::*` (twice: import and expose) in both the JSON and the JSONL
+output.
+
+**`ExportLineSerializerContext_EdgeLine_IncludesRawReferenceOnlyWhenPresent`**: Verifies the JSONL
+edge line includes `"RawReference"` when the edge has one and omits it otherwise.
 
 **`ExportLineSerializerContext_DeclarationLine_HasKindDiscriminatorAndIsCompact`** /
 **`ExportLineSerializerContext_EdgeLine_HasKindDiscriminatorAndIsCompact`** /

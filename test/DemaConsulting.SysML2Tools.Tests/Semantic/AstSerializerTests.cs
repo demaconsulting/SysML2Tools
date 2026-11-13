@@ -222,6 +222,77 @@ public sealed class AstSerializerTests
     }
 
     /// <summary>
+    ///     A <see cref="SysmlEdge.RawReference"/> round-trips through the polymorphic node
+    ///     serializer (resolved edges are serialized inline on their node), and a
+    ///     <see langword="null"/> one is omitted from the JSON text.
+    /// </summary>
+    [Fact]
+    public void Serialize_EdgeRawReference_RoundTripsAndNullIsOmitted()
+    {
+        var table = new SymbolTable();
+        table.RegisterAll(new SysmlDefinitionNode
+        {
+            Name = "Sub",
+            QualifiedName = "Q::Sub",
+            DefinitionKeyword = "part def",
+            ResolvedEdges =
+            [
+                new SysmlEdge("Q::Sub", "P::X", SysmlEdgeKind.Supertype) { RawReference = "A" },
+                new SysmlEdge("Q::Sub", "P::Y", SysmlEdgeKind.Supertype),
+            ],
+        });
+
+        var bytes = AstSerializer.Serialize(table, []);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        var text = System.Text.Encoding.UTF8.GetString(bytes);
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Count(text, "RawReference"));
+        var rt = Assert.IsType<SysmlDefinitionNode>(result.Symbols["Q::Sub"]);
+        Assert.Equal(2, rt.ResolvedEdges.Count);
+        Assert.Equal("A", rt.ResolvedEdges[0].RawReference);
+        Assert.Null(rt.ResolvedEdges[1].RawReference);
+    }
+
+    /// <summary>
+    ///     <see cref="SysmlImportNode.RawReferenceText"/> and <see cref="ExposeMember.RawReferenceText"/>
+    ///     round-trip through the node serializer, and a <see langword="null"/> one is omitted from
+    ///     the JSON text (so legacy data without the property still deserializes, with
+    ///     <see langword="null"/>).
+    /// </summary>
+    [Fact]
+    public void Serialize_ImportAndExposeRawReferenceText_RoundTripsAndNullIsOmitted()
+    {
+        var table = new SymbolTable();
+        table.RegisterAll(new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Q::V",
+            ExposeMembers =
+            [
+                new ExposeMember("P", null, ExposeRecursionKind.NamespaceDirectChildren, "P::*"),
+                new ExposeMember("P", null),
+            ],
+            Children =
+            [
+                new SysmlImportNode { ImportedNamespace = "P", ImportedNames = ["P"], RawReferenceText = "P::*" },
+                new SysmlImportNode { ImportedNamespace = "P", ImportedNames = ["P"] },
+            ],
+        });
+
+        var bytes = AstSerializer.Serialize(table, []);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        var text = System.Text.Encoding.UTF8.GetString(bytes);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Count(text, "RawReferenceText"));
+        var rt = Assert.IsType<SysmlViewNode>(result.Symbols["Q::V"]);
+        Assert.Equal("P::*", rt.ExposeMembers[0].RawReferenceText);
+        Assert.Null(rt.ExposeMembers[1].RawReferenceText);
+        var imports = rt.Children.OfType<SysmlImportNode>().ToList();
+        Assert.Equal("P::*", imports[0].RawReferenceText);
+        Assert.Null(imports[1].RawReferenceText);
+    }
+
+    /// <summary>
     ///     The new <see cref="SysmlSatisfyNode"/> node type, the <c>"allocation"</c>
     ///     <see cref="SysmlConnectionNode.ConnectionKeyword"/> variant, and
     ///     <see cref="SysmlNode.VerifiedRequirementNames"/> all round-trip through the polymorphic

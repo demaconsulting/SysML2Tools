@@ -218,6 +218,7 @@ public sealed class AstBuilderMetadataTests
             Assert.Equal("P", member.QualifiedName);
             Assert.Equal("@Safety", member.BracketFilterExpressionText);
             Assert.Equal(ExposeRecursionKind.NamespaceRecursive, member.RecursionKind);
+            Assert.Equal("P::**", member.RawReferenceText);
         }
         finally
         {
@@ -272,11 +273,13 @@ public sealed class AstBuilderMetadataTests
             Assert.Equal("Chassis", chassisMember.QualifiedName);
             Assert.Null(chassisMember.BracketFilterExpressionText);
             Assert.Equal(ExposeRecursionKind.MembershipExact, chassisMember.RecursionKind);
+            Assert.Equal("Chassis", chassisMember.RawReferenceText);
 
             var engineMember = viewNode.ExposeMembers[1];
             Assert.Equal("Engine", engineMember.QualifiedName);
             Assert.Equal("@Safety", engineMember.BracketFilterExpressionText);
             Assert.Equal(ExposeRecursionKind.NamespaceRecursive, engineMember.RecursionKind);
+            Assert.Equal("Engine::**", engineMember.RawReferenceText);
 
             // GetExposedNames() remains the flat qualified-name projection consumed by
             // ReferenceResolver, unaffected by which entries carry a bracket filter.
@@ -322,6 +325,7 @@ public sealed class AstBuilderMetadataTests
             Assert.Equal("Engine", member.QualifiedName);
             Assert.Null(member.BracketFilterExpressionText);
             Assert.Equal(ExposeRecursionKind.MembershipExact, member.RecursionKind);
+            Assert.Equal("Engine", member.RawReferenceText);
         }
         finally
         {
@@ -363,6 +367,7 @@ public sealed class AstBuilderMetadataTests
             Assert.Equal("Engine", member.QualifiedName);
             Assert.Null(member.BracketFilterExpressionText);
             Assert.Equal(ExposeRecursionKind.MembershipRecursive, member.RecursionKind);
+            Assert.Equal("Engine::**", member.RawReferenceText);
         }
         finally
         {
@@ -402,6 +407,7 @@ public sealed class AstBuilderMetadataTests
             Assert.Equal("P", member.QualifiedName);
             Assert.Null(member.BracketFilterExpressionText);
             Assert.Equal(ExposeRecursionKind.NamespaceDirectChildren, member.RecursionKind);
+            Assert.Equal("P::*", member.RawReferenceText);
         }
         finally
         {
@@ -441,6 +447,66 @@ public sealed class AstBuilderMetadataTests
             Assert.Equal("P", member.QualifiedName);
             Assert.Null(member.BracketFilterExpressionText);
             Assert.Equal(ExposeRecursionKind.NamespaceRecursive, member.RecursionKind);
+            Assert.Equal("P::*::**", member.RawReferenceText);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Each <c>import</c> form captures its written reference text on
+    ///     <see cref="SysmlImportNode.RawReferenceText"/> (wildcard and recursive markers kept,
+    ///     bracket filter and inter-token whitespace excluded) while <c>ImportedNamespace</c> stays
+    ///     the stripped namespace name.
+    /// </summary>
+    [Fact]
+    public async Task AstBuilder_ImportForms_CaptureWrittenReferenceText()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(
+                tempFile,
+                """
+                metadata def Tag { }
+                package P { part def X; }
+                package A { import P; }
+                package B { import P::*; }
+                package C { import P::**; }
+                package D { import P::*::**; }
+                package E { import P :: *; }
+                package F { import P::**[@Tag]; }
+                package G { import P::*[@Tag]; }
+                package H { import P::X; }
+                """,
+                TestContext.Current.CancellationToken);
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            Assert.NotNull(result.Workspace);
+            SysmlImportNode ImportOf(string package) =>
+                Assert.Single(result.Workspace.Declarations[package].Children.OfType<SysmlImportNode>());
+
+            Assert.Equal("P", ImportOf("A").RawReferenceText);
+            Assert.Equal("P::*", ImportOf("B").RawReferenceText);
+            Assert.Equal("P::**", ImportOf("C").RawReferenceText);
+            Assert.Equal("P::*::**", ImportOf("D").RawReferenceText);
+            Assert.Equal("P::*", ImportOf("E").RawReferenceText);
+            Assert.Equal("P::**", ImportOf("F").RawReferenceText);
+            Assert.Equal("P::*", ImportOf("G").RawReferenceText);
+            Assert.Equal("P::X", ImportOf("H").RawReferenceText);
+
+            // Resolution inputs stay stripped.
+            foreach (var package in new[] { "A", "B", "C", "D", "E", "F", "G" })
+            {
+                Assert.Equal("P", ImportOf(package).ImportedNamespace);
+                Assert.Equal(["P"], ImportOf(package).ImportedNames);
+            }
+
+            Assert.Equal("@Tag", ImportOf("F").BracketFilterExpressionText);
         }
         finally
         {

@@ -106,16 +106,21 @@ sections:
           The export command's --format json output shall be a single indented JSON document
           containing a qualified-name-keyed "Declarations" object, an "Edges" array, and a
           "Diagnostics" array, with declaration nodes serialized using their existing
-          polymorphic $type discriminator.
+          polymorphic $type discriminator. An edge shall carry its optional "RawReference" (the
+          reference text it was resolved from, keeping the wildcard/recursive markers of import
+          and expose references as written) only when it has one.
         justification: |
           Reusing SysmlNode/SysmlEdge/SysmlDiagnostic directly (rather than a fourth parallel
           shape) keeps export's output a faithful, lossless, round-trip-capable dump of the
           resolved semantic model, distinct from query's narrow QueryResult summarization
-          shape.
+          shape. "RawReference" lets a consumer tell which reference of a declaration an edge
+          answers; omitting it when null keeps the field additive for existing consumers.
         tests:
           - ExportResultSerializerContext_DefinitionNode_RoundTripsTypeDiscriminator
           - ExportResultSerializerContext_FeatureNode_UsesFeatureTypeDiscriminator
           - ExportResultSerializerContext_EdgeKind_RoundTripsExactly
+          - ExportResultSerializerContext_EdgeRawReference_RoundTripsAndIsOmittedWhenNull
+          - ExportSubsystem_ImportAndExposeEdges_ShowWrittenReferenceText
           - ExportResultSerializerContext_Diagnostic_AllFieldsPresent
           - ExportIntegration_RealFixture_ProducesValidJsonAndJsonl
 
@@ -123,14 +128,18 @@ sections:
         title: >-
           The export command's --format jsonl output shall be one compact (non-indented)
           JSON object per declaration/edge/diagnostic, each tagged with a "kind"
-          discriminator ("declaration"/"edge"/"diagnostic"), one record per line.
+          discriminator ("declaration"/"edge"/"diagnostic"), one record per line; an edge
+          line shall include "RawReference" only when the edge carries one.
         justification: |
           JSONL's entire value proposition is per-record streaming/line-oriented consumption
           (grep/tail-friendly); wrapping the whole envelope in a single line would defeat that,
           hence dedicated per-line wrapper record types rather than one-envelope-per-line.
+          The edge line mirrors the JSON edge's optional "RawReference" so both formats expose the
+          same information.
         tests:
           - ExportLineSerializerContext_DeclarationLine_HasKindDiscriminatorAndIsCompact
           - ExportLineSerializerContext_EdgeLine_HasKindDiscriminatorAndIsCompact
+          - ExportLineSerializerContext_EdgeLine_IncludesRawReferenceOnlyWhenPresent
           - ExportLineSerializerContext_DiagnosticLine_HasKindDiscriminatorAndIsCompact
           - ExportIntegration_RealFixture_ProducesValidJsonAndJsonl
 

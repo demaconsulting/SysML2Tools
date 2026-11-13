@@ -258,6 +258,27 @@ sections:
           - AstBuilder_ExposeBracketFilter_CapturesRawText
           - AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath
 
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ImportExposeReferenceText
+        title: >-
+          AstBuilder shall capture, for each `import` and `expose` member, the reference text as
+          written (qualified name plus any `::*`/`::**` marker, excluding any bracketed filter) on
+          SysmlImportNode.RawReferenceText and ExposeMember.RawReferenceText, while leaving the
+          name used for resolution stripped of those markers.
+        justification: |
+          Reference resolution needs the stripped namespace name, but the edge's raw reference must
+          reflect what was written so `import P;`, `import P::*;`, and `import P::**;` stay
+          distinguishable. The written form cannot be rebuilt from the other captured fields
+          (bracket-filtered forms are always recorded as recursive), so it is captured from the
+          parse tree. The bracket filter is an expression, not a reference, and has its own field.
+        tests:
+          - AstBuilder_ImportForms_CaptureWrittenReferenceText
+          - AstBuilder_ExposeBracketFilter_CapturesRawText
+          - AstBuilder_MultipleExposeMembers_OnlyOneBracketed_PairsFilterWithCorrectPath
+          - AstBuilder_ExposeBareMembership_CapturesMembershipExact
+          - AstBuilder_ExposeRecursiveMembership_CapturesMembershipRecursive
+          - AstBuilder_ExposeNamespaceDirectChildren_CapturesNamespaceDirectChildren
+          - AstBuilder_ExposeNamespaceRecursive_CapturesNamespaceRecursive
+
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-Dependency
         title: >-
           AstBuilder shall build a SysmlDependencyNode from a standalone `dependency A, B to
