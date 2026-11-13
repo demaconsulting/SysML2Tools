@@ -82,8 +82,9 @@ sections:
         justification: |
           A usage-level `subsets`/`:>` clause (e.g. `part vehicle1_c1 :> vehicle1`) was
           previously never extracted at all, so it produced no Supertype edge and was silently
-          invisible to reference resolution — this broke ReferenceResolver's bare-name
-          redefinition ancestor-chain walk whenever the redefining feature's owner was itself a
+          invisible to reference resolution — this broke ReferenceResolver's resolution of a
+          bare-name redefinition (through the owner's general types) whenever the redefining
+          feature's owner was itself a
           usage-level subsetting (not a `part def` specialization), the exact shape used by the
           OMG corpus fixture `1c-PartsTreeRedefinition.sysml`.
         tests:

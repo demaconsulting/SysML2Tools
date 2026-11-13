@@ -261,33 +261,38 @@ lexer/recursive-descent-parser internals could violate that contract despite `Pa
   candidate set, adds matches to the resolved `ExposedScope.ExplicitMembers`, and falls back to
   whole-subtree inclusion (`Subjects`) plus a recorded `BracketFilterFailure` on parse or
   evaluation failure. No change was required in this unit to support this second caller.
+- `FilterExpressionEvaluator.CreateImportFilter` is the internal entry point
+  `ReferenceResolver` (Language Semantic subsystem) uses to evaluate filtered imports while the
+  workspace is still being resolved. It takes the declarations and stdlib names directly (no
+  `SysmlWorkspace` exists yet), and caches each import's parsed `FilterExpression` so the
+  expression text is parsed once per import node.
 - `FilterExpressionParserTests` and `FilterExpressionEvaluatorTests` exercise the parser,
   pretty-printer, and evaluator directly.
 
 #### Requirements Traceability
 
-- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-FilteredImportNameResolution` —
-  `FilterExpressionEvaluator.CreateNameResolver`
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-FilteredImportNameResolution` —
+  `FilterExpressionEvaluator.CreateNameResolver`, `FilterExpressionEvaluator.CreateImportFilter`
 
-- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-ClassificationTests` —
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-ClassificationTests` —
   `FilterExpressionParser.Parse`, `FilterExpressionEvaluator.FindMetadata`,
   `FilterExpressionEvaluator.Evaluate`
-- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-BooleanConnectives` —
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-BooleanConnectives` —
   `FilterExpressionParser.TryBuild`, `BooleanFilterExpression.ToString()`,
   `FilterExpressionEvaluator.Evaluate`
-- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-AttributeReads` —
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-AttributeReads` —
   `FilterExpressionParser.BuildAttributeReadOnto`,
   `FilterExpressionParser.BuildComparison`, `FilterExpressionEvaluator.ReadAttribute`,
   `FilterExpressionEvaluator.EvaluateComparison`
-- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-UnsupportedConstructDiagnostics` —
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-UnsupportedConstructDiagnostics` —
   `CollectingErrorListener`, `FilterExpressionParser.Unsupported`,
   `FilterExpressionParser.TryBuildLiteral`, `FilterExpressionEvaluator.Evaluate`,
   `FilterExpressionParser.ExceedsMaxNestingDepth` (deep-nesting guard), `FilterExpressionParser.Parse`'s
   broadened `catch (Exception)` (astral Unicode / other ANTLR-internal failures), and `Parse`'s
   post-parse EOF check (trailing-content diagnostic)
-- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-RoundTripPrettyPrinting` —
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-RoundTripPrettyPrinting` —
   `FilterExpression.ToString()` overrides, `FilterExpressionParser.Parse`, and
   `FilterExpressionParser.TryBuildLiteral`'s `double.IsFinite` check (numeric-literal-overflow guard)
-- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-MetaclassKindClassificationTests` —
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-MetaclassKindClassificationTests` —
   `FilterExpressionEvaluator.MatchesMetaclassKind`, `MetaclassNames`, `MetaclassNameMatches`,
   `ConformsToMetaclass` (specialization-conformance walk)

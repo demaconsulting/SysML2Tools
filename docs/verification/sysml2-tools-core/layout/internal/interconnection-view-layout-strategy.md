@@ -167,6 +167,9 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_RootContent_IsNestedAsRootBoxChildren` | Root box nesting invariant |
 | `InterconnectionView_BuildLayout_SameNamedContainerDefs_ExpandsOwnPackagesDefinition` | Own same-named def |
 | `InterconnectionView_BuildLayout_SameNamedImportsInOneFile_ExpandsOwnImportsDefinition` | Own import's def |
+| `InterconnectionView_BuildLayout_PrivateMemberTyping_IsFlaggedNotSilent` | Private typing flagged |
+| `InterconnectionView_BuildLayout_ImportOfSiblingPackage_IsFlaggedNotSilent` | Another package's import flagged |
+| `InterconnectionView_BuildLayout_FilteredOutImportCandidate_IsFlaggedNotSilent` | Filtered-out typing flagged |
 | `InterconnectionView_BuildLayout_DocumentedDefinitions_DrawNoDocumentation` | No `doc` text drawn |
 | `InterconnectionView_BuildLayout_TwoConnectionsSamePair_ProducesTwoConnectorsWithoutException` | Distinct waypoints |
 | `InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors` | Six labeled ports |

@@ -35,7 +35,19 @@ external services or additional configuration are required beyond a standard .NE
   it, even when the named identifier is not declared anywhere in the file.
 - A resolved feature redefinition reference (`redefines X;` / `:>> X`) is recorded as a
   `Redefinition`-kind `SysmlEdge`; an unresolved one produces a Warning diagnostic naming the
-  unresolved identifier and no edge, mirroring `FeatureTyping`'s resolution behavior exactly.
+  unresolved identifier and no edge. A redefinition never resolves to the redefining feature
+  itself or to a private inherited member, and a qualified target resolves even when the owner
+  has no general types.
+- A private (or, outside a specialization, protected) member is not reachable through a
+  qualified name, short name, alias, or `expose` from another package: no edge and an
+  `Unresolved reference` Warning. `import all`, references from the owning package, and (for
+  protected members) specializations still resolve it.
+- A filtered import (`import P::*[@X];`, also recursive) admits only the candidates its filter
+  accepts — including a candidate whose metadata is declared in a later file, and metaclass-kind
+  filters; a rejected candidate gets no edge and an `Unresolved reference` Warning.
+- An import applies only to the namespace declaring it and the namespaces nested in it, an
+  import written at the root of a file applies to that file only, and a private import is not
+  re-exported.
 - A standalone `dependency A, B to C, D;` declaration resolves each `FromNames`/`ToNames` entry
   independently and emits one `Dependency`-kind `SysmlEdge` per resolved (from, to) pair (a
   cross product); an unresolvable name on either side produces its own Warning diagnostic
@@ -52,7 +64,10 @@ external services or additional configuration are required beyond a standard .NE
   every segment resolves via the fallback branch, and the returned qualified name is still
   instance-relative (e.g. `Drone::controller::power`, not the shared port type's own declared
   path), so that two structurally distinct endpoints of the same type never collapse to the same
-  resolved name.
+  resolved name. Segments after the first match public members only (visible resolution in the
+  previous feature): a private or protected member of the segment's type or of an inherited
+  supertype, or a private inline member, gives no edge and an unresolved-reference Warning,
+  while a private feature as the *first* segment still resolves locally.
 - A `SysmlTransitionNode`'s `Source` that names an inherited pseudostate feature (`"start"`
   or `"done"`) not declared locally on the enclosing state/usage resolves via the new
   `TryResolveInheritedActionMember` fallback — including the narrow last-resort case where no
@@ -86,6 +101,30 @@ external services or additional configuration are required beyond a standard .NE
 | Bare-name feature | `WorkspaceLoader_LoadAsync_BareRedefinitionOfInheritedFeature_RecordsRedefinitionEdgeNoWarning` |
 | Out-of-order | `WorkspaceLoader_LoadAsync_OutOfOrderRedefinitionChain_RecordsRedefinitionEdgeNoWarning` |
 | Cross-file | `WorkspaceLoader_LoadAsync_CrossFileOutOfOrderRedefinitionChain_RecordsRedefinitionEdgeNoWarning` |
+| Later-file ancestor | `WorkspaceLoader_LoadAsync_BareRedefinitionOfInheritedFeatureInLaterFile_Resolves` |
+| Never to self | `WorkspaceLoader_LoadAsync_RedefinitionQualifiedTargetOrOnlySelf_ResolvesLenientlyNeverToSelf` |
+| Private not redefined | `WorkspaceLoader_LoadAsync_RedefinitionOfPrivateInheritedMember_NoEdgeAndWarning` |
+| Private direct member | `WorkspaceLoader_LoadAsync_RedefinitionOfPrivateDirectSupertypeMember_NoEdgeAndWarning` |
+| Resolver private | `NameResolver_ResolveRedefinedFeature_PrivateMemberOfDirectGeneral_DoesNotResolve` |
+| Chain to private/protected member | `WorkspaceLoader_LoadAsync_FeatureChainToNonPublicMember_NoEdgeAndWarning` |
+| Chain to private inline member | `WorkspaceLoader_LoadAsync_FeatureChainToPrivateInlineMember_NoEdgeAndWarning` |
+| Chain public ok | `WorkspaceLoader_LoadAsync_FeatureChainToPublicMembersAndPrivateFirstSegment_RecordsConnectEdges` |
+| Private qualified | `WorkspaceLoader_LoadAsync_PrivateMemberQualifiedFromOtherPackage_NoEdgeAndWarning` |
+| Private short name and alias | `WorkspaceLoader_LoadAsync_PrivateShortNameAndAlias_NotResolvableFromOtherPackage` |
+| Protected member, specialization only | `WorkspaceLoader_LoadAsync_ProtectedMember_VisibleToSpecializationOnly` |
+| `import all` and own-package access | `WorkspaceLoader_LoadAsync_ImportAllAndOwnPackage_ResolvePrivateMember` |
+| Expose of a private member | `WorkspaceLoader_LoadAsync_ExposePrivateMember_NoExposeEdgeAndWarning` |
+| Filtered import rejects candidate | `WorkspaceLoader_LoadAsync_FilteredImport_RejectsUnannotatedCandidate` |
+| Filtered recursive import | `WorkspaceLoader_LoadAsync_FilteredRecursiveImport_SkipsRejectedFindsDeeperMatch` |
+| Later-file metadata | `WorkspaceLoader_LoadAsync_FilteredImportWithMetadataInLaterFile_MatchesQualifiedAnnotation` |
+| Metaclass-kind filter | `WorkspaceLoader_LoadAsync_FilteredImportWithMetaclassKind_AdmitsMatchingKindOnly` |
+| Import scoped to its package | `WorkspaceLoader_LoadAsync_ImportInSiblingPackage_DoesNotApplyToOtherPackage` |
+| Outer import seen by nested package | `WorkspaceLoader_LoadAsync_ImportInOuterPackage_AppliesToNestedPackage` |
+| File-root import scoped to its file | `WorkspaceLoader_LoadAsync_FileRootImport_AppliesToItsOwnFileOnly` |
+| Top-level supertype via root import | `WorkspaceLoader_LoadAsync_TopLevelSupertypeViaRootImport_ResolvesMembers` |
+| Split package, own imports | `WorkspaceLoader_LoadAsync_SameTopLevelNameInTwoFiles_EachUsesItsOwnRootImports` |
+| Split package, general types | `WorkspaceLoader_LoadAsync_SameTopLevelNameInTwoFiles_GeneralTypesUseOwnRootImports` |
+| Private import not re-exported | `WorkspaceLoader_LoadAsync_PrivateImport_IsNotReExported` |
 | OMG `RedefinitionExample` | `WorkspaceLoader_LoadAsync_RedefinitionExampleFixture_NoUnresolvedReferenceWarnings` |
 | OMG PartsTree fixture | `WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings` |
 | Dependency binary ends | `WorkspaceLoader_LoadAsync_DependencyBinaryEnds_RecordsDependencyEdge` |

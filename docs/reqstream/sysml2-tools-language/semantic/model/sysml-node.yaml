@@ -77,7 +77,7 @@ sections:
           [<expr>];` member, or null when absent.
         justification: |
           Making a view's declared filter expression user-observable data is required so
-          callers can observe it as raw source text and pass it to the Core Filtering subsystem;
+          callers can observe it as raw source text and pass it to the Language Filtering subsystem;
           this semantic-model field remains capture-only and does not itself perform evaluation.
         tests:
           - WorkspaceLoader_LoadAsync_ViewFilterExpression_CapturesTextVerbatimNoEdge

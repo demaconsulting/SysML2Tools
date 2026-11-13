@@ -30,7 +30,9 @@ and supertype/typing/metadata-type/import reference resolution over all loaded f
 
 - *Type*: In-process .NET internal method.
 - *Role*: Provider.
-- *Contract*: Accepts a list of `(FilePath, Root)` pairs; emits Warning diagnostics for
+- *Contract*: Accepts a list of `(FilePath, Root)` pairs; resolves every reference by KerML
+  8.2.3.5 name resolution (member visibility, filtered imports, and import scoping honored);
+  emits Warning diagnostics for
   unresolved supertype, typing, metadata-type, and import references and for circular import
   chains; attaches resolved `SysmlEdge` entries to each node's `ResolvedEdges`; returns a
   `SemanticIndex` over all resolved edges.
@@ -40,7 +42,8 @@ and supertype/typing/metadata-type/import reference resolution over all loaded f
 - *Type*: In-process .NET public method (also `ResolveRedefinedFeature`, `ResolveWithFallback`).
 - *Role*: Provider.
 - *Contract*: Accepts a reference and the local namespace's qualified name; returns the resolved
-  element's qualified name, or `null` when it does not resolve.
+  element's qualified name, or `null` when it does not resolve. `ReferenceResolver` uses an
+  internal resolving mode (general types from raw references, file-root imports).
 
 **`SupertypeWalker.WalkAll()`**: Traverses all specialization chains to detect cyclic specialization.
 
@@ -64,8 +67,8 @@ over resolved edges.
 | --- | --- |
 | `AstBuilder` | Visits ANTLR4 CST; builds typed AST nodes, metadata children, and raw view-filter text |
 | `SymbolTable` | Registry mapping fully-qualified names to their AST nodes |
-| `ReferenceResolver` | Resolves supertype, typing, redefinition, metadata-type, import, and other references |
-| `NameResolver` | Resolves names per KerML 8.2.3.5 (owned/imported/inherited/alias; full and visible) |
+| `ReferenceResolver` | Resolves all references by KerML name resolution (via `NameResolver`) |
+| `NameResolver` | Resolves names per KerML 8.2.3.5 (owned/imported/inherited; full and visible) |
 | `SupertypeWalker` | Walks specialization chains; detects cyclic specialization |
 | `SysmlNode` | Public abstract base record (and core subtypes) modeling one parsed AST element |
 | `SysmlMetadataNode` | Public node type modeling one applied metadata annotation and its captured values |

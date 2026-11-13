@@ -3,11 +3,12 @@
 ## Verification Approach
 
 System-level verification for the `DemaConsulting.SysML2Tools` core library uses unit tests
-in `DemaConsulting.SysML2Tools.Tests`. Tests exercise the Filtering, Layout, Rendering, Io,
-and Query subsystems via `FilterExpressionParser`, `FilterExpressionEvaluator`,
-`DiagramRenderer`, `GeneralViewLayoutStrategy`, `GlobFileCollector`, `QueryEngine`,
+in `DemaConsulting.SysML2Tools.Tests`. Tests exercise the Layout, Rendering, Io,
+and Query subsystems via `DiagramRenderer`, `GeneralViewLayoutStrategy`, `GlobFileCollector`, `QueryEngine`,
 `QueryResultRenderer`, and `QueryResultExporter`, along with the shared
-`ExposeScopeResolver`-based expose-scoping path exercised by all seven layout strategies.
+`ExposeScopeResolver`-based expose-scoping path exercised by all seven layout strategies (which
+consume the Language library's `FilterExpressionParser`/`FilterExpressionEvaluator`; those are
+verified in `docs/verification/sysml2-tools-language/filtering.md`).
 The xUnit v3 framework discovers and runs all test methods; results are captured in TRX files
 consumed by ReqStream.
 
@@ -20,7 +21,8 @@ SDK installation.
 ## Acceptance Criteria
 
 - All unit tests pass with zero failures across all four target frameworks.
-- `FilterExpressionParser` and `FilterExpressionEvaluator` correctly narrow candidate elements for
+- `FilterExpressionParser` and `FilterExpressionEvaluator` (verified in the Language library's
+  Filtering subsystem) correctly narrow candidate elements for
   the supported Phase 1 standalone view-filter subset and degrade safely on unsupported input.
 - `DiagramRenderer.RenderWorkspace` correctly renders views declared in a `SysmlWorkspace`.
 - `GeneralViewLayoutStrategy` produces a valid `LayoutTree` for a given `ViewContext`.

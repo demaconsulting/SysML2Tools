@@ -80,7 +80,7 @@ internal static class ExportCommand
     ///         <item><description>
     ///         <c>--filter</c> (when supplied) narrows the (possibly <c>--target</c>-scoped)
     ///         declaration set last, using <see cref="FilterExpressionParser"/>/
-    ///         <see cref="FilterExpressionEvaluator"/> (both public <c>Core.Filtering</c> types,
+    ///         <see cref="FilterExpressionEvaluator"/> (both public <c>Language.Filtering</c> types,
     ///         reused directly — unlike the target-subtree helper below, no duplication is
     ///         needed here). A parse/evaluation failure does not abort the export: it falls back
     ///         to the unfiltered (but still target-scoped, if applicable) result, with a synthetic

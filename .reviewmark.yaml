@@ -168,12 +168,17 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SysmlEdge.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SemanticIndex.cs"
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SysmlAnnotation.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Filtering/FilterExpression.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Filtering/FilterExpressionParser.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Filtering/FilterExpressionEvaluator.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/WorkspaceParserTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Parser/OmgModelsTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/WorkspaceLoaderTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/SemanticOmgModelsTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/NameResolverTests.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstSerializerTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Filtering/FilterExpressionParserTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Filtering/FilterExpressionEvaluatorTests.cs"
 
   # SysML2Tools Stdlib Library
   - id: SysML2Tools-Stdlib-Architecture
@@ -469,6 +474,54 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Language/Semantic/Model/SysmlEdge.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Semantic/AstBuilderMetadataTests.cs"
 
+  - id: SysML2Tools-Language-Filtering-Design
+    title: Review that DemaConsulting.SysML2Tools.Language Filtering Design is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-language.yaml
+      - docs/reqstream/sysml2-tools-language/filtering.yaml
+    paths:
+      - "docs/design/introduction.md"
+      - "docs/design/sysml2-tools-language.md"
+      - "docs/design/sysml2-tools-language/filtering.md"
+      - "docs/design/sysml2-tools-language/filtering/**/*.md"
+
+  - id: SysML2Tools-Language-Filtering-Verification
+    title: Review that DemaConsulting.SysML2Tools.Language Filtering Verification is Consistent and Complete
+    context:
+      - docs/reqstream/sysml2-tools-language.yaml
+      - docs/reqstream/sysml2-tools-language/filtering.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/sysml2-tools-language.md"
+      - "docs/verification/sysml2-tools-language/filtering.md"
+      - "docs/verification/sysml2-tools-language/filtering/**/*.md"
+
+  - id: SysML2Tools-Language-Filtering-AllRequirements
+    title: Review that All DemaConsulting.SysML2Tools.Language Filtering Requirements are Complete
+    context:
+      - docs/design/sysml2-tools-language.md
+      - docs/reqstream/sysml2-tools-language.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-language/filtering.yaml"
+      - "docs/reqstream/sysml2-tools-language/filtering/**/*.yaml"
+
+  - id: SysML2Tools-Language-Filtering-FilterExpressionEvaluator
+    title: Review that DemaConsulting.SysML2Tools.Language Filtering FilterExpressionEvaluator Implementation is Correct
+    context:
+      - docs/design/sysml2-tools-language.md
+      - docs/reqstream/sysml2-tools-language.yaml
+      - docs/design/sysml2-tools-language/filtering.md
+      - docs/reqstream/sysml2-tools-language/filtering.yaml
+    paths:
+      - "docs/reqstream/sysml2-tools-language/filtering/filter-expression-evaluator.yaml"
+      - "docs/design/sysml2-tools-language/filtering/filter-expression-evaluator.md"
+      - "docs/verification/sysml2-tools-language/filtering/filter-expression-evaluator.md"
+      - "src/DemaConsulting.SysML2Tools.Language/Filtering/FilterExpression.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Filtering/FilterExpressionParser.cs"
+      - "src/DemaConsulting.SysML2Tools.Language/Filtering/FilterExpressionEvaluator.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Filtering/FilterExpressionParserTests.cs"
+      - "test/DemaConsulting.SysML2Tools.Tests/Filtering/FilterExpressionEvaluatorTests.cs"
+
   - id: SysML2Tools-Core-Layout-Design
     title: Review that DemaConsulting.SysML2Tools Layout Design is Consistent and Complete
     context:
@@ -577,54 +630,6 @@ reviews:
       - "src/DemaConsulting.SysML2Tools.Core/Utilities/QualifiedNameShortener.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Query/*.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Utilities/QualifiedNameShortenerTests.cs"
-
-  - id: SysML2Tools-Core-Filtering-Design
-    title: Review that DemaConsulting.SysML2Tools Filtering Design is Consistent and Complete
-    context:
-      - docs/reqstream/sysml2-tools-core.yaml
-      - docs/reqstream/sysml2-tools-core/filtering.yaml
-    paths:
-      - "docs/design/introduction.md"
-      - "docs/design/sysml2-tools-core.md"
-      - "docs/design/sysml2-tools-core/filtering.md"
-      - "docs/design/sysml2-tools-core/filtering/**/*.md"
-
-  - id: SysML2Tools-Core-Filtering-Verification
-    title: Review that DemaConsulting.SysML2Tools Filtering Verification is Consistent and Complete
-    context:
-      - docs/reqstream/sysml2-tools-core.yaml
-      - docs/reqstream/sysml2-tools-core/filtering.yaml
-    paths:
-      - "docs/verification/introduction.md"
-      - "docs/verification/sysml2-tools-core.md"
-      - "docs/verification/sysml2-tools-core/filtering.md"
-      - "docs/verification/sysml2-tools-core/filtering/**/*.md"
-
-  - id: SysML2Tools-Core-Filtering-AllRequirements
-    title: Review that All DemaConsulting.SysML2Tools Filtering Requirements are Complete
-    context:
-      - docs/design/sysml2-tools-core.md
-      - docs/reqstream/sysml2-tools-core.yaml
-    paths:
-      - "docs/reqstream/sysml2-tools-core/filtering.yaml"
-      - "docs/reqstream/sysml2-tools-core/filtering/**/*.yaml"
-
-  - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator
-    title: Review that DemaConsulting.SysML2Tools Filtering FilterExpressionEvaluator Implementation is Correct
-    context:
-      - docs/design/sysml2-tools-core.md
-      - docs/reqstream/sysml2-tools-core.yaml
-      - docs/design/sysml2-tools-core/filtering.md
-      - docs/reqstream/sysml2-tools-core/filtering.yaml
-    paths:
-      - "docs/reqstream/sysml2-tools-core/filtering/filter-expression-evaluator.yaml"
-      - "docs/design/sysml2-tools-core/filtering/filter-expression-evaluator.md"
-      - "docs/verification/sysml2-tools-core/filtering/filter-expression-evaluator.md"
-      - "src/DemaConsulting.SysML2Tools.Core/Filtering/FilterExpression.cs"
-      - "src/DemaConsulting.SysML2Tools.Core/Filtering/FilterExpressionParser.cs"
-      - "src/DemaConsulting.SysML2Tools.Core/Filtering/FilterExpressionEvaluator.cs"
-      - "test/DemaConsulting.SysML2Tools.Tests/Filtering/FilterExpressionParserTests.cs"
-      - "test/DemaConsulting.SysML2Tools.Tests/Filtering/FilterExpressionEvaluatorTests.cs"
 
   # === Layout Internal subsystem and view-strategy units ===
   - id: SysML2Tools-Core-Layout-Internal

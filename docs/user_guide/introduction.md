@@ -103,6 +103,23 @@ This structured output is suitable for:
 - CI/CD pipelines that fail the build on model errors
 - AI-assisted model authoring loops that parse diagnostics and propose fixes
 
+References are resolved by the SysML v2 / KerML name-resolution rules, so an
+`Unresolved reference` warning also reports a name that exists but is not reachable from
+where it is used:
+
+- a **private** (or, outside a specialization, **protected**) member of another package
+  referenced through a qualified name (`P::Hidden`), short name, or alias;
+- a candidate a **filtered import** (`import P::*[@Safety];`) rejects;
+- a name that is only reachable through an `import` declared in a *different* package — an
+  import applies to the package that declares it (and the packages nested in it), while an
+  import written at the root of a file applies to that whole file.
+
+Add an import to the package that needs the name, qualify the reference, make the member
+public (or use `import all`), or adjust the filter. Layout views still draw such a reference
+when a same-named element exists, but only through the simple-name fallback, which always
+adds a "does not resolve by SysML v2 name resolution ... matched ... by simple name only"
+warning. A package-level `filter` statement is not honored when resolving imports.
+
 # Rendering
 
 The `render` command loads a workspace, resolves a view, and renders it to SVG or PNG.

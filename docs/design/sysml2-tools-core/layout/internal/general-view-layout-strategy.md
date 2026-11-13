@@ -242,10 +242,10 @@ self-references are skipped.
 **Resolving a reference to a box (`TypeResolver`).** Because packages may reuse a simple name for
 distinct definitions, every reference is resolved in this order: (1) the semantic model's
 already-resolved target — a membership's `FeatureMembership.ResolvedTypeName` (the feature's own
-`Typing` edge) via `TryResolveMemberType`, or the definition's own `Supertype` edge whose target is,
-or ends with, the raw reference via `TryResolveSupertype` — re-checked with `NameResolver.Recheck`,
-so a different element found by KerML resolution (e.g. through the referencing namespace's own
-imports) wins; otherwise (2) KerML 1.1 Beta 2
+`Typing` edge) via `TryResolveMemberType`, or the definition's own `Supertype` edge paired with the
+raw reference by `PairSupertypeReferences` via `TryResolveSupertype` — used as resolved, since the semantic
+resolver already applies KerML name resolution (member visibility, filtered imports, and import
+scoping), so its answer is authoritative and the layout does not re-check it; otherwise (2) KerML 1.1 Beta 2
 8.2.3.5 name resolution through the Language `NameResolver` (created by
 `FilterExpressionEvaluator.CreateNameResolver`, so filtered imports honor their conditions):
 owned, imported, and inherited memberships — including aliases and short names — of the local
@@ -258,7 +258,27 @@ resolution fails is the reference matched by bare simple name (for type, superty
 redefined references alike), and then a `LayoutWarnings.ForSimpleNameFallback` warning names the
 reference and every candidate instead of silently picking the first match. The warning is recorded
 before the match is checked against the rendered boxes, so a fallback to an element outside the
-exposed scope is still reported even though it draws no edge. Relationship endpoints from `workspace.Index` are already
+exposed scope is still reported even though it draws no edge.
+
+**Pairing supertype references with edges (`PairSupertypeReferences`).** The semantic `Supertype`
+edges follow the declared reference order but omit unresolved references, and `SysmlEdge` carries no
+record of the raw text it came from, so references cannot be paired by position. A resolved target
+whose qualified name merely ends in `::<reference>` is therefore only a candidate: each reference is
+first paired with a target equal to its text, then — for those still unpaired — with the first
+target not yet claimed that the text is a `::`-suffix of, and no target is claimed twice. A
+reference left unpaired is resolved by step (2) above. This is shared with
+`GridViewLayoutStrategy`; `InterconnectionViewLayoutStrategy` does not use it (a part's typing is a
+single edge).
+
+**Decision: the simple-name fallback is retained for rules-rejected references.** A reference the
+KerML rules reject — a private member, a candidate a filtered import excludes, a name reachable
+only through another namespace's import — has no semantic edge and no authoritative
+resolution. If a same-simple-name element exists it is still drawn through the *warned* fallback
+(step 3), never silently: always warning is the documented policy for incomplete models and
+what the existing tests rely on, and the earlier defect was that such a target was drawn
+*without* any warning. Suppressing the fallback for rules-rejected candidates would be a visible
+behavior change beyond making the semantic edges spec-compliant; it is left as a follow-up.
+Relationship endpoints from `workspace.Index` are already
 qualified, so `ResolveOwningBox` maps them only to the box with that exact qualified name or via
 the owning typed-feature walk — never by simple name.
 

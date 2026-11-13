@@ -1,6 +1,6 @@
 <!-- cspell:ignore reparses -->
 
-## DemaConsulting.SysML2Tools — Filtering Subsystem Verification
+## DemaConsulting.SysML2Tools.Language — Filtering Subsystem Verification
 
 ### Verification Approach
 
@@ -45,6 +45,11 @@ are required.
 - (Phase 2a) A bracket-form filter expression that fails to parse or evaluate falls back to the
   whole containment subtree for that entry, and the failure is recorded (not silently dropped) so
   the caller can surface an actionable warning.
+
+- A filtered import (`import P::*[<expr>];`) admits only the candidates its filter accepts, both
+  when a name resolver is created over a loaded workspace and when `ReferenceResolver` produces
+  the semantic edges (verified through `WorkspaceLoaderTests`, see
+  `semantic/model/reference-resolver.md`).
 
 ### Test Scenarios
 

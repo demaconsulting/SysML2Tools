@@ -19,7 +19,7 @@ namespace DemaConsulting.SysML2Tools.Filtering;
 /// Every subtype implements <see cref="ToString"/> as a canonical pretty-printer that produces valid
 /// SysML v2 filter-expression syntax; re-parsing the printed text with
 /// <see cref="FilterExpressionParser.Parse"/> yields a semantically-equivalent tree (the round-trip
-/// requirement — see <c>docs/design/sysml2-tools-core/filtering.md</c>).
+/// requirement — see <c>docs/design/sysml2-tools-language/filtering.md</c>).
 /// </remarks>
 public abstract record FilterExpression
 {

@@ -80,13 +80,16 @@ sections:
         title: >-
           GeneralViewLayoutStrategy shall connect a specialized definition to each of its
           supertypes present in the workspace with a line ending in an open end marker at the
-          supertype.
+          supertype, pairing each supertype reference with its own resolved target.
         justification: |
           Specialization (generalization) relationships are core model structure. Drawing them
           as open-end-marker lines toward the supertype matches diagram notation and makes the
-          inheritance hierarchy visible.
+          inheritance hierarchy visible. Two references that share a simple name (`:> Y::X, X`)
+          must each reach their own target rather than both reaching the first name match.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_Subclassification_ProducesEdge
+          - GeneralViewLayoutStrategy_PairSupertypeReferences_QualifiedAndBareSharingName_PairsEachOwnTarget
+          - GeneralViewLayoutStrategy_PairSupertypeReferences_ReversedOrderAndUnclaimedTargets_PairsWithoutReuse
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-StdlibExclusion
         title: >-
@@ -493,16 +496,24 @@ sections:
           against the owning type's general types) — shall report a warning when only the bare
           simple-name fallback matched, and shall map relationship endpoints that are already
           qualified only to the box with that qualified name or its owning typed feature, never to a
-          same-named box elsewhere.
+          same-named box elsewhere. The semantic model's resolved target already applies KerML member
+          visibility, filtered imports, and import scoping, so it is used as resolved; a reference
+          those rules reject has no semantic edge and is drawn, if at all, only through the warned
+          simple-name fallback.
         justification: |
           Packages commonly reuse a simple name for distinct definitions. Wiring every usage to
           the first same-named box drew one box connected to several unrelated systems plus
-          unconnected duplicates, misrepresenting the architecture.
+          unconnected duplicates, misrepresenting the architecture. Trusting the semantic edge
+          keeps the diagram consistent with the model's resolved references, while the retained
+          warned fallback keeps incomplete models drawable without ever guessing silently.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_SameNamedDefsInSiblingPackages_WiresEachToItsOwn
           - GeneralViewLayoutStrategy_BuildLayout_SimpleNameFallback_ReportsWarning
           - GeneralViewLayoutStrategy_BuildLayout_UnrenderedQualifiedEndpoint_IsNotMappedBySimpleName
           - GeneralViewLayoutStrategy_BuildLayout_FallbackToUnrenderedTarget_StillReportsWarning
+          - GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_IsFlaggedNotSilent
+          - GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_IsFlaggedNotSilent
+          - GeneralViewLayoutStrategy_BuildLayout_ImportOfSiblingPackage_DoesNotResolveForThisPackage
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ViewConditions
         title: >-

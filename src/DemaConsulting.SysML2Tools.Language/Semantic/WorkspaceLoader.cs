@@ -77,7 +77,10 @@ public static class WorkspaceLoader
         }
 
         // Run reference resolution and supertype walking on user files
-        var resolver = new ReferenceResolver(symbolTable, allDiagnostics);
+        var stdlibNames = seedSymbolTable is not null
+            ? new HashSet<string>(seedSymbolTable.Symbols.Keys, StringComparer.Ordinal)
+            : new HashSet<string>(StringComparer.Ordinal);
+        var resolver = new ReferenceResolver(symbolTable, allDiagnostics, stdlibNames);
         var index = resolver.ResolveAll(userAstRoots);
 
         var supertypeWalker = new SupertypeWalker(symbolTable, allDiagnostics);
@@ -87,9 +90,7 @@ public static class WorkspaceLoader
         {
             Files = loadedFiles,
             Declarations = symbolTable.Symbols,
-            StdlibNames = seedSymbolTable is not null
-                ? new HashSet<string>(seedSymbolTable.Symbols.Keys, StringComparer.Ordinal)
-                : new HashSet<string>(StringComparer.Ordinal),
+            StdlibNames = stdlibNames,
             Index = index,
         };
 

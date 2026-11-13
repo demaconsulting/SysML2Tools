@@ -20,6 +20,11 @@ SDK installation.
 - Invalid SysML syntax produces at least one `Error`-severity diagnostic.
 - `WorkspaceLoader` correctly registers qualified names from SysML packages and definitions.
 - Unresolved supertype references produce `Warning`-severity diagnostics.
+- References follow KerML 8.2.3.5 name resolution: a private (or protected) member is not
+  reachable through a qualified name from another package, a filtered import
+  (`import P::*[@X];`) admits only the elements its filter accepts, and an import applies only
+  to the namespace that declares it (and the namespaces nested in it) — a rejected reference
+  produces an `Unresolved reference` `Warning`-severity diagnostic and no edge.
 - Circular imports between two files produce at least one `Warning`-severity diagnostic.
 - Resolved supertype, feature-typing, redefinition, and import references are recorded as
   `SysmlEdge` entries queryable via `SysmlWorkspace.Index.GetOutgoingEdges`/`GetIncomingEdges`

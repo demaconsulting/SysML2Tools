@@ -152,7 +152,9 @@ sections:
           `rearAxle.leftHalfAxle.axleToWheelPort`) referenced by connection/message endpoints and
           transition source/target into Connect/Transition-kind edges recorded on the semantic
           index, walking direct-child membership first and typing/supertype-inherited membership
-          second, preserving an instance-relative qualified name for the resolved endpoint even
+          second (public members only — each segment after the first is a visible-resolution
+          lookup in the previous feature, so private and protected members never match),
+          preserving an instance-relative qualified name for the resolved endpoint even
           when a segment resolves via the typing/supertype-inherited fallback branch, and
           gracefully degrading to a Warning diagnostic with no edge when any side is unresolvable.
         tags: [system]
@@ -176,6 +178,9 @@ sections:
           - WorkspaceLoader_LoadAsync_TransitionSourceAndTarget_RecordsTransitionEdge
           - WorkspaceLoader_LoadAsync_TransitionImpliedSource_ProducesNoEdge
           - WorkspaceLoader_LoadAsync_ConnectionChain_SupertypeCycleTerminatesGracefully
+          - WorkspaceLoader_LoadAsync_FeatureChainToNonPublicMember_NoEdgeAndWarning
+          - WorkspaceLoader_LoadAsync_FeatureChainToPrivateInlineMember_NoEdgeAndWarning
+          - WorkspaceLoader_LoadAsync_FeatureChainToPublicMembersAndPrivateFirstSegment_RecordsConnectEdges
           - WorkspaceLoader_LoadAsync_ConnectionsExampleFixture_RecordsConnectEdge
           - WorkspaceLoader_LoadAsync_2aPartsInterconnectionFixture_RecordsConnectEdge
           - WorkspaceLoader_LoadAsync_2cPartsInterconnectionFixture_RecordsConnectEdge

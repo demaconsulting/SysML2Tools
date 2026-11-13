@@ -899,6 +899,76 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
+    /// Pairs each raw supertype reference of a definition with the resolved
+    /// <see cref="SysmlEdgeKind.Supertype"/> edge target that answers it, so every reference is
+    /// drawn to its own target. A resolved target whose qualified name is a <c>::</c>-suffix of
+    /// the raw text (e.g. <c>X</c> resolving to <c>P::X</c>) is only a candidate: a reference
+    /// is first paired with a target equal to its text, then — for the references still
+    /// unpaired — with the first not-yet-claimed target the text is a suffix of, and no target is
+    /// claimed twice. Without this, <c>:&gt; Y::X, X</c> (with the bare <c>X</c> resolving to
+    /// <c>P::X</c>) would pair both references with <c>Y::X</c>. The semantic edges are produced
+    /// in reference order but omit unresolved references, so positional pairing is not possible
+    /// from the edges alone; this claimed-target matching is the documented compromise.
+    /// Shared with <see cref="GridViewLayoutStrategy"/>.
+    /// </summary>
+    /// <param name="rawReferences">The definition's raw supertype reference texts.</param>
+    /// <param name="resolvedTargets">The definition's resolved supertype edge targets.</param>
+    /// <returns>
+    /// For each raw reference, in order, its paired resolved target, or <see langword="null"/>
+    /// when none is available (the caller then resolves the reference itself).
+    /// </returns>
+    internal static IReadOnlyList<string?> PairSupertypeReferences(
+        IReadOnlyList<string> rawReferences, IReadOnlyList<string> resolvedTargets)
+    {
+        var paired = new string?[rawReferences.Count];
+        var claimed = new bool[resolvedTargets.Count];
+
+        // Pass 1: exact matches.
+        for (var i = 0; i < rawReferences.Count; i++)
+        {
+            var j = FindUnclaimed(resolvedTargets, claimed, target => target == rawReferences[i]);
+            if (j >= 0)
+            {
+                claimed[j] = true;
+                paired[i] = resolvedTargets[j];
+            }
+        }
+
+        // Pass 2: suffix matches for the references still unpaired.
+        for (var i = 0; i < rawReferences.Count; i++)
+        {
+            if (paired[i] is not null)
+            {
+                continue;
+            }
+
+            var suffix = "::" + rawReferences[i];
+            var j = FindUnclaimed(resolvedTargets, claimed, target => target.EndsWith(suffix, StringComparison.Ordinal));
+            if (j >= 0)
+            {
+                claimed[j] = true;
+                paired[i] = resolvedTargets[j];
+            }
+        }
+
+        return paired;
+    }
+
+    /// <summary>Returns the index of the first target not yet claimed that satisfies <paramref name="matches"/>, or -1.</summary>
+    private static int FindUnclaimed(IReadOnlyList<string> targets, bool[] claimed, Func<string, bool> matches)
+    {
+        for (var j = 0; j < targets.Count; j++)
+        {
+            if (!claimed[j] && matches(targets[j]))
+            {
+                return j;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
     /// Resolves the specialization, membership, attribute-typing, redefinition, subsetting,
     /// connect, allocate, dependency, and binding relationships across every definition (regardless
     /// of package) into a flat list of qualified-name edges. Self-references and unresolved targets
@@ -934,9 +1004,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 : [];
 
             // Specialization: subtype → supertype, open arrowhead at the supertype (target) end.
-            foreach (var supertype in def.SupertypeNames)
+            // Each raw reference is paired with its own resolved edge (see PairSupertypeReferences).
+            var paired = PairSupertypeReferences(def.SupertypeNames, resolvedSupertypes);
+            for (var i = 0; i < def.SupertypeNames.Count; i++)
             {
-                if (types.TryResolveSupertype(supertype, def.QualifiedName, resolvedSupertypes, out var target) &&
+                if (types.TryResolveSupertype(def.SupertypeNames[i], paired[i], def.QualifiedName, out var target) &&
                     target != def.QualifiedName)
                 {
                     edges.Add(new ModelEdge(def.QualifiedName, target, EndMarkerStyle.HollowTriangle, EdgeKind.Specialization));
@@ -1205,9 +1277,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Resolves the type, supertype, redefinition, and subsetting references of rendered boxes to
-    /// other rendered boxes. A reference already resolved by the semantic model is re-checked with
-    /// <see cref="NameResolver.Recheck"/> (KerML resolution wins when it finds a different element);
-    /// otherwise it is resolved by KerML 8.2.3.5 name resolution (<see cref="NameResolver"/>:
+    /// other rendered boxes. A reference already resolved by the semantic model is used as
+    /// resolved — the semantic resolver applies KerML 8.2.3.5 itself (member visibility, filtered
+    /// imports, and import scoping), so its answer is authoritative; otherwise it is resolved by
+    /// KerML 8.2.3.5 name resolution (<see cref="NameResolver"/>:
     /// owned, imported, and inherited memberships — including aliases and short names — of the
     /// local namespace, then outward through owning namespaces to the global namespace, with later
     /// qualified-name segments by visible resolution). Only when that fails is the tool's bare
@@ -1239,9 +1312,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         {
             if (membership.ResolvedTypeName is { } resolved)
             {
-                qualified = membership.TypeName is { Length: > 0 } raw
-                    ? _resolver.Recheck(resolved, raw, ownerQualifiedName)
-                    : resolved;
+                qualified = resolved;
                 return _rendered.Contains(qualified);
             }
 
@@ -1250,22 +1321,21 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         }
 
         /// <summary>
-        /// Resolves a definition's raw supertype reference: the definition's resolved
-        /// <see cref="SysmlEdgeKind.Supertype"/> target whose qualified name is, or ends with, the
-        /// reference; else the reference relative to the definition's owning namespace
+        /// Resolves a definition's raw supertype reference: the resolved
+        /// <see cref="SysmlEdgeKind.Supertype"/> edge target
+        /// <paramref name="pairedEdgeTarget"/> that <see cref="PairSupertypeReferences"/> paired with
+        /// this reference, if any; else the reference relative to the definition's owning namespace
         /// (KerML 8.2.3.5.2: a Specialization's local namespace is its owning type's owning namespace).
         /// </summary>
         public bool TryResolveSupertype(
             string supertype,
+            string? pairedEdgeTarget,
             string subtypeQualifiedName,
-            IReadOnlyList<string> resolvedSupertypes,
             [MaybeNullWhen(false)] out string qualified)
         {
-            var resolved = resolvedSupertypes.FirstOrDefault(target =>
-                target == supertype || target.EndsWith("::" + supertype, StringComparison.Ordinal));
-            if (resolved is not null)
+            if (pairedEdgeTarget is not null)
             {
-                qualified = _resolver.Recheck(resolved, supertype, OwnerOf(subtypeQualifiedName));
+                qualified = pairedEdgeTarget;
                 return _rendered.Contains(qualified);
             }
 

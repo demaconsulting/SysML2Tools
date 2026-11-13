@@ -34,6 +34,6 @@ ignored via `TryAdd` — the first registration wins.
 
 - `WorkspaceLoader.LoadAsync` — calls `RegisterAll` once per stdlib root and once per user file
   root; reads `Symbols` to build the final `SysmlWorkspace.Declarations`.
-- `ReferenceResolver` — calls `Contains` to check supertype name resolution.
+- `ReferenceResolver` — calls `Symbols` (via `NameResolver`) and `Lookup` for resolution.
 - `SupertypeWalker` — reads `Symbols` to iterate all registered names; calls `Lookup` to
   retrieve supertype nodes for chain traversal.

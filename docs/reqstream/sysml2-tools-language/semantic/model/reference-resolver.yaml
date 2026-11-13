@@ -9,23 +9,78 @@ sections:
     requirements:
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-Resolve
         title: >-
-          ReferenceResolver.ResolveAll shall check each supertype name referenced by
-          AST nodes against the symbol table and produce a Warning for any unresolved name —
-          for a usage/feature node, falling back to the same bare-name supertype/redefinition
-          ancestor-chain walk used for RedefinedFeatureName when the standard lookup fails,
-          since a usage-level `subsets`/`:>` clause commonly names an inherited member.
+          ReferenceResolver.ResolveAll shall resolve every reference (supertype, typing,
+          redefinition, import, requirement-trace, and expose names) by KerML 8.2.3.5 name
+          resolution from the referencing element's local namespace — including the memberships
+          the owner inherits for a usage-level `subsets`/`:>` clause — and produce a Warning for
+          any unresolved name.
         justification: |
           Unresolved references indicate model incompleteness. Reporting as Warnings allows
           the caller to continue analysis and provide partial results. A usage-level
           `subsets`/`:>` clause (e.g. `part frontWheel_1 subsets frontWheel = ...;`) is, per the
           SysML v2 spec, commonly a bare reference to a member the owner inherits rather than
-          declares itself — the same dominant shape as a bare `redefines` reference — so
-          omitting the ancestor-chain fallback here would reintroduce the same false-warning
-          defect this fix addresses for RedefinedFeatureName. The fallback is skipped for
-          definition-level SupertypeNames (`part def X :> Y`), which name the supertype directly.
+          declares itself — the same dominant shape as a bare `redefines` reference — which
+          local resolution in the owning namespace finds through the owner's inherited
+          memberships, wherever the ancestor is declared.
         tests:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
           - WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-MemberVisibility
+        title: >-
+          ReferenceResolver.ResolveAll shall honor member visibility: a private (or, outside a
+          specialization, protected) member shall not be reachable through a qualified name, a
+          short name, or an alias from another namespace, and the reference shall produce an
+          unresolved-reference Warning and no edge; `import all` and unqualified references from
+          within the owning namespace (and, for protected members, its specializations) shall
+          still resolve them.
+        justification: |
+          KerML 8.2.3.5 visible resolution. Without it a reference to `P::Hidden` (private) from
+          another package would still receive a Typing edge and be drawn, exposing members their
+          owner deliberately hid.
+        tests:
+          - WorkspaceLoader_LoadAsync_PrivateMemberQualifiedFromOtherPackage_NoEdgeAndWarning
+          - WorkspaceLoader_LoadAsync_PrivateShortNameAndAlias_NotResolvableFromOtherPackage
+          - WorkspaceLoader_LoadAsync_ProtectedMember_VisibleToSpecializationOnly
+          - WorkspaceLoader_LoadAsync_ImportAllAndOwnPackage_ResolvePrivateMember
+          - WorkspaceLoader_LoadAsync_ExposePrivateMember_NoExposeEdgeAndWarning
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-FilteredImports
+        title: >-
+          ReferenceResolver.ResolveAll shall honor the bracket filter of a filtered import
+          (`import P::*[@X];`): a candidate the filter rejects shall not resolve through the
+          import (an unresolved-reference Warning and no edge), a recursive filtered import shall
+          skip a rejected candidate and find a deeper match, and the metadata a filter tests shall
+          be resolved first so a candidate's declaration order or file does not matter.
+        justification: |
+          SysML 7.5.4: a filtered import imports a membership only if it satisfies the filter
+          conditions. Ignoring the filter let a rejected candidate be resolved and drawn in the
+          general, grid, and interconnection views.
+        tests:
+          - WorkspaceLoader_LoadAsync_FilteredImport_RejectsUnannotatedCandidate
+          - WorkspaceLoader_LoadAsync_FilteredRecursiveImport_SkipsRejectedFindsDeeperMatch
+          - WorkspaceLoader_LoadAsync_FilteredImportWithMetadataInLaterFile_MatchesQualifiedAnnotation
+          - WorkspaceLoader_LoadAsync_FilteredImportWithMetaclassKind_AdmitsMatchingKindOnly
+
+      - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-ImportScoping
+        title: >-
+          ReferenceResolver.ResolveAll shall scope an import to the namespace that declares it and
+          the namespaces nested in it, so a sibling namespace does not resolve a name through it,
+          shall apply the imports written at the root of a file to that file only (including when
+          a top-level definition's own inherited members are looked up through a supertype that
+          only that import reaches), and shall not re-export a private import.
+        justification: |
+          KerML 8.2.3.5.3 and 8.3.2.4: an import contributes memberships to the importing
+          namespace only, and only public imports are visible to its importers. Collecting imports
+          file-wide let `PkgB`'s `part q : X` resolve through `PkgA`'s `import A::*`.
+        tests:
+          - WorkspaceLoader_LoadAsync_ImportInSiblingPackage_DoesNotApplyToOtherPackage
+          - WorkspaceLoader_LoadAsync_ImportInOuterPackage_AppliesToNestedPackage
+          - WorkspaceLoader_LoadAsync_FileRootImport_AppliesToItsOwnFileOnly
+          - WorkspaceLoader_LoadAsync_TopLevelSupertypeViaRootImport_ResolvesMembers
+          - WorkspaceLoader_LoadAsync_SameTopLevelNameInTwoFiles_EachUsesItsOwnRootImports
+          - WorkspaceLoader_LoadAsync_SameTopLevelNameInTwoFiles_GeneralTypesUseOwnRootImports
+          - WorkspaceLoader_LoadAsync_PrivateImport_IsNotReExported
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-OwningNamespaceFirst
         title: >-
@@ -115,33 +170,39 @@ sections:
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-RedefinitionResolution
         title: >-
-          ReferenceResolver.ResolveAll shall resolve a feature's RedefinedFeatureName against
-          the symbol table into a Redefinition-kind edge — trying the standard
-          namespace/import-scoped lookup first, then falling back to a supertype/redefinition
-          ancestor-chain walk for the dominant bare-name-referencing-an-inherited-member case —
-          and produce an unresolved-reference Warning diagnostic (with no corresponding edge)
-          only when neither strategy resolves it.
+          ReferenceResolver.ResolveAll shall resolve a feature's RedefinedFeatureName into a
+          Redefinition-kind edge by KerML 8.2.3.5.1 — the basic resolution repeated with each
+          general type of the redefining feature's owning type as the local namespace, in turn,
+          wherever those general types are declared — falling back, leniently, to ordinary
+          resolution from the owning type (so a qualified target still resolves), never resolving
+          to the redefining feature itself or to a private member of a general type (declared on
+          it or inherited through another; a protected member can still be redefined), and
+          producing an
+          unresolved-reference Warning diagnostic (with no corresponding edge) when nothing
+          resolves.
         justification: |
           Resolving RedefinedFeatureName into a Redefinition edge is the prerequisite for
           GeneralViewLayoutStrategy to render the hollow-triangle-crossbar marker, and the
           unresolved-reference diagnostic surfaces a bogus `redefines`/`:>>` target the same way
-          an unresolved supertype or typing reference is surfaced. The plain namespace/import
-          lookup used for FeatureTyping is not sufficient here: per the SysML v2 spec, a
+          an unresolved supertype or typing reference is surfaced. Per the SysML v2 spec, a
           `redefines`/`:>>` target's entire purpose is referencing a member the redefining
           feature *inherits* (typically declared on a supertype, or reachable only via the
-          owner's own already-resolved Redefinition edge), not one declared or imported into the
-          same lexical scope — the dominant shape across the OMG corpus (e.g.
-          `RedefinitionExample.sysml`'s `smallEng redefines eng`,
-          `1c-PartsTreeRedefinition.sysml`'s nested `frontAxle_c1 redefines frontAxle`). The
-          ancestor-chain fallback (`TryResolveBareRedefinition`/`FindMemberInAncestorChain`) is
-          additive and only activates once the standard lookup fails, so previously-successful
-          qualified/scoped resolutions are unaffected.
+          owner's own redefinition), not one declared or imported into the same lexical scope —
+          the dominant shape across the OMG corpus (e.g. `RedefinitionExample.sysml`'s `smallEng
+          redefines eng`, `1c-PartsTreeRedefinition.sysml`'s nested `frontAxle_c1 redefines
+          frontAxle`). The bare shape `:>> mass;` creates a feature named `mass` in the owner, so
+          ordinary resolution would otherwise find the redefining feature itself.
         tests:
           - WorkspaceLoader_LoadAsync_ResolvedRedefinition_RecordsRedefinitionEdge
           - WorkspaceLoader_LoadAsync_UnresolvedRedefinition_ProducesWarningNoEdge
           - WorkspaceLoader_LoadAsync_BareRedefinitionOfInheritedFeature_RecordsRedefinitionEdgeNoWarning
           - WorkspaceLoader_LoadAsync_RedefinitionExampleFixture_NoUnresolvedReferenceWarnings
           - WorkspaceLoader_LoadAsync_1cPartsTreeRedefinitionFixture_NoUnresolvedReferenceWarnings
+          - WorkspaceLoader_LoadAsync_BareRedefinitionOfInheritedFeatureInLaterFile_Resolves
+          - WorkspaceLoader_LoadAsync_RedefinitionQualifiedTargetOrOnlySelf_ResolvesLenientlyNeverToSelf
+          - WorkspaceLoader_LoadAsync_RedefinitionOfPrivateInheritedMember_NoEdgeAndWarning
+          - WorkspaceLoader_LoadAsync_RedefinitionOfPrivateDirectSupertypeMember_NoEdgeAndWarning
+          - NameResolver_ResolveRedefinedFeature_PrivateMemberOfDirectGeneral_DoesNotResolve
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-DependencyCrossProduct
         title: >-

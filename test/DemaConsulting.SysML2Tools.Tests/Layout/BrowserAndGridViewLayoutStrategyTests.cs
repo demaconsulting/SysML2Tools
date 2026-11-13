@@ -8,6 +8,7 @@ using DemaConsulting.SysML2Tools.Layout.Internal;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
+using DemaConsulting.SysML2Tools.Stdlib;
 
 namespace DemaConsulting.SysML2Tools.Tests.Layout;
 
@@ -106,6 +107,97 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
         Assert.Equal("X", Cell(4, 3));
         Assert.Equal(string.Empty, Cell(4, 1));
         Assert.Empty(layout.Warnings);
+    }
+
+    /// <summary>
+    ///     A supertype reference to a private member of another package gets no semantic edge and
+    ///     is marked only through the warned simple-name fallback; a public supertype is marked
+    ///     through its semantic edge without a fallback warning.
+    /// </summary>
+    [Fact]
+    public async Task GridView_BuildLayout_PrivateSupertype_IsFlaggedNotSilent()
+    {
+        // Arrange / Act
+        var layout = await LayOutAsync("""
+            package P { private part def Hidden; part def Shown; }
+            package Q { part def D1 :> P::Hidden; part def D2 :> P::Shown; }
+            """);
+
+        // Assert
+        Assert.Contains(layout.Warnings, w => w.Contains("'P::Hidden'") && w.Contains("simple name only"));
+        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'P::Shown'"));
+    }
+
+    /// <summary>
+    ///     A supertype a filtered import rejects, or that is reachable only through another
+    ///     package's import, is flagged by the warned simple-name fallback; the accepted supertype
+    ///     is marked without a warning.
+    /// </summary>
+    [Fact]
+    public async Task GridView_BuildLayout_FilteredOutAndSiblingImportSupertypes_AreFlaggedNotSilent()
+    {
+        // Arrange / Act
+        var layout = await LayOutAsync("""
+            metadata def X { }
+            package P { part def Marked { @X; } part def Plain; part def Other; }
+            package Q {
+                private import P::*[@X];
+                part def D1 :> Marked;
+                part def D2 :> Plain;
+            }
+            package PkgA { private import P::*; part def D3 :> Other; }
+            package PkgB { part def D4 :> Other; }
+            """);
+
+        // Assert
+        Assert.Contains(layout.Warnings, w => w.Contains("'Plain'") && w.Contains("simple name only"));
+        Assert.Contains(layout.Warnings, w => w.Contains("'Other' in 'PkgB'") && w.Contains("simple name only"));
+        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'Marked'"));
+        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'Other' in 'PkgA'"));
+    }
+
+    /// <summary>
+    ///     Each raw supertype reference is paired with its own resolved edge: for
+    ///     <c>part def C :&gt; Y::X, X;</c> where the bare <c>X</c> resolves (through an import) to
+    ///     <c>P::X</c>, the row of <c>C</c> is marked in both the <c>Y::X</c> and <c>P::X</c> columns.
+    /// </summary>
+    [Fact]
+    public async Task GridView_BuildLayout_QualifiedAndBareSupertypesSharingName_MarkEachOwnTarget()
+    {
+        // Arrange / Act: rows/columns sorted by qualified name: P::X, Q::C, Y::X
+        var layout = await LayOutAsync("""
+            package P { part def X; }
+            package Y { part def X; }
+            package Q {
+                private import P::*;
+                part def C :> Y::X, X;
+            }
+            """);
+
+        // Assert: row 2 (Q::C) marks column 1 (P::X) and column 3 (Y::X)
+        var grid = Assert.Single(layout.Nodes.OfType<LayoutGrid>());
+        string Cell(int row, int column) => grid.Rows[row].Cells[column].Text;
+        Assert.Equal("X", Cell(2, 1));
+        Assert.Equal("X", Cell(2, 3));
+    }
+
+    /// <summary>Loads <paramref name="sysml"/> (with the standard library) and lays out a grid view over it.</summary>
+    private static async Task<LayoutTree> LayOutAsync(string sysml)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            return new GridViewLayoutStrategy().BuildLayout(
+                new ViewContext("v", result.Workspace), new RenderOptions(Themes.Light));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
     }
 
     /// <summary>Both strategies return a minimal canvas for an empty workspace.</summary>

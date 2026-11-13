@@ -8,12 +8,13 @@
 #   used by standalone view `filter [<expr>];` statements, and (Phase 2a) reused unchanged by
 #   `ExposeScopeResolver` for bracket-form `expose <path>::**[<expr>];` statements — the evaluator
 #   is candidate-set-agnostic, so no evaluator-level change was needed to support the second caller
+# - The unit lives in the Language library so ReferenceResolver can evaluate filtered imports
 # - Requirements describe observable parse/evaluate behavior, not CST-walking internals
 
 sections:
   - title: FilterExpressionEvaluator Unit Requirements
     requirements:
-      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-ClassificationTests
+      - id: SysML2Tools-Language-Filtering-FilterExpressionEvaluator-ClassificationTests
         title: >-
           FilterExpressionEvaluator shall parse and evaluate metadata classification tests
           (`@Type`, `@Pkg::Type`) by matching candidates that carry the referenced metadata
@@ -29,7 +30,7 @@ sections:
           - Evaluate_QualifiedClassificationTest_Matches
           - Evaluate_ClassificationTestNoMatch_ReturnsEmpty
 
-      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-BooleanConnectives
+      - id: SysML2Tools-Language-Filtering-FilterExpressionEvaluator-BooleanConnectives
         title: >-
           FilterExpressionEvaluator shall support boolean composition of Phase 1 predicates via
           `and`, `or`, `xor`, `not`, `&`, and `|`, preserving the author's operator spelling in the
@@ -50,7 +51,7 @@ sections:
           - Evaluate_And_MatchesIntersection
           - Evaluate_Or_MatchesUnion
 
-      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-AttributeReads
+      - id: SysML2Tools-Language-Filtering-FilterExpressionEvaluator-AttributeReads
         title: >-
           FilterExpressionEvaluator shall support `(as Type).attribute` reads both as bare boolean
           predicates and as `==`/`!=` comparisons against scalar literals, treating an absent
@@ -70,7 +71,7 @@ sections:
           - Evaluate_ComparisonNotEqual_MatchesDifferingValue
           - Evaluate_AttributeReadAbsent_NeverMatchesComparison
 
-      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-UnsupportedConstructDiagnostics
+      - id: SysML2Tools-Language-Filtering-FilterExpressionEvaluator-UnsupportedConstructDiagnostics
         title: >-
           FilterExpressionEvaluator shall report malformed syntax and every construct outside the
           Phase 1 subset as explicit diagnostics and shall never throw — or crash the process —
@@ -106,7 +107,7 @@ sections:
           - Parse_TrailingSemicolon_ReturnsDiagnostic
           - Evaluate_UnknownCandidate_SkipsGracefully
 
-      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-RoundTripPrettyPrinting
+      - id: SysML2Tools-Language-Filtering-FilterExpressionEvaluator-RoundTripPrettyPrinting
         title: >-
           Every supported Phase 1 filter-expression tree shall pretty-print to canonical SysML v2
           filter syntax whose re-parse yields a semantically-equivalent tree, and numeric literals
@@ -125,7 +126,7 @@ sections:
           - Parse_NumericLiteralOverflow_ReturnsDiagnosticInsteadOfInfinity
           - Parse_LargeButFiniteRealLiteral_StillParsesSuccessfully
 
-      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-MetaclassKindClassificationTests
+      - id: SysML2Tools-Language-Filtering-FilterExpressionEvaluator-MetaclassKindClassificationTests
         title: >-
           FilterExpressionEvaluator shall also match a classification test (`@Type`/`@Pkg::Type`)
           when the candidate's own AST node kind (its definition or feature keyword) maps to the
@@ -152,17 +153,22 @@ sections:
           - Evaluate_ClassificationTest_AppliedAnnotationMatchingUnaffectedByMetaclassKindAddition
           - Evaluate_MetaclassKind_SpecializationConformance_MatchesAncestorMetaclass
 
-      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-FilteredImportNameResolution
+      - id: SysML2Tools-Language-Filtering-FilterExpressionEvaluator-FilteredImportNameResolution
         title: >-
-          FilterExpressionEvaluator shall provide a name resolver whose filtered imports
-          (`import P::**[expr];`) admit only the elements that satisfy the import's filter condition.
+          FilterExpressionEvaluator shall provide a name resolver, and the import-filter predicate
+          ReferenceResolver uses, whose filtered imports (`import P::**[expr];`) admit only the
+          elements that satisfy the import's filter condition.
         justification: |
           SysML 7.5.4: a filtered import imports a membership only if it satisfies all the given
-          filter conditions, so name resolution through it must honor the same conditions.
+          filter conditions, so name resolution through it must honor the same conditions — both
+          for the layouts' name resolver and for the semantic reference resolution that produces
+          the resolved edges.
         tests:
           - CreateNameResolver_FilteredImport_AdmitsOnlyMatchingElements
+          - WorkspaceLoader_LoadAsync_FilteredImport_RejectsUnannotatedCandidate
+          - WorkspaceLoader_LoadAsync_FilteredRecursiveImport_SkipsRejectedFindsDeeperMatch
 
-      - id: SysML2Tools-Core-Filtering-FilterExpressionEvaluator-MetaclassEvaluation
+      - id: SysML2Tools-Language-Filtering-FilterExpressionEvaluator-MetaclassEvaluation
         title: >-
           FilterExpressionEvaluator shall evaluate a filter expression for an element known only by
           its abstract-syntax metaclass (such as Documentation or Comment), matching a

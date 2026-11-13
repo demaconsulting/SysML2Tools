@@ -43,7 +43,7 @@ public sealed record FilterEvaluationResult(
 /// assigned a literal value, evaluates to "absent": a bare read is treated as
 /// <see langword="false"/>, and any comparison against an absent read is treated as
 /// <see langword="false"/> regardless of operator — a conservative, documented Phase 1 limitation
-/// (see <c>docs/design/sysml2-tools-core/filtering/filter-expression-evaluator.md</c>).
+/// (see <c>docs/design/sysml2-tools-language/filtering/filter-expression-evaluator.md</c>).
 /// A classification test (<c>@Type</c>/<c>@Pkg::Type</c>) also matches when the candidate's own
 /// AST node kind — <see cref="SysmlDefinitionNode.DefinitionKeyword"/> (e.g. <c>"part def"</c>) or
 /// <see cref="SysmlFeatureNode.FeatureKeyword"/> (e.g. <c>"part"</c>) — maps to the requested
@@ -156,13 +156,52 @@ public static class FilterExpressionEvaluator
     public static NameResolver CreateNameResolver(SysmlWorkspace workspace)
     {
         ArgumentNullException.ThrowIfNull(workspace);
-        return new NameResolver(
-            workspace.Declarations,
-            (import, candidate) =>
-                import.BracketFilterExpressionText is not { } text ||
-                FilterExpressionParser.Parse(text).Expression is not { } expression ||
-                Evaluate(workspace, [candidate], expression).MatchedQualifiedNames.Count > 0);
+        return new NameResolver(workspace.Declarations, CreateImportFilter(workspace.Declarations, workspace.StdlibNames));
     }
+
+    /// <summary>
+    /// Creates the import-filter predicate <see cref="NameResolver"/> consults for imports that
+    /// carry a bracket filter (<c>import P::**[expr];</c>). Needs only the declarations and the
+    /// stdlib name set — not a fully built <see cref="SysmlWorkspace"/> — so
+    /// <see cref="ReferenceResolver"/> can use it while the workspace is still being resolved.
+    /// The parsed expression is cached per import node, so a filtered import's text is parsed at
+    /// most once however many candidates it is asked about; a filter expression that cannot be
+    /// parsed admits every candidate. The returned predicate is not thread-safe.
+    /// </summary>
+    /// <param name="declarations">The declarations keyed by qualified name.</param>
+    /// <param name="stdlibNames">The qualified names of the standard library declarations.</param>
+    /// <returns>The predicate: whether a candidate (by qualified name) passes an import's filter.</returns>
+    internal static Func<SysmlImportNode, string, bool> CreateImportFilter(
+        IReadOnlyDictionary<string, SysmlNode> declarations,
+        IReadOnlySet<string> stdlibNames)
+    {
+        var context = new FilterContext(declarations, stdlibNames);
+        var parsed = new Dictionary<SysmlImportNode, FilterExpression?>(ReferenceEqualityComparer.Instance);
+        return (import, candidate) =>
+        {
+            if (import.BracketFilterExpressionText is not { } text)
+            {
+                return true;
+            }
+
+            if (!parsed.TryGetValue(import, out var expression))
+            {
+                expression = FilterExpressionParser.Parse(text).Expression;
+                parsed[import] = expression;
+            }
+
+            return expression is null ||
+                (declarations.TryGetValue(candidate, out var node) && Evaluate(context, node, expression));
+        };
+    }
+
+    /// <summary>
+    /// The declarations and stdlib names an evaluation consults; a <see cref="SysmlWorkspace"/>
+    /// supplies both, and so does <see cref="ReferenceResolver"/> before the workspace exists.
+    /// </summary>
+    private readonly record struct FilterContext(
+        IReadOnlyDictionary<string, SysmlNode> Declarations,
+        IReadOnlySet<string> StdlibNames);
 
     /// <summary>
     /// Evaluates <paramref name="expression"/> against each candidate in
@@ -181,11 +220,12 @@ public static class FilterExpressionEvaluator
         ArgumentNullException.ThrowIfNull(candidateQualifiedNames);
         ArgumentNullException.ThrowIfNull(expression);
 
+        var context = new FilterContext(workspace.Declarations, workspace.StdlibNames);
         var matched = new List<string>();
         foreach (var qualifiedName in candidateQualifiedNames)
         {
             if (workspace.Declarations.TryGetValue(qualifiedName, out var node) &&
-                Evaluate(workspace, node, expression))
+                Evaluate(context, node, expression))
             {
                 matched.Add(qualifiedName);
             }
@@ -195,18 +235,18 @@ public static class FilterExpressionEvaluator
     }
 
     /// <summary>Evaluates <paramref name="expression"/>'s boolean value against a single candidate node.</summary>
-    private static bool Evaluate(SysmlWorkspace workspace, SysmlNode node, FilterExpression expression) =>
+    private static bool Evaluate(FilterContext context, SysmlNode node, FilterExpression expression) =>
         expression switch
         {
             ClassificationTestExpression classificationTest =>
                 FindMetadata(node, classificationTest.TypeName) is not null ||
-                MatchesMetaclassKind(workspace, node, classificationTest.TypeName),
-            NotFilterExpression not => !Evaluate(workspace, node, not.Operand),
+                MatchesMetaclassKind(context, node, classificationTest.TypeName),
+            NotFilterExpression not => !Evaluate(context, node, not.Operand),
             BooleanFilterExpression boolean => boolean.Connective switch
             {
-                BooleanConnective.And => Evaluate(workspace, node, boolean.Left) && Evaluate(workspace, node, boolean.Right),
-                BooleanConnective.Or => Evaluate(workspace, node, boolean.Left) || Evaluate(workspace, node, boolean.Right),
-                BooleanConnective.Xor => Evaluate(workspace, node, boolean.Left) ^ Evaluate(workspace, node, boolean.Right),
+                BooleanConnective.And => Evaluate(context, node, boolean.Left) && Evaluate(context, node, boolean.Right),
+                BooleanConnective.Or => Evaluate(context, node, boolean.Left) || Evaluate(context, node, boolean.Right),
+                BooleanConnective.Xor => Evaluate(context, node, boolean.Left) ^ Evaluate(context, node, boolean.Right),
                 _ => false,
             },
             AttributeReadExpression attributeRead => ReadAttribute(node, attributeRead) is { Kind: MetadataAttributeValueKind.Boolean } value
@@ -224,11 +264,11 @@ public static class FilterExpressionEvaluator
     /// <c>SysML::PartUsage</c>). See <see cref="MetaclassNames"/> for the keyword mapping table
     /// and its documented known gaps.
     /// </summary>
-    private static bool MatchesMetaclassKind(SysmlWorkspace workspace, SysmlNode node, string typeName)
+    private static bool MatchesMetaclassKind(FilterContext context, SysmlNode node, string typeName)
     {
         if (node is SysmlPackageNode)
         {
-            return ConformsTo(workspace, "Package", typeName);
+            return ConformsTo(context, "Package", typeName);
         }
 
         var keyword = node switch
@@ -243,7 +283,7 @@ public static class FilterExpressionEvaluator
             return false;
         }
 
-        return ConformsTo(workspace, bareMetaclassName, typeName);
+        return ConformsTo(context, bareMetaclassName, typeName);
     }
 
     /// <summary>
@@ -283,11 +323,11 @@ public static class FilterExpressionEvaluator
     /// of its KerML general metaclasses (<see cref="KernelMetaclassLineage"/>), or a standard-library
     /// metaclass it specializes.
     /// </summary>
-    private static bool ConformsTo(SysmlWorkspace workspace, string bareMetaclassName, string typeName) =>
+    private static bool ConformsTo(FilterContext context, string bareMetaclassName, string typeName) =>
         (KernelMetaclassLineage.TryGetValue(bareMetaclassName, out var lineage)
             ? lineage.Any(name => MetaclassNameMatches(name, typeName))
             : MetaclassNameMatches(bareMetaclassName, typeName)) ||
-        ConformsToMetaclass(workspace, bareMetaclassName, typeName, new HashSet<string>(StringComparer.Ordinal));
+        ConformsToMetaclass(context, bareMetaclassName, typeName, new HashSet<string>(StringComparer.Ordinal));
 
     /// <summary>
     /// Evaluates <paramref name="expression"/> for an element known only by its abstract-syntax
@@ -306,20 +346,24 @@ public static class FilterExpressionEvaluator
         ArgumentNullException.ThrowIfNull(workspace);
         ArgumentNullException.ThrowIfNull(bareMetaclassName);
         ArgumentNullException.ThrowIfNull(expression);
-        return expression switch
+        return EvaluateForMetaclass(new FilterContext(workspace.Declarations, workspace.StdlibNames), bareMetaclassName, expression);
+    }
+
+    /// <summary>Evaluates <paramref name="expression"/> for an element known only by its metaclass.</summary>
+    private static bool EvaluateForMetaclass(FilterContext context, string bareMetaclassName, FilterExpression expression) =>
+        expression switch
         {
-            ClassificationTestExpression classificationTest => ConformsTo(workspace, bareMetaclassName, classificationTest.TypeName),
-            NotFilterExpression not => !EvaluateForMetaclass(workspace, bareMetaclassName, not.Operand),
+            ClassificationTestExpression classificationTest => ConformsTo(context, bareMetaclassName, classificationTest.TypeName),
+            NotFilterExpression not => !EvaluateForMetaclass(context, bareMetaclassName, not.Operand),
             BooleanFilterExpression boolean => boolean.Connective switch
             {
-                BooleanConnective.And => EvaluateForMetaclass(workspace, bareMetaclassName, boolean.Left) && EvaluateForMetaclass(workspace, bareMetaclassName, boolean.Right),
-                BooleanConnective.Or => EvaluateForMetaclass(workspace, bareMetaclassName, boolean.Left) || EvaluateForMetaclass(workspace, bareMetaclassName, boolean.Right),
-                BooleanConnective.Xor => EvaluateForMetaclass(workspace, bareMetaclassName, boolean.Left) ^ EvaluateForMetaclass(workspace, bareMetaclassName, boolean.Right),
+                BooleanConnective.And => EvaluateForMetaclass(context, bareMetaclassName, boolean.Left) && EvaluateForMetaclass(context, bareMetaclassName, boolean.Right),
+                BooleanConnective.Or => EvaluateForMetaclass(context, bareMetaclassName, boolean.Left) || EvaluateForMetaclass(context, bareMetaclassName, boolean.Right),
+                BooleanConnective.Xor => EvaluateForMetaclass(context, bareMetaclassName, boolean.Left) ^ EvaluateForMetaclass(context, bareMetaclassName, boolean.Right),
                 _ => false,
             },
             _ => false,
         };
-    }
 
     /// <summary>
     /// Walks the stdlib <c>specializes</c> chain starting from the stdlib <c>metadata def</c>
@@ -337,7 +381,7 @@ public static class FilterExpressionEvaluator
     /// same-simple-name suffix lookup restricted to <see cref="SysmlWorkspace.StdlibNames"/> entries
     /// of <see cref="SysmlWorkspace.Declarations"/> (stdlib metaclasses are declared with a longer
     /// nested-package qualified name than their conventional <c>SysML::</c> spelling, e.g.
-    /// <c>SysML::Systems::PartUsage</c>). This lookup is precomputed once per <paramref name="workspace"/>
+    /// <c>SysML::Systems::PartUsage</c>). This lookup is precomputed once per stdlib name set
     /// and cached (see <see cref="GetStdlibBareNameLookup"/>) rather than re-scanned on every
     /// specialization-walk step, since a classification test may walk many candidates' chains
     /// during a single filter evaluation. Restricting the lookup to <see cref="SysmlWorkspace.StdlibNames"/>
@@ -352,7 +396,7 @@ public static class FilterExpressionEvaluator
     /// cycle-guard pattern.
     /// </remarks>
     private static bool ConformsToMetaclass(
-        SysmlWorkspace workspace,
+        FilterContext context,
         string bareMetaclassName,
         string typeName,
         HashSet<string> visited)
@@ -362,8 +406,8 @@ public static class FilterExpressionEvaluator
             return false;
         }
 
-        if (!GetStdlibBareNameLookup(workspace).TryGetValue(bareMetaclassName, out var qualifiedName) ||
-            !workspace.Declarations.TryGetValue(qualifiedName, out var declaration))
+        if (!GetStdlibBareNameLookup(context).TryGetValue(bareMetaclassName, out var qualifiedName) ||
+            !context.Declarations.TryGetValue(qualifiedName, out var declaration))
         {
             return false;
         }
@@ -375,7 +419,7 @@ public static class FilterExpressionEvaluator
                 : supertypeName;
 
             if (MetaclassNameMatches(bareSupertypeName, typeName) ||
-                ConformsToMetaclass(workspace, bareSupertypeName, typeName, visited))
+                ConformsToMetaclass(context, bareSupertypeName, typeName, visited))
             {
                 return true;
             }
@@ -385,17 +429,18 @@ public static class FilterExpressionEvaluator
     }
 
     /// <summary>
-    /// A per-workspace cache of <see cref="ConformsToMetaclass"/>'s bare-simple-name → declaring
-    /// stdlib qualified-name lookup, keyed by the owning <see cref="SysmlWorkspace"/> instance so a
+    /// A cache of <see cref="ConformsToMetaclass"/>'s bare-simple-name → declaring stdlib
+    /// qualified-name lookup, keyed by the stdlib name set it is derived from (the set owned by a
+    /// <see cref="SysmlWorkspace"/>, or the one <see cref="ReferenceResolver"/> is handed), so a
     /// long-lived workspace's lookup is built at most once regardless of how many candidates or
     /// filter evaluations consult it. <see cref="System.Runtime.CompilerServices.ConditionalWeakTable{TKey,TValue}"/>
-    /// is used (rather than a plain dictionary) so a workspace can still be garbage-collected
+    /// is used (rather than a plain dictionary) so a set can still be garbage-collected
     /// normally once nothing else references it.
     /// </summary>
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<SysmlWorkspace, IReadOnlyDictionary<string, string>> StdlibBareNameLookups = new();
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IReadOnlySet<string>, IReadOnlyDictionary<string, string>> StdlibBareNameLookups = new();
 
     /// <summary>
-    /// Returns (building and caching on first use per <paramref name="workspace"/>) a dictionary
+    /// Returns (building and caching on first use per stdlib name set) a dictionary
     /// mapping each stdlib metaclass's bare simple name (e.g. <c>PartUsage</c>) to its full
     /// declaring qualified name (e.g. <c>SysML::Systems::PartUsage</c>), restricted to
     /// <see cref="SysmlWorkspace.StdlibNames"/> entries so a colliding user-declared simple name
@@ -404,11 +449,11 @@ public static class FilterExpressionEvaluator
     /// remarks), the first one encountered wins, matching the previous linear-scan behavior's
     /// first-match semantics.
     /// </summary>
-    private static IReadOnlyDictionary<string, string> GetStdlibBareNameLookup(SysmlWorkspace workspace) =>
-        StdlibBareNameLookups.GetValue(workspace, static ws =>
+    private static IReadOnlyDictionary<string, string> GetStdlibBareNameLookup(FilterContext context) =>
+        StdlibBareNameLookups.GetValue(context.StdlibNames, static names =>
         {
             var lookup = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var name in ws.StdlibNames)
+            foreach (var name in names)
             {
                 var bareName = name.Contains("::", StringComparison.Ordinal)
                     ? name[(name.LastIndexOf("::", StringComparison.Ordinal) + 2)..]

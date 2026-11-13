@@ -2,15 +2,15 @@
 
 ## Architecture
 
-The `DemaConsulting.SysML2Tools` core library provides the Filtering, Layout, Rendering,
+The `DemaConsulting.SysML2Tools` core library provides the Layout, Rendering,
 Query, and Io subsystems for SysML v2 diagram generation, model analysis, and shared file-
-discovery. It depends on `DemaConsulting.SysML2Tools.Language` for parsing and semantic
-analysis, and on `DemaConsulting.SysML2Tools.Stdlib` for the pre-compiled standard library.
+discovery. It depends on `DemaConsulting.SysML2Tools.Language` for parsing, semantic
+analysis, and view-filter evaluation (the Filtering subsystem, which lives in Language so
+`ReferenceResolver` can evaluate filtered imports), and on `DemaConsulting.SysML2Tools.Stdlib`
+for the pre-compiled standard library.
 
-The core library provides five subsystems: **Filtering**, **Layout**, **Rendering**,
-**Query**, and **Io**. The Filtering subsystem parses and evaluates the Phase 1 subset of
-standalone `filter [<expr>];` statements against metadata annotations captured by the
-semantic model. The Layout subsystem maps the SysML semantic model onto the `LayoutTree`
+The core library provides four subsystems: **Layout**, **Rendering**,
+**Query**, and **Io**. The Layout subsystem maps the SysML semantic model onto the `LayoutTree`
 intermediate representation — nine immutable node record types covering all SysML diagram
 elements — which is provided off-the-shelf by the `DemaConsulting.Rendering` package, and
 delegates geometric placement and routing to the off-the-shelf
@@ -29,10 +29,8 @@ flowchart TD
     subgraph External
         Language["DemaConsulting.SysML2Tools.Language"]
         Stdlib["DemaConsulting.SysML2Tools.Stdlib"]
-    end
-    subgraph Filtering
-        FilterExpressionParser
-        FilterExpressionEvaluator
+        FilterExpressionParser["FilterExpressionParser (Language)"]
+        FilterExpressionEvaluator["FilterExpressionEvaluator (Language)"]
     end
     subgraph Layout
         LayoutTree
@@ -103,7 +101,8 @@ flowchart TD
 
 - **DemaConsulting.SysML2Tools.Language** — provides `WorkspaceLoader`, `SysmlWorkspace`,
   `SysmlNode` and all subtypes used by `DiagramRenderer` for pattern-matching view declarations,
-  and by `QueryEngine` for public model-analysis queries.
+  by `QueryEngine` for public model-analysis queries, and the `FilterExpressionParser`/
+  `FilterExpressionEvaluator` pair the layouts use to evaluate view filters.
 - **DemaConsulting.SysML2Tools.Stdlib** — provides `StdlibProvider.GetSymbolTable()` used
   by `DiagramRenderer` to seed the semantic workspace with the pre-compiled standard library.
 
@@ -150,6 +149,9 @@ N/A — not a safety-classified software item.
 
 ### Filtering Data Flow
 
+The Filtering subsystem is part of the Language library (see
+`docs/design/sysml2-tools-language/filtering.md`); Core consumes it as follows.
+
 1. `AstBuilder` captures a view's standalone `filter [<expr>];` statement as raw source text on
    `SysmlViewNode.FilterExpressionText`.
 2. `GeneralViewLayoutStrategy` passes that raw text to `FilterExpressionParser.Parse`, which
@@ -174,6 +176,6 @@ N/A — not a safety-classified software item.
 ## Design Constraints
 
 - Platform: multi-targets net8.0, net9.0, net10.0, and net11.0 on Windows, Linux, and macOS.
-- SysML v2 parsing, semantic analysis, and standard library are provided by the Language and
-  Stdlib assemblies; the Core assembly contains only Filtering, Layout, Rendering, Query, and
-  Io concerns.
+- SysML v2 parsing, semantic analysis, view-filter evaluation, and the standard library are
+  provided by the Language and Stdlib assemblies; the Core assembly contains only Layout,
+  Rendering, Query, and Io concerns.
