@@ -59,10 +59,14 @@ with `SysmlEdgeKind.Supertype`, `SysmlEdgeKind.Typing`, `SysmlEdgeKind.Redefinit
 `SysmlEdgeKind.Import` respectively; `Source` is the current node's
 `QualifiedName` (`null` for anonymous nodes such as import statements) and `Target` is
 `resolvedName`. Each of these single-reference edges (and the `Verify`, `Expose`, and `MetadataType`
-edges, and a view usage's `Typing` edge) is also tagged with the reference text exactly as written
+edges, and a view usage's `Typing` edge) is also tagged with the reference text as written
 (`SysmlEdge.RawReference`), which is the edge's identity: the supertype edge list omits
 unresolved references, so a consumer pairs a raw reference with its edge by that text rather than
-by position or by name suffix. The two-ended kinds (`Satisfy`, `Allocate`, `Dependency`, `Connect`,
+by position or by name suffix. For an `Import` edge the text is `SysmlImportNode.RawReferenceText`
+(wildcard/recursive markers kept — `P`, `P::*`, `P::**` — and the bracket filter excluded), falling
+back to the `ImportedNames` entry when it is `null` (hand-built nodes, legacy serialized data);
+the name that is resolved, and reported in the unresolved-reference Warning, remains the stripped
+`ImportedNames` entry. The two-ended kinds (`Satisfy`, `Allocate`, `Dependency`, `Connect`,
 `Binding`, `Transition`) leave it `null`. Any non-empty per-node edge list is attached to `node.ResolvedEdges` and
 appended to the aggregate edge list returned by `ResolveAll`.
 
@@ -324,7 +328,11 @@ no edge):
   resolvable names.
 - **`SysmlViewNode` (Expose)** — resolves each `GetExposedNames()` entry (the `QualifiedName` of
   each `ExposeMember`) into its own `SysmlEdgeKind.Expose` edge, or the standard
-  unresolved-reference Warning diagnostic when it does not resolve. An `ExposeMember`'s own
+  unresolved-reference Warning diagnostic when it does not resolve. The edge's `RawReference` is the
+  member's `RawReferenceText` (the reference as written, wildcard/recursive markers kept, bracket
+  filter excluded), falling back to `QualifiedName` when it is `null` (hand-built members,
+  `DynamicViewSynthesizer`, legacy serialized data); resolution and diagnostics always use the
+  stripped `QualifiedName`. An `ExposeMember`'s own
   `BracketFilterExpressionText` (when present) is never inspected here — evaluating it is
   `ExposeScopeResolver`'s responsibility (Phase 2a), given the per-entry containment-subtree
   candidate set only that unit can compute. `RenderTargetName` names a rendering style/format

@@ -797,7 +797,8 @@ sysml2tools export "src/**/*.sysml" --target Vehicle::Engine --filter @Deprecate
   "Edges": [
     { "SourceQualifiedName": "Model::Engine", "TargetQualifiedName": "Model::Vehicle", "Kind": "Composition" },
     { "SourceQualifiedName": "Model::Truck", "TargetQualifiedName": "Model::Vehicle",
-      "Kind": "Supertype", "RawReference": "Vehicle" }
+      "Kind": "Supertype", "RawReference": "Vehicle" },
+    { "SourceQualifiedName": null, "TargetQualifiedName": "Model", "Kind": "Import", "RawReference": "Model::*" }
   ],
   "Diagnostics": []
 }
@@ -810,9 +811,14 @@ sysml2tools export "src/**/*.sysml" --target Vehicle::Engine --filter @Deprecate
   faithful, round-trip-capable dump — not a separate, narrower summary shape like `query`'s
   result.
 - `Edges` and `Diagnostics` are plain JSON arrays.
-- An edge may carry an optional `RawReference`: the reference text exactly as written in the
+- An edge may carry an optional `RawReference`: the reference text as written in the
   model (`Vehicle`, `P::Vehicle`) that the edge was resolved from, so a consumer can tell which
   reference of a declaration an edge answers (for example, which of `:> X, A` resolved).
+  Tokens are concatenated without whitespace (`P :: X` is `P::X`). For `import` and `expose`
+  edges the text keeps the wildcard and recursive markers as written — `import P;` is `P`,
+  `import P::*;` is `P::*`, `import P::**;` is `P::**`, and `expose P::*::**;` is `P::*::**` — so
+  they stay distinguishable even though they resolve to the same target; a trailing `[filter]`
+  expression is not part of the text (`expose P::**[@Safety];` is `P::**`).
   It is present for supertype, typing, redefinition, import, verify, expose, and metadata-type
   edges, and omitted for the two-ended edge kinds (satisfy, allocate, dependency, connect,
   binding, transition) and when no reference text is recorded. The field is additive: consumers

@@ -132,3 +132,18 @@ sections:
           observable in the semantic model.
         tests:
           - WorkspaceLoader_LoadAsync_VisibilityShortNameAndAlias_Captured
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ImportExposeReferenceText
+        title: >-
+          SysmlImportNode and ExposeMember shall expose an optional RawReferenceText: the import's
+          or expose entry's reference as written, wildcard and recursive markers included but
+          bracketed filter excluded, null when not captured.
+        justification: |
+          The qualified name used for resolution has its `::*`/`::**` markers stripped, so the
+          written form (which distinguishes `import P;` from `import P::*;`) must be carried
+          separately for the resolved edge's raw reference. It is optional so hand-built nodes and
+          data serialized before the property existed remain valid.
+        tests:
+          - AstBuilder_ImportForms_CaptureWrittenReferenceText
+          - AstBuilder_ExposeNamespaceDirectChildren_CapturesNamespaceDirectChildren
+          - Serialize_ImportAndExposeRawReferenceText_RoundTripsAndNullIsOmitted

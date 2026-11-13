@@ -43,6 +43,8 @@ sections:
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ImplicitRedefinitionName
           - SysML2Tools-Language-Semantic-Model-AstBuilder-MetadataAnnotations
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ExposeBracketFilterText
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ImportExposeReferenceText
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-ImportExposeReferenceText
           - SysML2Tools-Language-Semantic-Model-AstBuilder-Dependency
           - SysML2Tools-Language-Semantic-Model-AstBuilder-BindingConnector
           - SysML2Tools-Language-Semantic-Model-AstBuilder-AttachedTransitionStateBody

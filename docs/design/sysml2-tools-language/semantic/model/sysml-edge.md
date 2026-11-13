@@ -75,7 +75,15 @@ init-only property:
 - `TargetQualifiedName` (`string`) — qualified name of the resolved target symbol.
 - `Kind` (`SysmlEdgeKind`) — the kind of reference this edge represents.
 - `RawReference` (`string?`, init-only, additive to the positional constructor) — the reference
-  text exactly as written in the model (`X`, `P::X`) that the edge was resolved from. It is the
+  text as written in the model (`X`, `P::X`) that the edge was resolved from, with tokens
+  concatenated and no inter-token whitespace (`P :: X` is recorded as `P::X`). For `Import` and
+  `Expose` edges it keeps the wildcard and recursive markers as written (`P`, `P::*`, `P::**`,
+  `P::*::**`), so `import P;` and `import P::*;` are distinguishable although both resolve to the
+  same target; a trailing bracketed filter (`[expr]`) is explicitly **not** part of the text — it is
+  an expression rather than a reference and is carried separately by `BracketFilterExpressionText`
+  (so `expose P::**[@Safety];` records `P::**`). Layout consumers use the value only to pair
+  `Supertype`/`Typing`/`Redefinition` edges with their references; nothing compares an `Import` or
+  `Expose` raw reference with a stripped name. It is the
   edge's identity within its declaring node: consumers match a raw reference to its edge by exact
   (ordinal) text equality, never by name suffix, because the edge list omits unresolved references
   and so is not positionally aligned with the declaration's reference list. `ReferenceResolver`

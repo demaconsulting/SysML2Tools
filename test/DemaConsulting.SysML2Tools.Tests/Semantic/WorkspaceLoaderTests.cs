@@ -5283,9 +5283,118 @@ public sealed class WorkspaceLoaderTests
         Assert.NotEmpty(imports);
         Assert.All(imports, e => Assert.False(string.IsNullOrEmpty(e.RawReference)));
         Assert.Contains(imports, e => e.RawReference == "P::X");
+        Assert.Contains(imports, e => e.RawReference == "P::*");
 
         var metadata = Assert.Single(declarations["Q::Holder"].Children.OfType<SysmlMetadataNode>());
         Assert.Equal("Tag", Assert.Single(metadata.ResolvedEdges).RawReference);
+    }
+
+    /// <summary>
+    ///     An <c>import</c> edge's <see cref="SysmlEdge.RawReference"/> keeps the wildcard and
+    ///     recursive markers as written (<c>P</c>, <c>P::*</c>, <c>P::**</c>, <c>P::*::**</c>) so the
+    ///     forms are distinguishable, excludes any <c>[filter]</c> bracket expression, drops only
+    ///     inter-token whitespace, and still resolves every form to the same target namespace.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ImportForms_RawReferenceKeepsWrittenWildcardMarkers()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            metadata def Tag { }
+            package P { part def X; }
+            package Q1 { import P; }
+            package Q2 { import P::*; }
+            package Q3 { import P::**; }
+            package Q4 { import P::*::**; }
+            package Q5 { import P :: *; }
+            package Q6 { import P::**[@Tag]; }
+            package Q7 { import P::*[@Tag]; }
+            """);
+
+        // Assert
+        Assert.NotNull(result.Workspace);
+        var imports = result.Workspace.Index.AllEdges.Where(e => e.Kind == SysmlEdgeKind.Import).ToList();
+        string? RawFor(string package) =>
+            Assert.Single(
+                Assert.Single(result.Workspace.Declarations[package].Children.OfType<SysmlImportNode>()).ResolvedEdges).RawReference;
+
+        Assert.Equal("P", RawFor("Q1"));
+        Assert.Equal("P::*", RawFor("Q2"));
+        Assert.Equal("P::**", RawFor("Q3"));
+        Assert.Equal("P::*::**", RawFor("Q4"));
+        Assert.Equal("P::*", RawFor("Q5"));
+        Assert.Equal("P::**", RawFor("Q6"));
+        Assert.Equal("P::*", RawFor("Q7"));
+
+        // Resolution is unchanged: every form still targets the namespace itself.
+        Assert.All(imports, e => Assert.Equal("P", e.TargetQualifiedName));
+    }
+
+    /// <summary>
+    ///     An <c>expose</c> edge's <see cref="SysmlEdge.RawReference"/> keeps the wildcard and
+    ///     recursive markers as written and excludes the <c>[filter]</c> bracket expression (which
+    ///     stays on <see cref="ExposeMember.BracketFilterExpressionText"/>), while every form still
+    ///     resolves to the same target.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ExposeForms_RawReferenceKeepsWrittenWildcardMarkers()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            metadata def Tag { }
+            package P { part def X { @Tag; } }
+            package Q {
+                view V {
+                    expose P;
+                    expose P::*;
+                    expose P::**;
+                    expose P::*::**;
+                    expose P::**[@Tag];
+                }
+            }
+            """);
+
+        // Assert
+        Assert.NotNull(result.Workspace);
+        var view = Assert.IsType<SysmlViewNode>(result.Workspace.Declarations["Q::V"]);
+        var exposes = view.ResolvedEdges.Where(e => e.Kind == SysmlEdgeKind.Expose).ToList();
+        Assert.Equal(["P", "P::*", "P::**", "P::*::**", "P::**"], exposes.Select(e => e.RawReference));
+        Assert.All(exposes, e => Assert.Equal("P", e.TargetQualifiedName));
+
+        // The bracket filter text is carried separately and the resolved member name is unstripped.
+        Assert.Equal("@Tag", view.ExposeMembers[4].BracketFilterExpressionText);
+        Assert.All(view.ExposeMembers, m => Assert.Equal("P", m.QualifiedName));
+    }
+
+    /// <summary>
+    ///     Hand-built (or legacy-deserialized) import nodes and expose members without captured
+    ///     reference text fall back to the stripped name for the edge's raw reference.
+    /// </summary>
+    [Fact]
+    public void ReferenceResolver_ImportAndExposeWithoutRawText_FallBackToName()
+    {
+        // Arrange
+        var table = new SymbolTable();
+        var target = new SysmlPackageNode { Name = "P", QualifiedName = "P" };
+        var import = new SysmlImportNode { ImportedNamespace = "P", ImportedNames = ["P"] };
+        var view = new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Q::V",
+            ExposeMembers = [new ExposeMember("P", null)],
+        };
+        var package = new SysmlPackageNode { Name = "Q", QualifiedName = "Q", Children = [import, view] };
+        table.RegisterAll(target);
+        table.RegisterAll(package);
+        var diagnostics = new List<SysmlDiagnostic>();
+
+        // Act
+        new ReferenceResolver(table, diagnostics).ResolveAll([("mem.sysml", package), ("target.sysml", target)]);
+
+        // Assert
+        Assert.Empty(diagnostics);
+        Assert.Equal("P", Assert.Single(import.ResolvedEdges).RawReference);
+        Assert.Equal("P", Assert.Single(view.ResolvedEdges, e => e.Kind == SysmlEdgeKind.Expose).RawReference);
     }
 
     /// <summary>

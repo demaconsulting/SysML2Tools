@@ -22,6 +22,8 @@ standard .NET SDK installation.
 - Supertype names and imported names are preserved through the round trip.
 - A resolved edge's optional `RawReference` is preserved through the round trip and omitted
   from the JSON text when `null`.
+- `SysmlImportNode.RawReferenceText` and `ExposeMember.RawReferenceText` are preserved through
+  the round trip and omitted from the JSON text when `null`.
 - Diagnostics are preserved through the round trip.
 
 #### Test Scenarios
@@ -34,4 +36,5 @@ standard .NET SDK installation.
 | `Serialize_AllNodeTypes_RoundTrip` | Every concrete node type restores as the same type |
 | `Serialize_SupertypeAndImportedNames_Preserved` | Supertype and imported names are preserved |
 | `Serialize_EdgeRawReference_RoundTripsAndNullIsOmitted` | `RawReference` round-trips; `null` is omitted |
+| `Serialize_ImportAndExposeRawReferenceText_RoundTripsAndNullIsOmitted` | Raw text round-trips; `null` omitted |
 | `Serialize_Diagnostics_RoundTrip` | Diagnostics are preserved through the round trip |

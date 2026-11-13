@@ -46,4 +46,5 @@ sections:
         tests:
           - Serialize_SupertypeAndImportedNames_Preserved
           - Serialize_EdgeRawReference_RoundTripsAndNullIsOmitted
+          - Serialize_ImportAndExposeRawReferenceText_RoundTripsAndNullIsOmitted
           - Serialize_Diagnostics_RoundTrip

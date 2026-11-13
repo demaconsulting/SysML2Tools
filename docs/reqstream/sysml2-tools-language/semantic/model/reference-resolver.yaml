@@ -270,9 +270,11 @@ sections:
         title: >-
           ReferenceResolver.ResolveAll shall record on each resolved single-reference edge
           (supertype, typing, redefinition, import, verify, expose, and metadata-type, including a
-          view usage's view definition) the reference text exactly as written in
-          `SysmlEdge.RawReference`, and shall leave it null on the two-ended edge kinds (satisfy,
-          allocate, dependency, connect, binding, transition), so a reference that did not resolve
+          view usage's view definition) the reference text as written in
+          `SysmlEdge.RawReference` — for import and expose edges including the `::*`/`::**`
+          markers but excluding any bracketed filter — and shall leave it null on the two-ended
+          edge kinds (satisfy, allocate, dependency, connect, binding, transition), so a reference
+          that did not resolve
           is never confused with another reference of the same declaration that resolved to the
           same target.
         justification: |
@@ -281,8 +283,14 @@ sections:
           consumer can only guess the pairing (for example by name suffix), which wrongly drew an
           edge for an unresolved `X` listed beside an alias that resolved to `P::X`. The reference
           text is an exact key because the same text in the same scope always resolves to the same
-          target. A two-ended edge has no single reference text, so it carries none.
+          target. A two-ended edge has no single reference text, so it carries none. Import and
+          expose edges keep the written wildcard/recursive markers so `import P;` and
+          `import P::*;` are distinguishable even though they resolve to the same target; the
+          bracketed filter is an expression, not a reference, so it is not part of the text.
         tests:
           - WorkspaceLoader_LoadAsync_SupertypeUnresolvedBeforeAlias_OnlyAliasEdgeCarriesRawReference
           - WorkspaceLoader_LoadAsync_ResolvedEdges_RecordRawReferenceText
+          - WorkspaceLoader_LoadAsync_ImportForms_RawReferenceKeepsWrittenWildcardMarkers
+          - WorkspaceLoader_LoadAsync_ExposeForms_RawReferenceKeepsWrittenWildcardMarkers
+          - ReferenceResolver_ImportAndExposeWithoutRawText_FallBackToName
           - WorkspaceLoader_LoadAsync_TwoEndedEdges_HaveNoRawReference

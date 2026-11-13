@@ -42,6 +42,11 @@ external services or additional configuration are required beyond a standard .NE
   recursive namespace `expose X::*::**;` as `NamespaceRecursive` — fixing the prior defect where
   the namespace-import branch's recursion bit was hard-coded away instead of checking for a
   trailing `::**`.
+- Each `import` and `expose` member's written reference text is captured on
+  `SysmlImportNode.RawReferenceText`/`ExposeMember.RawReferenceText` with the `::*`/`::**` markers
+  kept and any bracketed filter and inter-token whitespace excluded (`P`, `P::*`, `P::**`,
+  `P::*::**`, `P :: *` as `P::*`, `P::**[@Tag]` as `P::**`), while `ImportedNamespace`/
+  `ImportedNames`/`QualifiedName` stay the stripped name used for resolution.
 - `BuildUsageNode` captures a feature's redefinition reference on `RedefinedFeatureName` for both
   the `redefines` keyword form and the `:>>` operator form, for both a bare simple name and a
   qualified `Owner::feature` form (captured verbatim, unresolved), and leaves it null for a
@@ -124,6 +129,7 @@ external services or additional configuration are required beyond a standard .NE
 | Bare NamespaceExpose classification | `AstBuilder_ExposeNamespaceDirectChildren_CapturesNamespaceDirectChildren` |
 | Recursive NamespaceExpose classification | `AstBuilder_ExposeNamespaceRecursive_CapturesNamespaceRecursive` |
 | Bracket-filtered classification | `WorkspaceLoader_LoadAsync_OmgSafetyFeatureViewsFixture_ResolvesBracketedExpose` |
+| Import/expose written reference text captured | `AstBuilder_ImportForms_CaptureWrittenReferenceText` |
 | `VisitViewUsage` renderable declaration | `RenderSubsystem_OmgSafetyFeatureViewsCorpus_RendersAllNamedViewUsages` |
 | Empty view body regression guard | `WorkspaceLoader_LoadAsync_ViewEmptyBody_AllNewFieldsNullOrEmpty` |
 | Redefinition, `redefines` keyword | `WorkspaceLoader_LoadAsync_RedefinesKeyword_CapturesRedefinedFeatureName` |

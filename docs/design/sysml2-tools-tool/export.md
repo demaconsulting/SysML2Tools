@@ -144,6 +144,8 @@ statement but no `expose` statement.
 - `Edges` (`IReadOnlyList<SysmlEdge>`) — every visible semantic edge. An edge carries its optional
   `RawReference` (the reference text it was resolved from; see `SysmlEdge`) only when it has one: the
   property is omitted from the JSON when `null`, so the field is additive for existing consumers.
+  For `Import` and `Expose` edges the text keeps the wildcard/recursive markers as written
+  (`P`, `P::*`, `P::**`) and excludes any `[filter]` expression.
 - `Diagnostics` (`IReadOnlyList<SysmlDiagnostic>`) — every diagnostic produced while loading
   the workspace, unfiltered.
 

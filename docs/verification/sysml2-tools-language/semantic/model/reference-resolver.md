@@ -130,6 +130,9 @@ external services or additional configuration are required beyond a standard .NE
 | Dependency binary ends | `WorkspaceLoader_LoadAsync_DependencyBinaryEnds_RecordsDependencyEdge` |
 | Unresolved + alias | `WorkspaceLoader_LoadAsync_SupertypeUnresolvedBeforeAlias_OnlyAliasEdgeCarriesRawReference` |
 | Single-reference edges record the reference text | `WorkspaceLoader_LoadAsync_ResolvedEdges_RecordRawReferenceText` |
+| Import edge keeps wildcard markers | `WorkspaceLoader_LoadAsync_ImportForms_RawReferenceKeepsWrittenWildcardMarkers` |
+| Expose edge keeps wildcard markers | `WorkspaceLoader_LoadAsync_ExposeForms_RawReferenceKeepsWrittenWildcardMarkers` |
+| Raw text falls back to the name | `ReferenceResolver_ImportAndExposeWithoutRawText_FallBackToName` |
 | Two-ended edges have no raw reference | `WorkspaceLoader_LoadAsync_TwoEndedEdges_HaveNoRawReference` |
 | Dependency comma-list cross product | `WorkspaceLoader_LoadAsync_DependencyCommaLists_RecordsCrossProductEdges` |
 | Dependency unresolved end | `WorkspaceLoader_LoadAsync_DependencyUnresolvedEnd_ProducesWarningNoEdge` |

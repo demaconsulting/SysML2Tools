@@ -247,7 +247,7 @@ via the four-way truth table: bracket-filtered entries (`hasBracketFilter`) alwa
 corpus form `qualifiedName::**[<expr>]`, the same helper also returns the bracketed filter
 expression's original source text, which `ExtractExposedNames` pairs together with that same
 entry's qualified name and recursion kind into a single
-`ExposeMember(QualifiedName, BracketFilterExpressionText, RecursionKind)` record — rather than
+`ExposeMember(QualifiedName, BracketFilterExpressionText, RecursionKind, RawReferenceText)` record — rather than
 appending the qualified name and the bracket-filter text to two separate, unpaired flattened lists
 (the earlier Phase 1 shape) — so a view with more than one `expose` member never loses track of
 which bracket filter belongs to which exposed path. `ExposeScopeResolver` (Phase 2a) depends on
@@ -256,10 +256,10 @@ and (per this fix) reads each entry's `RecursionKind` to decide between exact/di
 whole-subtree matching.
 
 `ExtractImportTarget(NamespaceImportContext?, MembershipImportContext?)` is a shared helper
-extracted from `VisitImportRule`'s previously inline logic, returning a 4-tuple: the extracted
+extracted from `VisitImportRule`'s previously inline logic, returning a 5-tuple: the extracted
 qualified/dotted name text, whether the reference is a wildcard (`IsWildcard`, unchanged — still
-consumed verbatim by `VisitImportRule` for plain `import`, whose behavior this fix does not
-alter), the bracket-filter expression text (if any), and (added by this fix) `IsRecursive` —
+consumed verbatim by `VisitImportRule` for plain `import`; `ExtractExposedNames` discards it),
+the bracket-filter expression text (if any), `IsRecursive` —
 whether the entry is recursive, derived from a trailing `::**` per branch: for the direct
 namespace-import form (`qualifiedName::*`), `namespaceImport.STAR_STAR()` (previously ignored —
 the pre-fix bug hard-coded this branch's recursion bit away); for either bracketed-filter
@@ -279,9 +279,28 @@ third form: `namespaceImport -> filterPackage -> filterPackageImportDeclaration 
 of `membershipImport()`/`namespaceImportDirect()` is present there, rather than only checking the
 direct `qualifiedName()` child (which is null for this alternative). `VisitImportRule` and
 `ExtractExposedNames` both call this one helper rather than duplicating the extraction logic, per
-the Copy-Paste Programming anti-pattern guidance in coding-principles.md; `VisitImportRule`
-ignores the 4th (`IsRecursive`) element via a discard, since plain `import` has no analogous
-recursion-kind concept and its behavior is unchanged by this fix.
+the Copy-Paste Programming anti-pattern guidance in coding-principles.md. `VisitImportRule`
+consumes all five tuple elements: it stores `IsWildcard`, `IsRecursive`, the bracket-filter text
+and the reference text on the resulting `SysmlImportNode` (`IsWildcard`, `IsRecursive`,
+`BracketFilterExpressionText`, `RawReferenceText`), with the name driving `ImportedNamespace`/
+`ImportedNames`. `ExtractExposedNames` instead discards the 2nd element (`IsWildcard`) — it
+derives an `ExposeRecursionKind` from the call site's own `isNamespaceForm` flag together with
+`IsRecursive` and the presence of a bracket filter, so a separate wildcard bit is redundant —
+and passes the other four to `ExposeMember`. Plain `import` has no `ExposeRecursionKind`
+concept; the fix's only effect on it is that `IsRecursive` is now correct for the
+`qualifiedName::*::**` form and `RawReferenceText` is populated.
+
+The 5th tuple element, `ReferenceText`, is the reference as written: `GetText()` of the innermost
+import-shaped context that matched — the non-filter `namespaceImport` (`P::*`, `P::*::**`), the
+`membershipImport` (`P`, `P::**`), or, for the bracketed-filter forms, the `membershipImport` or
+`namespaceImportDirect` inside `filterPackageImportDeclaration`. It never includes the
+`filterPackageMember` bracket expressions (so `P::**[@Safety]` yields `P::**`), and `GetText()`
+concatenates tokens, so `P :: *` yields `P::*`. This text cannot be reconstructed from the other
+tuple elements (bracket-filtered forms are always reported as recursive, and `ExposeRecursionKind`
+collapses `P::**[f]` with `P::*::**`), hence it is captured from the parse tree. `VisitImportRule`
+stores it in `SysmlImportNode.RawReferenceText` and `ExtractExposedNames` passes it as
+`ExposeMember.RawReferenceText`; `ImportedNamespace`/`ImportedNames`/`QualifiedName` stay the
+stripped name that drives resolution, so only the edge's `RawReference` is affected.
 
 `VisitRequirementUsage` and `VisitConcernUsage` push a namespace scope (when named) and call
 `CollectChildren(body?.requirementBodyItem() ?? [])` in addition to their existing name/qualified-

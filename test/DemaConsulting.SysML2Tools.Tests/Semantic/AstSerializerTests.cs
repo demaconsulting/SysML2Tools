@@ -254,6 +254,45 @@ public sealed class AstSerializerTests
     }
 
     /// <summary>
+    ///     <see cref="SysmlImportNode.RawReferenceText"/> and <see cref="ExposeMember.RawReferenceText"/>
+    ///     round-trip through the node serializer, and a <see langword="null"/> one is omitted from
+    ///     the JSON text (so legacy data without the property still deserializes, with
+    ///     <see langword="null"/>).
+    /// </summary>
+    [Fact]
+    public void Serialize_ImportAndExposeRawReferenceText_RoundTripsAndNullIsOmitted()
+    {
+        var table = new SymbolTable();
+        table.RegisterAll(new SysmlViewNode
+        {
+            Name = "V",
+            QualifiedName = "Q::V",
+            ExposeMembers =
+            [
+                new ExposeMember("P", null, ExposeRecursionKind.NamespaceDirectChildren, "P::*"),
+                new ExposeMember("P", null),
+            ],
+            Children =
+            [
+                new SysmlImportNode { ImportedNamespace = "P", ImportedNames = ["P"], RawReferenceText = "P::*" },
+                new SysmlImportNode { ImportedNamespace = "P", ImportedNames = ["P"] },
+            ],
+        });
+
+        var bytes = AstSerializer.Serialize(table, []);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        var text = System.Text.Encoding.UTF8.GetString(bytes);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Count(text, "RawReferenceText"));
+        var rt = Assert.IsType<SysmlViewNode>(result.Symbols["Q::V"]);
+        Assert.Equal("P::*", rt.ExposeMembers[0].RawReferenceText);
+        Assert.Null(rt.ExposeMembers[1].RawReferenceText);
+        var imports = rt.Children.OfType<SysmlImportNode>().ToList();
+        Assert.Equal("P::*", imports[0].RawReferenceText);
+        Assert.Null(imports[1].RawReferenceText);
+    }
+
+    /// <summary>
     ///     The new <see cref="SysmlSatisfyNode"/> node type, the <c>"allocation"</c>
     ///     <see cref="SysmlConnectionNode.ConnectionKeyword"/> variant, and
     ///     <see cref="SysmlNode.VerifiedRequirementNames"/> all round-trip through the polymorphic

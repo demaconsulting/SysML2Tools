@@ -107,7 +107,8 @@ sections:
           containing a qualified-name-keyed "Declarations" object, an "Edges" array, and a
           "Diagnostics" array, with declaration nodes serialized using their existing
           polymorphic $type discriminator. An edge shall carry its optional "RawReference" (the
-          reference text it was resolved from) only when it has one.
+          reference text it was resolved from, keeping the wildcard/recursive markers of import
+          and expose references as written) only when it has one.
         justification: |
           Reusing SysmlNode/SysmlEdge/SysmlDiagnostic directly (rather than a fourth parallel
           shape) keeps export's output a faithful, lossless, round-trip-capable dump of the
@@ -119,6 +120,7 @@ sections:
           - ExportResultSerializerContext_FeatureNode_UsesFeatureTypeDiscriminator
           - ExportResultSerializerContext_EdgeKind_RoundTripsExactly
           - ExportResultSerializerContext_EdgeRawReference_RoundTripsAndIsOmittedWhenNull
+          - ExportSubsystem_ImportAndExposeEdges_ShowWrittenReferenceText
           - ExportResultSerializerContext_Diagnostic_AllFieldsPresent
           - ExportIntegration_RealFixture_ProducesValidJsonAndJsonl
 

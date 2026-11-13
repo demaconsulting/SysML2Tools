@@ -504,9 +504,12 @@ internal sealed class ReferenceResolver
         // Imports — resolved in the namespace that declares the import
         foreach (var importedName in node.ImportedNames)
         {
+            // The edge's raw reference is the reference text as written (wildcard/recursive
+            // markers kept, bracket filter excluded); resolution still uses the stripped name.
+            var rawReference = (node as SysmlImportNode)?.RawReferenceText ?? importedName;
             if (ResolveOrWarn(importedName, scope, file, resolvedInFile) is { } resolvedImport)
             {
-                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedImport, SysmlEdgeKind.Import) { RawReference = importedName });
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedImport, SysmlEdgeKind.Import) { RawReference = rawReference });
             }
         }
 
@@ -597,7 +600,9 @@ internal sealed class ReferenceResolver
             {
                 if (ResolveOrWarn(member.QualifiedName, scope, file, resolvedInFile) is { } resolvedExposed)
                 {
-                    nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedExposed, SysmlEdgeKind.Expose) { RawReference = member.QualifiedName });
+                    // Raw reference is the written text (markers kept, bracket filter excluded);
+                    // resolution above used the stripped name.
+                    nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedExposed, SysmlEdgeKind.Expose) { RawReference = member.RawReferenceText ?? member.QualifiedName });
                     resolvedExposeMembers.Add((member, resolvedExposed));
                 }
             }
