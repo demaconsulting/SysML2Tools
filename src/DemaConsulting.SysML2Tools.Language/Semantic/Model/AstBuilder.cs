@@ -1830,9 +1830,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     <c>SysmlFeatureNode.SupertypeNames</c> so that a usage-level <c>:&gt;</c> (e.g.
     ///     <c>part vehicle1_c1 :&gt; vehicle1</c>) is resolved into a <see
     ///     cref="SysmlEdgeKind.Supertype"/> edge the same uniform way a definition-level <c>:&gt;</c>
-    ///     already is, which <see cref="ReferenceResolver"/>'s bare-name redefinition
-    ///     ancestor-chain walk depends on to reach an inherited member through a usage's own
-    ///     subsetting ancestor.
+    ///     already is, which <see cref="ReferenceResolver"/>'s name resolution depends on to reach
+    ///     an inherited member through a usage's own subsetting ancestor.
     /// </summary>
     private static IReadOnlyList<string> ExtractSubsettingTargetNames(SysMLv2Parser.FeatureSpecializationPartContext? fsp)
     {

@@ -2,18 +2,22 @@
 
 ##### Overview
 
-`ReferenceResolver` performs three analyses over the loaded files:
+`ReferenceResolver` performs four analyses over the loaded files:
 
 1. **Import graph cycle detection** — builds a directed graph of import relationships between
    files and uses depth-first search to detect cycles.
-2. **Reference resolution (pass 1)** — checks each `SupertypeName`, `SysmlFeatureNode.FeatureTyping`,
+2. **Metadata-type resolution (pass 0)** — resolves each `SysmlMetadataNode.TypeReference` into a
+   `MetadataType` edge first, with an import-filter-less `NameResolver`, so that a filtered import
+   (`import P::*[@X];`) evaluated in pass 1 can read the resolved metadata type of any candidate,
+   wherever the candidate is declared (see "Filtered Imports" below).
+3. **Reference resolution (pass 1)** — checks each `SupertypeName`, `SysmlFeatureNode.FeatureTyping`,
    `SysmlFeatureNode.RedefinedFeatureName`, `ImportedName`, `VerifiedRequirementNames` entry,
    `SysmlSatisfyNode` subject/requirement, `SysmlConnectionNode`
-   (`ConnectionKeyword == "allocation"`) endpoint, and `SysmlDependencyNode` from/to name lists
-   in all AST nodes against
-   the symbol table, emitting a Warning for any name not found and recording a `SysmlEdge` for
-   any name (or pair of names) that resolves.
-3. **Feature-chain resolution (pass 2)** — after pass 1 has completed for every file root,
+   (`ConnectionKeyword == "allocation"`) endpoint, `SysmlDependencyNode` from/to name lists, and
+   `SysmlViewNode` expose entries and view definition in all AST nodes by KerML 8.2.3.5 name
+   resolution (`NameResolver`), emitting a Warning for any name not found and recording a
+   `SysmlEdge` for any name (or pair of names) that resolves.
+4. **Feature-chain resolution (pass 2)** — after pass 1 has completed for every file root,
    resolves dotted feature chains (e.g. `engine.fuelPort`) referenced by `SysmlConnectionNode`
    (`ConnectionKeyword == "connection"`, `"message"`, or `"binding"`) endpoints and
    `SysmlTransitionNode` `Source`/`Target` into `Connect`/`Binding`/`Transition`-kind edges.
@@ -30,39 +34,42 @@ the imported namespace that completes the cycle.
 
 ##### Reference Resolution
 
-`TryResolve(name, namespaceStack, imports, out resolvedName)` performs the lookup (a qualified
-name directly; enclosing-namespace prefixes, innermost first; wildcard imports; named imports;
-and only then, for a simple name, the global namespace) and, on success, also
-outputs the exact qualified name that matched (`resolvedName`). Within each enclosing namespace
-a simple name also matches a member's short name, or an alias member (followed to its target
-resolved from that namespace, up to `MaxAliasDepth` chained aliases), via
-`TryResolveLocalShortNameOrAlias` — local resolution per KerML 8.2.3.5.2, so a local `<k>` or
-`alias K for …` wins over an outer or global `k`/`K`. Looking a simple name up in the
-global namespace last follows KerML 8.2.3.5.4 (full resolution walks outward through owning
-namespaces before the global namespace), so a local `Base` is not shadowed by the standard
-library's top-level `Base` package. Steps 3–4 resolve the imported
-namespace name itself via `ResolveNamespaceName` before building the `"{ns}::{name}"` candidate
-(see the "Nested-Namespace Import Resolution" deviation below).
+Every reference is resolved by `NameResolver` in its internal *resolving* mode (see
+`name-resolver.md`) through `TryResolve(name, scope, rootImports, out resolvedName)`, which calls
+`NameResolver.Resolve(name, scope, rootImports)` and outputs the exact qualified name that matched.
+`scope` is the **local namespace** of the reference: the qualified name of the nearest enclosing
+named package, definition, or usage (`ChildScope`; null at the file root) — for a node's own
+references that is its owning namespace, which is the local namespace KerML 8.2.3.5.2 specifies
+for a Specialization, FeatureTyping, Subsetting, Import (the import's owning namespace), metadata
+typing, and the other reference kinds this unit resolves. Resolution then follows KerML 8.2.3.5:
+
+- **Local resolution** in the scope namespace: owned memberships (matching a member's name, short
+  name, or an alias, followed to its target), the memberships brought in by the namespace's *own*
+  imports, and — for a type — the non-private memberships it inherits from its general types.
+- **Full resolution** outward through the owning namespaces, then the imports written at the root
+  of the referencing file, then the global namespace (so a local `Base` is not shadowed by the
+  standard library's top-level `Base` package).
+- **Visible resolution** for the later segments of a qualified name: only public memberships
+  (and, through `import all`, the private ones the import names) are reachable.
 
 `ResolveNode` traverses each AST node's `SupertypeNames`, the node's `FeatureTyping` and
 `RedefinedFeatureName` (both only when the node is a `SysmlFeatureNode`), and `ImportedNames`
-uniformly. For each name that resolves via
-`TryResolve`, a `SysmlEdge` is appended to a per-node list, tagged with `SysmlEdgeKind.Supertype`,
-`SysmlEdgeKind.Typing`, `SysmlEdgeKind.Redefinition`, or `SysmlEdgeKind.Import` respectively;
-`Source` is the current node's
+uniformly. For each name that resolves, a `SysmlEdge` is appended to a per-node list, tagged
+with `SysmlEdgeKind.Supertype`, `SysmlEdgeKind.Typing`, `SysmlEdgeKind.Redefinition`, or
+`SysmlEdgeKind.Import` respectively; `Source` is the current node's
 `QualifiedName` (`null` for anonymous nodes such as import statements) and `Target` is
 `resolvedName`. Any non-empty per-node edge list is attached to `node.ResolvedEdges` and
-appended to the aggregate edge list returned by `ResolveAll`. The `RedefinedFeatureName` block
-is a line-for-line mirror of the `FeatureTyping` block immediately preceding it — same
-`TryResolve` call, same `resolvedInFile` deduplication, same Warning diagnostic message format —
-since both are a single raw reference captured on a `SysmlFeatureNode` with identical resolution
-semantics.
+appended to the aggregate edge list returned by `ResolveAll`.
 
 For each name that does not resolve (and is not already reported in this file), a Warning
 diagnostic is emitted. The `resolvedInFile` set prevents duplicate warnings for the same name
-within a file; `TryResolve` may be called again for an already-warned name (a minor,
+within a file; `ResolveOrWarn` may resolve an already-warned name again (a minor,
 correctness-preserving redundancy — see Error Handling), but no duplicate diagnostic is
-produced.
+produced. A reference that KerML name resolution rejects — a private member reached through a
+qualified name, a candidate a filtered import excludes, a name reachable only through another
+namespace's import — is reported exactly like any other unresolved reference (the same
+`Unresolved reference: '<name>'` Warning, with no edge), so the layouts and the `lint` command
+need no new diagnostic channel.
 
 A `SysmlViewNode`'s `ViewDefinitionName` (`view V : Def`) is resolved the same way into a
 `SysmlEdgeKind.Typing` edge, or reported with the same unresolved-reference Warning; callers use
@@ -71,6 +78,77 @@ the edge to find the view definition whose view conditions and rendering the usa
 
 `ResolveAll` returns a `SemanticIndex` built from the aggregate edge list once all file roots
 have been traversed.
+
+##### Member Visibility
+
+A qualified name's later segments are resolved by *visible* resolution, so a member whose
+`SysmlNode.Visibility` is `Private` (or `Protected`) is not reachable as `P::Hidden` from another
+package: no `Typing`/`Supertype`/... edge is recorded and the unresolved-reference Warning is
+emitted. The same rule applies on the short-name and alias paths (`P::<k>` of a private member,
+a private alias) and to `expose P::Hidden;`. A protected member is visible to a specialization of
+its owner (inheritance admits everything but private members), `import all P::*;` brings in the
+private members as well, and an unqualified reference to a private member from inside its own
+package resolves normally (local resolution sees every owned membership).
+
+##### Filtered Imports
+
+A filtered import (`import P::*[@X];` / `import P::**[@X];`) admits a candidate only if its filter
+expression accepts it. `ReferenceResolver` builds the `NameResolver` with
+`FilterExpressionEvaluator.CreateImportFilter(symbolTable.Symbols, stdlibNames)`, which evaluates
+the import's `BracketFilterExpressionText` per candidate (the parsed expression is cached per
+import node). Because the filter reads each candidate's `MetadataType` edge, **pass 0** resolves
+every metadata annotation first — otherwise a candidate declared later (or in a later file) would
+be tested against a still-unresolved annotation and wrongly rejected. Pass 0 uses a resolver
+without import filters: a metadata type reachable *only* through a filtered import is resolved as
+if the filter admitted it (this avoids a circular dependency between a filter and the metadata it
+tests). A recursive filtered import skips a rejected candidate and keeps searching, so a deeper
+match can still be found. When no import in the loaded files carries a filter, pass 0's resolver
+(with its warm cache) is simply reused for pass 1.
+
+##### Import Scoping
+
+An import applies only to the namespace that declares it and the namespaces nested in it: a
+`NameResolver` lookup consults the imports among a namespace's own children, and full resolution
+visits only the namespaces enclosing the reference. `PkgB`'s `part q : X;` therefore no longer
+resolves through `PkgA`'s `import A::*;`. The imports written at the root of a source file
+(outside any package — `private import …::*;` before the first package) apply to every
+declaration in that file and to no other file: `ResolveAll` collects each file root's direct
+`SysmlImportNode` children and registers them (`NameResolver.RegisterRootImports`) against that
+file's top-level declarations, and they are consulted after the owning namespaces and before the
+global namespace.
+
+##### Redefinition and Subsetting
+
+A `redefines`/`:>>` target is resolved by `NameResolver.ResolveRedefinition(name, owningType,
+redefiningFeature, rootImports)`: per KerML 8.2.3.5.1 the basic resolution is repeated with each
+general type of the redefining feature's owning type as the local namespace, in turn. If that
+yields nothing it falls back — a documented, deliberately lenient deviation — to ordinary
+resolution from the owning type, so a qualified target such as `:>> ISQ::mass` still resolves in a
+type with no resolvable general types (it remains subject to member visibility and import
+scoping). The redefining feature itself is never an acceptable target: a bare `:>> mass;` inside
+`part x` creates `x::mass`, which ordinary local resolution would otherwise find, giving a
+meaningless self-edge. A usage-level `subsets`/`:>` supertype and a definition-level supertype
+use plain `Resolve(name, scope)`, whose local resolution in the owning namespace already includes
+the memberships the owner inherits.
+
+Because `NameResolver`'s resolving mode derives every type's general types from the type's *raw
+references* (supertype names, typing, view definition, redefined feature) rather than from
+`ResolvedEdges`, an inherited member resolves in this single pass wherever its ancestor is
+declared — later in the same file, or in another file. The earlier deferred "pending bare
+redefinition" pass is therefore gone.
+
+##### Out of Scope (Known Limitations)
+
+- **Package-level `filter` statements** (a filter that applies to all of a package's imports) are
+  not captured by `AstBuilder` — it records only a view's `elementFilterMember` and an import's own
+  bracket filter — so they are not honored by the resolver; supporting them needs grammar/AST
+  changes.
+- **Implicit specialization** (for example a feature's implicit specialization of `Base::things`)
+  is not modeled, so a redefinition of a member that exists only on an implicit general type is
+  reported as unresolved; before this unit used KerML name resolution such a redefinition silently
+  resolved to itself.
+- The layouts' `NameResolver` (public mode) does not see file-root imports; they rely on the
+  semantic edges this unit produces, which do.
 
 ##### Feature-Chain Resolution
 
@@ -82,9 +160,9 @@ reference a node that pass 1 has not yet visited within the same file (a forward
 document order). Running feature-chain resolution as a strictly later, whole-workspace second pass
 guarantees every `Typing`/`Supertype` edge needed by the walk already exists.
 
-`ResolveFeatureChains` mirrors `ResolveNode`'s namespace-stack push/pop condition exactly
-(`(node is SysmlPackageNode or SysmlDefinitionNode or SysmlFeatureNode) && node.Name is not null`)
-so that segment-0 resolution scope cannot silently diverge between the two passes. For each
+`ResolveFeatureChains` computes the local namespace of each node with the same `ChildScope`
+function as `ResolveNode` (the nearest enclosing named package, definition, or usage), so that
+segment-0 resolution scope cannot silently diverge between the two passes. For each
 `SysmlConnectionNode` with `ConnectionKeyword` `"connection"`, `"message"`, or `"binding"` (the
 `"allocation"` variant is excluded — it keeps its existing, unit-3, single-segment-only
 behavior), and for each
@@ -103,9 +181,9 @@ the pair is given up on as unresolved. The `Target` side is never given this fal
 scoped to `Source` only, matching the ROADMAP's own framing of this gap as specifically about an
 implicit/inherited transition *source*.
 
-`TryResolveFeatureChain(chain, namespaceStack, imports, out resolvedName)` splits the raw
-reference text on `.`. Segment 0 is resolved via the existing `TryResolve` four-step lookup (so it
-participates in the same scope/import resolution as any other single-name reference); a
+`TryResolveFeatureChain(chain, scope, rootImports, out resolvedName)` splits the raw
+reference text on `.`. Segment 0 is resolved via `TryResolve` (so it
+participates in the same KerML scope/import resolution as any other single-name reference); a
 single-segment "chain" is handled by the remaining-segment loop simply never executing. Each
 subsequent segment is resolved relative to the previous segment's node (looked up via
 `SymbolTable.Lookup`) using `FindFeatureMember`. Two parallel accumulators are tracked across the
@@ -170,18 +248,17 @@ namespace/import scope), so without a dedicated fallback every such transition p
 "Unresolved reference" diagnostic and no `Transition` edge, even though the model is semantically
 valid per the SysML v2 spec.
 
-`TryResolveInheritedActionMember(namespaceStack, name, out resolvedName)` is tried only after
+`TryResolveInheritedActionMember(scope, name, out resolvedName)` is tried only after
 `TryResolveFeatureChain` fails, and only for a `SysmlTransitionNode`'s `Source` (never `Target`):
 
-1. Looks up the enclosing node via `_symbolTable.Lookup(string.Join("::", namespaceStack))` —
-   the same joined-namespace-stack convention `TryResolveBareRedefinition` uses, since at the
-   point a `SysmlTransitionNode` is visited, `namespaceStack` reflects the enclosing state/usage
+1. Looks up the enclosing node via `_symbolTable.Lookup(scope)` — since at the
+   point a `SysmlTransitionNode` is visited, `scope` is the enclosing state/usage
    (transitions have no `Name` of their own to push).
 2. If the enclosing node has a resolved `Typing` edge, follows it to the type node and searches
    via `FindMemberInTypeHierarchy` (the same supertype-chain walk `TryResolveFeatureChain`'s
    type-fallback branch uses).
-3. Also tries `FindMemberInAncestorChain` directly on the enclosing node itself (covering the
-   `Supertype`/`Redefinition`-edge walk `TryResolveBareRedefinition` already performs elsewhere).
+3. Also tries `FindMemberInAncestorChain` directly on the enclosing node itself (a walk of the
+   node's own children and its `Supertype`/`Redefinition` resolved edges).
 4. **Narrow, hardcoded last resort:** only when `name` is exactly `"start"` or `"done"`, and only
    when the enclosing node has a state/action keyword (a `SysmlFeatureNode` with
    `FeatureKeyword` `"state"`/`"action"`, or a `SysmlDefinitionNode` with `DefinitionKeyword`
@@ -242,62 +319,26 @@ no edge):
   exactly mirroring how `FilterExpressionText` (raw source text, not a reference) is also never
   inspected here.
 
-##### Deviations From Uniform Resolution (Behavior-Neutral Additive Fixes)
+##### Local Namespace of a Reference
 
-Two small resolver changes were required for the new Satisfy/Verify/Allocate edges to resolve
-correctly against real-world OMG model structure; both are additive-only and cannot regress a
-previously-successful resolution — they can only enable new, previously-unreachable resolution
-paths:
+The local namespace passed to `NameResolver` is the qualified name of the nearest enclosing
+`SysmlPackageNode`, `SysmlDefinitionNode`, or `SysmlFeatureNode` that has a `Name` (`ChildScope`
+prefers the node's own `QualifiedName`, falling back to the joined names). Named feature usages
+count because real-world OMG models nest `requirement`/`satisfy`/`verify` usages inside named
+`part`/feature usages (e.g. `part 'X Context' { requirement 'Y' {...} satisfy 'Y' by ...; }`),
+and `AstBuilder.BuildUsageNode` already scopes such named usages the same way when it computes
+child `QualifiedName`s. The nested-namespace import resolution (`import LogicalModel::*;` where
+`LogicalModel` is nested inside `'12b-Allocation'`) falls out of `NameResolver`'s resolution of
+the import's namespace from the import's own local namespace; the earlier bespoke
+`ResolveNamespaceName` helper and the pending bare-redefinition pass are gone.
 
-- **Namespace-stack push condition extended to include named `SysmlFeatureNode`.** The push
-  condition in `ResolveNode`'s recursion (`(node is SysmlPackageNode or SysmlDefinitionNode or
-  SysmlFeatureNode) && node.Name is not null`) was extended from `SysmlPackageNode or
-  SysmlDefinitionNode` only. Real-world OMG models nest `requirement`/`satisfy`/`verify` usages
-  inside named `part`/feature usages (e.g. `part 'X Context' { requirement 'Y' {...} satisfy 'Y'
-  by ...; }`), and `AstBuilder.BuildUsageNode` already pushes such named usages onto its own
-  namespace stack when computing child `QualifiedName`s. The resolver's original push condition
-  never pushed named Feature usages onto its own enclosing-namespace lookup stack, so a name
-  nested this way could never have resolved via the enclosing-scope step in the first place —
-  extending the condition only adds new resolution possibilities.
-- **`ResolveNamespaceName` helper (nested-namespace wildcard/explicit-import resolution fix).**
-  `TryResolve`'s Steps 3–4 (wildcard and explicit named imports) previously built the
-  `"{ns}::{name}"` candidate using the raw, unqualified import text directly. When the imported
-  namespace itself is nested inside another package (e.g. `import LogicalModel::*;` where
-  `LogicalModel` is nested inside package `'12b-Allocation'`), this built an incorrect candidate
-  (`"LogicalModel::x"` instead of `"'12b-Allocation'::LogicalModel::x"`), so nested-namespace
-  wildcard/explicit imports never matched. `ResolveNamespaceName(ns, namespaceStack)` fixes this
-  by trying a direct symbol-table lookup of `ns` first (identical to the prior behavior for
-  already-qualified namespaces), then progressively shorter enclosing-scope prefixes (mirroring
-  `TryResolve`'s own Step 2), falling back to the raw name unchanged if nothing matches — so
-  already-qualified or genuinely-unresolvable namespaces behave exactly as before; only
-  previously-failing nested-namespace import cases gain resolution.
-- **`TryResolveBareRedefinition`/`FindMemberInAncestorChain` (bare-name inherited-redefinition
-  fallback).** The `RedefinedFeatureName` block previously called only `TryResolve`, which is
-  namespace/import-scoped and never walks a supertype chain — but per the SysML v2 spec, a
-  `redefines`/`:>>` target's entire purpose is referencing a member the redefining feature
-  *inherits*, not one declared or imported into the same lexical scope. This is the dominant
-  real-world shape (e.g. `RedefinitionExample.sysml`'s bare `smallEng redefines eng`, where `eng`
-  is a member of `SmallVehicle`'s supertype `Vehicle`), so the original code produced a false
-  unresolved-reference Warning and no edge for the standard case. `TryResolveBareRedefinition`
-  looks up the immediate owner node via `_symbolTable.Lookup` on the joined `namespaceStack`
-  (the owner's qualified name, since the owner always pushes its own name before its children
-  are visited), then delegates to `FindMemberInAncestorChain`, which walks the owner's own
-  direct children and — recursively, cycle-guarded — any ancestor reachable via its
-  `SysmlEdgeKind.Supertype` **and** `SysmlEdgeKind.Redefinition` resolved edges. Both edge kinds
-  must be followed, not supertype-only: `1c-PartsTreeRedefinition.sysml`'s nested `frontAxle_c1
-  redefines frontAxle` has an owner (`frontAxleAssembly_c1`) with no `SupertypeNames` at all —
-  the only path to the inherited `frontAxle` member is via the owner's own already-resolved
-  `Redefinition` edge to `frontAxleAssembly`. This fallback is tried only after `TryResolve`
-  fails, so it is additive and cannot regress a previously-successful qualified/scoped
-  resolution. The same fallback is also tried for a `SysmlFeatureNode`'s own `SupertypeNames`
-  entries (but not a definition's): a usage-level `subsets`/`:>` clause (captured into
-  `SupertypeNames` by `AstBuilder.ExtractSubsettingTargetNames`) is, like `redefines`, commonly a
-  bare reference to a member the owner inherits — e.g. `1c-PartsTreeRedefinition.sysml`'s `part
-  frontWheel_1 subsets frontWheel = frontWheel#(1);`, where `frontWheel` is a member of
-  `frontAxleAssembly_c1`'s redefined ancestor `frontAxleAssembly`, not of `frontAxleAssembly_c1`
-  itself. A definition's own `SupertypeNames` (from `part def X :> Y`) name the supertype
-  directly rather than an inherited member, so the fallback is intentionally skipped for
-  non-feature nodes.
+`FindMemberInAncestorChain` remains for `TryResolveInheritedActionMember`: it walks a node's own
+children and — recursively, cycle-guarded — any ancestor reachable via its
+`SysmlEdgeKind.Supertype` **and** `SysmlEdgeKind.Redefinition` resolved edges. Both edge kinds
+are followed, not supertype-only, because `1c-PartsTreeRedefinition.sysml`'s nested
+`frontAxle_c1 redefines frontAxle` has an owner (`frontAxleAssembly_c1`) with no
+`SupertypeNames` at all — the only path to the inherited member is via the owner's own
+`Redefinition` edge.
 
 ##### Error Handling
 
@@ -307,11 +348,14 @@ unresolved names are present.
 
 ##### Dependencies
 
-- `SymbolTable` — `Contains` method used to check whether a supertype, typing, redefinition, or
-  import name is registered; `Lookup` used by feature-chain resolution and
-  `TryResolveBareRedefinition`/`FindMemberInAncestorChain` to walk from a resolved qualified name
-  back to its node; also used by `TryResolveInheritedActionMember` to look up the enclosing node
-  and (in its narrow last-resort branch) the stdlib `Actions::Action` type node.
+- `SymbolTable` — `Symbols` is the declaration dictionary `NameResolver` resolves against;
+  `Lookup` is used by feature-chain resolution and `FindMemberInAncestorChain` to walk from a
+  resolved qualified name back to its node; also used by `TryResolveInheritedActionMember` to look
+  up the enclosing node and (in its narrow last-resort branch) the stdlib `Actions::Action` type
+  node.
+- `NameResolver` — resolves every reference in its internal resolving mode (see `name-resolver.md`).
+- `FilterExpressionEvaluator.CreateImportFilter` (Language Filtering subsystem) — the predicate
+  that evaluates filtered imports.
 - `SysmlNode` hierarchy — traversed to collect `SupertypeNames`, `ImportedNames`, and
   `VerifiedRequirementNames`; checks for `SysmlFeatureNode.FeatureTyping` and
   `SysmlFeatureNode.RedefinedFeatureName`, `SysmlSatisfyNode`
@@ -323,15 +367,16 @@ unresolved names are present.
   (`GetExposedNames()`; `RenderTargetName`/`FilterExpressionText`/each `ExposeMember`'s
   `BracketFilterExpressionText` are never read); reads
   `ResolvedEdges` (`Typing`/`Supertype` kinds during feature-chain resolution; `Supertype`
-  **and** `Redefinition` kinds during `FindMemberInAncestorChain`'s bare-redefinition ancestor
-  walk).
+  **and** `Redefinition` kinds during `FindMemberInAncestorChain`'s ancestor walk).
 - `SysmlEdge`, `SemanticIndex` — resolved references are recorded as `SysmlEdge` instances and
   aggregated into the returned `SemanticIndex`.
 - `SysmlDiagnostic`, `DiagnosticSeverity` — used to construct and emit Warning diagnostics.
 
 ##### Callers
 
-`WorkspaceLoader.LoadAsync` constructs a `ReferenceResolver` with the shared `SymbolTable` and
-diagnostics list, then calls `ResolveAll` with all user file AST roots (stdlib roots are
+`WorkspaceLoader.LoadAsync` constructs a `ReferenceResolver` with the shared `SymbolTable`,
+diagnostics list, and the seed symbol table's names (the stdlib names), then calls `ResolveAll`
+with all user file AST roots (stdlib roots are
 registered into the `SymbolTable` directly and are never passed through `ResolveAll`), capturing
-the returned `SemanticIndex` into `SysmlWorkspace.Index`.
+the returned `SemanticIndex` into `SysmlWorkspace.Index`. `StdlibGen` constructs one with no
+stdlib names and passes every stdlib file root.

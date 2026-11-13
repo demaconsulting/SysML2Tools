@@ -1205,9 +1205,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Resolves the type, supertype, redefinition, and subsetting references of rendered boxes to
-    /// other rendered boxes. A reference already resolved by the semantic model is re-checked with
-    /// <see cref="NameResolver.Recheck"/> (KerML resolution wins when it finds a different element);
-    /// otherwise it is resolved by KerML 8.2.3.5 name resolution (<see cref="NameResolver"/>:
+    /// other rendered boxes. A reference already resolved by the semantic model is used as
+    /// resolved — the semantic resolver applies KerML 8.2.3.5 itself (member visibility, filtered
+    /// imports, and import scoping), so its answer is authoritative; otherwise it is resolved by
+    /// KerML 8.2.3.5 name resolution (<see cref="NameResolver"/>:
     /// owned, imported, and inherited memberships — including aliases and short names — of the
     /// local namespace, then outward through owning namespaces to the global namespace, with later
     /// qualified-name segments by visible resolution). Only when that fails is the tool's bare
@@ -1239,9 +1240,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         {
             if (membership.ResolvedTypeName is { } resolved)
             {
-                qualified = membership.TypeName is { Length: > 0 } raw
-                    ? _resolver.Recheck(resolved, raw, ownerQualifiedName)
-                    : resolved;
+                qualified = resolved;
                 return _rendered.Contains(qualified);
             }
 
@@ -1265,7 +1264,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 target == supertype || target.EndsWith("::" + supertype, StringComparison.Ordinal));
             if (resolved is not null)
             {
-                qualified = _resolver.Recheck(resolved, supertype, OwnerOf(subtypeQualifiedName));
+                qualified = resolved;
                 return _rendered.Contains(qualified);
             }
 

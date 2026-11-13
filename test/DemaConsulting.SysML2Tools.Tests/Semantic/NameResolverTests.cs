@@ -270,23 +270,146 @@ public sealed class NameResolverTests
     }
 
     /// <summary>
-    ///     Re-checking a semantic target keeps it when KerML resolution agrees or finds nothing,
-    ///     and replaces it when KerML resolution, using only the referencing namespace's imports,
-    ///     finds a different element.
+    ///     In resolving mode general types come only from the raw references: a (wrong) resolved
+    ///     edge is ignored, and stripping every edge changes nothing.
     /// </summary>
     [Fact]
-    public async Task NameResolver_Recheck_DifferentKerMLResolution_ReplacesSemanticTarget()
+    public async Task NameResolver_ResolvingMode_GeneralTypes_IgnoresResolvedEdges()
     {
         // Arrange
-        var resolver = await LoadAsync("""
-            package A { part def X; }
-            package B { part def X; }
-            package PkgB { private import B::*; part def User; }
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                part def Base { part def Inner; }
+                part def Wrong { part def Inner; }
+                part def Derived :> Base;
+            }
             """);
+        var derived = workspace.Declarations["P::Derived"];
+        derived.ResolvedEdges = [new SysmlEdge("P::Derived", "P::Wrong", SysmlEdgeKind.Supertype)];
+
+        // Act
+        var publicMode = new NameResolver(workspace.Declarations);
+        var resolvingMode = new NameResolver(workspace.Declarations, null, declaredReferencesOnly: true);
+
+        // Assert: the public mode trusts the edge, the resolving mode the raw reference
+        Assert.Equal("P::Wrong::Inner", publicMode.Resolve("Inner", "P::Derived"));
+        Assert.Equal("P::Base::Inner", resolvingMode.Resolve("Inner", "P::Derived"));
+        Assert.Equal("P::Base", Assert.Single(resolvingMode.GeneralTypes("P::Derived")));
+    }
+
+    /// <summary>
+    ///     A resolving-mode answer does not depend on the order lookups are made in, even when the
+    ///     inherited member's supertype is declared after the type that uses it.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ResolvingMode_Resolve_SupertypeDeclaredLater_IsOrderIndependent()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                part def Derived :> Base;
+                part def Base { part def Inner; }
+            }
+            """);
+        foreach (var node in workspace.Declarations.Values)
+        {
+            node.ResolvedEdges = [];
+        }
+
+        // Act
+        var forward = new NameResolver(workspace.Declarations, null, declaredReferencesOnly: true);
+        var backward = new NameResolver(workspace.Declarations, null, declaredReferencesOnly: true);
+        var first = forward.Resolve("Inner", "P::Derived");
+        _ = backward.Resolve("Base", "P");
+        var second = backward.Resolve("Inner", "P::Derived");
+
+        // Assert
+        Assert.Equal("P::Base::Inner", first);
+        Assert.Equal(first, second);
+    }
+
+    /// <summary>
+    ///     Specialization cycles terminate in resolving mode.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ResolvingMode_GeneralTypes_SpecializationCycle_Terminates()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                part def A :> B;
+                part def B :> A;
+            }
+            """);
+        var resolver = new NameResolver(workspace.Declarations, null, declaredReferencesOnly: true);
 
         // Act / Assert
-        Assert.Equal("B::X", resolver.Recheck("A::X", "X", "PkgB::User"));
-        Assert.Equal("B::X", resolver.Recheck("B::X", "X", "PkgB::User"));
-        Assert.Equal("A::X", resolver.Recheck("A::X", "Missing", "PkgB::User"));
+        Assert.Equal("P::B", Assert.Single(resolver.GeneralTypes("P::A")));
+        Assert.Null(resolver.Resolve("Missing", "P::A"));
+    }
+
+    /// <summary>
+    ///     Imports written at the root of a file apply to that file's top-level declarations.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ResolvingMode_Resolve_FileRootImport_AppliesToRegisteredTopLevelDeclarations()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package Lib { part def Y; }
+            package P { part def A; }
+            package Other { part def B; }
+            """);
+        var rootImport = new SysmlImportNode { ImportedNamespace = "Lib", IsWildcard = true };
+        var resolver = new NameResolver(workspace.Declarations, null, declaredReferencesOnly: true);
+        resolver.RegisterRootImports(["P"], [rootImport]);
+
+        // Act / Assert: only P (a registered top-level declaration) sees the import
+        Assert.Equal("Lib::Y", resolver.Resolve("Y", "P::A"));
+        Assert.Equal("Lib::Y", resolver.Resolve("Y", null, [rootImport]));
+        Assert.Null(resolver.Resolve("Y", "Other::B"));
+    }
+
+    /// <summary>
+    ///     A redefinition never resolves to the redefining feature itself, and falls back to
+    ///     ordinary resolution for a qualified target.
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ResolveRedefinition_ExcludesRedefiningFeatureAndFallsBack()
+    {
+        // Arrange
+        var workspace = await LoadWorkspaceAsync("""
+            package P {
+                part def Base { attribute mass; }
+                part def D :> Base { attribute :>> mass; attribute :>> P::Base::mass; }
+                part def Alone { attribute :>> nothing; }
+            }
+            """);
+        var resolver = new NameResolver(workspace.Declarations, null, declaredReferencesOnly: true);
+
+        // Act / Assert
+        Assert.Equal("P::Base::mass", resolver.ResolveRedefinition("mass", "P::D", "P::D::mass", null));
+        Assert.Equal("P::Base::mass", resolver.ResolveRedefinition("P::Base::mass", "P::Alone", "P::Alone::x", null));
+        Assert.Null(resolver.ResolveRedefinition("nothing", "P::Alone", "P::Alone::nothing", null));
+    }
+
+    /// <summary>
+    ///     Loads <paramref name="sysml"/> (with the standard library) and returns the workspace.
+    /// </summary>
+    private static async Task<SysmlWorkspace> LoadWorkspaceAsync(string sysml)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            return result.Workspace;
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
     }
 }

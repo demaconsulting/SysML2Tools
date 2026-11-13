@@ -223,7 +223,7 @@ failure.
 
 - `SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposeBracketFilterEvaluation` —
   `ResolveExposedScope`'s per-entry bracket-filter parsing/evaluation and `ExposedScope.ExplicitMembers`
-- `SysML2Tools-Core-Filtering-BracketFormExposeEvaluation` — `ResolveExposedScope` reusing
+- `SysML2Tools-Language-Filtering-BracketFormExposeEvaluation` — `ResolveExposedScope` reusing
   `FilterExpressionParser.Parse`/`FilterExpressionEvaluator.Evaluate` unchanged
 - `SysML2Tools-Core-Layout-Internal-LayoutWarnings-UnevaluatedExposeBracketFilter` —
   `ExposedScope.Failures`/`BracketFilterFailure`

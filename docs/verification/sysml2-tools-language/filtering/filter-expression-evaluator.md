@@ -45,13 +45,13 @@ SDK and the repository's committed SysML fixtures.
 
 #### Requirement-to-Test Mapping
 
-- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-ClassificationTests`
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-ClassificationTests`
   - `Parse_ClassificationTest_ReturnsClassificationTestExpression`
   - `Parse_QualifiedClassificationTest_PreservesQualifiedName`
   - `Evaluate_ClassificationTest_MatchesOnlyAnnotatedCandidates`
   - `Evaluate_QualifiedClassificationTest_Matches`
   - `Evaluate_ClassificationTestNoMatch_ReturnsEmpty`
-- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-BooleanConnectives`
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-BooleanConnectives`
   - `Parse_AndConnective_ReturnsBooleanExpression`
   - `Parse_OrConnective_ReturnsBooleanExpression`
   - `Parse_XorConnective_ReturnsBooleanExpression`
@@ -62,7 +62,7 @@ SDK and the repository's committed SysML fixtures.
   - `Evaluate_Not_InvertsMatchSet`
   - `Evaluate_And_MatchesIntersection`
   - `Evaluate_Or_MatchesUnion`
-- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-AttributeReads`
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-AttributeReads`
   - `Parse_AttributeRead_ReturnsAttributeReadExpression`
   - `Parse_AttributeReadEqualsBoolean_ReturnsComparisonExpression`
   - `Parse_ClassificationTestAndAttributeRead_ReAssociatesDotOntoRightOperand`
@@ -72,7 +72,7 @@ SDK and the repository's committed SysML fixtures.
   - `Evaluate_ComparisonEqual_MatchesEqualValue`
   - `Evaluate_ComparisonNotEqual_MatchesDifferingValue`
   - `Evaluate_AttributeReadAbsent_NeverMatchesComparison`
-- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-UnsupportedConstructDiagnostics`
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-UnsupportedConstructDiagnostics`
   - `Parse_Istype_ReturnsUnsupportedConstructDiagnostic`
   - `Parse_Hastype_ReturnsUnsupportedConstructDiagnostic`
   - `Parse_All_ReturnsUnsupportedConstructDiagnostic`
@@ -92,17 +92,23 @@ SDK and the repository's committed SysML fixtures.
   - `Parse_TrailingCloseParen_ReturnsDiagnostic`
   - `Parse_TrailingSemicolon_ReturnsDiagnostic`
   - `Evaluate_UnknownCandidate_SkipsGracefully`
-- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-RoundTripPrettyPrinting`
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-RoundTripPrettyPrinting`
   - `Parse_RoundTrip_PrettyPrintedTextReparsesToEquivalentTree`
   - `Parse_NumericLiteralOverflow_ReturnsDiagnosticInsteadOfInfinity`
   - `Parse_LargeButFiniteRealLiteral_StillParsesSuccessfully`
-- `SysML2Tools-Core-Filtering-FilterExpressionEvaluator-MetaclassKindClassificationTests`
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-MetaclassKindClassificationTests`
   - `Evaluate_BareMetaclassKind_MatchesUsage`
   - `Evaluate_QualifiedMetaclassKind_MatchesUsage`
   - `Evaluate_MetaclassKind_MatchesDefinition`
   - `Evaluate_MetaclassKind_NonMatchingMetaclass_DoesNotMatch`
   - `Evaluate_ClassificationTest_AppliedAnnotationMatchingUnaffectedByMetaclassKindAddition`
   - `Evaluate_MetaclassKind_SpecializationConformance_MatchesAncestorMetaclass`
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-FilteredImportNameResolution`
+  - `CreateNameResolver_FilteredImport_AdmitsOnlyMatchingElements`
+  - `WorkspaceLoader_LoadAsync_FilteredImport_RejectsUnannotatedCandidate`
+  - `WorkspaceLoader_LoadAsync_FilteredRecursiveImport_SkipsRejectedFindsDeeperMatch`
+- `SysML2Tools-Language-Filtering-FilterExpressionEvaluator-MetaclassEvaluation`
+  - `EvaluateForMetaclass_Documentation_ConformsToCommentAndCombines`
 
 #### Test Scenarios
 

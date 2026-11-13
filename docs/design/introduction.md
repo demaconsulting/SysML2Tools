@@ -55,12 +55,14 @@ system, subsystem, and unit levels:
         annotations, and raw view filter text
       - **SymbolTable** (Unit) — registry mapping qualified names to declaration nodes
       - **ReferenceResolver** (Unit) — resolves supertype, typing, metadata-type,
-        redefinition, import, satisfy, verify, allocate, expose, and (in a second pass) dotted
-        feature-chain connect/transition references; detects circular imports; returns a
-        `SemanticIndex` of resolved edges
+        redefinition, import, satisfy, verify, allocate, expose, and (in a final pass) dotted
+        feature-chain connect/transition references by KerML 8.2.3.5 name resolution (delegating
+        to `NameResolver`: member visibility, filtered imports, import scoping); detects circular
+        imports; returns a `SemanticIndex` of resolved edges
       - **NameResolver** (Unit) — public KerML 8.2.3.5 name resolver (owned, imported, inherited,
-        aliased, and short-named memberships; full and visible resolution) used by layout
-        strategies for references the semantic model did not resolve
+        aliased, and short-named memberships; full and visible resolution) used by
+        `ReferenceResolver` (in an internal resolving mode) and by layout strategies for
+        references the semantic model did not resolve
       - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
       - **SysmlEdge** (Unit) — public resolved-reference record (Supertype/Typing/MetadataType/
         Import/Expose/Redefinition/Satisfy/Verify/Allocate/Connect/Transition)
@@ -69,6 +71,11 @@ system, subsystem, and unit levels:
         (Comment/Documentation)
       - **SerializedStdlib** (Unit) — DTO for stdlib binary serialization
       - **AstSerializerContext** (Unit) — source-generated JSON context for AOT-safe serialization
+  - **Filtering** (Subsystem) — parses and evaluates the Phase 1 subset of standalone view
+    `filter [<expr>];` expressions (and import/`expose` bracket filters) over metadata
+    annotations; lives in the Language library so `ReferenceResolver` can evaluate filtered imports
+    - **FilterExpressionEvaluator** (Unit) — filter-expression AST, parser adaptation, and
+      evaluator for metadata classification tests, boolean connectives, and metadata-attribute reads
 - **DemaConsulting.SysML2Tools.Stdlib** (System) — stdlib library: pre-compiled SysML v2 standard
   library JSON embedded as a gzip-compressed managed resource
   - **StdlibProvider** (Unit) — lazy-cached GetSymbolTable() decompressed/deserialized from
@@ -78,11 +85,7 @@ system, subsystem, and unit levels:
   software-items requirements/design/verification tree — see _Scope_)
   - **Program** (Unit) — entry point: parses stdlib, runs resolution, serializes and compresses to stdlib.json.gz
 - **DemaConsulting.SysML2Tools.Core** (System) — core library: layout strategies,
-  filter-expression evaluation, rendering orchestration, and the SysML-coupled rendering pipeline
-  - **Filtering** (Subsystem) — parses and evaluates the Phase 1 subset of standalone view
-    `filter [<expr>];` expressions over metadata annotations
-    - **FilterExpressionEvaluator** (Unit) — filter-expression AST, parser adaptation, and
-      evaluator for metadata classification tests, boolean connectives, and metadata-attribute reads
+  rendering orchestration, and the SysML-coupled rendering pipeline
   - **Layout** (Subsystem) — maps the SysML semantic model onto the off-the-shelf `LayoutTree`
     intermediate representation and delegates geometric placement and routing to the off-the-shelf
     `DemaConsulting.Rendering.Layout` layered algorithm
@@ -207,10 +210,11 @@ reviewers an explicit navigation aid from design to code:
       - **Model/** — public semantic model types (SysmlNode, SysmlMetadataNode, AstBuilder,
         SymbolTable, ReferenceResolver, NameResolver, SupertypeWalker, SysmlEdge, SemanticIndex,
         SysmlAnnotation, SerializedStdlib, AstSerializerContext)
+    - **Filtering/** — standalone view-filter expression AST, parser, and evaluator (namespace
+      `DemaConsulting.SysML2Tools.Filtering`)
   - **DemaConsulting.SysML2Tools.Stdlib/** — stdlib library
     - **Stdlib/** — SysML v2 standard library source files (EPL-2.0; see Stdlib/README.md)
   - **DemaConsulting.SysML2Tools.Core/** — core library
-    - **Filtering/** — standalone view-filter expression AST, parser, and evaluator
     - **Layout/** — layout strategies mapping the model to the off-the-shelf `LayoutTree`
       - **Internal/** — per-view layout strategies and the `LayeredPlacement` helper
     - **Rendering/** — SysML-coupled rendering pipeline (`ILayoutStrategy`, `DiagramRenderer`)

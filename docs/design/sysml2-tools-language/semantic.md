@@ -70,8 +70,9 @@ optionally seeded with a pre-populated symbol table.
    its content via `WorkspaceParser.ParseSourceToCst`, building an AST — capturing any
    `comment`/`doc` annotating-element text onto each owning node's `Annotations` as it goes —
    and registering into the same `SymbolTable`.
-3. `ReferenceResolver.ResolveAll` traverses all AST nodes, checks each supertype, feature-typing,
-   and import reference against the symbol table, and emits Warning diagnostics for unresolved
+3. `ReferenceResolver.ResolveAll` traverses all AST nodes, resolves each supertype, feature-typing,
+   and import reference by KerML 8.2.3.5 name resolution (`NameResolver`: member visibility,
+   filtered imports, import scoping), and emits Warning diagnostics for unresolved
    references. It also builds an import graph and performs cycle detection, and returns a
    `SemanticIndex` over all resolved edges.
 4. `SupertypeWalker.WalkAll` traverses specialization chains for all symbols and emits Warning

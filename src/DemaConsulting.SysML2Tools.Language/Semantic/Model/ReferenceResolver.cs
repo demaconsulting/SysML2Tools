@@ -1,6 +1,7 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
+using DemaConsulting.SysML2Tools.Filtering;
 using DemaConsulting.SysML2Tools.Parser;
 
 namespace DemaConsulting.SysML2Tools.Semantic.Model;
@@ -8,13 +9,18 @@ namespace DemaConsulting.SysML2Tools.Semantic.Model;
 /// <summary>
 ///     Resolves qualified name references and import chains across all loaded files.
 /// </summary>
+/// <remarks>
+///     Every reference is resolved by <see cref="NameResolver"/> in its resolving mode, following
+///     KerML 8.2.3.5 name resolution: the local namespace is the nearest enclosing
+///     package/definition/usage, imports apply only to the namespace that declares them (and the
+///     namespaces nested in it), qualified names are resolved through public memberships only,
+///     and filtered imports admit only the elements their filter accepts. The imports written at
+///     the root of a source file apply to everything in that file.
+/// </remarks>
 internal sealed class ReferenceResolver
 {
-    /// <summary>Maximum number of chained aliases followed when resolving one reference.</summary>
-    private const int MaxAliasDepth = 8;
-
     /// <summary>
-    ///     The symbol table used to check whether supertype names are registered.
+    ///     The symbol table whose declarations references are resolved against.
     /// </summary>
     private readonly SymbolTable _symbolTable;
 
@@ -23,18 +29,44 @@ internal sealed class ReferenceResolver
     /// </summary>
     private readonly List<SysmlDiagnostic> _diagnostics;
 
-    /// <summary>Number of aliases currently being followed, guarding against alias cycles.</summary>
-    private int _aliasDepth;
+    /// <summary>
+    ///     The qualified names of the standard library declarations, used to evaluate filtered
+    ///     imports' metaclass classification tests.
+    /// </summary>
+    private readonly IReadOnlySet<string> _stdlibNames;
+
+    /// <summary>
+    ///     The name resolver used by the current pass (replaced between pass 0 and pass 1 so the
+    ///     filter-enabled instance starts with a fresh cache).
+    /// </summary>
+    private NameResolver _resolver;
 
     /// <summary>
     ///     Initializes a new instance of <see cref="ReferenceResolver"/> with the given symbol
     ///     table and diagnostics list.
     /// </summary>
-    public ReferenceResolver(SymbolTable symbolTable, List<SysmlDiagnostic> diagnostics)
+    /// <param name="symbolTable">The symbol table to resolve references against.</param>
+    /// <param name="diagnostics">The shared diagnostics list to append Warning entries to.</param>
+    /// <param name="stdlibNames">
+    ///     The qualified names of the standard library declarations (the seed symbol table's
+    ///     keys), or <see langword="null"/> when there is no standard library.
+    /// </param>
+    public ReferenceResolver(
+        SymbolTable symbolTable,
+        List<SysmlDiagnostic> diagnostics,
+        IReadOnlySet<string>? stdlibNames = null)
     {
         _symbolTable = symbolTable;
         _diagnostics = diagnostics;
+        _stdlibNames = stdlibNames ?? new HashSet<string>(StringComparer.Ordinal);
+        _resolver = new NameResolver(symbolTable.Symbols, null, declaredReferencesOnly: true);
     }
+
+    /// <summary>
+    ///     A parsed source file together with the imports written at its root (outside any
+    ///     package), which apply to every declaration in the file.
+    /// </summary>
+    private sealed record LoadedFile(string FilePath, SysmlNode Root, IReadOnlyList<SysmlImportNode> RootImports);
 
     /// <summary>
     ///     Runs import-graph cycle detection and supertype/typing/import reference resolution
@@ -49,36 +81,28 @@ internal sealed class ReferenceResolver
     ///     Resolution runs in three passes over <paramref name="fileRoots"/>:
     ///     <list type="number">
     ///         <item>
-    ///             <b>Pass 1</b> (<see cref="ResolveNode"/>) resolves every ordinary
-    ///             namespace/import-scoped reference (supertype, typing, redefinition, import,
-    ///             verify, satisfy, allocate, expose) for every file root. Any bare-name
-    ///             <c>redefines</c>/<c>:&gt;&gt;</c> target or usage-level <c>subsets</c>/<c>:&gt;</c>
-    ///             supertype name that the plain namespace/import lookup cannot resolve is
-    ///             <em>not</em> warned about yet — it is instead recorded as a pending candidate,
-    ///             because resolving it requires walking an ancestor's
-    ///             <see cref="SysmlNode.ResolvedEdges"/>, which may not yet be populated if that
-    ///             ancestor has not been visited yet by this same single top-to-bottom,
-    ///             document-order DFS (declared later in the same file, or in a file processed
-    ///             later in <paramref name="fileRoots"/>).
+    ///             <b>Pass 0</b> (<see cref="ResolveMetadataNodes"/>) resolves every metadata
+    ///             annotation's type reference first, so a filtered import's classification test
+    ///             (<c>import P::*[@X];</c>) can read the resolved
+    ///             <see cref="SysmlEdgeKind.MetadataType"/> edge of any candidate regardless of
+    ///             where the candidate is declared. These references are resolved ignoring import
+    ///             filters (a metadata type reachable only through a filtered import is resolved
+    ///             as if the filter admitted it), which avoids a circular dependency between a
+    ///             filter and the metadata it tests.
     ///         </item>
     ///         <item>
-    ///             <b>Pass 2</b> (<see cref="ResolveBareRedefinitions"/>) resolves every pending
-    ///             candidate collected by pass 1, once, after pass 1 has completed for
-    ///             <em>every</em> file root — so every ancestor's <c>Supertype</c>/
-    ///             <c>Redefinition</c> edges from ordinary pass 1 resolution are already attached,
-    ///             regardless of declaration order. This mirrors the existing feature-chain
-    ///             precedent below exactly: a single extra pass after pass 1 is sufficient because
-    ///             the only edges this walk depends on are the ones pass 1 always attaches via
-    ///             plain <see cref="TryResolve"/>. Diagnostics for names that still cannot be
-    ///             resolved are emitted here instead.
+    ///             <b>Pass 1</b> (<see cref="ResolveNode"/>) resolves every other namespace-scoped
+    ///             reference (supertype, typing, redefinition, import, verify, satisfy, allocate,
+    ///             dependency, expose) for every file root, with filtered imports honored. A
+    ///             redefined or subsetted member the owner inherits resolves in this single pass,
+    ///             wherever its ancestor is declared, because general types are derived from the
+    ///             types' raw references rather than from edges that may not be attached yet.
     ///         </item>
     ///         <item>
-    ///             <b>Pass 3</b> (<see cref="ResolveFeatureChains"/>) resolves dotted feature
+    ///             <b>Pass 2</b> (<see cref="ResolveFeatureChains"/>) resolves dotted feature
     ///             chains (connection/message endpoints, transition source/target) into
-    ///             Connect/Transition edges — see that method's remarks for why it, too, must run
-    ///             after pass 1 completes for all file roots. Passes 2 and 3 resolve disjoint edge
-    ///             kinds and neither depends on the other's output, so their relative order does
-    ///             not matter.
+    ///             Connect/Transition edges — see that method's remarks for why it must run after
+    ///             pass 1 completes for all file roots.
     ///         </item>
     ///     </list>
     /// </remarks>
@@ -91,51 +115,76 @@ internal sealed class ReferenceResolver
         // Detect circular imports
         DetectCircularImports(importGraph);
 
-        // Shared per-file "already warned about this name" deduplication sets, keyed by file
-        // path. Promoted out of the pass-1 loop below so pass 2 (ResolveBareRedefinitions)
-        // reuses the *same* set for a given file, avoiding duplicate warnings for a name that
-        // pass 1 could not resolve immediately and pass 2 also fails to resolve.
-        var resolvedInFileByPath = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        var files = fileRootsList
+            .Where(r => r.Root is not null)
+            .Select(r => new LoadedFile(r.FilePath, r.Root!, r.Root!.Children.OfType<SysmlImportNode>().ToList()))
+            .ToList();
 
-        // Pass 1: resolve every ordinary namespace/import-scoped reference for all file roots,
-        // accumulating edges. Bare-name redefinition/usage-subsetting candidates that cannot be
-        // resolved immediately are collected into pendingBareRedefinitions instead of being
-        // warned about right away (see the ResolveAll remarks above).
+        // Per-file "already warned about this name" deduplication sets, keyed by file path and
+        // shared by every pass so a name that cannot be resolved is warned about once per file.
+        var resolvedInFileByPath = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         var edges = new List<SysmlEdge>();
-        var pendingBareRedefinitions = new List<PendingBareRedefinition>();
-        foreach (var (filePath, root) in fileRootsList.Where(r => r.Root is not null))
+
+        // Pass 0: metadata annotation types, resolved with an unfiltered resolver (see remarks).
+        _resolver = CreateResolver(files, importFilter: null);
+        foreach (var file in files)
         {
-            var imports = CollectImportNodes(root!);
-            var resolvedInFile = GetOrAddResolvedInFileSet(resolvedInFileByPath, filePath);
-            ResolveNode(root!, filePath, resolvedInFile, new List<string>(), imports, edges, pendingBareRedefinitions);
+            ResolveMetadataNodes(
+                file.Root, file, GetOrAddResolvedInFileSet(resolvedInFileByPath, file.FilePath), null, edges);
         }
 
-        // Pass 2: resolve the bare-name redefinition/usage-subsetting candidates collected by
-        // pass 1, now that every file root's ordinary Supertype/Redefinition edges are attached
-        // (see the ResolveAll remarks above for the full rationale).
-        ResolveBareRedefinitions(pendingBareRedefinitions, resolvedInFileByPath, edges);
+        // Pass 1: every other reference, now honoring filtered imports. Without any filtered
+        // import the pass-0 resolver (and its warm cache) is exactly equivalent, so it is kept.
+        if (files.Any(file => ContainsFilteredImport(file.Root)))
+        {
+            _resolver = CreateResolver(
+                files, FilterExpressionEvaluator.CreateImportFilter(_symbolTable.Symbols, _stdlibNames));
+        }
 
-        // Pass 3: resolve dotted feature chains (connection/message endpoints, transition
+        foreach (var file in files)
+        {
+            ResolveNode(file.Root, file, GetOrAddResolvedInFileSet(resolvedInFileByPath, file.FilePath), null, edges);
+        }
+
+        // Pass 2: resolve dotted feature chains (connection/message endpoints, transition
         // source/target) into Connect/Transition edges. This must run after pass 1 has resolved
         // Typing/Supertype edges for ALL file roots, because a chain walk may depend on a
         // Typing/Supertype edge belonging to a node visited later in document order within the
         // same file, or to a node in a different file entirely (see "Feature-Chain Resolution" in
         // the design doc for the full rationale).
-        foreach (var (filePath, root) in fileRootsList.Where(r => r.Root is not null))
+        foreach (var file in files)
         {
-            var imports = CollectImportNodes(root!);
-            ResolveFeatureChains(root!, filePath, new HashSet<string>(), new List<string>(), imports, edges);
+            ResolveFeatureChains(file.Root, file, new HashSet<string>(), null, edges);
         }
 
         return new SemanticIndex(edges);
     }
 
     /// <summary>
+    ///     Creates a resolving-mode <see cref="NameResolver"/> over the symbol table and
+    ///     registers each file's root imports against that file's top-level declarations.
+    /// </summary>
+    private NameResolver CreateResolver(IEnumerable<LoadedFile> files, Func<SysmlImportNode, string, bool>? importFilter)
+    {
+        var resolver = new NameResolver(_symbolTable.Symbols, importFilter, declaredReferencesOnly: true);
+        foreach (var file in files)
+        {
+            resolver.RegisterRootImports(
+                file.Root.Children.Select(child => child.Name).OfType<string>(), file.RootImports);
+        }
+
+        return resolver;
+    }
+
+    /// <summary>Returns whether any import in <paramref name="node"/>'s subtree carries a bracket filter.</summary>
+    private static bool ContainsFilteredImport(SysmlNode node) =>
+        node is SysmlImportNode { BracketFilterExpressionText: not null } ||
+        node.Children.Any(ContainsFilteredImport);
+
+    /// <summary>
     ///     Gets the existing per-file "already warned about this name" deduplication set for
     ///     <paramref name="filePath"/>, or creates and registers a new empty one if none exists
-    ///     yet. Shared by <see cref="ResolveNode"/> (pass 1) and
-    ///     <see cref="ResolveBareRedefinitions"/> (pass 2) so a name that pass 1 could not resolve
-    ///     immediately, and that pass 2 also fails to resolve, is warned about exactly once.
+    ///     yet.
     /// </summary>
     private static HashSet<string> GetOrAddResolvedInFileSet(
         Dictionary<string, HashSet<string>> resolvedInFileByPath,
@@ -148,90 +197,6 @@ internal sealed class ReferenceResolver
         }
 
         return resolvedInFile;
-    }
-
-    /// <summary>
-    ///     A bare-name <c>redefines</c>/<c>:&gt;&gt;</c> target, or usage-level
-    ///     <c>subsets</c>/<c>:&gt;</c> supertype name, that pass 1's plain namespace/import-scoped
-    ///     <see cref="TryResolve"/> lookup could not resolve. Recorded by <see cref="ResolveNode"/>
-    ///     and resolved later by <see cref="ResolveBareRedefinitions"/>, once every file root's
-    ///     ordinary edges have been attached.
-    /// </summary>
-    /// <param name="OwnerQualifiedName">
-    ///     The qualified name of the node that owns/declares the redefining or subsetting
-    ///     feature — i.e. the enclosing namespace scope in effect when the candidate was
-    ///     recorded — whose ancestor chain must be walked to find <paramref name="Name"/>.
-    /// </param>
-    /// <param name="Name">The bare (unqualified) name to resolve.</param>
-    /// <param name="Kind">The edge kind (<see cref="SysmlEdgeKind.Supertype"/> for usage-level
-    ///     subsetting, <see cref="SysmlEdgeKind.Redefinition"/> for <c>redefines</c>) to record on
-    ///     success.</param>
-    /// <param name="SubjectQualifiedName">
-    ///     The qualified name of the redefining/subsetting feature itself, used as the edge's
-    ///     subject on success.
-    /// </param>
-    /// <param name="FilePath">Source file path used when constructing a diagnostic on failure.</param>
-    private sealed record PendingBareRedefinition(
-        string OwnerQualifiedName,
-        string Name,
-        SysmlEdgeKind Kind,
-        string SubjectQualifiedName,
-        string FilePath);
-
-    /// <summary>
-    ///     Resolves every bare-name redefinition/usage-subsetting candidate collected by pass 1
-    ///     (<see cref="ResolveNode"/>) via the ancestor-chain walk in
-    ///     <see cref="FindMemberInAncestorChain"/>. Must run once, after pass 1 has completed for
-    ///     every file root, so every ancestor's own <see cref="SysmlEdgeKind.Supertype"/>/
-    ///     <see cref="SysmlEdgeKind.Redefinition"/> edges — attached by pass 1's ordinary
-    ///     <see cref="TryResolve"/> resolution — are populated regardless of the declaration order
-    ///     of the ancestor relative to the descendant doing the walking (see the
-    ///     <see cref="ResolveAll"/> remarks for the full rationale). A candidate that still cannot
-    ///     be resolved here produces the "Unresolved reference" Warning diagnostic that pass 1
-    ///     deferred.
-    /// </summary>
-    /// <param name="pending">The candidates collected by pass 1.</param>
-    /// <param name="resolvedInFileByPath">
-    ///     Shared per-file "already warned about this name" deduplication sets, keyed by file
-    ///     path (see <see cref="GetOrAddResolvedInFileSet"/>).
-    /// </param>
-    /// <param name="edges">
-    ///     Aggregate list of all edges resolved so far across the whole file-root traversal;
-    ///     appended to by this method on success.
-    /// </param>
-    private void ResolveBareRedefinitions(
-        List<PendingBareRedefinition> pending,
-        Dictionary<string, HashSet<string>> resolvedInFileByPath,
-        List<SysmlEdge> edges)
-    {
-        foreach (var candidate in pending)
-        {
-            if (TryResolveBareRedefinition(candidate.OwnerQualifiedName, candidate.Name, out var resolvedName))
-            {
-                var edge = new SysmlEdge(candidate.SubjectQualifiedName, resolvedName, candidate.Kind);
-                edges.Add(edge);
-
-                var subjectNode = _symbolTable.Lookup(candidate.SubjectQualifiedName);
-                if (subjectNode is not null)
-                {
-                    subjectNode.ResolvedEdges = subjectNode.ResolvedEdges.Count > 0
-                        ? [.. subjectNode.ResolvedEdges, edge]
-                        : [edge];
-                }
-
-                continue;
-            }
-
-            var resolvedInFile = GetOrAddResolvedInFileSet(resolvedInFileByPath, candidate.FilePath);
-            if (resolvedInFile.Add(candidate.Name))
-            {
-                _diagnostics.Add(new SysmlDiagnostic(
-                    candidate.FilePath,
-                    0, 0,
-                    DiagnosticSeverity.Warning,
-                    $"Unresolved reference: '{candidate.Name}'"));
-            }
-        }
     }
 
     /// <summary>
@@ -290,36 +255,6 @@ internal sealed class ReferenceResolver
     }
 
     /// <summary>
-    ///     Recursively collects all <see cref="SysmlImportNode"/> instances from an AST root and
-    ///     its descendants, providing the per-file import context for reference resolution.
-    /// </summary>
-    /// <param name="root">The AST root to traverse.</param>
-    /// <returns>All import nodes found anywhere in the file's AST.</returns>
-    private static List<SysmlImportNode> CollectImportNodes(SysmlNode root)
-    {
-        var imports = new List<SysmlImportNode>();
-        CollectImportNodesRecursive(root, imports);
-        return imports;
-    }
-
-    /// <summary>
-    ///     Recursive helper that accumulates <see cref="SysmlImportNode"/> instances into the
-    ///     given list.
-    /// </summary>
-    private static void CollectImportNodesRecursive(SysmlNode node, List<SysmlImportNode> imports)
-    {
-        if (node is SysmlImportNode importNode)
-        {
-            imports.Add(importNode);
-        }
-
-        foreach (var child in node.Children)
-        {
-            CollectImportNodesRecursive(child, imports);
-        }
-    }
-
-    /// <summary>
     ///     Performs a DFS over the import graph to detect and report circular import chains.
     /// </summary>
     private void DetectCircularImports(Dictionary<string, HashSet<string>> importGraph)
@@ -369,478 +304,208 @@ internal sealed class ReferenceResolver
     }
 
     /// <summary>
-    ///     Attempts to resolve a name using a four-step lookup strategy so that unqualified
-    ///     names referenced in source code match their fully-qualified counterparts in the
-    ///     symbol table.
+    ///     Returns the local namespace in effect for the children of <paramref name="node"/>: the
+    ///     node's own qualified name when it is a named package, definition, or usage, otherwise
+    ///     the namespace <paramref name="scope"/> that already applied to the node itself.
     /// </summary>
-    /// <remarks>
-    ///     The four steps, tried in order, are:
-    ///     <list type="number">
-    ///         <item>Direct lookup — handles already-qualified names such as <c>Pkg::Bar</c>.</item>
-    ///         <item>
-    ///             Enclosing namespace scopes — for a reference inside <c>A::B</c>, tries
-    ///             <c>A::B::name</c>, then <c>A::name</c>, so same-package references resolve
-    ///             without qualification.
-    ///         </item>
-    ///         <item>
-    ///             Wildcard imports — for each <c>import X::*</c> in the file, tries
-    ///             <c>X::name</c>, matching star-imported members by short name.
-    ///         </item>
-    ///         <item>
-    ///             Explicit named imports — for each <c>import X::Y</c> where <c>Y == name</c>
-    ///             and <c>X::Y</c> is in the symbol table, accepts the reference.
-    ///         </item>
-    ///     </list>
-    /// </remarks>
-    /// <param name="name">The name to resolve — may be unqualified or partially qualified.</param>
-    /// <param name="namespaceStack">
-    ///     Simple name segments of the current enclosing namespace path, outermost first
-    ///     (e.g., <c>["A", "B"]</c> for a symbol nested inside <c>A::B</c>).
-    /// </param>
-    /// <param name="imports">All import nodes collected from the current file.</param>
-    /// <param name="resolvedName">
-    ///     When this method returns <see langword="true"/>, the fully-qualified name that
-    ///     matched (the exact key registered in the symbol table). When this method returns
-    ///     <see langword="false"/>, set to <see cref="string.Empty"/>.
-    /// </param>
-    /// <returns>
-    ///     <see langword="true"/> if the name resolves to a known symbol;
-    ///     <see langword="false"/> otherwise.
-    /// </returns>
-    private bool TryResolve(
-        string name,
-        IReadOnlyList<string> namespaceStack,
-        IReadOnlyList<SysmlImportNode> imports,
-        out string resolvedName)
+    private static string? ChildScope(SysmlNode node, string? scope)
     {
-        // Step 1: Direct lookup — handles already-qualified names. A simple name is looked up in
-        // the global namespace only after the enclosing namespaces and imports (Steps 2-4), per
-        // KerML 8.2.3.5.4 full resolution (local resolution outward before the global namespace),
-        // so e.g. a local `Base` is not shadowed by the standard library's top-level `Base` package.
-        var isQualified = name.Contains("::", StringComparison.Ordinal);
-        if (isQualified && _symbolTable.Contains(name))
+        if (node is not (SysmlPackageNode or SysmlDefinitionNode or SysmlFeatureNode) || node.Name is null)
         {
-            resolvedName = name;
-            return true;
+            return scope;
         }
 
-        // Step 2: Enclosing namespace scopes — try progressively shorter prefixes so that
-        // an unqualified "Bar" inside A::B matches A::B::Bar, then A::Bar
-        for (var i = namespaceStack.Count; i > 0; i--)
+        if (node.QualifiedName is { Length: > 0 } qualified)
         {
-            var prefix = string.Join("::", namespaceStack.Take(i));
-            var candidate = $"{prefix}::{name}";
-            if (_symbolTable.Contains(candidate))
-            {
-                resolvedName = candidate;
-                return true;
-            }
-
-            // A local membership may also be named by its short name or be an alias
-            // (KerML 8.2.3.5.2 local resolution), which must win over any outer or global match.
-            if (!isQualified &&
-                TryResolveLocalShortNameOrAlias(name, prefix, namespaceStack.Take(i).ToList(), imports) is { } local)
-            {
-                resolvedName = local;
-                return true;
-            }
+            return qualified;
         }
 
-        // Step 3: Wildcard imports — for each `import X::*` in the file, try X::name. X itself is
-        // resolved first (direct or via enclosing scope) so that wildcard imports of a *nested*
-        // namespace (e.g. `import Inner::*;` inside `package Outer { package Inner {...} }`)
-        // match members of the fully-qualified "Outer::Inner", not just a top-level "Inner".
-        foreach (var wildcard in imports.Where(i => i.IsWildcard))
-        {
-            var resolvedNamespace = ResolveNamespaceName(wildcard.ImportedNamespace, namespaceStack);
-            var candidate = $"{resolvedNamespace}::{name}";
-            if (_symbolTable.Contains(candidate))
-            {
-                resolvedName = candidate;
-                return true;
-            }
-
-            // A recursive *membership* import (`import X::Y::**;`) brings Y itself into scope by
-            // its own short name — not just Y's nested descendants — since Y is the explicit
-            // membership-import target, not merely a containing namespace being wildcard-searched.
-            // e.g. `import VersionMark::Cli::**;` should let an unqualified `Cli` reference resolve
-            // to `VersionMark::Cli` itself, in addition to reaching Cli's own nested members below.
-            if (wildcard.IsMembershipImport &&
-                LastSegment(resolvedNamespace) == name &&
-                _symbolTable.Contains(resolvedNamespace))
-            {
-                resolvedName = resolvedNamespace;
-                return true;
-            }
-
-            // Recursive wildcard import (`import X::*::**;`) additionally reaches members of any
-            // namespace nested within X at any depth, not just X's own direct members — e.g.
-            // `import VersionMark::*::**;` should let an unqualified `CliSubsystem` resolve to
-            // `VersionMark::Cli::CliSubsystem` even though `Cli` is a nested package, not X itself.
-            // Prefer the least-nested match for determinism when more than one namespace at
-            // different depths happens to declare a same-named member.
-            if (wildcard.IsRecursive &&
-                FindRecursiveWildcardMatch(resolvedNamespace, name) is { Length: > 0 } recursiveMatch)
-            {
-                resolvedName = recursiveMatch;
-                return true;
-            }
-        }
-
-        // Step 4: Explicit named imports — for each `import X::Y` where Y == name,
-        // accept the reference if X::Y is a known symbol. X is resolved the same way as for
-        // wildcard imports, so a nested-namespace explicit import also matches.
-        foreach (var ns in imports.Where(i => !i.IsWildcard).Select(i => i.ImportedNamespace))
-        {
-            var lastSep = ns.LastIndexOf("::", StringComparison.Ordinal);
-            var nsPrefix = lastSep >= 0 ? ns[..lastSep] : string.Empty;
-            var lastName = lastSep >= 0 ? ns[(lastSep + 2)..] : ns;
-            if (lastName != name)
-            {
-                continue;
-            }
-
-            var resolvedPrefix = nsPrefix.Length > 0 ? ResolveNamespaceName(nsPrefix, namespaceStack) : null;
-            var candidate = resolvedPrefix is not null ? $"{resolvedPrefix}::{lastName}" : ns;
-            if (_symbolTable.Contains(candidate))
-            {
-                resolvedName = candidate;
-                return true;
-            }
-        }
-
-        // Step 5: Global namespace — a simple name naming a top-level element (see Step 1).
-        if (!isQualified && _symbolTable.Contains(name))
-        {
-            resolvedName = name;
-            return true;
-        }
-
-        resolvedName = string.Empty;
-        return false;
+        return scope is null ? node.Name : $"{scope}::{node.Name}";
     }
 
     /// <summary>
-    ///     Finds an owned membership of <paramref name="namespaceName"/> whose short name is
-    ///     <paramref name="name"/>, or an alias member named (or short-named) <paramref name="name"/>,
-    ///     returning the member element's qualified name (an alias's target resolved from the
-    ///     namespace), or null when there is none.
+    ///     Attempts to resolve a name relative to <paramref name="scope"/> by KerML name
+    ///     resolution (see <see cref="NameResolver"/>).
     /// </summary>
-    private string? TryResolveLocalShortNameOrAlias(
-        string name, string namespaceName, IReadOnlyList<string> namespaceStack, IReadOnlyList<SysmlImportNode> imports)
+    /// <param name="name">The name to resolve — may be unqualified or qualified.</param>
+    /// <param name="scope">The qualified name of the local namespace, or null at the file root.</param>
+    /// <param name="rootImports">The imports written at the root of the referencing file.</param>
+    /// <param name="resolvedName">
+    ///     When this method returns <see langword="true"/>, the resolved element's fully-qualified
+    ///     name; otherwise <see cref="string.Empty"/>.
+    /// </param>
+    private bool TryResolve(
+        string name,
+        string? scope,
+        IReadOnlyList<SysmlImportNode> rootImports,
+        out string resolvedName)
     {
-        if (_symbolTable.Lookup(namespaceName) is not { } ns)
+        resolvedName = _resolver.Resolve(name, scope, rootImports) ?? string.Empty;
+        return resolvedName.Length > 0;
+    }
+
+    /// <summary>
+    ///     Resolves <paramref name="name"/> like <see cref="TryResolve"/>, emitting the
+    ///     "Unresolved reference" Warning diagnostic (once per name per file) when it does not
+    ///     resolve.
+    /// </summary>
+    /// <returns>The resolved qualified name, or null when the name did not resolve.</returns>
+    private string? ResolveOrWarn(
+        string name,
+        string? scope,
+        LoadedFile file,
+        HashSet<string> resolvedInFile)
+    {
+        if (TryResolve(name, scope, file.RootImports, out var resolved))
         {
-            return null;
+            return resolved;
         }
 
-        foreach (var child in ns.Children)
-        {
-            if (child is SysmlAliasNode alias && (alias.Name == name || alias.ShortName == name))
-            {
-                // An alias of an alias is followed at most a bounded number of times.
-                if (_aliasDepth < MaxAliasDepth)
-                {
-                    _aliasDepth++;
-                    try
-                    {
-                        if (TryResolve(alias.TargetName, namespaceStack, imports, out var target))
-                        {
-                            return target;
-                        }
-                    }
-                    finally
-                    {
-                        _aliasDepth--;
-                    }
-                }
-            }
-            else if (child is not SysmlImportNode && child.ShortName == name && child.QualifiedName is { Length: > 0 } qualified)
-            {
-                return qualified;
-            }
-        }
-
+        ReportUnresolved(name, file.FilePath, resolvedInFile);
         return null;
     }
 
     /// <summary>
-    ///     Searches the symbol table for a member named <paramref name="name"/> declared in any
-    ///     namespace nested (at any depth) within <paramref name="resolvedNamespace"/>, for
-    ///     resolving a recursive wildcard import's (<c>import X::*::**;</c>) unqualified
-    ///     references. Returns the shallowest (least-nested) match when more than one namespace at
-    ///     different depths declares a same-named member, and <see cref="string.Empty"/> when no
-    ///     match exists.
+    ///     Emits the "Unresolved reference" Warning diagnostic for <paramref name="name"/> unless
+    ///     it was already reported for this file.
     /// </summary>
-    private string FindRecursiveWildcardMatch(string resolvedNamespace, string name)
+    private void ReportUnresolved(string name, string filePath, HashSet<string> resolvedInFile)
     {
-        var prefix = resolvedNamespace + "::";
-        var suffix = "::" + name;
-        string? best = null;
-        var bestDepth = int.MaxValue;
-        foreach (var qualifiedName in _symbolTable.Symbols.Keys)
+        if (resolvedInFile.Add(name))
         {
-            if (!qualifiedName.StartsWith(prefix, StringComparison.Ordinal) ||
-                !qualifiedName.EndsWith(suffix, StringComparison.Ordinal) ||
-                qualifiedName.Length < prefix.Length + suffix.Length)
-            {
-                continue;
-            }
-
-            // Depth is the number of intermediate "::"-separated segments between
-            // resolvedNamespace and name — count separators in the portion of qualifiedName
-            // strictly between the matched prefix and suffix, not raw string length (segment
-            // names vary in length, so a deeper match can have a shorter qualified-name string
-            // than a shallower one). The length guard above excludes the exact one-level match
-            // "prefix + name" (already handled by the direct-candidate check before this method
-            // is called), where prefix and suffix overlap and slicing out a "middle" would
-            // otherwise be an invalid (negative-length) range.
-            var middle = qualifiedName[prefix.Length..^suffix.Length];
-            var depth = middle.Length == 0 ? 0 : middle.Split("::").Length;
-            if (depth < bestDepth)
-            {
-                best = qualifiedName;
-                bestDepth = depth;
-            }
+            _diagnostics.Add(new SysmlDiagnostic(
+                filePath,
+                0, 0,
+                DiagnosticSeverity.Warning,
+                $"Unresolved reference: '{name}'"));
         }
-
-        return best ?? string.Empty;
     }
 
     /// <summary>
-    ///     Returns the final <c>::</c>-separated segment of a qualified name (e.g.
-    ///     <c>"VersionMark::Cli"</c> → <c>"Cli"</c>), or the whole string when it contains no
-    ///     <c>::</c> separator.
+    ///     Pass 0 traversal: resolves each metadata annotation's type reference (e.g.
+    ///     <c>Safety</c> / <c>Pkg::Safety</c>) into a <see cref="SysmlEdgeKind.MetadataType"/> edge
+    ///     the same way feature typing resolves, before any filtered import is evaluated. The
+    ///     edge's source is the metadata node's own (usually-null) qualified name — callers
+    ///     (the filter evaluator) read the resolved target off the node's
+    ///     <see cref="SysmlNode.ResolvedEdges"/> directly, since a metadata annotation is always
+    ///     addressed by its owning element, not by its own identity.
     /// </summary>
-    private static string LastSegment(string qualifiedName)
+    private void ResolveMetadataNodes(
+        SysmlNode node,
+        LoadedFile file,
+        HashSet<string> resolvedInFile,
+        string? scope,
+        List<SysmlEdge> edges)
     {
-        var lastSep = qualifiedName.LastIndexOf("::", StringComparison.Ordinal);
-        return lastSep >= 0 ? qualifiedName[(lastSep + 2)..] : qualifiedName;
+        if (node is SysmlMetadataNode { TypeReference.Length: > 0 } metadata &&
+            ResolveOrWarn(metadata.TypeReference, scope, file, resolvedInFile) is { } resolvedType)
+        {
+            var edge = new SysmlEdge(node.QualifiedName, resolvedType, SysmlEdgeKind.MetadataType);
+            node.ResolvedEdges = [edge];
+            edges.Add(edge);
+        }
+
+        var childScope = ChildScope(node, scope);
+        foreach (var child in node.Children)
+        {
+            ResolveMetadataNodes(child, file, resolvedInFile, childScope, edges);
+        }
     }
 
     /// <summary>
-    ///     Resolves a raw (possibly nested-relative) namespace name referenced by an <c>import</c>
-    ///     statement to its fully-qualified form, trying a direct symbol-table lookup first and
-    ///     then progressively shorter enclosing-scope prefixes (mirroring <see cref="TryResolve"/>'s
-    ///     own Step 2). Falls back to the raw name unchanged when no match is found, preserving the
-    ///     previous behavior for namespaces that are already fully qualified or do not resolve.
-    /// </summary>
-    private string ResolveNamespaceName(string ns, IReadOnlyList<string> namespaceStack)
-    {
-        if (_symbolTable.Contains(ns))
-        {
-            return ns;
-        }
-
-        for (var i = namespaceStack.Count; i > 0; i--)
-        {
-            var prefix = string.Join("::", namespaceStack.Take(i));
-            var candidate = $"{prefix}::{ns}";
-            if (_symbolTable.Contains(candidate))
-            {
-                return candidate;
-            }
-        }
-
-        return ns;
-    }
-
-    /// <summary>
-    ///     Resolves supertype, feature-typing, and import references in the given AST node and
-    ///     its descendants, emitting a Warning diagnostic for each name that cannot be resolved
-    ///     through the four-step lookup and recording a <see cref="SysmlEdge"/> for each name
-    ///     that does resolve. A bare-name <c>redefines</c>/<c>:&gt;&gt;</c> target or usage-level
-    ///     <c>subsets</c>/<c>:&gt;</c> supertype name that this method's plain
-    ///     namespace/import-scoped lookup cannot resolve is neither warned about nor dropped here
-    ///     — it is instead appended to <paramref name="pendingBareRedefinitions"/> for
-    ///     <see cref="ResolveBareRedefinitions"/> to resolve in a later pass, once every file
-    ///     root's ordinary edges are attached (see the <see cref="ResolveAll"/> remarks for the
-    ///     full rationale).
+    ///     Resolves supertype, feature-typing, redefinition, import, and requirement-trace
+    ///     references in the given AST node and its descendants, emitting a Warning diagnostic for
+    ///     each name that cannot be resolved and recording a <see cref="SysmlEdge"/> for each name
+    ///     that does resolve. Metadata annotations were already handled by pass 0.
     /// </summary>
     /// <param name="node">The AST node to process.</param>
-    /// <param name="filePath">Source file path used when constructing diagnostics.</param>
+    /// <param name="file">The file being resolved (path for diagnostics, root imports).</param>
     /// <param name="resolvedInFile">
     ///     Set of unresolved names already warned about in this file, preventing duplicate
     ///     warnings for the same unresolved name within one file.
     /// </param>
-    /// <param name="namespaceStack">
-    ///     Mutable stack of simple name segments for the current enclosing namespace path,
-    ///     maintained by this method as it recurses. Must be caller-owned; this method pushes
-    ///     and pops entries but does not allocate the list.
+    /// <param name="scope">
+    ///     The qualified name of the local namespace in effect for <paramref name="node"/>'s own
+    ///     references (its nearest enclosing named package, definition, or usage), or null at the
+    ///     file root.
     /// </param>
-    /// <param name="imports">All import nodes collected from the current file.</param>
     /// <param name="edges">
     ///     Aggregate list of all edges resolved so far across the whole file-root traversal;
-    ///     appended to by this method, mirroring <paramref name="namespaceStack"/> and
-    ///     <paramref name="resolvedInFile"/>.
-    /// </param>
-    /// <param name="pendingBareRedefinitions">
-    ///     Aggregate list of bare-name redefinition/usage-subsetting candidates that could not be
-    ///     resolved immediately; appended to by this method, resolved later by
-    ///     <see cref="ResolveBareRedefinitions"/>.
+    ///     appended to by this method.
     /// </param>
     private void ResolveNode(
         SysmlNode node,
-        string filePath,
+        LoadedFile file,
         HashSet<string> resolvedInFile,
-        List<string> namespaceStack,
-        IReadOnlyList<SysmlImportNode> imports,
-        List<SysmlEdge> edges,
-        List<PendingBareRedefinition> pendingBareRedefinitions)
+        string? scope,
+        List<SysmlEdge> edges)
     {
         var nodeEdges = new List<SysmlEdge>();
 
-        // Resolve each supertype name using the current namespace context and file imports. For
-        // a usage/feature node (SysmlFeatureNode), a SupertypeNames entry may come from a usage-
-        // level `subsets`/`:>` clause — which, like a bare `redefines` reference, commonly names
-        // a member the owner *inherits* (declared on a supertype/redefinition ancestor) rather
-        // than one declared/imported into the same lexical scope — so such a name is deferred to
-        // the bare-redefinition ancestor-chain fallback (see ResolveBareRedefinitions) rather than
-        // warned about immediately here. Definition-level SupertypeNames (from `part def X :> Y`)
-        // name the supertype itself directly, not an inherited member, so no fallback applies and
-        // an immediate warning is correct for non-feature nodes.
+        // Supertypes (definition `:>` / usage `subsets`/`:>`): resolved in the owning namespace,
+        // which for a usage includes the memberships the owner inherits.
         foreach (var supertypeName in node.SupertypeNames)
         {
-            if (TryResolve(supertypeName, namespaceStack, imports, out var resolvedSupertype))
+            if (ResolveOrWarn(supertypeName, scope, file, resolvedInFile) is { } resolvedSupertype)
             {
                 nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedSupertype, SysmlEdgeKind.Supertype));
-            }
-            else if (node is SysmlFeatureNode)
-            {
-                pendingBareRedefinitions.Add(new PendingBareRedefinition(
-                    string.Join("::", namespaceStack),
-                    supertypeName,
-                    SysmlEdgeKind.Supertype,
-                    node.QualifiedName ?? string.Empty,
-                    filePath));
-            }
-            else if (resolvedInFile.Add(supertypeName))
-            {
-                _diagnostics.Add(new SysmlDiagnostic(
-                    filePath,
-                    0, 0,
-                    DiagnosticSeverity.Warning,
-                    $"Unresolved reference: '{supertypeName}'"));
             }
         }
 
         // Feature typing — the type referenced after ':' on a usage/feature element
-        if (node is SysmlFeatureNode { FeatureTyping: { } typing })
+        if (node is SysmlFeatureNode { FeatureTyping: { } typing } &&
+            ResolveOrWarn(typing, scope, file, resolvedInFile) is { } resolvedTyping)
         {
-            if (TryResolve(typing, namespaceStack, imports, out var resolvedTyping))
-            {
-                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedTyping, SysmlEdgeKind.Typing));
-            }
-            else if (resolvedInFile.Add(typing))
-            {
-                _diagnostics.Add(new SysmlDiagnostic(
-                    filePath,
-                    0, 0,
-                    DiagnosticSeverity.Warning,
-                    $"Unresolved reference: '{typing}'"));
-            }
+            nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedTyping, SysmlEdgeKind.Typing));
         }
 
         // Feature redefinition — the target referenced after 'redefines'/':>>' on a usage/feature
-        // element. The standard namespace/import-scoped TryResolve is tried first (handles
-        // qualified forms like "Vehicle::eng" and same-scope bare names); since the dominant
-        // real-world shape for `redefines` is a bare name referencing a member the owner
-        // *inherits* rather than declares/imports itself, a failure here is deferred to the
-        // bare-redefinition ancestor-chain fallback (see ResolveBareRedefinitions) rather than
-        // warned about immediately.
+        // element, resolved against the general types of the owning type (KerML 8.2.3.5.1), with
+        // a lenient fallback to ordinary resolution (see NameResolver.ResolveRedefinition).
         if (node is SysmlFeatureNode { RedefinedFeatureName: { } redefined })
         {
-            if (TryResolve(redefined, namespaceStack, imports, out var resolvedRedefined))
+            var target = _resolver.ResolveRedefinition(redefined, scope ?? string.Empty, node.QualifiedName, file.RootImports);
+            if (target is not null)
             {
-                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedRedefined, SysmlEdgeKind.Redefinition));
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, target, SysmlEdgeKind.Redefinition));
             }
             else
             {
-                pendingBareRedefinitions.Add(new PendingBareRedefinition(
-                    string.Join("::", namespaceStack),
-                    redefined,
-                    SysmlEdgeKind.Redefinition,
-                    node.QualifiedName ?? string.Empty,
-                    filePath));
+                ReportUnresolved(redefined, file.FilePath, resolvedInFile);
             }
         }
 
-        // Imports — uniform with SupertypeNames, now that ImportedNames is populated by AstBuilder
+        // Imports — resolved in the namespace that declares the import
         foreach (var importedName in node.ImportedNames)
         {
-            if (TryResolve(importedName, namespaceStack, imports, out var resolvedImport))
+            if (ResolveOrWarn(importedName, scope, file, resolvedInFile) is { } resolvedImport)
             {
                 nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedImport, SysmlEdgeKind.Import));
             }
-            else if (resolvedInFile.Add(importedName))
-            {
-                _diagnostics.Add(new SysmlDiagnostic(
-                    filePath,
-                    0, 0,
-                    DiagnosticSeverity.Warning,
-                    $"Unresolved reference: '{importedName}'"));
-            }
         }
 
-        // Verified requirement names — uniform with SupertypeNames/ImportedNames, sourced from
-        // the owning def/usage node's own qualified name (the verifying case/requirement).
+        // Verified requirement names — sourced from the owning def/usage node's own qualified
+        // name (the verifying case/requirement).
         foreach (var verifiedName in node.VerifiedRequirementNames)
         {
-            if (TryResolve(verifiedName, namespaceStack, imports, out var resolvedVerified))
+            if (ResolveOrWarn(verifiedName, scope, file, resolvedInFile) is { } resolvedVerified)
             {
                 nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedVerified, SysmlEdgeKind.Verify));
             }
-            else if (resolvedInFile.Add(verifiedName))
-            {
-                _diagnostics.Add(new SysmlDiagnostic(
-                    filePath,
-                    0, 0,
-                    DiagnosticSeverity.Warning,
-                    $"Unresolved reference: '{verifiedName}'"));
-            }
         }
 
-        // Satisfy usages resolve two independent sides (subject and requirement); no bespoke
-        // resolution logic is needed beyond TryResolve, but — unlike the uniform loops above — an
-        // edge is only emitted when BOTH sides resolve (graceful degradation: partial/misleading
-        // edges are never produced). Dotted feature-chain subjects (e.g. "a.b") are out of scope
-        // for this unit and simply fail to resolve as a single symbol name, which is graceful.
+        // Satisfy usages resolve two independent sides (subject and requirement); an edge is only
+        // emitted when BOTH sides resolve (graceful degradation: partial/misleading edges are
+        // never produced). Dotted feature-chain subjects (e.g. "a.b") are out of scope for this
+        // unit and simply fail to resolve as a single symbol name, which is graceful.
         if (node is SysmlSatisfyNode satisfy)
         {
-            string? resolvedSubject = null;
-            string? resolvedRequirement = null;
-
-            if (satisfy.SubjectName is { Length: > 0 } subjectName)
-            {
-                if (TryResolve(subjectName, namespaceStack, imports, out var subj))
-                {
-                    resolvedSubject = subj;
-                }
-                else if (resolvedInFile.Add(subjectName))
-                {
-                    _diagnostics.Add(new SysmlDiagnostic(
-                        filePath,
-                        0, 0,
-                        DiagnosticSeverity.Warning,
-                        $"Unresolved reference: '{subjectName}'"));
-                }
-            }
-
-            if (satisfy.RequirementName is { Length: > 0 } requirementName)
-            {
-                if (TryResolve(requirementName, namespaceStack, imports, out var req))
-                {
-                    resolvedRequirement = req;
-                }
-                else if (resolvedInFile.Add(requirementName))
-                {
-                    _diagnostics.Add(new SysmlDiagnostic(
-                        filePath,
-                        0, 0,
-                        DiagnosticSeverity.Warning,
-                        $"Unresolved reference: '{requirementName}'"));
-                }
-            }
+            var resolvedSubject = satisfy.SubjectName is { Length: > 0 } subjectName
+                ? ResolveOrWarn(subjectName, scope, file, resolvedInFile)
+                : null;
+            var resolvedRequirement = satisfy.RequirementName is { Length: > 0 } requirementName
+                ? ResolveOrWarn(requirementName, scope, file, resolvedInFile)
+                : null;
 
             if (resolvedSubject is not null && resolvedRequirement is not null)
             {
@@ -850,43 +515,15 @@ internal sealed class ReferenceResolver
 
         // Allocation usages (SysmlConnectionNode reused with ConnectionKeyword == "allocation")
         // resolve both endpoints independently, same graceful-degradation contract as satisfy.
-        // Regular "connection"/"message" endpoints remain intentionally unresolved (out of scope).
+        // Regular "connection"/"message" endpoints are resolved as feature chains in pass 2.
         if (node is SysmlConnectionNode { ConnectionKeyword: "allocation" } allocation)
         {
-            string? resolvedA = null;
-            string? resolvedB = null;
-
-            if (allocation.EndpointA is { Length: > 0 } endpointA)
-            {
-                if (TryResolve(endpointA, namespaceStack, imports, out var a))
-                {
-                    resolvedA = a;
-                }
-                else if (resolvedInFile.Add(endpointA))
-                {
-                    _diagnostics.Add(new SysmlDiagnostic(
-                        filePath,
-                        0, 0,
-                        DiagnosticSeverity.Warning,
-                        $"Unresolved reference: '{endpointA}'"));
-                }
-            }
-
-            if (allocation.EndpointB is { Length: > 0 } endpointB)
-            {
-                if (TryResolve(endpointB, namespaceStack, imports, out var b))
-                {
-                    resolvedB = b;
-                }
-                else if (resolvedInFile.Add(endpointB))
-                {
-                    _diagnostics.Add(new SysmlDiagnostic(
-                        filePath,
-                        0, 0,
-                        DiagnosticSeverity.Warning,
-                        $"Unresolved reference: '{endpointB}'"));
-                }
-            }
+            var resolvedA = allocation.EndpointA is { Length: > 0 } endpointA
+                ? ResolveOrWarn(endpointA, scope, file, resolvedInFile)
+                : null;
+            var resolvedB = allocation.EndpointB is { Length: > 0 } endpointB
+                ? ResolveOrWarn(endpointB, scope, file, resolvedInFile)
+                : null;
 
             if (resolvedA is not null && resolvedB is not null)
             {
@@ -895,46 +532,19 @@ internal sealed class ReferenceResolver
         }
 
         // Standalone dependency statements (SysmlDependencyNode) resolve every "from" name against
-        // every "to" name independently (a cross product, per the grammar's list-of-lists shape),
-        // mirroring Satisfy/Allocate's single-segment TryResolve resolution. An unresolved name
-        // produces one Warning diagnostic per distinct unresolved name per file (via
-        // resolvedInFile, the same de-duplication used by every other block in this method); a
-        // pair is only emitted as an edge when both its from-name and to-name resolve.
+        // every "to" name independently (a cross product, per the grammar's list-of-lists shape).
+        // An unresolved name produces one Warning diagnostic per distinct unresolved name per
+        // file; a pair is only emitted as an edge when both its from-name and to-name resolve.
         if (node is SysmlDependencyNode dependency)
         {
-            var resolvedFrom = new List<string>();
-            foreach (var fromName in dependency.FromNames)
-            {
-                if (TryResolve(fromName, namespaceStack, imports, out var resolved))
-                {
-                    resolvedFrom.Add(resolved);
-                }
-                else if (resolvedInFile.Add(fromName))
-                {
-                    _diagnostics.Add(new SysmlDiagnostic(
-                        filePath,
-                        0, 0,
-                        DiagnosticSeverity.Warning,
-                        $"Unresolved reference: '{fromName}'"));
-                }
-            }
-
-            var resolvedTo = new List<string>();
-            foreach (var toName in dependency.ToNames)
-            {
-                if (TryResolve(toName, namespaceStack, imports, out var resolved))
-                {
-                    resolvedTo.Add(resolved);
-                }
-                else if (resolvedInFile.Add(toName))
-                {
-                    _diagnostics.Add(new SysmlDiagnostic(
-                        filePath,
-                        0, 0,
-                        DiagnosticSeverity.Warning,
-                        $"Unresolved reference: '{toName}'"));
-                }
-            }
+            var resolvedFrom = dependency.FromNames
+                .Select(name => ResolveOrWarn(name, scope, file, resolvedInFile))
+                .OfType<string>()
+                .ToList();
+            var resolvedTo = dependency.ToNames
+                .Select(name => ResolveOrWarn(name, scope, file, resolvedInFile))
+                .OfType<string>()
+                .ToList();
 
             foreach (var from in resolvedFrom)
             {
@@ -946,34 +556,23 @@ internal sealed class ReferenceResolver
         }
 
         // Views resolve each ExposeMembers entry independently into an Expose edge (unresolved
-        // entries produce the Warning diagnostic below with no edge) -- iterating ExposeMembers
-        // directly (rather than the flattened GetExposedNames() projection) lets each resolved
-        // qualified name be paired unambiguously with the specific ExposeMember object it came
-        // from, via ResolvedExposeMembers, instead of leaving callers to re-derive that pairing
-        // later from raw-text matching (which is ambiguous whenever an earlier entry fails to
-        // resolve but its raw text is a suffix of a later entry's resolved target). RenderTargetName
-        // (a view's render member) names a rendering style or format, not a content-scoping subject
-        // -- per the SysML v2 grammar it never refers to model content, so ReferenceResolver never
-        // inspects it: no edge is produced and no diagnostic is emitted for it, mirroring how
-        // FilterExpressionText (raw source text, not a reference) is also intentionally never
-        // touched here.
+        // entries produce the Warning diagnostic with no edge) -- iterating ExposeMembers
+        // directly lets each resolved qualified name be paired unambiguously with the specific
+        // ExposeMember object it came from, via ResolvedExposeMembers. An exposed member must be
+        // visible from the view (a private member of another package is not). RenderTargetName
+        // (a view's render member) names a rendering style or format, not a content-scoping
+        // subject -- per the SysML v2 grammar it never refers to model content, so
+        // ReferenceResolver never inspects it, mirroring how FilterExpressionText (raw source
+        // text, not a reference) is also intentionally never touched here.
         if (node is SysmlViewNode view)
         {
             var resolvedExposeMembers = new List<(ExposeMember Member, string ResolvedQualifiedName)>();
             foreach (var member in view.ExposeMembers)
             {
-                if (TryResolve(member.QualifiedName, namespaceStack, imports, out var resolvedExposed))
+                if (ResolveOrWarn(member.QualifiedName, scope, file, resolvedInFile) is { } resolvedExposed)
                 {
                     nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedExposed, SysmlEdgeKind.Expose));
                     resolvedExposeMembers.Add((member, resolvedExposed));
-                }
-                else if (resolvedInFile.Add(member.QualifiedName))
-                {
-                    _diagnostics.Add(new SysmlDiagnostic(
-                        filePath,
-                        0, 0,
-                        DiagnosticSeverity.Warning,
-                        $"Unresolved reference: '{member.QualifiedName}'"));
                 }
             }
 
@@ -981,43 +580,10 @@ internal sealed class ReferenceResolver
 
             // A view usage's view definition (`view v : Def;`) resolves like feature typing; the
             // usage inherits the definition's view conditions and rendering (SysML 7.26.2).
-            if (view.ViewDefinitionName is { Length: > 0 } viewDefinitionName)
+            if (view.ViewDefinitionName is { Length: > 0 } viewDefinitionName &&
+                ResolveOrWarn(viewDefinitionName, scope, file, resolvedInFile) is { } resolvedDefinition)
             {
-                if (TryResolve(viewDefinitionName, namespaceStack, imports, out var resolvedDefinition))
-                {
-                    nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedDefinition, SysmlEdgeKind.Typing));
-                }
-                else if (resolvedInFile.Add(viewDefinitionName))
-                {
-                    _diagnostics.Add(new SysmlDiagnostic(
-                        filePath,
-                        0, 0,
-                        DiagnosticSeverity.Warning,
-                        $"Unresolved reference: '{viewDefinitionName}'"));
-                }
-            }
-        }
-
-        // Metadata annotations (SysmlMetadataNode, a Children entry of the element it annotates)
-        // resolve their annotating type reference (e.g. "Safety" / "Pkg::Safety") the same way
-        // feature typing does. The resulting edge's source is this metadata node's own
-        // (usually-null) QualifiedName — callers (Core.Filtering's FilterExpressionEvaluator)
-        // read the resolved target off node.ResolvedEdges directly rather than by source-name
-        // lookup, since a metadata annotation is always addressed by its owning element, not by
-        // its own identity.
-        if (node is SysmlMetadataNode { TypeReference.Length: > 0 } metadata)
-        {
-            if (TryResolve(metadata.TypeReference, namespaceStack, imports, out var resolvedType))
-            {
-                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedType, SysmlEdgeKind.MetadataType));
-            }
-            else if (resolvedInFile.Add(metadata.TypeReference))
-            {
-                _diagnostics.Add(new SysmlDiagnostic(
-                    filePath,
-                    0, 0,
-                    DiagnosticSeverity.Warning,
-                    $"Unresolved reference: '{metadata.TypeReference}'"));
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedDefinition, SysmlEdgeKind.Typing));
             }
         }
 
@@ -1027,28 +593,10 @@ internal sealed class ReferenceResolver
             edges.AddRange(nodeEdges);
         }
 
-        // Push this node's name onto the namespace stack before recursing into its children,
-        // mirroring the scope that was in effect when AstBuilder computed qualified names.
-        // Feature nodes (e.g. a named `part` usage) are included alongside Package/Definition
-        // because AstBuilder's own QualifyName scoping (BuildUsageNode) pushes named usages onto
-        // its namespace stack the same way, and real-world satisfy/verify targets are frequently
-        // nested two or more Feature levels deep (e.g. a `satisfy`/named `requirement` usage
-        // inside a named `part { ... }` body, as in the OMG "8-Requirements.sysml" fixture) —
-        // without this, such nested references could never resolve via the enclosing-scope step.
-        var pushed = (node is SysmlPackageNode or SysmlDefinitionNode or SysmlFeatureNode) && node.Name is not null;
-        if (pushed)
-        {
-            namespaceStack.Add(node.Name!);
-        }
-
+        var childScope = ChildScope(node, scope);
         foreach (var child in node.Children)
         {
-            ResolveNode(child, filePath, resolvedInFile, namespaceStack, imports, edges, pendingBareRedefinitions);
-        }
-
-        if (pushed)
-        {
-            namespaceStack.RemoveAt(namespaceStack.Count - 1);
+            ResolveNode(child, file, resolvedInFile, childScope, edges);
         }
     }
 
@@ -1062,28 +610,25 @@ internal sealed class ReferenceResolver
     ///     edges pass 1 attaches to <see cref="SysmlNode.ResolvedEdges"/>.
     /// </summary>
     /// <param name="node">The AST node to process.</param>
-    /// <param name="filePath">Source file path used when constructing diagnostics.</param>
+    /// <param name="file">The file being resolved (path for diagnostics, root imports).</param>
     /// <param name="resolvedInFile">
     ///     Set of unresolved names already warned about in this file, preventing duplicate
     ///     warnings for the same unresolved name within one file.
     /// </param>
-    /// <param name="namespaceStack">
-    ///     Mutable stack of simple name segments for the current enclosing namespace path,
-    ///     maintained by this method as it recurses, mirroring <see cref="ResolveNode"/>'s own
-    ///     push/pop condition exactly so segment-0 resolution scope cannot silently diverge
+    /// <param name="scope">
+    ///     The local namespace in effect for <paramref name="node"/>, computed exactly as
+    ///     <see cref="ResolveNode"/> does so segment-0 resolution scope cannot silently diverge
     ///     between the two passes.
     /// </param>
-    /// <param name="imports">All import nodes collected from the current file.</param>
     /// <param name="edges">
     ///     Aggregate list of all edges resolved so far across the whole file-root traversal;
     ///     appended to by this method.
     /// </param>
     private void ResolveFeatureChains(
         SysmlNode node,
-        string filePath,
+        LoadedFile file,
         HashSet<string> resolvedInFile,
-        List<string> namespaceStack,
-        IReadOnlyList<SysmlImportNode> imports,
+        string? scope,
         List<SysmlEdge> edges)
     {
         var nodeEdges = new List<SysmlEdge>();
@@ -1092,10 +637,8 @@ internal sealed class ReferenceResolver
         // remain single-segment-only per unit-3's existing, locked-in Allocate behavior).
         if (node is SysmlConnectionNode { ConnectionKeyword: "connection" or "message" } connection)
         {
-            var resolvedA = ResolveFeatureChainSide(
-                connection.EndpointA, filePath, resolvedInFile, namespaceStack, imports);
-            var resolvedB = ResolveFeatureChainSide(
-                connection.EndpointB, filePath, resolvedInFile, namespaceStack, imports);
+            var resolvedA = ResolveFeatureChainSide(connection.EndpointA, file, resolvedInFile, scope);
+            var resolvedB = ResolveFeatureChainSide(connection.EndpointB, file, resolvedInFile, scope);
 
             if (resolvedA is not null && resolvedB is not null)
             {
@@ -1108,10 +651,8 @@ internal sealed class ReferenceResolver
         // the corpus's frequent dotted-chain bind sides (e.g. "bind engine.fuelCmdPort=fuelCmdPort;").
         if (node is SysmlConnectionNode { ConnectionKeyword: "binding" } binding)
         {
-            var resolvedA = ResolveFeatureChainSide(
-                binding.EndpointA, filePath, resolvedInFile, namespaceStack, imports);
-            var resolvedB = ResolveFeatureChainSide(
-                binding.EndpointB, filePath, resolvedInFile, namespaceStack, imports);
+            var resolvedA = ResolveFeatureChainSide(binding.EndpointA, file, resolvedInFile, scope);
+            var resolvedB = ResolveFeatureChainSide(binding.EndpointB, file, resolvedInFile, scope);
 
             if (resolvedA is not null && resolvedB is not null)
             {
@@ -1127,10 +668,8 @@ internal sealed class ReferenceResolver
         // used as a transition's implicit initial source (e.g. `first start then off;`).
         if (node is SysmlTransitionNode transition)
         {
-            var resolvedSource = ResolveTransitionSource(
-                transition.Source, filePath, resolvedInFile, namespaceStack, imports);
-            var resolvedTarget = ResolveFeatureChainSide(
-                transition.Target, filePath, resolvedInFile, namespaceStack, imports);
+            var resolvedSource = ResolveTransitionSource(transition.Source, file, resolvedInFile, scope);
+            var resolvedTarget = ResolveFeatureChainSide(transition.Target, file, resolvedInFile, scope);
 
             if (resolvedSource is not null && resolvedTarget is not null)
             {
@@ -1146,22 +685,10 @@ internal sealed class ReferenceResolver
             edges.AddRange(nodeEdges);
         }
 
-        // Push/pop condition mirrors ResolveNode's exactly (see the design doc's "Feature-Chain
-        // Resolution" section for the ordering rationale that requires this exact match).
-        var pushed = (node is SysmlPackageNode or SysmlDefinitionNode or SysmlFeatureNode) && node.Name is not null;
-        if (pushed)
-        {
-            namespaceStack.Add(node.Name!);
-        }
-
+        var childScope = ChildScope(node, scope);
         foreach (var child in node.Children)
         {
-            ResolveFeatureChains(child, filePath, resolvedInFile, namespaceStack, imports, edges);
-        }
-
-        if (pushed)
-        {
-            namespaceStack.RemoveAt(namespaceStack.Count - 1);
+            ResolveFeatureChains(child, file, resolvedInFile, childScope, edges);
         }
     }
 
@@ -1173,30 +700,21 @@ internal sealed class ReferenceResolver
     /// </summary>
     private string? ResolveFeatureChainSide(
         string? side,
-        string filePath,
+        LoadedFile file,
         HashSet<string> resolvedInFile,
-        IReadOnlyList<string> namespaceStack,
-        IReadOnlyList<SysmlImportNode> imports)
+        string? scope)
     {
         if (side is not { Length: > 0 })
         {
             return null;
         }
 
-        if (TryResolveFeatureChain(side, namespaceStack, imports, out var resolved))
+        if (TryResolveFeatureChain(side, scope, file.RootImports, out var resolved))
         {
             return resolved;
         }
 
-        if (resolvedInFile.Add(side))
-        {
-            _diagnostics.Add(new SysmlDiagnostic(
-                filePath,
-                0, 0,
-                DiagnosticSeverity.Warning,
-                $"Unresolved reference: '{side}'"));
-        }
-
+        ReportUnresolved(side, file.FilePath, resolvedInFile);
         return null;
     }
 
@@ -1214,35 +732,26 @@ internal sealed class ReferenceResolver
     /// </summary>
     private string? ResolveTransitionSource(
         string? source,
-        string filePath,
+        LoadedFile file,
         HashSet<string> resolvedInFile,
-        IReadOnlyList<string> namespaceStack,
-        IReadOnlyList<SysmlImportNode> imports)
+        string? scope)
     {
         if (source is not { Length: > 0 })
         {
             return null;
         }
 
-        if (TryResolveFeatureChain(source, namespaceStack, imports, out var resolved))
+        if (TryResolveFeatureChain(source, scope, file.RootImports, out var resolved))
         {
             return resolved;
         }
 
-        if (TryResolveInheritedActionMember(namespaceStack, source, out var inherited))
+        if (TryResolveInheritedActionMember(scope, source, out var inherited))
         {
             return inherited;
         }
 
-        if (resolvedInFile.Add(source))
-        {
-            _diagnostics.Add(new SysmlDiagnostic(
-                filePath,
-                0, 0,
-                DiagnosticSeverity.Warning,
-                $"Unresolved reference: '{source}'"));
-        }
-
+        ReportUnresolved(source, file.FilePath, resolvedInFile);
         return null;
     }
 
@@ -1254,8 +763,8 @@ internal sealed class ReferenceResolver
     ///     definition/usage inherits from <c>Actions::Action</c>
     ///     (<c>action start: Action :&gt;&gt; startShot</c>), not a special keyword.
     ///     <para/>
-    ///     Resolution order: (1) if the enclosing node (the current <paramref name="namespaceStack"/>
-    ///     top) has a resolved <see cref="SysmlEdgeKind.Typing"/> edge (e.g. a
+    ///     Resolution order: (1) if the enclosing node (the current <paramref name="scope"/>)
+    ///     has a resolved <see cref="SysmlEdgeKind.Typing"/> edge (e.g. a
     ///     <c>state x : SomeStateDef { ... }</c> usage), follow it to the type node and walk its
     ///     <see cref="SysmlEdgeKind.Supertype"/> chain via <see cref="FindMemberInTypeHierarchy"/>;
     ///     (2) failing that, walk the enclosing node's own
@@ -1274,18 +783,18 @@ internal sealed class ReferenceResolver
     ///     be reused for any other reference kind or name.
     /// </summary>
     private bool TryResolveInheritedActionMember(
-        IReadOnlyList<string> namespaceStack,
+        string? scope,
         string name,
         out string resolvedName)
     {
         resolvedName = string.Empty;
 
-        if (namespaceStack.Count == 0)
+        if (string.IsNullOrEmpty(scope))
         {
             return false;
         }
 
-        var enclosingNode = _symbolTable.Lookup(string.Join("::", namespaceStack));
+        var enclosingNode = _symbolTable.Lookup(scope);
         if (enclosingNode is null)
         {
             return false;
@@ -1347,9 +856,9 @@ internal sealed class ReferenceResolver
     /// <summary>
     ///     Resolves a dotted feature chain (e.g. <c>engine.fuelPort</c>,
     ///     <c>rearAxle.leftHalfAxle.axleToWheelPort</c>) to an instance-relative qualified path for
-    ///     its final segment. Segment 0 is resolved via the existing <see cref="TryResolve"/>
-    ///     four-step lookup (so it participates in the same scope/import resolution as any other
-    ///     single-name reference); each subsequent segment is resolved relative to the previous
+    ///     its final segment. Segment 0 is resolved via <see cref="TryResolve"/> (so it
+    ///     participates in the same scope/import resolution as any other single-name reference);
+    ///     each subsequent segment is resolved relative to the previous
     ///     segment's node via <see cref="FindFeatureMember"/>. A single-segment "chain" (no
     ///     <c>.</c>) is handled by the loop simply never executing, so this method also serves as
     ///     the single-segment resolver used elsewhere.
@@ -1369,10 +878,8 @@ internal sealed class ReferenceResolver
     ///     returns.
     /// </summary>
     /// <param name="chain">The raw, possibly dotted, reference text.</param>
-    /// <param name="namespaceStack">
-    ///     Simple name segments of the current enclosing namespace path, used to resolve segment 0.
-    /// </param>
-    /// <param name="imports">All import nodes collected from the current file.</param>
+    /// <param name="scope">The local namespace, used to resolve segment 0.</param>
+    /// <param name="rootImports">The imports written at the root of the referencing file.</param>
     /// <param name="resolvedName">
     ///     When this method returns <see langword="true"/>, the instance-relative qualified path of
     ///     the chain's final segment. When this method returns <see langword="false"/>, set to
@@ -1384,13 +891,13 @@ internal sealed class ReferenceResolver
     /// </returns>
     private bool TryResolveFeatureChain(
         string chain,
-        IReadOnlyList<string> namespaceStack,
-        IReadOnlyList<SysmlImportNode> imports,
+        string? scope,
+        IReadOnlyList<SysmlImportNode> rootImports,
         out string resolvedName)
     {
         var segments = chain.Split('.');
 
-        if (!TryResolve(segments[0], namespaceStack, imports, out var current))
+        if (!TryResolve(segments[0], scope, rootImports, out var current))
         {
             resolvedName = string.Empty;
             return false;
@@ -1510,55 +1017,6 @@ internal sealed class ReferenceResolver
         }
 
         return null;
-    }
-
-    /// <summary>
-    ///     Attempts to resolve a bare-name <c>redefines</c>/<c>:&gt;&gt;</c> target (or
-    ///     usage-level <c>subsets</c>/<c>:&gt;</c> supertype name) that <see cref="TryResolve"/>
-    ///     could not resolve because the referenced member is inherited from an ancestor
-    ///     (declared on a supertype, or reachable only by following the owner's own
-    ///     already-resolved <see cref="SysmlEdgeKind.Redefinition"/> edge) rather than declared
-    ///     or imported into the same lexical scope as the redefining/subsetting feature. This is
-    ///     the dominant real-world shape for <c>redefines</c> per the SysML v2 spec — its entire
-    ///     purpose is referencing an inherited member — so this fallback is tried by
-    ///     <see cref="ResolveBareRedefinitions"/> whenever the standard namespace/import-scoped
-    ///     <see cref="TryResolve"/> lookup fails in pass 1. Called only from pass 2, after every
-    ///     file root's ordinary <see cref="SysmlEdgeKind.Supertype"/>/
-    ///     <see cref="SysmlEdgeKind.Redefinition"/> edges have been attached, so the ancestor
-    ///     chain walk below sees a fully-populated <see cref="SysmlNode.ResolvedEdges"/> for
-    ///     every ancestor regardless of that ancestor's declaration order relative to
-    ///     <paramref name="ownerQualifiedName"/>.
-    /// </summary>
-    /// <param name="ownerQualifiedName">
-    ///     The fully-qualified name of the node that owns/declares the redefining or subsetting
-    ///     feature, whose ancestor chain is walked to find <paramref name="name"/>.
-    /// </param>
-    /// <param name="name">The bare (unqualified) name to resolve.</param>
-    /// <param name="resolvedName">
-    ///     When this method returns <see langword="true"/>, the fully-qualified name of the
-    ///     matched ancestor member. When it returns <see langword="false"/>, set to
-    ///     <see cref="string.Empty"/>.
-    /// </param>
-    /// <returns>
-    ///     <see langword="true"/> if an ancestor member named <paramref name="name"/> was found;
-    ///     <see langword="false"/> otherwise.
-    /// </returns>
-    private bool TryResolveBareRedefinition(
-        string ownerQualifiedName,
-        string name,
-        out string resolvedName)
-    {
-        var ownerNode = _symbolTable.Lookup(ownerQualifiedName);
-        var found = ownerNode is null ? null : FindMemberInAncestorChain(ownerNode, name, new HashSet<string>());
-
-        if (found?.QualifiedName is not { Length: > 0 } foundQualifiedName)
-        {
-            resolvedName = string.Empty;
-            return false;
-        }
-
-        resolvedName = foundQualifiedName;
-        return true;
     }
 
     /// <summary>

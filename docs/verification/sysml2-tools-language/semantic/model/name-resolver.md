@@ -19,6 +19,10 @@ created in `Path.GetTempPath()` and deleted after each test.
 - Inherited, imported, aliased, and short-named memberships resolve locally; private members and
   privately imported members do not resolve through a qualified name from outside.
 - A redefined feature resolves against the redefining feature's owning type's general types.
+- In the internal resolving mode the general types come only from raw references (a wrong resolved
+  edge is ignored), answers do not depend on lookup order, specialization cycles terminate, file-root
+  imports apply to the registered top-level declarations, and a redefinition never resolves to the
+  redefining feature itself.
 - A name that does not resolve by KerML rules is reported as a simple-name fallback listing every
   candidate.
 
@@ -37,4 +41,8 @@ created in `Path.GetTempPath()` and deleted after each test.
 | `NameResolver_GeneralTypes_PartiallyResolvedSupertypes_IncludesEveryGeneralType` | Partly resolved supertypes |
 | `NameResolver_Resolve_MembershipImportedAlias_ResolvesItsShortName` | Imported alias short name |
 | `NameResolver_Resolve_SpecializedBodyMembers_HonorVisibilityAndShortName` | Specialized body members |
-| `NameResolver_Recheck_DifferentKerMLResolution_ReplacesSemanticTarget` | Re-check semantic target |
+| `NameResolver_ResolvingMode_GeneralTypes_IgnoresResolvedEdges` | Resolving mode ignores edges |
+| `NameResolver_ResolvingMode_Resolve_SupertypeDeclaredLater_IsOrderIndependent` | Order independence |
+| `NameResolver_ResolvingMode_GeneralTypes_SpecializationCycle_Terminates` | Cycle guard |
+| `NameResolver_ResolvingMode_Resolve_FileRootImport_AppliesToRegisteredTopLevelDeclarations` | File-root imports |
+| `NameResolver_ResolveRedefinition_ExcludesRedefiningFeatureAndFallsBack` | Redefinition target rules |

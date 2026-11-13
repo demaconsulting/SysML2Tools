@@ -183,7 +183,7 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
 - `FilterExpressionText` — the raw source text of the view's `filter [<expr>];` member's
   bracketed expression, or null when absent. Captured verbatim by `AstBuilder` (using the
   original token spacing, not `RuleContext.GetText()`'s whitespace-stripped form) and never
-  inspected by `ReferenceResolver`. The Core Filtering subsystem parses and evaluates this raw
+  inspected by `ReferenceResolver`. The Language Filtering subsystem parses and evaluates this raw
   text later when `GeneralViewLayoutStrategy` renders the view.
 - `SourceFilePath`, `SourceLine`, `SourceColumn` — the path of the file declaring the view (null
   for a view not built from a source file, such as a synthesized `--auto` or dynamic view) and

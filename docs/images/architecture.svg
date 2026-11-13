@@ -53,45 +53,47 @@
     <rect x="170" y="352" width="520" height="122" rx="14" fill="#f8fafc" stroke="#2563eb" stroke-width="2" stroke-dasharray="8 5"/>
     <text x="186" y="374" font-size="14" font-weight="600" fill="#2563eb">DemaConsulting.SysML2Tools.Core</text>
     <g font-size="11" fill="#5b21b6" text-anchor="middle">
-      <rect x="190" y="386" width="88" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
-      <text x="234" y="408" font-size="14" font-weight="600" fill="#4c1d95">Io</text>
-      <text x="234" y="428">Finds files</text>
-      <text x="234" y="443">by glob</text>
-      <rect x="288" y="386" width="88" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
-      <text x="332" y="408" font-size="14" font-weight="600" fill="#4c1d95">Filtering</text>
-      <text x="332" y="428">Evaluates</text>
-      <text x="332" y="443">filter exprs</text>
-      <rect x="386" y="386" width="88" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
-      <text x="430" y="408" font-size="14" font-weight="600" fill="#4c1d95">Layout</text>
-      <text x="430" y="428">Places model</text>
-      <text x="430" y="443">elements</text>
-      <rect x="484" y="386" width="88" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
-      <text x="528" y="408" font-size="14" font-weight="600" fill="#4c1d95">Rendering</text>
-      <text x="528" y="428">Draws SVG</text>
-      <text x="528" y="443">and PNG</text>
-      <rect x="582" y="386" width="88" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
-      <text x="626" y="408" font-size="14" font-weight="600" fill="#4c1d95">Query</text>
-      <text x="626" y="428">Answers model</text>
-      <text x="626" y="443">questions</text>
+      <rect x="190" y="386" width="114" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="247" y="408" font-size="14" font-weight="600" fill="#4c1d95">Io</text>
+      <text x="247" y="428">Finds files</text>
+      <text x="247" y="443">by glob</text>
+      <rect x="312" y="386" width="114" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="369" y="408" font-size="14" font-weight="600" fill="#4c1d95">Layout</text>
+      <text x="369" y="428">Places model</text>
+      <text x="369" y="443">elements</text>
+      <rect x="434" y="386" width="114" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="491" y="408" font-size="14" font-weight="600" fill="#4c1d95">Rendering</text>
+      <text x="491" y="428">Draws SVG</text>
+      <text x="491" y="443">and PNG</text>
+      <rect x="556" y="386" width="114" height="76" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="613" y="408" font-size="14" font-weight="600" fill="#4c1d95">Query</text>
+      <text x="613" y="428">Answers model</text>
+      <text x="613" y="443">questions</text>
     </g>
 
     <line x1="430" y1="478" x2="430" y2="502" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
 
-    <rect x="170" y="506" width="520" height="104" rx="14" fill="#f8fafc" stroke="#2563eb" stroke-width="2" stroke-dasharray="8 5"/>
+    <rect x="170" y="506" width="520" height="116" rx="14" fill="#f8fafc" stroke="#2563eb" stroke-width="2" stroke-dasharray="8 5"/>
     <text x="186" y="528" font-size="14" font-weight="600" fill="#2563eb">DemaConsulting.SysML2Tools.Language</text>
     <g font-size="12" fill="#1e40af" text-anchor="middle">
-      <rect x="190" y="540" width="235" height="56" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
-      <text x="307" y="562" font-size="14" font-weight="600" fill="#1e3a8a">Parser</text>
-      <text x="307" y="582">Reads .sysml text into a syntax tree</text>
-      <rect x="435" y="540" width="235" height="56" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
-      <text x="552" y="562" font-size="14" font-weight="600" fill="#1e3a8a">Semantic</text>
-      <text x="552" y="582">Builds the model and resolves references</text>
+      <rect x="190" y="540" width="153" height="68" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+      <text x="266" y="562" font-size="14" font-weight="600" fill="#1e3a8a">Parser</text>
+      <text x="266" y="581">Reads .sysml text</text>
+      <text x="266" y="596">into a syntax tree</text>
+      <rect x="353" y="540" width="153" height="68" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+      <text x="429" y="562" font-size="14" font-weight="600" fill="#1e3a8a">Semantic</text>
+      <text x="429" y="581">Builds the model and</text>
+      <text x="429" y="596">resolves references</text>
+      <rect x="516" y="540" width="154" height="68" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+      <text x="593" y="562" font-size="14" font-weight="600" fill="#1e3a8a">Filtering</text>
+      <text x="593" y="581">Evaluates filter</text>
+      <text x="593" y="596">expressions</text>
     </g>
 
-    <rect x="260" y="640" width="340" height="52" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
-    <text x="430" y="663" font-size="15" font-weight="600" fill="#334155" text-anchor="middle">Stdlib</text>
-    <text x="430" y="682" font-size="12" fill="#475569" text-anchor="middle">Pre-compiled OMG standard library, embedded</text>
-    <line x1="430" y1="636" x2="430" y2="614" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+    <rect x="260" y="652" width="340" height="52" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+    <text x="430" y="675" font-size="15" font-weight="600" fill="#334155" text-anchor="middle">Stdlib</text>
+    <text x="430" y="694" font-size="12" fill="#475569" text-anchor="middle">Pre-compiled OMG standard library, embedded</text>
+    <line x1="430" y1="648" x2="430" y2="626" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
 
     <text x="70" y="206" font-size="13" font-weight="600" fill="#475569" text-anchor="middle">Inputs</text>
     <rect x="0" y="220" width="140" height="66" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>

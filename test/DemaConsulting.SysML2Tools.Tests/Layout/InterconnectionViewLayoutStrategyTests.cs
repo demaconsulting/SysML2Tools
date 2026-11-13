@@ -2138,8 +2138,8 @@ public sealed class InterconnectionViewLayoutStrategyTests
     /// <summary>
     ///     A part typed through an import of its own package expands the definition that import
     ///     brings in, even when another package in the same file imports a same-named definition
-    ///     first: the semantic typing is re-checked by KerML name resolution, which uses only the
-    ///     referencing namespace's imports.
+    ///     first: the semantic typing edge already applies KerML name resolution, which uses only
+    ///     the referencing namespace's imports, and the layout trusts it.
     /// </summary>
     [Fact]
     public async Task InterconnectionView_BuildLayout_SameNamedImportsInOneFile_ExpandsOwnImportsDefinition()
@@ -2172,6 +2172,102 @@ public sealed class InterconnectionViewLayoutStrategyTests
             var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
             Assert.Contains(labels, l => l?.StartsWith("b1", StringComparison.Ordinal) == true);
             Assert.DoesNotContain(labels, l => l?.StartsWith("a1", StringComparison.Ordinal) == true);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A part typed by a private member of another package gets no semantic typing edge, so the
+    ///     definition is expanded only through the warned simple-name fallback; the public control
+    ///     is wired through its semantic edge without a fallback warning.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_PrivateMemberTyping_IsFlaggedNotSilent()
+    {
+        // Arrange / Act
+        var layout = await LayOutOuterViewAsync("""
+            package P {
+                part def Leaf;
+                private part def Hidden { part h1 : Leaf; }
+                part def Shown { part s1 : Leaf; }
+            }
+            package Q {
+                part def Outer { part a : P::Hidden; part b : P::Shown; }
+                view OuterView { expose Outer::**; render asInterconnectionDiagram; }
+            }
+            """);
+
+        // Assert
+        Assert.Contains(layout.Warnings, w => w.Contains("'P::Hidden'") && w.Contains("simple name only"));
+        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'P::Shown'"));
+        var labels = CollectBoxes(layout.Nodes).Select(b => b.Label).ToList();
+        Assert.Contains(labels, l => l?.StartsWith("s1", StringComparison.Ordinal) == true);
+    }
+
+    /// <summary>
+    ///     A part typed through another package's import (not its own) is flagged by the warned
+    ///     simple-name fallback instead of silently expanding the definition that import brings in.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ImportOfSiblingPackage_IsFlaggedNotSilent()
+    {
+        // Arrange / Act
+        var layout = await LayOutOuterViewAsync("""
+            package A { part def Leaf; part def Inner { part a1 : Leaf; } }
+            package UseA { private import A::*; part def OuterA { part inner : Inner; } }
+            package UseB {
+                part def OuterB { part inner : Inner; }
+                view OuterView { expose OuterB::**; render asInterconnectionDiagram; }
+            }
+            """, "UseB::OuterView");
+
+        // Assert
+        Assert.Contains(layout.Warnings, w => w.Contains("'Inner' in 'UseB::OuterB'") && w.Contains("simple name only"));
+    }
+
+    /// <summary>
+    ///     A part typed through a filtered import that rejects the definition is flagged by the
+    ///     warned simple-name fallback; the definition the filter accepts expands without a warning.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_FilteredOutImportCandidate_IsFlaggedNotSilent()
+    {
+        // Arrange / Act
+        var layout = await LayOutOuterViewAsync("""
+            metadata def X { }
+            package P {
+                part def Leaf;
+                part def Marked { @X; part m1 : Leaf; }
+                part def Plain { part p1 : Leaf; }
+            }
+            package Q {
+                private import P::*[@X];
+                part def Outer { part a : Marked; part b : Plain; }
+                view OuterView { expose Outer::**; render asInterconnectionDiagram; }
+            }
+            """, "Q::OuterView");
+
+        // Assert
+        Assert.Contains(layout.Warnings, w => w.Contains("'Plain'") && w.Contains("simple name only"));
+        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'Marked'"));
+    }
+
+    /// <summary>Loads <paramref name="sysml"/> and lays out the interconnection view named <paramref name="viewQualifiedName"/>.</summary>
+    private static async Task<LayoutTree> LayOutOuterViewAsync(string sysml, string viewQualifiedName = "Q::OuterView")
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = DemaConsulting.SysML2Tools.Stdlib.StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            var view = Assert.IsType<SysmlViewNode>(result.Workspace.Declarations[viewQualifiedName]);
+            var context = new ViewContext("OuterView", result.Workspace, view);
+            return new InterconnectionViewLayoutStrategy().BuildLayout(context, new RenderOptions(Themes.Light));
         }
         finally
         {

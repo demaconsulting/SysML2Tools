@@ -35,6 +35,14 @@ public sealed record NameResolution(string? QualifiedName, bool IsSimpleNameFall
 ///     raw supertype/typing references. Filtered imports are honored through the optional
 ///     <c>importFilter</c> predicate; without one, an import's filter conditions are ignored.
 ///     Results are cached per instance, so one instance should be used per loaded workspace.
+///     <para>
+///     <see cref="ReferenceResolver"/> uses an internal <em>resolving</em> mode while the
+///     workspace's edges are still being attached: general types are then derived only from each
+///     type's raw references (never from <see cref="SysmlNode.ResolvedEdges"/>), which makes
+///     every answer independent of the order in which nodes are visited and keeps the cache valid
+///     as edges appear. In that mode the imports written at the root of a source file (outside
+///     any package) apply to that file's top-level declarations, as KerML scopes them.
+///     </para>
 /// </remarks>
 public sealed class NameResolver
 {
@@ -53,8 +61,12 @@ public sealed class NameResolver
 
     private readonly IReadOnlyDictionary<string, SysmlNode> _declarations;
     private readonly Func<SysmlImportNode, string, bool>? _importFilter;
+    private readonly bool _declaredReferencesOnly;
     private readonly Dictionary<(string Name, string Namespace, Scope Scope), string?> _cache = new();
     private readonly HashSet<(string Name, string Namespace, Scope Scope)> _inProgress = new();
+    private readonly Dictionary<string, IReadOnlyList<string>> _declaredGeneralTypes = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _declaredGeneralTypesInProgress = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IReadOnlyList<SysmlImportNode>> _rootImportsByTopLevel = new(StringComparer.Ordinal);
     private Dictionary<string, List<string>>? _bySimpleName;
 
     /// <summary>
@@ -68,10 +80,49 @@ public sealed class NameResolver
     public NameResolver(
         IReadOnlyDictionary<string, SysmlNode> declarations,
         Func<SysmlImportNode, string, bool>? importFilter = null)
+        : this(declarations, importFilter, declaredReferencesOnly: false)
+    {
+    }
+
+    /// <summary>
+    ///     Initializes a new resolver, optionally in the internal resolving mode
+    ///     <see cref="ReferenceResolver"/> uses (see the class remarks).
+    /// </summary>
+    /// <param name="declarations">The workspace declarations keyed by qualified name.</param>
+    /// <param name="importFilter">Optional filtered-import predicate.</param>
+    /// <param name="declaredReferencesOnly">
+    ///     <see langword="true"/> to derive general types only from raw references, ignoring
+    ///     resolved edges.
+    /// </param>
+    internal NameResolver(
+        IReadOnlyDictionary<string, SysmlNode> declarations,
+        Func<SysmlImportNode, string, bool>? importFilter,
+        bool declaredReferencesOnly)
     {
         ArgumentNullException.ThrowIfNull(declarations);
         _declarations = declarations;
         _importFilter = importFilter;
+        _declaredReferencesOnly = declaredReferencesOnly;
+    }
+
+    /// <summary>
+    ///     Registers the imports written at the root of a source file (outside any package) as
+    ///     applying to that file's top-level declarations, which are then consulted after the
+    ///     owning namespaces and before the global namespace.
+    /// </summary>
+    /// <param name="topLevelNames">The simple names of the file's top-level declarations.</param>
+    /// <param name="rootImports">The file-root import nodes.</param>
+    internal void RegisterRootImports(IEnumerable<string> topLevelNames, IReadOnlyList<SysmlImportNode> rootImports)
+    {
+        if (rootImports.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var name in topLevelNames)
+        {
+            _rootImportsByTopLevel.TryAdd(name, rootImports);
+        }
     }
 
     /// <summary>
@@ -85,7 +136,17 @@ public sealed class NameResolver
     ///     The qualified name of the local namespace, or null/empty for a root namespace.
     /// </param>
     /// <returns>The resolved element's qualified name, or null when it does not resolve.</returns>
-    public string? Resolve(string reference, string? localNamespace)
+    public string? Resolve(string reference, string? localNamespace) =>
+        Resolve(reference, localNamespace, null);
+
+    /// <summary>
+    ///     Resolves <paramref name="reference"/> as <see cref="Resolve(string, string?)"/> does,
+    ///     additionally consulting <paramref name="fileRootImports"/> — the imports written at the
+    ///     root of the referencing file — for a reference whose local namespace is the file root
+    ///     itself (a reference inside a top-level declaration finds them through
+    ///     <see cref="RegisterRootImports"/>).
+    /// </summary>
+    internal string? Resolve(string reference, string? localNamespace, IReadOnlyList<SysmlImportNode>? fileRootImports)
     {
         ArgumentNullException.ThrowIfNull(reference);
         var segments = SplitSegments(reference);
@@ -98,10 +159,10 @@ public sealed class NameResolver
         {
             return segments.Count == 2
                 ? ResolveGlobal(segments[1])
-                : ResolveSegments(segments.Skip(1).ToList(), null, global: true);
+                : ResolveSegments(segments.Skip(1).ToList(), null, true, null);
         }
 
-        return ResolveSegments(segments, localNamespace, global: false);
+        return ResolveSegments(segments, localNamespace, false, fileRootImports);
     }
 
     /// <summary>
@@ -128,7 +189,33 @@ public sealed class NameResolver
     }
 
     /// <summary>
-    ///     Resolves <paramref name="reference"/> per <see cref="Resolve"/>; when that fails, falls
+    ///     Resolves the target of a <c>redefines</c>/<c>:&gt;&gt;</c> reference: per KerML
+    ///     (<see cref="ResolveRedefinedFeature"/>), and — a deliberate lenient deviation, so a
+    ///     qualified target such as <c>:&gt;&gt; ISQ::mass</c> still resolves in a type with no
+    ///     resolvable general types — otherwise by ordinary resolution from the owning type. The
+    ///     redefining feature itself (which the owning type owns under the same name for the
+    ///     dominant bare <c>:&gt;&gt; name</c> shape) is never an acceptable target.
+    /// </summary>
+    /// <param name="reference">The redefined feature's (possibly qualified) name.</param>
+    /// <param name="owningType">The redefining feature's owning type's qualified name, or empty at the file root.</param>
+    /// <param name="redefiningFeature">The redefining feature's own qualified name, excluded as a target.</param>
+    /// <param name="fileRootImports">The imports at the root of the referencing file, if any.</param>
+    /// <returns>The redefined feature's qualified name, or null when it does not resolve.</returns>
+    internal string? ResolveRedefinition(
+        string reference, string owningType, string? redefiningFeature, IReadOnlyList<SysmlImportNode>? fileRootImports)
+    {
+        if (ResolveRedefinedFeature(reference, owningType) is { } redefined && redefined != redefiningFeature)
+        {
+            return redefined;
+        }
+
+        return Resolve(reference, owningType, fileRootImports) is { } fallback && fallback != redefiningFeature
+            ? fallback
+            : null;
+    }
+
+    /// <summary>
+    ///     Resolves <paramref name="reference"/> per <see cref="Resolve(string, string?)"/>; when that fails, falls
     ///     back to matching the reference's last segment against every declaration's simple name
     ///     (choosing the first in declaration order), flagging the result as a fallback so callers
     ///     can surface a warning instead of silently guessing.
@@ -156,23 +243,6 @@ public sealed class NameResolver
     }
 
     /// <summary>
-    ///     Re-checks a target the semantic model already resolved <paramref name="reference"/> to:
-    ///     when KerML resolution (which honors visibility, filtered imports, and the imports of the
-    ///     referencing namespace only) resolves the reference to a different element, that element
-    ///     is returned; otherwise <paramref name="semanticTarget"/> is kept.
-    /// </summary>
-    /// <param name="semanticTarget">The semantic model's resolved target.</param>
-    /// <param name="reference">The raw reference text the target was resolved from.</param>
-    /// <param name="localNamespace">The local namespace's qualified name, or null.</param>
-    /// <returns>The confirmed or corrected target's qualified name.</returns>
-    public string Recheck(string semanticTarget, string reference, string? localNamespace)
-    {
-        ArgumentNullException.ThrowIfNull(semanticTarget);
-        ArgumentNullException.ThrowIfNull(reference);
-        return Resolve(reference, localNamespace) ?? semanticTarget;
-    }
-
-    /// <summary>
     ///     Returns the qualified names of the general types of the type <paramref name="typeName"/>
     ///     (its supertypes, and for a feature its types and redefined features), or an empty list
     ///     when it is not a type.
@@ -182,9 +252,14 @@ public sealed class NameResolver
     public IReadOnlyList<string> GeneralTypes(string typeName)
     {
         if (!_declarations.TryGetValue(typeName, out var node) ||
-            node is not (SysmlDefinitionNode or SysmlFeatureNode))
+            node is not (SysmlDefinitionNode or SysmlFeatureNode or SysmlViewNode or SysmlViewpointNode))
         {
             return [];
+        }
+
+        if (_declaredReferencesOnly)
+        {
+            return DeclaredGeneralTypes(typeName, node);
         }
 
         var resolved = node.ResolvedEdges
@@ -199,12 +274,7 @@ public sealed class NameResolver
         // semantic pass did not resolve): resolve the raw references, which per KerML 8.2.3.5.2
         // are resolved relative to the owning namespace of the specializing type, and merge them
         // with the resolved targets.
-        var raw = new List<string>(node.SupertypeNames);
-        if (node is SysmlFeatureNode { FeatureTyping: { Length: > 0 } typing })
-        {
-            raw.Add(typing);
-        }
-
+        var raw = RawGeneralReferences(node);
         if (resolved.Count >= raw.Count)
         {
             return resolved;
@@ -218,12 +288,74 @@ public sealed class NameResolver
             .ToList();
     }
 
+    /// <summary>The raw supertype, typing, and view-definition references that name a type's general types.</summary>
+    private static List<string> RawGeneralReferences(SysmlNode node)
+    {
+        var raw = new List<string>(node.SupertypeNames);
+        if (node is SysmlFeatureNode { FeatureTyping: { Length: > 0 } typing })
+        {
+            raw.Add(typing);
+        }
+        else if (node is SysmlViewNode { ViewDefinitionName: { Length: > 0 } viewDefinition })
+        {
+            raw.Add(viewDefinition);
+        }
+
+        return raw;
+    }
+
+    /// <summary>
+    ///     General types derived purely from the type's raw references (supertypes, typing, view
+    ///     definition, and redefined feature), resolved relative to its owning namespace per KerML
+    ///     8.2.3.5.2 — independent of <see cref="SysmlNode.ResolvedEdges"/> and so of resolution
+    ///     order. A type reached again while its own general types are being computed (a
+    ///     specialization cycle) contributes nothing.
+    /// </summary>
+    private IReadOnlyList<string> DeclaredGeneralTypes(string typeName, SysmlNode node)
+    {
+        if (_declaredGeneralTypes.TryGetValue(typeName, out var cached))
+        {
+            return cached;
+        }
+
+        if (!_declaredGeneralTypesInProgress.Add(typeName))
+        {
+            return [];
+        }
+
+        try
+        {
+            var owner = OwnerOf(typeName);
+            var general = RawGeneralReferences(node)
+                .Select(reference => Resolve(reference, owner))
+                .OfType<string>()
+                .ToList();
+            if (node is SysmlFeatureNode { RedefinedFeatureName: { Length: > 0 } redefined } &&
+                ResolveRedefinition(redefined, owner ?? string.Empty, typeName, null) is { } redefinedFeature)
+            {
+                general.Add(redefinedFeature);
+            }
+
+            var result = general
+                .Where(target => target != typeName)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            _declaredGeneralTypes[typeName] = result;
+            return result;
+        }
+        finally
+        {
+            _declaredGeneralTypesInProgress.Remove(typeName);
+        }
+    }
+
     /// <summary>Resolves a multi-segment name: the first by full (or global) resolution, the rest by visible resolution.</summary>
-    private string? ResolveSegments(IReadOnlyList<string> segments, string? localNamespace, bool global)
+    private string? ResolveSegments(
+        IReadOnlyList<string> segments, string? localNamespace, bool global, IReadOnlyList<SysmlImportNode>? fileRootImports)
     {
         var current = global
             ? ResolveGlobal(segments[0])
-            : FullResolve(segments[0], localNamespace);
+            : FullResolve(segments[0], localNamespace, fileRootImports);
         for (var i = 1; current is not null && i < segments.Count; i++)
         {
             current = Lookup(segments[i], current, Scope.Visible);
@@ -234,15 +366,30 @@ public sealed class NameResolver
 
     /// <summary>
     ///     Full resolution (KerML 8.2.3.5.4): local resolution in the namespace, then each owning
-    ///     namespace outward, then the global namespace.
+    ///     namespace outward, then the imports at the root of the file (when known), then the
+    ///     global namespace.
     /// </summary>
-    private string? FullResolve(string name, string? localNamespace)
+    private string? FullResolve(string name, string? localNamespace, IReadOnlyList<SysmlImportNode>? fileRootImports)
     {
+        string? topLevel = null;
         for (var scope = localNamespace; !string.IsNullOrEmpty(scope); scope = OwnerOf(scope))
         {
+            topLevel = scope;
             if (Lookup(name, scope, Scope.Local) is { } found)
             {
                 return found;
+            }
+        }
+
+        var rootImports = topLevel is null ? fileRootImports : _rootImportsByTopLevel.GetValueOrDefault(topLevel);
+        if (rootImports is not null)
+        {
+            foreach (var import in rootImports)
+            {
+                if (LookupImported(name, string.Empty, import) is { } imported)
+                {
+                    return imported;
+                }
             }
         }
 

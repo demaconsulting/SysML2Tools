@@ -89,7 +89,7 @@ sections:
           - SysML2Tools-Core-Rendering-ILayoutStrategy
           - SysML2Tools-Core-Rendering-ViewContextViewNode
           - SysML2Tools-Core-Rendering-DiagramRenderer
-          - SysML2Tools-Core-Filtering-StandaloneViewFilterEvaluation
-          - SysML2Tools-Core-Filtering-BracketFormExposeEvaluation
+          - SysML2Tools-Language-Filtering-StandaloneViewFilterEvaluation
+          - SysML2Tools-Language-Filtering-BracketFormExposeEvaluation
         tests:
           - DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames

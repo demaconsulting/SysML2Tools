@@ -1,16 +1,23 @@
 <!-- cspell:ignore parenthesization istype hastype -->
 
-## DemaConsulting.SysML2Tools — Filtering Subsystem
+## DemaConsulting.SysML2Tools.Language — Filtering Subsystem
 
 ### Overview
 
 The Filtering subsystem parses and evaluates the Phase 1 subset of standalone view
 `filter [<expr>];` expressions captured on `SysmlViewNode.FilterExpressionText`, and (Phase 2a)
 the same subset of bracket-form `expose <path>::**[<expr>];` expressions captured per-entry on
-`SysmlViewNode.ExposeMembers`. It contains one unit, `FilterExpressionEvaluator`, whose
+`SysmlViewNode.ExposeMembers`, and — since `ReferenceResolver` needs it — the bracket filter of an
+`import P::*[<expr>];` statement (`SysmlImportNode.BracketFilterExpressionText`). It contains one
+unit, `FilterExpressionEvaluator`, whose
 implementation spans three tightly-coupled source files: `FilterExpression` (the abstract syntax
 tree), `FilterExpressionParser` (the ANTLR-backed parser adapter), and `FilterExpressionEvaluator`
 (the metadata-driven boolean evaluator).
+
+The subsystem lives in the Language library, and keeps the `DemaConsulting.SysML2Tools.Filtering`
+namespace it had when it was part of the Core library: `ReferenceResolver` (Semantic) evaluates
+filtered imports while the workspace is still being resolved, and Language must not depend on
+Core. The Core library's layouts and the Tool consume the subsystem through its public API.
 
 This subsystem is intentionally narrow in Phase 1: it supports metadata classification tests,
 boolean connectives, parenthesization, and `(as Type).attribute` reads (bare or compared against a
@@ -52,6 +59,12 @@ flowchart TD
 - *Contract*: `FilterEvaluationResult Evaluate(SysmlWorkspace workspace, IReadOnlyList<string>
   candidateQualifiedNames, FilterExpression expression)`. Evaluates the parsed expression against
   the supplied candidates and returns the matched subset plus evaluation diagnostics.
+  `CreateNameResolver(SysmlWorkspace)` returns a `NameResolver` whose filtered imports admit only
+  matching candidates, and an internal `CreateImportFilter(declarations, stdlibNames)` builds the
+  same import-filter predicate for `ReferenceResolver` without needing a `SysmlWorkspace` (the
+  workspace does not exist yet while references are being resolved). The predicate caches each
+  import's parsed expression, so an import's filter text is parsed once however many candidates it
+  is asked about.
 
 ### Design
 
@@ -77,7 +90,7 @@ flowchart TD
    (Phase 2d) A classification test **also** matches when the candidate's own AST node kind (its
    `DefinitionKeyword`/`FeatureKeyword`) maps to the requested built-in SysML metaclass name, via a
    keyword-to-metaclass lookup table plus a bounded stdlib `specializes`-chain walk — see
-   `docs/design/sysml2-tools-core/filtering/filter-expression-evaluator.md` for the full mapping
+   `docs/design/sysml2-tools-language/filtering/filter-expression-evaluator.md` for the full mapping
    table and matching semantics. This is an additional match path, evaluated alongside (not instead
    of) the applied-annotation match above.
 6. Bare attribute reads are boolean predicates: they succeed only when the addressed metadata
@@ -109,7 +122,7 @@ flowchart TD
   edges.
 - `Parse`/`Evaluate` must never throw and must never crash the process, since a planned future GUI
   will call them live on every keystroke of a text-editing filter box (see
-  `docs/design/sysml2-tools-core/filtering/filter-expression-evaluator.md`'s Error Handling
+  `docs/design/sysml2-tools-language/filtering/filter-expression-evaluator.md`'s Error Handling
   section for the hardening this constraint requires beyond ordinary syntax-error diagnostics:
   a bounded nesting-depth guard against ANTLR's own recursive-descent stack overflow, a broadened
   catch for ANTLR-internal failures such as astral-plane Unicode input, an EOF check rejecting
@@ -120,6 +133,7 @@ flowchart TD
 
 | Requirement ID | Satisfied by |
 | --- | --- |
-| SysML2Tools-Core-Filtering-StandaloneViewFilterEvaluation | `Parse`, `Evaluate`, and `FilterExpression.ToString()` |
-| SysML2Tools-Core-Filtering-BracketFormExposeEvaluation | `ExposeScopeResolver` reusing `Parse`/`Evaluate` |
-| SysML2Tools-Core-Filtering-FilterExpressionEvaluator-MetaclassKindClassificationTests | `MatchesMetaclassKind` |
+| SysML2Tools-Language-Filtering-StandaloneViewFilterEvaluation | `Parse`, `Evaluate`, `ToString()` |
+| SysML2Tools-Language-Filtering-BracketFormExposeEvaluation | `ExposeScopeResolver` reusing `Parse`/`Evaluate` |
+| SysML2Tools-Language-Filtering-FilterExpressionEvaluator-MetaclassKindClassificationTests | `MatchesMetaclassKind` |
+| SysML2Tools-Language-Filtering-FilterExpressionEvaluator-FilteredImportNameResolution | `CreateImportFilter` |

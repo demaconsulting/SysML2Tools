@@ -3,8 +3,9 @@
 #
 # PURPOSE:
 # - Define requirements for the NameResolver unit (Semantic Model subsystem)
-# - NameResolver resolves qualified names per KerML 8.2.3.5 for callers (e.g. layout strategies)
-#   that hold raw reference text the semantic model did not already resolve
+# - NameResolver resolves qualified names per KerML 8.2.3.5 for ReferenceResolver (internal
+#   resolving mode) and for callers (e.g. layout strategies) that hold raw reference text the
+#   semantic model did not already resolve
 
 sections:
   - title: NameResolver Requirements
@@ -65,17 +66,26 @@ sections:
         tests:
           - NameResolver_ResolveRedefinedFeature_ResolvesAgainstGeneralTypes
 
-      - id: SysML2Tools-Language-Semantic-Model-NameResolver-Recheck
+      - id: SysML2Tools-Language-Semantic-Model-NameResolver-ResolvingMode
         title: >-
-          NameResolver shall re-check a target the semantic model already resolved a reference to,
-          returning the element KerML 8.2.3.5 resolution of the reference finds when that differs,
-          and otherwise keeping the semantic target.
+          NameResolver's resolving mode (used by ReferenceResolver while edges are still being
+          attached) shall derive every type's general types only from its raw references
+          (supertype names, typing, view definition, and redefined feature), independent of
+          resolved edges and of lookup order, shall terminate on specialization cycles, shall
+          apply the imports written at the root of a file to that file's top-level declarations,
+          and shall never resolve a redefinition to the redefining feature itself.
         justification: |
-          The semantic reference resolver shares imports file-wide; re-checking its answer with
-          KerML resolution, which uses only the referencing namespace's own imports, keeps
-          diagrams from wiring a reference to a same-named element imported elsewhere.
+          A name resolver that reads resolved edges answers differently depending on which nodes
+          the semantic pass has already visited, and caches those answers. Deriving general types
+          from raw references makes the answers order-independent, so an inherited member
+          resolves in a single pass wherever its ancestor is declared, and the lookup cache stays
+          valid as edges appear.
         tests:
-          - NameResolver_Recheck_DifferentKerMLResolution_ReplacesSemanticTarget
+          - NameResolver_ResolvingMode_GeneralTypes_IgnoresResolvedEdges
+          - NameResolver_ResolvingMode_Resolve_SupertypeDeclaredLater_IsOrderIndependent
+          - NameResolver_ResolvingMode_GeneralTypes_SpecializationCycle_Terminates
+          - NameResolver_ResolvingMode_Resolve_FileRootImport_AppliesToRegisteredTopLevelDeclarations
+          - NameResolver_ResolveRedefinition_ExcludesRedefiningFeatureAndFallsBack
 
       - id: SysML2Tools-Language-Semantic-Model-NameResolver-FlaggedFallback
         title: >-

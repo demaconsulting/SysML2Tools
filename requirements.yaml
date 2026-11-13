@@ -23,13 +23,13 @@ includes:
   - docs/reqstream/sysml2-tools-language/semantic/model/reference-resolver.yaml
   - docs/reqstream/sysml2-tools-language/semantic/model/name-resolver.yaml
   - docs/reqstream/sysml2-tools-language/semantic/model/supertype-walker.yaml
+  - docs/reqstream/sysml2-tools-language/filtering.yaml
+  - docs/reqstream/sysml2-tools-language/filtering/filter-expression-evaluator.yaml
   - docs/reqstream/sysml2-tools-language/platform-requirements.yaml
   - docs/reqstream/sysml2-tools-stdlib.yaml
   - docs/reqstream/sysml2-tools-stdlib/stdlib-provider.yaml
   - docs/reqstream/sysml2-tools-stdlib/platform-requirements.yaml
   - docs/reqstream/sysml2-tools-core.yaml
-  - docs/reqstream/sysml2-tools-core/filtering.yaml
-  - docs/reqstream/sysml2-tools-core/filtering/filter-expression-evaluator.yaml
   - docs/reqstream/sysml2-tools-core/layout.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal.yaml
   - docs/reqstream/sysml2-tools-core/layout/internal/general-view-layout-strategy.yaml

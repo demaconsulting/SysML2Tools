@@ -7,9 +7,12 @@ AST construction, symbol table, reference resolution, supertype walking, and AST
 serialization/deserialization for .NET. It is stdlib-agnostic: it parses only the files
 explicitly supplied by the caller, optionally seeded with a pre-populated `SymbolTable`.
 
-The library contains two subsystems: **Parser** and **Semantic**. The Parser subsystem
-provides syntax-level parsing, while the Semantic subsystem builds a symbol table and performs
-reference resolution. The Parser subsystem contains the public API unit (`WorkspaceParser`)
+The library contains three subsystems: **Parser**, **Semantic**, and **Filtering**. The Parser
+subsystem provides syntax-level parsing, while the Semantic subsystem builds a symbol table and
+performs reference resolution. The Filtering subsystem parses and evaluates view/import/`expose` filter
+expressions (`FilterExpressionEvaluator`); it lives here, not in Core, because
+`ReferenceResolver` evaluates filtered imports while it resolves references. The Parser
+subsystem contains the public API unit (`WorkspaceParser`)
 and an internal unit (`SysmlDiagnosticListener`). The Semantic subsystem contains the public
 `WorkspaceLoader` unit, serialization units (`AstSerializer`, `AstDeserializer`), and the
 **Model** subsystem — a public API surface (not internal) with `AstBuilder`, `SymbolTable`,
@@ -40,12 +43,16 @@ flowchart TD
         SerializedStdlib
         AstSerializerContext
     end
+    subgraph Filtering
+        FilterExpressionEvaluator
+    end
     WorkspaceParser --> SysmlDiagnosticListener
     WorkspaceLoader --> WorkspaceParser
     WorkspaceLoader --> AstBuilder
     WorkspaceLoader --> SymbolTable
     WorkspaceLoader --> ReferenceResolver
     WorkspaceLoader --> SupertypeWalker
+    ReferenceResolver --> FilterExpressionEvaluator
     AstSerializer --> AstSerializerContext
     AstSerializer --> SerializedStdlib
     AstDeserializer --> AstSerializerContext
@@ -143,9 +150,12 @@ N/A — not a safety-classified software item.
    reading file content asynchronously and calling `WorkspaceParser.ParseSourceToCst` followed
    by `AstBuilder.Build`; file I/O failures are caught and returned as Error-severity diagnostics.
 3. `SymbolTable.RegisterAll` is called for each user AST root, adding qualified-name entries.
-4. `ReferenceResolver.ResolveAll` iterates all user AST roots, resolving supertype references
-   and emitting Warning diagnostics for unresolved names and circular imports. The import graph
-   is built keyed on top-level namespace names (not file paths) to enable name-based cycle detection.
+4. `ReferenceResolver.ResolveAll` iterates all user AST roots, resolving every reference by
+   KerML 8.2.3.5 name resolution (through `NameResolver`) and emitting Warning diagnostics for
+   unresolved names and circular imports. Metadata annotation types are resolved first (so
+   filtered imports can test them), then every other reference, then dotted feature chains. The
+   import graph is built keyed on top-level namespace names (not file paths) to enable name-based
+   cycle detection.
 5. `SupertypeWalker.WalkAll` traverses every specialization chain, detecting cyclic specialization
    and emitting Warning diagnostics for detected cycles.
 6. A `SysmlWorkspace` is constructed from the loaded file list and symbol table's `Symbols` property,
@@ -170,6 +180,8 @@ N/A — not a safety-classified software item.
 - `WorkspaceParser` provides syntax-only parsing (CST construction). Semantic model
   construction, symbol table registration, and reference resolution are performed by
   `WorkspaceLoader` in the Semantic subsystem.
+- The Language library must not depend on `DemaConsulting.SysML2Tools.Core`; the Filtering
+  subsystem that `ReferenceResolver` needs therefore lives in this library.
 - The Language library does NOT embed or load stdlib files; that responsibility belongs to
   `DemaConsulting.SysML2Tools.Stdlib` and the `StdlibGen` build-time tool.
 - `SysmlNode` and all subtypes are public to allow cross-assembly serialization and reference

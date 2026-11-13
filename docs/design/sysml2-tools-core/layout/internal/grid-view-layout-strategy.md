@@ -12,11 +12,12 @@ definitions and their supertype references into a positioned `LayoutTree`.
 The strategy is a stateless `ILayoutStrategy`. Inputs are a `ViewContext` (carrying the
 `SysmlWorkspace`) and `RenderOptions` (carrying the `Theme`). It uses a private `DefRow` record
 holding a definition's qualified name, its simple name, and the qualified names its supertype
-references resolve to (`ResolveSupertypes`: the semantic model's resolved `Supertype` target,
-re-checked with `NameResolver.Recheck`, else
+references resolve to (`ResolveSupertypes`: the semantic model's resolved `Supertype` target, used
+as resolved because the semantic resolver already applies KerML name resolution, else
 KerML 8.2.3.5 name resolution via `FilterExpressionEvaluator.CreateNameResolver` relative to the
 definition's owning namespace, warning via `LayoutWarnings.ForSimpleNameFallback` when only the
-bare simple-name fallback matched). Output is a
+bare simple-name fallback matched — a reference the KerML rules reject, such as a private or
+filtered-out supertype, is therefore still drawn only through that warned fallback). Output is a
 `LayoutTree` containing a single `LayoutGrid` of `LayoutGridRow` and `LayoutGridCell` values.
 
 ##### Key Methods

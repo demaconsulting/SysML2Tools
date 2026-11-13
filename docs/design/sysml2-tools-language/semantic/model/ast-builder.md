@@ -106,8 +106,9 @@ falling back to `subsettings().ownedSubsetting()`'s remaining comma-separated en
 collecting *every* match into a list rather than returning only the first. Before this, a
 usage-level `subsets`/`:>` clause (as opposed to a definition-level `:>` specialization, already
 handled by `GetSubclassificationSupertypes`) was never extracted at all, so it produced no
-`Supertype` edge and was invisible to `ReferenceResolver` — silently breaking its bare-name
-redefinition ancestor-chain walk whenever the redefining feature's owner was itself a
+`Supertype` edge and was invisible to `ReferenceResolver` — silently breaking its resolution of
+a bare-name redefinition (through the owner's general types) whenever the redefining feature's
+owner was itself a
 usage-level subsetting rather than a `part def` specialization (the exact shape used by the OMG
 corpus fixture `1c-PartsTreeRedefinition.sysml`'s `part vehicle1_c1 :> vehicle1 { ... }`).
 

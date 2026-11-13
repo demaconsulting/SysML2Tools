@@ -1,7 +1,9 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
+using DemaConsulting.SysML2Tools.Parser;
 using DemaConsulting.SysML2Tools.Semantic;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 using DemaConsulting.SysML2Tools.Stdlib;
 
 namespace DemaConsulting.SysML2Tools.Tests.Semantic;
@@ -5173,6 +5175,407 @@ public sealed class WorkspaceLoaderTests
         {
             File.Delete(tempFile);
         }
+    }
+
+    /// <summary>
+    ///     Loads each of <paramref name="sources"/> as its own file (with the standard library), in order.
+    /// </summary>
+    private static async Task<SysmlLoadResult> LoadModelsAsync(params string[] sources)
+    {
+        var files = new List<string>();
+        try
+        {
+            foreach (var source in sources)
+            {
+                var file = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".sysml");
+                files.Add(file);
+                await File.WriteAllTextAsync(file, source, TestContext.Current.CancellationToken);
+            }
+
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync(files, stdlibTable);
+            Assert.NotNull(result.Workspace);
+            return result;
+        }
+        finally
+        {
+            foreach (var file in files)
+            {
+                File.Delete(file);
+            }
+        }
+    }
+
+    /// <summary>Returns whether the load recorded the given resolved edge.</summary>
+    private static bool HasEdge(SysmlLoadResult result, SysmlEdgeKind kind, string source, string target) =>
+        result.Workspace!.Index.AllEdges.Any(e =>
+            e.Kind == kind && e.SourceQualifiedName == source && e.TargetQualifiedName == target);
+
+    /// <summary>Returns whether the load warned that <paramref name="name"/> did not resolve.</summary>
+    private static bool HasUnresolvedWarning(SysmlLoadResult result, string name) =>
+        result.Diagnostics.Any(d =>
+            d.Severity == DiagnosticSeverity.Warning && d.Message == $"Unresolved reference: '{name}'");
+
+    /// <summary>
+    ///     A private member referenced through a qualified name from another package gets no
+    ///     edge and an "Unresolved reference" warning (KerML 8.2.3.5 visible resolution), while a
+    ///     public member of the same package still resolves.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_PrivateMemberQualifiedFromOtherPackage_NoEdgeAndWarning()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P { private part def Hidden; part def Shown; }
+            package Q {
+                part a : P::Hidden;
+                part def C :> P::Hidden;
+                part b : P::Shown;
+            }
+            """);
+
+        // Assert
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Q::a", "P::Hidden"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Supertype, "Q::C", "P::Hidden"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "Q::b", "P::Shown"));
+        Assert.True(HasUnresolvedWarning(result, "P::Hidden"));
+    }
+
+    /// <summary>
+    ///     The short-name and alias paths honor member visibility too: a private short name or
+    ///     alias is not reachable from another package, a public one is.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_PrivateShortNameAndAlias_NotResolvableFromOtherPackage()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                private part def <hid> HiddenShort;
+                part def <pub> PublicShort;
+                private alias HiddenAlias for PublicShort;
+                alias PublicAlias for PublicShort;
+            }
+            package Q {
+                part a : P::hid;
+                part b : P::pub;
+                part c : P::HiddenAlias;
+                part d : P::PublicAlias;
+            }
+            """);
+
+        // Assert
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Q::a", "P::HiddenShort"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "Q::b", "P::PublicShort"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Q::c", "P::PublicShort"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "Q::d", "P::PublicShort"));
+        Assert.True(HasUnresolvedWarning(result, "P::hid"));
+        Assert.True(HasUnresolvedWarning(result, "P::HiddenAlias"));
+    }
+
+    /// <summary>
+    ///     A protected member is visible to a specialization of its owner but not to an
+    ///     unrelated qualified reference.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ProtectedMember_VisibleToSpecializationOnly()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def Base { protected part def Prot; }
+                part def Derived :> Base { part x : Prot; }
+                part y : Base::Prot;
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "P::Derived::x", "P::Base::Prot"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "P::y", "P::Base::Prot"));
+        Assert.True(HasUnresolvedWarning(result, "Base::Prot"));
+    }
+
+    /// <summary>
+    ///     <c>import all</c> brings in private members; an unqualified reference to a private
+    ///     member inside its own package resolves too.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ImportAllAndOwnPackage_ResolvePrivateMember()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P { private part def Hidden; part own : Hidden; }
+            package Q { import all P::*; part a : Hidden; }
+            package R { import P::*; part b : Hidden; }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "P::own", "P::Hidden"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "Q::a", "P::Hidden"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "R::b", "P::Hidden"));
+    }
+
+    /// <summary>
+    ///     Exposing a private member of another package produces no expose edge and a warning.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ExposePrivateMember_NoExposeEdgeAndWarning()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P { private part def Hidden; part def Shown; }
+            package Q {
+                view v { expose P::Hidden; expose P::Shown; }
+            }
+            """);
+
+        // Assert
+        Assert.False(HasEdge(result, SysmlEdgeKind.Expose, "Q::v", "P::Hidden"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Expose, "Q::v", "P::Shown"));
+        Assert.True(HasUnresolvedWarning(result, "P::Hidden"));
+    }
+
+    /// <summary>
+    ///     A filtered import (<c>import P::*[@X];</c>) admits only the annotated element: the
+    ///     un-annotated candidate gets no edge and a warning.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_FilteredImport_RejectsUnannotatedCandidate()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            metadata def X { }
+            package P {
+                part def Marked { @X; }
+                part def Plain;
+            }
+            package Q {
+                private import P::*[@X];
+                part a : Marked;
+                part b : Plain;
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "Q::a", "P::Marked"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Q::b", "P::Plain"));
+        Assert.True(HasUnresolvedWarning(result, "Plain"));
+    }
+
+    /// <summary>
+    ///     A recursive filtered import skips a rejected candidate and finds the deeper match.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_FilteredRecursiveImport_SkipsRejectedFindsDeeperMatch()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            metadata def X { }
+            package P {
+                part def Item;
+                package N { part def Item { @X; } }
+            }
+            package Q {
+                private import P::**[@X];
+                part a : Item;
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "Q::a", "P::N::Item"));
+    }
+
+    /// <summary>
+    ///     The metadata a filter tests is resolved before any filtered import is evaluated, so a
+    ///     candidate declared in a later file, annotated with a qualified type reference, still
+    ///     matches an unqualified filter.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_FilteredImportWithMetadataInLaterFile_MatchesQualifiedAnnotation()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(
+            "package Q { private import P::*[@X]; part a : Marked; part b : Plain; }",
+            """
+            package M { metadata def X { } }
+            package P {
+                part def Marked { @M::X; }
+                part def Plain;
+            }
+            """);
+
+        // Assert: Marked's annotation resolves to M::X, which the unqualified filter @X accepts
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "Q::a", "P::Marked"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Q::b", "P::Plain"));
+        Assert.True(HasUnresolvedWarning(result, "Plain"));
+    }
+
+    /// <summary>
+    ///     A metaclass-kind filter (<c>@SysML::PartUsage</c>) admits usages and rejects definitions.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_FilteredImportWithMetaclassKind_AdmitsMatchingKindOnly()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P { part pu; part def Pd; }
+            package Q {
+                private import P::*[@SysML::PartUsage];
+                part x :> pu;
+                part y : Pd;
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Supertype, "Q::x", "P::pu"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "Q::y", "P::Pd"));
+    }
+
+    /// <summary>
+    ///     An import applies only to the namespace that declares it: a sibling package cannot
+    ///     resolve a name through it.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ImportInSiblingPackage_DoesNotApplyToOtherPackage()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package A { part def X; }
+            package PkgA { private import A::*; part p : X; }
+            package PkgB { part q : X; }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "PkgA::p", "A::X"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "PkgB::q", "A::X"));
+        Assert.True(HasUnresolvedWarning(result, "X"));
+    }
+
+    /// <summary>
+    ///     A nested package sees the imports of the namespaces enclosing it.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ImportInOuterPackage_AppliesToNestedPackage()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package A { part def X; }
+            package Outer {
+                private import A::*;
+                package Inner { part r : X; }
+            }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "Outer::Inner::r", "A::X"));
+    }
+
+    /// <summary>
+    ///     An import written at the root of a file applies to the whole file, but not to another file.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_FileRootImport_AppliesToItsOwnFileOnly()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(
+            """
+            package A { part def X; }
+            private import A::*;
+            package P { part s : X; }
+            """,
+            "package R { part t : X; }");
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "P::s", "A::X"));
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "R::t", "A::X"));
+    }
+
+    /// <summary>
+    ///     A private import is not re-exported to a package that imports the importing package;
+    ///     a public import is.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_PrivateImport_IsNotReExported()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package A { part def X; part def Z; }
+            package Hiding { private import A::X; }
+            package Exposing { public import A::Z; }
+            package N {
+                private import Hiding::*;
+                private import Exposing::*;
+                part u : X;
+                part v : Z;
+            }
+            """);
+
+        // Assert
+        Assert.False(HasEdge(result, SysmlEdgeKind.Typing, "N::u", "A::X"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Typing, "N::v", "A::Z"));
+    }
+
+    /// <summary>
+    ///     A bare redefinition of a member inherited from a supertype resolves wherever the
+    ///     supertype is declared — here in a file loaded after the redefining one.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_BareRedefinitionOfInheritedFeatureInLaterFile_Resolves()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync(
+            """
+            part def SmallVehicle :> Vehicle {
+                part smallEng : SmallEngine redefines eng;
+            }
+            """,
+            """
+            part def Engine;
+            part def SmallEngine :> Engine;
+            part def Vehicle { part eng : Engine; }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Redefinition, "SmallVehicle::smallEng", "Vehicle::eng"));
+        Assert.False(HasUnresolvedWarning(result, "eng"));
+    }
+
+    /// <summary>
+    ///     A qualified redefinition target resolves even when the owner has no general types, and
+    ///     a redefinition never resolves to the redefining feature itself.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RedefinitionQualifiedTargetOrOnlySelf_ResolvesLenientlyNeverToSelf()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package Lib { attribute def mass; }
+            part def Foo { attribute :>> Lib::mass; attribute :>> nothing; }
+            """);
+
+        // Assert
+        Assert.True(HasEdge(result, SysmlEdgeKind.Redefinition, "Foo::mass", "Lib::mass"));
+        Assert.DoesNotContain(result.Workspace!.Index.AllEdges, e => e.SourceQualifiedName == e.TargetQualifiedName);
+        Assert.True(HasUnresolvedWarning(result, "nothing"));
+    }
+
+    /// <summary>
+    ///     A private member inherited from a supertype's supertype cannot be redefined.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RedefinitionOfPrivateInheritedMember_NoEdgeAndWarning()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            part def Base { private attribute secret; attribute open; }
+            part def Mid :> Base;
+            part def D :> Mid { attribute :>> secret; attribute :>> open; }
+            """);
+
+        // Assert
+        Assert.False(HasEdge(result, SysmlEdgeKind.Redefinition, "D::secret", "Base::secret"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Redefinition, "D::open", "Base::open"));
+        Assert.True(HasUnresolvedWarning(result, "secret"));
     }
 }
 

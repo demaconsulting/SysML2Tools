@@ -757,6 +757,69 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Contains(layout.Warnings, w => w.Contains("'spareX'") && w.Contains("simple name only"));
     }
 
+    /// <summary>
+    ///     A reference to a private member of another package gets no semantic typing edge and is
+    ///     never drawn silently: it is flagged by the simple-name-fallback warning, while an accepted
+    ///     (public) reference is wired through its semantic edge without any fallback warning.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_IsFlaggedNotSilent()
+    {
+        // Act
+        var layout = await LayOutViewVAsync("""
+            package P { private part def Hidden; part def Shown; }
+            package Q { part def Owner { part a : P::Hidden; part b : P::Shown; } }
+            package Diagrams { view V { expose P::**; expose Q::**; } }
+            """);
+
+        // Assert
+        Assert.Contains(layout.Warnings, w => w.Contains("'P::Hidden'") && w.Contains("simple name only"));
+        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'P::Shown'"));
+    }
+
+    /// <summary>
+    ///     A candidate a filtered import rejects gets no semantic typing edge and is flagged by the
+    ///     simple-name-fallback warning; the candidate the filter accepts is wired without a warning.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_IsFlaggedNotSilent()
+    {
+        // Act
+        var layout = await LayOutViewVAsync("""
+            metadata def X { }
+            package P { part def Marked { @X; } part def Plain; }
+            package Q {
+                private import P::*[@X];
+                part def Owner { part a : Marked; part b : Plain; }
+            }
+            package Diagrams { view V { expose P::**; expose Q::**; } }
+            """);
+
+        // Assert
+        Assert.Contains(layout.Warnings, w => w.Contains("'Plain'") && w.Contains("simple name only"));
+        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'Marked'"));
+    }
+
+    /// <summary>
+    ///     An import applies only to its own package: a sibling package that merely shares the
+    ///     simple name is flagged by the simple-name-fallback warning, the importing package is not.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ImportOfSiblingPackage_DoesNotResolveForThisPackage()
+    {
+        // Act
+        var layout = await LayOutViewVAsync("""
+            package A { part def Thing; }
+            package PkgA { private import A::*; part def OwnerA { part p : Thing; } }
+            package PkgB { part def OwnerB { part q : Thing; } }
+            package Diagrams { view V { expose A::**; expose PkgA::**; expose PkgB::**; } }
+            """);
+
+        // Assert
+        Assert.Contains(layout.Warnings, w => w.Contains("'Thing' in 'PkgB::OwnerB'") && w.Contains("simple name only"));
+        Assert.DoesNotContain(layout.Warnings, w => w.Contains("PkgA::OwnerA"));
+    }
+
     /// <summary>Recursively collects all <see cref="LayoutBox"/> nodes from a node list.</summary>
     private static IReadOnlyList<LayoutBox> CollectBoxes(IReadOnlyList<LayoutNode> nodes)
     {

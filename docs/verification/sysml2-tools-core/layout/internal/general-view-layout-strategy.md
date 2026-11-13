@@ -291,6 +291,14 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_FallbackToUnrenderedTarget_StillReportsWarning`:
   Type, subsetting, and redefinition references matched only by simple name to elements outside
   the exposed scope are each still reported
+- `GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_IsFlaggedNotSilent`:
+  A reference to a private member of another package has no semantic edge and is flagged by the
+  simple-name-fallback warning, while a public reference is wired without a fallback warning
+- `GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_IsFlaggedNotSilent`:
+  A candidate a filtered import rejects is flagged by the fallback warning; the accepted one is not
+- `GeneralViewLayoutStrategy_BuildLayout_ImportOfSiblingPackage_DoesNotResolveForThisPackage`:
+  A name reachable only through a sibling package's import is flagged for the package that did not
+  import it, and not for the one that did
 - `GeneralViewLayoutStrategy_BuildLayout_DocumentationByDefault_RendersWrappedDocCompartment`:
   By default the definition's box carries a `doc` compartment whose rows preserve every word, wrap
   onto several rows, and each fit within the box width; the comment note is drawn and the doc

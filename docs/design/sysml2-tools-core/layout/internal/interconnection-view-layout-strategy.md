@@ -219,13 +219,16 @@ node by its parent, which is laid out with the **same** flat placement.
   of candidate containers — non-standard-library `part def`s that have at least one nested `part`
   usage — keyed by both qualified and simple name (qualified preferred). For each part,
   `CollectParts` resolves its type against that index (`TryResolveContainer` → `ResolveByTyping`):
-  first via the part's resolved `Typing` edge from the semantic model, re-checked with
-  `NameResolver.Recheck` so a different element found by KerML resolution wins (a target that
+  first via the part's resolved `Typing` edge from the semantic model, used as resolved (the
+  semantic resolver already applies KerML name resolution — member visibility, filtered imports,
+  and import scoping — so the layout does not re-check it; a target that
   is not a container makes the part a leaf — it never falls back to a same-named container
   elsewhere); otherwise by KerML 8.2.3.5 name resolution of the raw `FeatureTyping` text relative to the part's
   owning namespace (the private `DefinitionIndex` wraps the container map and a `NameResolver`
   from `FilterExpressionEvaluator.CreateNameResolver`), and only then by the bare simple-name
-  fallback, which records a `LayoutWarnings.ForSimpleNameFallback` warning on the returned tree. A part whose type resolves
+  fallback, which records a `LayoutWarnings.ForSimpleNameFallback` warning on the returned tree
+  (so a typing the KerML rules reject, such as a private or filtered-out definition, is expanded
+  only through that warned fallback, never silently). A part whose type resolves
   to a container, and whose type is not already
   on the recursion path, is a container, and every other part is a leaf. `FindRoot`'s
   composition-graph check uses the same `ResolveByTyping`.

@@ -170,14 +170,14 @@ sections:
       - id: SysML2Tools-Tool-Export-Filter
         title: >-
           The export command shall accept --filter <expr> narrowing exported declarations and
-          edges using the Phase 1 filter-expression subset (Core.Filtering), applied after
+          edges using the Phase 1 filter-expression subset (Language.Filtering), applied after
           --target scoping (narrowing the target-scoped set further when both are supplied, or
           the whole stdlib-filtered workspace when --target is absent); an unparsable or
           unsupported --filter expression shall not abort the export — it shall fall back to
           the unfiltered (but still target-scoped, if applicable) result, surfaced via both a
           synthetic warning diagnostic in the output and a console warning.
         justification: |
-          Reusing the public Core.Filtering FilterExpressionParser/FilterExpressionEvaluator
+          Reusing the public Language.Filtering FilterExpressionParser/FilterExpressionEvaluator
           directly (no duplication needed, unlike --target's subtree logic) keeps export's
           filter semantics identical to render's `--filter`; falling back to the unfiltered
           result on parse failure (rather than aborting) mirrors GeneralViewLayoutStrategy's
