@@ -58,7 +58,12 @@ uniformly. For each name that resolves, a `SysmlEdge` is appended to a per-node 
 with `SysmlEdgeKind.Supertype`, `SysmlEdgeKind.Typing`, `SysmlEdgeKind.Redefinition`, or
 `SysmlEdgeKind.Import` respectively; `Source` is the current node's
 `QualifiedName` (`null` for anonymous nodes such as import statements) and `Target` is
-`resolvedName`. Any non-empty per-node edge list is attached to `node.ResolvedEdges` and
+`resolvedName`. Each of these single-reference edges (and the `Verify`, `Expose`, and `MetadataType`
+edges, and a view usage's `Typing` edge) is also tagged with the reference text exactly as written
+(`SysmlEdge.RawReference`), which is the edge's identity: the supertype edge list omits
+unresolved references, so a consumer pairs a raw reference with its edge by that text rather than
+by position or by name suffix. The two-ended kinds (`Satisfy`, `Allocate`, `Dependency`, `Connect`,
+`Binding`, `Transition`) leave it `null`. Any non-empty per-node edge list is attached to `node.ResolvedEdges` and
 appended to the aggregate edge list returned by `ResolveAll`.
 
 For each name that does not resolve (and is not already reported in this file), a Warning

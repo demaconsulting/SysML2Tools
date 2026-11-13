@@ -207,27 +207,25 @@ internal sealed class GridViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Resolves a definition's raw supertype references to qualified names: each reference is
-    /// paired with its own resolved <see cref="SysmlEdgeKind.Supertype"/> edge target (see
-    /// <see cref="GeneralViewLayoutStrategy.PairSupertypeReferences"/>; used as resolved, since the
-    /// semantic resolver already applies KerML 8.2.3.5); otherwise the reference is resolved by
-    /// KerML 8.2.3.5 name resolution relative to the definition's owning namespace. A reference
-    /// neither step resolves is omitted (the row is not marked for it).
+    /// matched to its own resolved <see cref="SysmlEdgeKind.Supertype"/> edge by exact reference
+    /// text (see <see cref="GeneralViewLayoutStrategy.TryGetResolvedTarget"/>; used as resolved,
+    /// since the semantic resolver already applies KerML 8.2.3.5, and a reference with no matching
+    /// edge is unresolved); where the definition carries no edge identity (a hand-built workspace)
+    /// the reference is resolved by KerML 8.2.3.5 name resolution relative to the definition's
+    /// owning namespace. A reference neither step resolves is omitted (the row is not marked for it).
     /// </summary>
     private static IReadOnlyList<string> ResolveSupertypes(
         string qualifiedName, SysmlDefinitionNode def, NameResolver resolver)
     {
-        var resolvedEdges = def.ResolvedEdges
-            .Where(e => e.Kind == SysmlEdgeKind.Supertype)
-            .Select(e => e.TargetQualifiedName)
-            .ToList();
         var sep = qualifiedName.LastIndexOf("::", StringComparison.Ordinal);
         var owner = sep >= 0 ? qualifiedName[..sep] : null;
 
         var result = new List<string>();
-        var paired = GeneralViewLayoutStrategy.PairSupertypeReferences(def.SupertypeNames, resolvedEdges);
-        for (var i = 0; i < def.SupertypeNames.Count; i++)
+        foreach (var reference in def.SupertypeNames)
         {
-            var resolved = paired[i] ?? resolver.Resolve(def.SupertypeNames[i], owner);
+            var resolved = GeneralViewLayoutStrategy.TryGetResolvedTarget(def, SysmlEdgeKind.Supertype, reference, out var target)
+                ? target
+                : resolver.Resolve(reference, owner);
             if (resolved is not null)
             {
                 result.Add(resolved);

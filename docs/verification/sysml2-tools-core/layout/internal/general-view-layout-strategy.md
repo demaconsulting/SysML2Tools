@@ -177,11 +177,22 @@ configuration are required beyond a standard .NET SDK installation.
   Folder box with package keyword
 - `GeneralViewLayoutStrategy_BuildLayout_Subclassification_ProducesEdge`:
   Line with open end marker at supertype
-- `GeneralViewLayoutStrategy_PairSupertypeReferences_QualifiedAndBareSharingName_PairsEachOwnTarget`:
-  For `:> Y::X, X` with resolved targets `[Y::X, P::X]`, the references pair with `Y::X` and `P::X`
-- `GeneralViewLayoutStrategy_PairSupertypeReferences_ReversedOrderAndUnclaimedTargets_PairsWithoutReuse`:
-  Pairing is order-independent, never claims a target twice, and leaves an unmatched reference
-  unpaired
+- `GeneralViewLayoutStrategy_BuildLayout_UnresolvedSupertypeAndAliasOfSameTarget_DrawsOneEdge`:
+  `:> X, A` / `:> A, X` where `X` is unresolved and the alias `A` resolves to `P::X` draws exactly one
+  specialization edge, in either reference order
+- `GeneralViewLayoutStrategy_BuildLayout_QualifiedAndBareSupertypesSharingName_DrawsBothEdges`:
+  `:> Y::X, X` (bare `X` resolved through an import to `P::X`) draws two specialization edges
+- `GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndAliasOfSameFeature_DrawsOneEdge`:
+  `part s :> slotX, Alias` where `slotX` is unresolved and `Alias` resolves to the feature draws exactly
+  one subsetting edge
+- `GeneralViewLayoutStrategy_TryGetResolvedTarget_IdentifiedEdges_MatchesExactTextOnly`:
+  With edges identified only as `A`, asking for `X` is a known answer with no target and asking for `A`
+  returns its target
+- `GeneralViewLayoutStrategy_TryGetResolvedTarget_NoIdentifiedEdges_ReportsNotKnown`:
+  No declaration, no edges, edges without `RawReference`, or edges of another kind report "not known" so the
+  caller falls back to name resolution
+- `GeneralViewLayoutStrategy_TryGetResolvedTarget_DuplicateAndQualifiedText_UsesExactKey`:
+  A duplicated reference text answers the same target; a qualified text is a different key from the bare text
 - `GeneralViewLayoutStrategy_BuildLayout_SeedStdlibNames_AreExcluded`:
   Seed-listed definitions excluded; empty canvas
 - `GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments`:

@@ -48,9 +48,10 @@ redefinition with no explicit type annotation), simple `Name`, raw
 from `SysmlFeatureNode.SupertypeNames` — a feature's `subsets`/`:>` targets, not a new AST field),
 and the semantic model's resolved answers for them: `ResolvedTypeName` (the feature's `Typing` edge
 target), `ResolvedRedefinedFeatureName` (its `Redefinition` edge target), and `ResolvedSubsettedNames`
-(its `Supertype` edge targets paired to `SubsettedFeatureNames` by index with
-`PairSupertypeReferences`, `null` for an unpaired reference, and the whole list `null` when the
-feature has no subsetted references), all populated by `CollectMemberships`.
+(one `EdgeAnswer` per `SubsettedFeatureNames` entry, by index — a private `(Known, Target)` struct
+built by `TryGetResolvedTarget` from the feature's `Supertype` edge whose `RawReference` equals that
+reference's text; the whole list `null` when the feature has no subsetted references), all populated
+by `CollectMemberships`.
 `FeatureMembership` does not itself carry an
 `ExpressionText` field — constraint-kind features' expression text (non-null only for
 `"require constraint"`/`"assume constraint"`/`"constraint"` keywords) is read directly from the
@@ -247,10 +248,10 @@ self-references are skipped.
 **Resolving a reference to a box (`TypeResolver`).** Because packages may reuse a simple name for
 distinct definitions, every reference is resolved in this order: (1) the semantic model's
 already-resolved target — a membership's `FeatureMembership.ResolvedTypeName` (the feature's own
-`Typing` edge) via `TryResolveMemberType`, the definition's own `Supertype` edge paired with the
-raw reference by `PairSupertypeReferences` via `TryResolveSupertype`, a feature's
+`Typing` edge) via `TryResolveMemberType`, the definition's own `Supertype` edge matched to the
+raw reference by its `RawReference` (`TryGetResolvedTarget`) via `TryResolveSupertype`, a feature's
 `ResolvedRedefinedFeatureName` (its `Redefinition` edge) via `ResolveRedefinitionOwner`, or a
-feature's paired `ResolvedSubsettedNames` entry via `ResolveSubsettedOwner` — used as resolved,
+feature's `ResolvedSubsettedNames` answer via `ResolveSubsettedOwner` — used as resolved,
 since the semantic resolver already applies KerML name resolution (member visibility, filtered
 imports, import scoping, and imports written at the root of a file), so its answer is
 authoritative and the layout does not re-check it; otherwise (2) KerML 1.1 Beta 2
@@ -266,28 +267,31 @@ resolver does — ordinary resolution from the owning type). (3) A reference nei
 is **unresolved**: no edge is drawn (a type or supertype reference draws no edge, a part is not
 expanded, a grid row is not marked) and the layout emits no warning for it.
 
-**Why the `NameResolver` step is kept.** The semantic edges cannot replace step (2): `SysmlEdge`
-carries no raw reference text, so `PairSupertypeReferences` is a heuristic (equal text, then an
-unclaimed `::`-suffix) that leaves a reference resolved through an alias or short name unpaired;
-and `SysmlWorkspace` is a public type that programmatic callers (and many layout tests) build by
-hand with no `ResolvedEdges` at all, where step (2) is the only resolution available. Step (2) is
-the same engine the semantic pass uses, so it cannot draw a relationship KerML forbids; its only
-divergence is that it cannot see file-root imports, which makes it less permissive, never more —
-which is why redefinition and subsetting prefer the semantic edge (step 1): without that, a target
-reachable only through a file-root import would vanish once the simple-name fallback no longer
-rescued it.
+**Why the `NameResolver` step is kept.** `SysmlWorkspace` is a public type that programmatic callers
+(and many layout tests) build by hand with no `ResolvedEdges`, or with edges that carry no
+`RawReference`, where step (2) is the only resolution available; it also resolves a declaration all of
+whose references are semantically unresolved (such a declaration has no edges, so
+`TryGetResolvedTarget` reports "not known") by the same KerML algorithm on the reference's own text — it
+cannot see file-root imports, so it is strictly less permissive than the semantic pass, and this residual
+case is documented rather than special-cased. Where the semantic model did produce identified edges, it is
+authoritative even for the references it left unmatched: step (2) is not consulted, so the layout cannot
+resurrect a reference the load already reported as unresolved. Step (2) is the same engine the semantic pass
+uses, so it cannot draw a relationship KerML forbids; its only divergence is that it cannot see file-root
+imports, which is why redefinition and subsetting prefer the semantic edge (step 1): without that, a target
+reachable only through a file-root import would vanish once the simple-name fallback no longer rescued it.
 
-**Pairing supertype references with edges (`PairSupertypeReferences`).** The semantic `Supertype`
-edges follow the declared reference order but omit unresolved references, and `SysmlEdge` carries no
-record of the raw text it came from, so references cannot be paired by position. A resolved target
-whose qualified name merely ends in `::<reference>` is therefore only a candidate: each reference is
-first paired with a target equal to its text, then — for those still unpaired — with the first
-target not yet claimed that the text is a `::`-suffix of, and no target is claimed twice. A
-reference left unpaired is resolved by step (2) above. This is shared with
-`GridViewLayoutStrategy`; `InterconnectionViewLayoutStrategy` does not use it (a part's typing is a
-single edge). A known limit: an unresolved reference plus an alias reference that resolves to
-`P::X` can claim the wrong target; a real fix needs the raw reference on `SysmlEdge`, a public-model
-change outside this unit.
+**Pairing references with edges by identity (`TryGetResolvedTarget`).** The semantic `Supertype` edges
+follow the declared reference order but omit unresolved references, so they cannot be paired with the
+references by position. Each edge therefore carries the reference text it was resolved from
+(`SysmlEdge.RawReference`, set by `ReferenceResolver`), and `TryGetResolvedTarget(declaration, kind,
+rawReference, out target)` pairs by exact (ordinal) text equality: it returns the target of the first edge
+of that kind whose `RawReference` equals the reference. When the declaration carries at least one edge of
+that kind with a `RawReference` but none matches, it reports a known answer with no target (the reference is
+semantically unresolved and draws nothing); when it carries none, the answer is not known and the caller
+falls back to step (2). No name-suffix logic exists, so an unresolved reference can never take the target
+another reference resolved to — for example `:> X, A`, where `X` is unresolved and the alias `A` resolves to
+`P::X`, draws one edge. The helper is shared with `GridViewLayoutStrategy`;
+`InterconnectionViewLayoutStrategy` does not use it (a part's typing is a single edge).
 
 **Decision: no simple-name fallback (issue #91).** The earlier design matched a reference that
 the KerML rules reject — a private member, a candidate a filtered import excludes, a name reachable
@@ -328,8 +332,9 @@ Each entry in a feature's `SubsettedFeatureNames` (populated verbatim from
 `SysmlFeatureNode.SupertypeNames` — see `FeatureMembership` above) contributes a **subsetting**
 edge from the subtype to the owning definition of the subsetted (ancestor) feature, carrying a
 hollow-triangle end marker (the same marker as `Specialization`, distinguished purely by the
-dashed line style) at the owner, resolved by `ResolveSubsettedOwner`: the paired resolved
-`Supertype` edge target (`ResolvedSubsettedNames`) when present, else ordinary resolution of the
+dashed line style) at the owner, resolved by `ResolveSubsettedOwner`: the `Supertype` edge target
+matched to the reference by its `RawReference` (the `ResolvedSubsettedNames` answer) when known, else
+ordinary resolution of the
 reference relative to the feature's owning definition — a subsetted-feature reference is "a bare
 or qualified reference to a member the owner inherits" in SysML v2 semantics, as is a redefined one.
 `Subsetting` is intentionally *not* a new public `SysmlEdgeKind`: it is derived entirely from
@@ -631,7 +636,7 @@ produces valid geometry, so no crossing warnings are emitted.
   types (`DemaConsulting.Rendering`).
 - `FeatureMembership` (private record) — carries the keyword, nullable type reference, simple
   name, nullable redefined-feature reference, subsetted-feature-name list, and the resolved
-  typing, redefinition, and paired subsetting targets of one owned feature.
+  typing, redefinition, and identity-matched subsetting answers of one owned feature.
 
 ##### Callers
 

@@ -40,6 +40,7 @@ configuration are required beyond a standard .NET SDK installation.
 | `GridView_BuildLayout_Specialization_ProducesMarkedMatrix` | Grid has a header row and one specialization mark |
 | `GridView_BuildLayout_SameNamedSupertypes_MarkOwnPackagesColumn` | Same-named supertypes mark own package |
 | `GridView_BuildLayout_QualifiedAndBareSupertypesSharingName_MarkEachOwnTarget` | `:> Y::X, X` marks both targets |
+| `GridView_BuildLayout_UnresolvedSupertypeBeforeAlias_MarksOnlyTheAliasTarget` | Alias beside unresolved: one mark |
 | `GridView_BuildLayout_PrivateSupertype_IsNotMarked` | Private supertype draws no mark, no warning |
 | `GridView_BuildLayout_FilteredOutAndSiblingImportSupertypes_AreNotMarked` | Rejected supertypes unmarked |
 | `BrowserAndGrid_BuildLayout_EmptyWorkspace_ReturnMinimalCanvas` | Empty workspace yields no nodes |

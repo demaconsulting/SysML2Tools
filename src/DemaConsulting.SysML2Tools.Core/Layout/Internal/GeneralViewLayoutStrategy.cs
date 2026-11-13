@@ -58,9 +58,9 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <see langword="null"/> when the feature carries no resolved typing edge.
     /// <see cref="ResolvedRedefinedFeatureName"/> is likewise the qualified name of the feature's
     /// resolved <see cref="SysmlEdgeKind.Redefinition"/> edge target, and
-    /// <see cref="ResolvedSubsettedNames"/> pairs each <see cref="SubsettedFeatureNames"/> entry,
-    /// by index, with its resolved <see cref="SysmlEdgeKind.Supertype"/> edge target (or
-    /// <see langword="null"/> when that reference is unpaired); the whole list is
+    /// <see cref="ResolvedSubsettedNames"/> holds, for each <see cref="SubsettedFeatureNames"/>
+    /// entry by index, the semantic model's <see cref="EdgeAnswer"/> for that reference (looked up
+    /// by the reference's own identity, see <see cref="TryGetResolvedTarget"/>); the whole list is
     /// <see langword="null"/> when the feature has no subsetted references.
     /// </summary>
     private sealed record FeatureMembership(
@@ -71,7 +71,21 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         IReadOnlyList<string> SubsettedFeatureNames,
         string? ResolvedTypeName = null,
         string? ResolvedRedefinedFeatureName = null,
-        IReadOnlyList<string?>? ResolvedSubsettedNames = null);
+        IReadOnlyList<EdgeAnswer>? ResolvedSubsettedNames = null);
+
+    /// <summary>
+    /// The semantic model's answer for one raw reference: when <see cref="Known"/> is
+    /// <see langword="true"/> the answer is authoritative and <see cref="Target"/> is the resolved
+    /// target (null when the reference is semantically unresolved, so nothing is drawn); when
+    /// <see langword="false"/> the declaration carries no edge identity and the reference is
+    /// resolved by name resolution instead.
+    /// </summary>
+    private readonly record struct EdgeAnswer(bool Known, string? Target)
+    {
+        /// <summary>Looks up the answer for <paramref name="rawReference"/> on <paramref name="declaration"/>.</summary>
+        public static EdgeAnswer For(SysmlNode? declaration, SysmlEdgeKind kind, string rawReference) =>
+            new(TryGetResolvedTarget(declaration, kind, rawReference, out var target), target);
+    }
 
     /// <summary>
     /// The classification of an edge, which selects its line style so the renderer can distinguish
@@ -819,9 +833,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 var resolvedRedefinition = feature.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Redefinition)?.TargetQualifiedName;
                 var resolvedSubsettings = feature.SupertypeNames.Count == 0
                     ? null
-                    : PairSupertypeReferences(
-                        feature.SupertypeNames,
-                        feature.ResolvedEdges.Where(e => e.Kind == SysmlEdgeKind.Supertype).Select(e => e.TargetQualifiedName).ToList());
+                    : (IReadOnlyList<EdgeAnswer>)[.. feature.SupertypeNames.Select(raw => EdgeAnswer.For(feature, SysmlEdgeKind.Supertype, raw))];
                 result.Add(new FeatureMembership(
                     keyword, typing, feature.Name, feature.RedefinedFeatureName, feature.SupertypeNames, resolvedType, resolvedRedefinition, resolvedSubsettings));
             }
@@ -912,73 +924,54 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Pairs each raw supertype reference of a definition with the resolved
-    /// <see cref="SysmlEdgeKind.Supertype"/> edge target that answers it, so every reference is
-    /// drawn to its own target. A resolved target whose qualified name is a <c>::</c>-suffix of
-    /// the raw text (e.g. <c>X</c> resolving to <c>P::X</c>) is only a candidate: a reference
-    /// is first paired with a target equal to its text, then — for the references still
-    /// unpaired — with the first not-yet-claimed target the text is a suffix of, and no target is
-    /// claimed twice. Without this, <c>:&gt; Y::X, X</c> (with the bare <c>X</c> resolving to
-    /// <c>P::X</c>) would pair both references with <c>Y::X</c>. The semantic edges are produced
-    /// in reference order but omit unresolved references, so positional pairing is not possible
-    /// from the edges alone; this claimed-target matching is the documented compromise.
-    /// Shared with <see cref="GridViewLayoutStrategy"/>.
+    /// Looks up the semantic model's answer for one raw reference of a declaration by the
+    /// reference's identity: the target of the first <paramref name="kind"/> edge of
+    /// <paramref name="declaration"/> whose <see cref="SysmlEdge.RawReference"/> equals
+    /// <paramref name="rawReference"/> exactly (ordinal). Identity is exact text, never a name
+    /// suffix, so a reference that did not resolve can never take another reference's target (for
+    /// example the target an alias of the same symbol resolved to). Shared with
+    /// <see cref="GridViewLayoutStrategy"/>.
     /// </summary>
-    /// <param name="rawReferences">The definition's raw supertype reference texts.</param>
-    /// <param name="resolvedTargets">The definition's resolved supertype edge targets.</param>
+    /// <param name="declaration">The declaration owning the reference, or null when unknown.</param>
+    /// <param name="kind">The edge kind the reference produces.</param>
+    /// <param name="rawReference">The reference text as written in the model.</param>
+    /// <param name="target">
+    /// The resolved target when the answer is known and the reference resolved; otherwise null.
+    /// </param>
     /// <returns>
-    /// For each raw reference, in order, its paired resolved target, or <see langword="null"/>
-    /// when none is available (the caller then resolves the reference itself).
+    /// <see langword="true"/> when the semantic model's answer is authoritative — the declaration
+    /// carries at least one <paramref name="kind"/> edge with a raw reference, so a reference with
+    /// no matching edge is semantically unresolved (<paramref name="target"/> is null and the
+    /// caller draws nothing); <see langword="false"/> when the declaration carries no
+    /// raw-reference-identified edge of that kind (a hand-built workspace, or data without edge
+    /// identity), so the caller resolves the reference itself by name resolution.
     /// </returns>
-    internal static IReadOnlyList<string?> PairSupertypeReferences(
-        IReadOnlyList<string> rawReferences, IReadOnlyList<string> resolvedTargets)
+    internal static bool TryGetResolvedTarget(
+        SysmlNode? declaration, SysmlEdgeKind kind, string rawReference, out string? target)
     {
-        var paired = new string?[rawReferences.Count];
-        var claimed = new bool[resolvedTargets.Count];
-
-        // Pass 1: exact matches.
-        for (var i = 0; i < rawReferences.Count; i++)
+        target = null;
+        var identified = false;
+        if (declaration is null)
         {
-            var j = FindUnclaimed(resolvedTargets, claimed, target => target == rawReferences[i]);
-            if (j >= 0)
-            {
-                claimed[j] = true;
-                paired[i] = resolvedTargets[j];
-            }
+            return false;
         }
 
-        // Pass 2: suffix matches for the references still unpaired.
-        for (var i = 0; i < rawReferences.Count; i++)
+        foreach (var edge in declaration.ResolvedEdges)
         {
-            if (paired[i] is not null)
+            if (edge.Kind != kind || edge.RawReference is null)
             {
                 continue;
             }
 
-            var suffix = "::" + rawReferences[i];
-            var j = FindUnclaimed(resolvedTargets, claimed, target => target.EndsWith(suffix, StringComparison.Ordinal));
-            if (j >= 0)
+            identified = true;
+            if (string.Equals(edge.RawReference, rawReference, StringComparison.Ordinal))
             {
-                claimed[j] = true;
-                paired[i] = resolvedTargets[j];
+                target = edge.TargetQualifiedName;
+                return true;
             }
         }
 
-        return paired;
-    }
-
-    /// <summary>Returns the index of the first target not yet claimed that satisfies <paramref name="matches"/>, or -1.</summary>
-    private static int FindUnclaimed(IReadOnlyList<string> targets, bool[] claimed, Func<string, bool> matches)
-    {
-        for (var j = 0; j < targets.Count; j++)
-        {
-            if (!claimed[j] && matches(targets[j]))
-            {
-                return j;
-            }
-        }
-
-        return -1;
+        return identified;
     }
 
     /// <summary>
@@ -1011,18 +1004,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var edges = new List<ModelEdge>();
         foreach (var def in defs)
         {
-            // Supertype targets already resolved by ReferenceResolver (owning namespace and imports
-            // first), used in preference to re-resolving the raw reference text below.
-            var resolvedSupertypes = workspace.Declarations.TryGetValue(def.QualifiedName, out var declaration)
-                ? declaration.ResolvedEdges.Where(e => e.Kind == SysmlEdgeKind.Supertype).Select(e => e.TargetQualifiedName).ToList()
-                : [];
+            // Supertype targets are resolved by ReferenceResolver (owning namespace and imports
+            // first); each raw reference is matched to its own edge by exact reference text (see
+            // TryGetResolvedTarget), used in preference to re-resolving the reference below.
+            workspace.Declarations.TryGetValue(def.QualifiedName, out var declaration);
 
             // Specialization: subtype → supertype, open arrowhead at the supertype (target) end.
-            // Each raw reference is paired with its own resolved edge (see PairSupertypeReferences).
-            var paired = PairSupertypeReferences(def.SupertypeNames, resolvedSupertypes);
             for (var i = 0; i < def.SupertypeNames.Count; i++)
             {
-                if (types.TryResolveSupertype(def.SupertypeNames[i], paired[i], def.QualifiedName, out var target) &&
+                var answer = EdgeAnswer.For(declaration, SysmlEdgeKind.Supertype, def.SupertypeNames[i]);
+                if (types.TryResolveSupertype(def.SupertypeNames[i], answer, def.QualifiedName, out var target) &&
                     target != def.QualifiedName)
                 {
                     edges.Add(new ModelEdge(def.QualifiedName, target, EndMarkerStyle.HollowTriangle, EdgeKind.Specialization));
@@ -1106,16 +1097,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
             // Subsetting: subtype → the owning definition of each subsetted (ancestor) feature,
             // hollow triangle (dashed) at the owner (target) end. A subsetted-feature reference is
-            // resolved like a redefined-feature reference: its paired semantic edge target first,
-            // else a qualified reference resolves the owner directly and a bare reference walks the
-            // definition's own supertype chain for a matching member name. An unresolved reference
-            // draws no edge.
+            // resolved like a redefined-feature reference: the semantic edge matched to it by exact
+            // reference text first, else a qualified reference resolves the owner directly and a
+            // bare reference walks the definition's own supertype chain for a matching member name.
+            // An unresolved reference draws no edge.
             foreach (var membership in def.Memberships)
             {
                 for (var i = 0; i < membership.SubsettedFeatureNames.Count; i++)
                 {
-                    var pairedTarget = membership.ResolvedSubsettedNames is { } resolvedNames ? resolvedNames[i] : null;
-                    var owner = types.ResolveSubsettedOwner(def.QualifiedName, membership.SubsettedFeatureNames[i], pairedTarget);
+                    var answer = membership.ResolvedSubsettedNames is { } answers ? answers[i] : default;
+                    var owner = types.ResolveSubsettedOwner(def.QualifiedName, membership.SubsettedFeatureNames[i], answer);
                     if (owner is not null && owner != def.QualifiedName)
                     {
                         edges.Add(new ModelEdge(def.QualifiedName, owner, EndMarkerStyle.HollowTriangle, EdgeKind.Subsetting));
@@ -1296,13 +1287,15 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// Resolves the type, supertype, redefinition, and subsetting references of rendered boxes to
     /// other rendered boxes. A reference already resolved by the semantic model is used as
     /// resolved — the semantic resolver applies KerML 8.2.3.5 itself (member visibility, filtered
-    /// imports, and import scoping, including file-root imports), so its answer is authoritative;
-    /// otherwise it is resolved by KerML 8.2.3.5 name resolution (<see cref="NameResolver"/>:
+    /// imports, and import scoping, including file-root imports), so its answer is authoritative.
+    /// Supertype/subsetting references are matched to their edge by exact reference text (see
+    /// <see cref="TryGetResolvedTarget"/>), so an unresolved reference never takes another
+    /// reference's target. Where the declaration carries no edge identity (hand-built workspaces),
+    /// the reference is resolved by KerML 8.2.3.5 name resolution (<see cref="NameResolver"/>:
     /// owned, imported, and inherited memberships — including aliases and short names — of the
     /// local namespace, then outward through owning namespaces to the global namespace, with later
-    /// qualified-name segments by visible resolution), which also serves hand-built workspaces
-    /// that carry no semantic edges. A reference neither step resolves is unresolved and draws no
-    /// edge; there is no bare simple-name matching.
+    /// qualified-name segments by visible resolution). A reference neither step resolves is
+    /// unresolved and draws no edge; there is no bare simple-name matching.
     /// </summary>
     private sealed class TypeResolver
     {
@@ -1335,22 +1328,22 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         }
 
         /// <summary>
-        /// Resolves a definition's raw supertype reference: the resolved
-        /// <see cref="SysmlEdgeKind.Supertype"/> edge target
-        /// <paramref name="pairedEdgeTarget"/> that <see cref="PairSupertypeReferences"/> paired with
-        /// this reference, if any; else the reference relative to the definition's owning namespace
-        /// (KerML 8.2.3.5.2: a Specialization's local namespace is its owning type's owning namespace).
+        /// Resolves a definition's raw supertype reference: when the semantic model's
+        /// <paramref name="answer"/> is known, its target (a reference with no matching resolved
+        /// <see cref="SysmlEdgeKind.Supertype"/> edge is unresolved and draws nothing); else the
+        /// reference relative to the definition's owning namespace (KerML 8.2.3.5.2: a
+        /// Specialization's local namespace is its owning type's owning namespace).
         /// </summary>
         public bool TryResolveSupertype(
             string supertype,
-            string? pairedEdgeTarget,
+            EdgeAnswer answer,
             string subtypeQualifiedName,
             [MaybeNullWhen(false)] out string qualified)
         {
-            if (pairedEdgeTarget is not null)
+            if (answer.Known)
             {
-                qualified = pairedEdgeTarget;
-                return _rendered.Contains(qualified);
+                qualified = answer.Target;
+                return qualified is not null && _rendered.Contains(qualified);
             }
 
             qualified = Resolve(supertype, OwnerOf(subtypeQualifiedName));
@@ -1372,14 +1365,15 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 _resolver.Resolve(redefinedReference, owningType));
 
         /// <summary>
-        /// Resolves the rendered box owning a subsetted feature: the paired resolved
-        /// <see cref="SysmlEdgeKind.Supertype"/> edge target <paramref name="pairedTarget"/> when
-        /// the semantic model supplied one; else the reference resolved relative to the subsetting
-        /// feature's owning namespace (its owning definition, whose inherited memberships include
-        /// the ancestor's features). An unresolved reference yields null.
+        /// Resolves the rendered box owning a subsetted feature: the target of the semantic
+        /// model's <paramref name="answer"/> when it is known (a reference with no matching
+        /// resolved <see cref="SysmlEdgeKind.Supertype"/> edge is unresolved and yields null);
+        /// else the reference resolved relative to the subsetting feature's owning namespace (its
+        /// owning definition, whose inherited memberships include the ancestor's features).
+        /// An unresolved reference yields null.
         /// </summary>
-        public string? ResolveSubsettedOwner(string owningType, string subsettedReference, string? pairedTarget) =>
-            OwnerIfRendered(pairedTarget ?? _resolver.Resolve(subsettedReference, owningType));
+        public string? ResolveSubsettedOwner(string owningType, string subsettedReference, EdgeAnswer answer) =>
+            OwnerIfRendered(answer.Known ? answer.Target : _resolver.Resolve(subsettedReference, owningType));
 
         /// <summary>
         /// Resolves a raw reference to a rendered box; returns null when it resolves to nothing

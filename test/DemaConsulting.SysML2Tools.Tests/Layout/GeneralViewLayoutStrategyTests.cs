@@ -2833,36 +2833,163 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     Each raw supertype reference is paired with its own resolved edge: for
-    ///     <c>part def C :&gt; Y::X, X;</c> where the bare <c>X</c> resolves (through an import) to
-    ///     <c>P::X</c>, the resolved targets are <c>[Y::X, P::X]</c> and the bare reference is paired
-    ///     with <c>P::X</c> — not with <c>Y::X</c> merely because it is a name suffix of it.
+    ///     A supertype reference that does not resolve (<c>X</c> with no import) listed before an
+    ///     alias of the same target (<c>A</c> for <c>P::X</c>) draws only the alias's edge: the
+    ///     unresolved reference must not be paired with the target the alias resolved to, in either
+    ///     reference order.
     /// </summary>
-    [Fact]
-    public void GeneralViewLayoutStrategy_PairSupertypeReferences_QualifiedAndBareSharingName_PairsEachOwnTarget()
+    /// <param name="supertypes">The supertype list of <c>Sub</c>.</param>
+    [Theory]
+    [InlineData("X, A")]
+    [InlineData("A, X")]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UnresolvedSupertypeAndAliasOfSameTarget_DrawsOneEdge(
+        string supertypes)
     {
-        // Act
-        var paired = GeneralViewLayoutStrategy.PairSupertypeReferences(["Y::X", "X"], ["Y::X", "P::X"]);
+        // Act: X is unresolved from Q (no import); A is an alias that resolves to P::X
+        var layout = await LayOutViewVAsync($$"""
+            package P { part def X; }
+            package Q { alias A for P::X; part def Sub :> {{supertypes}}; }
+            package Diagrams { view V { expose P::*; expose Q::*; } }
+            """);
 
-        // Assert
-        Assert.Equal(["Y::X", "P::X"], paired);
+        // Assert: exactly one specialization edge (the alias's)
+        Assert.Single(
+            CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Solid);
     }
 
     /// <summary>
-    ///     The pairing is independent of reference order and never claims a target twice: bare first
-    ///     still pairs the qualified reference with its exact target, a target is not reused, and a
-    ///     reference with no remaining candidate is left unpaired for the caller to resolve itself.
+    ///     A subsetted-feature reference that does not resolve (<c>slotX</c> with no import) listed
+    ///     before an alias of the same feature draws only the alias's subsetting edge.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_PairSupertypeReferences_ReversedOrderAndUnclaimedTargets_PairsWithoutReuse()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndAliasOfSameFeature_DrawsOneEdge()
+    {
+        // Act: slotX is unresolved from Consumer; Alias resolves to Lib::Holder::slotX
+        var layout = await LayOutViewVAsync("""
+            package Lib { part def Holder { part slotX; } }
+            package App {
+                alias Alias for Lib::Holder::slotX;
+                part def Consumer { part s :> slotX, Alias; }
+            }
+            package Diagrams { view V { expose Lib::*; expose App::*; } }
+            """);
+
+        // Assert: exactly one subsetting edge (the alias's)
+        Assert.Single(
+            CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Dashed);
+    }
+
+    /// <summary>
+    ///     A qualified and a bare supertype reference sharing a simple name each draw their own
+    ///     edge: for <c>part def C :&gt; Y::X, X;</c> where the bare <c>X</c> resolves (through an
+    ///     import) to <c>P::X</c>, one edge goes to <c>Y::X</c> and one to <c>P::X</c>.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_QualifiedAndBareSupertypesSharingName_DrawsBothEdges()
     {
         // Act
-        var reversed = GeneralViewLayoutStrategy.PairSupertypeReferences(["X", "Y::X"], ["P::X", "Y::X"]);
-        var duplicate = GeneralViewLayoutStrategy.PairSupertypeReferences(["X", "X"], ["P::X"]);
+        var layout = await LayOutViewVAsync("""
+            package P { part def X; }
+            package Y { part def X; }
+            package Q { private import P::*; part def C :> Y::X, X; }
+            package Diagrams { view V { expose P::*; expose Y::*; expose Q::*; } }
+            """);
+
+        // Assert: two distinct specialization edges
+        var lines = CollectLines(layout.Nodes)
+            .Where(l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Solid)
+            .ToList();
+        Assert.Equal(2, lines.Count);
+    }
+
+    /// <summary>
+    ///     When the semantic model identified edges only for some references (here only <c>A</c>),
+    ///     an exact-text lookup of an unmatched reference is authoritative: it reports "known" with
+    ///     no target (so the caller draws nothing) and never answers with another reference's
+    ///     target merely because the target's name ends with the reference.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_TryGetResolvedTarget_IdentifiedEdges_MatchesExactTextOnly()
+    {
+        // Arrange: only the alias "A" resolved (to P::X); "X" did not
+        var declaration = new SysmlDefinitionNode
+        {
+            Name = "Sub",
+            QualifiedName = "Q::Sub",
+            ResolvedEdges = [new SysmlEdge("Q::Sub", "P::X", SysmlEdgeKind.Supertype) { RawReference = "A" }],
+        };
+
+        // Act
+        var forUnresolved = GeneralViewLayoutStrategy.TryGetResolvedTarget(declaration, SysmlEdgeKind.Supertype, "X", out var unresolvedTarget);
+        var forAlias = GeneralViewLayoutStrategy.TryGetResolvedTarget(declaration, SysmlEdgeKind.Supertype, "A", out var aliasTarget);
 
         // Assert
-        Assert.Equal(["P::X", "Y::X"], reversed);
-        Assert.Equal(["P::X", null], duplicate);
+        Assert.True(forUnresolved);
+        Assert.Null(unresolvedTarget);
+        Assert.True(forAlias);
+        Assert.Equal("P::X", aliasTarget);
+    }
+
+    /// <summary>
+    ///     With no declaration, no edges of the kind, or only edges that carry no raw reference
+    ///     (hand-built workspaces, older data), the semantic model gave no identity: the helper
+    ///     reports "not known" so the caller resolves the reference itself.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_TryGetResolvedTarget_NoIdentifiedEdges_ReportsNotKnown()
+    {
+        // Arrange
+        var noEdges = new SysmlDefinitionNode { Name = "Sub", QualifiedName = "Q::Sub" };
+        var unidentified = new SysmlDefinitionNode
+        {
+            Name = "Sub",
+            QualifiedName = "Q::Sub",
+            ResolvedEdges = [new SysmlEdge("Q::Sub", "P::X", SysmlEdgeKind.Supertype)],
+        };
+        var otherKind = new SysmlDefinitionNode
+        {
+            Name = "Sub",
+            QualifiedName = "Q::Sub",
+            ResolvedEdges = [new SysmlEdge("Q::Sub", "P::X", SysmlEdgeKind.Typing) { RawReference = "X" }],
+        };
+
+        // Act / Assert
+        Assert.False(GeneralViewLayoutStrategy.TryGetResolvedTarget(null, SysmlEdgeKind.Supertype, "X", out var nullTarget));
+        Assert.False(GeneralViewLayoutStrategy.TryGetResolvedTarget(noEdges, SysmlEdgeKind.Supertype, "X", out _));
+        Assert.False(GeneralViewLayoutStrategy.TryGetResolvedTarget(unidentified, SysmlEdgeKind.Supertype, "X", out _));
+        Assert.False(GeneralViewLayoutStrategy.TryGetResolvedTarget(otherKind, SysmlEdgeKind.Supertype, "X", out _));
+        Assert.Null(nullTarget);
+    }
+
+    /// <summary>
+    ///     A reference written twice (<c>X, X</c>) resolves to the same target both times: the
+    ///     lookup answers the same target for the text (first matching edge), and a qualified text
+    ///     is a different key from the bare text even when it names the same symbol.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_TryGetResolvedTarget_DuplicateAndQualifiedText_UsesExactKey()
+    {
+        // Arrange
+        var declaration = new SysmlDefinitionNode
+        {
+            Name = "Sub",
+            QualifiedName = "Q::Sub",
+            ResolvedEdges =
+            [
+                new SysmlEdge("Q::Sub", "P::X", SysmlEdgeKind.Supertype) { RawReference = "X" },
+                new SysmlEdge("Q::Sub", "P::X", SysmlEdgeKind.Supertype) { RawReference = "X" },
+            ],
+        };
+
+        // Act
+        var bare = GeneralViewLayoutStrategy.TryGetResolvedTarget(declaration, SysmlEdgeKind.Supertype, "X", out var bareTarget);
+        var qualified = GeneralViewLayoutStrategy.TryGetResolvedTarget(declaration, SysmlEdgeKind.Supertype, "P::X", out var qualifiedTarget);
+
+        // Assert
+        Assert.True(bare);
+        Assert.Equal("P::X", bareTarget);
+        Assert.True(qualified);
+        Assert.Null(qualifiedTarget);
     }
 
     /// <summary>

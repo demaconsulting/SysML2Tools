@@ -423,7 +423,10 @@ internal sealed class ReferenceResolver
         if (node is SysmlMetadataNode { TypeReference.Length: > 0 } metadata &&
             ResolveOrWarn(metadata.TypeReference, scope, file, resolvedInFile) is { } resolvedType)
         {
-            var edge = new SysmlEdge(node.QualifiedName, resolvedType, SysmlEdgeKind.MetadataType);
+            var edge = new SysmlEdge(node.QualifiedName, resolvedType, SysmlEdgeKind.MetadataType)
+            {
+                RawReference = metadata.TypeReference,
+            };
             node.ResolvedEdges = [edge];
             edges.Add(edge);
         }
@@ -471,7 +474,7 @@ internal sealed class ReferenceResolver
         {
             if (ResolveOrWarn(supertypeName, scope, file, resolvedInFile) is { } resolvedSupertype)
             {
-                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedSupertype, SysmlEdgeKind.Supertype));
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedSupertype, SysmlEdgeKind.Supertype) { RawReference = supertypeName });
             }
         }
 
@@ -479,7 +482,7 @@ internal sealed class ReferenceResolver
         if (node is SysmlFeatureNode { FeatureTyping: { } typing } &&
             ResolveOrWarn(typing, scope, file, resolvedInFile) is { } resolvedTyping)
         {
-            nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedTyping, SysmlEdgeKind.Typing));
+            nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedTyping, SysmlEdgeKind.Typing) { RawReference = typing });
         }
 
         // Feature redefinition — the target referenced after 'redefines'/':>>' on a usage/feature
@@ -490,7 +493,7 @@ internal sealed class ReferenceResolver
             var target = _resolver.ResolveRedefinition(redefined, scope ?? string.Empty, node.QualifiedName, file.RootImports);
             if (target is not null)
             {
-                nodeEdges.Add(new SysmlEdge(node.QualifiedName, target, SysmlEdgeKind.Redefinition));
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, target, SysmlEdgeKind.Redefinition) { RawReference = redefined });
             }
             else
             {
@@ -503,7 +506,7 @@ internal sealed class ReferenceResolver
         {
             if (ResolveOrWarn(importedName, scope, file, resolvedInFile) is { } resolvedImport)
             {
-                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedImport, SysmlEdgeKind.Import));
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedImport, SysmlEdgeKind.Import) { RawReference = importedName });
             }
         }
 
@@ -513,7 +516,7 @@ internal sealed class ReferenceResolver
         {
             if (ResolveOrWarn(verifiedName, scope, file, resolvedInFile) is { } resolvedVerified)
             {
-                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedVerified, SysmlEdgeKind.Verify));
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedVerified, SysmlEdgeKind.Verify) { RawReference = verifiedName });
             }
         }
 
@@ -594,7 +597,7 @@ internal sealed class ReferenceResolver
             {
                 if (ResolveOrWarn(member.QualifiedName, scope, file, resolvedInFile) is { } resolvedExposed)
                 {
-                    nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedExposed, SysmlEdgeKind.Expose));
+                    nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedExposed, SysmlEdgeKind.Expose) { RawReference = member.QualifiedName });
                     resolvedExposeMembers.Add((member, resolvedExposed));
                 }
             }
@@ -606,7 +609,7 @@ internal sealed class ReferenceResolver
             if (view.ViewDefinitionName is { Length: > 0 } viewDefinitionName &&
                 ResolveOrWarn(viewDefinitionName, scope, file, resolvedInFile) is { } resolvedDefinition)
             {
-                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedDefinition, SysmlEdgeKind.Typing));
+                nodeEdges.Add(new SysmlEdge(node.QualifiedName, resolvedDefinition, SysmlEdgeKind.Typing) { RawReference = viewDefinitionName });
             }
         }
 

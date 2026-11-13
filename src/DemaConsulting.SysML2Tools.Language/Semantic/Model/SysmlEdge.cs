@@ -1,6 +1,8 @@
 // Copyright (c) DemaConsulting. All rights reserved.
 // Licensed under the MIT License.
 
+using System.Text.Json.Serialization;
+
 namespace DemaConsulting.SysML2Tools.Semantic.Model;
 
 /// <summary>
@@ -124,4 +126,33 @@ public enum SysmlEdgeKind
 /// </param>
 /// <param name="TargetQualifiedName">Qualified name of the resolved target symbol.</param>
 /// <param name="Kind">The kind of reference this edge represents.</param>
-public sealed record SysmlEdge(string? SourceQualifiedName, string TargetQualifiedName, SysmlEdgeKind Kind);
+public sealed record SysmlEdge(string? SourceQualifiedName, string TargetQualifiedName, SysmlEdgeKind Kind)
+{
+    /// <summary>
+    ///     Gets the reference text exactly as written in the model (e.g. <c>X</c> or <c>P::X</c>)
+    ///     that this edge was resolved from, or <see langword="null"/> when the edge carries no
+    ///     single reference text. The text is the edge's identity within its declaring node:
+    ///     consumers pair a raw reference with its resolved target by exact (ordinal) equality of
+    ///     this value, never by name suffix, so a reference that did not resolve can never take
+    ///     another reference's target.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <c>ReferenceResolver</c> populates this for the single-reference kinds
+    ///         (<see cref="SysmlEdgeKind.Supertype"/>, <see cref="SysmlEdgeKind.Typing"/>,
+    ///         <see cref="SysmlEdgeKind.Redefinition"/>, <see cref="SysmlEdgeKind.Import"/>,
+    ///         <see cref="SysmlEdgeKind.Verify"/>, <see cref="SysmlEdgeKind.Expose"/>, and
+    ///         <see cref="SysmlEdgeKind.MetadataType"/>). It is <see langword="null"/> for the
+    ///         two-ended kinds (Satisfy, Allocate, Dependency, Connect, Binding, Transition), for
+    ///         edges built by hand, and for data serialized before the property existed. It is
+    ///         omitted from JSON when <see langword="null"/>.
+    ///     </para>
+    ///     <para>
+    ///         Because record equality includes this property, two edges that differ only in the
+    ///         reference text they were resolved from (for example <c>X</c> and an alias of
+    ///         <c>X</c>) are distinct values.
+    ///     </para>
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RawReference { get; init; }
+}

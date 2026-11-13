@@ -67,12 +67,26 @@ material indexed by `SemanticIndex`.
   by `GeneralViewLayoutStrategy` as a solid line with no end marker and an optional `=` midpoint
   label.
 
-`SysmlEdge` is a sealed positional record with three properties:
+`SysmlEdge` is a sealed positional record with three positional properties and one additional
+init-only property:
 
 - `SourceQualifiedName` (`string?`) — qualified name of the referencing node, or `null` when
   the referencing node is anonymous (e.g., an unnamed import statement).
 - `TargetQualifiedName` (`string`) — qualified name of the resolved target symbol.
 - `Kind` (`SysmlEdgeKind`) — the kind of reference this edge represents.
+- `RawReference` (`string?`, init-only, additive to the positional constructor) — the reference
+  text exactly as written in the model (`X`, `P::X`) that the edge was resolved from. It is the
+  edge's identity within its declaring node: consumers match a raw reference to its edge by exact
+  (ordinal) text equality, never by name suffix, because the edge list omits unresolved references
+  and so is not positionally aligned with the declaration's reference list. `ReferenceResolver`
+  populates it for the single-reference kinds (`Supertype`, `Typing` — including a view usage's view
+  definition — `Redefinition`, `Import`, `Verify`, `Expose`, `MetadataType`) and leaves it `null`
+  for the two-ended kinds (`Satisfy`, `Allocate`, `Dependency`, `Connect`, `Binding`,
+  `Transition`, for which one raw string would be ambiguous), for hand-built edges, and for data
+  serialized before the property existed. It is omitted from JSON when `null`
+  (`JsonIgnoreCondition.WhenWritingNull`), so edges without it stay compact. Because record equality
+  includes it, two edges that differ only in the reference text (for example `X` and an alias of
+  `X` resolving to the same target) are distinct values.
 
 ##### Error Handling
 

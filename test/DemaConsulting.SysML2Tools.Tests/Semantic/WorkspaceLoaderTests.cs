@@ -5217,6 +5217,130 @@ public sealed class WorkspaceLoaderTests
             d.Severity == DiagnosticSeverity.Warning && d.Message == $"Unresolved reference: '{name}'");
 
     /// <summary>
+    ///     A supertype reference that does not resolve, listed before an alias of the same target,
+    ///     yields exactly one <c>Supertype</c> edge — the alias's — tagged with the alias text as
+    ///     its raw reference, plus the unresolved-reference warning for the unresolved one.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SupertypeUnresolvedBeforeAlias_OnlyAliasEdgeCarriesRawReference()
+    {
+        // Arrange / Act: X is not visible from Q; A is an alias of P::X
+        var result = await LoadModelsAsync("""
+            package P { part def X; }
+            package Q { alias A for P::X; part def Sub :> X, A; }
+            """);
+
+        // Assert
+        var sub = result.Workspace!.Declarations["Q::Sub"];
+        var edge = Assert.Single(sub.ResolvedEdges, e => e.Kind == SysmlEdgeKind.Supertype);
+        Assert.Equal("P::X", edge.TargetQualifiedName);
+        Assert.Equal("A", edge.RawReference);
+        Assert.True(HasUnresolvedWarning(result, "X"));
+    }
+
+    /// <summary>
+    ///     Every single-reference edge kind records the reference text exactly as written:
+    ///     qualified and bare supertypes, typing, redefinition, import, verify, expose, metadata
+    ///     type, and a view usage's view definition.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ResolvedEdges_RecordRawReferenceText()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            metadata def Tag { }
+            package P {
+                part def X;
+                requirement def R;
+                view def VD;
+            }
+            package Q {
+                private import P::*;
+                import P::X;
+                part def Sub1 :> P::X;
+                part def Sub2 :> X;
+                part def Holder { part slot : X; part spare; @Tag; }
+                part def Child :> Holder { part r redefines spare; }
+                case def C { objective obj { verify requirement placeholder : R; } }
+                view V : VD { expose P::X; }
+            }
+            """);
+
+        // Assert
+        var declarations = result.Workspace!.Declarations;
+        string? Raw(string qualifiedName, SysmlEdgeKind kind) =>
+            Assert.Single(declarations[qualifiedName].ResolvedEdges, e => e.Kind == kind).RawReference;
+
+        Assert.Equal("P::X", Raw("Q::Sub1", SysmlEdgeKind.Supertype));
+        Assert.Equal("X", Raw("Q::Sub2", SysmlEdgeKind.Supertype));
+        Assert.Equal("X", Raw("Q::Holder::slot", SysmlEdgeKind.Typing));
+        Assert.Equal("spare", Raw("Q::Child::r", SysmlEdgeKind.Redefinition));
+        Assert.Equal("R", Raw("Q::C", SysmlEdgeKind.Verify));
+        Assert.Equal("VD", Raw("Q::V", SysmlEdgeKind.Typing));
+        Assert.Equal("P::X", Raw("Q::V", SysmlEdgeKind.Expose));
+
+        var imports = result.Workspace.Index.AllEdges.Where(e => e.Kind == SysmlEdgeKind.Import).ToList();
+        Assert.NotEmpty(imports);
+        Assert.All(imports, e => Assert.False(string.IsNullOrEmpty(e.RawReference)));
+        Assert.Contains(imports, e => e.RawReference == "P::X");
+
+        var metadata = Assert.Single(declarations["Q::Holder"].Children.OfType<SysmlMetadataNode>());
+        Assert.Equal("Tag", Assert.Single(metadata.ResolvedEdges).RawReference);
+    }
+
+    /// <summary>
+    ///     The two-ended edge kinds (satisfy, allocate, dependency, connect, binding, transition)
+    ///     carry no single reference text, so their raw reference is <see langword="null"/>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_TwoEndedEdges_HaveNoRawReference()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                requirement def R;
+                requirement req : R;
+                part def Sensor { port x; }
+                part def Display { port y; }
+                part subj : Display;
+                satisfy req by subj;
+                part a : Display;
+                part b : Display;
+                allocate a to b;
+                dependency a to b;
+                part def Q {
+                    part s : Sensor;
+                    part d : Display;
+                    connect s.x to d.y;
+                    bind s.x = d.y;
+                }
+                state def Light {
+                    state stop;
+                    state go;
+                    transition first stop then go;
+                }
+            }
+            """);
+
+        // Assert: each two-ended kind is present and untagged
+        var edges = result.Workspace!.Index.AllEdges;
+        foreach (var kind in new[]
+        {
+            SysmlEdgeKind.Satisfy,
+            SysmlEdgeKind.Allocate,
+            SysmlEdgeKind.Dependency,
+            SysmlEdgeKind.Connect,
+            SysmlEdgeKind.Binding,
+            SysmlEdgeKind.Transition,
+        })
+        {
+            var ofKind = edges.Where(e => e.Kind == kind).ToList();
+            Assert.NotEmpty(ofKind);
+            Assert.All(ofKind, e => Assert.Null(e.RawReference));
+        }
+    }
+
+    /// <summary>
     ///     A private member referenced through a qualified name from another package gets no
     ///     edge and an "Unresolved reference" warning (KerML 8.2.3.5 visible resolution), while a
     ///     public member of the same package still resolves.

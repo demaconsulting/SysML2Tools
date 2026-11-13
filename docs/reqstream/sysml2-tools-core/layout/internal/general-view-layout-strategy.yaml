@@ -80,16 +80,23 @@ sections:
         title: >-
           GeneralViewLayoutStrategy shall connect a specialized definition to each of its
           supertypes present in the workspace with a line ending in an open end marker at the
-          supertype, pairing each supertype reference with its own resolved target.
+          supertype, matching each supertype reference to its own resolved edge by the
+          reference's exact text (never by name suffix), and shall draw no edge for a
+          reference that has no resolved edge.
         justification: |
           Specialization (generalization) relationships are core model structure. Drawing them
           as open-end-marker lines toward the supertype matches diagram notation and makes the
           inheritance hierarchy visible. Two references that share a simple name (`:> Y::X, X`)
-          must each reach their own target rather than both reaching the first name match.
+          must each reach their own target rather than both reaching the first name match, and
+          an unresolved reference (`:> X, A` where only the alias `A` resolves to `P::X`) must
+          not borrow the target another reference resolved to.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_Subclassification_ProducesEdge
-          - GeneralViewLayoutStrategy_PairSupertypeReferences_QualifiedAndBareSharingName_PairsEachOwnTarget
-          - GeneralViewLayoutStrategy_PairSupertypeReferences_ReversedOrderAndUnclaimedTargets_PairsWithoutReuse
+          - GeneralViewLayoutStrategy_BuildLayout_UnresolvedSupertypeAndAliasOfSameTarget_DrawsOneEdge
+          - GeneralViewLayoutStrategy_BuildLayout_QualifiedAndBareSupertypesSharingName_DrawsBothEdges
+          - GeneralViewLayoutStrategy_TryGetResolvedTarget_IdentifiedEdges_MatchesExactTextOnly
+          - GeneralViewLayoutStrategy_TryGetResolvedTarget_NoIdentifiedEdges_ReportsNotKnown
+          - GeneralViewLayoutStrategy_TryGetResolvedTarget_DuplicateAndQualifiedText_UsesExactKey
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-StdlibExclusion
         title: >-
@@ -207,8 +214,11 @@ sections:
           GeneralViewLayoutStrategy shall connect a subtype feature that declares a `subsets`/`:>`
           reference to the owning definition of the subsetted (ancestor) feature — resolved via
           the same owner-resolution walk used for Redefinition — with a dashed line ending in a
-          hollow-triangle end marker at the owner, and shall draw no edge when the reference
-          cannot be resolved or resolves back to the subtype's own owning definition.
+          hollow-triangle end marker at the owner, matching each subsetted reference to its own
+          resolved edge by the reference's exact text, and shall draw no edge when the reference
+          cannot be resolved (including when only another reference of the same feature, such as
+          an alias of the same feature, resolved) or resolves back to the subtype's own owning
+          definition.
         justification: |
           Subsetting (`subsets`/`:>` on a feature) is a distinct SysML v2 relationship from
           redefinition, but shares the same "reference to an inherited member" resolution shape;
@@ -222,6 +232,7 @@ sections:
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_Subsetting_CrossesSpecializationBoundary_ProducesDashedHollowTriangleEdge
           - GeneralViewLayoutStrategy_BuildLayout_SelfReferentialSubsetting_ProducesNoEdge
+          - GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndAliasOfSameFeature_DrawsOneEdge
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NonStructuralMembership
         title: >-

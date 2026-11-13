@@ -222,6 +222,38 @@ public sealed class AstSerializerTests
     }
 
     /// <summary>
+    ///     A <see cref="SysmlEdge.RawReference"/> round-trips through the polymorphic node
+    ///     serializer (resolved edges are serialized inline on their node), and a
+    ///     <see langword="null"/> one is omitted from the JSON text.
+    /// </summary>
+    [Fact]
+    public void Serialize_EdgeRawReference_RoundTripsAndNullIsOmitted()
+    {
+        var table = new SymbolTable();
+        table.RegisterAll(new SysmlDefinitionNode
+        {
+            Name = "Sub",
+            QualifiedName = "Q::Sub",
+            DefinitionKeyword = "part def",
+            ResolvedEdges =
+            [
+                new SysmlEdge("Q::Sub", "P::X", SysmlEdgeKind.Supertype) { RawReference = "A" },
+                new SysmlEdge("Q::Sub", "P::Y", SysmlEdgeKind.Supertype),
+            ],
+        });
+
+        var bytes = AstSerializer.Serialize(table, []);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        var text = System.Text.Encoding.UTF8.GetString(bytes);
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Count(text, "RawReference"));
+        var rt = Assert.IsType<SysmlDefinitionNode>(result.Symbols["Q::Sub"]);
+        Assert.Equal(2, rt.ResolvedEdges.Count);
+        Assert.Equal("A", rt.ResolvedEdges[0].RawReference);
+        Assert.Null(rt.ResolvedEdges[1].RawReference);
+    }
+
+    /// <summary>
     ///     The new <see cref="SysmlSatisfyNode"/> node type, the <c>"allocation"</c>
     ///     <see cref="SysmlConnectionNode.ConnectionKeyword"/> variant, and
     ///     <see cref="SysmlNode.VerifiedRequirementNames"/> all round-trip through the polymorphic

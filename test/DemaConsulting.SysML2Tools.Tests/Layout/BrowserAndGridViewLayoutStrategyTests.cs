@@ -189,6 +189,29 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
         Assert.Equal("X", Cell(2, 3));
     }
 
+    /// <summary>
+    ///     A supertype reference that does not resolve (<c>X</c> with no import) listed before an
+    ///     alias of the same target (<c>A</c> for <c>P::X</c>) marks only the alias's column: the
+    ///     unresolved reference is not paired with the target the alias resolved to. This is a
+    ///     characterization test: a grid mark is a set membership and the wrongly paired reference
+    ///     always mapped to the alias's column, so the output is the same before and after the
+    ///     root-cause fix; it guards the identity-based lookup path.
+    /// </summary>
+    [Fact]
+    public async Task GridView_BuildLayout_UnresolvedSupertypeBeforeAlias_MarksOnlyTheAliasTarget()
+    {
+        // Arrange / Act: rows/columns sorted by qualified name: P::X, Q::Sub
+        var layout = await LayOutAsync("""
+            package P { part def X; }
+            package Q { alias A for P::X; part def Sub :> X, A; }
+            """);
+
+        // Assert: exactly one mark, in row 2 (Q::Sub), column 1 (P::X)
+        var grid = Assert.Single(layout.Nodes.OfType<LayoutGrid>());
+        Assert.Equal("X", grid.Rows[2].Cells[1].Text);
+        Assert.Single(grid.Rows.Skip(1).SelectMany(r => r.Cells.Skip(1)), c => c.Text == "X");
+    }
+
     /// <summary>Loads <paramref name="sysml"/> (with the standard library) and lays out a grid view over it.</summary>
     private static async Task<LayoutTree> LayOutAsync(string sysml)
     {

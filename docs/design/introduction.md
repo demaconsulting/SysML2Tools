@@ -65,7 +65,8 @@ system, subsystem, and unit levels:
         references the semantic model did not resolve
       - **SupertypeWalker** (Unit) — walks specialization chains; detects cyclic specialization
       - **SysmlEdge** (Unit) — public resolved-reference record (Supertype/Typing/MetadataType/
-        Import/Expose/Redefinition/Satisfy/Verify/Allocate/Connect/Transition)
+        Import/Expose/Redefinition/Satisfy/Verify/Allocate/Connect/Transition), carrying the raw
+        reference text of single-reference edges
       - **SemanticIndex** (Unit) — public reverse-lookup index over resolved `SysmlEdge` instances
       - **SysmlAnnotation** (Unit) — public captured-comment/documentation record
         (Comment/Documentation)

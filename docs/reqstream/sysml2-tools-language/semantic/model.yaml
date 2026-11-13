@@ -90,6 +90,7 @@ sections:
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-DependencyCrossProduct
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-BindingFeatureChain
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-InheritedTransitionSource
+          - SysML2Tools-Language-Semantic-Model-ReferenceResolver-EdgeRawReference
         tests:
           - WorkspaceLoader_LoadAsync_UnresolvedReference_ProducesWarning
           - WorkspaceLoader_LoadAsync_SpecializesChain_Registered

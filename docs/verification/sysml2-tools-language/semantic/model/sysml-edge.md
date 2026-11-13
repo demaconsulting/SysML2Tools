@@ -26,6 +26,11 @@ external services or additional configuration are required beyond a standard .NE
   not content).
 - A resolved feature redefinition reference produces a `SysmlEdge` with
   `Kind == SysmlEdgeKind.Redefinition`.
+- Each single-reference edge records the reference text as written in `RawReference`
+  (supertype, typing, redefinition, import, verify, expose, metadata type, and a view usage's
+  view definition); an unresolved reference listed before an alias of the same target leaves
+  only the alias's edge, tagged with the alias text; the two-ended kinds (satisfy, allocate,
+  dependency, connect, binding, transition) leave `RawReference` `null`.
 
 ##### Test Scenarios
 
@@ -38,3 +43,7 @@ external services or additional configuration are required beyond a standard .NE
 | RenderTargetName never resolved | `WorkspaceLoader_LoadAsync_ViewRenderTarget_CapturedRawNeverResolvedNoDiagnostic` |
 | Expose edge recorded | `WorkspaceLoader_LoadAsync_ViewUsageWithExpose_RecordsExposeEdge` |
 | Redefinition edge recorded | `WorkspaceLoader_LoadAsync_ResolvedRedefinition_RecordsRedefinitionEdge` |
+| Raw reference text recorded per kind | `WorkspaceLoader_LoadAsync_ResolvedEdges_RecordRawReferenceText` |
+| Unresolved + alias | `WorkspaceLoader_LoadAsync_SupertypeUnresolvedBeforeAlias_OnlyAliasEdgeCarriesRawReference` |
+| Two-ended kinds carry no raw reference | `WorkspaceLoader_LoadAsync_TwoEndedEdges_HaveNoRawReference` |
+| Raw reference preserved by serialization; null omitted | `Serialize_EdgeRawReference_RoundTripsAndNullIsOmitted` |
