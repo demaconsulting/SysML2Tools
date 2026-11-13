@@ -64,7 +64,10 @@ external services or additional configuration are required beyond a standard .NE
   every segment resolves via the fallback branch, and the returned qualified name is still
   instance-relative (e.g. `Drone::controller::power`, not the shared port type's own declared
   path), so that two structurally distinct endpoints of the same type never collapse to the same
-  resolved name.
+  resolved name. Segments after the first match public members only (visible resolution in the
+  previous feature): a private or protected member of the segment's type or of an inherited
+  supertype, or a private inline member, gives no edge and an unresolved-reference Warning,
+  while a private feature as the *first* segment still resolves locally.
 - A `SysmlTransitionNode`'s `Source` that names an inherited pseudostate feature (`"start"`
   or `"done"`) not declared locally on the enclosing state/usage resolves via the new
   `TryResolveInheritedActionMember` fallback — including the narrow last-resort case where no
@@ -101,6 +104,11 @@ external services or additional configuration are required beyond a standard .NE
 | Later-file ancestor | `WorkspaceLoader_LoadAsync_BareRedefinitionOfInheritedFeatureInLaterFile_Resolves` |
 | Never to self | `WorkspaceLoader_LoadAsync_RedefinitionQualifiedTargetOrOnlySelf_ResolvesLenientlyNeverToSelf` |
 | Private not redefined | `WorkspaceLoader_LoadAsync_RedefinitionOfPrivateInheritedMember_NoEdgeAndWarning` |
+| Private direct member | `WorkspaceLoader_LoadAsync_RedefinitionOfPrivateDirectSupertypeMember_NoEdgeAndWarning` |
+| Resolver private | `NameResolver_ResolveRedefinedFeature_PrivateMemberOfDirectGeneral_DoesNotResolve` |
+| Chain to private/protected member | `WorkspaceLoader_LoadAsync_FeatureChainToNonPublicMember_NoEdgeAndWarning` |
+| Chain to private inline member | `WorkspaceLoader_LoadAsync_FeatureChainToPrivateInlineMember_NoEdgeAndWarning` |
+| Chain public ok | `WorkspaceLoader_LoadAsync_FeatureChainToPublicMembersAndPrivateFirstSegment_RecordsConnectEdges` |
 | Private qualified | `WorkspaceLoader_LoadAsync_PrivateMemberQualifiedFromOtherPackage_NoEdgeAndWarning` |
 | Private short name and alias | `WorkspaceLoader_LoadAsync_PrivateShortNameAndAlias_NotResolvableFromOtherPackage` |
 | Protected member, specialization only | `WorkspaceLoader_LoadAsync_ProtectedMember_VisibleToSpecializationOnly` |

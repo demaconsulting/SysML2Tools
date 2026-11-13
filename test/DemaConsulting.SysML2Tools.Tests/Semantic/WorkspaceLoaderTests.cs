@@ -5601,5 +5601,104 @@ public sealed class WorkspaceLoaderTests
         Assert.True(HasEdge(result, SysmlEdgeKind.Redefinition, "D::open", "Base::open"));
         Assert.True(HasUnresolvedWarning(result, "secret"));
     }
+
+    /// <summary>
+    ///     A private member of the <em>direct</em> supertype cannot be redefined either (it is not
+    ///     inherited), while a protected member of the direct supertype still can.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RedefinitionOfPrivateDirectSupertypeMember_NoEdgeAndWarning()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            part def Base { private attribute secret; protected attribute guarded; attribute open; }
+            part def D :> Base { attribute :>> secret; attribute :>> guarded; attribute :>> open; }
+            """);
+
+        // Assert
+        Assert.False(HasEdge(result, SysmlEdgeKind.Redefinition, "D::secret", "Base::secret"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Redefinition, "D::guarded", "Base::guarded"));
+        Assert.True(HasEdge(result, SysmlEdgeKind.Redefinition, "D::open", "Base::open"));
+        Assert.True(HasUnresolvedWarning(result, "secret"));
+    }
+
+    /// <summary>
+    ///     Feature-chain segments after the first resolve by visible resolution in the previous
+    ///     feature's type: private and protected members, declared or inherited, are not found.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_FeatureChainToNonPublicMember_NoEdgeAndWarning()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def Base { private port baseHidden; protected port baseGuarded; }
+                part def Eng :> Base { private port hidden; protected port guarded; port open; }
+                part engine : Eng;
+                part other : Eng;
+                connect engine.hidden to other.open;
+                connect engine.guarded to other.open;
+                connect engine.baseHidden to other.open;
+                connect engine.baseGuarded to other.open;
+            }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(result.Workspace!.Index.AllEdges, e => e.Kind == SysmlEdgeKind.Connect);
+        Assert.True(HasUnresolvedWarning(result, "engine.hidden"));
+        Assert.True(HasUnresolvedWarning(result, "engine.guarded"));
+        Assert.True(HasUnresolvedWarning(result, "engine.baseHidden"));
+        Assert.True(HasUnresolvedWarning(result, "engine.baseGuarded"));
+    }
+
+    /// <summary>
+    ///     A private member declared inline in the first segment's own body is not visible through
+    ///     a chain from outside that feature either.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_FeatureChainToPrivateInlineMember_NoEdgeAndWarning()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def Eng { port open; }
+                part engine : Eng { private port inner; }
+                part other : Eng;
+                connect engine.inner to other.open;
+            }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(result.Workspace!.Index.AllEdges, e => e.Kind == SysmlEdgeKind.Connect);
+        Assert.True(HasUnresolvedWarning(result, "engine.inner"));
+    }
+
+    /// <summary>
+    ///     Public declared and inherited members still resolve through a chain, and a private
+    ///     feature that is the <em>first</em> segment resolves locally in its own namespace.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_FeatureChainToPublicMembersAndPrivateFirstSegment_RecordsConnectEdges()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def Base { port baseOpen; }
+                part def Eng :> Base { port open; }
+                part def Sys {
+                    private part inner : Eng;
+                    part other : Eng;
+                    connect inner.open to other.baseOpen;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.Contains(result.Workspace!.Index.AllEdges,
+            e => e.Kind == SysmlEdgeKind.Connect &&
+                 e.SourceQualifiedName == "P::Sys::inner::open" &&
+                 e.TargetQualifiedName == "P::Sys::other::baseOpen");
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
+    }
 }
 

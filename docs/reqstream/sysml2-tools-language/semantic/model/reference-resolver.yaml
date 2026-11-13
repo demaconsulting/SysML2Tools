@@ -173,7 +173,9 @@ sections:
           general type of the redefining feature's owning type as the local namespace, in turn,
           wherever those general types are declared — falling back, leniently, to ordinary
           resolution from the owning type (so a qualified target still resolves), never resolving
-          to the redefining feature itself or to a private inherited member, and producing an
+          to the redefining feature itself or to a private member of a general type (declared on
+          it or inherited through another; a protected member can still be redefined), and
+          producing an
           unresolved-reference Warning diagnostic (with no corresponding edge) when nothing
           resolves.
         justification: |
@@ -197,6 +199,8 @@ sections:
           - WorkspaceLoader_LoadAsync_BareRedefinitionOfInheritedFeatureInLaterFile_Resolves
           - WorkspaceLoader_LoadAsync_RedefinitionQualifiedTargetOrOnlySelf_ResolvesLenientlyNeverToSelf
           - WorkspaceLoader_LoadAsync_RedefinitionOfPrivateInheritedMember_NoEdgeAndWarning
+          - WorkspaceLoader_LoadAsync_RedefinitionOfPrivateDirectSupertypeMember_NoEdgeAndWarning
+          - NameResolver_ResolveRedefinedFeature_PrivateMemberOfDirectGeneral_DoesNotResolve
 
       - id: SysML2Tools-Language-Semantic-Model-ReferenceResolver-DependencyCrossProduct
         title: >-

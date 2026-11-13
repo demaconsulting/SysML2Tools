@@ -210,13 +210,21 @@ direct child matches does it fall back to the member's `Typing`-edge target's ow
 setting `viaTypeFallback = true` for that branch; the returned node's own `QualifiedName` in this
 case is the *type's own* declared path, not instance-relative — it is the caller
 (`TryResolveFeatureChain`) that reconstructs the instance-relative path using `viaTypeFallback`, as
-described above.
+described above. Every segment after the first is a *visible resolution* in the previous feature
+(KerML 8.2.3.5), so both branches admit **public members only** (the `MemberAccess.Public` limit,
+matching `NameResolver`'s `Scope.Visible`): a private or protected child, or a private or
+protected member inherited through the type's supertypes, is never found. Segment 0 is unaffected
+(it is a local/full resolution through `TryResolve`, which sees the namespace's own private
+members).
 
-`FindMemberInTypeHierarchy(typeNode, name, visited)` finds a member in `typeNode`'s own direct
+`FindMemberInTypeHierarchy(typeNode, name, access, visited)` finds a member in `typeNode`'s own direct
 children, or — recursively — in any `Supertype`-edge ancestor's direct children, walking the
-supertype chain until a match is found or the chain is exhausted. A `HashSet<string>` keyed on
+supertype chain until a match is found or the chain is exhausted, admitting only the memberships
+`access` allows at every level (`Public` for feature chains; `NonPrivate` — what a specialization
+inherits — for `TryResolveInheritedActionMember`). A `HashSet<string>` keyed on
 qualified type name guards against supertype cycles (e.g. a malformed `A :> B :> A` model), so the
-walk always terminates.
+walk always terminates. `FindMemberInAncestorChain` likewise searches the enclosing node's own
+children without restriction but its ancestors only for non-private members.
 
 ##### Scope Boundary (Feature-Chain Resolution)
 

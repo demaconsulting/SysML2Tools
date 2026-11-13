@@ -147,6 +147,27 @@ public sealed class NameResolverTests
     }
 
     /// <summary>
+    ///     A private member of a direct general type is not inherited, so it cannot be a redefined
+    ///     feature; a protected member still is (KerML 8.2.3.5.1 with 7.2.5.3 visibility).
+    /// </summary>
+    [Fact]
+    public async Task NameResolver_ResolveRedefinedFeature_PrivateMemberOfDirectGeneral_DoesNotResolve()
+    {
+        // Arrange
+        var resolver = await LoadAsync("""
+            package P {
+                part def Base { private attribute secret; protected attribute guarded; attribute open; }
+                part def D :> Base { attribute :>> secret; attribute :>> guarded; attribute :>> open; }
+            }
+            """);
+
+        // Act / Assert
+        Assert.Null(resolver.ResolveRedefinedFeature("secret", "P::D"));
+        Assert.Equal("P::Base::guarded", resolver.ResolveRedefinedFeature("guarded", "P::D"));
+        Assert.Equal("P::Base::open", resolver.ResolveRedefinedFeature("open", "P::D"));
+    }
+
+    /// <summary>
     ///     A name that does not resolve by KerML rules is matched only by the flagged simple-name
     ///     fallback, which lists every candidate when the match is ambiguous.
     /// </summary>

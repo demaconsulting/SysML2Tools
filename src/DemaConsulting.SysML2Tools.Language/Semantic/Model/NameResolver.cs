@@ -168,7 +168,9 @@ public sealed class NameResolver
     /// <summary>
     ///     Resolves a redefined-feature reference per KerML 8.2.3.5.1: the basic resolution is
     ///     repeated with each general type of <paramref name="owningType"/> as the local
-    ///     namespace, in turn, until one resolves.
+    ///     namespace, in turn, until one resolves. A bare name is looked up among each general
+    ///     type's inheritable memberships, so a private member of a general type (which a
+    ///     specialization does not inherit) cannot be redefined; a protected one can.
     /// </summary>
     /// <param name="reference">The redefined feature's (possibly qualified) name.</param>
     /// <param name="owningType">The qualified name of the redefining feature's owning type.</param>
@@ -177,9 +179,16 @@ public sealed class NameResolver
     {
         ArgumentNullException.ThrowIfNull(reference);
         ArgumentNullException.ThrowIfNull(owningType);
+        var segments = SplitSegments(reference);
         foreach (var general in GeneralTypes(owningType))
         {
-            if (Resolve(reference, general) is { } resolved)
+            // The redefining feature inherits from the general type, so a bare name is looked up
+            // among the general type's inheritable memberships (not its private ones); the
+            // enclosing namespaces and the qualified-name segments resolve as usual.
+            var resolved = segments is [var bare] && bare != "$"
+                ? FullResolve(bare, general, null, Scope.Inheritable)
+                : Resolve(reference, general);
+            if (resolved is not null)
             {
                 return resolved;
             }
@@ -377,15 +386,21 @@ public sealed class NameResolver
     /// <summary>
     ///     Full resolution (KerML 8.2.3.5.4): local resolution in the namespace, then each owning
     ///     namespace outward, then the imports at the root of the file (when known), then the
-    ///     global namespace.
+    ///     global namespace. <paramref name="localScope"/> selects which memberships of
+    ///     <paramref name="localNamespace"/> itself are considered (the outer namespaces always
+    ///     use local resolution).
     /// </summary>
-    private string? FullResolve(string name, string? localNamespace, IReadOnlyList<SysmlImportNode>? fileRootImports)
+    private string? FullResolve(
+        string name,
+        string? localNamespace,
+        IReadOnlyList<SysmlImportNode>? fileRootImports,
+        Scope localScope = Scope.Local)
     {
         string? topLevel = null;
         for (var scope = localNamespace; !string.IsNullOrEmpty(scope); scope = OwnerOf(scope))
         {
             topLevel = scope;
-            if (Lookup(name, scope, Scope.Local) is { } found)
+            if (Lookup(name, scope, scope == localNamespace ? localScope : Scope.Local) is { } found)
             {
                 return found;
             }

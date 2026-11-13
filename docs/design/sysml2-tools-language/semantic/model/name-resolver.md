@@ -56,7 +56,10 @@ instance serves one workspace.
   internal overload additionally accepts the file-root imports for a reference whose local
   namespace is the file root itself.
 - `ResolveRedefinedFeature(reference, owningType)` (KerML 8.2.3.5.1, Redefinition): `Resolve`
-  with each general type of `owningType` as the local namespace, in turn.
+  with each general type of `owningType` as the local namespace, in turn. A bare name is looked up
+  in the general type itself with the **Inheritable** scope (the redefining feature inherits from
+  it, so the general type's private members cannot be redefined, protected ones can be); the
+  enclosing namespaces outward from it, and qualified names, resolve as in `Resolve`.
 - `ResolveRedefinition(reference, owningType, redefiningFeature, fileRootImports)` (internal):
   `ResolveRedefinedFeature`, then — a documented lenient deviation — ordinary `Resolve` from the
   owning type; the redefining feature itself is never an acceptable target.

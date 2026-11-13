@@ -806,7 +806,7 @@ internal sealed class ReferenceResolver
             var typeNode = _symbolTable.Lookup(typingEdge.TargetQualifiedName);
             if (typeNode is not null)
             {
-                var viaTyping = FindMemberInTypeHierarchy(typeNode, name, new HashSet<string>());
+                var viaTyping = FindMemberInTypeHierarchy(typeNode, name, MemberAccess.NonPrivate, new HashSet<string>());
                 if (viaTyping?.QualifiedName is { Length: > 0 } viaTypingQualifiedName)
                 {
                     resolvedName = viaTypingQualifiedName;
@@ -815,7 +815,7 @@ internal sealed class ReferenceResolver
             }
         }
 
-        var viaAncestor = FindMemberInAncestorChain(enclosingNode, name, new HashSet<string>());
+        var viaAncestor = FindMemberInAncestorChain(enclosingNode, name, MemberAccess.Any, new HashSet<string>());
         if (viaAncestor?.QualifiedName is { Length: > 0 } viaAncestorQualifiedName)
         {
             resolvedName = viaAncestorQualifiedName;
@@ -947,7 +947,9 @@ internal sealed class ReferenceResolver
     ///     <c>2c-PartsInterconnection-MultipleDecompositions.sysml</c>'s <c>port :&gt;&gt; pe =
     ///     c1.pb</c> pattern), then falling back to the member's <see cref="SysmlEdgeKind.Typing"/>
     ///     target's own hierarchy (direct children and supertype chain) when no direct child
-    ///     matches.
+    ///     matches. Only public members are found: a feature-chain segment after the first is
+    ///     resolved by visible resolution in the previous feature (KerML 8.2.3.5), so private and
+    ///     protected members, declared or inherited, never match.
     /// </summary>
     /// <param name="node">The node whose members are searched.</param>
     /// <param name="name">The member name being looked up.</param>
@@ -961,7 +963,7 @@ internal sealed class ReferenceResolver
     /// </param>
     private SysmlNode? FindFeatureMember(SysmlNode node, string name, out bool viaTypeFallback)
     {
-        var direct = node.Children.FirstOrDefault(c => c.Name == name);
+        var direct = node.Children.FirstOrDefault(c => c.Name == name && Admits(c.Visibility, MemberAccess.Public));
         if (direct is not null)
         {
             viaTypeFallback = false;
@@ -977,25 +979,51 @@ internal sealed class ReferenceResolver
         }
 
         var typeNode = _symbolTable.Lookup(typingEdge.TargetQualifiedName);
-        return typeNode is null ? null : FindMemberInTypeHierarchy(typeNode, name, new HashSet<string>());
+        return typeNode is null
+            ? null
+            : FindMemberInTypeHierarchy(typeNode, name, MemberAccess.Public, new HashSet<string>());
     }
+
+    /// <summary>Which memberships of a type a member lookup admits.</summary>
+    private enum MemberAccess
+    {
+        /// <summary>Every membership (the type's own scope).</summary>
+        Any,
+
+        /// <summary>Everything except private memberships (what a specialization inherits).</summary>
+        NonPrivate,
+
+        /// <summary>Public memberships only (visible resolution from outside the type).</summary>
+        Public,
+    }
+
+    /// <summary>Returns whether a membership with <paramref name="visibility"/> is admitted by <paramref name="access"/>.</summary>
+    private static bool Admits(SysmlVisibility visibility, MemberAccess access) => access switch
+    {
+        MemberAccess.Any => true,
+        MemberAccess.NonPrivate => visibility != SysmlVisibility.Private,
+        _ => visibility == SysmlVisibility.Public,
+    };
 
     /// <summary>
     ///     Finds a member named <paramref name="name"/> in <paramref name="typeNode"/>'s own
     ///     direct children, or — recursively — in any of its <see cref="SysmlEdgeKind.Supertype"/>
     ///     ancestors' direct children, walking the supertype chain until a match is found or the
-    ///     chain is exhausted. <paramref name="visited"/> guards against supertype cycles
+    ///     chain is exhausted. <paramref name="access"/> limits the memberships considered at
+    ///     every level (the same limit applies to inherited members as to the type's own).
+    ///     <paramref name="visited"/> guards against supertype cycles
     ///     (e.g. a malformed/adversarial <c>A :&gt; B :&gt; A</c> model), keyed on qualified type
     ///     name, so this method always terminates.
     /// </summary>
-    private SysmlNode? FindMemberInTypeHierarchy(SysmlNode typeNode, string name, HashSet<string> visited)
+    private SysmlNode? FindMemberInTypeHierarchy(
+        SysmlNode typeNode, string name, MemberAccess access, HashSet<string> visited)
     {
         if (typeNode.QualifiedName is { Length: > 0 } qualifiedName && !visited.Add(qualifiedName))
         {
             return null;
         }
 
-        var direct = typeNode.Children.FirstOrDefault(c => c.Name == name);
+        var direct = typeNode.Children.FirstOrDefault(c => c.Name == name && Admits(c.Visibility, access));
         if (direct is not null)
         {
             return direct;
@@ -1009,7 +1037,7 @@ internal sealed class ReferenceResolver
                 continue;
             }
 
-            var found = FindMemberInTypeHierarchy(supertypeNode, name, visited);
+            var found = FindMemberInTypeHierarchy(supertypeNode, name, access, visited);
             if (found is not null)
             {
                 return found;
@@ -1021,9 +1049,12 @@ internal sealed class ReferenceResolver
 
     /// <summary>
     ///     Finds a member named <paramref name="name"/> in <paramref name="node"/>'s own direct
-    ///     children, or — recursively — in any ancestor reachable by following its
-    ///     <see cref="SysmlEdgeKind.Supertype"/> <em>and</em> <see cref="SysmlEdgeKind.Redefinition"/>
-    ///     resolved edges. Both edge kinds must be followed (not supertype-only) because a nested
+    ///     children (limited by <paramref name="access"/>), or — recursively — in any ancestor
+    ///     reachable by following its <see cref="SysmlEdgeKind.Supertype"/> <em>and</em>
+    ///     <see cref="SysmlEdgeKind.Redefinition"/> resolved edges; an ancestor's private members
+    ///     are never inherited, so the ancestors are searched with at most
+    ///     <see cref="MemberAccess.NonPrivate"/>. Both edge kinds must be followed (not
+    ///     supertype-only) because a nested
     ///     redefining feature's owner sometimes has no <c>SupertypeNames</c> of its own at all —
     ///     the only path to the inherited member is via the owner's own already-resolved
     ///     <c>Redefinition</c> edge (see <c>1c-PartsTreeRedefinition.sysml</c>'s nested
@@ -1032,19 +1063,21 @@ internal sealed class ReferenceResolver
     ///     <paramref name="visited"/> guards against cycles, keyed on qualified name, mirroring
     ///     <see cref="FindMemberInTypeHierarchy"/>'s guard pattern.
     /// </summary>
-    private SysmlNode? FindMemberInAncestorChain(SysmlNode node, string name, HashSet<string> visited)
+    private SysmlNode? FindMemberInAncestorChain(
+        SysmlNode node, string name, MemberAccess access, HashSet<string> visited)
     {
         if (node.QualifiedName is { Length: > 0 } qualifiedName && !visited.Add(qualifiedName))
         {
             return null;
         }
 
-        var direct = node.Children.FirstOrDefault(c => c.Name == name);
+        var direct = node.Children.FirstOrDefault(c => c.Name == name && Admits(c.Visibility, access));
         if (direct is not null)
         {
             return direct;
         }
 
+        var inheritedAccess = access == MemberAccess.Public ? MemberAccess.Public : MemberAccess.NonPrivate;
         foreach (var edge in node.ResolvedEdges.Where(
                      e => e.Kind is SysmlEdgeKind.Supertype or SysmlEdgeKind.Redefinition))
         {
@@ -1054,7 +1087,7 @@ internal sealed class ReferenceResolver
                 continue;
             }
 
-            var found = FindMemberInAncestorChain(ancestorNode, name, visited);
+            var found = FindMemberInAncestorChain(ancestorNode, name, inheritedAccess, visited);
             if (found is not null)
             {
                 return found;
