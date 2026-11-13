@@ -4,22 +4,6 @@
 namespace DemaConsulting.SysML2Tools.Semantic.Model;
 
 /// <summary>
-///     The outcome of <see cref="NameResolver.ResolveWithFallback"/>: the resolved element's
-///     qualified name (or null), and whether it was found only by the tool's non-standard bare
-///     simple-name fallback rather than by KerML name resolution.
-/// </summary>
-/// <param name="QualifiedName">The resolved element's qualified name, or null when unresolved.</param>
-/// <param name="IsSimpleNameFallback">
-///     <see langword="true"/> when KerML name resolution failed and the element was chosen by
-///     matching only the reference's last segment against every declaration in the workspace.
-/// </param>
-/// <param name="Candidates">
-///     For a simple-name fallback, every declaration whose last segment matched (more than one
-///     means the choice was ambiguous); empty otherwise.
-/// </param>
-public sealed record NameResolution(string? QualifiedName, bool IsSimpleNameFallback, IReadOnlyList<string> Candidates);
-
-/// <summary>
 ///     Resolves qualified names against a loaded workspace following KerML 8.2.3.5 name
 ///     resolution: local resolution (owned, imported, and — for types — inherited memberships,
 ///     matching names, short names, and aliases), full resolution outward through owning
@@ -67,7 +51,6 @@ public sealed class NameResolver
     private readonly Dictionary<string, IReadOnlyList<string>> _declaredGeneralTypes = new(StringComparer.Ordinal);
     private readonly HashSet<string> _declaredGeneralTypesInProgress = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlyList<SysmlImportNode>> _rootImportsByDeclaration = new(StringComparer.Ordinal);
-    private Dictionary<string, List<string>>? _bySimpleName;
 
     /// <summary>
     ///     Initializes a new resolver over the given declarations.
@@ -229,34 +212,6 @@ public sealed class NameResolver
         return Resolve(reference, owningType, fileRootImports) is { } fallback && fallback != redefiningFeature
             ? fallback
             : null;
-    }
-
-    /// <summary>
-    ///     Resolves <paramref name="reference"/> per <see cref="Resolve(string, string?)"/>; when that fails, falls
-    ///     back to matching the reference's last segment against every declaration's simple name
-    ///     (choosing the first in declaration order), flagging the result as a fallback so callers
-    ///     can surface a warning instead of silently guessing.
-    /// </summary>
-    /// <param name="reference">The (possibly qualified) name to resolve.</param>
-    /// <param name="localNamespace">The local namespace's qualified name, or null.</param>
-    /// <returns>The resolution outcome.</returns>
-    public NameResolution ResolveWithFallback(string reference, string? localNamespace)
-    {
-        if (Resolve(reference, localNamespace) is { } resolved)
-        {
-            return new NameResolution(resolved, false, []);
-        }
-
-        var segments = SplitSegments(reference);
-        if (segments.Count == 0)
-        {
-            return new NameResolution(null, false, []);
-        }
-
-        _bySimpleName ??= BuildSimpleNameIndex();
-        return _bySimpleName.TryGetValue(segments[^1], out var candidates)
-            ? new NameResolution(candidates[0], true, candidates)
-            : new NameResolution(null, false, []);
     }
 
     /// <summary>
@@ -689,24 +644,5 @@ public sealed class NameResolver
 
         segments.Add(reference[start..]);
         return segments.Where(s => s.Length > 0).ToList();
-    }
-
-    /// <summary>Indexes every declaration by its last name segment, in declaration order.</summary>
-    private Dictionary<string, List<string>> BuildSimpleNameIndex()
-    {
-        var index = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-        foreach (var qualifiedName in _declarations.Keys)
-        {
-            var simple = SplitSegments(qualifiedName)[^1];
-            if (!index.TryGetValue(simple, out var list))
-            {
-                list = [];
-                index[simple] = list;
-            }
-
-            list.Add(qualifiedName);
-        }
-
-        return index;
     }
 }

@@ -493,26 +493,29 @@ sections:
           GeneralViewLayoutStrategy shall attach each specialization, membership, typing,
           redefinition, and subsetting edge to the definition the reference resolves to — the
           semantic model's resolved target, else KerML 8.2.3.5 name resolution (redefined features
-          against the owning type's general types) — shall report a warning when only the bare
-          simple-name fallback matched, and shall map relationship endpoints that are already
-          qualified only to the box with that qualified name or its owning typed feature, never to a
-          same-named box elsewhere. The semantic model's resolved target already applies KerML member
-          visibility, filtered imports, and import scoping, so it is used as resolved; a reference
-          those rules reject has no semantic edge and is drawn, if at all, only through the warned
-          simple-name fallback.
+          against the owning type's general types) — shall not draw an edge for a reference that
+          does not resolve (no bare simple-name matching), and shall map relationship endpoints
+          that are already qualified only to the box with that qualified name or its owning typed
+          feature, never to a same-named box elsewhere. The semantic model's resolved target
+          already applies KerML member visibility, filtered imports, import scoping, and file-root
+          imports, so it is used as resolved; a reference those rules reject has no semantic edge
+          and is not drawn.
         justification: |
           Packages commonly reuse a simple name for distinct definitions. Wiring every usage to
           the first same-named box drew one box connected to several unrelated systems plus
           unconnected duplicates, misrepresenting the architecture. Trusting the semantic edge
-          keeps the diagram consistent with the model's resolved references, while the retained
-          warned fallback keeps incomplete models drawable without ever guessing silently.
+          keeps the diagram consistent with the model's resolved references; matching an
+          unresolved reference to a same-named element elsewhere would draw a relationship the
+          model does not contain, so an unresolved reference is rendered as unresolved (the load
+          diagnostic reports it).
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_SameNamedDefsInSiblingPackages_WiresEachToItsOwn
-          - GeneralViewLayoutStrategy_BuildLayout_SimpleNameFallback_ReportsWarning
+          - GeneralViewLayoutStrategy_BuildLayout_SameSimpleNameInUnrelatedPackage_DrawsNoEdge
           - GeneralViewLayoutStrategy_BuildLayout_UnrenderedQualifiedEndpoint_IsNotMappedBySimpleName
-          - GeneralViewLayoutStrategy_BuildLayout_FallbackToUnrenderedTarget_StillReportsWarning
-          - GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_IsFlaggedNotSilent
-          - GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_IsFlaggedNotSilent
+          - GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndRedefinition_DrawNoEdge
+          - GeneralViewLayoutStrategy_BuildLayout_FileRootImportSubsettingAndRedefinition_DrawsEdges
+          - GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_DrawsNoEdge
+          - GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_DrawsNoEdge
           - GeneralViewLayoutStrategy_BuildLayout_ImportOfSiblingPackage_DoesNotResolveForThisPackage
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ViewConditions

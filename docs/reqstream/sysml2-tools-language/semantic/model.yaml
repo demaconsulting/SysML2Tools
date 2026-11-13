@@ -78,7 +78,6 @@ sections:
           - SysML2Tools-Language-Semantic-Model-NameResolver-VisibleResolution
           - SysML2Tools-Language-Semantic-Model-NameResolver-RedefinedFeature
           - SysML2Tools-Language-Semantic-Model-NameResolver-ResolvingMode
-          - SysML2Tools-Language-Semantic-Model-NameResolver-FlaggedFallback
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-MemberVisibility
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-FilteredImports
           - SysML2Tools-Language-Semantic-Model-ReferenceResolver-ImportScoping

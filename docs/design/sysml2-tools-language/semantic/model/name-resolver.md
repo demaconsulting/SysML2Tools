@@ -7,7 +7,7 @@ declarations following KerML 1.1 Beta 2 clause 8.2.3.5 (Name Resolution). `Refer
 uses it — in an internal *resolving* mode — to resolve every reference of the semantic model, so
 the resolved `SysmlEdge`s are themselves KerML-compliant (member visibility, filtered imports,
 import scoping). It also serves callers that hold raw reference text the semantic model did not
-resolve into a `SysmlEdge`: the Core layout strategies use it as the fallback after a feature's or
+resolve into a `SysmlEdge`: the Core layout strategies use it as the last resolution step after a feature's or
 definition's resolved `Typing`/`Supertype` edge, and trust that edge when it exists. It is
 constructed over `SysmlWorkspace.Declarations` (or the symbol table's declarations during
 resolution) with an optional `importFilter` predicate, and caches lookups per instance, so one
@@ -50,7 +50,6 @@ instance serves one workspace.
   resolved with the imports registered for that type's declaration — otherwise a supertype
   reachable only through a file-root import would be missing from `GeneralTypes` and the inherited
   members it supplies would not resolve.
-- `NameResolution(QualifiedName, IsSimpleNameFallback, Candidates)` reports a fallback result.
 
 ##### Key Methods
 
@@ -67,9 +66,6 @@ instance serves one workspace.
 - `ResolveRedefinition(reference, owningType, redefiningFeature, fileRootImports)` (internal):
   `ResolveRedefinedFeature`, then — a documented lenient deviation — ordinary `Resolve` from the
   owning type; the redefining feature itself is never an acceptable target.
-- `ResolveWithFallback(reference, localNamespace)` (tool extension, warned by callers): `Resolve`;
-  when that fails, the last segment is matched against every declaration's simple name (first in
-  declaration order) and the result is flagged with every candidate.
 - `GeneralTypes(typeName)` (KerML 8.2.3.5.3, inherited memberships): the general types described
   under Data Model.
 
@@ -95,8 +91,8 @@ rejected match does not stop the search for a later one that satisfies the condi
 
 ##### Error Handling
 
-Unresolvable names return `null` (`Resolve`, `ResolveRedefinedFeature`) or an unresolved
-`NameResolution`. Imports and specializations may be circular (KerML 8.2.3.5.1); a lookup already
+Unresolvable names return `null` (`Resolve`, `ResolveRedefinedFeature`). Imports and
+specializations may be circular (KerML 8.2.3.5.1); a lookup already
 in progress for the same (name, namespace, scope) contributes nothing instead of recursing, so
 resolution always terminates. Null arguments throw `ArgumentNullException`.
 
@@ -113,7 +109,8 @@ resolution always terminates. Null arguments throw `ArgumentNullException`.
 - `FilterExpressionEvaluator.CreateNameResolver` (Language Filtering) constructs a public-mode one
   with a filtered-import predicate.
 - `GeneralViewLayoutStrategy`, `InterconnectionViewLayoutStrategy`, and `GridViewLayoutStrategy`
-  (Core Layout) use it to resolve the raw type, supertype, redefinition, and subsetting references
-  the semantic pass left unresolved (a reference the semantic pass resolved is used as resolved).
-  A reference KerML resolution rejects then reaches only the flagged simple-name fallback, which
-  always warns — the layouts' documented policy for incomplete models.
+  (Core Layout) use it, as the last resolution step, to resolve the raw type, supertype,
+  redefinition, and subsetting references the semantic pass left unresolved or could not be paired
+  with (a reference the semantic pass resolved is used as resolved). A reference KerML resolution
+  rejects stays unresolved: the layouts draw no relationship for it and match no element by bare
+  simple name.

@@ -26,19 +26,21 @@ sections:
           When several container definitions share a simple name, InterconnectionViewLayoutStrategy
           shall expand a nested part using the definition its type reference resolves to (the
           semantic model's resolved target, which already applies KerML 8.2.3.5 member visibility,
-          filtered imports, and import scoping, else that
-          name resolution from the part's
-          owning namespace, warning when only the bare simple-name fallback matched), never the
-          first same-named definition found in the workspace.
+          filtered imports, and import scoping, else that name resolution from the part's owning
+          namespace), never the first same-named definition found in the workspace, and shall
+          treat a part whose type reference does not resolve as a leaf (no bare simple-name
+          matching).
         justification: |
           Expanding the wrong same-named container would draw another package's interior inside a
-          part, misrepresenting its internal structure.
+          part, misrepresenting its internal structure. An unresolved type reference is rendered
+          as unresolved (a leaf part); the load diagnostic reports it.
         tests:
           - InterconnectionView_BuildLayout_SameNamedContainerDefs_ExpandsOwnPackagesDefinition
           - InterconnectionView_BuildLayout_SameNamedImportsInOneFile_ExpandsOwnImportsDefinition
-          - InterconnectionView_BuildLayout_PrivateMemberTyping_IsFlaggedNotSilent
-          - InterconnectionView_BuildLayout_ImportOfSiblingPackage_IsFlaggedNotSilent
-          - InterconnectionView_BuildLayout_FilteredOutImportCandidate_IsFlaggedNotSilent
+          - InterconnectionView_BuildLayout_PrivateMemberTyping_IsLeaf
+          - InterconnectionView_BuildLayout_ImportOfSiblingPackage_IsLeaf
+          - InterconnectionView_BuildLayout_FilteredOutImportCandidate_IsLeaf
+          - InterconnectionView_BuildLayout_SameSimpleNameInUnrelatedPackage_IsLeaf
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-NoDocumentation
         title: >-

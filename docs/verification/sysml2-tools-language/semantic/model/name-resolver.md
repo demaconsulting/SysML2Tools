@@ -24,8 +24,6 @@ created in `Path.GetTempPath()` and deleted after each test.
   imports apply to the registered declarations (and the referencing file's own supplied imports take
   precedence over a same-named declaration's from another file), and a redefinition never resolves to the
   redefining feature itself.
-- A name that does not resolve by KerML rules is reported as a simple-name fallback listing every
-  candidate.
 
 ##### Test Scenarios
 
@@ -37,7 +35,6 @@ created in `Path.GetTempPath()` and deleted after each test.
 | `NameResolver_Resolve_PrivateMemberViaQualifiedName_DoesNotResolve` | Private via qualified name |
 | `NameResolver_Resolve_ImportedMember_HonorsImportVisibility` | Private vs public import |
 | `NameResolver_ResolveRedefinedFeature_ResolvesAgainstGeneralTypes` | Redefinition target |
-| `NameResolver_ResolveWithFallback_AmbiguousSimpleName_IsFlaggedWithCandidates` | Ambiguous fallback |
 | `NameResolver_Resolve_FilteredRecursiveImport_SkipsRejectedCandidate` | Filtered recursive import |
 | `NameResolver_GeneralTypes_PartiallyResolvedSupertypes_IncludesEveryGeneralType` | Partly resolved supertypes |
 | `NameResolver_Resolve_MembershipImportedAlias_ResolvesItsShortName` | Imported alias short name |

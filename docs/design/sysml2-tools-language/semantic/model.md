@@ -39,7 +39,7 @@ and supertype/typing/metadata-type/import reference resolution over all loaded f
 
 **`NameResolver.Resolve(string, string?)`**: Resolves qualified-name text per KerML 8.2.3.5.
 
-- *Type*: In-process .NET public method (also `ResolveRedefinedFeature`, `ResolveWithFallback`).
+- *Type*: In-process .NET public method (also `ResolveRedefinedFeature`).
 - *Role*: Provider.
 - *Contract*: Accepts a reference and the local namespace's qualified name; returns the resolved
   element's qualified name, or `null` when it does not resolve. `ReferenceResolver` uses an

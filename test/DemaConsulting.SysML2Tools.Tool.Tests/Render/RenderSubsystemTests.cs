@@ -597,6 +597,87 @@ public class RenderSubsystemTests
     }
 
     /// <summary>
+    ///     End-to-end test of the single-diagnostic decision for unresolved references: a General
+    ///     view over a model whose part is typed by a private member of another package (which
+    ///     does not resolve by SysML v2 name resolution) reports the load-time
+    ///     <c>Unresolved reference</c> diagnostic exactly once and no duplicate layout warning —
+    ///     the layouts no longer match the reference by bare simple name.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_PrivateMemberReference_ReportsOneUnresolvedDiagnosticAndNoLayoutWarning()
+    {
+        // Arrange: Q::Owner types a part by the private P::Hidden, which exists but is not visible to Q
+        const string sysml = """
+            package P {
+                private part def Hidden {}
+                part def Shown {}
+            }
+            package Q {
+                part def Owner {
+                    part a : P::Hidden;
+                    part b : P::Shown;
+                }
+            }
+            package Diagrams {
+                view V {
+                    expose P::*;
+                    expose Q::*;
+                }
+            }
+            """;
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_unresolved_ref_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+        var outputDir = Path.Combine(tempDir, "out");
+        var logFile = Path.Combine(tempDir, "output.log");
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: render the model, capturing all output in the log file
+            using (var context = Context.Create(["render", "--log", logFile, "--output", outputDir, tempFile]))
+            {
+                await Program.RunAsync(context);
+
+                // Assert: the render succeeds
+                Assert.Equal(0, context.ExitCode);
+            }
+
+            // Assert: the view is written, the load diagnostic appears exactly once, and the layout
+            // adds no duplicate warning about the same reference
+            Assert.True(File.Exists(Path.Combine(outputDir, "V.svg")));
+            var logContent = await File.ReadAllTextAsync(logFile, TestContext.Current.CancellationToken);
+            const string diagnostic = "Unresolved reference: 'P::Hidden'";
+            Assert.Equal(1, CountOccurrences(logContent, diagnostic));
+            Assert.DoesNotContain("simple name", logContent);
+            Assert.DoesNotContain("does not resolve by SysML v2 name resolution", logContent);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>Counts the non-overlapping ordinal occurrences of <paramref name="value"/> in <paramref name="text"/>.</summary>
+    private static int CountOccurrences(string text, string value)
+    {
+        var count = 0;
+        var index = text.IndexOf(value, StringComparison.Ordinal);
+        while (index >= 0)
+        {
+            count++;
+            index = text.IndexOf(value, index + value.Length, StringComparison.Ordinal);
+        }
+
+        return count;
+    }
+
+    /// <summary>
     ///     A view whose only expose is a bare <c>expose Pkg;</c> renders the package as a package
     ///     node without contents (SysML 8.3.26.3): the render command writes the output file, exits
     ///     successfully, and prints a located <c>file(line,col): info:</c> hint naming the view and

@@ -704,85 +704,103 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     A type reference that does not resolve by SysML v2 name resolution (no import, not in an
-    ///     enclosing namespace) is still matched by simple name, but a warning naming the reference
-    ///     is reported instead of silently guessing.
+    ///     enclosing namespace) is unresolved even though a same-named definition exists in an
+    ///     unrelated package: no edge is drawn and the layout reports no warning (the load-time
+    ///     <c>Unresolved reference</c> diagnostic is the single report).
     /// </summary>
     [Fact]
-    public async Task GeneralViewLayoutStrategy_BuildLayout_SimpleNameFallback_ReportsWarning()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_SameSimpleNameInUnrelatedPackage_DrawsNoEdge()
     {
-        // Arrange: Consumer types its part by Engine without importing Lib
-        const string sysml = """
+        // Act: Consumer types its part by TurboEngineX without importing Lib; both packages are exposed
+        var layout = await LayOutViewVAsync("""
             package Lib { part def TurboEngineX; }
             package App { part def Consumer { part engine : TurboEngineX; } }
-            """;
-        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
-        try
-        {
-            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
-            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
-            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
-            Assert.NotNull(result.Workspace);
+            package Diagrams { view V { expose Lib::*; expose App::*; } }
+            """);
 
-            // Act
-            var layout = new GeneralViewLayoutStrategy().BuildLayout(
-                new ViewContext("v", result.Workspace), new RenderOptions(Themes.Light));
-
-            // Assert: a simple-name-fallback warning naming the reference is reported
-            Assert.Contains(layout.Warnings, w => w.Contains("'TurboEngineX'") && w.Contains("simple name only"));
-        }
-        finally
-        {
-            File.Delete(tempFile);
-        }
+        // Assert: both definitions are drawn, with no composition edge and no layout warning
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.Contains(boxes, b => b.Label == "TurboEngineX");
+        Assert.Contains(boxes, b => b.Label == "Consumer");
+        Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.Empty(layout.Warnings);
     }
 
     /// <summary>
-    ///     Type, subsetting, and redefinition references that resolve only by the simple-name
-    ///     fallback are each reported, even when the matched element is outside the view's exposed
-    ///     scope and so draws no edge.
+    ///     Subsetting and redefinition references that do not resolve (only a same-named feature in
+    ///     an unrelated package exists) draw no edge and no warning, while the same references
+    ///     written in a specialization of the declaring type still draw theirs.
     /// </summary>
     [Fact]
-    public async Task GeneralViewLayoutStrategy_BuildLayout_FallbackToUnrenderedTarget_StillReportsWarning()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndRedefinition_DrawNoEdge()
     {
-        // Act: only App is exposed; every Lib match is reached by simple name only
+        // Act: Consumer's references are unresolvable; Child's resolve through its supertype Holder
         var layout = await LayOutViewVAsync("""
-            package Lib { part def TurboEngineX; part def Holder { part slotX; part spareX; } }
-            package App { part def Consumer { part engine : TurboEngineX; part s :> slotX; part r redefines spareX; } }
-            package Diagrams { view V { expose App::**; } }
+            package Lib {
+                part def Holder { part slotX; part spareX; }
+                part def Child :> Holder { part s :> slotX; part r redefines spareX; }
+            }
+            package App { part def Consumer { part s :> slotX; part r redefines spareX; } }
+            package Diagrams { view V { expose Lib::*; expose App::*; } }
+            """);
+
+        // Assert: exactly one subsetting and one redefinition edge (Child's), no warning
+        var lines = CollectLines(layout.Nodes);
+        Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Dashed);
+        Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.Empty(layout.Warnings);
+    }
+
+    /// <summary>
+    ///     A subsetting and a redefinition whose targets are reachable only through an import written
+    ///     at the root of the file (outside any package) are resolved by the semantic model, whose
+    ///     edges the layout prefers: both still draw their edge although the layout's own name
+    ///     resolver cannot see file-root imports.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_FileRootImportSubsettingAndRedefinition_DrawsEdges()
+    {
+        // Act
+        var layout = await LayOutViewVAsync("""
+            package Lib { part def Holder { part slot; part spare; } }
+            import Lib::Holder::*;
+            package App { part def Consumer { part s :> slot; part r redefines spare; } }
+            package Diagrams { view V { expose Lib::*; expose App::*; } }
             """);
 
         // Assert
-        Assert.Contains(layout.Warnings, w => w.Contains("'TurboEngineX'") && w.Contains("simple name only"));
-        Assert.Contains(layout.Warnings, w => w.Contains("'slotX'") && w.Contains("simple name only"));
-        Assert.Contains(layout.Warnings, w => w.Contains("'spareX'") && w.Contains("simple name only"));
+        var lines = CollectLines(layout.Nodes);
+        Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Dashed);
+        Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.Empty(layout.Warnings);
     }
 
     /// <summary>
     ///     A reference to a private member of another package gets no semantic typing edge and is
-    ///     never drawn silently: it is flagged by the simple-name-fallback warning, while an accepted
-    ///     (public) reference is wired through its semantic edge without any fallback warning.
+    ///     not drawn (and not reported by the layout), while an accepted (public) reference is wired
+    ///     through its semantic edge.
     /// </summary>
     [Fact]
-    public async Task GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_IsFlaggedNotSilent()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_DrawsNoEdge()
     {
         // Act
         var layout = await LayOutViewVAsync("""
             package P { private part def Hidden; part def Shown; }
             package Q { part def Owner { part a : P::Hidden; part b : P::Shown; } }
-            package Diagrams { view V { expose P::**; expose Q::**; } }
+            package Diagrams { view V { expose P::*; expose Q::*; } }
             """);
 
-        // Assert
-        Assert.Contains(layout.Warnings, w => w.Contains("'P::Hidden'") && w.Contains("simple name only"));
-        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'P::Shown'"));
+        // Assert: only the Owner-Shown composition edge exists; Hidden is not wired to Owner
+        Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.Empty(layout.Warnings);
     }
 
     /// <summary>
-    ///     A candidate a filtered import rejects gets no semantic typing edge and is flagged by the
-    ///     simple-name-fallback warning; the candidate the filter accepts is wired without a warning.
+    ///     A candidate a filtered import rejects gets no semantic typing edge and is not drawn; the
+    ///     candidate the filter accepts is wired.
     /// </summary>
     [Fact]
-    public async Task GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_IsFlaggedNotSilent()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_DrawsNoEdge()
     {
         // Act
         var layout = await LayOutViewVAsync("""
@@ -792,32 +810,40 @@ public sealed class GeneralViewLayoutStrategyTests
                 private import P::*[@X];
                 part def Owner { part a : Marked; part b : Plain; }
             }
-            package Diagrams { view V { expose P::**; expose Q::**; } }
+            package Diagrams { view V { expose P::*; expose Q::*; } }
             """);
 
-        // Assert
-        Assert.Contains(layout.Warnings, w => w.Contains("'Plain'") && w.Contains("simple name only"));
-        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'Marked'"));
+        // Assert: only the Owner-Marked composition edge exists
+        Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.Empty(layout.Warnings);
     }
 
     /// <summary>
     ///     An import applies only to its own package: a sibling package that merely shares the
-    ///     simple name is flagged by the simple-name-fallback warning, the importing package is not.
+    ///     simple name gets no edge, while the importing package does.
     /// </summary>
     [Fact]
     public async Task GeneralViewLayoutStrategy_BuildLayout_ImportOfSiblingPackage_DoesNotResolveForThisPackage()
     {
-        // Act
-        var layout = await LayOutViewVAsync("""
+        // Act: one view exposes the importing package, the other only the sibling package
+        var importing = await LayOutViewVAsync("""
             package A { part def Thing; }
             package PkgA { private import A::*; part def OwnerA { part p : Thing; } }
             package PkgB { part def OwnerB { part q : Thing; } }
-            package Diagrams { view V { expose A::**; expose PkgA::**; expose PkgB::**; } }
+            package Diagrams { view V { expose A::*; expose PkgA::*; } }
+            """);
+        var sibling = await LayOutViewVAsync("""
+            package A { part def Thing; }
+            package PkgA { private import A::*; part def OwnerA { part p : Thing; } }
+            package PkgB { part def OwnerB { part q : Thing; } }
+            package Diagrams { view V { expose A::*; expose PkgB::*; } }
             """);
 
-        // Assert
-        Assert.Contains(layout.Warnings, w => w.Contains("'Thing' in 'PkgB::OwnerB'") && w.Contains("simple name only"));
-        Assert.DoesNotContain(layout.Warnings, w => w.Contains("PkgA::OwnerA"));
+        // Assert: PkgA::OwnerA is wired to A::Thing, PkgB::OwnerB is not
+        Assert.Single(CollectLines(importing.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.DoesNotContain(CollectLines(sibling.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.Empty(importing.Warnings);
+        Assert.Empty(sibling.Warnings);
     }
 
     /// <summary>Recursively collects all <see cref="LayoutBox"/> nodes from a node list.</summary>

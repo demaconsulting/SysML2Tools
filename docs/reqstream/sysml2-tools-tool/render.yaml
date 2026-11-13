@@ -32,6 +32,7 @@ sections:
           - SysML2Tools-Tool-Render-LocalizableHelpText
           - SysML2Tools-Tool-Render-DynamicView
           - SysML2Tools-Tool-Render-EmptyViewWarning
+          - SysML2Tools-Tool-Render-UnresolvedReferenceDiagnostic
         tests:
           - RenderSubsystem_NoFiles_ReportsError
           - RenderSubsystem_GlobPattern_ResolvesMultipleFiles
@@ -218,3 +219,18 @@ sections:
           warnings never fail the run.
         tests:
           - RenderSubsystem_ViewExposingBarePackage_PrintsInfoHint
+
+      - id: SysML2Tools-Tool-Render-UnresolvedReferenceDiagnostic
+        title: >-
+          The render command shall report a reference that does not resolve by SysML v2 name
+          resolution exactly once, through the load-time `Unresolved reference` diagnostic
+          printed before rendering, and shall not report it a second time as a layout warning
+          (the layouts draw no relationship for it and match no element by bare simple name).
+        justification: |
+          A reference to an element that exists but is not visible (for example a private member
+          of another package) is a model error. Reporting it once, with the file and name, gives
+          the user one actionable message; a second layout-level message for the same reference
+          would be noise, and drawing it by guessing a same-named element would misrepresent the
+          model.
+        tests:
+          - RenderSubsystem_PrivateMemberReference_ReportsOneUnresolvedDiagnosticAndNoLayoutWarning

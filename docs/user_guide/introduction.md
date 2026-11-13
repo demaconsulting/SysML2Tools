@@ -115,10 +115,12 @@ where it is used:
   import written at the root of a file applies to that whole file.
 
 Add an import to the package that needs the name, qualify the reference, make the member
-public (or use `import all`), or adjust the filter. Layout views still draw such a reference
-when a same-named element exists, but only through the simple-name fallback, which always
-adds a "does not resolve by SysML v2 name resolution ... matched ... by simple name only"
-warning. A package-level `filter` statement is not honored when resolving imports.
+public (or use `import all`), or adjust the filter. Such a reference is reported once, by the
+`Unresolved reference` warning, and is **not drawn** by the layout views: a General view draws no
+edge for it, an Interconnection view does not expand the part, and a Grid view does not mark the
+specialization (compartment rows still show the written `: Type` text). The layouts never match
+it to a same-named element elsewhere, and add no second warning. A package-level `filter`
+statement is not honored when resolving imports.
 
 # Rendering
 

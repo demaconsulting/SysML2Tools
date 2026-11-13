@@ -56,6 +56,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// is the qualified name the semantic model's <see cref="SysmlEdgeKind.Typing"/> edge resolved
     /// <see cref="TypeName"/> to (honoring the feature's own namespace and imports), or
     /// <see langword="null"/> when the feature carries no resolved typing edge.
+    /// <see cref="ResolvedRedefinedFeatureName"/> is likewise the qualified name of the feature's
+    /// resolved <see cref="SysmlEdgeKind.Redefinition"/> edge target, and
+    /// <see cref="ResolvedSubsettedNames"/> pairs each <see cref="SubsettedFeatureNames"/> entry,
+    /// by index, with its resolved <see cref="SysmlEdgeKind.Supertype"/> edge target (or
+    /// <see langword="null"/> when that reference is unpaired); the whole list is
+    /// <see langword="null"/> when the feature has no subsetted references.
     /// </summary>
     private sealed record FeatureMembership(
         string Keyword,
@@ -63,7 +69,9 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         string? Name,
         string? RedefinedFeatureName,
         IReadOnlyList<string> SubsettedFeatureNames,
-        string? ResolvedTypeName = null);
+        string? ResolvedTypeName = null,
+        string? ResolvedRedefinedFeatureName = null,
+        IReadOnlyList<string?>? ResolvedSubsettedNames = null);
 
     /// <summary>
     /// The classification of an edge, which selects its line style so the renderer can distinguish
@@ -358,8 +366,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // Resolve the specialization/membership/attribute-typing edge set by qualified name; the
         // graph-construction pass below drops any edge touching a definition that never received a
         // node (because its folder was depth-truncated).
-        var nameWarnings = new List<string>();
-        var (modelEdges, droppedEdges) = BuildModelEdges(defs, context.Workspace, scope is not null, context.ViewName, nameWarnings);
+        var (modelEdges, droppedEdges) = BuildModelEdges(defs, context.Workspace, scope is not null);
 
         // Build the single input graph: package folders as containers, definitions as leaves.
         var (graph, truncated) = BuildGraph(groups, childrenByParent, modelEdges, theme, options.DepthLimit, scope is not null ? exposedPackages : null);
@@ -390,7 +397,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             .Concat(LayoutWarnings.ForDroppedRelationshipEdges(context.ViewName, droppedEdges
                 .Select(d => (d.Kind, d.Source, d.Target, d.Reason))
                 .ToList()))
-            .Concat(nameWarnings)
             .ToList();
         return warnings.Count == 0 ? placed : placed with { Warnings = warnings };
     }
@@ -810,7 +816,14 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             {
                 var keyword = string.IsNullOrEmpty(feature.FeatureKeyword) ? "feature" : feature.FeatureKeyword;
                 var resolvedType = feature.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Typing)?.TargetQualifiedName;
-                result.Add(new FeatureMembership(keyword, typing, feature.Name, feature.RedefinedFeatureName, feature.SupertypeNames, resolvedType));
+                var resolvedRedefinition = feature.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Redefinition)?.TargetQualifiedName;
+                var resolvedSubsettings = feature.SupertypeNames.Count == 0
+                    ? null
+                    : PairSupertypeReferences(
+                        feature.SupertypeNames,
+                        feature.ResolvedEdges.Where(e => e.Kind == SysmlEdgeKind.Supertype).Select(e => e.TargetQualifiedName).ToList());
+                result.Add(new FeatureMembership(
+                    keyword, typing, feature.Name, feature.RedefinedFeatureName, feature.SupertypeNames, resolvedType, resolvedRedefinition, resolvedSubsettings));
             }
         }
 
@@ -988,11 +1001,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// is always reported, regardless of scoping, since it can never be an intended outcome.
     /// </summary>
     private static (List<ModelEdge> Edges, List<DroppedRelationshipEdge> Dropped) BuildModelEdges(
-        IReadOnlyList<DefBox> defs, SysmlWorkspace workspace, bool isScoped, string viewName, List<string> warnings)
+        IReadOnlyList<DefBox> defs, SysmlWorkspace workspace, bool isScoped)
     {
-        // Every reference is resolved to a rendered box by KerML name resolution (see TypeResolver).
+        // Every reference is resolved to a rendered box by the semantic model's edge first, then
+        // KerML name resolution (see TypeResolver); an unresolved reference draws no edge.
         var byQualified = new HashSet<string>(defs.Select(d => d.QualifiedName), StringComparer.Ordinal);
-        var types = new TypeResolver(byQualified, FilterExpressionEvaluator.CreateNameResolver(workspace), viewName, warnings);
+        var types = new TypeResolver(byQualified, FilterExpressionEvaluator.CreateNameResolver(workspace));
 
         var edges = new List<ModelEdge>();
         foreach (var def in defs)
@@ -1072,9 +1086,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             }
 
             // Redefinition: subtype → the owning definition of the redefined feature, hollow
-            // triangle with crossbar at the owner (target) end. A qualified reference
-            // (Owner::feature) resolves the owner directly; a bare reference is looked up by
-            // walking the definition's own supertype chain for a matching member name.
+            // triangle with crossbar at the owner (target) end. The semantic redefinition edge's
+            // resolved target is used first; else a qualified reference (Owner::feature) resolves
+            // the owner directly and a bare reference is looked up by walking the definition's own
+            // supertype chain for a matching member name. An unresolved reference draws no edge.
             foreach (var membership in def.Memberships)
             {
                 if (membership.RedefinedFeatureName is not { Length: > 0 } redefinedRef)
@@ -1082,7 +1097,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                     continue;
                 }
 
-                var owner = types.ResolveRedefinitionOwner(def.QualifiedName, redefinedRef);
+                var owner = types.ResolveRedefinitionOwner(def.QualifiedName, redefinedRef, membership.ResolvedRedefinedFeatureName);
                 if (owner is not null && owner != def.QualifiedName)
                 {
                     edges.Add(new ModelEdge(def.QualifiedName, owner, EndMarkerStyle.HollowTriangleCrossbar, EdgeKind.Redefinition));
@@ -1090,15 +1105,17 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             }
 
             // Subsetting: subtype → the owning definition of each subsetted (ancestor) feature,
-            // hollow triangle (dashed) at the owner (target) end. Reuses ResolveRedefinitionOwner
-            // verbatim — a subsetted-feature reference is resolved identically to a
-            // redefined-feature reference (qualified reference resolves the owner directly; a bare
-            // reference walks the definition's own supertype chain for a matching member name).
+            // hollow triangle (dashed) at the owner (target) end. A subsetted-feature reference is
+            // resolved like a redefined-feature reference: its paired semantic edge target first,
+            // else a qualified reference resolves the owner directly and a bare reference walks the
+            // definition's own supertype chain for a matching member name. An unresolved reference
+            // draws no edge.
             foreach (var membership in def.Memberships)
             {
-                foreach (var subsettedRef in membership.SubsettedFeatureNames)
+                for (var i = 0; i < membership.SubsettedFeatureNames.Count; i++)
                 {
-                    var owner = types.ResolveSubsettedOwner(def.QualifiedName, subsettedRef);
+                    var pairedTarget = membership.ResolvedSubsettedNames is { } resolvedNames ? resolvedNames[i] : null;
+                    var owner = types.ResolveSubsettedOwner(def.QualifiedName, membership.SubsettedFeatureNames[i], pairedTarget);
                     if (owner is not null && owner != def.QualifiedName)
                     {
                         edges.Add(new ModelEdge(def.QualifiedName, owner, EndMarkerStyle.HollowTriangle, EdgeKind.Subsetting));
@@ -1279,27 +1296,24 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// Resolves the type, supertype, redefinition, and subsetting references of rendered boxes to
     /// other rendered boxes. A reference already resolved by the semantic model is used as
     /// resolved — the semantic resolver applies KerML 8.2.3.5 itself (member visibility, filtered
-    /// imports, and import scoping), so its answer is authoritative; otherwise it is resolved by
-    /// KerML 8.2.3.5 name resolution (<see cref="NameResolver"/>:
+    /// imports, and import scoping, including file-root imports), so its answer is authoritative;
+    /// otherwise it is resolved by KerML 8.2.3.5 name resolution (<see cref="NameResolver"/>:
     /// owned, imported, and inherited memberships — including aliases and short names — of the
     /// local namespace, then outward through owning namespaces to the global namespace, with later
-    /// qualified-name segments by visible resolution). Only when that fails is the tool's bare
-    /// simple-name fallback used, and then a warning is recorded rather than silently guessing.
+    /// qualified-name segments by visible resolution), which also serves hand-built workspaces
+    /// that carry no semantic edges. A reference neither step resolves is unresolved and draws no
+    /// edge; there is no bare simple-name matching.
     /// </summary>
     private sealed class TypeResolver
     {
         private readonly HashSet<string> _rendered;
         private readonly NameResolver _resolver;
-        private readonly string _viewName;
-        private readonly List<string> _warnings;
 
         /// <summary>Initializes the resolver.</summary>
-        public TypeResolver(HashSet<string> rendered, NameResolver resolver, string viewName, List<string> warnings)
+        public TypeResolver(HashSet<string> rendered, NameResolver resolver)
         {
             _rendered = rendered;
             _resolver = resolver;
-            _viewName = viewName;
-            _warnings = warnings;
         }
 
         /// <summary>
@@ -1344,54 +1358,37 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         }
 
         /// <summary>
-        /// Resolves the rendered box owning a redefined feature: per KerML 8.2.3.5.1 the reference is
-        /// resolved with each general type of the redefining feature's owning type as the local
-        /// namespace in turn; the owner is the resolved feature's owning namespace. When that fails,
-        /// the flagged simple-name fallback is used and warned about.
+        /// Resolves the rendered box owning a redefined feature: the redefinition edge's resolved
+        /// target <paramref name="resolvedTarget"/> when the semantic model supplied one; else per
+        /// KerML 8.2.3.5.1 the reference is resolved with each general type of the redefining
+        /// feature's owning type as the local namespace in turn, then (leniently, as the semantic
+        /// resolver does) by ordinary resolution from the owning type. The owner is the resolved
+        /// feature's owning namespace; an unresolved reference yields null.
         /// </summary>
-        public string? ResolveRedefinitionOwner(string owningType, string redefinedReference) =>
+        public string? ResolveRedefinitionOwner(string owningType, string redefinedReference, string? resolvedTarget) =>
             OwnerIfRendered(
+                resolvedTarget ??
                 _resolver.ResolveRedefinedFeature(redefinedReference, owningType) ??
-                ResolveFlagged(redefinedReference, owningType));
+                _resolver.Resolve(redefinedReference, owningType));
 
         /// <summary>
-        /// Resolves the rendered box owning a subsetted feature: the reference is resolved relative
-        /// to the subsetting feature's owning namespace (its owning definition, whose inherited
-        /// memberships include the ancestor's features), falling back to the flagged simple-name
-        /// match with a warning.
+        /// Resolves the rendered box owning a subsetted feature: the paired resolved
+        /// <see cref="SysmlEdgeKind.Supertype"/> edge target <paramref name="pairedTarget"/> when
+        /// the semantic model supplied one; else the reference resolved relative to the subsetting
+        /// feature's owning namespace (its owning definition, whose inherited memberships include
+        /// the ancestor's features). An unresolved reference yields null.
         /// </summary>
-        public string? ResolveSubsettedOwner(string owningType, string subsettedReference) =>
-            OwnerIfRendered(ResolveFlagged(subsettedReference, owningType));
+        public string? ResolveSubsettedOwner(string owningType, string subsettedReference, string? pairedTarget) =>
+            OwnerIfRendered(pairedTarget ?? _resolver.Resolve(subsettedReference, owningType));
 
         /// <summary>
-        /// Resolves a raw reference to a rendered box, warning when only the simple-name fallback
-        /// matched; returns null when it resolves to nothing rendered.
+        /// Resolves a raw reference to a rendered box; returns null when it resolves to nothing
+        /// rendered.
         /// </summary>
         private string? Resolve(string reference, string? localNamespace) =>
-            ResolveFlagged(reference, localNamespace) is { } qualified && _rendered.Contains(qualified)
+            _resolver.Resolve(reference, localNamespace) is { } qualified && _rendered.Contains(qualified)
                 ? qualified
                 : null;
-
-        /// <summary>
-        /// Resolves a raw reference by name resolution, else by the simple-name fallback; a
-        /// fallback match is warned about whether or not its target is rendered, so a reference the
-        /// rules do not resolve never disappears silently from a scoped view.
-        /// </summary>
-        private string? ResolveFlagged(string reference, string? localNamespace)
-        {
-            var resolution = _resolver.ResolveWithFallback(reference, localNamespace);
-            if (resolution.QualifiedName is { } qualified && resolution.IsSimpleNameFallback)
-            {
-                var warning = LayoutWarnings.ForSimpleNameFallback(
-                    _viewName, reference, localNamespace, qualified, resolution.Candidates);
-                if (!_warnings.Contains(warning))
-                {
-                    _warnings.Add(warning);
-                }
-            }
-
-            return resolution.QualifiedName;
-        }
 
         /// <summary>Returns the owner of a resolved feature when that owner is rendered, else null.</summary>
         private string? OwnerIfRendered(string? featureQualifiedName) =>

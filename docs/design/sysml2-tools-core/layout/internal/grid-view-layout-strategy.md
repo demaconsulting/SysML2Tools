@@ -18,9 +18,10 @@ first, then a not-yet-claimed `::`-suffix match, no target claimed twice, so `:>
 both `Y::X` and the `X` the bare name resolved to — used
 as resolved because the semantic resolver already applies KerML name resolution, else
 KerML 8.2.3.5 name resolution via `FilterExpressionEvaluator.CreateNameResolver` relative to the
-definition's owning namespace, warning via `LayoutWarnings.ForSimpleNameFallback` when only the
-bare simple-name fallback matched — a reference the KerML rules reject, such as a private or
-filtered-out supertype, is therefore still drawn only through that warned fallback). Output is a
+definition's owning namespace; a reference neither step resolves — such as a private or
+filtered-out supertype — is omitted, so the row is not marked for it, and the layout emits no
+warning: the load-time `Unresolved reference` diagnostic is the single report, and there is no
+bare simple-name matching). Output is a
 `LayoutTree` containing a single `LayoutGrid` of `LayoutGridRow` and `LayoutGridCell` values.
 
 ##### Key Methods
@@ -62,8 +63,8 @@ dimensions**, and a definition is kept when **at least one** of them is in scope
    own type. Multiple `expose` targets union their subtrees, since `IsInSubjectScope` matches
    against every resolved subject.
 2. **Specialization relationship** — the definition is a supertype of an in-scope definition, or
-   an in-scope definition is one of its own supertypes (resolved by the same simple-name matching
-   `ResolveSupertypeIndices` uses for the marked cells).
+   an in-scope definition is one of its own supertypes (resolved by the same qualified-name
+   resolution `ResolveSupertypes` uses for the marked cells).
 
 This relation-preserving rule means exposing only the specific side of a specialization (e.g. a
 `Sub` that specializes an out-of-subtree `A`) still renders both `A` and `Sub` as header rows and
@@ -73,7 +74,7 @@ relationship the matrix exists to show.
 Implementation-wise, `CollectDefinitions` runs in two phases so the `scope is null` case (no
 `expose` statement, including the synthesized `--auto` view whose `ViewNode` is `null`) remains a
 byte-identical "return everything" fast path: it first collects every non-stdlib definition
-unfiltered and builds a full simple-name index across all of them, then — only when a scope is
+unfiltered and builds a full qualified-name index across all of them, then — only when a scope is
 resolved — computes which definitions are directly in scope, resolves every definition's
 supertype indices against the full index, and keeps the union of the directly-in-scope set with
 any definition connected to it by a specialization edge in either direction, before returning the

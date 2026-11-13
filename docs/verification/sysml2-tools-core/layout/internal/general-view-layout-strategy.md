@@ -289,21 +289,26 @@ configuration are required beyond a standard .NET SDK installation.
   Three sibling packages each defining and using a same-named `Checker` part def render three
   `Checker` boxes, and each package folder holds exactly one filled-diamond membership edge between
   its own two boxes (no cross-package wiring to the first same-named definition)
-- `GeneralViewLayoutStrategy_BuildLayout_SimpleNameFallback_ReportsWarning`:
-  A type reference that does not resolve by SysML v2 name resolution reports a warning naming it
+- `GeneralViewLayoutStrategy_BuildLayout_SameSimpleNameInUnrelatedPackage_DrawsNoEdge`:
+  A type reference that does not resolve by SysML v2 name resolution (a same-named definition
+  exists only in an unrelated package, no import) draws no composition edge and no layout warning
 - `GeneralViewLayoutStrategy_BuildLayout_UnrenderedQualifiedEndpoint_IsNotMappedBySimpleName`:
   A dependency endpoint outside the exposed scope is not re-mapped to a same-named rendered box
-- `GeneralViewLayoutStrategy_BuildLayout_FallbackToUnrenderedTarget_StillReportsWarning`:
-  Type, subsetting, and redefinition references matched only by simple name to elements outside
-  the exposed scope are each still reported
-- `GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_IsFlaggedNotSilent`:
-  A reference to a private member of another package has no semantic edge and is flagged by the
-  simple-name-fallback warning, while a public reference is wired without a fallback warning
-- `GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_IsFlaggedNotSilent`:
-  A candidate a filtered import rejects is flagged by the fallback warning; the accepted one is not
+- `GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndRedefinition_DrawNoEdge`:
+  Subsetting and redefinition references that do not resolve draw no edge and no warning, while the
+  same references in a specialization of the declaring type draw exactly one edge of each kind
+- `GeneralViewLayoutStrategy_BuildLayout_FileRootImportSubsettingAndRedefinition_DrawsEdges`:
+  A subsetting and a redefinition reachable only through a file-root import (invisible to the
+  layout's own name resolver) still draw their edges, because the semantic edge is used first
+  (regression guard for removing the simple-name fallback)
+- `GeneralViewLayoutStrategy_BuildLayout_PrivateMemberReference_DrawsNoEdge`:
+  A reference to a private member of another package has no semantic edge and draws no edge and no
+  layout warning, while a public reference is wired through its semantic edge
+- `GeneralViewLayoutStrategy_BuildLayout_FilteredOutImportCandidate_DrawsNoEdge`:
+  A candidate a filtered import rejects draws no edge; the accepted one does
 - `GeneralViewLayoutStrategy_BuildLayout_ImportOfSiblingPackage_DoesNotResolveForThisPackage`:
-  A name reachable only through a sibling package's import is flagged for the package that did not
-  import it, and not for the one that did
+  A name reachable only through a sibling package's import draws an edge for the package that
+  imported it and none for the package that did not
 - `GeneralViewLayoutStrategy_BuildLayout_DocumentationByDefault_RendersWrappedDocCompartment`:
   By default the definition's box carries a `doc` compartment whose rows preserve every word, wrap
   onto several rows, and each fit within the box width; the comment note is drawn and the doc

@@ -111,32 +111,36 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
 
     /// <summary>
     ///     A supertype reference to a private member of another package gets no semantic edge and
-    ///     is marked only through the warned simple-name fallback; a public supertype is marked
-    ///     through its semantic edge without a fallback warning.
+    ///     is not marked (and not reported by the layout); a public supertype is marked through its
+    ///     semantic edge.
     /// </summary>
     [Fact]
-    public async Task GridView_BuildLayout_PrivateSupertype_IsFlaggedNotSilent()
+    public async Task GridView_BuildLayout_PrivateSupertype_IsNotMarked()
     {
-        // Arrange / Act
+        // Arrange / Act: rows/columns sorted by qualified name: P::Hidden, P::Shown, Q::D1, Q::D2
         var layout = await LayOutAsync("""
             package P { private part def Hidden; part def Shown; }
             package Q { part def D1 :> P::Hidden; part def D2 :> P::Shown; }
             """);
 
-        // Assert
-        Assert.Contains(layout.Warnings, w => w.Contains("'P::Hidden'") && w.Contains("simple name only"));
-        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'P::Shown'"));
+        // Assert: D1 (row 3) has no mark in the Hidden column (1); D2 (row 4) marks Shown (column 2)
+        var grid = Assert.Single(layout.Nodes.OfType<LayoutGrid>());
+        string Cell(int row, int column) => grid.Rows[row].Cells[column].Text;
+        Assert.Equal(string.Empty, Cell(3, 1));
+        Assert.Equal("X", Cell(4, 2));
+        Assert.Equal(1, grid.Rows.Skip(1).SelectMany(r => r.Cells.Skip(1)).Count(c => c.Text == "X"));
+        Assert.Empty(layout.Warnings);
     }
 
     /// <summary>
     ///     A supertype a filtered import rejects, or that is reachable only through another
-    ///     package's import, is flagged by the warned simple-name fallback; the accepted supertype
-    ///     is marked without a warning.
+    ///     package's import, is not marked; the accepted supertypes are marked.
     /// </summary>
     [Fact]
-    public async Task GridView_BuildLayout_FilteredOutAndSiblingImportSupertypes_AreFlaggedNotSilent()
+    public async Task GridView_BuildLayout_FilteredOutAndSiblingImportSupertypes_AreNotMarked()
     {
-        // Arrange / Act
+        // Arrange / Act: columns sorted by qualified name: 1 P::Marked, 2 P::Other, 3 P::Plain,
+        // 4 PkgA::D3, 5 PkgB::D4, 6 Q::D1, 7 Q::D2 (row n is the definition of column n)
         var layout = await LayOutAsync("""
             metadata def X { }
             package P { part def Marked { @X; } part def Plain; part def Other; }
@@ -149,11 +153,15 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
             package PkgB { part def D4 :> Other; }
             """);
 
-        // Assert
-        Assert.Contains(layout.Warnings, w => w.Contains("'Plain'") && w.Contains("simple name only"));
-        Assert.Contains(layout.Warnings, w => w.Contains("'Other' in 'PkgB'") && w.Contains("simple name only"));
-        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'Marked'"));
-        Assert.DoesNotContain(layout.Warnings, w => w.Contains("'Other' in 'PkgA'"));
+        // Assert: D1 marks Marked and D3 marks Other; D2 (filtered out) and D4 (no import) mark nothing
+        var grid = Assert.Single(layout.Nodes.OfType<LayoutGrid>());
+        string Cell(int row, int column) => grid.Rows[row].Cells[column].Text;
+        Assert.Equal("X", Cell(6, 1));
+        Assert.Equal("X", Cell(4, 2));
+        Assert.Equal(string.Empty, Cell(7, 3));
+        Assert.Equal(string.Empty, Cell(5, 2));
+        Assert.Equal(2, grid.Rows.Skip(1).SelectMany(r => r.Cells.Skip(1)).Count(c => c.Text == "X"));
+        Assert.Empty(layout.Warnings);
     }
 
     /// <summary>

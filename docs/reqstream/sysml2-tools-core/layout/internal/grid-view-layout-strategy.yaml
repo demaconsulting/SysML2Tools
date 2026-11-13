@@ -72,15 +72,16 @@ sections:
           GridViewLayoutStrategy shall mark each row against the column of the definition its
           supertype reference resolves to (the semantic model's resolved target, used as resolved
           because it already applies KerML 8.2.3.5 member visibility, filtered imports, and import
-          scoping, else KerML 8.2.3.5
-          name resolution from the definition's owning namespace, warning when only the bare
-          simple-name fallback matched), never the first same-named definition, and shall mark both
-          targets of two supertype references that share a simple name (`:> Y::X, X`).
+          scoping, else KerML 8.2.3.5 name resolution from the definition's owning namespace),
+          never the first same-named definition, shall not mark a row for a supertype reference
+          that does not resolve (no bare simple-name matching), and shall mark both targets of two
+          supertype references that share a simple name (`:> Y::X, X`).
         justification: |
           A specialization matrix that marks a same-named definition in another package
-          misreports the model's specialization structure.
+          misreports the model's specialization structure. An unresolved supertype reference is
+          rendered as unresolved (no mark); the load diagnostic reports it.
         tests:
           - GridView_BuildLayout_SameNamedSupertypes_MarkOwnPackagesColumn
           - GridView_BuildLayout_QualifiedAndBareSupertypesSharingName_MarkEachOwnTarget
-          - GridView_BuildLayout_PrivateSupertype_IsFlaggedNotSilent
-          - GridView_BuildLayout_FilteredOutAndSiblingImportSupertypes_AreFlaggedNotSilent
+          - GridView_BuildLayout_PrivateSupertype_IsNotMarked
+          - GridView_BuildLayout_FilteredOutAndSiblingImportSupertypes_AreNotMarked

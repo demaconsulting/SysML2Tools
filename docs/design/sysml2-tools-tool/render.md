@@ -114,7 +114,11 @@ future-locale story, which applies identically here.
 - Patterns given but none matched any files: `context.WriteError` reports
   `"render: no files matched the given pattern(s)."` and the method returns before loading a
   workspace.
-- Load diagnostics: reported to the context; non-fatal; rendering proceeds regardless.
+- Load diagnostics: reported to the context; non-fatal; rendering proceeds regardless. These are
+  the single report of an unresolved reference: `ReferenceResolver` emits one `Unresolved
+  reference: '<name>'` warning per unresolved name per file, printed before rendering, and the
+  layout strategies draw no relationship for such a reference and emit no layout warning for it,
+  so the same reference is never reported twice.
 - Empty view (diagram contains nothing renderable): reported as a located warning via
   `context.WriteLine`; a lone exposed package drawn without contents is reported as an `info`
   hint; both are non-fatal; the output file is still written and the exit code is unchanged.
@@ -180,3 +184,4 @@ future-locale story, which applies identically here.
 | SysML2Tools-Tool-Render-FileNameCollision | Output file name collision guard in `RunAsync` |
 | SysML2Tools-Tool-Render-DynamicView | `TryProcessDynamicView` helper, called from `RunAsync` |
 | SysML2Tools-Tool-Render-EmptyViewWarning | Empty-view diagnostics printed in `RunAsync` |
+| SysML2Tools-Tool-Render-UnresolvedReferenceDiagnostic | Load-diagnostic reporting (step 4) in `RunAsync` |

@@ -74,6 +74,9 @@ on context output and exit code. File-writing scenarios use a temporary director
 - `--view-type`/`--view-target` combined with `--view` or with `--auto` each report
   "cannot be combined with --view or --auto" and exit code 1.
 - `render --help` documents the `--view-type`, `--view-target`, and `--filter` flags.
+- A reference that does not resolve by SysML v2 name resolution (for example a private member of
+  another package) is reported exactly once, by the load-time `Unresolved reference` diagnostic,
+  with no duplicate layout warning.
 
 ### Test Scenarios
 
@@ -254,3 +257,11 @@ Verifies that rendering a view whose only expose is a bare `expose Pkg;` of a pa
 members writes the view's `.svg` file, exits with code 0, and prints a
 `file(line,col): info: View '...'` hint located at the view's declaration that suggests
 `expose Pkg::**;`.
+
+#### RenderSubsystem_PrivateMemberReference_ReportsOneUnresolvedDiagnosticAndNoLayoutWarning
+
+Verifies that rendering a General view over a model in which a part is typed by a private member
+of another package (`part a : P::Hidden;`) writes the view's `.svg` file, exits with code 0, and
+reports the reference exactly once — the load-time `Unresolved reference: 'P::Hidden'`
+diagnostic — with no layout warning mentioning a simple-name match or a failure to resolve by
+SysML v2 name resolution.
