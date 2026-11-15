@@ -446,7 +446,11 @@ Builds the single input `LayoutGraph` and returns it as a `GraphBuild` (graph, t
 without it, or for a folder it does not name, declaration order is used, names the folder does not own
 are ignored, and any item the order omits follows the named ones in declaration order, so a stale or
 partial order can never drop a definition. Sets `CoreOptions.MergeParallelEdges` to `false` on the
-root graph so multiple distinct model relationship edges that happen to share the same source and
+root graph (every `CoreOptions` property cascades to the nested package-folder and definition-container
+`Children` scopes unless a scope overrides it, so the setting holds in every scope where an edge is
+declared; the `ParallelEdgesInNestedPackage_AreNotMerged` and
+`ParallelEdgesInDefinitionContainer_AreNotMerged` tests pin it) so multiple distinct model
+relationship edges that happen to share the same source and
 target (for example two attributes of the same type, or a redefinition edge that coincides with
 another edge between the same two definitions) are never collapsed by the bundled layered
 algorithm's default parallel-edge merging — every distinct model relationship this strategy adds
@@ -678,8 +682,12 @@ boundary, which the engine leaves to the caller:
 2. For every folder plan with at least two items, `ExternalPartnerKey` computes each item's key: the
    mean center of the boxes its *external* relationships lead to. For each model edge touching the
    item (`PartnerOf`), `ExternalAnchor` takes the lowest common scope of the item's scope and the
-   partner's scope; a partner in the item's own scope is an internal relationship and contributes
-   nothing. Otherwise the partner is walked up through `ScopeInfo.Owner`/`Parent` until the scope
+   partner's scope; when that is the item's own (holding) scope the relationship stays inside the
+   folder and contributes nothing, whether the partner is a sibling definition or sits inside a nested
+   package or definition of the same folder: such an edge is declared in the folder's scope, so the
+   engine sees it when it orders that scope's contents (a nested-package partner does not force a
+   crossing, which the `ExternalEdges_DefinitionToSiblingNestedPackages_OrdersByPartnerFolder` test
+   pins). Otherwise the partner is walked up through `ScopeInfo.Owner`/`Parent` until the scope
    reached is the common scope, and the node reached is the *anchor* — the direct member of the common
    scope that contains the partner (the partner itself when it is a direct member). Anchors are
    container boxes at the common scope, so the key does not depend on the partner folder's interior

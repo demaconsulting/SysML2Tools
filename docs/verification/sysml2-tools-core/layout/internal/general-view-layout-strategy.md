@@ -474,3 +474,13 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeepNesting_FollowsPartnerContainerOrder`:
   Two definitions of `A::B` leading into `Lo::In` and `Hi::In` are stacked in the same vertical order
   as the `Lo` and `Hi` folders, for both declaration orders
+- `GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DefinitionToSiblingNestedPackages_OrdersByPartnerFolder`:
+  Two definitions of package `P` specializing definitions of sibling nested packages `A` and `B` are
+  stacked in the same vertical order as those folders, for both declaration orders, with zero crossings
+  (the relationships stay inside `P`'s scope, which the engine orders itself)
+- `GeneralViewLayoutStrategy_BuildLayout_ParallelEdgesInNestedPackage_AreNotMerged`:
+  Two attributes of the same type inside a nested package give two separate typing connectors, so
+  parallel-edge merging stays off in nested folder scopes
+- `GeneralViewLayoutStrategy_BuildLayout_ParallelEdgesInDefinitionContainer_AreNotMerged`:
+  Two attributes of the same nested type inside a definition container give two separate typing
+  connectors, so parallel-edge merging stays off in definition-container scopes

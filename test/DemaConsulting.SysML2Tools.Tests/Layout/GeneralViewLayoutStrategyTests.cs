@@ -4011,6 +4011,72 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A definition that is a direct member of a package and whose partners live in different nested
+    ///     packages of that same package is ordered by where those nested packages sit, even though the
+    ///     lowest common scope of each relationship is the package's own scope: <c>ToA</c> and
+    ///     <c>ToB</c> are stacked like the <c>A</c> and <c>B</c> folders they lead to, whichever way
+    ///     they were declared, and no lines cross.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DefinitionToSiblingNestedPackages_OrdersByPartnerFolder()
+    {
+        // Arrange: the same packages, with the owner's definitions declared in both orders
+        const string packages = "package A { part def X; } package B { part def Y; }";
+        var toAFirst = "package P { part def ToA :> A::X; part def ToB :> B::Y; " + packages + " }";
+        var toBFirst = "package P { part def ToB :> B::Y; part def ToA :> A::X; " + packages + " }";
+
+        // Act / Assert
+        foreach (var sysml in new[] { toAFirst, toBFirst })
+        {
+            var layout = await LayOutUnscopedAsync(sysml);
+            var a = FindBox(layout.Nodes, "A");
+            var b = FindBox(layout.Nodes, "B");
+            var toA = FindBox(layout.Nodes, "ToA");
+            var toB = FindBox(layout.Nodes, "ToB");
+            Assert.NotEqual(a.Y + (a.Height / 2.0), b.Y + (b.Height / 2.0));
+            Assert.Equal(
+                (a.Y + (a.Height / 2.0)).CompareTo(b.Y + (b.Height / 2.0)),
+                (toA.Y + (toA.Height / 2.0)).CompareTo(toB.Y + (toB.Height / 2.0)));
+            Assert.Equal(0, CountLineCrossings(layout.Nodes));
+        }
+    }
+
+    /// <summary>
+    ///     Two distinct relationships between the same two definitions inside a nested package (two
+    ///     attributes of the same type) are drawn as two separate connectors: parallel-edge merging is
+    ///     off in every scope, not only at the root.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ParallelEdgesInNestedPackage_AreNotMerged()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync(
+            "package P { package Sub { attribute def Mass; part def Vehicle { attribute mass : Mass; attribute weight : Mass; } } }");
+
+        // Assert: one dashed typing dependency per attribute
+        var typing = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron).ToList();
+        Assert.Equal(2, typing.Count);
+    }
+
+    /// <summary>
+    ///     Two distinct relationships between the same two definitions inside a definition container
+    ///     are likewise drawn as two separate connectors.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ParallelEdgesInDefinitionContainer_AreNotMerged()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync(
+            "part def Outer { attribute def Mass; part def Vehicle { attribute mass : Mass; attribute weight : Mass; } }");
+
+        // Assert: Vehicle and Mass are nested in Outer, and each attribute has its own typing dependency
+        var outer = FindBox(layout.Nodes, "Outer");
+        Assert.Contains(outer.Children.OfType<LayoutBox>(), b => b.Label == "Mass");
+        var typing = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron).ToList();
+        Assert.Equal(2, typing.Count);
+    }
+
+    /// <summary>
     ///     Builds the layered-layout graph the General view relies on for its ordering refinement: a
     ///     <c>B</c> folder holding <c>C</c>, <c>S</c> (specializing <c>C</c>) and <c>H</c>, added in the
     ///     given order, beside a <c>P</c> folder holding <c>E</c> and a leaf <c>K</c>, with relationships

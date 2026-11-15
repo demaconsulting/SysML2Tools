@@ -1581,7 +1581,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // between the same two definitions) — unlike InterconnectionViewLayoutStrategy, this graph
         // has never relied on the bundled algorithm's parallel-edge merging, so it opts out
         // explicitly to keep every distinct model relationship visible regardless of the layered
-        // algorithm's own default.
+        // algorithm's own default. The option cascades from this root to every nested folder and
+        // definition-container scope (edges are declared in those scopes too), so it is set once here.
         graph.Set(CoreOptions.MergeParallelEdges, false);
         var truncated = new List<TruncatedContainer>();
 
@@ -2277,8 +2278,9 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// Returns the node a relationship from a definition held by <paramref name="selfScope"/> to
     /// <paramref name="partner"/> actually targets at the level where the two meet: the partner itself
     /// when it is a direct member of the lowest common scope, otherwise the container (folder or
-    /// definition) that holds the partner and is a direct member of that scope. Returns null for an
-    /// internal relationship, where the partner sits in the definition's own scope.
+    /// definition) that holds the partner and is a direct member of that scope. Returns null when the
+    /// relationship stays inside <paramref name="selfScope"/> (the scope that holds the definition):
+    /// that scope's own layout sees the edge, so it needs no ordering key.
     /// </summary>
     private static LayoutGraphNode? ExternalAnchor(ScopeInfo selfScope, Location partner)
     {
