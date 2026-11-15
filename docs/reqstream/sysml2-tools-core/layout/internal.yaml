@@ -40,6 +40,9 @@ sections:
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-NoEdgeOnFailure
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AnnotationNote
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposedPackageNodes
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NestedPackageFolders
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CrossContainerEdges
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-TruncatedContainerDecoration
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-SameNamedDefinitions
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-RequirementConstraintCompartments
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Internals

@@ -63,8 +63,8 @@
     <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Language\DemaConsulting.SysML2Tools.Language.csproj" />
     <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Stdlib\DemaConsulting.SysML2Tools.Stdlib.csproj" />
     <ProjectReference Include="..\..\src\DemaConsulting.SysML2Tools.Core\DemaConsulting.SysML2Tools.Core.csproj" />
-    <PackageReference Include="DemaConsulting.Rendering.Svg" Version="0.3.0-beta.1" />
-    <PackageReference Include="DemaConsulting.Rendering.CanvasNet" Version="0.3.0-beta.1" />
+    <PackageReference Include="DemaConsulting.Rendering.Svg" Version="0.3.0-beta.2" />
+    <PackageReference Include="DemaConsulting.Rendering.CanvasNet" Version="0.3.0-beta.2" />
   </ItemGroup>
 
 </Project>

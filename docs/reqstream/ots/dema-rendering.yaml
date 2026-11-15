@@ -99,3 +99,20 @@ sections:
               - PngRenderer_Render_EmptyTree_WritesPngBytes
               - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_PngRenderer_ReturnsPngOutput
               - DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput
+
+          - id: SysML2Tools-OTS-DemaRendering-CrossHierarchyEdges
+            title: >-
+              DemaConsulting.Rendering shall route an edge declared on a graph scope between two
+              nodes that sit at any depth beneath that scope, connecting the endpoint nodes
+              themselves rather than the containers that hold them.
+            justification: |
+              The General View declares each relationship in the lowest common ancestor scope of
+              its two endpoints, which may be several packages above them. The relationship is
+              only readable if the package connects the endpoint boxes themselves: connecting the
+              enclosing package borders, or dropping the edge when its endpoints are in different
+              containers, would hide relationships between definitions of different packages.
+              Version 0.3.0-beta.2 of the package family introduced this behavior.
+            tags: [ots]
+            tests:
+              - GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_SiblingPackages_DeclaredAtRootAndRoutedToNestedBoxes
+              - GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_NestedVersusOuter_DeclaredInOuterScope

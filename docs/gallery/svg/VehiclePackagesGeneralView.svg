@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1234.88" height="438.50" viewBox="0 0 1234.88 438.50">
+  <defs>
+    <marker id="line-end-open-chevron" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polyline points="0 0, 10 3.5, 0 7" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-hollow-triangle" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-filled-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-hollow-triangle-crossbar" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+      <line x1="7" y1="0" x2="7" y2="7" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-hollow-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-filled-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-circle" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <circle cx="5" cy="5" r="4" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <marker id="line-end-bar" markerWidth="4" markerHeight="12" refX="2" refY="6" orient="auto">
+      <line x1="2" y1="0" x2="2" y2="12" stroke="#1A1A2E" stroke-width="1.50"/>
+    </marker>
+    <filter id="label-bg" x="-0.05" y="-0.05" width="1.1" height="1.1">
+      <feFlood flood-color="#FFFFFF"/>
+      <feComposite in="SourceGraphic" operator="over"/>
+    </filter>
+  </defs>
+  <path d="M 12.00 36.00 L 12.00 12.00 L 72.00 12.00 L 72.00 36.00 L 1222.88 36.00 L 1222.88 426.50 L 12.00 426.50 Z" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="617.44" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«package»</text>
+  <text x="617.44" y="67.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Vehicle</text>
+  <rect x="972.00" y="205.50" width="218.88" height="116.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="1081.44" y="217.50" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="1081.44" y="236.50" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Car</text>
+  <line x1="972.00" y1="249.50" x2="1190.88" y2="249.50" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="978.00" y="261.50" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">parts</text>
+  <text x="978.00" y="285.50" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">engine : Powertrain::Engine</text>
+  <text x="978.00" y="303.50" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">chassis : Body::Chassis</text>
+  <path d="M 508.00 136.00 L 508.00 112.00 L 586.00 112.00 L 586.00 136.00 L 902.00 136.00 L 902.00 294.00 L 508.00 294.00 Z" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="705.00" y="148.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«package»</text>
+  <text x="705.00" y="167.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Powertrain</text>
+  <rect x="740.00" y="212.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="805.00" y="227.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="805.00" y="246.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Engine</text>
+  <rect x="540.00" y="212.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="605.00" y="227.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="605.00" y="246.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">ElectricMotor</text>
+  <path d="M 670.00 237.00 L 740.00 237.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-hollow-triangle)"/>
+  <path d="M 44.00 156.50 L 44.00 132.50 L 104.00 132.50 L 104.00 156.50 L 438.00 156.50 L 438.00 394.50 L 44.00 394.50 Z" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="241.00" y="168.50" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«package»</text>
+  <text x="241.00" y="187.50" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Body</text>
+  <rect x="276.00" y="232.50" width="130.00" height="50.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="341.00" y="247.50" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="341.00" y="266.50" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Chassis</text>
+  <rect x="76.00" y="232.50" width="130.00" height="50.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="141.00" y="247.50" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="141.00" y="266.50" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">SportsChassis</text>
+  <rect x="76.00" y="312.50" width="130.00" height="50.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+  <text x="141.00" y="327.50" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="141.00" y="346.50" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Hybrid</text>
+  <path d="M 206.00 257.50 L 276.00 257.50" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-hollow-triangle)"/>
+  <path d="M 206.00 337.50 L 700.00 337.50 A 4.00 4.00 0 0 0 704.00 333.50 L 704.00 228.00 A 4.00 4.00 0 0 1 708.00 224.00 L 740.00 224.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-hollow-triangle)"/>
+  <path d="M 870.00 237.00 L 972.00 237.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 406.00 257.50 L 480.00 257.50 A 4.00 4.00 0 0 1 484.00 261.50 L 484.00 345.50 A 4.00 4.00 0 0 0 488.00 349.50 L 910.00 349.50 A 4.00 4.00 0 0 0 914.00 345.50 L 914.00 313.50 A 4.00 4.00 0 0 1 918.00 309.50 L 972.00 309.50" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
+</svg>
