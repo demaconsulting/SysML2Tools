@@ -331,6 +331,11 @@ connector is declared in the innermost container that encloses both of its ends 
 folder borders. Specializations inside one package (`ElectricMotor :> Engine`,
 `SportsChassis :> Chassis`) stay inside that package's folder.
 
+The order of the definitions inside a folder follows where their relationships lead rather than the
+order they were declared in: `Hybrid` is declared after `Chassis`, but its specialization leads into
+the nearer `Powertrain` folder while `Chassis`'s composition leads past it to `Car`, so `Hybrid` is
+drawn above `Chassis` and the connectors do not cross.
+
 Model: [`models/11-nested-packages-general.sysml`](models/11-nested-packages-general.sysml) ·
 SVG: [`svg/VehiclePackagesGeneralView.svg`](svg/VehiclePackagesGeneralView.svg)
 

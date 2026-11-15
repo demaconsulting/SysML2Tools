@@ -22,7 +22,11 @@ connectivity, routing connected groups through the bundled layered algorithm
 (`LayeredLayoutAlgorithm`) and packing disconnected/singleton nodes by reading order
 (`ContainmentLayoutAlgorithm`), while each container's own contents (a folder's or a
 nested-owning-definition's) are always ordered by their intra-container edges with the layered
-algorithm. All box sizing (title bands, compartment rows) remains this strategy's
+algorithm. Because the engine places a folder's contents without knowing where the folder's
+relationships to the outside lead, the strategy orders each folder's definitions by the vertical
+position of those relationships' far ends in a first layout and lays out once more (see
+`ComputeItemOrder`), so relationships leaving a folder are not forced to cross by declaration order.
+All box sizing (title bands, compartment rows) remains this strategy's
 responsibility, since the layout stage in `DemaConsulting.Rendering.Layout` is theme-agnostic;
 box title and folder-tab geometry come from `BoxMetrics` in `DemaConsulting.Rendering.Abstractions`.
 
@@ -39,8 +43,11 @@ binding relationship expressed by qualified name, together with its target end m
 and an optional midpoint label), `Location` (a located definition's
 graph node and the `ScopeInfo` that directly holds it, used to resolve and scope edges), `ScopeInfo`
 (one container scope of the layout graph — the root graph, a package folder's `Children` graph, or
-a definition-as-container's `Children` graph — with a `Parent` link to its enclosing scope, so the
-scopes form a tree whose lowest common ancestor `LowestCommonScope` can find), `FolderPlan` (the
+a definition-as-container's `Children` graph — with a `Parent` link to its enclosing scope and the
+`Owner` container node whose `Children` graph it is (null for the root), so the
+scopes form a tree whose lowest common ancestor `LowestCommonScope` can find), `GraphBuild` (the
+result of one `BuildGraph` pass: the root graph, the truncated containers, the `located` map, and the
+folder plans, which the order-refinement pass reads), `FolderPlan` (the
 pre-materialization plan for one package folder: its key, nearest enclosing folder, directly owned
 definitions, ordered child-folder keys, nesting level, and the hidden-element count reported if it is
 truncated; see `BuildGraph`), and `TruncatedContainer` (a
@@ -107,16 +114,26 @@ specialization/membership/attribute-typing/redefinition/subsetting/
 connect/allocate/dependency/binding relationships are
 resolved into qualified-name edges (plus any dropped-edge diagnostics) with `BuildModelEdges`, the
 single input `LayoutGraph` is built
-with `BuildGraph` (passed `childrenByParent`, whether the view has a resolved scope, and the set of
-every non-stdlib package in the workspace from `CollectPackageNames`), and the
-whole graph is placed with one `LayoutEngine.Layout(graph)` call after setting
-`graph.Set(CoreOptions.Algorithm, AutoLayoutAlgorithm.AlgorithmId)` — delegating root-scope
+with `BuildGraph` (passed `childrenByParent`, whether the view has a resolved scope, the set of
+every non-stdlib package in the workspace from `CollectPackageNames`, and no item order on the first
+pass), and the
+whole graph is placed with one `LayoutEngine.Layout(graph)` call (the `LayOut` helper, which first sets
+`graph.Set(CoreOptions.Algorithm, AutoLayoutAlgorithm.AlgorithmId)`) — delegating root-scope
 algorithm selection to `"auto"`, which classifies the root's own folders/top-level definitions by
 connectivity (routing connected groups through the layered algorithm and packing
 disconnected/singleton nodes via containment) rather than pinning every root-scope node to a single
-fixed algorithm regardless of its own connectivity. When any package folder or
-nested-definition-containing definition was depth-truncated, `DecorateTruncated` stamps each
-truncated container's "+N more…" ellipsis label onto its placed box. Finally, the returned tree's `Warnings` concatenates
+fixed algorithm regardless of its own connectivity. The engine places a package folder's contents
+without knowing where the folder's relationships to the outside lead, and stacks the unconnected
+groups of those contents by the order they were added, so `BuildLayout` then calls
+`ComputeItemOrder` on the first layout: when it reports a different item order for any folder, the
+graph is built a second time with that order (`BuildGraph`'s `itemOrder`) and laid out again; when
+it reports none (no folder has two or more items with external relationships whose order would
+change) the first layout is kept unchanged. The refinement is a single pass — there is no iteration
+to a fixed point, so termination is guaranteed — and it is documented as a compensation for the
+engine's placement model that can be retired once the engine orders a container's interior by its
+cross-hierarchy edges. When any package folder or nested-definition-containing definition was
+depth-truncated, `DecorateTruncated` stamps each truncated container's "+N more…" ellipsis label onto
+its placed box of the final layout. Finally, the returned tree's `Warnings` concatenates
 `LayoutWarnings.ForUnevaluatedFilter` (only when standalone filter parsing/evaluation failed),
 `LayoutWarnings.ForUnevaluatedExposeBracketFilter(context.ViewName, scope?.Failures ?? [])` (Phase
 2a: one warning per bracket-filter expression that failed to parse or evaluate — a
@@ -421,9 +438,14 @@ longest-prefix-wins) would resolve *both* sides of the dominant real-world corpu
 — to the same box (`Drone`), producing a false self-loop where a real diagram must show two
 distinct boxes (`Controller` and `Battery`) connected.
 
-###### `BuildGraph(groups, childrenByParent, modelEdges, theme, depthLimit, exposedPackages, packageNames)`
+###### `BuildGraph(groups, childrenByParent, modelEdges, theme, depthLimit, exposedPackages, packageNames, itemOrder)`
 
-Builds the single input `LayoutGraph`, setting `CoreOptions.MergeParallelEdges` to `false` on the
+Builds the single input `LayoutGraph` and returns it as a `GraphBuild` (graph, truncated containers,
+`located` map, folder plans). The optional `itemOrder` (folder key to item qualified names, produced by
+`ComputeItemOrder`) sets the order in which a folder's own definitions are placed (`OrderedItems`);
+without it, or for a folder it does not name, declaration order is used, names the folder does not own
+are ignored, and any item the order omits follows the named ones in declaration order, so a stale or
+partial order can never drop a definition. Sets `CoreOptions.MergeParallelEdges` to `false` on the
 root graph so multiple distinct model relationship edges that happen to share the same source and
 target (for example two attributes of the same type, or a redefinition edge that coincides with
 another edge between the same two definitions) are never collapsed by the bundled layered
@@ -639,6 +661,42 @@ placeholders, is built in one `BuildGraph` pass before layout ever runs — so a
 ordinary graph node/edge pair up front is the natural fit, and lets the layout engine route and
 position it like any other element rather than requiring bespoke placement math.
 
+###### `ComputeItemOrder(tree, build, edges)`
+
+Decides, from the first-pass layout, how each package folder's definitions should be ordered so that
+relationships leaving the folder do not have to cross one another. The layered engine lays out a
+container's contents independently of the container's external edges (the engine's
+`SeparateChildren` placement model) and orders the unconnected groups of those contents by their
+lowest insertion index, so declaration order alone can force a crossing: in the gallery's
+`VehiclePackagesGeneralView`, `Hybrid` is declared after `Chassis` and was therefore stacked below
+it, although `Hybrid`'s relationship leads to the nearer `Powertrain` folder and `Chassis`'s leads
+past that folder to `Car`. This unit applies the standard barycenter heuristic across the container
+boundary, which the engine leaves to the caller:
+
+1. `CollectCenters` records the absolute vertical center of every placed box against the graph node it
+   was placed from (tree coordinates are absolute, so centers in different scopes compare directly).
+2. For every folder plan with at least two items, `ExternalPartnerKey` computes each item's key: the
+   mean center of the boxes its *external* relationships lead to. For each model edge touching the
+   item (`PartnerOf`), `ExternalAnchor` takes the lowest common scope of the item's scope and the
+   partner's scope; a partner in the item's own scope is an internal relationship and contributes
+   nothing. Otherwise the partner is walked up through `ScopeInfo.Owner`/`Parent` until the scope
+   reached is the common scope, and the node reached is the *anchor* — the direct member of the common
+   scope that contains the partner (the partner itself when it is a direct member). Anchors are
+   container boxes at the common scope, so the key does not depend on the partner folder's interior
+   order, which changes between passes. A partner without a node (hidden by the depth limit) adds
+   nothing.
+3. `OrderByPartnerPosition` sorts the items that have a key by the rounded key (ties keep declaration
+   order) into the slots those items occupied; items without a key stay where they are. It returns
+   null when fewer than two items have a key or the order is unchanged.
+
+The result maps each folder whose order changes to its wanted item order; an empty result means the
+first layout stands. Scope limits, deliberately not addressed: only package-folder items are
+reordered (promoted root-level items and the children of a definition-as-container keep declaration
+order); the key is vertical only, matching the default left-to-right flow every folder uses; and a
+single refinement pass is made. The heuristic is a crossing-reduction mitigation, not a guarantee. It
+also relies on the engine's insertion-order behavior, which is pinned by the OTS requirement
+`SysML2Tools-OTS-DemaRendering-ComponentOrderFollowsInsertion`.
+
 ###### `DecorateTruncated(tree, graph, truncated, theme)`
 
 Replaces each truncated container's placed box with one carrying its "+N more…" ellipsis label,
@@ -648,7 +706,9 @@ carries. Delegates to a recursive worker overload that walks the tree scope-by-s
 compound-graph scope (the root graph, or any container node's own `Children` graph) the engine emits
 one box per node of that scope, possibly interleaved with the lines of the scope's own routed
 edges, and not necessarily in node order. `LayoutBox` carries no `Id`, so each placed box is paired
-with the graph node of that same scope it came from by the identity signature the strategy itself set
+with the graph node of that same scope it came from — by the shared `PairBoxesWithNodes` enumerator,
+which `ComputeItemOrder`'s `CollectCenters` also uses so both agree on which node a box is — through
+the identity signature the strategy itself set
 on the node and the engine copies verbatim onto the box — `Label`, `Keyword`, and `Shape`: each box
 takes the first not-yet-paired node with an equal signature, so the pairing does not depend on box
 order. Nodes with an equal signature (only duplicated, never-truncated nodes can have one; a

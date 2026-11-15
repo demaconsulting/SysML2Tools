@@ -39,7 +39,10 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// <see cref="PlaceDef"/>): depth-limited (truncated) content is never added to the graph as
 /// individual boxes — the truncated folder or definition body becomes (or gains) a single leaf
 /// node sized like a plain ellipsis indicator, and the "+N more…" label is stamped onto its placed
-/// box once the layout is known.
+/// box once the layout is known. Because the engine places a folder's contents without knowing where
+/// the folder's external relationships lead, the items of each package folder are ordered by the
+/// vertical position of those relationships' far ends (see <see cref="ComputeItemOrder"/>), so
+/// relationships leaving a folder do not need to cross one another.
 /// </remarks>
 internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 {
@@ -212,17 +215,39 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// </summary>
     /// <param name="parent">The enclosing scope, or <see langword="null"/> for the root scope.</param>
     /// <param name="graph">The layout graph holding this scope's own nodes (and the edges declared in it).</param>
-    private sealed class ScopeInfo(ScopeInfo? parent, LayoutGraph graph)
+    /// <param name="owner">
+    /// The container node whose <see cref="LayoutGraphNode.Children"/> graph this scope is, or
+    /// <see langword="null"/> for the root scope. <see cref="ComputeItemOrder"/> walks it to find
+    /// which direct member of a common scope contains a given box.
+    /// </param>
+    private sealed class ScopeInfo(ScopeInfo? parent, LayoutGraph graph, LayoutGraphNode? owner = null)
     {
         /// <summary>Gets the enclosing scope, or <see langword="null"/> for the root scope.</summary>
         public ScopeInfo? Parent { get; } = parent;
 
         /// <summary>Gets the layout graph holding this scope's own nodes.</summary>
         public LayoutGraph Graph { get; } = graph;
+
+        /// <summary>Gets the container node that owns this scope's graph, or <see langword="null"/> for the root scope.</summary>
+        public LayoutGraphNode? Owner { get; } = owner;
     }
 
     /// <summary>Where a located definition's node lives: the node itself and the scope that directly holds it.</summary>
     private readonly record struct Location(LayoutGraphNode Node, ScopeInfo Scope);
+
+    /// <summary>
+    /// The result of one <see cref="BuildGraph"/> pass: the input graph together with the
+    /// bookkeeping the second, order-refining pass needs (<see cref="ComputeItemOrder"/>).
+    /// </summary>
+    /// <param name="Graph">The root layout graph, ready to be handed to the layout engine.</param>
+    /// <param name="Truncated">The depth-truncated containers to decorate once the layout is known.</param>
+    /// <param name="Located">Every definition's node and directly holding scope, keyed by qualified name.</param>
+    /// <param name="Plans">The planned package folders, keyed by package qualified name.</param>
+    private sealed record GraphBuild(
+        LayoutGraph Graph,
+        List<TruncatedContainer> Truncated,
+        IReadOnlyDictionary<string, Location> Located,
+        IReadOnlyDictionary<string, FolderPlan> Plans);
 
     /// <summary>
     /// The planned shape of one package folder, computed before any graph node is created so the
@@ -435,14 +460,9 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         // Build the single input graph: package folders as containers (nested packages inside their
         // owner's folder), definitions as leaves.
-        var (graph, truncated) = BuildGraph(
-            groups,
-            childrenByParent,
-            modelEdges,
-            theme,
-            options.DepthLimit,
-            scope is not null ? exposedPackages : null,
-            CollectPackageNames(context.Workspace));
+        var packageNames = CollectPackageNames(context.Workspace);
+        var exposed = scope is not null ? exposedPackages : null;
+        var build = BuildGraph(groups, childrenByParent, modelEdges, theme, options.DepthLimit, exposed, packageNames, itemOrder: null);
 
         // Lay out the whole graph in one call, delegating root-scope algorithm selection to "auto":
         // it classifies the root's own folders/top-level definitions by connectivity, routing
@@ -450,15 +470,29 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // reading order (containment) — the same per-container-algorithm convention this strategy
         // already applies per folder, just resolved automatically at the root instead of being pinned
         // to a single fixed algorithm for every root-scope node regardless of its own connectivity.
-        graph.Set(CoreOptions.Algorithm, AutoLayoutAlgorithm.AlgorithmId);
-        var tree = LayoutEngine.Layout(graph);
+        var tree = LayOut(build.Graph);
+
+        // The engine lays out each package folder's contents without knowing where the folder's
+        // relationships to the outside lead, and stacks unconnected groups of those contents in the
+        // order they were added - so declaration order alone can force relationships that leave a
+        // folder to cross one another. Refine once: reorder each folder's items by the vertical
+        // position (in the first layout) of the boxes their external relationships lead to, and lay
+        // out again with that order. When no folder's order changes the first layout is kept as is.
+        // NOTE: this compensates for the engine's SeparateChildren placement model and can be retired
+        // when the engine orders a container's interior by its cross-hierarchy edges.
+        var itemOrder = ComputeItemOrder(tree, build, modelEdges);
+        if (itemOrder.Count > 0)
+        {
+            build = BuildGraph(groups, childrenByParent, modelEdges, theme, options.DepthLimit, exposed, packageNames, itemOrder);
+            tree = LayOut(build.Graph);
+        }
 
         // Stamp the "+N more…" ellipsis label onto each truncated folder's or truncated
         // definition's placed box. Every placed box is paired with its graph node by identity
         // (label, keyword, shape) within its own scope rather than by position, so the pairing
         // does not depend on the order in which the engine emits a scope's boxes; this recurses
         // through every nesting depth, not just the root.
-        var placed = truncated.Count == 0 ? tree : DecorateTruncated(tree, graph, truncated, theme);
+        var placed = build.Truncated.Count == 0 ? tree : DecorateTruncated(tree, build.Graph, build.Truncated, theme);
 
         // Surface any standalone `filter [<expr>];` evaluation failure, plus a distinct warning
         // for each `expose <path>::**[<expr>]` bracket filter that failed to parse or evaluate
@@ -1515,14 +1549,28 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// deeper truncation is applied. A truncated folder is a single ellipsis leaf that reports the
     /// number of hidden definitions and nested packages.
     /// </summary>
-    private static (LayoutGraph Graph, List<TruncatedContainer> Truncated) BuildGraph(
+    /// <param name="groups">The package groups (package qualified name and its directly owned definitions).</param>
+    /// <param name="childrenByParent">Definitions nested inside a definition, keyed by the owning definition's qualified name.</param>
+    /// <param name="modelEdges">The model relationships to draw as graph edges.</param>
+    /// <param name="theme">The theme used to size title bands and ellipsis placeholders.</param>
+    /// <param name="depthLimit">The nesting depth limit, or a non-positive value for none.</param>
+    /// <param name="exposedPackages">The exposed packages of a scoped view, or null for an unscoped view.</param>
+    /// <param name="packageNames">Every package the workspace declares, used to recognize enclosing packages.</param>
+    /// <param name="itemOrder">
+    /// Optional per-folder item order (package qualified name to the folder's definition qualified
+    /// names in the wanted order) produced by <see cref="ComputeItemOrder"/>; null keeps declaration
+    /// order. A folder or name it does not know is ignored.
+    /// </param>
+    /// <returns>The graph and the bookkeeping for decoration and order refinement.</returns>
+    private static GraphBuild BuildGraph(
         IReadOnlyList<(string Package, List<DefBox> Items)> groups,
         IReadOnlyDictionary<string, List<DefBox>> childrenByParent,
         IReadOnlyList<ModelEdge> modelEdges,
         Theme theme,
         int depthLimit,
         IReadOnlySet<string>? exposedPackages,
-        IReadOnlySet<string> packageNames)
+        IReadOnlySet<string> packageNames,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? itemOrder)
     {
         var graph = new LayoutGraph();
         var rootScope = new ScopeInfo(null, graph);
@@ -1623,10 +1671,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             folder.Keyword = "package";
             folder.TitleHeight = folderTitleHeight;
             folder.Set(CoreOptions.Algorithm, LayeredLayoutAlgorithm.AlgorithmId);
-            var folderScope = new ScopeInfo(parentScope, folder.Children);
+            var folderScope = new ScopeInfo(parentScope, folder.Children, folder);
             folderScopes[folderKey] = folderScope;
 
-            foreach (var def in plan.Items)
+            foreach (var def in OrderedItems(plan, itemOrder))
             {
                 PlaceDef(def, folderScope, childrenByParent, located, theme, contentDepth, depthLimit, truncated);
             }
@@ -1653,7 +1701,29 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             added.Label = edge.Label;
         }
 
-        return (graph, truncated);
+        return new GraphBuild(graph, truncated, located, plans);
+    }
+
+    /// <summary>
+    /// Returns a folder's items in the order the layout engine should receive them: the order named
+    /// by <paramref name="itemOrder"/> for the folder when one exists, otherwise declaration order.
+    /// Names the folder does not own are ignored and items the order omits keep their relative
+    /// declaration order after the named ones, so a stale or partial order can never drop a
+    /// definition from the drawing.
+    /// </summary>
+    private static IReadOnlyList<DefBox> OrderedItems(FolderPlan plan, IReadOnlyDictionary<string, IReadOnlyList<string>>? itemOrder)
+    {
+        if (itemOrder is null || !itemOrder.TryGetValue(plan.Key, out var wanted))
+        {
+            return plan.Items;
+        }
+
+        var byName = plan.Items.ToDictionary(d => d.QualifiedName, StringComparer.Ordinal);
+        var names = wanted.Where(byName.ContainsKey).Distinct(StringComparer.Ordinal).ToList();
+        var ordered = names.Select(name => byName[name]).ToList();
+        var named = names.ToHashSet(StringComparer.Ordinal);
+        ordered.AddRange(plan.Items.Where(d => !named.Contains(d.QualifiedName)));
+        return ordered;
     }
 
     /// <summary>
@@ -1843,7 +1913,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             return;
         }
 
-        var childScope = new ScopeInfo(scope, node.Children);
+        var childScope = new ScopeInfo(scope, node.Children, node);
 
         foreach (var child in children)
         {
@@ -1995,23 +2065,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         Theme theme)
     {
         var result = new List<LayoutNode>(nodes);
-        var paired = new bool[graphNodes.Count];
-        for (var i = 0; i < result.Count; i++)
+        foreach (var (i, box, graphNode) in PairBoxesWithNodes(nodes, graphNodes))
         {
-            if (result[i] is not LayoutBox box)
-            {
-                continue;
-            }
-
-            var graphIndex = FindUnpairedGraphNode(box, graphNodes, paired);
-            if (graphIndex < 0)
-            {
-                continue;
-            }
-
-            paired[graphIndex] = true;
-            var graphNode = graphNodes[graphIndex];
-
             if (hiddenByNode.TryGetValue(graphNode, out var hidden))
             {
                 var indicator = new LayoutLabel(
@@ -2039,6 +2094,38 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
+    /// Pairs every <see cref="LayoutBox"/> of one placed scope with the graph node of that same
+    /// scope it was placed from, yielding the box's index in <paramref name="nodes"/>, the box, and
+    /// its node. <see cref="LayoutBox"/> carries no <c>Id</c>, so the pairing is by the identity
+    /// signature the strategy itself set on the graph node and the engine copies verbatim onto the
+    /// box (see <see cref="FindUnpairedGraphNode"/>); it is shared by the truncation decoration and
+    /// the item-order refinement so both agree on which node a box is. Non-box entries (routed lines)
+    /// and boxes with no node left to pair are skipped.
+    /// </summary>
+    private static IEnumerable<(int Index, LayoutBox Box, LayoutGraphNode Node)> PairBoxesWithNodes(
+        IReadOnlyList<LayoutNode> nodes,
+        IReadOnlyList<LayoutGraphNode> graphNodes)
+    {
+        var paired = new bool[graphNodes.Count];
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            if (nodes[i] is not LayoutBox box)
+            {
+                continue;
+            }
+
+            var graphIndex = FindUnpairedGraphNode(box, graphNodes, paired);
+            if (graphIndex < 0)
+            {
+                continue;
+            }
+
+            paired[graphIndex] = true;
+            yield return (i, box, graphNodes[graphIndex]);
+        }
+    }
+
+    /// <summary>
     /// Returns the index of the first graph node not yet <paramref name="paired"/> whose
     /// <see cref="LayoutGraphNode.Label"/>, <see cref="LayoutGraphNode.Keyword"/> and
     /// <see cref="LayoutGraphNode.Shape"/> equal <paramref name="box"/>'s; when none matches, the
@@ -2063,6 +2150,184 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         }
 
         return firstUnpaired;
+    }
+
+    /// <summary>
+    /// Runs the layout engine over <paramref name="graph"/> with the root scope delegated to the
+    /// "auto" algorithm, so both layout passes of <see cref="BuildLayout"/> are configured identically.
+    /// </summary>
+    private static LayoutTree LayOut(LayoutGraph graph)
+    {
+        graph.Set(CoreOptions.Algorithm, AutoLayoutAlgorithm.AlgorithmId);
+        return LayoutEngine.Layout(graph);
+    }
+
+    /// <summary>
+    /// Computes, for every package folder whose items should be stacked differently, the item order
+    /// that keeps relationships leaving the folder from crossing one another: the folder's items
+    /// that have external relationships are ordered by the mean vertical center, in the first
+    /// layout (<paramref name="tree"/>), of the boxes those relationships lead to.
+    /// </summary>
+    /// <remarks>
+    /// The layered engine places a container's contents blind to the container's external edges and
+    /// stacks unconnected groups of those contents by insertion index, so it is the caller that must
+    /// supply the crossing-reducing (barycenter) order. Items without external relationships keep
+    /// their positions; the keyed items are sorted into the slots the keyed items occupied. Only
+    /// package-folder items are considered, the key is vertical only (every folder flows left to
+    /// right) and one refinement pass is made with no iteration, so the computation always
+    /// terminates and is a no-op, returning an empty result, whenever no folder's order changes.
+    /// </remarks>
+    /// <param name="tree">The first-pass layout.</param>
+    /// <param name="build">The first-pass graph with its located nodes and folder plans.</param>
+    /// <param name="edges">The model edges the graph was built from.</param>
+    /// <returns>Folder key to wanted item qualified-name order, only for folders whose order changes.</returns>
+    private static Dictionary<string, IReadOnlyList<string>> ComputeItemOrder(
+        LayoutTree tree,
+        GraphBuild build,
+        IReadOnlyList<ModelEdge> edges)
+    {
+        var order = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        var centers = new Dictionary<LayoutGraphNode, double>();
+        CollectCenters(tree.Nodes, build.Graph.Nodes, centers);
+
+        foreach (var plan in build.Plans.Values)
+        {
+            if (plan.Items.Count < 2)
+            {
+                continue;
+            }
+
+            var keys = plan.Items.Select(item => ExternalPartnerKey(item.QualifiedName, build.Located, edges, centers)).ToList();
+            var wanted = OrderByPartnerPosition(plan.Items, keys);
+            if (wanted is not null)
+            {
+                order[plan.Key] = wanted;
+            }
+        }
+
+        return order;
+    }
+
+    /// <summary>
+    /// Records the absolute vertical center of every placed box against the graph node it was placed
+    /// from, recursing through container boxes. Coordinates in the layout tree are absolute, so
+    /// centers of boxes in different scopes are directly comparable.
+    /// </summary>
+    private static void CollectCenters(
+        IReadOnlyList<LayoutNode> nodes,
+        IReadOnlyList<LayoutGraphNode> graphNodes,
+        Dictionary<LayoutGraphNode, double> centers)
+    {
+        foreach (var (_, box, graphNode) in PairBoxesWithNodes(nodes, graphNodes))
+        {
+            centers[graphNode] = box.Y + (box.Height / 2.0);
+            if (graphNode.HasChildren && box.Children.Count > 0)
+            {
+                CollectCenters(box.Children, graphNode.Children.Nodes, centers);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns the mean vertical center of the boxes the external relationships of the definition
+    /// <paramref name="name"/> lead to, or <see langword="null"/> when it has none that can be
+    /// placed (no relationship leaving its folder, or every partner is hidden by the depth limit).
+    /// </summary>
+    private static double? ExternalPartnerKey(
+        string name,
+        IReadOnlyDictionary<string, Location> located,
+        IReadOnlyList<ModelEdge> edges,
+        IReadOnlyDictionary<LayoutGraphNode, double> centers)
+    {
+        if (!located.TryGetValue(name, out var self))
+        {
+            return null;
+        }
+
+        var sum = 0.0;
+        var count = 0;
+        foreach (var edge in edges)
+        {
+            var partnerName = PartnerOf(edge, name);
+            if (partnerName is null || !located.TryGetValue(partnerName, out var partner))
+            {
+                continue;
+            }
+
+            var anchor = ExternalAnchor(self.Scope, partner);
+            if (anchor is not null && centers.TryGetValue(anchor, out var center))
+            {
+                sum += center;
+                count++;
+            }
+        }
+
+        return count > 0 ? sum / count : null;
+    }
+
+    /// <summary>Returns the other end of <paramref name="edge"/> as seen from <paramref name="name"/>, or null when it does not touch it (or is a self-loop).</summary>
+    private static string? PartnerOf(ModelEdge edge, string name)
+    {
+        if (edge.SourceQualified == name && edge.TargetQualified != name)
+        {
+            return edge.TargetQualified;
+        }
+
+        return edge.TargetQualified == name && edge.SourceQualified != name ? edge.SourceQualified : null;
+    }
+
+    /// <summary>
+    /// Returns the node a relationship from a definition held by <paramref name="selfScope"/> to
+    /// <paramref name="partner"/> actually targets at the level where the two meet: the partner itself
+    /// when it is a direct member of the lowest common scope, otherwise the container (folder or
+    /// definition) that holds the partner and is a direct member of that scope. Returns null for an
+    /// internal relationship, where the partner sits in the definition's own scope.
+    /// </summary>
+    private static LayoutGraphNode? ExternalAnchor(ScopeInfo selfScope, Location partner)
+    {
+        var common = LowestCommonScope(selfScope, partner.Scope);
+        if (ReferenceEquals(common, selfScope))
+        {
+            return null;
+        }
+
+        var anchor = partner.Node;
+        for (var scope = partner.Scope; !ReferenceEquals(scope, common); scope = scope.Parent!)
+        {
+            anchor = scope.Owner ?? anchor;
+        }
+
+        return anchor;
+    }
+
+    /// <summary>
+    /// Orders the items that have a key by that key (ties keep declaration order) into the slots the
+    /// keyed items occupied, leaving the items without a key where they are. Returns null when fewer than two
+    /// items have a key or the order does not change.
+    /// </summary>
+    private static List<string>? OrderByPartnerPosition(IReadOnlyList<DefBox> items, IReadOnlyList<double?> keys)
+    {
+        var slots = Enumerable.Range(0, items.Count).Where(i => keys[i].HasValue).ToList();
+        if (slots.Count < 2)
+        {
+            return null;
+        }
+
+        // Round before comparing so sub-pixel differences between boxes that are effectively level
+        // do not reorder them (and thereby make the result depend on layout noise).
+        var sorted = slots.OrderBy(i => Math.Round(keys[i]!.Value)).ThenBy(i => i).ToList();
+        if (sorted.SequenceEqual(slots))
+        {
+            return null;
+        }
+
+        var wanted = items.Select(item => item.QualifiedName).ToList();
+        for (var k = 0; k < slots.Count; k++)
+        {
+            wanted[slots[k]] = items[sorted[k]].QualifiedName;
+        }
+
+        return wanted;
     }
 
     /// <summary>Returns the last segment of a qualified package name for use as a folder label.</summary>

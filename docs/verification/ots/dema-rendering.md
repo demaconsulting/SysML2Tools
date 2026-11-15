@@ -23,7 +23,8 @@ boxes and routed orthogonal connectors, honor the requested layout direction (in
 top-to-bottom flow), pack container regions, route connectors around the boxes it places, and
 render a layout tree to both SVG and PNG, and route an edge declared on an ancestor graph scope
 between the nested endpoint nodes themselves (cross-hierarchy edges, available since version
-0.3.0-beta.2).
+0.3.0-beta.2), and stack the unconnected groups of a layered container's contents in the order the
+nodes were added.
 
 ### Verification Approach
 
@@ -187,3 +188,15 @@ inside the nested folder as one endpoint.
 the nested definition's box to the owner's definition box.
 
 **Requirement coverage**: `SysML2Tools-OTS-DemaRendering-CrossHierarchyEdges`.
+
+#### LayeredLayoutAlgorithm_Layout_ContainerContents_StackUnconnectedGroupsByInsertionOrder
+
+**Scenario**: A layered package-folder container holds a specialization pair (`S` specializing `C`)
+and an otherwise unconnected node `H`, and has relationships leaving it at the root scope. The nodes are
+added to the container in the order `C`, `S`, `H` in one run and `H`, `C`, `S` in another.
+
+**Expected**: The package stacks the unconnected group in insertion order: `H` is placed below `C` in the
+first run and above `C` in the second. This is the behavior the General View's ordering refinement
+relies on; an upgrade that changes it fails this scenario.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-ComponentOrderFollowsInsertion`.

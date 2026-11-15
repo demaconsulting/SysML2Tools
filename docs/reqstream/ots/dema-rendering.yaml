@@ -116,3 +116,18 @@ sections:
             tests:
               - GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_SiblingPackages_DeclaredAtRootAndRoutedToNestedBoxes
               - GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_NestedVersusOuter_DeclaredInOuterScope
+
+          - id: SysML2Tools-OTS-DemaRendering-ComponentOrderFollowsInsertion
+            title: >-
+              DemaConsulting.Rendering shall stack the unconnected groups of nodes inside a layered
+              container in the order the nodes were added to it.
+            justification: |
+              The General View cannot make the engine place a package folder's contents with
+              knowledge of where the folder's outgoing relationships lead, so it controls the
+              stacking by the order in which it adds the folder's definitions. That is only a sound
+              mechanism while the package keeps ordering such groups by insertion order; this
+              requirement pins the behavior so that an upgrade that changes it fails here instead of
+              silently reintroducing relationship crossings.
+            tags: [ots]
+            tests:
+              - LayeredLayoutAlgorithm_Layout_ContainerContents_StackUnconnectedGroupsByInsertionOrder

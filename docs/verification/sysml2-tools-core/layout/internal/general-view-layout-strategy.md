@@ -181,7 +181,14 @@ configuration are required beyond a standard .NET SDK installation.
   in which the layout engine emitted a scope's boxes, at the root and inside nested containers.
 - The gallery model `docs/gallery/models/11-nested-packages-general.sysml` renders `Powertrain` and
   `Body` folders inside the `Vehicle` folder with the cross-package specialization and the
-  compositions into `Car` drawn in the `Vehicle` scope between the actual endpoint boxes.
+  compositions into `Car` drawn in the `Vehicle` scope between the actual endpoint boxes, with no two
+  connectors of the drawing crossing and `Hybrid` stacked above `Chassis`.
+- The definitions inside a package folder are stacked in the order of the boxes their relationships
+  lead to outside the folder (a definition leading to a nearer box above one leading to a farther
+  box), independent of declaration order, with no crossing between the connectors of the
+  nested-package example; a folder with no relationship leaving it keeps declaration order; a
+  relationship to a partner hidden by the depth limit does not disturb the layout; and the partner
+  position is measured at the level where the two meet however deeply the partner is nested.
 
 ##### Test Scenarios
 
@@ -453,4 +460,17 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_NestedPackagesGalleryModel_RendersFoldersNestedAndCrossPackageEdges`:
   The gallery model `11-nested-packages-general.sysml` draws `Powertrain` and `Body` inside `Vehicle`, the
   `Hybrid` to `Engine` specialization and both compositions into `Car` in the `Vehicle` scope between the
-  endpoint boxes
+  endpoint boxes, with `Hybrid` above `Chassis` and zero crossings between the lines of the whole drawing
+- `GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_OrderFolderItemsByPartnerPosition`:
+  The nested-package model with `Hybrid` declared last and again first in `Body` places `Hybrid` above
+  `Chassis` in both and draws no crossing connectors, so the picture does not depend on declaration order
+- `GeneralViewLayoutStrategy_BuildLayout_NoExternalEdges_KeepsDeclarationOrder`:
+  A package with unconnected definitions and a specialization pair and no relationship leaving it
+  keeps its declaration order (`Zeta` before `Alpha` before `Beta`)
+- `GeneralViewLayoutStrategy_BuildLayout_ExternalEdgeToTruncatedPartner_DoesNotThrowAndKeepsOrder`:
+  A relationship into a nested package collapsed by the depth limit gives the definition no ordering
+  key; the layout completes, both definitions of the folder are drawn in declaration order, and the
+  hidden partner's box is absent
+- `GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeepNesting_FollowsPartnerContainerOrder`:
+  Two definitions of `A::B` leading into `Lo::In` and `Hi::In` are stacked in the same vertical order
+  as the `Lo` and `Hi` folders, for both declaration orders

@@ -124,3 +124,4 @@ sections:
           - SysML2Tools-OTS-DemaRendering-RenderSvg
           - SysML2Tools-OTS-DemaRendering-RenderPng
           - SysML2Tools-OTS-DemaRendering-CrossHierarchyEdges
+          - SysML2Tools-OTS-DemaRendering-ComponentOrderFollowsInsertion

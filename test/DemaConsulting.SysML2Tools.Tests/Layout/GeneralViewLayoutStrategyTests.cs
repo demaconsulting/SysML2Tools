@@ -5,6 +5,7 @@
 using System.Reflection;
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
+using DemaConsulting.Rendering.Layout;
 using DemaConsulting.SysML2Tools.Layout.Internal;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -2107,6 +2108,11 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Equal(2, compositions.Count);
         Assert.Contains(compositions, l => RunsBetween(l, engine, car));
         Assert.Contains(compositions, l => RunsBetween(l, FindBox(layout.Nodes, "Chassis"), car));
+
+        // Assert: no two connectors cross - Hybrid is stacked above Chassis because its relationship
+        // leads to the nearer Powertrain folder while Chassis's leads past it to Car
+        Assert.Equal(0, CountLineCrossings(layout.Nodes));
+        Assert.True(hybrid.Y < FindBox(layout.Nodes, "Chassis").Y);
     }
 
     /// <summary>
@@ -3851,6 +3857,216 @@ public sealed class GeneralViewLayoutStrategyTests
         var resultY = Assert.IsType<LayoutBox>(resultP.Children[0]);
         Assert.Equal("+2 more\u2026", Assert.IsType<LayoutLabel>(Assert.Single(resultY.Children)).Text);
         Assert.Empty(Assert.IsType<LayoutBox>(resultP.Children[2]).Children);
+    }
+
+    /// <summary>
+    ///     Counts the places where two different lines cross each other properly (an interior point of
+    ///     a segment of one line lies strictly inside a segment of the other). Lines that merely touch,
+    ///     share an endpoint or run along the same line are not counted; every line's waypoints are absolute.
+    /// </summary>
+    private static int CountLineCrossings(IReadOnlyList<LayoutNode> nodes)
+    {
+        var lines = CollectNodes(nodes).OfType<LayoutLine>().ToList();
+        var crossings = 0;
+        for (var i = 0; i < lines.Count; i++)
+        {
+            for (var j = i + 1; j < lines.Count; j++)
+            {
+                crossings += CountSegmentCrossings(lines[i], lines[j]);
+            }
+        }
+
+        return crossings;
+    }
+
+    /// <summary>Counts the proper crossings between the segments of two lines.</summary>
+    private static int CountSegmentCrossings(LayoutLine first, LayoutLine second)
+    {
+        var count = 0;
+        for (var a = 0; a + 1 < first.Waypoints.Count; a++)
+        {
+            for (var b = 0; b + 1 < second.Waypoints.Count; b++)
+            {
+                var (a1, a2) = (first.Waypoints[a], first.Waypoints[a + 1]);
+                var (b1, b2) = (second.Waypoints[b], second.Waypoints[b + 1]);
+                var onOppositeSidesOfB = Orientation(b1.X, b1.Y, b2.X, b2.Y, a1.X, a1.Y) * Orientation(b1.X, b1.Y, b2.X, b2.Y, a2.X, a2.Y) < 0;
+                var onOppositeSidesOfA = Orientation(a1.X, a1.Y, a2.X, a2.Y, b1.X, b1.Y) * Orientation(a1.X, a1.Y, a2.X, a2.Y, b2.X, b2.Y) < 0;
+                if (onOppositeSidesOfA && onOppositeSidesOfB)
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>The signed area of the triangle (p, q, r): positive when r is left of p-q, negative when right, zero when collinear.</summary>
+    private static double Orientation(double px, double py, double qx, double qy, double rx, double ry) =>
+        ((qx - px) * (ry - py)) - ((qy - py) * (rx - px));
+
+    /// <summary>
+    ///     The vehicle model of the nested-package gallery example with the <c>Body</c> package's
+    ///     definitions supplied by the caller, so tests can vary their declaration order.
+    /// </summary>
+    private static string VehicleModel(string bodyDefinitions) => $$"""
+        package Vehicle {
+            package Powertrain { part def Engine; part def ElectricMotor :> Engine; }
+            package Body { {{bodyDefinitions}} }
+            part def Car { part engine : Powertrain::Engine; part chassis : Body::Chassis; }
+        }
+        """;
+
+    /// <summary>
+    ///     Relationships leaving a package folder are not forced to cross by the declaration order of
+    ///     the folder's definitions: <c>Hybrid</c> (leading into the <c>Powertrain</c> folder) is placed
+    ///     above <c>Chassis</c> (leading past it to <c>Car</c>) whether it is declared last or first, and
+    ///     no two lines of the whole drawing cross.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_OrderFolderItemsByPartnerPosition()
+    {
+        // Act: the declaration order that used to force the crossing, and its reverse
+        var hybridLast = await LayOutUnscopedAsync(VehicleModel("part def Chassis; part def SportsChassis :> Chassis; part def Hybrid :> Powertrain::Engine;"));
+        var hybridFirst = await LayOutUnscopedAsync(VehicleModel("part def Hybrid :> Powertrain::Engine; part def Chassis; part def SportsChassis :> Chassis;"));
+
+        // Assert: Hybrid sits above Chassis in both and nothing crosses
+        foreach (var layout in new[] { hybridLast, hybridFirst })
+        {
+            Assert.True(FindBox(layout.Nodes, "Hybrid").Y < FindBox(layout.Nodes, "Chassis").Y);
+            Assert.Equal(0, CountLineCrossings(layout.Nodes));
+        }
+    }
+
+    /// <summary>
+    ///     A folder none of whose definitions has a relationship leaving it is laid out in declaration
+    ///     order: the refinement leaves it alone (the engine stacks its unconnected definitions by the
+    ///     order they were added).
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_NoExternalEdges_KeepsDeclarationOrder()
+    {
+        // Act: three unconnected definitions and a specialization pair, all inside one package
+        var layout = await LayOutUnscopedAsync("package P { part def Zeta; part def Alpha; part def Mid :> Alpha; part def Beta; }");
+
+        // Assert: reading order (top to bottom, then left to right) equals declaration order of the
+        // groups, and nothing is reordered alphabetically or by connectivity
+        var p = FindBox(layout.Nodes, "P");
+        var readingOrder = p.Children.OfType<LayoutBox>()
+            .OrderBy(b => b.Y).ThenBy(b => b.X)
+            .Select(b => b.Label)
+            .ToList();
+        Assert.True(readingOrder.IndexOf("Zeta") < readingOrder.IndexOf("Alpha"));
+        Assert.True(readingOrder.IndexOf("Alpha") < readingOrder.IndexOf("Beta"));
+    }
+
+    /// <summary>
+    ///     A partner hidden inside a depth-truncated folder has no box to measure, so the definition has
+    ///     no ordering key: the layout completes, both of the folder's definitions are drawn and they keep
+    ///     their declaration order.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdgeToTruncatedPartner_DoesNotThrowAndKeepsOrder()
+    {
+        // Act: Z lives in Far::Sub, whose contents sit beyond the depth limit of 2
+        var layout = await LayOutUnscopedAsync(
+            "package Body { part def A; part def B :> Far::Sub::Z; } package Far { part def W; package Sub { part def Z; } }",
+            depthLimit: 2);
+
+        // Assert
+        var a = FindBox(layout.Nodes, "A");
+        var b = FindBox(layout.Nodes, "B");
+        Assert.True(a.Y < b.Y || a.X < b.X);
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), box => box.Label == "Z");
+        Assert.Equal("+1 more\u2026", Assert.IsType<LayoutLabel>(Assert.Single(FindBox(layout.Nodes, "Sub").Children)).Text);
+    }
+
+    /// <summary>
+    ///     The partner's position is measured at the level where the two meet, however deep the partner
+    ///     is nested: definitions of <c>A::B</c> that lead into <c>Lo::In</c> and <c>Hi::In</c> are
+    ///     stacked in the same vertical order as the <c>Lo</c> and <c>Hi</c> folders they lead to,
+    ///     whichever way they were declared.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeepNesting_FollowsPartnerContainerOrder()
+    {
+        // Arrange: the same four packages, with the definitions of A::B declared in both orders
+        const string packages = "package Lo { package In { part def L; } } package Hi { package In { part def H; } }";
+        var viaLowFirst = packages + " package A { package B { part def ToLo :> Lo::In::L; part def ToHi :> Hi::In::H; } }";
+        var viaHighFirst = packages + " package A { package B { part def ToHi :> Hi::In::H; part def ToLo :> Lo::In::L; } }";
+
+        // Act / Assert: the stacking of the two definitions matches the stacking of their partners
+        foreach (var sysml in new[] { viaLowFirst, viaHighFirst })
+        {
+            var layout = await LayOutUnscopedAsync(sysml);
+            var lo = FindBox(layout.Nodes, "Lo");
+            var hi = FindBox(layout.Nodes, "Hi");
+            var toLo = FindBox(layout.Nodes, "ToLo");
+            var toHi = FindBox(layout.Nodes, "ToHi");
+            Assert.NotEqual(lo.Y + (lo.Height / 2.0), hi.Y + (hi.Height / 2.0));
+            Assert.Equal(
+                (lo.Y + (lo.Height / 2.0)).CompareTo(hi.Y + (hi.Height / 2.0)),
+                (toLo.Y + (toLo.Height / 2.0)).CompareTo(toHi.Y + (toHi.Height / 2.0)));
+        }
+    }
+
+    /// <summary>
+    ///     Builds the layered-layout graph the General view relies on for its ordering refinement: a
+    ///     <c>B</c> folder holding <c>C</c>, <c>S</c> (specializing <c>C</c>) and <c>H</c>, added in the
+    ///     given order, beside a <c>P</c> folder holding <c>E</c> and a leaf <c>K</c>, with relationships
+    ///     <c>H</c> to <c>E</c>, <c>E</c> to <c>K</c> and <c>C</c> to <c>K</c> declared at the root.
+    /// </summary>
+    private static LayoutTree LayOutOrderProbe(string bodyOrder)
+    {
+        static LayoutGraphNode Add(LayoutGraph scope, string name)
+        {
+            var node = scope.AddNode(name, 130, 50);
+            node.Label = name;
+            node.Keyword = "part def";
+            node.Shape = BoxShape.Rectangle;
+            return node;
+        }
+
+        static LayoutGraphNode AddFolder(LayoutGraph scope, string name)
+        {
+            var folder = scope.AddNode("folder:" + name, 0, 0);
+            folder.Label = name;
+            folder.Shape = BoxShape.Folder;
+            folder.Keyword = "package";
+            folder.TitleHeight = 56;
+            folder.Set(CoreOptions.Algorithm, LayeredLayoutAlgorithm.AlgorithmId);
+            return folder;
+        }
+
+        var graph = new LayoutGraph();
+        var k = Add(graph, "K");
+        var p = AddFolder(graph, "P");
+        var e = Add(p.Children, "E");
+        var b = AddFolder(graph, "B");
+        var nodes = bodyOrder.ToDictionary(name => name, name => Add(b.Children, name.ToString()));
+        b.Children.AddEdge("s-c", nodes['S'], nodes['C']).TargetEnd = EndMarkerStyle.HollowTriangle;
+        graph.AddEdge("h-e", nodes['H'], e).TargetEnd = EndMarkerStyle.HollowTriangle;
+        graph.AddEdge("e-k", e, k).TargetEnd = EndMarkerStyle.FilledDiamond;
+        graph.AddEdge("c-k", nodes['C'], k).TargetEnd = EndMarkerStyle.FilledDiamond;
+        graph.Set(CoreOptions.Algorithm, AutoLayoutAlgorithm.AlgorithmId);
+        return LayoutEngine.Layout(graph);
+    }
+
+    /// <summary>
+    ///     OTS evidence for the contract the General view's ordering refinement builds on: the layered
+    ///     algorithm stacks the unconnected groups of a container's contents in the order the nodes were
+    ///     added, so adding <c>H</c> first places it above <c>C</c> and adding it last places it below.
+    /// </summary>
+    [Fact]
+    public void LayeredLayoutAlgorithm_Layout_ContainerContents_StackUnconnectedGroupsByInsertionOrder()
+    {
+        // Act
+        var hybridLast = LayOutOrderProbe("CSH");
+        var hybridFirst = LayOutOrderProbe("HCS");
+
+        // Assert
+        Assert.True(FindBox(hybridLast.Nodes, "H").Y > FindBox(hybridLast.Nodes, "C").Y);
+        Assert.True(FindBox(hybridFirst.Nodes, "H").Y < FindBox(hybridFirst.Nodes, "C").Y);
     }
 }
 
