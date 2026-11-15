@@ -592,7 +592,9 @@ sections:
           In an `expose`-scoped view, GeneralViewLayoutStrategy shall draw each package that is
           itself exposed (`expose P;` or `expose P::**;`) and satisfies the view conditions as a
           package node containing whichever
-          of its members are also exposed — an empty package node when none are — and shall not draw
+          of its members are also exposed — an empty package node when none are — drawing an
+          exposed package that is nested inside another exposed package inside that package's node,
+          and shall not draw
           a package that is only an ancestor of exposed elements (`expose P::*;` exposes P's members
           but not P).
         justification: |
@@ -606,3 +608,86 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_ViewConditionOnExposedPackage_KeepsOrRemovesPackageNode
           - GeneralViewLayoutStrategy_BuildLayout_NamespaceExpose_DrawsMembersWithoutPackageNode
           - GeneralViewLayoutStrategy_BuildLayout_RecursivePackageExpose_DrawsPackageNodeWithMembers
+          - GeneralViewLayoutStrategy_BuildLayout_ScopedExpose_NestedExposedPackageInsideOwner
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NestedPackageFolders
+        title: >-
+          GeneralViewLayoutStrategy shall draw a package that is nested inside another drawn
+          package as a folder inside the owning package's folder, shall draw an enclosing
+          package's folder even when that package owns no definitions directly, and shall count
+          each enclosing package folder as one nesting level when applying the depth limit.
+        justification: |
+          A nested package is part of its owner. Drawing it as a separate folder beside the owner
+          hides that ownership and, because the layout can then only relate the two folders as
+          peers, prevents relationships between their members from being drawn in the owner's
+          context. Counting every enclosing folder as a nesting level keeps the depth limit
+          consistent with how definitions nested inside definitions are already counted, and a
+          collapsed folder must still account for everything it hides.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_NestedPackage_RendersInsideOwnerFolder
+          - GeneralViewLayoutStrategy_BuildLayout_NestedPackage_ParentWithoutDirectItems_CreatesEnclosingFolder
+          - GeneralViewLayoutStrategy_BuildLayout_NestedPackages_DepthLimit_CountsPackageNesting
+          - GeneralViewLayoutStrategy_BuildLayout_NestedPackagesGalleryModel_RendersFoldersNestedAndCrossPackageEdges
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CrossContainerEdges
+        title: >-
+          GeneralViewLayoutStrategy shall draw every model relationship whose two endpoints are both
+          drawn, including one whose endpoints lie in different packages or at different nesting
+          depths, as a connector between the two endpoint boxes themselves, declared in the
+          innermost container that encloses both endpoints, shall keep two distinct relationships
+          between the same two definitions as two separate connectors in every container, and
+          shall draw none for a relationship that touches a depth-truncated definition.
+        justification: |
+          Relationships between definitions of different packages (a specialization across
+          sibling packages, a part typed by a definition of a nested package) are core model
+          structure. Declaring each in the lowest common ancestor scope lets the layout engine
+          route it to the actual endpoint boxes instead of dropping it or stopping at a package
+          border; a relationship to a hidden definition has no box to connect to. The connector
+          order is then refined so that the connectors do not cross (see ExternalEdgeOrdering).
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_SiblingPackages_DeclaredAtRootAndRoutedToNestedBoxes
+          - GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_NestedVersusOuter_DeclaredInOuterScope
+          - GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_SiblingNestedPackages_DeclaredInCommonParent
+          - GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_DeepNestingAcrossTopLevelPackages_DrawsEdge
+          - GeneralViewLayoutStrategy_BuildLayout_EdgeBetweenContainerAndOwnDescendant_DoesNotThrow
+          - GeneralViewLayoutStrategy_BuildLayout_NestedPackages_DepthLimit_EdgeToTruncatedPackageIsDropped
+          - GeneralViewLayoutStrategy_BuildLayout_ParallelEdgesInNestedPackage_AreNotMerged
+          - GeneralViewLayoutStrategy_BuildLayout_ParallelEdgesInDefinitionContainer_AreNotMerged
+          - GeneralViewLayoutStrategy_BuildLayout_NestedPackagesGalleryModel_RendersFoldersNestedAndCrossPackageEdges
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExternalEdgeOrdering
+        title: >-
+          GeneralViewLayoutStrategy shall order the definitions inside a package folder by the
+          vertical position of the boxes their relationships lead to outside that folder, so that
+          relationships leaving the folder do not need to cross one another and the picture does
+          not depend on the order the definitions were declared in.
+        justification: |
+          The layout engine places a container's contents without knowing where that container's
+          outgoing relationships lead, and stacks unconnected groups of those contents in the order
+          they were added. Adding definitions in declaration order therefore lets an arbitrary
+          declaration order force relationship crossings. Ordering them by their relationships'
+          targets is the standard crossing-reduction (barycenter) heuristic. A definition without
+          external relationships, a folder without any, and a relationship to a hidden definition
+          leave the order untouched.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_OrderFolderItemsByPartnerPosition
+          - GeneralViewLayoutStrategy_BuildLayout_NoExternalEdges_KeepsDeclarationOrder
+          - GeneralViewLayoutStrategy_BuildLayout_ExternalEdgeToTruncatedPartner_DoesNotThrowAndKeepsOrder
+          - GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeepNesting_FollowsPartnerContainerOrder
+          - GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DefinitionToSiblingNestedPackages_OrdersByPartnerFolder
+          - GeneralViewLayoutStrategy_BuildLayout_NestedPackagesGalleryModel_RendersFoldersNestedAndCrossPackageEdges
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-TruncatedContainerDecoration
+        title: >-
+          GeneralViewLayoutStrategy shall label each depth-truncated package folder or definition
+          with the number of elements it hides on that container's own placed box, independent of
+          the order in which the layout engine emits a scope's boxes.
+        justification: |
+          The "+N more…" label tells the reader that content was collapsed by the depth limit. A
+          label attached to the wrong box (because the engine emitted boxes in a different order
+          than the nodes were added) would misreport which container is collapsed and how much it
+          hides.
+        tests:
+          - GeneralViewLayoutStrategy_DecorateTruncated_LineBeforeBoxes_DoesNotBreakBoxToNodePairing
+          - GeneralViewLayoutStrategy_DecorateTruncated_BoxOrderDiffersFromNodeOrder_DecoratesMatchingNode
+          - GeneralViewLayoutStrategy_BuildLayout_NestedPackages_DepthLimit_CountsPackageNesting

@@ -99,3 +99,35 @@ sections:
               - PngRenderer_Render_EmptyTree_WritesPngBytes
               - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_PngRenderer_ReturnsPngOutput
               - DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput
+
+          - id: SysML2Tools-OTS-DemaRendering-CrossHierarchyEdges
+            title: >-
+              DemaConsulting.Rendering shall route an edge declared on a graph scope between two
+              nodes that sit at any depth beneath that scope, connecting the endpoint nodes
+              themselves rather than the containers that hold them.
+            justification: |
+              The General View declares each relationship in the lowest common ancestor scope of
+              its two endpoints, which may be several packages above them. The relationship is
+              only readable if the package connects the endpoint boxes themselves: connecting the
+              enclosing package borders, or dropping the edge when its endpoints are in different
+              containers, would hide relationships between definitions of different packages.
+              Version 0.3.0-beta.2 of the package family introduced this behavior.
+            tags: [ots]
+            tests:
+              - GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_SiblingPackages_DeclaredAtRootAndRoutedToNestedBoxes
+              - GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_NestedVersusOuter_DeclaredInOuterScope
+
+          - id: SysML2Tools-OTS-DemaRendering-ComponentOrderFollowsInsertion
+            title: >-
+              DemaConsulting.Rendering shall stack the unconnected groups of nodes inside a layered
+              container in the order the nodes were added to it.
+            justification: |
+              The General View cannot make the engine place a package folder's contents with
+              knowledge of where the folder's outgoing relationships lead, so it controls the
+              stacking by the order in which it adds the folder's definitions. That is only a sound
+              mechanism while the package keeps ordering such groups by insertion order; this
+              requirement pins the behavior so that an upgrade that changes it fails here instead of
+              silently reintroducing relationship crossings.
+            tags: [ots]
+            tests:
+              - LayeredLayoutAlgorithm_Layout_ContainerContents_StackUnconnectedGroupsByInsertionOrder

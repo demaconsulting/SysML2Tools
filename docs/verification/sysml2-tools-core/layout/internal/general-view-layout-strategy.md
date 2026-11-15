@@ -162,6 +162,33 @@ configuration are required beyond a standard .NET SDK installation.
   quality re-validation (Retry 2): exactly 2 boxes render (`A` and `c`), `b` never appears as its
   own box, and `c` is never silently dropped merely because its immediate parent was itself
   excluded in the same pass.
+- A package nested in another drawn package appears as a folder inside the owning package's
+  folder (as the owner box's own `Children`), never as a separate folder beside it; an enclosing
+  package that owns no definitions directly still gets its folder when a nested package is drawn;
+  in a scoped view a nested exposed package sits inside its exposed owner, and only the nearest
+  exposed enclosing package (or the root, when none is exposed) holds it.
+- A model relationship between two drawn definitions is drawn as a single connector between the two
+  endpoint boxes themselves — across sibling packages, between a nested package and its owner,
+  and across any depth of nesting — declared in the innermost container scope that encloses both
+  endpoints (the root for sibling top-level packages, the owner folder for a nested-versus-outer or
+  sibling-subpackage pair); a relationship between a definition and a definition it contains lays
+  out without error.
+- The depth limit counts each enclosing package folder as one nesting level: a limit of 1 collapses
+  the top-level folder (its label reports every hidden definition and nested package), a limit of 2
+  keeps the top-level folder's own definitions and collapses the nested folder, and a relationship to
+  a definition hidden by the limit draws no connector.
+- A "+N more…" truncation label is attached to the box of the truncated node regardless of the order
+  in which the layout engine emitted a scope's boxes, at the root and inside nested containers.
+- The gallery model `docs/gallery/models/11-nested-packages-general.sysml` renders `Powertrain` and
+  `Body` folders inside the `Vehicle` folder with the cross-package specialization and the
+  compositions into `Car` drawn in the `Vehicle` scope between the actual endpoint boxes, with no two
+  connectors of the drawing crossing and `Hybrid` stacked above `Chassis`.
+- The definitions inside a package folder are stacked in the order of the boxes their relationships
+  lead to outside the folder (a definition leading to a nearer box above one leading to a farther
+  box), independent of declaration order, with no crossing between the connectors of the
+  nested-package example; a folder with no relationship leaving it keeps declaration order; a
+  relationship to a partner hidden by the depth limit does not disturb the layout; and the partner
+  position is measured at the level where the two meet however deeply the partner is nested.
 
 ##### Test Scenarios
 
@@ -401,3 +428,59 @@ configuration are required beyond a standard .NET SDK installation.
   bare package `QuadcopterDrone`, exposed via `expose Battery;` (exact match) — no folder-shaped
   box exists and the `Battery` box is present directly at the root level, the primary Defect B
   correctness guard
+- `GeneralViewLayoutStrategy_BuildLayout_NestedPackage_RendersInsideOwnerFolder`:
+  `package P { part def A; package Sub { part def B; } }` renders one root folder `P` holding the `A`
+  box and a `Sub` folder (which holds `B`), and no `Sub` folder at the root
+- `GeneralViewLayoutStrategy_BuildLayout_NestedPackage_ParentWithoutDirectItems_CreatesEnclosingFolder`:
+  `Outer { Inner { Deep { X } } }` renders three nested folders around `X` and nothing else at the root,
+  although `Outer` and `Inner` own no definitions
+- `GeneralViewLayoutStrategy_BuildLayout_ScopedExpose_NestedExposedPackageInsideOwner`:
+  `expose P::**;` draws `Sub` inside `P`; `expose P::Sub::**;` draws `Sub` at the root with no `P` folder
+- `GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_SiblingPackages_DeclaredAtRootAndRoutedToNestedBoxes`:
+  A specialization between definitions of two sibling top-level packages is exactly one line at the root
+  scope, starting on the specializing box and ending on the supertype box
+- `GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_NestedVersusOuter_DeclaredInOuterScope`:
+  A nested-package definition specializing an owner-package definition yields one line among the owner
+  folder's children (none at the root or in the nested folder), ending on both boxes
+- `GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_SiblingNestedPackages_DeclaredInCommonParent`:
+  A specialization between two sibling nested packages is declared in their common parent folder
+- `GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_DeepNestingAcrossTopLevelPackages_DrawsEdge`:
+  A definition three packages deep specializing a definition of another top-level package is drawn at
+  the root between the two boxes, beside an unpackaged definition
+- `GeneralViewLayoutStrategy_BuildLayout_EdgeBetweenContainerAndOwnDescendant_DoesNotThrow`:
+  A definition related to a definition it contains lays out without error with both boxes present
+- `GeneralViewLayoutStrategy_BuildLayout_NestedPackages_DepthLimit_CountsPackageNesting`:
+  Depth limit 1 collapses `P` to `+4 more…`; limit 2 keeps `A` and collapses `Sub` to `+2 more…`; limit 3
+  and no limit show everything with no truncation label
+- `GeneralViewLayoutStrategy_BuildLayout_NestedPackages_DepthLimit_EdgeToTruncatedPackageIsDropped`:
+  A relationship into a nested package collapsed by the depth limit draws no line and does not throw
+- `GeneralViewLayoutStrategy_DecorateTruncated_BoxOrderDiffersFromNodeOrder_DecoratesMatchingNode`:
+  With the placed boxes (and a line) in a different order than the graph nodes, at the root and inside a
+  nested container, only the box of the truncated node carries the "+N more…" label
+- `GeneralViewLayoutStrategy_BuildLayout_NestedPackagesGalleryModel_RendersFoldersNestedAndCrossPackageEdges`:
+  The gallery model `11-nested-packages-general.sysml` draws `Powertrain` and `Body` inside `Vehicle`, the
+  `Hybrid` to `Engine` specialization and both compositions into `Car` in the `Vehicle` scope between the
+  endpoint boxes, with `Hybrid` above `Chassis` and zero crossings between the lines of the whole drawing
+- `GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_OrderFolderItemsByPartnerPosition`:
+  The nested-package model with `Hybrid` declared last and again first in `Body` places `Hybrid` above
+  `Chassis` in both and draws no crossing connectors, so the picture does not depend on declaration order
+- `GeneralViewLayoutStrategy_BuildLayout_NoExternalEdges_KeepsDeclarationOrder`:
+  A package with unconnected definitions and a specialization pair and no relationship leaving it
+  keeps its declaration order (`Zeta` before `Alpha` before `Beta`)
+- `GeneralViewLayoutStrategy_BuildLayout_ExternalEdgeToTruncatedPartner_DoesNotThrowAndKeepsOrder`:
+  A relationship into a nested package collapsed by the depth limit gives the definition no ordering
+  key; the layout completes, both definitions of the folder are drawn in declaration order, and the
+  hidden partner's box is absent
+- `GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeepNesting_FollowsPartnerContainerOrder`:
+  Two definitions of `A::B` leading into `Lo::In` and `Hi::In` are stacked in the same vertical order
+  as the `Lo` and `Hi` folders, for both declaration orders
+- `GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DefinitionToSiblingNestedPackages_OrdersByPartnerFolder`:
+  Two definitions of package `P` specializing definitions of sibling nested packages `A` and `B` are
+  stacked in the same vertical order as those folders, for both declaration orders, with zero crossings
+  (the relationships stay inside `P`'s scope, which the engine orders itself)
+- `GeneralViewLayoutStrategy_BuildLayout_ParallelEdgesInNestedPackage_AreNotMerged`:
+  Two attributes of the same type inside a nested package give two separate typing connectors, so
+  parallel-edge merging stays off in nested folder scopes
+- `GeneralViewLayoutStrategy_BuildLayout_ParallelEdgesInDefinitionContainer_AreNotMerged`:
+  Two attributes of the same nested type inside a definition container give two separate typing
+  connectors, so parallel-edge merging stays off in definition-container scopes

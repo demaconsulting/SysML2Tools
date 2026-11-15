@@ -86,6 +86,12 @@ recursion.
 
 **Scope:** `InterconnectionViewLayoutStrategy`'s `LayOutInterior`/`CollectParts` recursion;
 possibly a new `LayeredPlacement` entry point that builds a genuinely nested `LayoutGraph`.
+
+**Engine support:** `DemaConsulting.Rendering` 0.3.0-beta.2 now routes an edge declared on a graph
+scope between nodes that sit at any depth beneath it (a cross-hierarchy edge, anchored to the actual
+nested nodes rather than their containers), which removes the engine-side blocker for this item.
+`GeneralViewLayoutStrategy` already uses it for edges across packages. The Interconnection
+strategy's restructuring described above is still required, so this item remains open.
 **Visual gate:** `connect psu to board.cpu;` renders a connector line that visually terminates on
 the inner `cpu` box, not the `board` container's boundary.
 

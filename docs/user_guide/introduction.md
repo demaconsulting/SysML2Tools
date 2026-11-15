@@ -246,6 +246,12 @@ An Interconnection View that exposes several independent systems (for example
 `expose SystemA::**; expose SystemB::**;`) draws every system's frame side by side, in declaration
 order.
 
+A General View draws a package nested inside another package as a folder inside its owner's
+folder, and it draws every relationship between two drawn definitions — including a
+specialization or typing that crosses from one package into another — as a connector between the
+two definition boxes themselves. The repository's diagram gallery shows both in the example
+`11-nested-packages-general.sysml`.
+
 ## View Body Statements
 
 A `view def`/`view` declaration's body may contain `render <target>;` and `filter [<expr>];`
@@ -527,7 +533,11 @@ a single line). The `lint` command does not lay views out, so it does not report
 
 Use `--walk-depth <n>` to limit the nesting depth rendered. Parts beyond the limit are replaced
 with an ellipsis footer (`+N more…`). Silent omission is never used — truncation is always
-visible in the output.
+visible in the output. In a General View every enclosing package counts as one nesting level, the
+same as a definition nested inside another definition: with `--walk-depth 1` each top-level package
+is drawn collapsed, and with `--walk-depth 2` its own definitions are drawn while its nested
+packages are collapsed. A collapsed package reports everything it hides, including nested packages,
+in its `+N more…` label, and relationships to hidden definitions are not drawn.
 
 ```bash
 sysml2tools render model.sysml --output out --walk-depth 3

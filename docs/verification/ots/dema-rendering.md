@@ -21,7 +21,10 @@ SysML2Tools:
 SysML2Tools relies on the family to lay a graph of sized nodes and directed edges out into placed
 boxes and routed orthogonal connectors, honor the requested layout direction (including a
 top-to-bottom flow), pack container regions, route connectors around the boxes it places, and
-render a layout tree to both SVG and PNG.
+render a layout tree to both SVG and PNG, and route an edge declared on an ancestor graph scope
+between the nested endpoint nodes themselves (cross-hierarchy edges, available since version
+0.3.0-beta.2), and stack the unconnected groups of a layered container's contents in the order the
+nodes were added.
 
 ### Verification Approach
 
@@ -163,3 +166,37 @@ package's `PngRenderer`.
 **Expected**: A valid PNG image is produced.
 
 **Requirement coverage**: `SysML2Tools-OTS-DemaRendering-RenderPng`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_SiblingPackages_DeclaredAtRootAndRoutedToNestedBoxes
+
+**Scenario**: Two sibling top-level packages each own a definition, and one definition specializes
+the other. The General View strategy declares the specialization edge on the root graph scope with
+the two nested definition nodes as its endpoints.
+
+**Expected**: The package returns the edge as a routed connector at the root scope whose first and
+last waypoints lie on the borders of the two definition boxes, not on the package folder borders.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-CrossHierarchyEdges`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_NestedVersusOuter_DeclaredInOuterScope
+
+**Scenario**: A package owns a definition and a nested package whose definition specializes the
+owner's definition. The strategy declares the edge on the owner folder's own child scope with a node
+inside the nested folder as one endpoint.
+
+**Expected**: The package returns the connector inside the owner folder's children, running from
+the nested definition's box to the owner's definition box.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-CrossHierarchyEdges`.
+
+#### LayeredLayoutAlgorithm_Layout_ContainerContents_StackUnconnectedGroupsByInsertionOrder
+
+**Scenario**: A layered package-folder container holds a specialization pair (`S` specializing `C`)
+and an otherwise unconnected node `H`, and has relationships leaving it at the root scope. The nodes are
+added to the container in the order `C`, `S`, `H` in one run and `H`, `C`, `S` in another.
+
+**Expected**: The package stacks the unconnected group in insertion order: `H` is placed below `C` in the
+first run and above `C` in the second. This is the behavior the General View's ordering refinement
+relies on; an upgrade that changes it fails this scenario.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-ComponentOrderFollowsInsertion`.

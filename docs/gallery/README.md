@@ -269,10 +269,11 @@ Model: [`models/10-mission-control-expose-recursion.sysml`](models/10-mission-co
 ![Operator Console Deep View](png/OperatorConsoleDeepView.png)
 
 `GroundSegmentDirectChildrenView` (`expose GroundSegment::*;`, NamespaceDirectChildren)
-exposes only `GroundSegment`'s direct members, one level deep: `OperatorConsole` and
-`ThermalRegulator` appear, but neither `OperatorConsole`'s own nested definitions nor
-`RadioNetwork`'s nested `Uplink`/`Downlink` (both two levels below `GroundSegment`) do —
-and `GroundSegment` itself is not included either.
+exposes only `GroundSegment`'s direct members, one level deep: `OperatorConsole`, `ThermalRegulator`,
+and the `RadioNetwork` package itself (drawn as an empty package node, since its own members
+`Uplink`/`Downlink` are two levels below `GroundSegment` and so are not exposed) appear, but neither
+`OperatorConsole`'s own nested definitions nor `RadioNetwork`'s contents do — and `GroundSegment`
+itself is not included either.
 
 Model: [`models/10-mission-control-expose-recursion.sysml`](models/10-mission-control-expose-recursion.sysml)
 (`GroundSegmentDirectChildrenView`) ·
@@ -282,11 +283,10 @@ SVG: [`svg/GroundSegmentDirectChildrenView.svg`](svg/GroundSegmentDirectChildren
 
 `GroundSegmentRecursiveView` (`expose GroundSegment::*::**;`, NamespaceRecursive) exposes
 every descendant of `GroundSegment`, recursively — `OperatorConsole`, `DisplayPanel`,
-`CommsHandset`, `ThermalRegulator`, `Uplink`, and `Downlink` all appear. `RadioNetwork`
-is a bare `package`, not a definition, so it is never itself rendered as a box; its members
-`Uplink`/`Downlink` are in scope and render as flat top-level boxes with no `RadioNetwork`
-wrapper. `GroundSegment` (also a bare package) is excluded from scope and, like
-`RadioNetwork`, shows no folder either.
+`CommsHandset`, `ThermalRegulator`, `Uplink`, and `Downlink` all appear. `RadioNetwork` is
+itself a descendant of `GroundSegment`, so it is drawn as a package folder around its members
+`Uplink`/`Downlink`. `GroundSegment` (also a bare package) is excluded from scope and shows no
+folder.
 
 Model: [`models/10-mission-control-expose-recursion.sysml`](models/10-mission-control-expose-recursion.sysml)
 (`GroundSegmentRecursiveView`) · SVG: [`svg/GroundSegmentRecursiveView.svg`](svg/GroundSegmentRecursiveView.svg)
@@ -302,6 +302,44 @@ Model: [`models/10-mission-control-expose-recursion.sysml`](models/10-mission-co
 > The same fix applies to section 1b above: the `QuadcopterDrone` folder no longer appears
 > around `Battery` in `BatterySubsystemView`, since `QuadcopterDrone` itself was never exposed —
 > only `Battery` was.
+
+The unscoped `MissionControlGeneralView` in the same model draws the whole hierarchy: the
+`MissionControl` folder holds the `GroundSegment` and `SpaceSegment` folders, and
+`GroundSegment` in turn holds the `RadioNetwork` folder beside the `OperatorConsole` and
+`ThermalRegulator` boxes, because a nested package is drawn inside its owner's folder.
+
+Model: [`models/10-mission-control-expose-recursion.sysml`](models/10-mission-control-expose-recursion.sysml)
+(`MissionControlGeneralView`) · SVG: [`svg/MissionControlGeneralView.svg`](svg/MissionControlGeneralView.svg)
+
+![Mission Control General View: SpaceSegment and GroundSegment folders, with RadioNetwork nested inside GroundSegment, all inside the MissionControl folder](png/MissionControlGeneralView.png)
+
+---
+
+## 11. General View — Nested Packages and Cross-Package Edges
+
+Shows how a General View draws a package hierarchy. The `Vehicle` package owns two nested
+packages, `Powertrain` and `Body`, which are drawn as folders **inside** the `Vehicle` folder
+rather than beside it, together with `Car`, a definition owned by `Vehicle` itself.
+
+Every relationship between two drawn definitions is drawn as a connector between the two
+definition boxes themselves, whichever packages they are in. `Hybrid :> Powertrain::Engine`
+is a specialization that crosses from the `Body` package into the `Powertrain` package, and
+`Car`'s `engine : Powertrain::Engine` and `chassis : Body::Chassis` parts draw filled-diamond
+composition edges from the nested packages' definitions to the owner-level `Car` box. Each
+connector is declared in the innermost container that encloses both of its ends (here the
+`Vehicle` folder), so it leaves the nested folders and ends on the definition boxes, not on the
+folder borders. Specializations inside one package (`ElectricMotor :> Engine`,
+`SportsChassis :> Chassis`) stay inside that package's folder.
+
+The order of the definitions inside a folder follows where their relationships lead rather than the
+order they were declared in: `Hybrid` is declared after `Chassis`, but its specialization leads into
+the nearer `Powertrain` folder while `Chassis`'s composition leads past it to `Car`, so `Hybrid` is
+drawn above `Chassis` and the connectors do not cross.
+
+Model: [`models/11-nested-packages-general.sysml`](models/11-nested-packages-general.sysml) ·
+SVG: [`svg/VehiclePackagesGeneralView.svg`](svg/VehiclePackagesGeneralView.svg)
+
+![Vehicle Packages General View: Powertrain and Body folders nested inside the Vehicle folder, with the Hybrid specialization and the Engine and Chassis compositions into Car drawn between the definition boxes](png/VehiclePackagesGeneralView.png)
 
 ---
 
@@ -319,3 +357,4 @@ Model: [`models/10-mission-control-expose-recursion.sysml`](models/10-mission-co
 | 8 | Nested Interconnection View | Computer System | ✅ |
 | 9 | Multi-Port Interconnection View | Motor/Controller Rig | ✅ |
 | 10 | Geometry View | — | Deferred (requires spatial coordinate data) |
+| 11 | General View — Nested Packages | Vehicle Packages | ✅ |

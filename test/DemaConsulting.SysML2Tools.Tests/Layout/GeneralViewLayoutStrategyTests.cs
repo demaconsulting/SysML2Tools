@@ -5,6 +5,7 @@
 using System.Reflection;
 using DemaConsulting.Rendering;
 using DemaConsulting.Rendering.Abstractions;
+using DemaConsulting.Rendering.Layout;
 using DemaConsulting.SysML2Tools.Layout.Internal;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
@@ -2060,6 +2061,61 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     The gallery's nested-package example (<c>11-nested-packages-general.sysml</c>) draws its
+    ///     <c>Powertrain</c> and <c>Body</c> packages as folders inside the <c>Vehicle</c> folder,
+    ///     declares the cross-package relationships in the <c>Vehicle</c> scope (the lowest common
+    ///     ancestor of the nested packages and the owner-level <c>Car</c>), and routes each to its
+    ///     actual endpoint boxes: the <c>Hybrid</c> to <c>Engine</c> specialization across the two
+    ///     sibling packages and the composition edges from both nested packages into <c>Car</c>.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_NestedPackagesGalleryModel_RendersFoldersNestedAndCrossPackageEdges()
+    {
+        var galleryModelsRoot = FindGalleryModelsRoot();
+        if (galleryModelsRoot is null)
+        {
+            return;
+        }
+
+        var modelPath = Path.Combine(galleryModelsRoot, "11-nested-packages-general.sysml");
+        if (!File.Exists(modelPath))
+        {
+            return;
+        }
+
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([modelPath], stdlibTable);
+        Assert.NotNull(result.Workspace);
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(
+            new ViewContext("v", result.Workspace), new RenderOptions(Themes.Light));
+
+        // Assert: one root folder holding both nested package folders and the owner-level Car box
+        var vehicle = Assert.Single(layout.Nodes.OfType<LayoutBox>());
+        Assert.Equal("Vehicle", vehicle.Label);
+        var nestedFolders = vehicle.Children.OfType<LayoutBox>().Where(b => b.Shape == BoxShape.Folder).ToList();
+        Assert.Equal(["Body", "Powertrain"], nestedFolders.Select(f => f.Label).Order().ToArray());
+        Assert.Contains(vehicle.Children.OfType<LayoutBox>(), b => b.Label == "Car");
+
+        // Assert: the cross-package edges live in the Vehicle scope and end on the nested boxes
+        var hybrid = FindBox(layout.Nodes, "Hybrid");
+        var engine = FindBox(layout.Nodes, "Engine");
+        var car = FindBox(layout.Nodes, "Car");
+        var crossSpecialization = Assert.Single(DirectSpecializationLines(vehicle.Children));
+        Assert.True(RunsBetween(crossSpecialization, hybrid, engine));
+        var compositions = vehicle.Children.OfType<LayoutLine>().Where(l => l.TargetEnd == EndMarkerStyle.FilledDiamond).ToList();
+        Assert.Equal(2, compositions.Count);
+        Assert.Contains(compositions, l => RunsBetween(l, engine, car));
+        Assert.Contains(compositions, l => RunsBetween(l, FindBox(layout.Nodes, "Chassis"), car));
+
+        // Assert: no two connectors cross - Hybrid is stacked above Chassis because its relationship
+        // leads to the nearer Powertrain folder while Chassis's leads past it to Car
+        Assert.Equal(0, CountLineCrossings(layout.Nodes));
+        Assert.True(hybrid.Y < FindBox(layout.Nodes, "Chassis").Y);
+    }
+
+    /// <summary>
     ///     Finds the repository's <c>docs/gallery/models</c> directory relative to the test
     ///     assembly, mirroring <see cref="FindSysMLModelsRoot"/>'s upward path-walk convention.
     /// </summary>
@@ -3381,7 +3437,9 @@ public sealed class GeneralViewLayoutStrategyTests
         // Arrange: two graph nodes at this scope — nodeA (kept) and nodeB (truncated, hiding 3 items)
         var graph = new LayoutGraph();
         var nodeA = graph.AddNode("A", 100, 60);
+        nodeA.Label = "A";
         var nodeB = graph.AddNode("B", 100, 60);
+        nodeB.Label = "B";
 
         // A placed line (an intra-scope routed edge) appears before either box in the placed-node list
         var line = new LayoutLine(
@@ -3427,6 +3485,654 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Equal("B", resultBoxB.Label);
         var indicatorB = Assert.IsType<LayoutLabel>(Assert.Single(resultBoxB.Children));
         Assert.Equal("+3 more\u2026", indicatorB.Text);
+    }
+
+    /// <summary>
+    ///     Loads <paramref name="sysml"/> and lays out an unscoped view (no <c>expose</c>: every
+    ///     non-stdlib definition and package is drawn) with the general view strategy.
+    /// </summary>
+    private static async Task<LayoutTree> LayOutUnscopedAsync(string sysml, int depthLimit = 0)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            return new GeneralViewLayoutStrategy().BuildLayout(
+                new ViewContext("v", result.Workspace), new RenderOptions(Themes.Light, DepthLimit: depthLimit));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>Returns the single box labeled <paramref name="label"/> (optionally of <paramref name="shape"/>) anywhere in <paramref name="nodes"/>.</summary>
+    private static LayoutBox FindBox(IReadOnlyList<LayoutNode> nodes, string label, BoxShape? shape = null) =>
+        Assert.Single(CollectBoxes(nodes), b => b.Label == label && (shape is null || b.Shape == shape));
+
+    /// <summary>Returns the hollow-triangle (specialization) lines among the direct nodes of a scope.</summary>
+    private static IReadOnlyList<LayoutLine> DirectSpecializationLines(IReadOnlyList<LayoutNode> scopeNodes) =>
+        [.. scopeNodes.OfType<LayoutLine>().Where(l => l.TargetEnd == EndMarkerStyle.HollowTriangle)];
+
+    /// <summary>
+    ///     True when the point lies on the border of <paramref name="box"/> (within a 2-pixel tolerance
+    ///     for stroke and marker geometry): inside the box's outline and next to one of its four edges.
+    /// </summary>
+    private static bool OnBorder(double x, double y, LayoutBox box)
+    {
+        const double tolerance = 2.0;
+        var inside = x >= box.X - tolerance && x <= box.X + box.Width + tolerance &&
+                     y >= box.Y - tolerance && y <= box.Y + box.Height + tolerance;
+        var nearEdge = Math.Abs(x - box.X) <= tolerance || Math.Abs(x - (box.X + box.Width)) <= tolerance ||
+                       Math.Abs(y - box.Y) <= tolerance || Math.Abs(y - (box.Y + box.Height)) <= tolerance;
+        return inside && nearEdge;
+    }
+
+    /// <summary>True when the line starts on <paramref name="source"/>'s border and ends on <paramref name="target"/>'s.</summary>
+    private static bool RunsBetween(LayoutLine line, LayoutBox source, LayoutBox target) =>
+        OnBorder(line.Waypoints[0].X, line.Waypoints[0].Y, source) &&
+        OnBorder(line.Waypoints[^1].X, line.Waypoints[^1].Y, target);
+
+    /// <summary>
+    ///     A package nested in another package is drawn inside its owner's folder (issue #87), not as a
+    ///     separate folder beside it.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_NestedPackage_RendersInsideOwnerFolder()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package P { part def A; package Sub { part def B; } }");
+
+        // Assert: one root folder P, holding the A box and the Sub folder (which holds B)
+        var root = Assert.Single(layout.Nodes.OfType<LayoutBox>());
+        Assert.Equal("P", root.Label);
+        Assert.Equal(BoxShape.Folder, root.Shape);
+        Assert.Contains(root.Children.OfType<LayoutBox>(), b => b.Label == "A");
+        var sub = Assert.Single(root.Children.OfType<LayoutBox>(), b => b.Shape == BoxShape.Folder);
+        Assert.Equal("Sub", sub.Label);
+        Assert.Contains(sub.Children.OfType<LayoutBox>(), b => b.Label == "B");
+        Assert.Single(CollectBoxes(layout.Nodes), b => b.Label == "Sub");
+    }
+
+    /// <summary>
+    ///     An enclosing package that owns no definitions directly still gets its folder when a nested
+    ///     package is drawn, at every nesting level.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_NestedPackage_ParentWithoutDirectItems_CreatesEnclosingFolder()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package Outer { package Inner { package Deep { part def X; } } }");
+
+        // Assert: Outer > Inner > Deep > X, three folders and nothing else at the root
+        var outer = Assert.Single(layout.Nodes.OfType<LayoutBox>());
+        Assert.Equal("Outer", outer.Label);
+        var inner = Assert.Single(outer.Children.OfType<LayoutBox>());
+        Assert.Equal("Inner", inner.Label);
+        Assert.Equal(BoxShape.Folder, inner.Shape);
+        var deep = Assert.Single(inner.Children.OfType<LayoutBox>());
+        Assert.Equal("Deep", deep.Label);
+        Assert.Equal(BoxShape.Folder, deep.Shape);
+        Assert.Equal("X", Assert.Single(deep.Children.OfType<LayoutBox>()).Label);
+        Assert.Equal(3, CollectBoxes(layout.Nodes).Count(b => b.Shape == BoxShape.Folder));
+    }
+
+    /// <summary>
+    ///     With <c>expose P::**;</c> the nested exposed package sits inside P's folder; with
+    ///     <c>expose P::Sub::**;</c> only Sub is exposed, so it is drawn at the root with no P folder.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ScopedExpose_NestedExposedPackageInsideOwner()
+    {
+        // Arrange
+        const string sysml = """
+            package P { part def A; package Sub { part def B; } }
+            package Diagrams {
+                view Outer { expose P::**; }
+                view InnerOnly { expose P::Sub::**; }
+            }
+            """;
+
+        // Act
+        var outer = await LayOutDeclaredViewAsync(sysml, "Outer");
+        var innerOnly = await LayOutDeclaredViewAsync(sysml, "InnerOnly");
+
+        // Assert: nested inside P in the first view
+        var p = Assert.Single(outer.Nodes.OfType<LayoutBox>());
+        Assert.Equal("P", p.Label);
+        Assert.Contains(p.Children.OfType<LayoutBox>(), b => b.Label == "Sub" && b.Shape == BoxShape.Folder);
+
+        // Assert: Sub at the root, P not drawn, in the second
+        var sub = Assert.Single(innerOnly.Nodes.OfType<LayoutBox>());
+        Assert.Equal("Sub", sub.Label);
+        Assert.DoesNotContain(CollectBoxes(innerOnly.Nodes), b => b.Label == "P");
+    }
+
+    /// <summary>
+    ///     A specialization between definitions of two sibling top-level packages is drawn at the root
+    ///     scope (their lowest common ancestor) and runs between the two definition boxes themselves,
+    ///     not between the package folder borders.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_SiblingPackages_DeclaredAtRootAndRoutedToNestedBoxes()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package P1 { part def A; } package P2 { part def B :> P1::A; }");
+
+        // Assert
+        var line = Assert.Single(DirectSpecializationLines(layout.Nodes));
+        Assert.True(RunsBetween(line, FindBox(layout.Nodes, "B"), FindBox(layout.Nodes, "A")));
+    }
+
+    /// <summary>
+    ///     An edge between a definition in a nested package and one in the owner package is declared in
+    ///     the owner's folder scope (the nested package is below it), and runs between the two boxes.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_NestedVersusOuter_DeclaredInOuterScope()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package P { part def A; package Sub { part def B :> A; } }");
+
+        // Assert: the line belongs to P's scope - not the root, not Sub's
+        var p = FindBox(layout.Nodes, "P");
+        var sub = FindBox(layout.Nodes, "Sub");
+        Assert.Empty(DirectSpecializationLines(layout.Nodes));
+        Assert.Empty(DirectSpecializationLines(sub.Children));
+        var line = Assert.Single(DirectSpecializationLines(p.Children));
+        Assert.True(RunsBetween(line, FindBox(layout.Nodes, "B"), FindBox(layout.Nodes, "A")));
+    }
+
+    /// <summary>An edge between two sibling nested packages is declared in their common parent's scope.</summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_SiblingNestedPackages_DeclaredInCommonParent()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync(
+            "package P { package S1 { part def A; } package S2 { part def B :> S1::A; } }");
+
+        // Assert
+        var p = FindBox(layout.Nodes, "P");
+        Assert.Empty(DirectSpecializationLines(layout.Nodes));
+        Assert.Empty(DirectSpecializationLines(FindBox(layout.Nodes, "S1").Children));
+        Assert.Empty(DirectSpecializationLines(FindBox(layout.Nodes, "S2").Children));
+        var line = Assert.Single(DirectSpecializationLines(p.Children));
+        Assert.True(RunsBetween(line, FindBox(layout.Nodes, "B"), FindBox(layout.Nodes, "A")));
+    }
+
+    /// <summary>
+    ///     An edge from a definition three packages deep to a definition in another top-level package
+    ///     is declared at the root (their lowest common ancestor) and drawn between the two boxes,
+    ///     even beside an unpackaged definition.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_DeepNestingAcrossTopLevelPackages_DrawsEdge()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync(
+            "package O { package M { package D { part def X :> Q::Y; } } } package Q { part def Y; } part def Loose;");
+
+        // Assert
+        var line = Assert.Single(DirectSpecializationLines(layout.Nodes));
+        Assert.True(RunsBetween(line, FindBox(layout.Nodes, "X"), FindBox(layout.Nodes, "Y")));
+        Assert.Contains(layout.Nodes.OfType<LayoutBox>(), b => b.Label == "Loose");
+    }
+
+    /// <summary>
+    ///     A definition that contains a nested definition and is related to it (here through the typed
+    ///     feature) has the container's own enclosing scope as its lowest common ancestor; the layout
+    ///     completes without error and draws both boxes.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_EdgeBetweenContainerAndOwnDescendant_DoesNotThrow()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("part def Car { part def Eng; part e : Eng; }");
+
+        // Assert
+        var car = FindBox(layout.Nodes, "Car");
+        Assert.Contains(car.Children.OfType<LayoutBox>(), b => b.Label == "Eng");
+    }
+
+    /// <summary>The model for the nested-package depth-limit tests: P owns A and a Sub package of B and C.</summary>
+    private const string DepthLimitedNestedSysml = "package P { part def A; package Sub { part def B; part def C; } }";
+
+    /// <summary>
+    ///     Each enclosing package counts as one nesting level, so a depth limit of 1 collapses the top
+    ///     folder (counting the nested package's contents too), a limit of 2 keeps the owner's own
+    ///     definitions but collapses the nested package, and a limit of 3 (or none) shows everything.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_NestedPackages_DepthLimit_CountsPackageNesting()
+    {
+        // Act
+        var limitOne = await LayOutUnscopedAsync(DepthLimitedNestedSysml, depthLimit: 1);
+        var limitTwo = await LayOutUnscopedAsync(DepthLimitedNestedSysml, depthLimit: 2);
+        var limitThree = await LayOutUnscopedAsync(DepthLimitedNestedSysml, depthLimit: 3);
+        var unlimited = await LayOutUnscopedAsync(DepthLimitedNestedSysml);
+
+        // Assert: limit 1 - P collapses, hiding A, Sub, B and C
+        var folderOne = FindBox(limitOne.Nodes, "P");
+        Assert.Equal("+4 more\u2026", Assert.IsType<LayoutLabel>(Assert.Single(folderOne.Children)).Text);
+        Assert.DoesNotContain(CollectBoxes(limitOne.Nodes), b => b.Label is "A" or "Sub" or "B" or "C");
+
+        // Assert: limit 2 - A is drawn, Sub collapses to "+2 more…"
+        var folderTwo = FindBox(limitTwo.Nodes, "P");
+        Assert.Contains(folderTwo.Children.OfType<LayoutBox>(), b => b.Label == "A");
+        var subTwo = FindBox(limitTwo.Nodes, "Sub");
+        Assert.Equal("+2 more\u2026", Assert.IsType<LayoutLabel>(Assert.Single(subTwo.Children)).Text);
+        Assert.DoesNotContain(CollectBoxes(limitTwo.Nodes), b => b.Label is "B" or "C");
+
+        // Assert: limit 3 and no limit - everything is drawn with no truncation label
+        foreach (var layout in new[] { limitThree, unlimited })
+        {
+            var sub = FindBox(layout.Nodes, "Sub");
+            Assert.Equal(["B", "C"], sub.Children.OfType<LayoutBox>().Select(b => b.Label).Order().ToArray());
+            Assert.DoesNotContain(CollectNodes(layout.Nodes), n => n is LayoutLabel { Text: var t } && t.Contains("more"));
+        }
+    }
+
+    /// <summary>An edge to a definition hidden inside a depth-truncated nested package is dropped without error.</summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_NestedPackages_DepthLimit_EdgeToTruncatedPackageIsDropped()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync(
+            "package P { part def A; package Sub { part def B :> P::A; } }", depthLimit: 2);
+
+        // Assert: A is drawn, Sub is collapsed, and no specialization line exists
+        FindBox(layout.Nodes, "A");
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => b.Label == "B");
+        Assert.Empty(CollectLines(layout.Nodes));
+    }
+
+    /// <summary>Recursively collects every node (boxes, lines, labels) from a node list.</summary>
+    private static IReadOnlyList<LayoutNode> CollectNodes(IReadOnlyList<LayoutNode> nodes)
+    {
+        var result = new List<LayoutNode>();
+        void Walk(IReadOnlyList<LayoutNode> ns)
+        {
+            foreach (var n in ns)
+            {
+                result.Add(n);
+                if (n is LayoutBox box)
+                {
+                    Walk(box.Children);
+                }
+            }
+        }
+
+        Walk(nodes);
+        return result;
+    }
+
+    /// <summary>Builds a minimal placed box for the <c>DecorateTruncated</c> fixtures.</summary>
+    private static LayoutBox MakeFixtureBox(string label, BoxShape shape, string? keyword, params LayoutNode[] children) =>
+        new(
+            X: 0, Y: 0, Width: 100, Height: 60, Label: label, Depth: 1, Shape: shape,
+            Compartments: [], Children: children, Keyword: keyword, RoundedCornerRadius: null,
+            FolderTabWidth: null, FolderTabHeight: null, ContentInsetLeft: 0, ContentInsetRight: 0,
+            ContentInsetTop: 0, ContentInsetBottom: 0, CenterTitle: false);
+
+    /// <summary>Invokes the private recursive <c>DecorateTruncated</c> worker.</summary>
+    private static List<LayoutNode> InvokeDecorateTruncated(
+        List<LayoutNode> placed,
+        List<LayoutGraphNode> graphNodes,
+        Dictionary<LayoutGraphNode, (int HiddenCount, double TitleOffset)> hiddenByNode)
+    {
+        var method = typeof(GeneralViewLayoutStrategy)
+            .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
+            .Single(m => m.Name == "DecorateTruncated" && m.GetParameters().Length == 4
+                         && m.GetParameters()[0].ParameterType == typeof(IReadOnlyList<LayoutNode>));
+        return (List<LayoutNode>)method.Invoke(null, [placed, graphNodes, hiddenByNode, Themes.Light])!;
+    }
+
+    /// <summary>
+    ///     The "+N more…" decoration is paired with its box by the node's identity (label, keyword,
+    ///     shape), not by position: with the boxes placed in a different order than the graph nodes
+    ///     (and a line among them), and with a nested container whose children are permuted too, only
+    ///     the box standing for the truncated node is decorated.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_DecorateTruncated_BoxOrderDiffersFromNodeOrder_DecoratesMatchingNode()
+    {
+        // Arrange: root scope nodes A, P (a folder container holding X and truncated Y), B (truncated)
+        var graph = new LayoutGraph();
+        var nodeA = graph.AddNode("A", 100, 60);
+        nodeA.Label = "A";
+        nodeA.Keyword = "part def";
+        nodeA.Shape = BoxShape.Rectangle;
+        var nodeP = graph.AddNode("folder:P", 0, 0);
+        nodeP.Label = "P";
+        nodeP.Keyword = "package";
+        nodeP.Shape = BoxShape.Folder;
+        var nodeX = nodeP.Children.AddNode("P::X", 100, 60);
+        nodeX.Label = "X";
+        nodeX.Keyword = "part def";
+        nodeX.Shape = BoxShape.Rectangle;
+        var nodeY = nodeP.Children.AddNode("folder:P::Y", 100, 60);
+        nodeY.Label = "Y";
+        nodeY.Keyword = "package";
+        nodeY.Shape = BoxShape.Folder;
+        var nodeB = graph.AddNode("folder:B", 100, 60);
+        nodeB.Label = "B";
+        nodeB.Keyword = "package";
+        nodeB.Shape = BoxShape.Folder;
+
+        var line = new LayoutLine(
+            Waypoints: [], SourceEnd: EndMarkerStyle.None, TargetEnd: EndMarkerStyle.None,
+            LineStyle: LineStyle.Solid, MidpointLabel: null);
+
+        // The engine order is reversed relative to the graph order, at both scopes
+        var placedP = MakeFixtureBox(
+            "P", BoxShape.Folder, "package",
+            MakeFixtureBox("Y", BoxShape.Folder, "package"),
+            line,
+            MakeFixtureBox("X", BoxShape.Rectangle, "part def"));
+        var placed = new List<LayoutNode>
+        {
+            MakeFixtureBox("B", BoxShape.Folder, "package"),
+            line,
+            placedP,
+            MakeFixtureBox("A", BoxShape.Rectangle, "part def"),
+        };
+        var hiddenByNode = new Dictionary<LayoutGraphNode, (int HiddenCount, double TitleOffset)>
+        {
+            [nodeB] = (5, 0.0),
+            [nodeY] = (2, 0.0),
+        };
+
+        // Act
+        var result = InvokeDecorateTruncated(placed, [nodeA, nodeP, nodeB], hiddenByNode);
+
+        // Assert: root scope - only B carries a label
+        Assert.Equal("+5 more\u2026", Assert.IsType<LayoutLabel>(Assert.Single(Assert.IsType<LayoutBox>(result[0]).Children)).Text);
+        Assert.Empty(Assert.IsType<LayoutBox>(result[3]).Children);
+
+        // Assert: nested scope - only Y carries a label
+        var resultP = Assert.IsType<LayoutBox>(result[2]);
+        var resultY = Assert.IsType<LayoutBox>(resultP.Children[0]);
+        Assert.Equal("+2 more\u2026", Assert.IsType<LayoutLabel>(Assert.Single(resultY.Children)).Text);
+        Assert.Empty(Assert.IsType<LayoutBox>(resultP.Children[2]).Children);
+    }
+
+    /// <summary>
+    ///     Counts the places where two different lines cross each other properly (an interior point of
+    ///     a segment of one line lies strictly inside a segment of the other). Lines that merely touch,
+    ///     share an endpoint or run along the same line are not counted; every line's waypoints are absolute.
+    /// </summary>
+    private static int CountLineCrossings(IReadOnlyList<LayoutNode> nodes)
+    {
+        var lines = CollectNodes(nodes).OfType<LayoutLine>().ToList();
+        var crossings = 0;
+        for (var i = 0; i < lines.Count; i++)
+        {
+            for (var j = i + 1; j < lines.Count; j++)
+            {
+                crossings += CountSegmentCrossings(lines[i], lines[j]);
+            }
+        }
+
+        return crossings;
+    }
+
+    /// <summary>Counts the proper crossings between the segments of two lines.</summary>
+    private static int CountSegmentCrossings(LayoutLine first, LayoutLine second)
+    {
+        var count = 0;
+        for (var a = 0; a + 1 < first.Waypoints.Count; a++)
+        {
+            for (var b = 0; b + 1 < second.Waypoints.Count; b++)
+            {
+                var (a1, a2) = (first.Waypoints[a], first.Waypoints[a + 1]);
+                var (b1, b2) = (second.Waypoints[b], second.Waypoints[b + 1]);
+                var onOppositeSidesOfB = Orientation(b1.X, b1.Y, b2.X, b2.Y, a1.X, a1.Y) * Orientation(b1.X, b1.Y, b2.X, b2.Y, a2.X, a2.Y) < 0;
+                var onOppositeSidesOfA = Orientation(a1.X, a1.Y, a2.X, a2.Y, b1.X, b1.Y) * Orientation(a1.X, a1.Y, a2.X, a2.Y, b2.X, b2.Y) < 0;
+                if (onOppositeSidesOfA && onOppositeSidesOfB)
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>The signed area of the triangle (p, q, r): positive when r is left of p-q, negative when right, zero when collinear.</summary>
+    private static double Orientation(double px, double py, double qx, double qy, double rx, double ry) =>
+        ((qx - px) * (ry - py)) - ((qy - py) * (rx - px));
+
+    /// <summary>
+    ///     The vehicle model of the nested-package gallery example with the <c>Body</c> package's
+    ///     definitions supplied by the caller, so tests can vary their declaration order.
+    /// </summary>
+    private static string VehicleModel(string bodyDefinitions) => $$"""
+        package Vehicle {
+            package Powertrain { part def Engine; part def ElectricMotor :> Engine; }
+            package Body { {{bodyDefinitions}} }
+            part def Car { part engine : Powertrain::Engine; part chassis : Body::Chassis; }
+        }
+        """;
+
+    /// <summary>
+    ///     Relationships leaving a package folder are not forced to cross by the declaration order of
+    ///     the folder's definitions: <c>Hybrid</c> (leading into the <c>Powertrain</c> folder) is placed
+    ///     above <c>Chassis</c> (leading past it to <c>Car</c>) whether it is declared last or first, and
+    ///     no two lines of the whole drawing cross.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_OrderFolderItemsByPartnerPosition()
+    {
+        // Act: the declaration order that used to force the crossing, and its reverse
+        var hybridLast = await LayOutUnscopedAsync(VehicleModel("part def Chassis; part def SportsChassis :> Chassis; part def Hybrid :> Powertrain::Engine;"));
+        var hybridFirst = await LayOutUnscopedAsync(VehicleModel("part def Hybrid :> Powertrain::Engine; part def Chassis; part def SportsChassis :> Chassis;"));
+
+        // Assert: Hybrid sits above Chassis in both and nothing crosses
+        foreach (var layout in new[] { hybridLast, hybridFirst })
+        {
+            Assert.True(FindBox(layout.Nodes, "Hybrid").Y < FindBox(layout.Nodes, "Chassis").Y);
+            Assert.Equal(0, CountLineCrossings(layout.Nodes));
+        }
+    }
+
+    /// <summary>
+    ///     A folder none of whose definitions has a relationship leaving it is laid out in declaration
+    ///     order: the refinement leaves it alone (the engine stacks its unconnected definitions by the
+    ///     order they were added).
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_NoExternalEdges_KeepsDeclarationOrder()
+    {
+        // Act: three unconnected definitions and a specialization pair, all inside one package
+        var layout = await LayOutUnscopedAsync("package P { part def Zeta; part def Alpha; part def Mid :> Alpha; part def Beta; }");
+
+        // Assert: reading order (top to bottom, then left to right) equals declaration order of the
+        // groups, and nothing is reordered alphabetically or by connectivity
+        var p = FindBox(layout.Nodes, "P");
+        var readingOrder = p.Children.OfType<LayoutBox>()
+            .OrderBy(b => b.Y).ThenBy(b => b.X)
+            .Select(b => b.Label)
+            .ToList();
+        Assert.True(readingOrder.IndexOf("Zeta") < readingOrder.IndexOf("Alpha"));
+        Assert.True(readingOrder.IndexOf("Alpha") < readingOrder.IndexOf("Beta"));
+    }
+
+    /// <summary>
+    ///     A partner hidden inside a depth-truncated folder has no box to measure, so the definition has
+    ///     no ordering key: the layout completes, both of the folder's definitions are drawn and they keep
+    ///     their declaration order.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdgeToTruncatedPartner_DoesNotThrowAndKeepsOrder()
+    {
+        // Act: Z lives in Far::Sub, whose contents sit beyond the depth limit of 2
+        var layout = await LayOutUnscopedAsync(
+            "package Body { part def A; part def B :> Far::Sub::Z; } package Far { part def W; package Sub { part def Z; } }",
+            depthLimit: 2);
+
+        // Assert
+        var a = FindBox(layout.Nodes, "A");
+        var b = FindBox(layout.Nodes, "B");
+        Assert.True(a.Y < b.Y || a.X < b.X);
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), box => box.Label == "Z");
+        Assert.Equal("+1 more\u2026", Assert.IsType<LayoutLabel>(Assert.Single(FindBox(layout.Nodes, "Sub").Children)).Text);
+    }
+
+    /// <summary>
+    ///     The partner's position is measured at the level where the two meet, however deep the partner
+    ///     is nested: definitions of <c>A::B</c> that lead into <c>Lo::In</c> and <c>Hi::In</c> are
+    ///     stacked in the same vertical order as the <c>Lo</c> and <c>Hi</c> folders they lead to,
+    ///     whichever way they were declared.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeepNesting_FollowsPartnerContainerOrder()
+    {
+        // Arrange: the same four packages, with the definitions of A::B declared in both orders
+        const string packages = "package Lo { package In { part def L; } } package Hi { package In { part def H; } }";
+        var viaLowFirst = packages + " package A { package B { part def ToLo :> Lo::In::L; part def ToHi :> Hi::In::H; } }";
+        var viaHighFirst = packages + " package A { package B { part def ToHi :> Hi::In::H; part def ToLo :> Lo::In::L; } }";
+
+        // Act / Assert: the stacking of the two definitions matches the stacking of their partners
+        foreach (var sysml in new[] { viaLowFirst, viaHighFirst })
+        {
+            var layout = await LayOutUnscopedAsync(sysml);
+            var lo = FindBox(layout.Nodes, "Lo");
+            var hi = FindBox(layout.Nodes, "Hi");
+            var toLo = FindBox(layout.Nodes, "ToLo");
+            var toHi = FindBox(layout.Nodes, "ToHi");
+            Assert.NotEqual(lo.Y + (lo.Height / 2.0), hi.Y + (hi.Height / 2.0));
+            Assert.Equal(
+                (lo.Y + (lo.Height / 2.0)).CompareTo(hi.Y + (hi.Height / 2.0)),
+                (toLo.Y + (toLo.Height / 2.0)).CompareTo(toHi.Y + (toHi.Height / 2.0)));
+        }
+    }
+
+    /// <summary>
+    ///     A definition that is a direct member of a package and whose partners live in different nested
+    ///     packages of that same package is ordered by where those nested packages sit, even though the
+    ///     lowest common scope of each relationship is the package's own scope: <c>ToA</c> and
+    ///     <c>ToB</c> are stacked like the <c>A</c> and <c>B</c> folders they lead to, whichever way
+    ///     they were declared, and no lines cross.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DefinitionToSiblingNestedPackages_OrdersByPartnerFolder()
+    {
+        // Arrange: the same packages, with the owner's definitions declared in both orders
+        const string packages = "package A { part def X; } package B { part def Y; }";
+        var toAFirst = "package P { part def ToA :> A::X; part def ToB :> B::Y; " + packages + " }";
+        var toBFirst = "package P { part def ToB :> B::Y; part def ToA :> A::X; " + packages + " }";
+
+        // Act / Assert
+        foreach (var sysml in new[] { toAFirst, toBFirst })
+        {
+            var layout = await LayOutUnscopedAsync(sysml);
+            var a = FindBox(layout.Nodes, "A");
+            var b = FindBox(layout.Nodes, "B");
+            var toA = FindBox(layout.Nodes, "ToA");
+            var toB = FindBox(layout.Nodes, "ToB");
+            Assert.NotEqual(a.Y + (a.Height / 2.0), b.Y + (b.Height / 2.0));
+            Assert.Equal(
+                (a.Y + (a.Height / 2.0)).CompareTo(b.Y + (b.Height / 2.0)),
+                (toA.Y + (toA.Height / 2.0)).CompareTo(toB.Y + (toB.Height / 2.0)));
+            Assert.Equal(0, CountLineCrossings(layout.Nodes));
+        }
+    }
+
+    /// <summary>
+    ///     Two distinct relationships between the same two definitions inside a nested package (two
+    ///     attributes of the same type) are drawn as two separate connectors: parallel-edge merging is
+    ///     off in every scope, not only at the root.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ParallelEdgesInNestedPackage_AreNotMerged()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync(
+            "package P { package Sub { attribute def Mass; part def Vehicle { attribute mass : Mass; attribute weight : Mass; } } }");
+
+        // Assert: one dashed typing dependency per attribute
+        var typing = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron).ToList();
+        Assert.Equal(2, typing.Count);
+    }
+
+    /// <summary>
+    ///     Two distinct relationships between the same two definitions inside a definition container
+    ///     are likewise drawn as two separate connectors.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ParallelEdgesInDefinitionContainer_AreNotMerged()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync(
+            "part def Outer { attribute def Mass; part def Vehicle { attribute mass : Mass; attribute weight : Mass; } }");
+
+        // Assert: Vehicle and Mass are nested in Outer, and each attribute has its own typing dependency
+        var outer = FindBox(layout.Nodes, "Outer");
+        Assert.Contains(outer.Children.OfType<LayoutBox>(), b => b.Label == "Mass");
+        var typing = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron).ToList();
+        Assert.Equal(2, typing.Count);
+    }
+
+    /// <summary>
+    ///     Builds the layered-layout graph the General view relies on for its ordering refinement: a
+    ///     <c>B</c> folder holding <c>C</c>, <c>S</c> (specializing <c>C</c>) and <c>H</c>, added in the
+    ///     given order, beside a <c>P</c> folder holding <c>E</c> and a leaf <c>K</c>, with relationships
+    ///     <c>H</c> to <c>E</c>, <c>E</c> to <c>K</c> and <c>C</c> to <c>K</c> declared at the root.
+    /// </summary>
+    private static LayoutTree LayOutOrderProbe(string bodyOrder)
+    {
+        static LayoutGraphNode Add(LayoutGraph scope, string name)
+        {
+            var node = scope.AddNode(name, 130, 50);
+            node.Label = name;
+            node.Keyword = "part def";
+            node.Shape = BoxShape.Rectangle;
+            return node;
+        }
+
+        static LayoutGraphNode AddFolder(LayoutGraph scope, string name)
+        {
+            var folder = scope.AddNode("folder:" + name, 0, 0);
+            folder.Label = name;
+            folder.Shape = BoxShape.Folder;
+            folder.Keyword = "package";
+            folder.TitleHeight = 56;
+            folder.Set(CoreOptions.Algorithm, LayeredLayoutAlgorithm.AlgorithmId);
+            return folder;
+        }
+
+        var graph = new LayoutGraph();
+        var k = Add(graph, "K");
+        var p = AddFolder(graph, "P");
+        var e = Add(p.Children, "E");
+        var b = AddFolder(graph, "B");
+        var nodes = bodyOrder.ToDictionary(name => name, name => Add(b.Children, name.ToString()));
+        b.Children.AddEdge("s-c", nodes['S'], nodes['C']).TargetEnd = EndMarkerStyle.HollowTriangle;
+        graph.AddEdge("h-e", nodes['H'], e).TargetEnd = EndMarkerStyle.HollowTriangle;
+        graph.AddEdge("e-k", e, k).TargetEnd = EndMarkerStyle.FilledDiamond;
+        graph.AddEdge("c-k", nodes['C'], k).TargetEnd = EndMarkerStyle.FilledDiamond;
+        graph.Set(CoreOptions.Algorithm, AutoLayoutAlgorithm.AlgorithmId);
+        return LayoutEngine.Layout(graph);
+    }
+
+    /// <summary>
+    ///     OTS evidence for the contract the General view's ordering refinement builds on: the layered
+    ///     algorithm stacks the unconnected groups of a container's contents in the order the nodes were
+    ///     added, so adding <c>H</c> first places it above <c>C</c> and adding it last places it below.
+    /// </summary>
+    [Fact]
+    public void LayeredLayoutAlgorithm_Layout_ContainerContents_StackUnconnectedGroupsByInsertionOrder()
+    {
+        // Act
+        var hybridLast = LayOutOrderProbe("CSH");
+        var hybridFirst = LayOutOrderProbe("HCS");
+
+        // Assert
+        Assert.True(FindBox(hybridLast.Nodes, "H").Y > FindBox(hybridLast.Nodes, "C").Y);
+        Assert.True(FindBox(hybridFirst.Nodes, "H").Y < FindBox(hybridFirst.Nodes, "C").Y);
     }
 }
 
