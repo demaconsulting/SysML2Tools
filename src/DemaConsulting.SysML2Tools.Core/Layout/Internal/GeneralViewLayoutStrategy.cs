@@ -217,7 +217,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <param name="graph">The layout graph holding this scope's own nodes (and the edges declared in it).</param>
     /// <param name="owner">
     /// The container node whose <see cref="LayoutGraphNode.Children"/> graph this scope is, or
-    /// <see langword="null"/> for the root scope. <see cref="ComputeItemOrder"/> walks it to find
+    /// <see langword="null"/> for the root scope. The external-edge anchor lookup uses it to find
     /// which direct member of a common scope contains a given box.
     /// </param>
     private sealed class ScopeInfo(ScopeInfo? parent, LayoutGraph graph, LayoutGraphNode? owner = null)
@@ -1807,13 +1807,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             }
 
             // A folder first added as a pure ancestor takes its own items here, keeping its position.
-            if (itemsByFolder.ContainsKey(package))
+            var firstAdded = !itemsByFolder.ContainsKey(package);
+            itemsByFolder[package] = items;
+            if (firstAdded)
             {
-                itemsByFolder[package] = items;
-            }
-            else
-            {
-                itemsByFolder[package] = items;
                 folderOrder.Add(package);
                 steps.Add((package, g));
             }
