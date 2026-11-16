@@ -14,7 +14,8 @@ lists them in compartments.
 
 `StateTransitionViewLayoutStrategy` has no instance state; all input arrives through the
 `BuildLayout` parameters. Layout constants (`MinStateWidth`, `CharWidthFactor`,
-`InitialMarkerSize`, `FinalMarkerSize`, `InitialMarkerGap`, `AnchorSpread`, `FrameInset`) and the
+`InitialMarkerSize`, `FinalMarkerSize`, `InitialMarkerGap`, `AnchorSpread`, `FrameInset`,
+`LabelBackgroundPad`, `LabelSpacingSlack`, `MaxWideningPasses`) and the
 reserved name `DoneName` are declared as `private const` fields. Two private records carry
 intermediate data: `StateItem` (a state with its computed box size, name line, entry/do/exit
 compartments, and an `IsFinal` flag) and `TransitionItem` (a resolved transition between two state
@@ -147,6 +148,37 @@ of a box corner). `LabelRightExtent` calls the same overload with the same obsta
 label; only the part of a label that genuinely overhangs the content widens the canvas. When a label
 overhangs the left edge of the content instead (`LabelLeftExtent`), `BuildLayout` rebuilds the
 content shifted right by the overhang so the label keeps a margin inside the frame.
+
+*Label clearance.* Transition labels are drawn with an opaque background, so a label that lands on a
+state's border, or on its own connector's arrowhead, visibly erases it. The label placer chooses a
+label position per connector after the layout engine has fixed the geometry, so the strategy cannot
+move a label directly; it changes the sizes it asks the engine to place instead. `BuildLayout` lays the
+states out with `LayOutStates` and then runs `WidenForLabelClearance` on the result: it places the
+labels exactly as the renderers do and flags a label that, with `LabelBackgroundPad` (4 px) added above
+and below, overlaps a state box or covers the first or last open-chevron length of its own connector
+(the placer's text rectangle is already wider than the rendered text, so no horizontal pad is added).
+The engine spreads the anchors on a face of a state evenly across its width, so two labeled
+connectors that arrive on one narrow face (for example two guards `[atFloor]` onto `doorsOpening`)
+sit closer together than their labels are wide; the second label then falls back to a short jog next
+to, or onto the border of, the state. A label that covers a sibling connector arriving on the same
+face is flagged as well. For each flagged label, every state at an end of its connector whose top or
+bottom face carries two or more connectors is widened to the number of connectors on that face times
+the spacing the two widest labels there need (`(w1 + w2) / 2 + LabelSpacingSlack`), but never beyond
+twice its natural width, and the states are laid out again. The pass runs at most `MaxWideningPasses`
+(3) times, is best effort (it never throws and simply stops when nothing more can be widened), and
+changes nothing for a diagram whose labels are already clear, so such a diagram is laid out exactly as
+before. The engine's own per-edge label option is not used because it floors a face's width at the
+number of anchors times the widest label, which would make a state hundreds of pixels wide.
+
+Limitation: a connector that must cross a rank gap carrying a label wider than the gap's other clear
+space can still be hidden under that label (the placer ignores other connectors), and a label wider
+than about 58 px on a back edge's vertical lane beside a state falls back to a jog. Neither can be
+cured by sizing the states, so the gallery models avoid them (see the Heater and Elevator models); the
+`LabelsDoNotOverlapStateBoxes` and `LabelsAreClear` gallery tests guard the models.
+
+*Frame bottom.* The frame ends one `margin` below the lowest content, which is the lower of the lowest
+state, badge, or connector point and the bottom of the lowest placed label, so the empty band under the
+last state or final badge is as thin as the side margin.
 
 `AddInitialMarker` places a filled-circle badge above the initial state with a straight, solid
 arrow into it that ends in an open chevron (`EndMarkerStyle.OpenChevron`) — the specification's

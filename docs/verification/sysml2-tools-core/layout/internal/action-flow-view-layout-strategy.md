@@ -43,6 +43,11 @@ configuration are required beyond a standard .NET SDK installation.
 - A typed action reads `name : Type [m]`.
 - Every succession, a back edge included, ends in an open chevron on an approach at least as long as
   the marker, and the gallery pipeline model shows the whole notation.
+- The guard or `else` label of a decision branch (Pipeline and Order gallery models) sits on a
+  vertical run; the diamond end, the sideways run, other connectors, and the arrowhead stay
+  visible. A branch whose sideways run is longer than its drop keeps the engine's route, and
+  sibling branches keep distinct sideways runs.
+- A missing gallery model fails its test rather than passing vacuously.
 - A `null` `ViewContext.ViewNode` selects the pre-scoping heuristic root and renders every action,
   unchanged from before this feature — the critical `--auto`/no-expose regression guard.
 - A view whose resolved `Expose` edge names a definition other than the heuristic root selects
@@ -102,3 +107,6 @@ configuration are required beyond a standard .NET SDK installation.
 | `ActionFlowView_BuildLayout_AcceptPayload_RendersTextRow` | Payload row, box wide enough |
 | `ActionFlowView_BuildLayout_BackEdge_OpenChevronWithFlushApproach` | Final approach at least the marker length |
 | `ActionFlowView_BuildLayout_PipelineGalleryModel_ShowsActionFlowNotation` | Gallery model shows the notation |
+| `ActionFlowView_BuildLayout_DecisionBranchLabels_SitOnVerticalDrop_AndKeepRunsVisible` | Labels on vertical runs |
+| `ActionFlowView_BuildLayout_WideBranchBoxes_LabeledJogIsLeftUnchanged` | Long sideways run keeps engine route |
+| `ActionFlowView_BuildLayout_DecisionWithManyBranches_KeepsDistinctJogLanes` | Sibling branches keep distinct runs |

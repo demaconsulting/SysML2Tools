@@ -127,7 +127,9 @@ then done;`) ends in the final badge, a bullseye. `doorsOpening` lists its `entr
 actions in compartments titled with the keyword, and `doorsClosing` lists an `entry` action. The
 `idle`/`doorsClosing` pair uses the attached-transition idiom
 (`state idle; accept callReceived if doorsClear do action dimLights then doorsClosing;`) instead
-of a standalone `transition` statement, and shows a full `trigger [guard] / effect` label.
+of a standalone `transition` statement, and shows a full `trigger [guard] / effect` label. The
+`doorsOpen` → `doorsClosing` transition is a plain `accept timeout` trigger, drawn as a back edge
+that ends in a flush open chevron.
 
 The model's `then done;` produces one lint warning, `Unresolved reference: 'done'`: the reference
 resolver resolves the inherited `start`/`done` names only as a transition *source*. The diagram is
@@ -372,7 +374,7 @@ SVG: [`svg/VehiclePackagesGeneralView.svg`](svg/VehiclePackagesGeneralView.svg)
 
 A deliberately small state machine that shows the state notation on its own: `standby` lists an
 `entry` action, `heating` lists `entry`, `do`, and `exit` actions in compartments titled with the
-keyword, `switchOn [tempLow] / beep` is a full `trigger [guard] / effect` label, `cooled` is a back
+keyword, `heat [tempLow] / beep` is a full `trigger [guard] / effect` label, `cooled` is a back
 edge into `standby`, and the machine starts at an initial state and ends in a final state. The
 model's `then done;` produces one lint warning (see section 3).
 
@@ -395,6 +397,20 @@ Model: [`models/13-order-action-flow.sysml`](models/13-order-action-flow.sysml) 
 SVG: [`svg/OrderActionFlowView.svg`](svg/OrderActionFlowView.svg)
 
 ![Order Handling Action Flow View: an accept action, a guarded decision with an else branch, a fork and join as thick bars, a send action, and done and terminate nodes](png/OrderActionFlowView.png)
+
+---
+
+## Known deviation: the diagram-quality fill criterion (B5) on two tall flows
+
+The gallery images are checked against the project's diagram-quality criteria. Every image passes
+them except one criterion on two of the action-flow images: B5 (state boxes and action boxes fill at
+least 20 % of the canvas). The Pipeline image fills 14.2 % (382 × 1780 px) and the Order image fills
+11.5 % (377 × 850 px). The Pipeline image already fell short of B5 on `main` (15.2 %). The cause is
+the layered layout engine, which keeps a fixed 70 px corridor between consecutive layers (an engine
+constant, not an option), so a single-column flow of 8 to 9 layers is mostly corridor. Making such a
+flow wider to raise the fill makes it worse, because the canvas grows faster than the boxes do, and
+reaching 20 % would need a canvas about 40 % smaller. The deviation is accepted for these two tall,
+single-column flows; the State Transition images (Elevator 23.8 %, Heater 22.9 %) pass.
 
 ---
 

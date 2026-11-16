@@ -260,6 +260,35 @@ sections:
           - StateTransitionView_BuildLayout_LongLabel_OverhangingLeft_IsContainedByFrame
           - StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes
 
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-LabelClearance
+        title: >-
+          StateTransitionViewLayoutStrategy shall keep every transition label, drawn with its
+          opaque background padding, clear of every state box, of every other connector, and of
+          the end marker of its own connector, and shall spread the arrival or departure anchors
+          of sibling labeled transitions on a shared state face by widening that state until their
+          labels no longer collide, leaving a state whose labels do not collide at its natural width.
+        justification: |
+          The renderers draw each label on an opaque background, so a label that lands on a state's
+          border, on another arrow, or on its own arrowhead visibly erases it. The layout engine
+          spreads the anchors on a face evenly across the state's width, so two wide labels on one
+          narrow face collide; sizing the state is the only lever the strategy has over where the
+          renderers place a label.
+        tests:
+          - StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes
+          - StateTransitionView_BuildLayout_HeaterGalleryModel_LabelsAreClear
+          - StateTransitionView_BuildLayout_SiblingLabelsOnSharedFace_AreWidenedApart
+          - StateTransitionView_BuildLayout_NoLabelCollision_KeepsNaturalWidth
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-FrameMargin
+        title: >-
+          StateTransitionViewLayoutStrategy shall end the state definition frame one margin below
+          the lowest content, the same margin it keeps at the side.
+        justification: |
+          A larger bottom margin leaves an empty band under the last state or final badge that
+          makes the diagram look unfinished.
+        tests:
+          - StateTransitionView_BuildLayout_FrameBottom_IsOneMarginBelowContent
+
       - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-BackEdgeApproach
         title: >-
           StateTransitionViewLayoutStrategy shall give every transition, including one that

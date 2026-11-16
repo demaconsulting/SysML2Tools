@@ -10,8 +10,12 @@ labels on the lines, compare transition endpoint waypoints to confirm distinct a
 and verify the top-to-bottom flow (a forward chain's target boxes sit below their sources) with
 orthogonal transition polylines. The notation tests check the entry/do/exit compartments, the
 label format, the final badge, and the back-edge approach, and run the renderers' obstacle-aware
-`ConnectorLabelPlacer` over the produced layout (and over the elevator gallery model) to confirm the
-frame contains every label and no label lands on a state box. No mocking is required; the strategy
+`ConnectorLabelPlacer` (with the theme and obstacles the renderers use, the frame included) over the
+produced layout and over the Elevator and Heater gallery models. A label is inflated by the
+renderers' background padding and must not cover a state box, another connector, or the first or
+last marker length of its own connector; synthetic cases confirm that sibling labels on one narrow
+face widen the state and that a state with no collision keeps its natural width. A gallery model
+that cannot be found fails the test; it is never skipped. No mocking is required; the strategy
 depends only on the in-memory model, `LayeredPlacement`, and render options.
 
 ##### Test Environment
@@ -65,6 +69,12 @@ configuration are required beyond a standard .NET SDK installation.
 - A transition into `done` ends in a single bullseye badge, never a state box.
 - Every transition's final straight approach is at least as long as the open chevron marker, and
   the frame contains every label as the renderers place it clear of the state boxes.
+- Every transition label, with its background padding, is clear of every state box, every other
+  connector, and the end marker of its own connector (Elevator and Heater gallery models); two
+  sibling labels that arrive on one narrow face widen that state, and a state with no collision
+  keeps its natural width.
+- The frame ends one margin below the lowest content.
+- A missing gallery model fails its test rather than passing vacuously.
 
 ##### Test Scenarios
 
@@ -101,7 +111,11 @@ configuration are required beyond a standard .NET SDK installation.
 | `StateTransitionView_BuildLayout_BackEdge_OpenChevronWithFlushApproach` | Approach at least the marker length |
 | `StateTransitionView_BuildLayout_FrameWidth_AccountsForLongTransitionLabel` | Frame contains the label |
 | `StateTransitionView_BuildLayout_LongLabel_OverhangingLeft_IsContainedByFrame` | Left overhang moves content right |
-| `StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes` | No label on a state box |
+| `StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes` | Elevator labels clear of all |
+| `StateTransitionView_BuildLayout_HeaterGalleryModel_LabelsAreClear` | Heater labels clear of all |
+| `StateTransitionView_BuildLayout_SiblingLabelsOnSharedFace_AreWidenedApart` | Sibling labels widen the state |
+| `StateTransitionView_BuildLayout_NoLabelCollision_KeepsNaturalWidth` | No collision, natural width |
+| `StateTransitionView_BuildLayout_FrameBottom_IsOneMarginBelowContent` | Frame bottom one margin below |
 | `StateTransitionView_BuildLayout_ElevatorGalleryModel_ShowsCompartmentsLabelsAndFinal` | Gallery notation |
 | `LayeredPlacement_Place_EdgeTargetEnd_ForwardedToGraphEdges` | Edge end decoration reaches the engine |
 | `LayeredPlacement_Place_DefaultEdgeTargetEnd_PreservesBehavior` | Default placement unchanged |

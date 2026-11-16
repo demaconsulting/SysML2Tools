@@ -16,7 +16,8 @@ succession leaving a decision is labeled `[guard]` or `else`.
 
 `ActionFlowViewLayoutStrategy` has no instance state; all input arrives through the `BuildLayout`
 parameters. Layout constants (`MinActionWidth`, `CharWidthFactor`, `MarkerSize`, `MinBarLength`,
-`BarLengthPerConnection`, `DiamondLengthPerConnection`, `ControlNodeBadgeSize`, `MarkerLayerGap`) and
+`BarLengthPerConnection`, `DiamondLengthPerConnection`, `ControlNodeBadgeSize`, `MarkerLayerGap`,
+`JogClearance`) and
 the reserved names `StartName` and `DoneName` are declared as `private const` fields. Three private
 records carry intermediate data: `ActionItem` (an action with its computed size, a `Kind` —
 `"action"` by default, or `"merge"`/`"decide"`/`"join"`/`"fork"`/`"accept"`/`"send"`/`"terminate"` —
@@ -120,6 +121,20 @@ diamond's slanted edge rather than stopping in empty space. The engine also cent
 connection on the bar, which kinks the connector (down, across, down) when the node at the other end is a
 few pixels off-center; `StraightenThroughBar` attaches such a connection where the other end lies
 (when that is within the bar, less a margin) so it runs straight.
+
+*Decision branch labels.* The label placer centers a label on the longest segment of its connector.
+A decision's branch leaves the diamond, runs down a corridor-width gap, across to the target's column,
+and drops to the target (down, across, down); the engine puts the sideways run just above the target,
+so the sideways run is the longest and a wide `[guard]` would sit on it, hiding the run and the start
+of the connector at the diamond. `MoveLabeledJogsTowardsSource` moves the sideways run of the branches
+that leave one source up to `JogClearance` (5 px: the 4 px corner radius of the rounded bends plus
+1 px) below the connector's start, so the final vertical drop is the longest segment and carries the
+label with the run and the start visible. All the down-across-down branches of one source move by the
+same amount (the smallest first run less `JogClearance`), which keeps the engine's spacing between
+sibling lanes, so two branches never share a sideways run. The move is made only for a source that has
+a labeled branch and only when every labeled branch's final drop would then be longer than its sideways
+run; when a branch's sideways run is the longer (for example two very wide target boxes) the engine's
+route is kept, since moving the jog could not make the drop the longest segment.
 
 `AddSuccessionEdges` maps each succession to the corresponding orthogonal polyline returned by
 `LayeredPlacement`, preserving input-edge order and source-to-target orientation.

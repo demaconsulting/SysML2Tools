@@ -210,6 +210,22 @@ sections:
           - ActionFlowView_BuildLayout_GuardedSuccession_LabelsEdge
           - ActionFlowView_BuildLayout_ElseSuccession_LabelsEdgeElse
 
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-GuardLabelRun
+        title: >-
+          ActionFlowViewLayoutStrategy shall carry the guard or else label of a decision branch on
+          a vertical run of its connector that leaves the diamond end, the horizontal run, other
+          connectors, and the arrowhead visible, keeping the engine's route when moving the
+          horizontal run cannot make the final vertical drop the longest segment.
+        justification: |
+          The label placer centers a label on the longest segment of its connector and draws it on
+          an opaque background. On a decision's branch the engine makes the sideways run the
+          longest, so a wide guard would hide the run and the connector's start at the diamond and
+          the branch would look detached from it.
+        tests:
+          - ActionFlowView_BuildLayout_DecisionBranchLabels_SitOnVerticalDrop_AndKeepRunsVisible
+          - ActionFlowView_BuildLayout_WideBranchBoxes_LabeledJogIsLeftUnchanged
+          - ActionFlowView_BuildLayout_DecisionWithManyBranches_KeepsDistinctJogLanes
+
       - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-TerminateNode
         title: >-
           ActionFlowViewLayoutStrategy shall render a terminate node as a crossed circle that

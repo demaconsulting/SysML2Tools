@@ -57,8 +57,8 @@
   <line x1="325.09" y1="472.93" x2="339.23" y2="487.07" stroke="#000000" stroke-width="1.00"/>
   <line x1="325.09" y1="487.07" x2="339.23" y2="472.93" stroke="#000000" stroke-width="1.00"/>
   <path d="M 240.51 170.00 L 240.51 240.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
-  <path d="M 230.51 270.00 L 230.51 286.00 A 4.00 4.00 0 0 1 226.51 290.00 L 180.65 290.00 A 4.00 4.00 0 0 0 176.65 294.00 L 176.65 358.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
-  <path d="M 250.51 270.00 L 250.51 286.00 A 4.00 4.00 0 0 0 254.51 290.00 L 293.65 290.00 A 4.00 4.00 0 0 1 297.65 294.00 L 297.65 350.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 230.51 270.00 L 230.51 272.50 A 2.50 2.50 0 0 1 228.01 275.00 L 180.65 275.00 A 4.00 4.00 0 0 0 176.65 279.00 L 176.65 358.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 250.51 270.00 L 250.51 272.50 A 2.50 2.50 0 0 0 253.01 275.00 L 293.65 275.00 A 4.00 4.00 0 0 1 297.65 279.00 L 297.65 350.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
   <path d="M 158.65 362.00 L 158.65 406.00 A 4.00 4.00 0 0 1 154.65 410.00 L 83.00 410.00 A 4.00 4.00 0 0 0 79.00 414.00 L 79.00 470.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
   <path d="M 194.65 362.00 L 194.65 406.00 A 4.00 4.00 0 0 0 198.65 410.00 L 224.08 410.00 A 4.00 4.00 0 0 1 228.08 414.00 L 228.08 470.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
   <path d="M 79.00 520.00 L 79.00 526.00 A 4.00 4.00 0 0 0 83.00 530.00 L 134.98 530.00 A 4.00 4.00 0 0 1 138.98 534.00 L 138.98 598.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
@@ -70,6 +70,6 @@
   <circle cx="159.28" cy="816.00" r="10.00" fill="#000000"/>
   <circle cx="159.28" cy="816.00" r="3.33" fill="white" stroke="#000000" stroke-width="1.00"/>
   <path d="M 159.28 736.00 L 159.28 806.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
-  <text x="176.65" y="324.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[inStock]</text>
-  <text x="297.65" y="320.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">else</text>
+  <text x="176.65" y="316.50" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[inStock]</text>
+  <text x="297.65" y="312.50" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">else</text>
 </svg>
