@@ -10,21 +10,35 @@ Requirements document.
 SysML2Tools:
 
 - `DemaConsulting.Rendering` — the layout intermediate representation (`LayoutTree`, `LayoutBox`,
-  `LayoutLine`, and related nodes), the layout property system, and `LayoutGraph`.
+  `LayoutLine`, and related nodes), the layout property system, `LayoutGraph`, and the notation
+  styling carried on graph nodes and compartments (`BoxAppearance`, compartment title alignment and
+  style, and the extended `EndMarkerStyle` values).
 - `DemaConsulting.Rendering.Abstractions` — the `IRenderer` contract, `Theme`, `RenderOptions`,
   `RenderOutput`, `NotationMetrics`, `BoxMetrics`, and `ConnectorLabelPlacer`.
 - `DemaConsulting.Rendering.Layout` — the `LayeredLayoutAlgorithm`, `LayoutEngine`, containment
-  layout, and connector routing.
+  layout, the automatic algorithm selection, and connector routing.
 - `DemaConsulting.Rendering.Svg` — the `SvgRenderer`.
 - `DemaConsulting.Rendering.CanvasNet` — the CanvasNet-based `PngRenderer` (and `JpegRenderer`).
 
 SysML2Tools relies on the family to lay a graph of sized nodes and directed edges out into placed
 boxes and routed orthogonal connectors, honor the requested layout direction (including a
-top-to-bottom flow), pack container regions, route connectors around the boxes it places, and
-render a layout tree to both SVG and PNG, and route an edge declared on an ancestor graph scope
-between the nested endpoint nodes themselves (cross-hierarchy edges, available since version
-0.3.0-beta.2), and stack the unconnected groups of a layered container's contents in the order the
-nodes were added.
+top-to-bottom flow, cascaded to every nested container scope), pack container regions, route
+connectors around the boxes it places, and render a layout tree to both SVG and PNG. It also relies
+on the following features introduced by version 0.3.0-beta.3 of the family, in addition to the
+cross-hierarchy edges of version 0.3.0-beta.2 (an edge declared on an ancestor graph scope is routed
+between the nested endpoint nodes themselves) and the insertion-order stacking of the unconnected
+groups of a layered container's contents:
+
+- the per-node `BoxAppearance` (outline style, name style, folder-title placement) carried from the
+  graph node to the placed box and drawn by both renderers (dashed reference usages, italic abstract
+  definition names, package names in the folder tab);
+- the compartment title alignment and title style (centered italic compartment titles);
+- the `HollowTriangleTwoDots` and `HollowTriangleFourDots` end markers (feature typing and reference
+  subsetting) in addition to the existing hollow-triangle, hollow-triangle-with-crossbar, diamond, and
+  open-arrowhead markers;
+- the layout direction set on the root graph cascading to nested folders and containers, and per-node
+  algorithm overrides that survive the `auto` meta-algorithm's split into connected and unconnected
+  groups.
 
 Version 0.3.0-beta.3 of the family adds the SysML v2 notation primitives that the State Transition
 and Action Flow views rely on: thick fork and join bars (`BadgeShape.ThickHorizontalBar`), the
@@ -146,7 +160,8 @@ package's `SvgRenderer`.
 
 **Expected**: The SVG document contains the view's model element names.
 
-**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-RenderSvg`.
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-RenderSvg`,
+`SysML2Tools-OTS-DemaRendering-NotationStyling`.
 
 #### PngRenderer_Render_EmptyTree_WritesPngBytes
 
@@ -171,7 +186,8 @@ package's `PngRenderer`.
 
 **Expected**: A valid PNG image is produced.
 
-**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-RenderPng`.
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-RenderPng`,
+`SysML2Tools-OTS-DemaRendering-NotationStyling`.
 
 #### GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_SiblingPackages_DeclaredAtRootAndRoutedToNestedBoxes
 
@@ -283,3 +299,85 @@ as long as the marker.
 **Expected**: Every succession ends in an open chevron on an approach at least as long as the marker.
 
 **Requirement coverage**: `SysML2Tools-OTS-DemaRendering-BackEdgeApproach`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_ReferenceUsage_OutlineIsDashedAndCompositeUsageIsSolid
+
+**Scenario**: A reference usage and a composite usage are laid out as graph nodes whose box appearance
+requests a dashed and a default outline.
+
+**Expected**: The placed box of the reference usage carries the dashed outline and the composite
+usage's box the solid one.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_AbstractDefinition_NameIsItalicButAbstractUsageIsNot
+
+**Scenario**: An abstract definition's graph node requests an italic name style.
+
+**Expected**: The placed box carries the italic name style; the abstract usage's box carries the default.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_PackageFolder_NameInTabOnlyWhenItHasContent
+
+**Scenario**: A package folder with content requests the name in the tab; an empty package and a
+collapsed package do not.
+
+**Expected**: The placed folder box carries the tab placement only for the folder with content.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments
+
+**Scenario**: A definition's compartments request centered, italic titles.
+
+**Expected**: Every compartment of the placed box carries the centered alignment and italic style.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_ReferenceSubsetting_ProducesHollowTriangleFourDotsEdgeOnlyWhenResolved
+
+**Scenario**: A usage reference-subsets another; the edge requests the four-dots triangle marker.
+
+**Expected**: The routed connector carries the four-dots triangle end marker.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_AllUsages_AttributeUsage_IsNodeWithTypingAndHollowDiamond
+
+**Scenario**: A typed usage and its definition are laid out; the typing edge requests the two-dots
+triangle marker.
+
+**Expected**: The routed connector carries the two-dots triangle end marker at the definition.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_TopDown_OwnerAndGeneralAboveUsageAndDefinitionBelow
+
+**Scenario**: A definition owning a usage typed by another definition, and a specialization, are laid
+out with the top-to-bottom direction set on the root graph only; the definitions sit in nested package
+containers.
+
+**Expected**: The package places the layout-edge sources above their targets, also inside the nested
+containers.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NestedDirectionAndAutoLayout`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_TopDown_UnconnectedDefinitionsDoNotOverlap
+
+**Scenario**: A folder with twelve unconnected nodes and one connected pair is laid out with the
+`auto` algorithm selection and the top-to-bottom direction, in a folder and at the root.
+
+**Expected**: No two placed boxes overlap.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NestedDirectionAndAutoLayout`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_DroneLikeModel_IsCompactAndTopDown
+
+**Scenario**: A graph whose owner reaches eight usages, each typed by its own definition, is laid out
+with the top-to-bottom direction.
+
+**Expected**: The usages share one row below the owner, each definition hangs below its usage, and the
+drawing stays compact.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NestedDirectionAndAutoLayout`.

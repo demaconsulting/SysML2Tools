@@ -7,6 +7,9 @@ that construct a synthetic `SysmlWorkspace`, invoke `BuildLayout`, and assert on
 `LayoutTree`. The tests inspect the node tree for the expected boxes, ports, lines, badges, and
 canvas dimensions. No mocking is required: the strategies depend only on the in-memory semantic
 model, the `DemaConsulting.Rendering` layout data types, `LayeredPlacement`, and render options.
+The General View strategy is additionally verified visually against its gallery images (see the
+`GeneralViewLayoutStrategy` verification chapter), because overlap, crossing, and whitespace quality
+cannot be asserted exhaustively by unit tests.
 
 #### Test Environment
 
@@ -32,6 +35,7 @@ configuration are required beyond a standard .NET SDK installation.
 | Scenario | Strategy | Assertion |
 | --- | --- | --- |
 | Definitions rendered with keywords | `GeneralViewLayoutStrategy` | Each definition becomes a keyword-carrying box |
+| Usage nodes and relationship glyphs | `GeneralViewLayoutStrategy` | Usage boxes joined to owners; edges carry glyphs |
 | Standard-library elements excluded | `GeneralViewLayoutStrategy` | Stdlib-only input yields a minimal empty canvas |
 | Parts, ports, and connectors | `InterconnectionViewLayoutStrategy` | Container box, parts, ports, connection lines |
 | Non-overlapping part boxes | `InterconnectionViewLayoutStrategy` | No two part boxes overlap |

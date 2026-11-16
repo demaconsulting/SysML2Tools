@@ -32,12 +32,10 @@ All nodes carry:
 - `Children` — nested AST nodes.
 - `SupertypeNames` — qualified names of supertypes referenced via `specializes` / `:>`. For a
   `SysmlFeatureNode`, this list is also reused, unresolved, by `GeneralViewLayoutStrategy` as the
-  raw source of its private view-layer `Subsetting` classification (`subsets <target>;` /
-  `:> <target>` on a feature) — there is no separate `SysmlEdgeKind.Subsetting` or dedicated AST
-  field; the layout strategy re-derives which entries are subsetting targets versus ordinary
-  specialization targets by walking the same feature-typing/redefinition-owner resolution it
-  already performs for `Redefinition` edges. See `general-view-layout-strategy.md` for the exact
-  algorithm.
+  raw source of its subsetting edges (`subsets <target>;` / `:> <target>` on a usage) — there is
+  no separate `SysmlEdgeKind.Subsetting` or dedicated AST field; the layout strategy matches each
+  entry to its own resolved `Supertype` edge by the entry's exact text, else resolves it by name.
+  See `general-view-layout-strategy.md` for the exact algorithm.
 - `ImportedNames` — qualified/dotted-name text of imported namespaces or members; populated by
   `AstBuilder.VisitImportRule` for `SysmlImportNode` (mirroring `ImportedNamespace`), and empty
   for all other node types today.
@@ -95,7 +93,7 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   (walking `redefinitions()` instead of `typings()`). Captured verbatim only — including
   qualified `Owner::feature` forms — with no resolution attempted at this stage. Resolved by
   `ReferenceResolver` into a `SysmlEdgeKind.Redefinition` edge, and rendered by
-  `GeneralViewLayoutStrategy` as a hollow-triangle-crossbar marker.
+  `GeneralViewLayoutStrategy` as a hollow-triangle-crossbar edge between the usage boxes.
 - `Multiplicity` — the multiplicity text (e.g., `"[4]"`, `"[0..*]"`), or null when unspecified.
 - `ExpressionText` — the raw expression text of a constraint-kind feature's calculation body or
   referenced constraint name (e.g. `"require constraint"`, `"assume constraint"`, `"constraint"`

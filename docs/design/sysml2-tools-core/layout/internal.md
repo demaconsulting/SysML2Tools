@@ -12,7 +12,7 @@ The subsystem contains one strategy per supported view type:
 
 | Unit | Responsibility |
 | --- | --- |
-| `GeneralViewLayoutStrategy` | Lays out definitions by package with specialization, membership, typing, redefinition |
+| `GeneralViewLayoutStrategy` | Lays out definitions and usage nodes by package, top-to-bottom, with notation edges |
 | `InterconnectionViewLayoutStrategy` | Lays out the internal parts, ports, and connections of one part definition |
 | `StateTransitionViewLayoutStrategy` | Lays out states, an initial marker, and guarded transitions |
 | `ActionFlowViewLayoutStrategy` | Lays out actions top-to-bottom with start/done markers and successions |
