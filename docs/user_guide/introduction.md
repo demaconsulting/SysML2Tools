@@ -246,11 +246,55 @@ An Interconnection View that exposes several independent systems (for example
 `expose SystemA::**; expose SystemB::**;`) draws every system's frame side by side, in declaration
 order.
 
+### General View Notation
+
+A General View follows the SysML v2 graphical notation and the look of the OMG reference
+implementation:
+
+- A **definition** is a box with square corners and a `«part def»`-style keyword; a **usage** is a
+  box with rounded corners and a keyword such as `«part»`. The keyword carries the prefix words
+  `abstract`, `variation`, `individual`, `variant`, and `ref` (for example `«abstract part def»`,
+  `«ref part»`). The name line shows the short name, the name, and the declared specialization,
+  typing, multiplicity, and subsetting or redefinition (`motors : Motor [2]`, `frontMotor :> motors`).
+- By default each part, item, action, state, requirement, and similar usage is drawn as a node of its
+  own, placed beside its owner and joined to it. A port is drawn as a node only when it owns nested
+  features. **Attributes, plain references, and ports without nested features stay rows** in the
+  owner's compartments (`attributes`, `ports`, ...), which have centered italic titles.
+- An abstract definition has an italic name; an abstract usage is marked only by its keyword. A
+  reference usage has a dashed outline.
+- A package is a folder with its name in the tab; a package nested in another package is drawn inside its
+  owner's folder.
+- The diagram flows **top to bottom**: owners and general types are on top, the elements they own or
+  specialize below them, and the definition that types a usage below the usage.
+
+Lines are solid, except imports, dependencies, and comment links, which are dashed.
+
+| Line end or label | Meaning |
+| --- | --- |
+| Filled diamond (◆) at the owner | Composite usage: the owner owns the part |
+| Hollow diamond (◇) at the owner | Reference usage: the owner refers to it without owning it |
+| Hollow triangle with two dots at the definition | Feature typing (`part wheel : Wheel`) |
+| Hollow triangle | Specialization of definitions; subsetting of usages (`:>`) |
+| Hollow triangle with four dots | Reference subsetting (`::>`) |
+| Hollow triangle with a bar | Redefinition (`:>>`) |
+| Open arrowhead, `«satisfy»` or `«verify»` | A design element satisfies, or a verification verifies, a requirement |
+| Dashed, open arrowhead, `«import»` | Package import; `«import»*` for `::*` and `«import»**` for `::**` |
+| Dashed, no arrowhead, to a folded note | A `comment` on the element (documentation is a `doc` compartment) |
+| Plain line, `=`, dashed arrow, `«allocate»` | `connect`, `bind`, `dependency`, and `allocate` relationships |
+
+The documentation and comments of a nested part appear on that part's own box. Satisfy, verify, and
+import lines are drawn only when both ends are drawn in the view, and the standard library is never
+drawn. The choice of which usages are nodes is fixed to this default; an option to draw every usage as
+a node, or to list every usage as a row, is planned (see the `ROADMAP.md` file).
+
 A General View draws a package nested inside another package as a folder inside its owner's
 folder, and it draws every relationship between two drawn definitions — including a
 specialization or typing that crosses from one package into another — as a connector between the
-two definition boxes themselves. The repository's diagram gallery shows both in the example
-`11-nested-packages-general.sysml`.
+two definition boxes themselves. The repository's diagram gallery shows these in the examples
+`11-nested-packages-general.sysml` (nested packages and cross-package edges),
+`12-usages-typing-general.sysml` (usages, typing, subsetting, redefinition, reference and abstract
+styling), `13-doc-comment-general.sysml` (documentation and comments on nested parts), and
+`14-nested-packages-typing-general.sysml` (nested packages with typed usages).
 
 ### State Transition and Action Flow View Notation
 

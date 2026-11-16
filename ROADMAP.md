@@ -27,7 +27,8 @@ flat whole-workspace General View plus a single subsystem view:
   `allocate` edges from requirements to parts.
 - A subsystem-boundary view showing cross-subsystem `dependency` edges without full
   implementation detail.
-- A variant/specialization view showing `subsets` alongside the existing redefinition example.
+- A variant/specialization view showing `abstract` definitions and variants alongside the
+  subsetting and redefinition that gallery model 12 already shows on a drive unit.
 
 This also exercises `--filter`'s metadata classification-test path (e.g. tagging parts with
 `@Critical`/`@Requirement` metadata) rather than only the bracket/expose-subtree path the
@@ -35,6 +36,31 @@ gallery currently shows.
 
 **Scope:** `docs/gallery/models/01-drone-general.sysml` (or a new model file), regenerated SVGs,
 `docs/gallery/README.md`.
+
+### General View notation: follow-ups
+
+The General View now draws usage nodes and the specification's relationship glyphs top-to-bottom.
+Remaining work, each independently scoped:
+
+- **Public node-policy option.** Which usages are nodes (`Pilot` default, every named usage, or rows
+  only) is an internal setting of `GeneralViewLayoutStrategy`. Expose it through `RenderOptions` and the
+  `render` command, with help text, requirements, and user-guide text.
+- **Rendering engine (`DemaConsulting.Rendering`) items.** Rich-text rows with bold keywords (issue
+  #99), port glyphs on box edges (issue #100), and connector end labels (issue #101); a source-end
+  marker on graph edges (so the strategy no longer reverses connectors after layout); a tight-tree
+  layering that keeps a wide drawing compact; control of the shape of the unconnected-node bucket; and a
+  larger first fan-out lane distance, so an owner-end glyph does not reach into the connector bend.
+- **Owned and unowned membership glyphs** (`⊕` and `○`) when a member is drawn outside its owner.
+- **Comment details.** The comment keyword, name, locale, and `about` target need these fields on
+  `SysmlAnnotation` first.
+- **Requirement-usage typing gap.** `requirement r : R;` (also concern and constraint usages) keeps no
+  typing in the syntax tree, so it draws no typing edge and its box shows `r` instead of `r : R`.
+- **Standard-library name collision.** A user package named like a standard-library package (for
+  example `Requirements` or `Views`) is dropped by the name-based standard-library filter.
+- **Import label clipping.** The `«import»*` label is cut off when an import connector routes around the
+  outside of a folder, because the canvas fit shifts waypoints but not label extents.
+- **More relationships.** `perform`, `require`, `frame`, `exhibit`, and `include` need their data in the
+  syntax tree or semantic edges before they can be drawn.
 
 ### Action Flow View: remaining control-node/shape gaps
 

@@ -48,9 +48,11 @@ analysis][workflow]
 - **`help` Command**: Print help for the tool itself, a specific command
   (`lint`/`render`/`query`/`export`), or a specific `query` verb — identical output to the
   corresponding `<command> --help`
-- **GeneralView Layout**: Package-grouped definition block diagrams placed by a layered (ELK-style)
-  engine with orthogonal specialization and membership edges, a spec-style black-on-white notation,
-  compartments, and configurable depth limiting
+- **GeneralView Layout**: Top-to-bottom block diagrams in the SysML v2 graphical notation: package
+  folders with the name in the tab, definition and usage nodes (parts, nested parts, ports with
+  content), and the notation glyphs for specialization, composite and reference membership, typing,
+  subsetting, redefinition, satisfy, verify, and import, placed by a layered (ELK-style) engine with
+  orthogonal edges, compartments, and configurable depth limiting
 - **State and Action Flow Layouts**: Spec-style state machines (entry/do/exit compartments,
   `trigger [guard] / effect` labels, initial and final states) and action flows (thick fork/join
   bars, guarded decisions, accept/send icons, terminate nodes)
