@@ -354,11 +354,13 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <param name="Truncated">The depth-truncated containers to decorate once the layout is known.</param>
     /// <param name="Located">Every definition's node and directly holding scope, keyed by qualified name.</param>
     /// <param name="Plans">The planned package folders, keyed by package qualified name.</param>
+    /// <param name="UsagesByOwner">The usage nodes placed beside their owner, keyed by the owner's qualified name.</param>
     private sealed record GraphBuild(
         LayoutGraph Graph,
         List<TruncatedContainer> Truncated,
         IReadOnlyDictionary<string, Location> Located,
-        IReadOnlyDictionary<string, FolderPlan> Plans);
+        IReadOnlyDictionary<string, FolderPlan> Plans,
+        IReadOnlyDictionary<string, List<DefBox>> UsagesByOwner);
 
     /// <summary>
     /// The planned shape of one package folder, computed before any graph node is created so the
@@ -1729,10 +1731,133 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
                         break;
                     }
+
+                case SysmlEdgeKind.Satisfy:
+                case SysmlEdgeKind.Verify:
+                    {
+                        // The satisfying/verifying element may be a nested declaration that is not a
+                        // box of its own (an objective, a subject), so each endpoint maps to the
+                        // nearest rendered box on its path. An unrendered endpoint or a same-box
+                        // result draws nothing, silently: the relationship is an overlay, and the
+                        // elements it relates are often outside the view's scope by design.
+                        var isSatisfy = edge.Kind == SysmlEdgeKind.Satisfy;
+                        var source = ResolveNearestBox(sourceRef, byQualified);
+                        var target = ResolveNearestBox(edge.TargetQualifiedName, byQualified);
+                        if (source is not null && target is not null && source != target)
+                        {
+                            AddOnce(
+                                edges,
+                                new ModelEdge(
+                                    source,
+                                    target,
+                                    EndMarkerStyle.OpenChevron,
+                                    isSatisfy ? EdgeKind.Satisfy : EdgeKind.Verify,
+                                    isSatisfy ? "«satisfy»" : "«verify»"));
+                        }
+
+                        break;
+                    }
             }
         }
 
+        AddImportEdges(edges, workspace, byQualified);
+
         return (edges, dropped);
+    }
+
+    /// <summary>
+    /// Adds <paramref name="edge"/> unless an identical edge (same endpoints and kind) is already present.
+    /// </summary>
+    private static void AddOnce(List<ModelEdge> edges, ModelEdge edge)
+    {
+        if (!edges.Exists(e => e.SourceQualified == edge.SourceQualified &&
+                               e.TargetQualified == edge.TargetQualified &&
+                               e.Kind == edge.Kind))
+        {
+            edges.Add(edge);
+        }
+    }
+
+    /// <summary>
+    /// Resolves the rendered box nearest to <paramref name="qualifiedName"/>: the name itself when it
+    /// is a box, else the longest <c>"::"</c> prefix that is one, or <see langword="null"/> when no
+    /// prefix is rendered. A satisfy or verify relationship names declarations (a verification
+    /// objective, a nested subject) that are not boxes of their own; the relationship is drawn on
+    /// the box that contains them.
+    /// </summary>
+    private static string? ResolveNearestBox(string qualifiedName, HashSet<string> byQualified)
+    {
+        var candidate = qualifiedName;
+        while (candidate.Length > 0)
+        {
+            if (byQualified.Contains(candidate))
+            {
+                return candidate;
+            }
+
+            var separator = candidate.LastIndexOf("::", StringComparison.Ordinal);
+            candidate = separator > 0 ? candidate[..separator] : string.Empty;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Adds an <see cref="EdgeKind.Import"/> edge for every resolved import of a namespace: the
+    /// import nodes are found among the children of every package, definition and usage (an import's
+    /// own qualified name is null, so it carries no usable source in <c>AllEdges</c>), the importing
+    /// namespace is the source and the imported namespace the target. A package endpoint is its
+    /// folder, a definition or usage endpoint its box; an endpoint that is not rendered (the standard
+    /// library, a package without drawn content) and an import between a namespace and one nested
+    /// in it draw nothing. The label reads <c>«import»</c>, <c>«import»*</c> for a namespace import
+    /// and <c>«import»**</c> for a recursive one (SysML v2 graphical BNF, clause 8.2.3.5).
+    /// </summary>
+    private static void AddImportEdges(List<ModelEdge> edges, SysmlWorkspace workspace, HashSet<string> byQualified)
+    {
+        string? Endpoint(string qualifiedName)
+        {
+            if (byQualified.Contains(qualifiedName))
+            {
+                return qualifiedName;
+            }
+
+            return workspace.Declarations.TryGetValue(qualifiedName, out var declaration) && declaration is SysmlPackageNode
+                ? FolderKeyPrefix + qualifiedName
+                : null;
+        }
+
+        foreach (var (importer, declaration) in workspace.Declarations)
+        {
+            foreach (var import in declaration.Children.OfType<SysmlImportNode>())
+            {
+                var label = ImportLabel(import);
+                foreach (var target in import.ResolvedEdges.Where(e => e.Kind == SysmlEdgeKind.Import).Select(e => e.TargetQualifiedName))
+                {
+                    var contained = target.StartsWith(importer + "::", StringComparison.Ordinal) ||
+                                    importer.StartsWith(target + "::", StringComparison.Ordinal);
+                    if (importer == target || contained)
+                    {
+                        continue;
+                    }
+
+                    if (Endpoint(importer) is { } source && Endpoint(target) is { } destination)
+                    {
+                        AddOnce(edges, new ModelEdge(source, destination, EndMarkerStyle.OpenChevron, EdgeKind.Import, label));
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>Returns the label of an import edge: <c>«import»</c>, <c>«import»*</c> (namespace import) or <c>«import»**</c> (recursive).</summary>
+    private static string ImportLabel(SysmlImportNode import)
+    {
+        if (import.IsRecursive)
+        {
+            return "«import»**";
+        }
+
+        return import.IsWildcard ? "«import»*" : "«import»";
     }
 
     /// <summary>
@@ -2068,6 +2193,13 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // algorithm's own default. The option cascades from this root to every nested folder and
         // definition-container scope (edges are declared in those scopes too), so it is set once here.
         graph.Set(CoreOptions.MergeParallelEdges, false);
+
+        // The graph flows bottom-to-top: an edge runs from its source (the owned, specific or
+        // dependent element) to its target (the owner, general or depended-upon element), so the
+        // target is placed above the source and the owner, supertype or definition reads on top, as
+        // in the OMG Pilot implementation and the SysML v2 training material. The direction
+        // cascades from this root to every nested folder and definition-container scope.
+        graph.Set(CoreOptions.Direction, LayoutFlowDirection.Up);
         var truncated = new List<TruncatedContainer>();
 
         // Reserve the title area (the package name only — the specification draws a package with no
@@ -2128,6 +2260,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 var packageNode = parentScope.Graph.AddNode($"folder:{folderKey}", width, folderTitleHeight + theme.FontSizeTitle + (2.0 * theme.LabelPadding));
                 packageNode.Label = label;
                 packageNode.Shape = BoxShape.Folder;
+                located[FolderKeyPrefix + folderKey] = new Location(packageNode, parentScope);
                 continue;
             }
 
@@ -2143,6 +2276,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 var placeholder = parentScope.Graph.AddNode($"folder:{folderKey}", ellipsisWidth, folderTitleHeight + ellipsisHeight);
                 placeholder.Label = label;
                 placeholder.Shape = BoxShape.Folder;
+                located[FolderKeyPrefix + folderKey] = new Location(placeholder, parentScope);
                 truncated.Add(new TruncatedContainer(placeholder, plan.SubtreeCount, folderTitleHeight));
 
                 // None of the folder's contents receive a node: every edge touching one is dropped.
@@ -2157,7 +2291,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             // specification's package-with-name-in-tab); the engine reserves the tab's own height,
             // so no title band (TitleHeight) is requested on top of it.
             folder.Appearance = new BoxAppearance(FolderTitle: FolderTitlePlacement.Tab);
-            folder.Set(CoreOptions.Algorithm, LayeredLayoutAlgorithm.AlgorithmId);
+            // Each folder's contents use the "auto" algorithm: the layered algorithm places the
+            // connected groups, while unconnected definitions are packed by the containment
+            // algorithm. A folder pinned to the layered algorithm with the bottom-to-top direction
+            // stacks several unconnected nodes of one layer on top of each other (engine defect,
+            // see ExternalEdges_UpDirection_UnconnectedDefinitionsDoNotOverlap).
+            folder.Set(CoreOptions.Algorithm, AutoLayoutAlgorithm.AlgorithmId);
             var folderScope = new ScopeInfo(parentScope, folder.Children, folder);
             folderScopes[folderKey] = folderScope;
             located[FolderKeyPrefix + folderKey] = new Location(folder, parentScope);
@@ -2189,7 +2328,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             added.Label = edge.Label;
         }
 
-        return new GraphBuild(graph, truncated, located, plans);
+        return new GraphBuild(graph, truncated, located, plans, usagesByOwner);
     }
 
     /// <summary>
@@ -2687,17 +2826,19 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <summary>
     /// Computes, for every package folder whose items should be stacked differently, the item order
     /// that keeps relationships leaving the folder from crossing one another: the folder's items
-    /// that have external relationships are ordered by the mean vertical center, in the first
+    /// that have external relationships are ordered by the mean horizontal center, in the first
     /// layout (<paramref name="tree"/>), of the boxes those relationships lead to.
     /// </summary>
     /// <remarks>
     /// The layered engine places a container's contents blind to the container's external edges and
     /// stacks unconnected groups of those contents by insertion index, so it is the caller that must
     /// supply the crossing-reducing (barycenter) order. Items without external relationships keep
-    /// their positions; the keyed items are sorted into the slots the keyed items occupied. Only
-    /// package-folder items are considered, the key is vertical only (every folder flows left to
-    /// right) and one refinement pass is made with no iteration, so the computation always
-    /// terminates and is a no-op, returning an empty result, whenever no folder's order changes.
+    /// their positions; the keyed items are sorted into the slots the keyed items occupied. The key
+    /// of an item aggregates the relationships of the item and of the usage nodes placed beside it.
+    /// Only package-folder items are considered, the key is horizontal only (the graph flows
+    /// bottom-to-top, so a layer is a row) and one refinement pass is made with no iteration, so the
+    /// computation always terminates and is a no-op, returning an empty result, whenever no
+    /// folder's order changes.
     /// </remarks>
     /// <param name="tree">The first-pass layout.</param>
     /// <param name="build">The first-pass graph with its located nodes and folder plans.</param>
@@ -2719,7 +2860,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            var keys = plan.Items.Select(item => ExternalPartnerKey(item.QualifiedName, build.Located, edges, centers)).ToList();
+            var keys = plan.Items.Select(item => ExternalPartnerKey(item.QualifiedName, build.UsagesByOwner, build.Located, edges, centers)).ToList();
             var wanted = OrderByPartnerPosition(plan.Items, keys);
             if (wanted is not null)
             {
@@ -2731,18 +2872,29 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Records the absolute vertical center of every placed box against the graph node it was placed
-    /// from, recursing through container boxes. Coordinates in the layout tree are absolute, so
-    /// centers of boxes in different scopes are directly comparable.
+    /// Records the absolute horizontal center of every placed box against the graph node it was
+    /// placed from, recursing through container boxes. Coordinates in the layout tree are absolute,
+    /// so centers of boxes in different scopes are directly comparable.
     /// </summary>
     private static void CollectCenters(
         IReadOnlyList<LayoutNode> nodes,
         IReadOnlyList<LayoutGraphNode> graphNodes,
         Dictionary<LayoutGraphNode, double> centers)
     {
+        // Several nodes of one scope can share label, keyword and shape (two ports "data :
+        // SensorPort" of different owners): such a box cannot be told from its twin, so it is
+        // never used as an ordering key.
+        var signatureCounts = graphNodes
+            .GroupBy(n => (n.Label, n.Keyword, n.Shape))
+            .ToDictionary(g => g.Key, g => g.Count());
+
         foreach (var (_, box, graphNode) in PairBoxesWithNodes(nodes, graphNodes))
         {
-            centers[graphNode] = box.Y + (box.Height / 2.0);
+            if (signatureCounts[(graphNode.Label, graphNode.Keyword, graphNode.Shape)] == 1)
+            {
+                centers[graphNode] = box.X + (box.Width / 2.0);
+            }
+
             if (graphNode.HasChildren && box.Children.Count > 0)
             {
                 CollectCenters(box.Children, graphNode.Children.Nodes, centers);
@@ -2751,12 +2903,14 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Returns the mean vertical center of the boxes the external relationships of the definition
-    /// <paramref name="name"/> lead to, or <see langword="null"/> when it has none that can be
-    /// placed (no relationship leaving its folder, or every partner is hidden by the depth limit).
+    /// Returns the mean horizontal center of the boxes the external relationships of the box
+    /// <paramref name="name"/> — and of the usage nodes placed beside it (<paramref name="beside"/>) —
+    /// lead to, or <see langword="null"/> when it has none that can be placed (no relationship
+    /// leaving its folder, or every partner is hidden by the depth limit).
     /// </summary>
     private static double? ExternalPartnerKey(
         string name,
+        IReadOnlyDictionary<string, List<DefBox>> beside,
         IReadOnlyDictionary<string, Location> located,
         IReadOnlyList<ModelEdge> edges,
         IReadOnlyDictionary<LayoutGraphNode, double> centers)
@@ -2768,23 +2922,47 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         var sum = 0.0;
         var count = 0;
-        foreach (var edge in edges)
+        foreach (var member in GroupMembers(name, beside))
         {
-            var partnerName = PartnerOf(edge, name);
-            if (partnerName is null || !located.TryGetValue(partnerName, out var partner))
+            foreach (var edge in edges)
             {
-                continue;
-            }
+                var partnerName = PartnerOf(edge, member);
+                if (partnerName is null || !located.TryGetValue(partnerName, out var partner))
+                {
+                    continue;
+                }
 
-            var anchor = ExternalAnchor(self.Scope, partner);
-            if (anchor is not null && centers.TryGetValue(anchor, out var center))
-            {
-                sum += center;
-                count++;
+                var anchor = ExternalAnchor(self.Scope, partner);
+                if (anchor is not null && centers.TryGetValue(anchor, out var center))
+                {
+                    sum += center;
+                    count++;
+                }
             }
         }
 
         return count > 0 ? sum / count : null;
+    }
+
+    /// <summary>
+    /// Returns <paramref name="name"/> together with every usage node placed beside it, transitively:
+    /// the nodes that sit in the same scope as the box and move with it.
+    /// </summary>
+    private static IEnumerable<string> GroupMembers(string name, IReadOnlyDictionary<string, List<DefBox>> beside)
+    {
+        yield return name;
+        if (!beside.TryGetValue(name, out var usages))
+        {
+            yield break;
+        }
+
+        foreach (var usage in usages)
+        {
+            foreach (var member in GroupMembers(usage.QualifiedName, beside))
+            {
+                yield return member;
+            }
+        }
     }
 
     /// <summary>Returns the other end of <paramref name="edge"/> as seen from <paramref name="name"/>, or null when it does not touch it (or is a self-loop).</summary>

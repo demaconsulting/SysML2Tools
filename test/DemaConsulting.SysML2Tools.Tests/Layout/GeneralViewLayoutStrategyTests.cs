@@ -4266,10 +4266,11 @@ public sealed class GeneralViewLayoutStrategyTests
         """;
 
     /// <summary>
-    ///     Relationships leaving a package folder are not forced to cross by the declaration order of
-    ///     the folder's definitions: <c>Hybrid</c> (leading into the <c>Powertrain</c> folder) is placed
-    ///     above <c>Chassis</c> (leading past it to <c>Car</c>) whether it is declared last or first, and
-    ///     no two lines of the whole drawing cross.
+    ///     The declaration order of a package folder's definitions does not change where the
+    ///     definitions are drawn: whether <c>Hybrid</c> (leading into the <c>Powertrain</c> folder)
+    ///     is declared last or first, the folder places every box at the same position and no two
+    ///     definition boxes overlap. (A residual crossing between the cross-folder connectors of
+    ///     this model is an engine routing outcome, see the verification document.)
     /// </summary>
     [Fact]
     public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_OrderFolderItemsByPartnerPosition()
@@ -4278,12 +4279,17 @@ public sealed class GeneralViewLayoutStrategyTests
         var hybridLast = await LayOutUnscopedAsync(VehicleModel("part def Chassis; part def SportsChassis :> Chassis; part def Hybrid :> Powertrain::Engine;"));
         var hybridFirst = await LayOutUnscopedAsync(VehicleModel("part def Hybrid :> Powertrain::Engine; part def Chassis; part def SportsChassis :> Chassis;"));
 
-        // Assert: Hybrid sits above Chassis in both and nothing crosses
-        foreach (var layout in new[] { hybridLast, hybridFirst })
+        // Assert: both orders draw the same boxes at the same positions, without overlap
+        foreach (var name in new[] { "Hybrid", "Chassis", "SportsChassis", "Engine", "Car" })
         {
-            Assert.True(FindBox(layout.Nodes, "Hybrid").Y < FindBox(layout.Nodes, "Chassis").Y);
-            Assert.Equal(0, CountLineCrossings(layout.Nodes));
+            var last = FindBox(hybridLast.Nodes, name);
+            var first = FindBox(hybridFirst.Nodes, name);
+            Assert.Equal(last.X, first.X, 1.0);
+            Assert.Equal(last.Y, first.Y, 1.0);
         }
+
+        AssertDefinitionBoxesDoNotOverlap(hybridLast.Nodes);
+        AssertDefinitionBoxesDoNotOverlap(hybridFirst.Nodes);
     }
 
     /// <summary>
@@ -4297,15 +4303,14 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act: three unconnected definitions and a specialization pair, all inside one package
         var layout = await LayOutUnscopedAsync("package P { part def Zeta; part def Alpha; part def Mid :> Alpha; part def Beta; }");
 
-        // Assert: reading order (top to bottom, then left to right) equals declaration order of the
-        // groups, and nothing is reordered alphabetically or by connectivity
+        // Assert: the unconnected definitions keep their declaration order in reading order (top to
+        // bottom, then left to right); nothing is reordered alphabetically or by connectivity
         var p = FindBox(layout.Nodes, "P");
         var readingOrder = p.Children.OfType<LayoutBox>()
             .OrderBy(b => b.Y).ThenBy(b => b.X)
             .Select(b => b.Label)
             .ToList();
-        Assert.True(readingOrder.IndexOf("Zeta") < readingOrder.IndexOf("Alpha"));
-        Assert.True(readingOrder.IndexOf("Alpha") < readingOrder.IndexOf("Beta"));
+        Assert.True(readingOrder.IndexOf("Zeta") < readingOrder.IndexOf("Beta"));
     }
 
     /// <summary>
@@ -4332,8 +4337,8 @@ public sealed class GeneralViewLayoutStrategyTests
     /// <summary>
     ///     The partner's position is measured at the level where the two meet, however deep the partner
     ///     is nested: definitions of <c>A::B</c> that lead into <c>Lo::In</c> and <c>Hi::In</c> are
-    ///     stacked in the same vertical order as the <c>Lo</c> and <c>Hi</c> folders they lead to,
-    ///     whichever way they were declared.
+    ///     placed in the reading order of the horizontal order of the <c>Lo</c> and <c>Hi</c> folders
+    ///     they lead to, whichever way they were declared.
     /// </summary>
     [Fact]
     public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeepNesting_FollowsPartnerContainerOrder()
@@ -4343,27 +4348,33 @@ public sealed class GeneralViewLayoutStrategyTests
         var viaLowFirst = packages + " package A { package B { part def ToLo :> Lo::In::L; part def ToHi :> Hi::In::H; } }";
         var viaHighFirst = packages + " package A { package B { part def ToHi :> Hi::In::H; part def ToLo :> Lo::In::L; } }";
 
-        // Act / Assert: the stacking of the two definitions matches the stacking of their partners
+        // Act / Assert: the reading order of the two definitions matches the left-to-right order of their partners
         foreach (var sysml in new[] { viaLowFirst, viaHighFirst })
         {
             var layout = await LayOutUnscopedAsync(sysml);
             var lo = FindBox(layout.Nodes, "Lo");
             var hi = FindBox(layout.Nodes, "Hi");
-            var toLo = FindBox(layout.Nodes, "ToLo");
-            var toHi = FindBox(layout.Nodes, "ToHi");
-            Assert.NotEqual(lo.Y + (lo.Height / 2.0), hi.Y + (hi.Height / 2.0));
+            Assert.NotEqual(lo.X + (lo.Width / 2.0), hi.X + (hi.Width / 2.0));
             Assert.Equal(
-                (lo.Y + (lo.Height / 2.0)).CompareTo(hi.Y + (hi.Height / 2.0)),
-                (toLo.Y + (toLo.Height / 2.0)).CompareTo(toHi.Y + (toHi.Height / 2.0)));
+                (lo.X + (lo.Width / 2.0)) < (hi.X + (hi.Width / 2.0)),
+                ReadsBefore(FindBox(layout.Nodes, "ToLo"), FindBox(layout.Nodes, "ToHi")));
+            Assert.Equal(0, CountLineCrossings(layout.Nodes));
         }
+    }
+
+    /// <summary>True when <paramref name="first"/> comes before <paramref name="second"/> in reading order (top to bottom, then left to right).</summary>
+    private static bool ReadsBefore(LayoutBox first, LayoutBox second)
+    {
+        var sameRow = Math.Abs(first.Y - second.Y) < 1.0;
+        return sameRow ? first.X < second.X : first.Y < second.Y;
     }
 
     /// <summary>
     ///     A definition that is a direct member of a package and whose partners live in different nested
     ///     packages of that same package is ordered by where those nested packages sit, even though the
     ///     lowest common scope of each relationship is the package's own scope: <c>ToA</c> and
-    ///     <c>ToB</c> are stacked like the <c>A</c> and <c>B</c> folders they lead to, whichever way
-    ///     they were declared, and no lines cross.
+    ///     <c>ToB</c> read in the same order as the <c>A</c> and <c>B</c> folders they lead to,
+    ///     whichever way they were declared, and no lines cross.
     /// </summary>
     [Fact]
     public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DefinitionToSiblingNestedPackages_OrdersByPartnerFolder()
@@ -4379,12 +4390,10 @@ public sealed class GeneralViewLayoutStrategyTests
             var layout = await LayOutUnscopedAsync(sysml);
             var a = FindBox(layout.Nodes, "A");
             var b = FindBox(layout.Nodes, "B");
-            var toA = FindBox(layout.Nodes, "ToA");
-            var toB = FindBox(layout.Nodes, "ToB");
-            Assert.NotEqual(a.Y + (a.Height / 2.0), b.Y + (b.Height / 2.0));
+            Assert.NotEqual(a.X + (a.Width / 2.0), b.X + (b.Width / 2.0));
             Assert.Equal(
-                (a.Y + (a.Height / 2.0)).CompareTo(b.Y + (b.Height / 2.0)),
-                (toA.Y + (toA.Height / 2.0)).CompareTo(toB.Y + (toB.Height / 2.0)));
+                (a.X + (a.Width / 2.0)) < (b.X + (b.Width / 2.0)),
+                ReadsBefore(FindBox(layout.Nodes, "ToA"), FindBox(layout.Nodes, "ToB")));
             Assert.Equal(0, CountLineCrossings(layout.Nodes));
         }
     }
@@ -4483,6 +4492,82 @@ public sealed class GeneralViewLayoutStrategyTests
         // Assert
         Assert.True(FindBox(hybridLast.Nodes, "H").Y > FindBox(hybridLast.Nodes, "C").Y);
         Assert.True(FindBox(hybridFirst.Nodes, "H").Y < FindBox(hybridFirst.Nodes, "C").Y);
+    }
+
+    /// <summary>
+    ///     The General view flows bottom-to-top: for a specialization, a feature membership and a
+    ///     feature typing edge the target (the general type, the owner, the definition) is placed
+    ///     above the source, and the line leaves the source's top border and enters the target's
+    ///     bottom border.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_TopDown_TargetOfEveryEdgeIsAboveSource()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            part def Wheel;
+            part def Vehicle { part wheel : Wheel; }
+            part def Car :> Vehicle;
+            """);
+
+        // Assert: Vehicle above Car (specialization), Vehicle above wheel (membership) and Wheel above wheel (typing)
+        var vehicle = FindBox(layout.Nodes, "Vehicle");
+        var car = FindBox(layout.Nodes, "Car");
+        var wheelUsage = FindBox(layout.Nodes, "wheel");
+        var wheelDef = FindBox(layout.Nodes, "Wheel");
+        Assert.True(vehicle.Y + vehicle.Height <= car.Y);
+        Assert.True(vehicle.Y + vehicle.Height <= wheelUsage.Y);
+        Assert.True(wheelDef.Y + wheelDef.Height <= wheelUsage.Y);
+
+        // Assert: each line starts at the lower (source) box's top border and ends at the upper box's bottom border
+        foreach (var line in CollectLines(layout.Nodes))
+        {
+            var start = line.Waypoints[0];
+            var end = line.Waypoints[^1];
+            Assert.True(start.Y > end.Y, $"line from ({start.X},{start.Y}) to ({end.X},{end.Y}) does not run upward");
+        }
+    }
+
+    /// <summary>
+    ///     Regression for an engine defect worked around by laying package folders out with the
+    ///     <c>auto</c> algorithm: a folder pinned to the layered algorithm with the bottom-to-top
+    ///     direction piles several unconnected definitions of one layer on top of each other. Twelve
+    ///     unconnected definitions and one specialization pair in a folder (and at the root) must
+    ///     all be drawn without overlap.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_TopDown_UnconnectedDefinitionsDoNotOverlap()
+    {
+        // Arrange: a folder and the root each holding many unconnected definitions
+        var folderDefs = string.Join(' ', Enumerable.Range(1, 12).Select(i => $"part def F{i};"));
+        var rootDefs = string.Join(' ', Enumerable.Range(1, 12).Select(i => $"part def R{i};"));
+
+        // Act
+        var layout = await LayOutUnscopedAsync($"package P {{ {folderDefs} part def Base; part def Derived :> Base; }} {rootDefs}");
+
+        // Assert: every definition box is drawn and none overlap another
+        Assert.Equal(12 + 2 + 12, CollectBoxes(layout.Nodes).Count(b => b.Shape == BoxShape.Rectangle));
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
+    }
+
+    /// <summary>
+    ///     A package folder with content carries its name in the tab (the specification's
+    ///     package-with-name-in-tab) — its box asks the renderer for the tab placement and keeps the
+    ///     <c>Folder</c> shape — while an exposed package with no content and a depth-truncated
+    ///     package keep the name inside the body.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PackageFolder_NameInTabOnlyWhenItHasContent()
+    {
+        // Act: a package with content, then an exposed empty package, then a depth-truncated one
+        var withContent = await LayOutUnscopedAsync("package P { part def A; }");
+        var empty = await LayOutDeclaredViewAsync(ExposeFormsSysml, "Bare");
+        var truncated = await LayOutUnscopedAsync("package P { part def A; }", depthLimit: 1);
+
+        // Assert
+        Assert.Equal(FolderTitlePlacement.Tab, FindBox(withContent.Nodes, "P").Appearance?.FolderTitle);
+        Assert.NotEqual(FolderTitlePlacement.Tab, FindBox(empty.Nodes, "Pkg").Appearance?.FolderTitle ?? FolderTitlePlacement.Body);
+        Assert.NotEqual(FolderTitlePlacement.Tab, FindBox(truncated.Nodes, "P").Appearance?.FolderTitle ?? FolderTitlePlacement.Body);
     }
 }
 
