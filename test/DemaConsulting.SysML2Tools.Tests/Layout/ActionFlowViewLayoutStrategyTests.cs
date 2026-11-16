@@ -1309,6 +1309,38 @@ public sealed class ActionFlowViewLayoutStrategyTests
         }
     }
 
+    /// <summary>
+    ///     A long guard label on a branch that leaves the decision to the left is drawn centered on its
+    ///     vertical run and can extend left of the leftmost box; the canvas must reserve that overhang
+    ///     so the label is fully inside it.
+    /// </summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_LongLeftBranchGuard_LabelIsInsideCanvas()
+    {
+        // Arrange: a decision whose first (leftmost) branch carries a very long guard
+        var longGuard = new string('g', 60);
+        var layout = LayOut(
+            Node("a"), Node("d", "decide"), Node("b1"), Node("b2"), Node("b3"),
+            Then("a", "d"), Then("d", "b1", longGuard), Then("d", "b2", "ok"), Then("d", "b3", isElse: true));
+
+        // Act: place the labels exactly as the renderers do
+        var labeled = layout.Nodes.OfType<LayoutLine>().Where(l => l.MidpointLabel is not null).ToList();
+        var placements = ConnectorLabelPlacer.Place(
+            labeled,
+            Themes.Light.FontSizeBody,
+            layout.Nodes.OfType<LayoutBox>().ToList(),
+            NotationMetrics.MarkerScale(Themes.Light));
+
+        // Assert: every label rectangle lies within [0, width]
+        Assert.Equal(3, labeled.Count);
+        foreach (var line in labeled)
+        {
+            var p = placements[line];
+            Assert.True(p.X - p.HalfWidth >= 0.0, $"Label '{line.MidpointLabel}' extends left of the canvas ({p.X - p.HalfWidth:F1}).");
+            Assert.True(p.X + p.HalfWidth <= layout.Width, $"Label '{line.MidpointLabel}' extends right of the canvas.");
+        }
+    }
+
     /// <summary>Loads and lays out a gallery model; a gallery model that cannot be found fails the test.</summary>
     private static async Task<LayoutTree> LayOutGalleryModelAsync(string fileName)
     {

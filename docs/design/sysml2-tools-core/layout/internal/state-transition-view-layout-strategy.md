@@ -14,7 +14,7 @@ lists them in compartments.
 
 `StateTransitionViewLayoutStrategy` has no instance state; all input arrives through the
 `BuildLayout` parameters. Layout constants (`MinStateWidth`, `CharWidthFactor`,
-`InitialMarkerSize`, `FinalMarkerSize`, `InitialMarkerGap`, `AnchorSpread`, `FrameInset`,
+`InitialMarkerSize`, `FinalMarkerSize`, `InitialMarkerGap`, `FrameInset`,
 `LabelBackgroundPad`, `LabelSpacingSlack`, `MaxWideningPasses`) and the
 reserved name `DoneName` are declared as `private const` fields. Two private records carry
 intermediate data: `StateItem` (a state with its computed box size, name line, entry/do/exit
@@ -197,10 +197,12 @@ last state or final badge is as thin as the side margin.
 arrow into it that ends in an open chevron (`EndMarkerStyle.OpenChevron`) — the specification's
 open arrowhead for initial-state and succession-style transitions (graphical BNF, p268) — rather
 than a filled arrowhead.
-`AddTransitions` maps each transition to the corresponding orthogonal polyline returned by
-`LayeredPlacement`, preserving input-edge order and source-to-target orientation. Successive
-transitions sharing one routed corridor are spread laterally so their anchor points and guard labels
-do not coincide. Each transition is emitted with an open chevron end marker
+`AddTransitions` maps the k-th non-self transition to the k-th orthogonal polyline returned by
+`LayeredPlacement`, which is already in input-edge order and source-to-target orientation. The
+association is by position rather than by state pair, so parallel transitions between the same two
+states (and a forward/back-edge pair) each keep their own engine route, with distinct anchors, and
+each label is placed on its own route; no lateral offset is applied. Each transition is emitted with an
+open chevron end marker
 (`EndMarkerStyle.OpenChevron`, drawn open in both renderers) at the target state, matching SysML v2
 state transition notation, and labeled with its `trigger [guard] / effect` text. A self-transition is
 drawn as a small loop above its state, also terminated by an open chevron end marker. The method returns the

@@ -1240,6 +1240,65 @@ public sealed class StateTransitionViewLayoutStrategyTests
         Assert.True(placement.X + placement.HalfWidth <= frame.X + frame.Width, "The label must not overhang the frame's right edge.");
     }
 
+    /// <summary>
+    ///     Parallel transitions between the same two states each keep their own route from the layout
+    ///     engine (they are not collapsed onto one route and spread apart), and each label sits on
+    ///     its own transition's route.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_ParallelTransitions_EachUseTheirOwnEngineRoute()
+    {
+        // Arrange: two transitions a -> b
+        var layout = LayOut(
+            State("a"),
+            State("b"),
+            new SysmlTransitionNode { Source = "a", Target = "b", Trigger = "first" },
+            new SysmlTransitionNode { Source = "a", Target = "b", Trigger = "second" });
+
+        // Act: route the same graph with the engine, using the final state sizes
+        var frame = Assert.IsType<LayoutBox>(Assert.Single(layout.Nodes));
+        var boxes = frame.Children.OfType<LayoutBox>().ToList();
+        var a = Assert.Single(boxes, x => x.Label == "a");
+        var b = Assert.Single(boxes, x => x.Label == "b");
+        var placed = LayeredPlacement.Place(
+            [(a.Width, a.Height), (b.Width, b.Height)],
+            [(0, 1), (0, 1)],
+            LayoutFlowDirection.Down,
+            mergeParallelEdges: false,
+            edgeTargetEnd: EndMarkerStyle.OpenChevron);
+        var (dx, dy) = (a.X - placed.Rects[0].X, a.Y - placed.Rects[0].Y);
+        var lines = frame.Children.OfType<LayoutLine>().ToList();
+        var placements = ConnectorLabelPlacer.Place(lines, Themes.Light.FontSizeBody, boxes, NotationMetrics.MarkerScale(Themes.Light));
+
+        // Assert: the engine routes the two edges differently, and each drawn line is exactly its own route
+        Assert.Equal(2, lines.Count);
+        Assert.NotEqual(placed.EdgePolylines[0], placed.EdgePolylines[1]);
+        var labels = new[] { "first", "second" };
+        for (var k = 0; k < 2; k++)
+        {
+            var line = Assert.Single(lines, l => l.MidpointLabel!.Contains(labels[k]));
+            var expected = placed.EdgePolylines[k].Select(p => new Point2D(p.X + dx, p.Y + dy)).ToList();
+            Assert.Equal(expected.Count, line.Waypoints.Count);
+            for (var i = 0; i < expected.Count; i++)
+            {
+                Assert.Equal(expected[i].X, line.Waypoints[i].X, precision: 6);
+                Assert.Equal(expected[i].Y, line.Waypoints[i].Y, precision: 6);
+            }
+
+            // The label's center lies on its own route
+            var p = placements[line];
+            var onRoute = false;
+            for (var i = 0; i + 1 < line.Waypoints.Count; i++)
+            {
+                var (p0, p1) = (line.Waypoints[i], line.Waypoints[i + 1]);
+                onRoute |= p.X >= Math.Min(p0.X, p1.X) - 1e-6 && p.X <= Math.Max(p0.X, p1.X) + 1e-6
+                    && p.Y >= Math.Min(p0.Y, p1.Y) - 1e-6 && p.Y <= Math.Max(p0.Y, p1.Y) + 1e-6;
+            }
+
+            Assert.True(onRoute, $"Label '{labels[k]}' is not on its own route.");
+        }
+    }
+
     /// <summary>Loads and lays out a gallery model with the theme the <c>render</c> command uses; a missing model fails the test.</summary>
     private static async Task<LayoutTree> LayOutGalleryModelAsync(string fileName)
     {

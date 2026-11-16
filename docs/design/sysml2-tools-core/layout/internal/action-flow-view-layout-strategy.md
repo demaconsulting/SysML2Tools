@@ -109,7 +109,10 @@ edges internally. The placed coordinates are normalized so the content starts at
 reserving a marker band of empty space at the top (for the start marker) and at the bottom (for the
 done marker). The canvas is sized to the full content extent, including routed succession polylines
 that can bulge beyond the box columns and the labels as the renderers place them (`ContentExtent`,
-`LabelRightExtent`).
+`LabelRightExtent`). A label is drawn centered on its connector's run, so a long guard on a branch
+that runs left of every box can overhang the left margin; `BuildLayout` measures that
+(`LabelLeftExtent`) and, when a label overhangs, rebuilds the content shifted right by the overhang
+so every label stays inside the canvas.
 
 The engine clamps every node to a minimum height of 20 px, so a 4 px fork/join bar is placed in a
 taller slot, and it attaches connectors to the faces of the slot's bounding box, which for a diamond

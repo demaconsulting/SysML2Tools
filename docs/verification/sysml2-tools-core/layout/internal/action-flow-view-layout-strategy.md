@@ -110,3 +110,4 @@ configuration are required beyond a standard .NET SDK installation.
 | `ActionFlowView_BuildLayout_DecisionBranchLabels_SitOnVerticalDrop_AndKeepRunsVisible` | Labels on vertical runs |
 | `ActionFlowView_BuildLayout_WideBranchBoxes_LabeledJogIsLeftUnchanged` | Long sideways run keeps engine route |
 | `ActionFlowView_BuildLayout_DecisionWithManyBranches_KeepsDistinctJogLanes` | Sibling branches keep distinct runs |
+| `ActionFlowView_BuildLayout_LongLeftBranchGuard_LabelIsInsideCanvas` | Left overhang moves content right |

@@ -226,6 +226,17 @@ sections:
           - ActionFlowView_BuildLayout_WideBranchBoxes_LabeledJogIsLeftUnchanged
           - ActionFlowView_BuildLayout_DecisionWithManyBranches_KeepsDistinctJogLanes
 
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-LabelLeftExtent
+        title: >-
+          ActionFlowViewLayoutStrategy shall keep every succession label inside the canvas,
+          shifting the content right when a label on a left-side run overhangs the left edge.
+        justification: |
+          A label is drawn centered on its connector's run, so a long guard on a branch that runs
+          left of every action box extends past the leftmost box. Sizing only the right edge would
+          leave that label clipped by the canvas edge.
+        tests:
+          - ActionFlowView_BuildLayout_LongLeftBranchGuard_LabelIsInsideCanvas
+
       - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-TerminateNode
         title: >-
           ActionFlowViewLayoutStrategy shall render a terminate node as a crossed circle that

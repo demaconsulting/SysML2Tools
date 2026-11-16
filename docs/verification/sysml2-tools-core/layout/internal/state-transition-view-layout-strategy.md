@@ -85,6 +85,7 @@ configuration are required beyond a standard .NET SDK installation.
 | `StateTransitionView_BuildLayout_UndeclaredStateInTransition_IsCreated` | Transition-only target rendered as a box |
 | `StateTransitionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas` | Canvas with no nodes |
 | `StateTransitionView_BuildLayout_InAndOutOnSameEdge_UseDistinctAnchors` | In/out transitions use distinct anchors |
+| `StateTransitionView_BuildLayout_ParallelTransitions_EachUseTheirOwnEngineRoute` | Parallel transitions keep routes |
 | `StateTransitionView_BuildLayout_TransitionEdge_HasOpenArrowhead` | Open chevron end marker at target state |
 | `StateTransitionView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally` | Top-to-bottom orthogonal flow |
 | `StateTransitionView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged` | Null `ViewNode` renders unchanged |

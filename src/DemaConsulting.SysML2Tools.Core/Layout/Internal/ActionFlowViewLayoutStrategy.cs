@@ -163,23 +163,41 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         var offsetX = margin - minX;
         var offsetY = (margin + MarkerSize + MarkerLayerGap) - minY;
 
-        var rects = new Rect[actions.Count];
-        for (var i = 0; i < actions.Count; i++)
+        // Builds the action boxes, the succession lines and the start/done markers for a given
+        // horizontal offset, in the canvas' absolute coordinate space.
+        (List<LayoutNode> Nodes, int Crossings) Assemble(double shiftX)
         {
-            // Use the rectangle the engine placed. It is never smaller than the requested node, but it
-            // clamps a node's height to a minimum, so a thin fork/join bar is placed in a taller slot;
-            // the bar is drawn centered in the slot and its connectors are snapped to it afterward.
-            rects[i] = new Rect(placed.Rects[i].X + offsetX, placed.Rects[i].Y + offsetY, placed.Rects[i].Width, placed.Rects[i].Height);
+            var rects = new Rect[actions.Count];
+            for (var i = 0; i < actions.Count; i++)
+            {
+                // Use the rectangle the engine placed. It is never smaller than the requested node, but it
+                // clamps a node's height to a minimum, so a thin fork/join bar is placed in a taller slot;
+                // the bar is drawn centered in the slot and its connectors are snapped to it afterward.
+                rects[i] = new Rect(placed.Rects[i].X + shiftX, placed.Rects[i].Y + offsetY, placed.Rects[i].Width, placed.Rects[i].Height);
+            }
+
+            var built = new List<LayoutNode>();
+            for (var i = 0; i < actions.Count; i++)
+            {
+                built.Add(MakeActionNode(actions[i], rects[i]));
+            }
+
+            var crossingCount = AddSuccessionEdges(actions, edges, placed.EdgePolylines, rects, shiftX, offsetY, built);
+            AddStartAndDone(actions, rects, edges, markers, margin, built);
+            return (built, crossingCount);
         }
 
-        var nodes = new List<LayoutNode>();
-        for (var i = 0; i < actions.Count; i++)
+        // A succession label is centered on its placed position and may overhang the action boxes on
+        // either side. When one overhangs the left edge of the canvas margin, shift everything right so
+        // the label keeps the margin (the renderers would otherwise clip it).
+        var assembled = Assemble(offsetX);
+        var leftOverhang = margin - LabelLeftExtent(assembled.Nodes, theme);
+        if (leftOverhang > 0.0)
         {
-            nodes.Add(MakeActionNode(actions[i], rects[i]));
+            assembled = Assemble(offsetX + leftOverhang);
         }
 
-        var crossings = AddSuccessionEdges(actions, edges, placed.EdgePolylines, rects, offsetX, offsetY, nodes);
-        AddStartAndDone(actions, rects, edges, markers, margin, nodes);
+        var (nodes, crossings) = assembled;
 
         // Size the canvas to the actual rendered content: action boxes plus routed succession
         // polylines (back edges can bulge beyond the box columns), the start/done markers, and the
@@ -842,10 +860,42 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
     /// </summary>
     private static double LabelRightExtent(IReadOnlyList<LayoutNode> nodes, Theme theme)
     {
+        var maxX = 0.0;
+        foreach (var (position, halfWidth) in PlaceLabels(nodes, theme))
+        {
+            maxX = Math.Max(maxX, position.X + halfWidth);
+        }
+
+        return maxX;
+    }
+
+    /// <summary>
+    /// Returns the minimum X reached by any rendered succession label (its center X minus half its
+    /// estimated text width), or <see cref="double.PositiveInfinity"/> when there are no labels. The
+    /// counterpart of <see cref="LabelRightExtent"/> for the canvas' left side.
+    /// </summary>
+    private static double LabelLeftExtent(IReadOnlyList<LayoutNode> nodes, Theme theme)
+    {
+        var minX = double.PositiveInfinity;
+        foreach (var (position, halfWidth) in PlaceLabels(nodes, theme))
+        {
+            minX = Math.Min(minX, position.X - halfWidth);
+        }
+
+        return minX;
+    }
+
+    /// <summary>
+    /// Places every labeled succession line with the renderers' obstacle-aware placer and returns each
+    /// label's placed center and half text width.
+    /// </summary>
+    private static List<(LabelPlacement Position, double HalfWidth)> PlaceLabels(IReadOnlyList<LayoutNode> nodes, Theme theme)
+    {
+        var result = new List<(LabelPlacement, double)>();
         var lines = nodes.OfType<LayoutLine>().Where(line => line.MidpointLabel is not null).ToList();
         if (lines.Count == 0)
         {
-            return 0.0;
+            return result;
         }
 
         var positions = ConnectorLabelPlacer.Place(
@@ -853,16 +903,15 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
             theme.FontSizeBody,
             nodes.OfType<LayoutBox>().ToList(),
             NotationMetrics.MarkerScale(theme));
-        var maxX = 0.0;
         foreach (var line in lines)
         {
             if (positions.TryGetValue(line, out var pos))
             {
-                maxX = Math.Max(maxX, pos.X + (ConnectorLabelPlacer.EstimateLabelWidth(line.MidpointLabel!, theme.FontSizeBody) / 2.0));
+                result.Add((pos, ConnectorLabelPlacer.EstimateLabelWidth(line.MidpointLabel!, theme.FontSizeBody) / 2.0));
             }
         }
 
-        return maxX;
+        return result;
     }
 
     /// <summary>

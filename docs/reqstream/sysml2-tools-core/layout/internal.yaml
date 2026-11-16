@@ -67,6 +67,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-States
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ImplicitStates
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-DistinctAnchors
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ParallelTransitionRoutes
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-TransitionArrowhead
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-TopToBottomFlow
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-PseudostateExclusion
@@ -89,6 +90,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ThickForkJoinBars
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-SuccessionGuards
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-GuardLabelRun
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-LabelLeftExtent
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-TerminateNode
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-SendAcceptIcons
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExplicitStartDone

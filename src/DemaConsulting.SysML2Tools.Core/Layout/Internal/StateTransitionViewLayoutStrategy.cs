@@ -54,12 +54,6 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     private const double InitialMarkerGap = 10.0;
 
     /// <summary>
-    /// Lateral offset applied to successive transitions that share a routed corridor (parallel guards
-    /// or a forward/back-edge pair), so their anchor points and labels do not coincide.
-    /// </summary>
-    private const double AnchorSpread = 12.0;
-
-    /// <summary>
     /// Inset between the canvas edge and the state definition frame on every side. The frame's 1 px
     /// outline is centered on its geometric edge, so the frame must sit at least half the stroke
     /// width plus one anti-aliasing pixel inside the canvas for the outline to be fully visible.
@@ -194,7 +188,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
                 // Transition edges (with labels), mapped from the algorithm's routed polylines.
                 var drawn = new List<(LayoutLine, TransitionItem)>();
-                var crossingCount = AddTransitions(transitions, flowTransitions, placed.EdgePolylines, stateRects, shiftX, offsetY, built, drawn);
+                var crossingCount = AddTransitions(transitions, placed.EdgePolylines, stateRects, shiftX, offsetY, built, drawn);
                 return (built, crossingCount, drawn);
             }
 
@@ -937,14 +931,14 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     /// </summary>
     /// <remarks>
     /// The layered algorithm returns exactly one routed polyline per input (non-self) transition, in
-    /// input order and already oriented source-to-target. A lookup keyed by the <c>(source, target)</c>
-    /// pair recovers each transition's polyline (self-transitions are drawn as a loop and carry no
-    /// routed edge). Successive transitions sharing one routed corridor (parallel guards, or a
-    /// forward/back-edge pair) are spread laterally so their anchor points and labels do not coincide.
+    /// input order and already oriented source-to-target, so the k-th non-self transition is drawn
+    /// from the k-th polyline. The association is by position, not by <c>(source, target)</c> pair:
+    /// parallel transitions between the same two states, and a forward/back-edge pair, each keep their
+    /// own route (the engine already gives them distinct anchors), so no lateral offset is applied.
+    /// Self-transitions are drawn as a loop and carry no routed edge.
     /// </remarks>
     private static int AddTransitions(
         IReadOnlyList<TransitionItem> transitions,
-        IReadOnlyList<TransitionItem> flowTransitions,
         IReadOnlyList<IReadOnlyList<Point2D>> edgePolylines,
         Rect[] stateRects,
         double offsetX,
@@ -952,16 +946,8 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         List<LayoutNode> nodes,
         List<(LayoutLine Line, TransitionItem Transition)> drawn)
     {
-        // Build the routed (source, target) -> polyline lookup from the non-self transitions, which are
-        // index-aligned with the algorithm's returned polylines.
-        var routed = new Dictionary<(int Source, int Target), IReadOnlyList<Point2D>>();
-        for (var k = 0; k < flowTransitions.Count; k++)
-        {
-            routed[(flowTransitions[k].Source, flowTransitions[k].Target)] = edgePolylines[k];
-        }
-
-        var corridorUse = new Dictionary<(int, int), int>();
         var crossings = 0;
+        var routeIndex = 0;
 
         foreach (var transition in transitions)
         {
@@ -975,21 +961,9 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            var routedPoints = ResolveTransitionPolyline(transition, routed)
-                ?? [Centre(stateRects[transition.Source]), Centre(stateRects[transition.Target])];
-
-            // Spread successive transitions that share the same (undirected) corridor laterally so
-            // their anchor points and guard labels do not overlap. The cross-axis for a DOWN layout
-            // is the screen X axis, so the lateral offset keeps the orthogonal segments axis-aligned.
-            var corridor = transition.Source < transition.Target
-                ? (transition.Source, transition.Target)
-                : (transition.Target, transition.Source);
-            var occurrence = corridorUse.GetValueOrDefault(corridor, 0);
-            corridorUse[corridor] = occurrence + 1;
-            var spread = occurrence * AnchorSpread;
-
-            var waypoints = routedPoints
-                .Select(p => new Point2D(p.X + offsetX + spread, p.Y + offsetY))
+            // The non-self transitions are index-aligned with the algorithm's returned polylines.
+            var waypoints = edgePolylines[routeIndex++]
+                .Select(p => new Point2D(p.X + offsetX, p.Y + offsetY))
                 .ToList();
 
             if (CrossesNonEndpointBox(waypoints, stateRects, transition.Source, transition.Target))
@@ -1008,29 +982,6 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         }
 
         return crossings;
-    }
-
-    /// <summary>
-    /// Returns the routed polyline for a non-self transition, reversing it when only the opposite
-    /// direction was routed (a reversed back edge), or null when neither direction was routed.
-    /// </summary>
-    private static IReadOnlyList<Point2D>? ResolveTransitionPolyline(
-        TransitionItem transition,
-        IReadOnlyDictionary<(int Source, int Target), IReadOnlyList<Point2D>> routed)
-    {
-        if (routed.TryGetValue((transition.Source, transition.Target), out var forward))
-        {
-            return forward;
-        }
-
-        if (routed.TryGetValue((transition.Target, transition.Source), out var backward))
-        {
-            // The pipeline reversed this back edge; reverse the polyline so it runs source -> target
-            // with the open arrowhead at the true target.
-            return [.. backward.Reverse()];
-        }
-
-        return null;
     }
 
     /// <summary>
@@ -1131,10 +1082,6 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             LineStyle: LineStyle.Solid,
             MidpointLabel: label);
     }
-
-    /// <summary>Returns the center point of a rectangle.</summary>
-    private static Point2D Centre(Rect rect) =>
-        new(rect.X + (rect.Width / 2.0), rect.Y + (rect.Height / 2.0));
 
     /// <summary>Returns the last <c>::</c>-separated segment of a qualified reference, or null.</summary>
     private static string? LastSegment(string? reference)

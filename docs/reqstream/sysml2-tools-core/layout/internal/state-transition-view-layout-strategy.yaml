@@ -42,6 +42,18 @@ sections:
         tests:
           - StateTransitionView_BuildLayout_InAndOutOnSameEdge_UseDistinctAnchors
 
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ParallelTransitionRoutes
+        title: >-
+          StateTransitionViewLayoutStrategy shall draw each transition from the route the layout
+          engine computed for that transition, so that parallel transitions between the same two
+          states keep distinct routes and each label sits on its own transition's route.
+        justification: |
+          Associating routes by state pair would collapse parallel transitions onto one route and
+          discard the distinct anchors the engine gave them, drawing the duplicates on top of each
+          other.
+        tests:
+          - StateTransitionView_BuildLayout_ParallelTransitions_EachUseTheirOwnEngineRoute
+
       - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-EmptyCanvas
         title: >-
           When the workspace contains no state definition, StateTransitionViewLayoutStrategy shall
