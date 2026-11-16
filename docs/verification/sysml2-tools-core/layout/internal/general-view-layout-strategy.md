@@ -311,7 +311,10 @@ every change by `GeneralViewLayoutStrategy_BuildLayout_DroneGalleryModel_MeetsBl
 - `14`, `DriveUnitGeneralView`: square definitions, rounded usages, dashed `«ref part»`,
   `«abstract part def»` with an italic name, ◆ versus ◇ at the owner, typing, subsetting, redefinition,
   and specialization glyphs, `doc` compartment, note; every owner-end decoration has a clean approach
-  (final legs of 13.5 to 15 px for the triangles and the diamonds).
+  (final legs of 13.5 to 15 px for the triangles and the diamonds). Three connector crossings remain,
+  all engine routing outcomes that are not asserted: the `frontMotor` subsetting connector crosses the
+  dashed note link and the `main` to `Motor` typing connector, and the `mainMotor` redefinition
+  connector crosses the `frontMotor` to `RearDrive` composition connector.
 - `15`, `ChargerGeneralView`: `doc` compartments and the dashed comment link without arrowhead on
   nested parts; both diamonds at `Charger` have a 15 px clean approach.
 - `16`, `VehicleTypingGeneralView`: tab names, ◆ at `Car`, typing glyph with dots at the definition,
@@ -332,7 +335,8 @@ caused by the layout engine and not hand-tuned (the engine items are in `ROADMAP
   (`VehiclePackagesGeneralView`), 15.5 % (`VehicleTypingGeneralView`), and 19.4 %
   (`MissionControlGeneralView`) when only the leaf blocks are counted, and 34.9 %, 42.0 %, and 45.2 %
   when the nested package frames are counted as blocks. The package frame, its tab, the layer spacing,
-  and the room for the connector lanes are constants of the engine that the strategy does not set;
+  and the room for the connector lanes are constants of the engine (`CoreOptions.LayerSpacing` is not
+  honored and `CoreOptions.NodeSpacing` is only a floor, so the strategy cannot tighten them);
   counting the frames as blocks is the reading under which these three pass. `DriveUnitGeneralView`
   (13.6 %) has a single package frame, so the reading does not help it: it is a wide, three-tier tree
   of nine boxes whose spacing and lanes are the engine's, and its largest empty square (140 px against
@@ -343,7 +347,14 @@ caused by the layout engine and not hand-tuned (the engine items are in `ROADMAP
   specification defines for requirement usages. These relationships stay covered by unit tests and are
   recorded in `ROADMAP.md`.
 
-The connector of a typing edge also has a short lateral jog at the usage end (cosmetic, about 24 px).
+A few connectors have a short lateral jog of about 2.5 to 3.4 px (cosmetic): the `spare` to
+`InductionMotor` typing connector, about 58 px before the definition, and the `InductionMotor` to `Motor`
+specialization connector, right behind the triangle. In `VehiclePackagesGeneralView` (left face) and
+`VehicleTypingGeneralView` (right face), one typing connector enters `Engine` through a side face
+instead of the top face; this is the engine's cross-hierarchy routing and is not asserted.
+
+The raw largest empty square of `VehiclePackagesGeneralView` is 199 px against the 172 px
+quoted above for the dilated measurement; both exceed the 150 px limit, and W1 covers both.
 
 ##### Test Scenarios
 
