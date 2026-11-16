@@ -67,18 +67,35 @@ sections:
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-States
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ImplicitStates
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-DistinctAnchors
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ParallelTransitionRoutes
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-TransitionArrowhead
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-TopToBottomFlow
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-PseudostateExclusion
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-SemanticInitialMarker
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-InitialMarkerArrow
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-StateDefFrame
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-EntryDoExitCompartments
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-TransitionLabel
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-FinalNode
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-LabelPlacement
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-LabelClearance
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-FrameMargin
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-BackEdgeApproach
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-Actions
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-TopToBottom
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-SuccessionLineStyle
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-StartDoneConnectorStyle
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-BranchAndJoin
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ControlNodeShapes
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ThickForkJoinBars
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-SuccessionGuards
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-GuardLabelRun
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-LabelLeftExtent
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-TerminateNode
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-SendAcceptIcons
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExplicitStartDone
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-NodeLabel
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-BackEdgeApproach
           - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-Lifelines
           - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-HorizontalMessages
           - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessageArrowhead
@@ -86,6 +103,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-Orientation
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-Direction
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-MergeParallelEdgesOptOut
+          - SysML2Tools-Core-Layout-Internal-LayeredPlacement-EdgeTargetEnd
           - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-IndentedTree
           - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-RowLabels
           - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-UniformRowShading

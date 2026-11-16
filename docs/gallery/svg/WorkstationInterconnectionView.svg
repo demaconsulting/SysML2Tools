@@ -1,28 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="950.92" height="552.00" viewBox="0 0 950.92 552.00">
   <defs>
-    <marker id="line-end-open-chevron" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polyline points="0 0, 10 3.5, 0 7" fill="none" stroke="#000000" stroke-width="1.00"/>
+    <marker id="line-end-open-chevron" markerWidth="10.165175" markerHeight="7" refX="10.165175" refY="3.5" orient="auto">
+      <polyline points="0 0, 10 3.5, 0 7" fill="none" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
     </marker>
-    <marker id="line-end-hollow-triangle" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+    <marker id="line-end-hollow-triangle" markerWidth="10.165175" markerHeight="7" refX="10.165175" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
     </marker>
-    <marker id="line-end-filled-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#000000" stroke="#000000" stroke-width="1.00"/>
+    <marker id="line-end-filled-arrow" markerWidth="10.165175" markerHeight="7" refX="10.165175" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#000000" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
     </marker>
-    <marker id="line-end-hollow-triangle-crossbar" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
-      <line x1="7" y1="0" x2="7" y2="7" stroke="#000000" stroke-width="1.00"/>
+    <marker id="line-end-hollow-triangle-crossbar" markerWidth="14.665175" markerHeight="7" refX="14.665175" refY="3.5" orient="auto">
+      <polygon points="4.5 0, 14.5 3.5, 4.5 7" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
+      <line x1="1" y1="0" x2="1" y2="7" stroke="#000000" stroke-width="1.00"/>
     </marker>
-    <marker id="line-end-hollow-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
-      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+    <marker id="line-end-hollow-diamond" markerWidth="14" markerHeight="8" refX="13.27735" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
     </marker>
-    <marker id="line-end-filled-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
-      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#000000" stroke="#000000" stroke-width="1.00"/>
+    <marker id="line-end-filled-diamond" markerWidth="14" markerHeight="8" refX="13.27735" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#000000" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
     </marker>
-    <marker id="line-end-circle" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+    <marker id="line-end-circle" markerWidth="10" markerHeight="10" refX="9.5" refY="5" orient="auto">
       <circle cx="5" cy="5" r="4" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
     </marker>
-    <marker id="line-end-bar" markerWidth="4" markerHeight="12" refX="2" refY="6" orient="auto">
+    <marker id="line-end-bar" markerWidth="4" markerHeight="12" refX="2.5" refY="6" orient="auto">
       <line x1="2" y1="0" x2="2" y2="12" stroke="#000000" stroke-width="1.00"/>
     </marker>
     <filter id="label-bg" x="-0.05" y="-0.05" width="1.1" height="1.1">

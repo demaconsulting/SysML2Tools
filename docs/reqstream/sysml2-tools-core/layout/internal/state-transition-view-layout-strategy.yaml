@@ -13,11 +13,11 @@ sections:
         title: >-
           StateTransitionViewLayoutStrategy shall render a box for each state, an initial
           pseudo-state marker when the state machine declares an explicit initial transition, and
-          connect transitions as arrows labeled with their guard conditions.
+          connect transitions as arrows labeled with their trigger, guard, and effect.
         justification: |
           A State Transition View exists to show the states of a machine, where it starts, and how
-          it moves between states under guarded transitions. The state boxes, initial marker, and
-          guard-labeled arrows are the observable content the view must provide.
+          it moves between states under triggered, guarded transitions. The state boxes, initial
+          marker, and labeled arrows are the observable content the view must provide.
         tests:
           - StateTransitionView_BuildLayout_StatesAndTransitions_ProducesBoxesBadgeAndLines
 
@@ -41,6 +41,18 @@ sections:
           direction readable.
         tests:
           - StateTransitionView_BuildLayout_InAndOutOnSameEdge_UseDistinctAnchors
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ParallelTransitionRoutes
+        title: >-
+          StateTransitionViewLayoutStrategy shall draw each transition from the route the layout
+          engine computed for that transition, so that parallel transitions between the same two
+          states keep distinct routes and each label sits on its own transition's route.
+        justification: |
+          Associating routes by state pair would collapse parallel transitions onto one route and
+          discard the distinct anchors the engine gave them, drawing the duplicates on top of each
+          other.
+        tests:
+          - StateTransitionView_BuildLayout_ParallelTransitions_EachUseTheirOwnEngineRoute
 
       - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-EmptyCanvas
         title: >-
@@ -204,3 +216,99 @@ sections:
           unit.
         tests:
           - StateTransitionView_BuildLayout_RootDefinition_IsEnclosedInStateDefFrame
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-EntryDoExitCompartments
+        title: >-
+          StateTransitionViewLayoutStrategy shall list a state's entry, do, and exit actions in
+          compartments titled with the keyword (centered, italic), in that order, and shall
+          size the state box to fit them.
+        justification: |
+          The SysML v2 graphical notation (clause 8.2.3.18, printed pp. 233-234: `state-entry-action`,
+          `state-do-action`, `state-exit-action`) shows what a state does on entry, while active, and
+          on exit in separate titled compartments of its box. Omitting them hides the behavior the
+          model declares; sizing the box to its content keeps the text from being clipped.
+        tests:
+          - StateTransitionView_BuildLayout_EntryDoExit_ProducesTitledCompartments
+          - StateTransitionView_BuildLayout_EntryDoExit_NoneDeclared_NoCompartments
+          - StateTransitionView_BuildLayout_EntryDoExit_WidensBoxToLongestRow
+          - StateTransitionView_BuildLayout_TypedState_NameLineShowsTypeAndMultiplicity
+          - StateTransitionView_BuildLayout_ElevatorGalleryModel_ShowsCompartmentsLabelsAndFinal
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-TransitionLabel
+        title: >-
+          StateTransitionViewLayoutStrategy shall label each transition, including a
+          self-transition, with its trigger, bracketed guard, and effect in the form
+          "trigger [guard] / effect", omitting each part the transition does not declare.
+        justification: |
+          The SysML v2 graphical notation labels a transition with its trigger, guard, and
+          effect. Labeling only the guard drops the event that fires the transition and the
+          action it performs.
+        tests:
+          - StateTransitionView_BuildLayout_TransitionTriggerGuardEffect_LabelFormat
+          - StateTransitionView_BuildLayout_SelfTransition_CarriesFullLabel
+          - StateTransitionView_BuildLayout_StatesAndTransitions_ProducesBoxesBadgeAndLines
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-FinalNode
+        title: >-
+          StateTransitionViewLayoutStrategy shall draw the target of a transition to the reserved
+          name done as one shared final-state badge (a bullseye) rather than a state box.
+        justification: |
+          The SysML v2 graphical notation draws the completion of a state machine as a final
+          pseudo-state, not as a state named done.
+        tests:
+          - StateTransitionView_BuildLayout_DoneTarget_RendersBullseyeNotStateBox
+          - StateTransitionView_BuildLayout_DoneTarget_MultipleSources_SingleFinalBadge
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-LabelPlacement
+        title: >-
+          StateTransitionViewLayoutStrategy shall size the frame to the transition labels as the
+          renderers place them clear of the state boxes, so that no label is clipped by the frame
+          or left on a state box.
+        justification: |
+          The renderers place each label with an obstacle-aware placer. Sizing the frame with the
+          same placer and obstacles keeps long labels inside the frame and shows that labels
+          do not sit on box corners.
+        tests:
+          - StateTransitionView_BuildLayout_FrameWidth_AccountsForLongTransitionLabel
+          - StateTransitionView_BuildLayout_LongLabel_OverhangingLeft_IsContainedByFrame
+          - StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-LabelClearance
+        title: >-
+          StateTransitionViewLayoutStrategy shall keep every transition label, drawn with its
+          opaque background padding, clear of every state box, of every other connector, and of
+          the end marker of its own connector, and shall spread the arrival or departure anchors
+          of sibling labeled transitions on a shared state face by widening that state until their
+          labels no longer collide, leaving a state whose labels do not collide at its natural width.
+        justification: |
+          The renderers draw each label on an opaque background, so a label that lands on a state's
+          border, on another arrow, or on its own arrowhead visibly erases it. The layout engine
+          spreads the anchors on a face evenly across the state's width, so two wide labels on one
+          narrow face collide; sizing the state is the only lever the strategy has over where the
+          renderers place a label.
+        tests:
+          - StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes
+          - StateTransitionView_BuildLayout_HeaterGalleryModel_LabelsAreClear
+          - StateTransitionView_BuildLayout_SiblingLabelsOnSharedFace_AreWidenedApart
+          - StateTransitionView_BuildLayout_NoLabelCollision_KeepsNaturalWidth
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-FrameMargin
+        title: >-
+          StateTransitionViewLayoutStrategy shall end the state definition frame one margin below
+          the lowest content, the same margin it keeps at the side.
+        justification: |
+          A larger bottom margin leaves an empty band under the last state or final badge that
+          makes the diagram look unfinished.
+        tests:
+          - StateTransitionView_BuildLayout_FrameBottom_IsOneMarginBelowContent
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-BackEdgeApproach
+        title: >-
+          StateTransitionViewLayoutStrategy shall give every transition, including one that
+          returns to an earlier state, a final straight approach at least as long as its open
+          chevron end marker.
+        justification: |
+          An arrowhead that is entered through a rounded corner or a short stub is distorted. The
+          strategy declares the end marker on the layout graph so the engine sizes the approach.
+        tests:
+          - StateTransitionView_BuildLayout_BackEdge_OpenChevronWithFlushApproach

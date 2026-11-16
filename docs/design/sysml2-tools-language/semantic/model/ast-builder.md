@@ -508,7 +508,8 @@ the compact idiom resolved both action nodes but produced no succession edge lin
 unguarded `targetSuccession` (`sourceEndMember THEN connectorEndMember`), guarded
 `guardedTargetSuccession` (`if guardExpressionMember then connectorEndMember`, capturing the
 guard's expression text), and `defaultTargetSuccession` (`else then connectorEndMember`, which the
-grammar provides no guard expression for).
+grammar provides no guard expression for; the produced `SysmlTransitionNode` is flagged
+`IsElse = true` so the default branch is distinguishable from an unconditional succession).
 
 When one or more attached successions (incoming, trailing, or both) are produced,
 `VisitActionBodyItem` returns the same `MultiNodeCapture` sentinel used by
@@ -532,10 +533,15 @@ this change surgical:
   copy — it has the same gap, latent and undetected because no current test exercises a leading
   `then` before a `behaviorUsageMember` inside a state body.
 
-`VisitMergeNode`, `VisitDecisionNode`, `VisitJoinNode`, `VisitForkNode`, `VisitAcceptNode`, and
-`VisitSendNode` each delegate to a shared `BuildActionNodeFeature(usage, keyword)` helper that
+`VisitMergeNode`, `VisitDecisionNode`, `VisitJoinNode`, `VisitForkNode`, `VisitAcceptNode`,
+`VisitSendNode`, and `VisitTerminateNode` each delegate to a shared
+`BuildActionNodeFeature(usage, keyword, actionText)` helper that
 builds a **minimal** `SysmlFeatureNode` — `FeatureKeyword` set to
-`"merge"`/`"decide"`/`"join"`/`"fork"`/`"accept"`/`"send"` respectively, `Children` always empty.
+`"merge"`/`"decide"`/`"join"`/`"fork"`/`"accept"`/`"send"`/`"terminate"` respectively, `Children`
+always empty. The accept and send visitors also pass the payload clause as `ActionText`:
+`accept <acceptParameterPart>` and `send <nodeParameterMember senderReceiverPart?>`, extracted with
+original spacing (`OriginalTextOrNull`, `OriginalTextSpanOrNull`) so a diagram can show what the
+node receives or sends.
 Unlike ordinary anonymous actions (which are left nameless), an anonymous control node is given a
 synthesized internal name of the form `$<keyword><n>` (via a monotonically increasing
 `_anonymousNodeCounter` field) rather than `null`. This is a deliberate deviation from the
@@ -551,8 +557,14 @@ like any other named feature: `QualifiedName` is populated via the same `Qualify
 by `BuildStateActionFeatureNode`, so it is registered in the symbol table and correctly subject to
 expose-scope filtering (`ExposeScopeResolver.IsInSubjectScope`) in
 `ActionFlowViewLayoutStrategy.CollectActions`.
-`assignmentNode`, `terminateNode`, `ifNode`, `whileLoopNode`, and `forLoopNode` remain
+`assignmentNode`, `ifNode`, `whileLoopNode`, and `forLoopNode` remain
 intentionally unhandled — a pre-existing gap, not introduced by this change.
+
+`VisitActionUsage` additionally captures `FeatureTyping` (`ExtractFeatureTyping`) and
+`Multiplicity` (`ExtractMultiplicity`) from the usage declaration's `featureSpecializationPart`,
+exactly as `BuildUsageNode` does for generic usages, so an action can be labeled
+`name : Type [multiplicity]`. Because `FeatureTyping` now resolves, a typed action usage yields a
+`Typing` edge like any other typed usage.
 
 ###### Modifier and notation data capture
 

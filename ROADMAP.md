@@ -38,14 +38,14 @@ gallery currently shows.
 
 ### Action Flow View: remaining control-node/shape gaps
 
-Fork/join/decision/merge control nodes and the compact `action a1; then a2;` succession idiom
-already render correctly. Remaining gaps, each independently scoped:
+Fork/join/decision/merge/terminate control nodes, accept/send actions with their corner icons and
+payload text, guarded and `else` successions, explicit `first start`/`then done` markers, typed
+action labels, and the compact `action a1; then a2;` succession idiom already render correctly.
+Remaining gaps, each independently scoped:
 
-- A true pentagon accept/send shape (needs a `DemaConsulting.Rendering` package change; boxes
-  currently use the ordinary rounded-rectangle shape with their own keyword label instead).
 - Swim-lanes via `LayoutBand`.
 - Item-flow edge annotations (no item-flow/payload capture exists in the AST yet).
-- `assignmentNode`/`terminateNode`/`ifNode`/`whileLoopNode`/`forLoopNode` AST support (still
+- `assignmentNode`/`ifNode`/`whileLoopNode`/`forLoopNode` AST support (still
   entirely unmodeled).
 - An `actionUsage`-level (rather than `action def`-level) nested `actionBody` —
   `VisitActionUsage` still doesn't collect nested action-body children, so control nodes/
@@ -192,4 +192,6 @@ Not planned yet; listed so the boundary is explicit:
 - **Loadable theme files** (YAML/JSON) and a `render --theme` option — the `Theme` record is
   forward-compatible. The `render` command now always uses the built-in monochrome
   `SysmlThemes.Plain`; library callers can already pass any `Theme`.
-- **Nested state regions** and other advanced behavioral notation.
+- **Nested state regions** (composite and parallel states drawn with their nested states; a
+  composite state is drawn as an ordinary box today and its nested states are ignored) and other
+  advanced behavioral notation.

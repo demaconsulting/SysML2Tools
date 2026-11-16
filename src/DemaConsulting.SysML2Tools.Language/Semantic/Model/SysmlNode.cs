@@ -336,7 +336,9 @@ public sealed class SysmlFeatureNode : SysmlNode
     ///     Gets the verbatim declaration text of a state sub-action (<c>entry</c>/<c>do</c>/
     ///     <c>exit</c> feature), for example <c>action initial</c>, <c>foo : Bar</c> or
     ///     <c>accept sig</c>, excluding the action body; <see langword="null"/> for every other
-    ///     feature and for the empty form (<c>entry;</c>).
+    ///     feature and for the empty form (<c>entry;</c>). For an action-flow <c>accept</c> or
+    ///     <c>send</c> node it is the payload clause: <c>accept ApprovalSignal</c> or
+    ///     <c>send report to carrier</c>.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ActionText { get; init; }
@@ -807,6 +809,16 @@ public sealed class SysmlTransitionNode : SysmlNode
     ///     Gets the guard expression text (the condition after <c>if</c>), or null when unguarded.
     /// </summary>
     public string? Guard { get; init; }
+
+    /// <summary>
+    ///     Gets a value indicating whether the succession was declared with <c>else</c> (the
+    ///     default branch of a <c>decide</c> node, e.g. <c>else rollback;</c>). Such a succession
+    ///     carries no <see cref="Guard"/>; this flag distinguishes it from an unconditional
+    ///     succession. <see langword="false"/> for every other transition and for data that
+    ///     predates this property.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsElse { get; init; }
 
     /// <summary>
     ///     Gets the verbatim text of the transition's trigger (the text after <c>accept</c>, e.g.

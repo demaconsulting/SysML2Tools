@@ -4063,23 +4063,133 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Two lines whose final points share an X within one anchor spacing but that end on different
+    ///     boxes are still compared: the crossing between them is counted.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_CountLineCrossings_ArrivalsOnDifferentBoxes_CountsCrossing()
+    {
+        // Arrange: two stacked boxes whose left faces share X = 100, and two routes that cross at (70, 45)
+        var upper = MakeFixtureBox("Upper", BoxShape.Rectangle, "part def") with { X = 100, Y = 0, Width = 60, Height = 50 };
+        var lower = MakeFixtureBox("Lower", BoxShape.Rectangle, "part def") with { X = 100, Y = 60, Width = 60, Height = 50 };
+        var toUpper = MakeFixtureLine([new Point2D(40, 120), new Point2D(40, 45), new Point2D(100, 45)]);
+        var toLower = MakeFixtureLine([new Point2D(70, 0), new Point2D(70, 65), new Point2D(100, 65)]);
+
+        // Act
+        var crossings = CountLineCrossings([upper, lower, toUpper, toLower]);
+
+        // Assert
+        Assert.Equal(1, crossings);
+    }
+
+    /// <summary>
+    ///     Two lines that end side by side on the same face of the same box are not compared (the
+    ///     engine's anchor order there is a tie the strategy does not control).
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_CountLineCrossings_ArrivalsOnSameFace_AreNotCompared()
+    {
+        // Arrange: one box and two routes that cross at (70, 65) and end on its left face
+        var box = MakeFixtureBox("Box", BoxShape.Rectangle, "part def") with { X = 100, Y = 40, Width = 60, Height = 60 };
+        var first = MakeFixtureLine([new Point2D(40, 100), new Point2D(40, 65), new Point2D(100, 65)]);
+        var second = MakeFixtureLine([new Point2D(70, 0), new Point2D(70, 80), new Point2D(100, 80)]);
+
+        // Act
+        var crossings = CountLineCrossings([box, first, second]);
+
+        // Assert
+        Assert.Equal(0, crossings);
+    }
+
+    /// <summary>A solid line with the given absolute waypoints.</summary>
+    private static LayoutLine MakeFixtureLine(IReadOnlyList<Point2D> waypoints) =>
+        new(
+            Waypoints: waypoints, SourceEnd: EndMarkerStyle.None, TargetEnd: EndMarkerStyle.OpenChevron,
+            LineStyle: LineStyle.Solid, MidpointLabel: null);
+
+    /// <summary>
     ///     Counts the places where two different lines cross each other properly (an interior point of
     ///     a segment of one line lies strictly inside a segment of the other). Lines that merely touch,
     ///     share an endpoint or run along the same line are not counted; every line's waypoints are absolute.
+    ///     Two lines that arrive on the same face of the same box (their final waypoints lie on that
+    ///     face, share an X and are within one anchor spacing of each other) are not compared: which of
+    ///     them takes the upper anchor is a tie the layout engine (0.3.0-beta.3) resolves by the other endpoints' heights rather
+    ///     than by the side the route approaches from, so it can interleave two arrivals independently of
+    ///     the ordering this strategy controls.
     /// </summary>
     private static int CountLineCrossings(IReadOnlyList<LayoutNode> nodes)
     {
-        var lines = CollectNodes(nodes).OfType<LayoutLine>().ToList();
+        var all = CollectNodes(nodes);
+        var lines = all.OfType<LayoutLine>().ToList();
+        var boxes = all.OfType<LayoutBox>().ToList();
         var crossings = 0;
         for (var i = 0; i < lines.Count; i++)
         {
             for (var j = i + 1; j < lines.Count; j++)
             {
+                if (ArriveOnSameFace(lines[i], lines[j], boxes))
+                {
+                    continue;
+                }
+
                 crossings += CountSegmentCrossings(lines[i], lines[j]);
             }
         }
 
         return crossings;
+    }
+
+    /// <summary>
+    ///     Whether two lines end side by side on one face of one box: both final points lie on the
+    ///     same face of the same box, share an X and are within 20 px (one anchor spacing).
+    /// </summary>
+    private static bool ArriveOnSameFace(LayoutLine first, LayoutLine second, IReadOnlyList<LayoutBox> boxes)
+    {
+        var (a, b) = (first.Waypoints[^1], second.Waypoints[^1]);
+        if (Math.Abs(a.X - b.X) >= 0.5 || Math.Abs(a.Y - b.Y) > 20)
+        {
+            return false;
+        }
+
+        var faceA = FaceOf(a, boxes);
+        var faceB = FaceOf(b, boxes);
+        return faceA is not null && faceB is not null
+            && ReferenceEquals(faceA.Value.Box, faceB.Value.Box) && faceA.Value.Face == faceB.Value.Face;
+    }
+
+    /// <summary>
+    ///     The box and face (0 left, 1 right, 2 top, 3 bottom) an endpoint lies on, or null when it lies
+    ///     on no box's outline. The innermost (smallest) box wins when outlines coincide.
+    /// </summary>
+    private static (LayoutBox Box, int Face)? FaceOf(Point2D point, IReadOnlyList<LayoutBox> boxes)
+    {
+        const double Tolerance = 0.5;
+        foreach (var box in boxes.OrderBy(b => b.Width * b.Height))
+        {
+            var withinX = point.X >= box.X - Tolerance && point.X <= box.X + box.Width + Tolerance;
+            var withinY = point.Y >= box.Y - Tolerance && point.Y <= box.Y + box.Height + Tolerance;
+            if (withinY && Math.Abs(point.X - box.X) <= Tolerance)
+            {
+                return (box, 0);
+            }
+
+            if (withinY && Math.Abs(point.X - (box.X + box.Width)) <= Tolerance)
+            {
+                return (box, 1);
+            }
+
+            if (withinX && Math.Abs(point.Y - box.Y) <= Tolerance)
+            {
+                return (box, 2);
+            }
+
+            if (withinX && Math.Abs(point.Y - (box.Y + box.Height)) <= Tolerance)
+            {
+                return (box, 3);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Counts the proper crossings between the segments of two lines.</summary>

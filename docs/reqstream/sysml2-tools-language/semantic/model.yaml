@@ -64,12 +64,17 @@ sections:
           - SysML2Tools-Language-Semantic-Model-SysmlNode-ReferenceSubsettingAndConjugation
           - SysML2Tools-Language-Semantic-Model-SysmlNode-StateActionText
           - SysML2Tools-Language-Semantic-Model-SysmlNode-TransitionTriggerEffect
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-TransitionIsElse
           - SysML2Tools-Language-Semantic-Model-AstBuilder-LeadingModifiers
           - SysML2Tools-Language-Semantic-Model-AstBuilder-FeatureValueAndMultiplicityModifiers
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ReferenceSubsettingConjugationRawCapture
           - SysML2Tools-Language-Semantic-Model-AstBuilder-TransitionTriggerEffect
           - SysML2Tools-Language-Semantic-Model-AstBuilder-StateActionText
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ParallelState
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ElseSuccession
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-TerminateNode
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ActionUsageTypingMultiplicity
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-AcceptSendText
         tests:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
           - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames

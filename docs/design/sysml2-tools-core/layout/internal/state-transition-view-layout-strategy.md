@@ -6,16 +6,20 @@
 View diagram. It renders the whole state definition inside one frame headed `«state def» Name`,
 with state usages as rounded boxes placed top-to-bottom through `LayeredPlacement`, an initial
 pseudo-state marker entering the explicitly declared initial state (and none when the model
-declares no initial transition), and transitions as orthogonal arrows annotated with their guard
-conditions.
+declares no initial transition), a final (done) pseudo-state badge, and transitions as orthogonal
+arrows labeled `trigger [guard] / effect`. A state that declares `entry`, `do`, or `exit` actions
+lists them in compartments.
 
 ##### Data Model
 
 `StateTransitionViewLayoutStrategy` has no instance state; all input arrives through the
-`BuildLayout` parameters. Layout constants (`MinStateWidth`, `CharWidthFactor`, `LabelCharWidthFactor`,
-`InitialMarkerSize`, `InitialMarkerGap`, `AnchorSpread`, `FrameInset`) are declared as `private const double` fields. Two
-private records carry intermediate data: `StateItem` (a state with its computed box size) and
-`TransitionItem` (a resolved transition between two state indices with an optional guard).
+`BuildLayout` parameters. Layout constants (`MinStateWidth`, `CharWidthFactor`,
+`InitialMarkerSize`, `FinalMarkerSize`, `InitialMarkerGap`, `FrameInset`,
+`LabelBackgroundPad`, `LabelSpacingSlack`, `MaxWideningPasses`) and the
+reserved name `DoneName` are declared as `private const` fields. Two private records carry
+intermediate data: `StateItem` (a state with its computed box size, name line, entry/do/exit
+compartments, and an `IsFinal` flag) and `TransitionItem` (a resolved transition between two state
+indices with its optional `trigger [guard] / effect` label).
 
 ##### Key Methods
 
@@ -65,13 +69,62 @@ a box (see "Pseudostate/Entry-Action Source Exclusion" below); building a name �
 returning the set of excluded pseudostate/entry-action source names alongside it for
 `FindInitialTargetIndex` to use.
 
-###### `ResolveTransitions(root, index)`
+###### `ResolveTransitions(root, index, states)`
 
 Maps each transition's source and target — by their last `::`-separated name segment — to state
-indices, carrying the optional guard. Because pseudostate/entry-action transition sources are
-never added to `index` by `CollectStates`, a transition whose source is such a name is silently
-dropped here exactly like any other unresolvable endpoint — no additional change was needed in
-this method for the pseudostate exclusion to take effect.
+indices and builds its label with `BuildTransitionLabel`. Because pseudostate/entry-action
+transition sources are never added to `index` by `CollectStates`, a transition whose source is such a
+name is silently dropped here exactly like any other unresolvable endpoint. A transition whose source
+resolves to the final badge is also dropped: nothing leaves a final state.
+
+###### Transition label
+
+`BuildTransitionLabel` produces the specification's `trigger [guard] / effect` label (graphical
+BNF, clause 8.2.3, `transition-label`): the trigger text (the text after `accept`), then the guard in
+brackets, then `/` and the effect (the text after `do`, without a leading `action` keyword). Each
+part is omitted when the transition does not declare it, so a guard-only transition keeps the label
+`[guard]`; runs of whitespace collapse to one space; the label is null when none of the three exists.
+Self-transitions carry the same label.
+
+###### State box content
+
+`BuildStateItem` builds each declared state's name line with `GeneralViewLayoutStrategy.FormatNameLine`
+(`name : Type [multiplicity]` for a typed usage) and its compartments with `BuildActionCompartments`:
+one `LayoutCompartment` per sub-action kind present, in the fixed order `entry`, `do`, `exit`, titled
+with the keyword (centered, italic) and listing each action's declaration text without a leading
+`action` keyword (the name when there is no text; the empty form `entry;` adds no row). The box is
+sized by `ComputeStateSize`: wide enough for the name line and the longest compartment title or row,
+and tall enough for the title area plus each compartment, using the same height arithmetic as the
+General view (`ComputeCompartmentHeight` is deliberately repeated rather than shared, so the two
+strategies stay independent units).
+
+The separate `entry` / `do` / `exit` compartments follow the SysML v2.0 graphical notation for the
+state node (OMG formal/2025-09-03, clause 8.2.3.18 "States Graphical Notation", printed pp. 233-234,
+PDF pp. 265-266): the `state` production stacks `state-name-compartment`, `state-entry-action`,
+`state-do-action`, `state-transition-view`, `state-exit-action` and the `compartment-stack`, and each of
+`state-entry-action`, `state-do-action`, `state-exit-action` is its own compartment under a full-width
+separator, titled `'entry'`, `'do'` or `'exit'` and followed by the sub-action body. The single
+`state-actions-compartment` (printed p. 235; its title is printed `'states'`, a copy of
+`states-compartment`) is a member of the `compartment` list used in a compartment stack, not the
+state node's own layout, so it is not used here. The order is the node's `entry`, `do`, then `exit`; the
+`state-transition-view` that the specification puts between `do` and `exit` is not drawn because
+composite states are not supported (see "Limitations"). Known deviation: the specification draws the
+three titles upright, whereas this strategy draws them italic like every other compartment title.
+
+###### Final state
+
+A transition whose target is the reserved name `done` (the target of `then done;`) ends in a single
+shared final badge, however many transitions reach it. `CollectStates` registers it as a `StateItem`
+with `IsFinal` set (an 18 px node in the layered graph) and `BuildLayout` draws it as a
+`BadgeShape.Bullseye` badge instead of a box. A declared state usage that is itself named `done` is
+drawn as an ordinary box.
+
+###### Limitations
+
+Composite (nested) states are not drawn: a state with nested states renders as an ordinary box and its
+nested states are ignored (tracked as the open "Nested state regions" item in the roadmap, which needs
+nested layout scopes). Fork, join, decision, merge, and terminate nodes cannot occur in a state body:
+the SysML v2 textual grammar does not admit them there, so the view has nothing to draw.
 
 ###### `FindInitialTargetIndex(root, pseudoSourceNames, index)`
 
@@ -92,30 +145,67 @@ direction: each state becomes a sized node and each non-self transition a direct
 machine reads top-to-bottom. `LayeredPlacement` delegates to the off-the-shelf
 `DemaConsulting.Rendering.Layout` layered algorithm, which returns placed rectangles for the states
 and routed orthogonal polylines for the transitions, each already oriented source-to-target because
-the algorithm reverses back edges internally. (The previous internal engine reserved a custom
-straight approach for the open-chevron marker on reversed edges; that knob has no public equivalent,
-so a reversed transition's final approach may differ by about a pixel — a purely cosmetic change.)
+the algorithm reverses back edges internally. The strategy passes `EndMarkerStyle.OpenChevron` as
+the placement's `edgeTargetEnd`, so the engine sizes every edge's final approach — including a back
+edge's — to the open-chevron marker and the arrowhead enters on a clean straight run.
 The placed coordinates
 are normalized so the content starts at a margin offset below the frame's title band
 (reserving room for the initial marker only when one is drawn), and the frame and canvas are sized
 to the full content extent, including routed transition polylines that can bulge beyond the box
 columns and the actual
-rendered extent of each guard label. Because guard labels are drawn centered on their segment
-midpoints with `ConnectorLabelPlacer` from `DemaConsulting.Rendering.Abstractions`, only the part of a
-label that genuinely overhangs the content widens the canvas: labels sitting on interior vertical
-segments add little or nothing.
+rendered extent of each transition label. Transition labels are placed by the renderers with the
+obstacle-aware `ConnectorLabelPlacer.Place(lines, fontSize, boxes, markerScale)` overload from
+`DemaConsulting.Rendering.Abstractions` (the state boxes are the obstacles, so a label is moved clear
+of a box corner). `LabelRightExtent` calls the same overload with the same obstacles and uses
+`EstimateLabelWidth` for the text width, so the frame tracks where the renderers really draw each
+label; only the part of a label that genuinely overhangs the content widens the canvas. When a label
+overhangs the left edge of the content instead (`LabelLeftExtent`), `BuildLayout` rebuilds the
+content shifted right by the overhang so the label keeps a margin inside the frame.
+
+*Label clearance.* Transition labels are drawn with an opaque background, so a label that lands on a
+state's border, or on its own connector's arrowhead, visibly erases it. The label placer chooses a
+label position per connector after the layout engine has fixed the geometry, so the strategy cannot
+move a label directly; it changes the sizes it asks the engine to place instead. `BuildLayout` lays the
+states out with `LayOutStates` and then runs `WidenForLabelClearance` on the result: it places the
+labels exactly as the renderers do and flags a label that, with `LabelBackgroundPad` (4 px) added above
+and below, overlaps a state box or covers the first or last open-chevron length of its own connector
+(the placer's text rectangle is already wider than the rendered text, so no horizontal pad is added).
+The engine spreads the anchors on a face of a state evenly across its width, so two labeled
+connectors that arrive on one narrow face (for example two guards `[atFloor]` onto `doorsOpening`)
+sit closer together than their labels are wide; the second label then falls back to a short jog next
+to, or onto the border of, the state. A label that covers a sibling connector arriving on the same
+face is flagged as well. For each flagged label, every state at an end of its connector whose top or
+bottom face carries two or more connectors is widened to the number of connectors on that face times
+the spacing the two widest labels there need (`(w1 + w2) / 2 + LabelSpacingSlack`), but never beyond
+twice its natural width, and the states are laid out again. The pass runs at most `MaxWideningPasses`
+(3) times, is best effort (it never throws and simply stops when nothing more can be widened), and
+changes nothing for a diagram whose labels are already clear, so such a diagram is laid out exactly as
+before. The engine's own per-edge label option is not used because it floors a face's width at the
+number of anchors times the widest label, which would make a state hundreds of pixels wide.
+
+Limitation: a connector that must cross a rank gap carrying a label wider than the gap's other clear
+space can still be hidden under that label (the placer ignores other connectors), and a label wider
+than about 58 px on a back edge's vertical lane beside a state falls back to a jog. Neither can be
+cured by sizing the states, so the gallery models avoid them (see the Heater and Elevator models); the
+`LabelsDoNotOverlapStateBoxes` and `LabelsAreClear` gallery tests guard the models.
+
+*Frame bottom.* The frame ends one `margin` below the lowest content, which is the lower of the lowest
+state, badge, or connector point and the bottom of the lowest placed label, so the empty band under the
+last state or final badge is as thin as the side margin.
 
 `AddInitialMarker` places a filled-circle badge above the initial state with a straight, solid
 arrow into it that ends in an open chevron (`EndMarkerStyle.OpenChevron`) — the specification's
 open arrowhead for initial-state and succession-style transitions (graphical BNF, p268) — rather
 than a filled arrowhead.
-`AddTransitions` maps each transition to the corresponding orthogonal polyline returned by
-`LayeredPlacement`, preserving input-edge order and source-to-target orientation. Successive
-transitions sharing one routed corridor are spread laterally so their anchor points and guard labels
-do not coincide. Each transition is emitted with an open chevron end marker
+`AddTransitions` maps the k-th non-self transition to the k-th orthogonal polyline returned by
+`LayeredPlacement`, which is already in input-edge order and source-to-target orientation. The
+association is by position rather than by state pair, so parallel transitions between the same two
+states (and a forward/back-edge pair) each keep their own engine route, with distinct anchors, and
+each label is placed on its own route; no lateral offset is applied. Each transition is emitted with an
+open chevron end marker
 (`EndMarkerStyle.OpenChevron`, drawn open in both renderers) at the target state, matching SysML v2
-state transition notation, and labeled with its bracketed guard. A self-transition is drawn as a
-small loop above its state, also terminated by an open chevron end marker. The method returns the
+state transition notation, and labeled with its `trigger [guard] / effect` text. A self-transition is
+drawn as a small loop above its state, also terminated by an open chevron end marker. The method returns the
 number of transitions whose polyline crosses a non-endpoint state box.
 
 ##### Expose Scoping
@@ -175,8 +265,9 @@ are surfaced through `LayoutWarnings`.
   `BuildLayout`, `FindRoot`, and `CollectStates`.
 - `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode`, `SysmlTransitionNode` (Semantic subsystem) — model input.
 - `LayoutWarnings` (Layout Internal subsystem) — crossing-warning construction.
-- The `LayoutTree`, `LayoutBox`, `LayoutBadge`, and `LayoutLine` data types
+- The `LayoutTree`, `LayoutBox`, `LayoutBadge`, `LayoutCompartment`, and `LayoutLine` data types
   (`DemaConsulting.Rendering`).
+- `GeneralViewLayoutStrategy.FormatNameLine` (Layout Internal subsystem) — the shared name-line formatter.
 
 ##### Callers
 

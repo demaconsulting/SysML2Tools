@@ -109,6 +109,13 @@ internal static class LayeredPlacement
     /// back edge sharing a node pair with a forward edge) will corrupt that indexing — collapsing
     /// yields fewer entries in <see cref="PlacedLayout.EdgePolylines"/> than <paramref name="edges"/>.
     /// </param>
+    /// <param name="edgeTargetEnd">
+    /// The end decoration declared on every edge's target end (see
+    /// <see cref="LayoutGraphEdge.TargetEnd"/>). Defaults to <see cref="EndMarkerStyle.None"/>. The
+    /// layered algorithm reads the decoration to size the final approach of a back edge (the straight
+    /// run into the target must be at least as long as the marker), so a caller that draws an
+    /// arrowhead at the target should pass the same style it puts on the drawn line.
+    /// </param>
     /// <returns>The placed rectangles, routed polylines, and overall content size.</returns>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="nodes"/> or <paramref name="edges"/> is <see langword="null"/>.
@@ -117,7 +124,8 @@ internal static class LayeredPlacement
         IReadOnlyList<(double Width, double Height)> nodes,
         IReadOnlyList<(int From, int To)> edges,
         LayoutFlowDirection direction,
-        bool mergeParallelEdges = true)
+        bool mergeParallelEdges = true,
+        EndMarkerStyle edgeTargetEnd = EndMarkerStyle.None)
     {
         ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(edges);
@@ -133,7 +141,8 @@ internal static class LayeredPlacement
         for (var e = 0; e < edges.Count; e++)
         {
             var (from, to) = edges[e];
-            graph.AddEdge(e.ToString(CultureInfo.InvariantCulture), graphNodes[from], graphNodes[to]);
+            var edge = graph.AddEdge(e.ToString(CultureInfo.InvariantCulture), graphNodes[from], graphNodes[to]);
+            edge.TargetEnd = edgeTargetEnd;
         }
 
         graph.Set(CoreOptions.Direction, direction);

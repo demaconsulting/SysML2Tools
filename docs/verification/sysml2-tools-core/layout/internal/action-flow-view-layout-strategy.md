@@ -30,6 +30,24 @@ configuration are required beyond a standard .NET SDK installation.
   the done marker only to sink actions, and a cyclic flow still emits each succession with an open
   marker at its true target.
 - An empty workspace yields a canvas with no nodes.
+- Fork and join nodes are unlabeled thick bars sized to their fan-out, with every connection on the
+  long face at least 16 px apart and every connector touching the drawn bar; decision and merge
+  nodes are diamonds that connectors touch at the outline.
+- A guarded succession is labeled `[guard]` and a succession declared with `else` is labeled
+  `else`.
+- A terminate node is a crossed circle that only receives successions and is not an inferred end:
+  no done marker follows it.
+- Accept and send nodes are rounded boxes with the corner icon and no keyword, listing their payload.
+- An explicit `first start` / `then done` succession decides where the start and done markers
+  attach, with no start or done box; without them the markers follow the topology, unchanged.
+- A typed action reads `name : Type [m]`.
+- Every succession, a back edge included, ends in an open chevron on an approach at least as long as
+  the marker, and the gallery pipeline model shows the whole notation.
+- The guard or `else` label of a decision branch (Pipeline and Order gallery models) sits on a
+  vertical run; the diamond end, the sideways run, other connectors, and the arrowhead stay
+  visible. A branch whose sideways run is longer than its drop keeps the engine's route, and
+  sibling branches keep distinct sideways runs.
+- A missing gallery model fails its test rather than passing vacuously.
 - A `null` `ViewContext.ViewNode` selects the pre-scoping heuristic root and renders every action,
   unchanged from before this feature — the critical `--auto`/no-expose regression guard.
 - A view whose resolved `Expose` edge names a definition other than the heuristic root selects
@@ -67,8 +85,29 @@ configuration are required beyond a standard .NET SDK installation.
 | `ActionFlowView_BuildLayout_ExposeSingleAction_DropsOutOfScopeAction` | Isolated action dropped; referenced kept |
 | `ActionFlowView_BuildLayout_ExposedUsage_ResolvesThroughTypingToRoot` | Usage resolves via `Typing` to root |
 | `ActionFlowView_BuildLayout_ExposeInnerActionOfNestedDefinition_SelectsNestedDefinitionNotAncestor` | Nested wins |
-| `ActionFlowView_BuildLayout_ForkAndJoin_RenderHorizontalBarBadges` | Fork/join render horizontal-bar badges |
+| `ActionFlowView_BuildLayout_ForkAndJoin_RenderThickBarBadges_WithoutLabel` | Fork/join render unlabeled thick bars |
 | `ActionFlowView_BuildLayout_DecisionAndMerge_RenderDiamondBadges` | Decision/merge render diamond badges |
-| `ActionFlowView_BuildLayout_AcceptAndSend_RenderBoxesWithDistinctKeyword` | Accept/send keep own `Keyword` |
+| `ActionFlowView_BuildLayout_AcceptAndSend_RenderBoxesWithCornerIcons` | Accept/send corner icons |
 | `ActionFlowView_BuildLayout_SyntheticControlNodeName_RendersBlankLabel` | `$`-prefixed synthetic names render blank |
 | `ActionFlowView_BuildLayout_CompactActionThenIdiom_ResolvesBothNodes` | Compact `action a; then b;` idiom resolves |
+| `ActionFlowView_BuildLayout_ThickBar_LengthGrowsWithFanOut` | Bar length follows fan-out |
+| `ActionFlowView_BuildLayout_ThickBar_AnchorsAtLeast16pxApart` | Connections on the bar at least 16 px apart |
+| `ActionFlowView_BuildLayout_ThickBar_ConnectorsTouchTheBar` | Connectors meet the drawn bar |
+| `ActionFlowView_BuildLayout_ThickBar_SingleConnection_RunsStraight` | A bar's only connection runs straight |
+| `ActionFlowView_BuildLayout_Decision_ConnectorsTouchTheDiamondOutline` | Connectors meet the diamond outline |
+| `ActionFlowView_BuildLayout_GuardedSuccession_LabelsEdge` | `[guard]` label |
+| `ActionFlowView_BuildLayout_ElseSuccession_LabelsEdgeElse` | `else` label |
+| `ActionFlowView_BuildLayout_TerminateNode_RendersCrossedCircle_NoOutgoing` | Crossed circle, receives only |
+| `ActionFlowView_BuildLayout_TerminateNode_NotTreatedAsDoneSource` | Done marker skips terminate nodes |
+| `ActionFlowView_BuildLayout_OnlyTerminateEnds_DrawsNoDoneMarker` | No inferred done marker |
+| `ActionFlowView_BuildLayout_ExplicitStart_NoStartBox_MarkerEntersTarget` | Explicit start marker, no start box |
+| `ActionFlowView_BuildLayout_ExplicitDone_ConnectsOnlyDeclaredSources` | Explicit done sources only |
+| `ActionFlowView_BuildLayout_NoExplicitMarkers_HeuristicUnchanged` | Topology heuristic unchanged |
+| `ActionFlowView_BuildLayout_TypedAction_LabelShowsTypeAndMultiplicity` | `name : Type [m]` label |
+| `ActionFlowView_BuildLayout_AcceptPayload_RendersTextRow` | Payload row, box wide enough |
+| `ActionFlowView_BuildLayout_BackEdge_OpenChevronWithFlushApproach` | Final approach at least the marker length |
+| `ActionFlowView_BuildLayout_PipelineGalleryModel_ShowsActionFlowNotation` | Gallery model shows the notation |
+| `ActionFlowView_BuildLayout_DecisionBranchLabels_SitOnVerticalDrop_AndKeepRunsVisible` | Labels on vertical runs |
+| `ActionFlowView_BuildLayout_WideBranchBoxes_LabeledJogIsLeftUnchanged` | Long sideways run keeps engine route |
+| `ActionFlowView_BuildLayout_DecisionWithManyBranches_KeepsDistinctJogLanes` | Sibling branches keep distinct runs |
+| `ActionFlowView_BuildLayout_LongLeftBranchGuard_LabelIsInsideCanvas` | Left overhang moves content right |

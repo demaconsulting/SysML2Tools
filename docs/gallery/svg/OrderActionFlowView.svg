@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="376.65" height="850.00" viewBox="0 0 376.65 850.00">
+  <defs>
+    <marker id="line-end-open-chevron" markerWidth="10.165175" markerHeight="7" refX="10.165175" refY="3.5" orient="auto">
+      <polyline points="0 0, 10 3.5, 0 7" fill="none" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
+    </marker>
+    <marker id="line-end-hollow-triangle" markerWidth="10.165175" markerHeight="7" refX="10.165175" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
+    </marker>
+    <marker id="line-end-filled-arrow" markerWidth="10.165175" markerHeight="7" refX="10.165175" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#000000" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
+    </marker>
+    <marker id="line-end-hollow-triangle-crossbar" markerWidth="14.665175" markerHeight="7" refX="14.665175" refY="3.5" orient="auto">
+      <polygon points="4.5 0, 14.5 3.5, 4.5 7" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
+      <line x1="1" y1="0" x2="1" y2="7" stroke="#000000" stroke-width="1.00"/>
+    </marker>
+    <marker id="line-end-hollow-diamond" markerWidth="14" markerHeight="8" refX="13.27735" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
+    </marker>
+    <marker id="line-end-filled-diamond" markerWidth="14" markerHeight="8" refX="13.27735" refY="4" orient="auto">
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#000000" stroke="#000000" stroke-width="1.00" stroke-linejoin="bevel"/>
+    </marker>
+    <marker id="line-end-circle" markerWidth="10" markerHeight="10" refX="9.5" refY="5" orient="auto">
+      <circle cx="5" cy="5" r="4" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+    </marker>
+    <marker id="line-end-bar" markerWidth="4" markerHeight="12" refX="2.5" refY="6" orient="auto">
+      <line x1="2" y1="0" x2="2" y2="12" stroke="#000000" stroke-width="1.00"/>
+    </marker>
+    <filter id="label-bg" x="-0.05" y="-0.05" width="1.1" height="1.1">
+      <feFlood flood-color="#FFFFFF"/>
+      <feComposite in="SourceGraphic" operator="over"/>
+    </filter>
+  </defs>
+  <rect x="164.55" y="114.00" width="151.92" height="56.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
+  <polygon points="170.55,120.00 178.55,120.00 182.55,124.50 178.55,129.00 170.55,129.00 173.55,124.50" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="240.51" y="127.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">receive</text>
+  <line x1="164.55" y1="140.00" x2="316.47" y2="140.00" stroke="#000000" stroke-width="1.00"/>
+  <text x="170.55" y="152.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">accept OrderPlaced</text>
+  <polygon points="240.51,240.00 260.51,260.00 240.51,280.00 220.51,260.00" fill="none" stroke="#000000" stroke-width="1.00"/>
+  <text x="266.51" y="266.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">stockCheck</text>
+  <rect x="140.65" y="358.00" width="72.00" height="4.00" fill="#000000"/>
+  <rect x="24.00" y="470.00" width="110.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
+  <text x="79.00" y="482.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="79.00" y="501.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">pickItems</text>
+  <rect x="164.00" y="470.00" width="128.16" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
+  <text x="228.08" y="482.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="228.08" y="501.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">printInvoice</text>
+  <rect x="120.98" y="598.00" width="72.00" height="4.00" fill="#000000"/>
+  <rect x="68.44" y="680.00" width="181.68" height="56.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
+  <polygon points="74.44,686.00 82.44,686.00 86.44,690.50 82.44,695.00 74.44,695.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="159.28" y="693.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">ship</text>
+  <line x1="68.44" y1="706.00" x2="250.12" y2="706.00" stroke="#000000" stroke-width="1.00"/>
+  <text x="74.44" y="718.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">send parcel to carrier</text>
+  <rect x="242.65" y="350.00" width="110.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00" rx="8.00" ry="8.00"/>
+  <text x="297.65" y="362.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«action»</text>
+  <text x="297.65" y="381.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">reject</text>
+  <circle cx="332.16" cy="480.00" r="10.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <line x1="325.09" y1="472.93" x2="339.23" y2="487.07" stroke="#000000" stroke-width="1.00"/>
+  <line x1="325.09" y1="487.07" x2="339.23" y2="472.93" stroke="#000000" stroke-width="1.00"/>
+  <path d="M 240.51 170.00 L 240.51 240.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 230.51 270.00 L 230.51 272.50 A 2.50 2.50 0 0 1 228.01 275.00 L 180.65 275.00 A 4.00 4.00 0 0 0 176.65 279.00 L 176.65 358.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 250.51 270.00 L 250.51 272.50 A 2.50 2.50 0 0 0 253.01 275.00 L 293.65 275.00 A 4.00 4.00 0 0 1 297.65 279.00 L 297.65 350.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 158.65 362.00 L 158.65 406.00 A 4.00 4.00 0 0 1 154.65 410.00 L 83.00 410.00 A 4.00 4.00 0 0 0 79.00 414.00 L 79.00 470.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 194.65 362.00 L 194.65 406.00 A 4.00 4.00 0 0 0 198.65 410.00 L 224.08 410.00 A 4.00 4.00 0 0 1 228.08 414.00 L 228.08 470.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 79.00 520.00 L 79.00 526.00 A 4.00 4.00 0 0 0 83.00 530.00 L 134.98 530.00 A 4.00 4.00 0 0 1 138.98 534.00 L 138.98 598.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 228.08 520.00 L 228.08 526.00 A 4.00 4.00 0 0 1 224.08 530.00 L 178.98 530.00 A 4.00 4.00 0 0 0 174.98 534.00 L 174.98 598.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 159.28 602.00 L 159.28 680.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 297.65 400.00 L 297.65 406.00 A 4.00 4.00 0 0 0 301.65 410.00 L 328.16 410.00 A 4.00 4.00 0 0 1 332.16 414.00 L 332.16 470.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <circle cx="240.51" cy="34.00" r="10.00" fill="#000000"/>
+  <path d="M 240.51 44.00 L 240.51 114.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <circle cx="159.28" cy="816.00" r="10.00" fill="#000000"/>
+  <circle cx="159.28" cy="816.00" r="3.33" fill="white" stroke="#000000" stroke-width="1.00"/>
+  <path d="M 159.28 736.00 L 159.28 806.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <text x="176.65" y="316.50" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">[inStock]</text>
+  <text x="297.65" y="312.50" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">else</text>
+</svg>

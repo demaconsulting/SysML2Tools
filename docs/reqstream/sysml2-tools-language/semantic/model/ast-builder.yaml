@@ -585,3 +585,42 @@ sections:
           Parallel (concurrent) states are drawn differently, so the flag must be observable.
         tests:
           - WorkspaceLoader_LoadAsync_ParallelState_SetsIsParallel
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ElseSuccession
+        title: >-
+          AstBuilder shall set IsElse on a succession declared with `else`, and leave it false
+          for guarded and unconditional successions.
+        justification: |
+          The decision notation labels the default branch `else`; the grammar gives that branch
+          no guard expression, so the flag is the only record of it.
+        tests:
+          - WorkspaceLoader_LoadAsync_ElseSuccession_SetsIsElse
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-TerminateNode
+        title: >-
+          AstBuilder shall produce a feature with the `terminate` keyword for a `terminate`
+          action node, using a synthetic name when the node is unnamed.
+        justification: |
+          The terminate node is drawn as a distinct shape and is the target of successions, so
+          it must exist in the model like the other control nodes.
+        tests:
+          - WorkspaceLoader_LoadAsync_TerminateNode_ProducesTerminateFeature
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ActionUsageTypingMultiplicity
+        title: >-
+          AstBuilder shall capture the feature typing and multiplicity of an action usage.
+        justification: |
+          The notation labels an action `name : Type [multiplicity]`; the action usage builder
+          previously dropped both.
+        tests:
+          - WorkspaceLoader_LoadAsync_ActionUsage_CapturesTypingAndMultiplicity
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-AcceptSendText
+        title: >-
+          AstBuilder shall capture the payload clause of an `accept` or `send` action node, with
+          its original spacing, into ActionText.
+        justification: |
+          The notation shows what an accept or send action receives or sends; the node
+          previously kept only its name.
+        tests:
+          - WorkspaceLoader_LoadAsync_AcceptSendNodes_CapturePayloadText

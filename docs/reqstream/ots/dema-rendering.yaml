@@ -131,3 +131,59 @@ sections:
             tags: [ots]
             tests:
               - LayeredLayoutAlgorithm_Layout_ContainerContents_StackUnconnectedGroupsByInsertionOrder
+
+          - id: SysML2Tools-OTS-DemaRendering-NotationBadges
+            title: >-
+              DemaConsulting.Rendering shall provide thick-bar and crossed-circle badge shapes
+              that a layout can place and draw.
+            justification: |
+              The Action Flow View draws a fork or join as a thick bar and a terminate node as a
+              crossed circle. Both are badge shapes of the package (BadgeShape.ThickHorizontalBar
+              and BadgeShape.CrossedCircle, available since version 0.3.0-beta.3); the strategy
+              tests confirm the shapes are produced and the renderers accept them.
+            tags: [ots]
+            tests:
+              - ActionFlowView_BuildLayout_ForkAndJoin_RenderThickBarBadges_WithoutLabel
+              - ActionFlowView_BuildLayout_TerminateNode_RendersCrossedCircle_NoOutgoing
+
+          - id: SysML2Tools-OTS-DemaRendering-BoxCornerIcon
+            title: >-
+              DemaConsulting.Rendering shall draw a send or accept icon in the corner of a box
+              that requests one.
+            justification: |
+              The notation marks accept and send actions with a pentagon icon in the box corner.
+              The package provides it as BoxAppearance.CornerIcon (version 0.3.0-beta.3); a box
+              laid out with the icon and rendered to SVG and PNG is the evidence.
+            tags: [ots]
+            tests:
+              - ActionFlowView_BuildLayout_AcceptAndSend_RenderBoxesWithCornerIcons
+              - ActionFlowView_BuildLayout_PipelineGalleryModel_ShowsActionFlowNotation
+
+          - id: SysML2Tools-OTS-DemaRendering-LabelAvoidance
+            title: >-
+              DemaConsulting.Rendering shall place connector labels clear of the boxes handed to
+              its label placer as obstacles.
+            justification: |
+              State transition labels must not sit on state-box corners. The package's
+              ConnectorLabelPlacer accepts the boxes as obstacles (version 0.3.0-beta.3) and the
+              renderers use it; the strategy sizes its frame with the same call, and the tests
+              run the placer over the produced layout and find no label on a box.
+            tags: [ots]
+            tests:
+              - StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes
+              - StateTransitionView_BuildLayout_FrameWidth_AccountsForLongTransitionLabel
+
+          - id: SysML2Tools-OTS-DemaRendering-BackEdgeApproach
+            title: >-
+              DemaConsulting.Rendering shall give an edge whose target end decoration is declared
+              on the layout graph a final straight approach at least as long as the decoration.
+            justification: |
+              An arrowhead on a back edge is only drawn cleanly when the edge approaches its
+              target on a straight run as long as the marker. The layered algorithm reads the
+              declared LayoutGraphEdge.TargetEnd for this (version 0.3.0-beta.3); an upgrade that
+              ignores it fails the approach-length checks.
+            tags: [ots]
+            tests:
+              - LayeredPlacement_Place_EdgeTargetEnd_ForwardedToGraphEdges
+              - StateTransitionView_BuildLayout_BackEdge_OpenChevronWithFlushApproach
+              - ActionFlowView_BuildLayout_BackEdge_OpenChevronWithFlushApproach

@@ -118,13 +118,22 @@ SVG: [`svg/CoreLinkInterconnectionView.svg`](svg/CoreLinkInterconnectionView.svg
 ## 3. State Transition View — Elevator Controller
 
 Shows states placed top-to-bottom by the layered layout pipeline inside a frame headed
-`«state def» ElevatorStates`, an initial pseudo-state, and guarded transitions routed as
-orthogonal `[guard]`-labeled arrows. The initial marker (an open-arrowhead arrow) targets
-the state named by the explicit `first start then idle;` transition; a state machine with no
-explicit initial transition is drawn without an initial marker. The `idle`/`doorsClosing` pair
-uses the attached-transition idiom
-(`state idle; accept callReceived then doorsClosing;`) instead of a standalone `transition`
-statement.
+`«state def» ElevatorStates`, an initial pseudo-state, a final pseudo-state, and transitions routed
+as orthogonal arrows labeled `trigger [guard] / effect` (each part appears only when the transition
+declares it). The initial marker (an open-arrowhead arrow) targets the state named by the explicit
+`first start then idle;` transition; a state machine with no explicit initial transition is drawn
+without an initial marker. A transition into `done` (`transition first doorsOpen accept shutdown
+then done;`) ends in the final badge, a bullseye. `doorsOpening` lists its `entry`, `do`, and `exit`
+actions in compartments titled with the keyword, and `doorsClosing` lists an `entry` action. The
+`idle`/`doorsClosing` pair uses the attached-transition idiom
+(`state idle; accept callReceived if doorsClear do action dimLights then doorsClosing;`) instead
+of a standalone `transition` statement, and shows a full `trigger [guard] / effect` label. The
+`doorsOpen` → `doorsClosing` transition is a plain `accept timeout` trigger, drawn as a back edge
+that ends in a flush open chevron.
+
+The model's `then done;` produces one lint warning, `Unresolved reference: 'done'`: the reference
+resolver resolves the inherited `start`/`done` names only as a transition *source*. The diagram is
+unaffected. Composite (nested) states are not drawn yet; see the roadmap.
 
 Model: [`models/03-elevator-state.sysml`](models/03-elevator-state.sysml) ·
 SVG: [`svg/ElevatorStateTransitionView.svg`](svg/ElevatorStateTransitionView.svg)
@@ -136,12 +145,20 @@ SVG: [`svg/ElevatorStateTransitionView.svg`](svg/ElevatorStateTransitionView.svg
 ## 4. Action Flow View — CI/CD Pipeline
 
 Shows actions arranged top-to-bottom by the layered layout pipeline, with a start node, a done
-node, and a quality-gate branch and join. The start and done connectors are dashed open-arrowhead
-lines like every succession. The `build` step fans out through a named `fork`
-(rendered as a horizontal-bar badge) into parallel `unitTest`/`securityScan` branches that rejoin
-through a named `join` (also a horizontal-bar badge) before `qualityGate`. The `checkout` step
+node, a terminate node, and a quality-gate branch and join. The start and done connectors are
+dashed open-arrowhead lines like every succession, and they attach where the model says:
+`first start then checkout;` enters `checkout` and `then done;` follows `notifySuccess`. The
+`build` step, typed by the `BuildStep` action definition, reads `build : BuildStep`. It fans out
+through a named `fork` (drawn as a thick bar, without a label) into parallel
+`unitTest`/`securityScan` branches that rejoin through a named `join` (also a thick bar) before
+`qualityGate`. `awaitApproval` is an accept action and `notifySuccess` a send action: each is a
+box with the specification's corner icon and lists its payload (`accept ApprovalSignal`,
+`send releaseNote to team`). After `smokeTest` a decision (a diamond) branches on `[smokePassed]`
+or `else`; the `else` branch ends in the crossed-circle terminate node `abort`. The `checkout` step
 uses the compact `action checkout; then restoreDependencies;` idiom instead of a standalone
 `first ... then ...;` succession statement.
+
+The model's `then done;` produces one lint warning, `Unresolved reference: 'done'` (see section 3).
 
 Model: [`models/04-pipeline-action-flow.sysml`](models/04-pipeline-action-flow.sysml) ·
 SVG: [`svg/PipelineActionFlowView.svg`](svg/PipelineActionFlowView.svg)
@@ -353,6 +370,50 @@ SVG: [`svg/VehiclePackagesGeneralView.svg`](svg/VehiclePackagesGeneralView.svg)
 
 ---
 
+## 12. State Transition View — Heater (notation showcase)
+
+A deliberately small state machine that shows the state notation on its own: `standby` lists an
+`entry` action, `heating` lists `entry`, `do`, and `exit` actions in compartments titled with the
+keyword, `heat [tempLow] / beep` is a full `trigger [guard] / effect` label, `cooled` is a back
+edge into `standby`, and the machine starts at an initial state and ends in a final state. The
+model's `then done;` produces one lint warning (see section 3).
+
+Model: [`models/12-heater-state.sysml`](models/12-heater-state.sysml) ·
+SVG: [`svg/HeaterStateView.svg`](svg/HeaterStateView.svg)
+
+![Heater State Transition View: standby, heating, and cooling states with entry, do, and exit compartments, trigger-guard-effect labels, and initial and final states](png/HeaterStateView.png)
+
+---
+
+## 13. Action Flow View — Order Handling (notation showcase)
+
+A deliberately small action flow that shows the action-flow notation on its own: a start node,
+`receive` as an accept action, a decision (a diamond) that branches on `[inStock]` or `else`, a
+fork and a join drawn as thick bars, `ship` as a send action, a done node after `ship`, and a
+crossed-circle terminate node after `reject`. The model's `then done;` produces one lint warning
+(see section 3).
+
+Model: [`models/13-order-action-flow.sysml`](models/13-order-action-flow.sysml) ·
+SVG: [`svg/OrderActionFlowView.svg`](svg/OrderActionFlowView.svg)
+
+![Order Handling Action Flow View: an accept action, a guarded decision with an else branch, a fork and join as thick bars, a send action, and done and terminate nodes](png/OrderActionFlowView.png)
+
+---
+
+## Known deviation: the diagram-quality fill criterion (B5) on two tall flows
+
+The gallery images are checked against the project's diagram-quality criteria. Every image passes
+them except one criterion on two of the action-flow images: B5 (state boxes and action boxes fill at
+least 20 % of the canvas). The Pipeline image fills 14.2 % (382 × 1780 px) and the Order image fills
+11.5 % (377 × 850 px). The Pipeline image already fell short of B5 on `main` (15.2 %). The cause is
+the layered layout engine, which keeps a fixed 70 px corridor between consecutive layers (an engine
+constant, not an option), so a single-column flow of 8 to 9 layers is mostly corridor. Making such a
+flow wider to raise the fill makes it worse, because the canvas grows faster than the boxes do, and
+reaching 20 % would need a canvas about 40 % smaller. The deviation is accepted for these two tall,
+single-column flows; the State Transition images (Elevator 23.8 %, Heater 22.9 %) pass.
+
+---
+
 ## View coverage
 
 | # | View type | Example system | Status |
@@ -368,3 +429,5 @@ SVG: [`svg/VehiclePackagesGeneralView.svg`](svg/VehiclePackagesGeneralView.svg)
 | 9 | Multi-Port Interconnection View | Motor/Controller Rig | ✅ |
 | 10 | Geometry View | — | Deferred (requires spatial coordinate data) |
 | 11 | General View — Nested Packages | Vehicle Packages | ✅ |
+| 12 | State Transition View — notation showcase | Heater | ✅ |
+| 13 | Action Flow View — notation showcase | Order Handling | ✅ |
