@@ -17,7 +17,8 @@ configuration are required beyond a standard .NET SDK installation.
 - All `SequenceViewLayoutStrategyTests` pass with zero failures across all target frameworks.
 - A definition with messages yields one lifeline per participant and one line per message, ordered
   top-to-bottom by declaration order.
-- A message between two lifelines is a horizontal line with an open end marker at the receiver.
+- A message between two lifelines is a horizontal line with a hollow-triangle end marker at the
+  receiver; a message from a lifeline to itself (a self-loop) carries the same hollow-triangle head.
 - A workspace with no messages yields an empty diagram.
 - A directly-nested `part` feature under a root part definition, referenced by a message
   endpoint's first dotted segment, has a `QualifiedName` matching the reconstructed
@@ -49,9 +50,10 @@ configuration are required beyond a standard .NET SDK installation.
 | Test | Assertion |
 | --- | --- |
 | `SequenceView_BuildLayout_Messages_ProducesLifelinesAndOrderedLines` | Lifeline per participant; ordered top-down |
-| `SequenceView_BuildLayout_Message_IsHorizontalBetweenLifelines` | Horizontal line, open end marker at receiver |
+| `SequenceView_BuildLayout_Message_IsHorizontalBetweenLifelines` | Horizontal line, hollow-triangle head at receiver |
 | `SequenceView_BuildLayout_NoMessages_ReturnsMinimalCanvas` | Workspace with no messages yields no nodes |
-| `SequenceView_BuildLayout_MessageArrow_HasOpenArrowhead` | Open end marker at receiver end |
+| `SequenceView_BuildLayout_MessageArrow_HasHollowTriangleHead` | Hollow-triangle end marker at receiver end |
+| `SequenceView_BuildLayout_SelfMessage_HasHollowTriangleHead` | Self-message loop ends in a hollow-triangle head |
 | `SequenceView_LifelineQualifiedNameReconstruction_MatchesDeclaredFeature` | Reconstructed name matches feature |
 | `SequenceView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged` | Null `ViewNode` renders unchanged |
 | `SequenceView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot` | Non-heuristic root is selected |

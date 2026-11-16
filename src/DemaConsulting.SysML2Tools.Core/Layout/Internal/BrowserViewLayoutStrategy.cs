@@ -18,7 +18,9 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// </summary>
 /// <remarks>
 /// The tree is derived from the qualified-name hierarchy: an element <c>A::B::C</c> is a child of
-/// <c>A::B</c>. Each row is a small box indented by its depth; layout is pure arithmetic.
+/// <c>A::B</c>. Each row is a small box indented by its depth and reads <c>«keyword» name</c>
+/// (with short name, typing, and multiplicity for a feature, see
+/// <see cref="GeneralViewLayoutStrategy.FormatNameLine"/>); layout is pure arithmetic.
 /// </remarks>
 internal sealed class BrowserViewLayoutStrategy : ILayoutStrategy
 {
@@ -85,7 +87,12 @@ internal sealed class BrowserViewLayoutStrategy : ILayoutStrategy
         foreach (var qn in names)
         {
             var node = workspace.Declarations[qn];
-            var label = LastSegment(qn);
+
+            // The row text is the guillemet keyword followed by the element's name line (short name,
+            // name, and — for a feature — its typing and multiplicity), as in the other views.
+            var label = node is SysmlFeatureNode feature
+                ? GeneralViewLayoutStrategy.FormatNameLine(feature.ShortName, LastSegment(qn), typing: feature.FeatureTyping, multiplicity: feature.Multiplicity)
+                : GeneralViewLayoutStrategy.FormatNameLine(node.ShortName, LastSegment(qn));
             var keyword = KeywordOf(node);
             var tree = new TreeNode(qn, label, keyword, []);
             byName[qn] = tree;
@@ -118,7 +125,9 @@ internal sealed class BrowserViewLayoutStrategy : ILayoutStrategy
     {
         var x = (theme.LabelPadding * 2.0) + (depth * Indent);
         var y = cursorY;
-        var label = node.Keyword is { Length: > 0 } k ? $"{k} {node.Label}" : node.Label;
+        // Rows read «keyword» label, using the same guillemet convention as the other views'
+        // keyword lines. The row is a single fixed-height line, so the keyword and label share it.
+        var label = node.Keyword is { Length: > 0 } k ? $"«{k}» {node.Label}" : node.Label;
         var boxWidth = (label.Length * theme.FontSizeBody * CharWidthFactor) + (4.0 * theme.LabelPadding);
         var centreY = y + (rowHeight / 2.0);
 
@@ -139,7 +148,9 @@ internal sealed class BrowserViewLayoutStrategy : ILayoutStrategy
             Width: boxWidth,
             Height: rowHeight,
             Label: label,
-            Depth: Math.Min(depth, 3),
+            // Depth 0 for every row: nesting is already conveyed by indentation and the connector
+            // stems, and the specification draws no depth-coded shading.
+            Depth: 0,
             Shape: BoxShape.Rectangle,
             Compartments: [],
             Children: []));

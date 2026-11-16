@@ -95,7 +95,9 @@ flowchart TD
 - *Role*: Configuration.
 - *Contract*: `DepthFillColors`, `StrokeColor`, `StrokeWidth`, `LineCornerRadius`,
   `FontSizeTitle`, `FontSizeBody`, `LabelPadding`, `Font`. Three built-in instances are
-  provided by `Themes.Light`, `Themes.Dark`, and `Themes.Print`.
+  provided by `Themes.Light`, `Themes.Dark`, and `Themes.Print`; the SysML-specific monochrome
+  preset `SysmlThemes.Plain` (white fills, black one-pixel strokes) is used by the `render`
+  command by default.
 
 ## Dependencies
 

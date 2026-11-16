@@ -28,6 +28,7 @@ sections:
           - SysML2Tools-Tool-Render-Output
           - SysML2Tools-Tool-Render-Empty
           - SysML2Tools-Tool-Render-DepthLimit
+          - SysML2Tools-Tool-Render-DefaultTheme
           - SysML2Tools-Tool-Render-AllViewsExport
           - SysML2Tools-Tool-Render-LocalizableHelpText
           - SysML2Tools-Tool-Render-DynamicView
@@ -96,12 +97,23 @@ sections:
       - id: SysML2Tools-Tool-Render-DepthLimit
         title: >-
           The render command shall limit diagram nesting depth to the value supplied via
-          --walk-depth, replacing truncated children with an ellipsis indicator.
+          --walk-depth, marking truncated content with a trailing ellipsis (…).
         justification: |
           A depth limit prevents overly complex diagrams when large models have deep
-          nesting. An ellipsis marker tells the reader that content was omitted.
+          nesting. A trailing ellipsis marker tells the reader that content was omitted.
         tests:
           - RenderSubsystem_WithWalkDepth_LimitsNesting
+
+      - id: SysML2Tools-Tool-Render-DefaultTheme
+        title: >-
+          The render command shall draw diagrams in the plain monochrome theme (white fills,
+          black one-pixel lines) by default.
+        justification: |
+          The SysML v2 specification draws its graphical notation black-on-white. Defaulting
+          to the monochrome theme makes rendered diagrams match that notation and print or
+          embed cleanly without depth-coded tints.
+        tests:
+          - RenderSubsystem_DefaultTheme_IsPlainMonochrome
 
       - id: SysML2Tools-Tool-Render-AllViewsExport
         title: >-

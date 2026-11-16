@@ -48,6 +48,72 @@ public sealed class BrowserAndGridViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     Browser rows read <c>«keyword» name</c>; a feature row also shows its short name, typing,
+    ///     and multiplicity.
+    /// </summary>
+    [Fact]
+    public void BrowserView_BuildLayout_RowLabels_UseGuillemetKeyword()
+    {
+        // Arrange: a package with a part def, and a part def owning a part usage that has a short
+        // name, a type, and a multiplicity
+        var strategy = new BrowserViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Cat"] = new SysmlPackageNode { Name = "Cat", QualifiedName = "Cat" },
+                ["Cat::Car"] = new SysmlDefinitionNode { Name = "Car", QualifiedName = "Cat::Car", DefinitionKeyword = "part def" },
+                ["Cat::Car::engine"] = new SysmlFeatureNode
+                {
+                    Name = "engine",
+                    ShortName = "e1",
+                    QualifiedName = "Cat::Car::engine",
+                    FeatureKeyword = "part",
+                    FeatureTyping = "Engine",
+                    Multiplicity = "[2]"
+                }
+            }
+        };
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert: guillemet keyword form, short name, typing, and multiplicity on the feature row
+        var labels = layout.Nodes.OfType<LayoutBox>().Select(b => b.Label).ToList();
+        Assert.Contains("«package» Cat", labels);
+        Assert.Contains("«part def» Car", labels);
+        Assert.Contains("«part» <e1> engine : Engine [2]", labels);
+    }
+
+    /// <summary>
+    ///     Every browser row is drawn at depth 0 so no depth-coded tint is applied; nesting is
+    ///     conveyed by indentation alone.
+    /// </summary>
+    [Fact]
+    public void BrowserView_BuildLayout_RowBoxes_HaveDepthZero()
+    {
+        // Arrange: three levels of nesting
+        var strategy = new BrowserViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["A"] = new SysmlPackageNode { Name = "A", QualifiedName = "A" },
+                ["A::B"] = new SysmlPackageNode { Name = "B", QualifiedName = "A::B" },
+                ["A::B::C"] = new SysmlDefinitionNode { Name = "C", QualifiedName = "A::B::C", DefinitionKeyword = "part def" }
+            }
+        };
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert: every row box has depth 0
+        var boxes = layout.Nodes.OfType<LayoutBox>().ToList();
+        Assert.Equal(3, boxes.Count);
+        Assert.All(boxes, b => Assert.Equal(0, b.Depth));
+    }
+
+    /// <summary>
     ///     The grid view produces a relationship matrix with a header row and a mark where a row
     ///     definition specializes a column definition.
     /// </summary>

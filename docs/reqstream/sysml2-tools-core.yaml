@@ -70,6 +70,7 @@ sections:
           - SysML2Tools-Core-Rendering-DiagramRenderer
           - SysML2Tools-Core-Rendering-RenderOutput
           - SysML2Tools-Core-Rendering-BuiltinThemes
+          - SysML2Tools-Core-Rendering-PlainTheme
         tests:
           - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_ReturnsSvgOutput
           - DiagramRenderer_RenderWorkspace_SoftwareStructureModel_PngRenderer_ReturnsPngOutput

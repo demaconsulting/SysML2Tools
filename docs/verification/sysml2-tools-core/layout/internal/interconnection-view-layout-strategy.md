@@ -89,6 +89,9 @@ configuration are required beyond a standard .NET SDK installation.
 - A connection endpoint referencing a nested/cross-boundary path (e.g. `board.cpu`) still
   terminates its connector at the containing part's own boundary (the documented remaining
   limitation), but its port label reflects the true nested target name.
+- A part usage's box label shows its declared short name, name, typing, and multiplicity in the
+  form `<shortName> name : Type [2]` (a plain part keeps `name : Type`), the box is wide enough
+  for that label, and the part's connector still resolves.
 - An empty workspace yields a canvas with no nodes.
 - A part typed by a definition with its own internal parts is rendered as a container box whose
   nested children lie inside its bounds, below its title area.
@@ -179,6 +182,7 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_ConnectionEndpointWithPortSegment_PortLabelReflectsSysmlPortName` | Port label |
 | `InterconnectionView_BuildLayout_CrossBoundaryEndpoint_LabelReflectsNestedTarget` | Nested label, boundary connector |
 | `InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap` | No two rounded part boxes overlap |
+| `InterconnectionView_BuildLayout_PartWithShortNameAndMultiplicity_ShowsThemInLabel` | Label shows short name, type |
 | `InterconnectionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas` | Canvas with no nodes |
 | `InterconnectionView_BuildLayout_NestedContainer_PlacesChildrenInsideContainerBox` | Children nested inside the box |
 | `InterconnectionView_BuildLayout_ContainerSize_BoundsChildrenAndTitle` | Size bounds children, title, insets |

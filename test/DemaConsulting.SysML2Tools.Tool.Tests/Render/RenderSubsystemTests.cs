@@ -143,6 +143,46 @@ public class RenderSubsystemTests
     }
 
     /// <summary>
+    ///     RenderCommand renders with the Plain monochrome theme by default: SVG output uses
+    ///     black strokes and contains none of the Light theme's tinted depth fills or Dark colors.
+    /// </summary>
+    [Fact]
+    public async Task RenderSubsystem_DefaultTheme_IsPlainMonochrome()
+    {
+        // Arrange: write a SysML model with a view definition; create temp output dir
+        var tempDir = Path.Combine(Path.GetTempPath(), $"render_theme_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "model.sysml");
+        await File.WriteAllTextAsync(tempFile, SysmlWithView, TestContext.Current.CancellationToken);
+
+        var outputDir = Path.Combine(tempDir, "out");
+
+        var originalOut = Console.Out;
+        try
+        {
+            using var outWriter = new StringWriter();
+            Console.SetOut(outWriter);
+
+            // Act: render with the default theme (no theme option exists)
+            using var context = Context.Create(
+                ["render", "--format", "svg", "--output", outputDir, tempFile]);
+            await Program.RunAsync(context);
+
+            // Assert: strokes are black and no Light/Dark tint colors appear in the output
+            var svgText = await File.ReadAllTextAsync(
+                Directory.GetFiles(outputDir, "*.svg")[0], TestContext.Current.CancellationToken);
+            Assert.Contains("#000000", svgText, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("#EEF4FF", svgText, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("#1A1A2E", svgText, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
     ///     RenderCommand with --format png writes output files with the .png extension.
     /// </summary>
     [Fact]

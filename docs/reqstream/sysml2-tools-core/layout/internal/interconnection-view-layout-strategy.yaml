@@ -304,6 +304,19 @@ sections:
         tests:
           - InterconnectionView_BuildLayout_CrossBoundaryEndpoint_LabelReflectsNestedTarget
 
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PartLabel
+        title: >-
+          InterconnectionViewLayoutStrategy shall label each nested part box with the part's
+          short name, name, typing, and multiplicity as declared in the model, omitting any piece
+          the model does not declare, and shall size the box to fit that label.
+        justification: |
+          The SysML v2 notation shows a usage's short name, name, type, and multiplicity together
+          in its name line. Showing the same pieces the model declares lets a reader identify
+          each part, how many instances it stands for, and what type it is without consulting the
+          source, and sizing the box from the full label keeps the text from being clipped.
+        tests:
+          - InterconnectionView_BuildLayout_PartWithShortNameAndMultiplicity_ShowsThemInLabel
+
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedSpecificityTieBreak
         title: >-
           When more than one candidate root is relevant to the resolved expose scope and they are

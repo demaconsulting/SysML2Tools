@@ -13,16 +13,20 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 
 /// <summary>
 /// Layout strategy for State Transition View diagrams. Renders state usages as rounded boxes placed
-/// top-to-bottom by the layered layout algorithm, an initial pseudo-state marker entering the first
-/// declared state, and transitions as orthogonal arrows annotated with their guard conditions.
+/// top-to-bottom by the layered layout algorithm inside a frame headed <c>«state def» Name</c>, an
+/// initial pseudo-state marker entering the explicitly declared initial state, and transitions as
+/// orthogonal arrows annotated with their guard conditions.
 /// </summary>
 /// <remarks>
 /// States are placed by the bundled layered algorithm flowing top-to-bottom (down) so the state
 /// machine reads top-to-bottom: a transition leaves its source on the SOUTH face and enters its target
 /// on the NORTH face, and each transition follows the orthogonal polyline the algorithm routed for it.
 /// The cyclic transition graph is made acyclic by the algorithm's cycle-breaking stage; self-transitions
-/// are drawn as a small loop above the state. The initial state is taken to be the first state declared
-/// in the owning definition.
+/// are drawn as a small loop above the state. The initial state is the target of the explicit initial
+/// transition (<c>first start then X;</c> or an entry-action-sourced transition); a state machine that
+/// declares none is drawn without an initial marker. The whole diagram is one frame box (labeled with
+/// the state definition's keyword and name) whose children are the state boxes, the initial marker, and
+/// the transition lines in the frame's own absolute coordinate space.
 /// </remarks>
 internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 {
@@ -43,6 +47,13 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     /// or a forward/back-edge pair), so their anchor points and labels do not coincide.
     /// </summary>
     private const double AnchorSpread = 12.0;
+
+    /// <summary>
+    /// Inset between the canvas edge and the state definition frame on every side. The frame's 1 px
+    /// outline is centered on its geometric edge, so the frame must sit at least half the stroke
+    /// width plus one anti-aliasing pixel inside the canvas for the outline to be fully visible.
+    /// </summary>
+    private const double FrameInset = 2.0;
 
     /// <summary>A state with its computed box size.</summary>
     private sealed record StateItem(string Name, double Width, double Height);
@@ -88,8 +99,11 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             mergeParallelEdges: false);
 
         // Compute the top-left of the content bounding box over the real state nodes and the screen
-        // offset that normalizes it into the canvas (leaving room at the top for the initial marker).
+        // offset that normalizes it into the canvas. The state definition is drawn as an enclosing
+        // frame (see below), so the top reserves room for the frame's «state def» title band and,
+        // only when an initial marker is drawn, for that marker and its arrow.
         var margin = theme.LabelPadding * 4.0;
+        var titleArea = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true);
         var minX = double.PositiveInfinity;
         var minY = double.PositiveInfinity;
         for (var i = 0; i < states.Count; i++)
@@ -98,9 +112,14 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             minY = Math.Min(minY, placed.Rects[i].Y);
         }
 
-        var topReserve = margin + InitialMarkerSize + InitialMarkerGap;
-        var offsetX = margin - minX;
-        var offsetY = topReserve - minY;
+        // An initial marker exists only for an explicit initial transition (`first start then X;` or
+        // an entry-action-sourced transition); the specification draws none for a state machine
+        // that does not declare one, so no first-declared-state guess is made.
+        var initialIndex = FindInitialTargetIndex(root, pseudoSourceNames, index);
+        var markerReserve = initialIndex is null ? 0.0 : InitialMarkerSize + InitialMarkerGap;
+        var topReserve = titleArea + margin + markerReserve;
+        var offsetX = FrameInset + margin - minX;
+        var offsetY = FrameInset + topReserve - minY;
 
         var stateRects = new Rect[states.Count];
         for (var i = 0; i < states.Count; i++)
@@ -116,30 +135,53 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             nodes.Add(MakeStateBox(states[i], stateRects[i]));
         }
 
-        // Initial pseudo-state entering the semantically-resolved initial target state when one
-        // exists (a real `first start then X;`/entry-action-sourced transition), falling back to
-        // the first-declared state heuristic otherwise (unchanged behavior for every model with no
-        // pseudostate-sourced transition, e.g. the gallery's 03-elevator-state.sysml).
-        var initialIndex = FindInitialTargetIndex(root, pseudoSourceNames, index) ?? 0;
-        AddInitialMarker(stateRects[initialIndex], nodes);
+        // Initial pseudo-state entering the semantically-resolved initial target state.
+        if (initialIndex is { } initial)
+        {
+            AddInitialMarker(stateRects[initial], nodes);
+        }
 
         // Transition edges (with guard labels), mapped from the algorithm's routed polylines.
         var crossings = AddTransitions(transitions, flowTransitions, placed.EdgePolylines, stateRects, offsetX, offsetY, nodes);
 
-        // Size the canvas to the actual rendered content: state boxes plus routed transition
+        // Size the frame to the actual rendered content: state boxes plus routed transition
         // polylines (back edges can bulge beyond the box columns), the initial marker, and the
         // guard labels. Guard labels are drawn centered on their segment midpoints, so most sit on
         // interior vertical segments already inside the content extent and add nothing; only the
         // part of a label that genuinely overhangs the polyline extent enlarges the canvas. We size
         // to each label's true rendered right edge (computed with the same placer the renderers use)
-        // rather than adding the longest guard-label width wholesale.
+        // rather than adding the longest guard-label width wholesale. The frame is also at least as
+        // wide as its own title so a long definition name is never clipped.
         var (contentMaxX, contentMaxY) = ContentExtent(nodes);
         var labelMaxX = LabelRightExtent(nodes, theme);
 
-        var width = Math.Max(contentMaxX, labelMaxX) + margin;
-        var height = contentMaxY + margin + theme.FontSizeTitle;
+        var frameLabel = root.Name ?? "State";
+        var frameKeyword = string.IsNullOrEmpty(root.DefinitionKeyword) ? "state def" : root.DefinitionKeyword;
+        var titleWidth = (Math.Max(frameLabel.Length * theme.FontSizeTitle, (frameKeyword.Length + 2) * theme.FontSizeBody) * CharWidthFactor)
+            + (4.0 * theme.LabelPadding);
+        var frameRight = Math.Max(Math.Max(contentMaxX, labelMaxX) + margin, FrameInset + titleWidth);
+        var frameBottom = contentMaxY + margin + theme.FontSizeTitle;
+        var frameWidth = frameRight - FrameInset;
+        var frameHeight = frameBottom - FrameInset;
+
+        // Enclose everything in one frame headed «state def» Name with the states and transitions
+        // inside it. Children keep the absolute canvas coordinates they were built with (their
+        // offsets already include FrameInset), so the layout needs no coordinate translation. The
+        // frame sits FrameInset inside the canvas edge so its outline stroke is not clipped.
+        var frame = new LayoutBox(
+            X: FrameInset,
+            Y: FrameInset,
+            Width: frameWidth,
+            Height: frameHeight,
+            Label: frameLabel,
+            Depth: 0,
+            Shape: BoxShape.Rectangle,
+            Compartments: [],
+            Children: nodes,
+            Keyword: frameKeyword);
+
         var warnings = LayoutWarnings.ForCrossings(context.ViewName, crossings);
-        return new LayoutTree(width, height, nodes) { Warnings = warnings };
+        return new LayoutTree(frameRight + FrameInset, frameBottom + FrameInset, [frame]) { Warnings = warnings };
     }
 
     /// <summary>Returns the maximum X and Y coordinate reached by any built layout node.</summary>
@@ -354,7 +396,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     /// transition (in declaration order) whose source names a pseudostate/entry-action feature (see
     /// <see cref="CollectStates"/>'s <c>pseudoSourceNames</c>) — or <see langword="null"/> when no
     /// such transition exists (or its target does not resolve to a known state), in which case the
-    /// caller falls back to the pre-existing first-declared-state heuristic.
+    /// caller draws no initial marker.
     /// </summary>
     private static int? FindInitialTargetIndex(
         SysmlDefinitionNode root,
@@ -420,7 +462,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             Children: [],
             Keyword: "state");
 
-    /// <summary>Adds the initial pseudo-state marker and its arrow into the first state.</summary>
+    /// <summary>Adds the initial pseudo-state marker and its open-arrowhead arrow into the initial state.</summary>
     private static void AddInitialMarker(Rect first, List<LayoutNode> nodes)
     {
         // Place the marker above the first state, centered horizontally.
@@ -429,11 +471,13 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
         nodes.Add(new LayoutBadge(markerX, markerY, InitialMarkerSize, BadgeShape.FilledCircle, null));
 
-        // Straight arrow from the marker down to the top of the first state.
+        // Straight solid arrow from the marker down to the top of the first state, ending in an
+        // open (two-stroke) arrowhead — the specification's succession/transition head (graphical
+        // BNF, p268) — rather than a filled one.
         nodes.Add(new LayoutLine(
             Waypoints: [new Point2D(markerX, markerY + (InitialMarkerSize / 2.0)), new Point2D(markerX, first.Y)],
             SourceEnd: EndMarkerStyle.None,
-            TargetEnd: EndMarkerStyle.FilledArrow,
+            TargetEnd: EndMarkerStyle.OpenChevron,
             LineStyle: LineStyle.Solid,
             MidpointLabel: null));
     }

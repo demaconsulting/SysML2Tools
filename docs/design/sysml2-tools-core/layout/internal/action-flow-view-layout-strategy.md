@@ -5,7 +5,8 @@
 `ActionFlowViewLayoutStrategy` implements `ILayoutStrategy` to produce an Action Flow View
 diagram. It renders action usages as rounded boxes placed top-to-bottom through `LayeredPlacement`,
 with a start marker entering the actions that have no predecessor, a done marker leaving the actions
-that have no successor, and successions drawn as dashed downward flow arrows.
+that have no successor, and successions (including the start and done connectors) drawn as dashed
+downward flow arrows with open arrowheads.
 
 ##### Data Model
 
@@ -91,7 +92,11 @@ Each succession is emitted as a dashed `LayoutLine` with an open chevron end mar
 and returns the number of successions whose polyline crosses a non-endpoint action box (`CrossesNonEndpointBox`
 / `SegmentIntersectsRect`). `AddStartAndDone` places a filled-circle start marker
 centered over the actions with no incoming edge and a bullseye done marker centered under the actions
-with no outgoing edge, joining each with a solid filled-arrow flow line.
+with no outgoing edge, joining each with a `SuccessionLine` — drawn exactly like an
+action-to-action succession: a straight dashed `LayoutLine` ending in an open chevron
+(`EndMarkerStyle.OpenChevron`) at the target. (In SysML v2 notation the start and done markers are
+joined to actions by successions, so they share the succession style; an earlier version drew them
+as solid lines with a filled arrowhead.)
 
 ##### Expose Scoping
 

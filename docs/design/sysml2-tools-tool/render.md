@@ -84,7 +84,8 @@ Entry point for the render command. Steps:
    throws only once the command actually runs. Selects `PngRenderer` when `format` equals
    `"png"`; `SvgRenderer` otherwise.
 9. Calls `DiagramRenderer.RenderWorkspace` passing
-   `new RenderOptions(Themes.Light, DepthLimit: options.WalkDepth ?? 0)`,
+   `new RenderOptions(SysmlThemes.Plain, DepthLimit: options.WalkDepth ?? 0)` (the plain
+   monochrome theme — white fills, black one-pixel strokes; no theme option exists),
    `effectiveViewFilter` as the view filter (the synthesized dynamic view's name when one was
    synthesized in step 5; `options.ViewName` unchanged otherwise), and a `diagnostics` list
    that collects one empty-view warning per view whose diagram contains nothing renderable.
@@ -157,7 +158,8 @@ future-locale story, which applies identically here.
   ad-hoc view node for `--view-type`/`--view-target`/`--filter`
 - `SvgRenderer` (in `DemaConsulting.Rendering.Svg`) — produces SVG output
 - `PngRenderer` (in `DemaConsulting.Rendering.CanvasNet`) — produces PNG output
-- `Themes.Light` (in `DemaConsulting.Rendering.Abstractions`) — default theme
+- `SysmlThemes` (in `DemaConsulting.SysML2Tools.Rendering`) — supplies `SysmlThemes.Plain`, the
+  default monochrome theme (derived from `Themes.Light` in `DemaConsulting.Rendering.Abstractions`)
 - `Context`/`RenderCommandOptions`/`RenderArgumentParser` (in `DemaConsulting.SysML2Tools.Cli`
   and `DemaConsulting.SysML2Tools.Render`) — reads arguments; writes output
 
@@ -177,6 +179,7 @@ future-locale story, which applies identically here.
 | SysML2Tools-Tool-Render-Output | Output directory resolution in `RunAsync` |
 | SysML2Tools-Tool-Render-Empty | Empty-outputs message in `RunAsync` |
 | SysML2Tools-Tool-Render-DepthLimit | `DepthLimit` passed to `RenderOptions` in `RunAsync` |
+| SysML2Tools-Tool-Render-DefaultTheme | `SysmlThemes.Plain` passed to `RenderOptions` in `RunAsync` |
 | SysML2Tools-Tool-Render-AllViewsExport | Default render-all-views logic using `viewNames` in `RunAsync` |
 | SysML2Tools-Tool-Render-UnknownViewError | Unknown `--view` name guard using `viewNames` in `RunAsync` |
 | SysML2Tools-Tool-Render-ViewSelection | `viewFilter` passed to `RenderWorkspace` in `RunAsync` |

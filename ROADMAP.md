@@ -54,7 +54,7 @@ already render correctly. Remaining gaps, each independently scoped:
 
 ### Sequence View dynamics
 
-- Populate `LayoutActivation` execution bars; combined-fragment boxes (alt/opt/loop); async/reply
+- Combined-fragment boxes (alt/opt/loop); async/reply
   message styling.
 - **Sequence dynamic-view compatibility check (known limitation of `DynamicViewSynthesizer`,
   the Core Rendering Internal subsystem behind `render --view-type <kind> --view-target
@@ -67,9 +67,8 @@ already render correctly. Remaining gaps, each independently scoped:
   `DynamicViewSynthesizer` or surfacing `SequenceViewLayoutStrategy`'s own lifeline-resolution
   result back to the synthesizer.
 
-**Scope:** `SequenceViewLayoutStrategy`, renderer shape primitives (note). `LayoutActivation`
-already defined.
-**Visual gate:** sequence shows activation bars + a fragment.
+**Scope:** `SequenceViewLayoutStrategy`, renderer shape primitives (note).
+**Visual gate:** sequence shows a fragment.
 
 ### Interconnection View: genuine cross-boundary connector routing
 
@@ -190,5 +189,7 @@ Not planned yet; listed so the boundary is explicit:
   coordinate convention plus test models that use it. Until it ships, the README and User Guide
   document it as not yet supported.
 - **3D Geometry** rendering (2D projection only, even once Geometry ships).
-- **Loadable theme files** (YAML/JSON) — the `Theme` record is forward-compatible.
+- **Loadable theme files** (YAML/JSON) and a `render --theme` option — the `Theme` record is
+  forward-compatible. The `render` command now always uses the built-in monochrome
+  `SysmlThemes.Plain`; library callers can already pass any `Theme`.
 - **Nested state regions** and other advanced behavioral notation.

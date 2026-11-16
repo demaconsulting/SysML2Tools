@@ -3,16 +3,17 @@
 ##### Purpose
 
 `StateTransitionViewLayoutStrategy` implements `ILayoutStrategy` to produce a State Transition
-View diagram. It renders state usages as rounded boxes placed top-to-bottom through
-`LayeredPlacement`, an initial pseudo-state marker entering the semantically-correct initial
-state (falling back to the first declared state), and transitions as orthogonal arrows annotated
-with their guard conditions.
+View diagram. It renders the whole state definition inside one frame headed `«state def» Name`,
+with state usages as rounded boxes placed top-to-bottom through `LayeredPlacement`, an initial
+pseudo-state marker entering the explicitly declared initial state (and none when the model
+declares no initial transition), and transitions as orthogonal arrows annotated with their guard
+conditions.
 
 ##### Data Model
 
 `StateTransitionViewLayoutStrategy` has no instance state; all input arrives through the
 `BuildLayout` parameters. Layout constants (`MinStateWidth`, `CharWidthFactor`, `LabelCharWidthFactor`,
-`InitialMarkerSize`, `InitialMarkerGap`, `AnchorSpread`) are declared as `private const double` fields. Two
+`InitialMarkerSize`, `InitialMarkerGap`, `AnchorSpread`, `FrameInset`) are declared as `private const double` fields. Two
 private records carry intermediate data: `StateItem` (a state with its computed box size) and
 `TransitionItem` (a resolved transition between two state indices with an optional guard).
 
@@ -23,9 +24,28 @@ private records carry intermediate data: `StateItem` (a state with its computed 
 Entry point. Resolves the view's `expose` scope via `ExposeScopeResolver.ResolveExposedScope`,
 selects the root state definition via `FindRoot(workspace, scope)`, collects its states via
 `CollectStates(root, theme, scope)`, resolves its transitions, places the state boxes, adds the
-initial marker (targeting the semantically-resolved initial state when one is found, otherwise
-the first-declared state) and the transition edges, and assembles the tree. Returns a minimal
-200×100 empty `LayoutTree` when no root or no states are found.
+initial marker (only when `FindInitialTargetIndex` finds an explicit initial transition) and the
+transition edges, encloses all of that content in a single frame `LayoutBox`, and assembles the
+tree. Returns a minimal 200×100 empty `LayoutTree` when no root or no states are found.
+
+*State definition frame.* The returned `LayoutTree` holds exactly one top-level node: a
+`LayoutBox` at `(FrameInset, FrameInset)` — a 2 px inset, not the origin — with `Label` = the root
+definition's name, `Keyword` = the definition's keyword (`"state def"`), `Depth` 0, and
+`BoxShape.Rectangle`, whose `Children` are the state boxes, the initial badge and arrow, and the
+transition lines. The SysML v2 graphical notation draws a state definition as a box headed by its
+keyword and name that contains its states and transitions (SysML v2 formal/2025-09-03, clause 8.2.3),
+so the frame tells the reader which state machine the diagram depicts. The frame's 1 px outline is
+centered on its geometric edge, so a frame at the canvas edge would be half clipped; the canvas is
+therefore the frame plus `FrameInset` on every side, which keeps the whole outline visible. The
+children keep the absolute canvas coordinates they were built with — the content offsets
+already include `FrameInset` — so the layout needs no coordinate translation. (The
+`InterconnectionViewLayoutStrategy` root box still sits at the origin; that is a known,
+separately tracked difference.) The frame is at least as wide as its own title (the
+longer of the name and the `«state def»` keyword line, plus padding) so a long definition name is
+never clipped. The top of the content area reserves the frame's title band
+(`BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true)`) plus the margin — and,
+only when an initial marker is drawn, the marker's size and gap — so the states start below the
+title band.
 
 ###### `FindRoot(workspace, scope)` and `CollectStates(root, theme, scope)`
 
@@ -36,8 +56,7 @@ nested definition and its ancestor can both be relevant), the most specific (dee
 qualified name) relevant candidate is preferred via `ExposeScopeResolver.IsMoreSpecificCandidate`,
 with the transition-count tie-break used only to break ties among equally specific candidates;
 this ordering does not apply when `scope` is `null`. `CollectStates` gathers the declared `state`
-usages first (preserving declaration order so the first declared state becomes the
-fallback-heuristic initial state), excluding — when a scope is resolved — any declared state
+usages first (preserving declaration order), excluding — when a scope is resolved — any declared state
 feature whose qualified name fails `ExposeScopeResolver.IsInSubjectScope`; it then adds any
 additional state named only by a transition endpoint, **except** when that endpoint is a
 transition *source* whose name is a pseudostate name (`"start"`/`"done"`) or matches a declared
@@ -58,11 +77,13 @@ this method for the pseudostate exclusion to take effect.
 
 Scans the root's transitions for the first whose source name is in `pseudoSourceNames`
 (`"start"`/`"done"`, or a declared entry-action feature's name), and returns the resolved
-target's state index, or `null` when no such transition exists. `BuildLayout` uses this index in
-preference to index 0 (the first-declared state) when placing the initial marker, falling back to
-index 0 only when this returns `null` — preserving the pre-existing heuristic unchanged for every
-model that declares no explicit initial-pseudostate/entry-action transition (including the
-`03-elevator-state.sysml` gallery example prior to its own initial-transition addition).
+target's state index, or `null` when no such transition exists (or its target does not resolve to
+a known state). `BuildLayout` draws the initial marker at this index when it is non-null, and
+draws **no** initial marker when it is `null` — the former fallback that guessed the
+first-declared state was removed because it invented an initial state the model never declared;
+the SysML v2 notation draws the initial marker only for an explicit initial transition (`first
+start then X;` or an entry-action-sourced transition). When no marker is drawn, no top band is
+reserved for it either.
 
 ###### Placement and routing
 
@@ -75,15 +96,19 @@ the algorithm reverses back edges internally. (The previous internal engine rese
 straight approach for the open-chevron marker on reversed edges; that knob has no public equivalent,
 so a reversed transition's final approach may differ by about a pixel — a purely cosmetic change.)
 The placed coordinates
-are normalized so the content starts at a margin offset
-(reserving room at the top for the initial marker), and the canvas is sized to the full content
-extent, including routed transition polylines that can bulge beyond the box columns and the actual
+are normalized so the content starts at a margin offset below the frame's title band
+(reserving room for the initial marker only when one is drawn), and the frame and canvas are sized
+to the full content extent, including routed transition polylines that can bulge beyond the box
+columns and the actual
 rendered extent of each guard label. Because guard labels are drawn centered on their segment
 midpoints with `ConnectorLabelPlacer` from `DemaConsulting.Rendering.Abstractions`, only the part of a
 label that genuinely overhangs the content widens the canvas: labels sitting on interior vertical
 segments add little or nothing.
 
-`AddInitialMarker` places a filled-circle badge above the first state with a straight arrow into it.
+`AddInitialMarker` places a filled-circle badge above the initial state with a straight, solid
+arrow into it that ends in an open chevron (`EndMarkerStyle.OpenChevron`) — the specification's
+open arrowhead for initial-state and succession-style transitions (graphical BNF, p268) — rather
+than a filled arrowhead.
 `AddTransitions` maps each transition to the corresponding orthogonal polyline returned by
 `LayeredPlacement`, preserving input-edge order and source-to-target orientation. Successive
 transitions sharing one routed corridor are spread laterally so their anchor points and guard labels

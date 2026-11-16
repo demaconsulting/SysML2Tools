@@ -31,7 +31,14 @@ Walks the membership forest and emits rows:
    become roots.
 3. **Recursive emission.** `EmitNode` lays out each row left-to-right at an X derived from its depth
    times a fixed indentation, advancing a shared Y cursor downward. Each row becomes a `LayoutBox`
-   whose label combines the element keyword and simple name and whose width fits the label.
+   whose text reads `«keyword» label` (the keyword in guillemet marks, U+00AB/U+00BB, as in the other
+   views' keyword lines; a package therefore reads `«package» Name`) and whose width fits that text.
+   The label is the element's name line from the shared
+   `GeneralViewLayoutStrategy.FormatNameLine` helper — `<shortName> name`, and, for a feature
+   (`SysmlFeatureNode`) only, `: Type [multiplicity]` — so a feature reads, for example,
+   `«part» <e1> engine : Engine [2]`. Every row box is created with `Depth` 0, so no depth-coded
+   tint is applied: nesting is already conveyed by the indentation and the connector stems, and the
+   specification's notation uses no depth shading.
 4. **Connectors.** For every non-root row a `LayoutLine` is emitted from a vertical stem dropped from
    the parent row down to the child's vertical center and across to the child box, so the connector
    never crosses the parent's own box or text.
@@ -70,6 +77,8 @@ throw: the strategy returns an empty diagram rather than failing.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 - `ExposeScopeResolver` (Layout Internal subsystem) — `ResolveExposedScope` and
   `IsInSubjectScope` supply the shared `expose`-scoping used by `BuildForest`.
+- `GeneralViewLayoutStrategy.FormatNameLine` (Layout Internal subsystem) — builds each row's name
+  line (short name, name, and a feature's typing and multiplicity).
 
 ##### Callers
 

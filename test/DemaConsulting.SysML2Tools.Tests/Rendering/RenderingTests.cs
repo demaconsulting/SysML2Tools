@@ -190,6 +190,38 @@ public sealed class RenderingTests
     }
 
     /// <summary>
+    ///     SysmlThemes.Plain is monochrome: a single white depth fill, a black one-pixel stroke,
+    ///     and the same body font size as Themes.Light so layout metrics are unchanged.
+    /// </summary>
+    [Fact]
+    public void SysmlThemes_Plain_IsMonochrome()
+    {
+        // Arrange / Act: access the Plain theme alongside the Light theme it derives from
+        var theme = SysmlThemes.Plain;
+        var light = Themes.Light;
+
+        // Assert: one white fill for every depth, black one-pixel stroke, inherited font metrics
+        Assert.Equal(["#FFFFFF"], theme.DepthFillColors);
+        Assert.Equal("#000000", theme.StrokeColor);
+        Assert.Equal(1.0, theme.StrokeWidth);
+        Assert.Equal(light.FontSizeBody, theme.FontSizeBody);
+    }
+
+    /// <summary>
+    ///     SysmlThemes.Plain derives its engine background (and therefore grid-header and hollow
+    ///     marker fills) from the single white depth fill.
+    /// </summary>
+    [Fact]
+    public void SysmlThemes_Plain_BackgroundColorIsWhite()
+    {
+        // Arrange / Act: read the derived background color of the Plain theme
+        var background = SysmlThemes.Plain.BackgroundColor;
+
+        // Assert: the background is white
+        Assert.Equal("#FFFFFF", background);
+    }
+
+    /// <summary>
     ///     A RenderOptions constructed with only the required Theme parameter has Scale == 1.0.
     /// </summary>
     [Fact]

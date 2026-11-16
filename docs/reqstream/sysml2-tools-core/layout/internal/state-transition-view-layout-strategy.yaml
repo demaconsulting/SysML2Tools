@@ -12,8 +12,8 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-States
         title: >-
           StateTransitionViewLayoutStrategy shall render a box for each state, an initial
-          pseudo-state marker, and connect transitions as arrows labeled with their guard
-          conditions.
+          pseudo-state marker when the state machine declares an explicit initial transition, and
+          connect transitions as arrows labeled with their guard conditions.
         justification: |
           A State Transition View exists to show the states of a machine, where it starts, and how
           it moves between states under guarded transitions. The state boxes, initial marker, and
@@ -166,15 +166,40 @@ sections:
         title: >-
           StateTransitionViewLayoutStrategy's BuildLayout shall place the initial pseudo-state
           marker at the target of the first transition whose source is a pseudostate/entry-action
-          name, falling back to the first-declared state only when no such transition exists.
+          name, and shall draw no initial marker when the state machine declares no such
+          transition.
         justification: |
-          The first-declared-state heuristic used previously is only an approximation of "where
-          the machine starts" — it is wrong whenever a model contains an explicit
+          A guess such as "the first-declared state is the initial state" is only an approximation
+          of where the machine starts — it is wrong whenever a model contains an explicit
           `first start then X;` (or attached entry-action-transition) idiom naming a different
-          state as the true initial target. Preferring the semantically-resolved target keeps the
-          marker correct for every model using this idiom, while the fallback preserves the
-          existing behavior (and the `03-elevator-state.sysml` gallery example's original
-          rendering) for every model that declares no explicit initial transition.
+          state, and it invents an initial state the model never declared. Drawing the marker only
+          at the semantically-resolved target keeps it correct for every model using this idiom and
+          matches the SysML v2 notation, which draws an initial marker only for an explicit initial
+          transition.
         tests:
           - StateTransitionView_BuildLayout_PseudostateSourceTransition_MarksResolvedTargetNotFirstDeclared
-          - StateTransitionView_BuildLayout_NoExplicitInitialTransition_FallsBackToFirstDeclared
+          - StateTransitionView_BuildLayout_NoExplicitInitialTransition_DrawsNoInitialMarker
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-InitialMarkerArrow
+        title: >-
+          StateTransitionViewLayoutStrategy shall draw the arrow from the initial pseudo-state
+          marker to the initial state as a solid line with an open arrowhead at the state.
+        justification: |
+          The SysML v2 graphical notation draws the initial-state transition with an open
+          arrowhead, like every other transition, rather than a filled one. Matching it keeps
+          the initial arrow consistent with the transition edges.
+        tests:
+          - StateTransitionView_BuildLayout_InitialMarkerArrow_IsSolidWithOpenArrowhead
+
+      - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-StateDefFrame
+        title: >-
+          StateTransitionViewLayoutStrategy shall enclose the whole diagram — the state boxes,
+          the initial marker, and the transitions — in a single frame labeled with the state
+          definition's keyword and name.
+        justification: |
+          The SysML v2 graphical notation draws a state definition as a box headed by its keyword
+          and name that contains its states and transitions. Showing that frame tells the reader
+          which state machine the diagram depicts and keeps the diagram a single self-describing
+          unit.
+        tests:
+          - StateTransitionView_BuildLayout_RootDefinition_IsEnclosedInStateDefFrame

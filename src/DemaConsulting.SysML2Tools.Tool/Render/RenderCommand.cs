@@ -133,7 +133,7 @@ internal static class RenderCommand
 
         // Render all views in the workspace (or the selected view when --view is specified)
         var diagramRenderer = new DiagramRenderer();
-        var renderOptions = new RenderOptions(Themes.Light, DepthLimit: options.WalkDepth ?? 0);
+        var renderOptions = new RenderOptions(SysmlThemes.Plain, DepthLimit: options.WalkDepth ?? 0);
         var renderDiagnostics = new List<SysmlDiagnostic>();
         var outputs = diagramRenderer.RenderWorkspace(
             loadResult.Workspace, renderer, renderOptions, effectiveViewFilter, diagnostics: renderDiagnostics);

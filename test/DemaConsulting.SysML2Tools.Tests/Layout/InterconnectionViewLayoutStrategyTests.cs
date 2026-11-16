@@ -669,6 +669,62 @@ public sealed class InterconnectionViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A part usage's box label includes its declared short name and multiplicity
+    ///     (<c>&lt;r&gt; ram : Memory [2]</c>), and the box is wide enough for the longer label; a
+    ///     plain part keeps the unchanged <c>name : Type</c> form.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_PartWithShortNameAndMultiplicity_ShowsThemInLabel()
+    {
+        // Arrange: Sys { part cpu : Cpu; part <r> ram : Memory [2]; connect cpu to ram }
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var root = new SysmlDefinitionNode
+        {
+            Name = "Sys",
+            QualifiedName = "M::Sys",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "cpu", QualifiedName = "M::Sys::cpu", FeatureKeyword = "part", FeatureTyping = "Cpu" },
+                new SysmlFeatureNode
+                {
+                    Name = "ram",
+                    ShortName = "r",
+                    QualifiedName = "M::Sys::ram",
+                    FeatureKeyword = "part",
+                    FeatureTyping = "Memory",
+                    Multiplicity = "[2]"
+                },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "cpu", EndpointB = "ram" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["M::Sys"] = root,
+                ["M::Cpu"] = new SysmlDefinitionNode { Name = "Cpu", QualifiedName = "M::Cpu", DefinitionKeyword = "part def" },
+                ["M::Memory"] = new SysmlDefinitionNode { Name = "Memory", QualifiedName = "M::Memory", DefinitionKeyword = "part def" }
+            }
+        };
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("Interconnection", workspace), options);
+
+        // Assert: labels follow the specification's name-line form and the connector still resolved
+        var partBoxes = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
+        Assert.Contains(partBoxes, b => b.Label == "cpu : Cpu");
+        var ram = Assert.Single(partBoxes, b => b.Label == "<r> ram : Memory [2]");
+        Assert.Single(CollectLines(layout.Nodes));
+
+        // Assert: the box is sized to its (longer) label
+        var theme = options.Theme;
+        var minWidth = ("<r> ram : Memory [2]".Length * theme.FontSizeTitle * 0.62) + (2.0 * theme.LabelPadding);
+        Assert.True(ram.Width >= minWidth - 1e-6, $"box width {ram.Width} must fit its label ({minWidth}).");
+    }
+
+    /// <summary>
     ///     A part typed by a definition that (via its own part) refers back to itself does not
     ///     recurse infinitely; the cycle is broken and the part renders as a leaf box.
     /// </summary>

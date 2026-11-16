@@ -111,7 +111,9 @@ system, subsystem, and unit levels:
   - **Rendering** (Subsystem) — rendering pipeline: consumes the off-the-shelf `IRenderer`, `Theme`,
     `RenderOptions`, and `RenderOutput` contracts from `DemaConsulting.Rendering.Abstractions` and
     retains the SysML-coupled `ILayoutStrategy`/`ViewContext` contract, the `DiagramRenderer`
-    orchestrator, and the `StdlibFilter` helper that excludes standard-library elements from diagrams
+    orchestrator, the `StdlibFilter` helper that excludes standard-library elements from diagrams,
+    and the public `SysmlThemes` preset provider (`Rendering/SysmlThemes.cs`) that derives
+    SysML-notation themes from the off-the-shelf `Theme`
     - **DiagramRenderer** (Unit) — high-level rendering orchestrator: for each view, builds a
       `LayoutTree` via an `ILayoutStrategy` and renders it via an `IRenderer`
     - **Internal** (Subsystem) — internal rendering implementation

@@ -85,7 +85,9 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// A nested part usage with its computed intrinsic box size. When the part is a container (its
     /// type is a <c>part def</c> with its own internal parts), <see cref="InnerContent"/> holds the
     /// pre-laid-out interior content positioned relative to the part box's own top-left
-    /// <c>(0, 0)</c>; for a leaf part it is <see langword="null"/>.
+    /// <c>(0, 0)</c>; for a leaf part it is <see langword="null"/>. <see cref="Name"/> is the
+    /// identity used to resolve connector endpoints; <see cref="ShortName"/> and
+    /// <see cref="Multiplicity"/> are display-only parts of the box label.
     /// </summary>
     private sealed record PartItem(
         string Name,
@@ -93,7 +95,9 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         string? Typing,
         double Width,
         double Height,
-        IReadOnlyList<LayoutNode>? InnerContent);
+        IReadOnlyList<LayoutNode>? InnerContent,
+        string? ShortName = null,
+        string? Multiplicity = null);
 
     /// <summary>
     /// One top-level scoped feature collected by <see cref="CollectTopLevelScopedParts"/>, pairing
@@ -717,15 +721,15 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             // branch shares the same depth-limiting decision.
             var childVisited = new HashSet<string>(visited, StringComparer.Ordinal) { childDef.QualifiedName! };
             var inner = LayOutInterior(childDef, theme, depth + 1, defsByName, childVisited, scope: null, ancestorUnlimitedRecursion: unlimitedRecursion);
-            return new PartItem(name, "part", feature.FeatureTyping, inner.Width, inner.Height, inner.Content);
+            return new PartItem(name, "part", feature.FeatureTyping, inner.Width, inner.Height, inner.Content, feature.ShortName, feature.Multiplicity);
         }
 
         // Leaf part: intrinsic size, no nested content. Reached either because the type does not
         // resolve to a container definition, or because unlimitedRecursion is false and interior
         // expansion is intentionally stopped here (the part still renders as its own node — its
         // own nested parts are simply not drawn).
-        var (width, height) = ComputePartSize(name, feature.FeatureTyping, theme);
-        return new PartItem(name, "part", feature.FeatureTyping, width, height, null);
+        var (width, height) = ComputePartSize(PartLabel(name, feature.ShortName, feature.FeatureTyping, feature.Multiplicity), theme);
+        return new PartItem(name, "part", feature.FeatureTyping, width, height, null, feature.ShortName, feature.Multiplicity);
     }
 
     /// <summary>
@@ -1079,15 +1083,23 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
         return partIndex.TryGetValue(head, out var i) ? (i, label) : (-1, null);
     }
 
-    /// <summary>Computes the intrinsic size of a nested part box.</summary>
-    private static (double Width, double Height) ComputePartSize(string name, string? typing, Theme theme)
+    /// <summary>Computes the intrinsic size of a nested part box from its already-formatted label.</summary>
+    private static (double Width, double Height) ComputePartSize(string label, Theme theme)
     {
-        var label = typing is { Length: > 0 } ? $"{name} : {typing}" : name;
         var labelWidth = (label.Length * theme.FontSizeTitle * CharWidthFactor) + (2.0 * theme.LabelPadding);
         var width = Math.Max(MinPartWidth, labelWidth);
         var height = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true) + theme.LabelPadding;
         return (width, height);
     }
+
+    /// <summary>
+    /// Formats a part usage's label as <c>&lt;shortName&gt; name : Type [multiplicity]</c>, dropping every
+    /// piece the model does not declare. Shared (via
+    /// <see cref="GeneralViewLayoutStrategy.FormatNameLine"/>) with the other views so size and
+    /// drawn label always agree.
+    /// </summary>
+    private static string PartLabel(string name, string? shortName, string? typing, string? multiplicity) =>
+        GeneralViewLayoutStrategy.FormatNameLine(shortName, name, typing: typing, multiplicity: multiplicity);
 
     /// <summary>
     /// Creates a rounded-rectangle part usage box at the given position. A leaf part has no
@@ -1097,7 +1109,7 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
     /// </summary>
     private static LayoutBox MakePartBox(PartItem part, Rect rect, int depth)
     {
-        var label = part.Typing is { Length: > 0 } ? $"{part.Name} : {part.Typing}" : part.Name;
+        var label = PartLabel(part.Name, part.ShortName, part.Typing, part.Multiplicity);
         var children = part.InnerContent is null
             ? []
             : TranslateNodes(part.InnerContent, rect.X, rect.Y);

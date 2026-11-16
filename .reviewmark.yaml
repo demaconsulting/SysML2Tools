@@ -803,6 +803,7 @@ reviews:
     paths:
       - "src/DemaConsulting.SysML2Tools.Core/Rendering/ILayoutStrategy.cs"
       - "src/DemaConsulting.SysML2Tools.Core/Rendering/NamespaceDoc.cs"
+      - "src/DemaConsulting.SysML2Tools.Core/Rendering/SysmlThemes.cs"
       - "src/DemaConsulting.SysML2Tools.Core/Rendering/Internal/StdlibFilter.cs"
       - "test/DemaConsulting.SysML2Tools.Tests/Rendering/RenderingTests.cs"
 

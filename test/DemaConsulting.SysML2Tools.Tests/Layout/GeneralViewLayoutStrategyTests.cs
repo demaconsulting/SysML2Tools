@@ -162,10 +162,10 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a folder-shaped box exists carrying the package keyword
+        // Assert: a folder-shaped box exists labeled with the package name and no «package» keyword
         var folder = CollectBoxes(layout.Nodes).FirstOrDefault(b => b.Shape == BoxShape.Folder);
         Assert.NotNull(folder);
-        Assert.Equal("package", folder.Keyword);
+        Assert.Null(folder.Keyword);
         Assert.Equal("Sys", folder.Label);
     }
 
@@ -349,7 +349,7 @@ public sealed class GeneralViewLayoutStrategyTests
         // Assert: a Sys folder box still exists, with A and B nested directly as its own children
         var allBoxes = CollectBoxes(layout.Nodes);
         var folder = allBoxes.First(b => b.Shape == BoxShape.Folder);
-        Assert.Equal("package", folder.Keyword);
+        Assert.Null(folder.Keyword);
         Assert.Equal("Sys", folder.Label);
         var folderChildLabels = CollectBoxes(folder.Children).Select(b => b.Label).ToList();
         Assert.Contains("A", folderChildLabels);
@@ -574,7 +574,7 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     With a depth limit of 1, a bare-exposed package is still drawn as an empty package node,
-    ///     never decorated with a "+0 more…" truncation indicator.
+    ///     never decorated with a truncation (<c>…</c>) indicator.
     /// </summary>
     [Fact]
     public async Task GeneralViewLayoutStrategy_BuildLayout_BarePackageExposeWithDepthLimitOne_HasNoTruncationIndicator()
@@ -1957,9 +1957,9 @@ public sealed class GeneralViewLayoutStrategyTests
         // qualified-name prefix as a folder path regardless of whether that prefix belongs to a
         // package or an excluded definition/usage — but it must not appear as its own rendered
         // rectangle box (which would mean the excluded metaclass-filtered-out usage was rendered
-        // after all). "child" must render as its own rectangle box.
+        // after all). "child" must render as its own box (a usage, so rounded rather than square).
         var rectangleLabels = CollectBoxes(layout.Nodes)
-            .Where(b => b.Shape == BoxShape.Rectangle)
+            .Where(b => b.Shape is BoxShape.Rectangle or BoxShape.RoundedRectangle)
             .Select(b => b.Label)
             .ToList();
         Assert.DoesNotContain("Container", rectangleLabels);
@@ -2009,7 +2009,7 @@ public sealed class GeneralViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var rectangles = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.Rectangle).ToList();
+        var rectangles = CollectBoxes(layout.Nodes).Where(b => b.Shape is BoxShape.Rectangle or BoxShape.RoundedRectangle).ToList();
         var rectangleLabels = rectangles.Select(b => b.Label).ToList();
         Assert.Equal(2, rectangles.Count);
         Assert.Contains("A", rectangleLabels);
@@ -2471,10 +2471,10 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     A resolved <see cref="SysmlEdgeKind.Allocate"/> edge between two definitions emits a
-    ///     dashed, open-chevron edge carrying the <c>«allocate»</c> midpoint label.
+    ///     solid, open-chevron edge carrying the <c>«allocate»</c> midpoint label.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_Allocate_ProducesDashedChevronEdgeWithLabel()
+    public void GeneralViewLayoutStrategy_BuildLayout_Allocate_ProducesSolidChevronEdgeWithLabel()
     {
         // Arrange: an Allocate edge from FlightTimeRequirement to Battery.
         var strategy = new GeneralViewLayoutStrategy();
@@ -2496,10 +2496,12 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a dashed open-chevron edge with the "«allocate»" label is emitted.
+        // Assert: a solid open-chevron edge with the "«allocate»" label is emitted.
         var lines = CollectLines(layout.Nodes);
-        var allocateEdge = lines.FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed && l.MidpointLabel == "«allocate»");
+        var allocateEdge = lines.FirstOrDefault(l => l.MidpointLabel == "«allocate»");
         Assert.NotNull(allocateEdge);
+        Assert.Equal(EndMarkerStyle.OpenChevron, allocateEdge.TargetEnd);
+        Assert.Equal(LineStyle.Solid, allocateEdge.LineStyle);
     }
 
     /// <summary>
@@ -2712,13 +2714,15 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a Note-shaped box is present, plus a plain (no-arrowhead, solid) connecting line
+        // Assert: a Note-shaped box is present, plus a dashed no-arrowhead connecting line (the
+        // specification's annotation link)
         var boxes = CollectBoxes(layout.Nodes);
         var note = Assert.Single(boxes, b => b.Shape == BoxShape.Note);
         Assert.Contains(note.Compartments, c => c.Rows.Any(r => r.Contains("Nominal battery capacity")));
 
         var lines = CollectLines(layout.Nodes);
-        Assert.Contains(lines, l => l.TargetEnd == EndMarkerStyle.None && l.LineStyle == LineStyle.Solid);
+        Assert.Contains(lines, l => l.TargetEnd == EndMarkerStyle.None && l.LineStyle == LineStyle.Dashed);
+        Assert.DoesNotContain(lines, l => l.TargetEnd == EndMarkerStyle.None && l.LineStyle == LineStyle.Solid);
     }
 
     /// <summary>
@@ -3250,11 +3254,11 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     BuildLayout renders an <c>enum def</c>'s literal values under an "enum values"
-    ///     compartment title (the plain default pluralization, not a stereotype).
+    ///     BuildLayout renders an <c>enum def</c>'s literal values under the specification's
+    ///     "enums" compartment title (not the naive "enum values" plural).
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_EnumDefLiteralValues_ProducesEnumValuesCompartment()
+    public void GeneralViewLayoutStrategy_BuildLayout_EnumDefLiteralValues_ProducesEnumsCompartment()
     {
         // Arrange: an enum def owning two enum-value features
         var strategy = new GeneralViewLayoutStrategy();
@@ -3281,7 +3285,155 @@ public sealed class GeneralViewLayoutStrategyTests
 
         // Assert
         var box = CollectBoxes(layout.Nodes).First(b => b.Label == "FlightMode");
-        Assert.Contains(box.Compartments, c => c.Title == "enum values" && c.Rows.Contains("manual") && c.Rows.Contains("auto"));
+        Assert.Contains(box.Compartments, c => c.Title == "enums" && c.Rows.Contains("manual") && c.Rows.Contains("auto"));
+        Assert.DoesNotContain(box.Compartments, c => c.Title == "enum values");
+    }
+
+    /// <summary>
+    ///     Compartments are emitted in the canonical order attributes, enums, parts, ports followed
+    ///     by every other keyword group in declaration order, regardless of the order the usages are
+    ///     declared in; the <c>doc</c> compartment stays first.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_Compartments_AreInCanonicalOrder()
+    {
+        // Arrange: a part def declaring an item, port, enum value, part, and attribute (in that
+        // order) plus documentation
+        var strategy = new GeneralViewLayoutStrategy();
+        var def = new SysmlDefinitionNode
+        {
+            Name = "Thing",
+            QualifiedName = "P::Thing",
+            DefinitionKeyword = "part def",
+            Annotations = [new SysmlAnnotation(SysmlAnnotationKind.Documentation, "Documented.")],
+            Children =
+            [
+                new SysmlFeatureNode { Name = "cargo", QualifiedName = "P::Thing::cargo", FeatureKeyword = "item" },
+                new SysmlFeatureNode { Name = "p", QualifiedName = "P::Thing::p", FeatureKeyword = "port" },
+                new SysmlFeatureNode { Name = "e", QualifiedName = "P::Thing::e", FeatureKeyword = "enum value" },
+                new SysmlFeatureNode { Name = "sub", QualifiedName = "P::Thing::sub", FeatureKeyword = "part" },
+                new SysmlFeatureNode { Name = "mass", QualifiedName = "P::Thing::mass", FeatureKeyword = "attribute" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::Thing"] = def }
+        };
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert: doc first, then the canonical groups, then the remaining group
+        var box = CollectBoxes(layout.Nodes).First(b => b.Label == "Thing");
+        Assert.Equal(
+            ["doc", "attributes", "enums", "parts", "ports", "items"],
+            box.Compartments.Select(c => c.Title).ToList());
+    }
+
+    /// <summary>
+    ///     A usage-level box (a top-level named usage) is drawn with rounded corners while a
+    ///     definition keeps square corners.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_TopLevelUsage_IsRoundedAndDefinitionIsSquare()
+    {
+        // Arrange: a part def and a top-level part usage typed by it
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Engine"] = new SysmlDefinitionNode { Name = "Engine", QualifiedName = "Engine", DefinitionKeyword = "part def" },
+                ["engine1"] = new SysmlFeatureNode { Name = "engine1", QualifiedName = "engine1", FeatureKeyword = "part", FeatureTyping = "Engine" }
+            }
+        };
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert: the usage is a rounded rectangle, the definition a plain rectangle
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.Equal(BoxShape.RoundedRectangle, boxes.Single(b => b.Label == "engine1").Shape);
+        Assert.Equal(BoxShape.Rectangle, boxes.Single(b => b.Label == "Engine").Shape);
+    }
+
+    /// <summary>
+    ///     A definition's name line shows its specialization and short name in the
+    ///     specification's textual form (<c>&lt;short&gt; Name :&gt; Super1, Super2</c>); the box is
+    ///     wide enough for the longer label.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_DefinitionNameLine_ShowsShortNameAndSupertypes()
+    {
+        // Arrange: a plain def, a specializing def, a short-named def, and one with both plus two supers
+        var strategy = new GeneralViewLayoutStrategy();
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Vehicle"] = new SysmlDefinitionNode { Name = "Vehicle", QualifiedName = "P::Vehicle", DefinitionKeyword = "part def" },
+                ["P::Car"] = new SysmlDefinitionNode { Name = "Car", QualifiedName = "P::Car", DefinitionKeyword = "part def", SupertypeNames = ["Vehicle"] },
+                ["P::PartDef2"] = new SysmlDefinitionNode { Name = "PartDef2", ShortName = "PD2", QualifiedName = "P::PartDef2", DefinitionKeyword = "part def" },
+                ["P::Truck"] = new SysmlDefinitionNode
+                {
+                    Name = "Truck",
+                    ShortName = "T",
+                    QualifiedName = "P::Truck",
+                    DefinitionKeyword = "part def",
+                    SupertypeNames = ["Vehicle", "Hauler"]
+                }
+            }
+        };
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("v", workspace), options);
+
+        // Assert: labels follow the textual notation
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.Contains(boxes, b => b.Label == "Vehicle");
+        Assert.Contains(boxes, b => b.Label == "Car :> Vehicle");
+        Assert.Contains(boxes, b => b.Label == "<PD2> PartDef2");
+        var truck = Assert.Single(boxes, b => b.Label == "<T> Truck :> Vehicle, Hauler");
+
+        // Assert: the box is sized to its label
+        var minWidth = (truck.Label!.Length * options.Theme.FontSizeTitle * 0.62) + (2.0 * options.Theme.LabelPadding);
+        Assert.True(truck.Width >= minWidth - 1e-6, $"box width {truck.Width} must fit its label ({minWidth}).");
+    }
+
+    /// <summary>FormatNameLine omits every piece that is null or empty.</summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_FormatNameLine_AllOptionalsNull_ReturnsNameOnly()
+    {
+        // Arrange / Act: only the name is supplied
+        var line = GeneralViewLayoutStrategy.FormatNameLine(null, "Car");
+
+        // Assert
+        Assert.Equal("Car", line);
+    }
+
+    /// <summary>FormatNameLine renders each optional piece on its own in the textual notation.</summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_FormatNameLine_EachOptionalAlone_UsesTextualNotation()
+    {
+        // Arrange / Act / Assert: short name, supertypes, typing, multiplicity individually; empty
+        // values behave like null
+        Assert.Equal("<c1> Car", GeneralViewLayoutStrategy.FormatNameLine("c1", "Car"));
+        Assert.Equal("Car :> A, B", GeneralViewLayoutStrategy.FormatNameLine(null, "Car", supertypes: ["A", "B"]));
+        Assert.Equal("car : Car", GeneralViewLayoutStrategy.FormatNameLine(null, "car", typing: "Car"));
+        Assert.Equal("car [2]", GeneralViewLayoutStrategy.FormatNameLine(null, "car", multiplicity: "[2]"));
+        Assert.Equal("Car", GeneralViewLayoutStrategy.FormatNameLine(string.Empty, "Car", supertypes: [], typing: string.Empty, multiplicity: string.Empty));
+    }
+
+    /// <summary>FormatNameLine combines every piece in short name, name, supertypes, typing, multiplicity order.</summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_FormatNameLine_AllPieces_CombinesInSpecOrder()
+    {
+        // Arrange / Act
+        var line = GeneralViewLayoutStrategy.FormatNameLine("r", "ram", ["Base"], "Memory", "[1..*]");
+
+        // Assert
+        Assert.Equal("<r> ram :> Base : Memory [1..*]", line);
     }
 
     /// <summary>
@@ -3318,9 +3470,9 @@ public sealed class GeneralViewLayoutStrategyTests
     ///     nested definition. With the fix, a <c>DepthLimit</c> of 2 over the 2-level-deep
     ///     <c>Outer</c>/<c>Inner</c> nested-definition-containment fixture truncates the innermost
     ///     level (<c>Inner</c>, <c>Outer</c>'s own nested child, at depth 2): <c>Outer</c>'s own box
-    ///     is still rendered normally, but in place of an <c>Inner</c> box its own
-    ///     <see cref="LayoutBox.Children"/> carries a single "+1 more…" ellipsis
-    ///     <see cref="LayoutLabel"/>, mirroring how a depth-truncated package folder's contents are
+    ///     is still rendered normally, but in place of an <c>Inner</c> box it stays a leaf (no
+    ///     children) whose last compartment is an untitled <c>…</c> row — the specification's
+    ///     truncation marker — mirroring how a depth-truncated package folder's contents are
     ///     already reported.
     /// </summary>
     [Fact]
@@ -3340,13 +3492,56 @@ public sealed class GeneralViewLayoutStrategyTests
         var outerBox = allBoxes.Single(b => b.Label == "Outer");
         Assert.DoesNotContain(allBoxes, b => b.Label == "Inner");
 
-        // Assert: Outer's own Children carries a single placeholder box standing in for the
-        // truncated Inner definition, itself decorated with a "+1 more…" ellipsis label — mirroring
-        // how a depth-truncated package folder's own placed box is decorated, one nesting level
-        // deeper.
-        var placeholder = Assert.IsType<LayoutBox>(Assert.Single(outerBox.Children));
-        var indicator = Assert.IsType<LayoutLabel>(Assert.Single(placeholder.Children));
-        Assert.Equal("+1 more\u2026", indicator.Text);
+        // Assert: Outer is a leaf (no placeholder child box) ending in an untitled "…" compartment
+        Assert.Empty(outerBox.Children);
+        var last = outerBox.Compartments[^1];
+        Assert.Null(last.Title);
+        Assert.Equal(["\u2026"], last.Rows);
+    }
+
+    /// <summary>
+    ///     A truncated definition that already has compartments keeps them and gains the "…" row as a
+    ///     separate trailing compartment; the box is taller than the same definition untruncated.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_TruncatedDefinitionWithCompartments_AppendsEllipsisRow()
+    {
+        // Arrange: Outer owns an attribute and a nested definition
+        var attributeOwner = new SysmlDefinitionNode
+        {
+            Name = "Outer",
+            QualifiedName = "Sys::Outer",
+            DefinitionKeyword = "part def",
+            Children = [new SysmlFeatureNode { Name = "mass", QualifiedName = "Sys::Outer::mass", FeatureKeyword = "attribute", FeatureTyping = "Real" }]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["Sys::Outer"] = attributeOwner,
+                ["Sys::Outer::Inner"] = new SysmlDefinitionNode { Name = "Inner", QualifiedName = "Sys::Outer::Inner", DefinitionKeyword = "part def" }
+            }
+        };
+        var leafWorkspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["Sys::Outer"] = attributeOwner }
+        };
+        var strategy = new GeneralViewLayoutStrategy();
+
+        // Act: the truncated layout, and a baseline in which Outer has the same attribute but no
+        // nested definition (so it is an ordinary leaf)
+        var truncated = strategy.BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light, DepthLimit: 2));
+        var baseline = strategy.BuildLayout(new ViewContext("v", leafWorkspace), new RenderOptions(Themes.Light));
+
+        // Assert: attributes compartment kept, "…" row appended as its own untitled compartment
+        var outer = CollectBoxes(truncated.Nodes).Single(b => b.Label == "Outer");
+        Assert.Equal(["attributes", null], outer.Compartments.Select(c => c.Title).ToList());
+        Assert.Equal(["\u2026"], outer.Compartments[^1].Rows);
+
+        // Assert: the extra row makes the box taller than the plain leaf rendering
+        var leaf = CollectBoxes(baseline.Nodes).Single(b => b.Label == "Outer");
+        Assert.Single(leaf.Compartments);
+        Assert.True(outer.Height > leaf.Height, $"truncated height {outer.Height} must exceed leaf height {leaf.Height}.");
     }
 
     /// <summary>
@@ -3406,9 +3601,9 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Equal("Sys", folder.Label);
         Assert.DoesNotContain(allBoxes, b => b.Label is "A" or "B");
 
-        // Assert: the folder carries a "+2 more…" ellipsis label reporting its two hidden definitions
+        // Assert: the folder carries a bare "…" ellipsis label (the hidden count is not shown)
         var indicator = Assert.IsType<LayoutLabel>(Assert.Single(folder.Children));
-        Assert.Equal("+2 more\u2026", indicator.Text);
+        Assert.Equal("\u2026", indicator.Text);
     }
 
     /// <summary>
@@ -3480,11 +3675,11 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Equal("A", resultBoxA.Label);
         Assert.Empty(resultBoxA.Children);
 
-        // Assert: boxB (paired with the truncated nodeB) carries the "+3 more…" ellipsis decoration
+        // Assert: boxB (paired with the truncated nodeB) carries the bare "…" ellipsis decoration
         var resultBoxB = Assert.IsType<LayoutBox>(result[2]);
         Assert.Equal("B", resultBoxB.Label);
         var indicatorB = Assert.IsType<LayoutLabel>(Assert.Single(resultBoxB.Children));
-        Assert.Equal("+3 more\u2026", indicatorB.Text);
+        Assert.Equal("\u2026", indicatorB.Text);
     }
 
     /// <summary>
@@ -3511,7 +3706,15 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>Returns the single box labeled <paramref name="label"/> (optionally of <paramref name="shape"/>) anywhere in <paramref name="nodes"/>.</summary>
     private static LayoutBox FindBox(IReadOnlyList<LayoutNode> nodes, string label, BoxShape? shape = null) =>
-        Assert.Single(CollectBoxes(nodes), b => b.Label == label && (shape is null || b.Shape == shape));
+        Assert.Single(CollectBoxes(nodes), b => IsNamed(b, label) && (shape is null || b.Shape == shape));
+
+    /// <summary>
+    ///     True when the box's name line is <paramref name="name"/> exactly or <paramref name="name"/>
+    ///     followed by its <c>:&gt;</c> specialization (a specializing definition's label reads
+    ///     <c>Name :&gt; Super</c>).
+    /// </summary>
+    private static bool IsNamed(LayoutBox box, string name) =>
+        box.Label == name || (box.Label?.StartsWith(name + " :>", StringComparison.Ordinal) ?? false);
 
     /// <summary>Returns the hollow-triangle (specialization) lines among the direct nodes of a scope.</summary>
     private static IReadOnlyList<LayoutLine> DirectSpecializationLines(IReadOnlyList<LayoutNode> scopeNodes) =>
@@ -3714,16 +3917,16 @@ public sealed class GeneralViewLayoutStrategyTests
         var limitThree = await LayOutUnscopedAsync(DepthLimitedNestedSysml, depthLimit: 3);
         var unlimited = await LayOutUnscopedAsync(DepthLimitedNestedSysml);
 
-        // Assert: limit 1 - P collapses, hiding A, Sub, B and C
+        // Assert: limit 1 - P collapses, hiding A, Sub, B and C behind a bare "…" label
         var folderOne = FindBox(limitOne.Nodes, "P");
-        Assert.Equal("+4 more\u2026", Assert.IsType<LayoutLabel>(Assert.Single(folderOne.Children)).Text);
+        Assert.Equal("\u2026", Assert.IsType<LayoutLabel>(Assert.Single(folderOne.Children)).Text);
         Assert.DoesNotContain(CollectBoxes(limitOne.Nodes), b => b.Label is "A" or "Sub" or "B" or "C");
 
-        // Assert: limit 2 - A is drawn, Sub collapses to "+2 more…"
+        // Assert: limit 2 - A is drawn, Sub collapses to "…"
         var folderTwo = FindBox(limitTwo.Nodes, "P");
         Assert.Contains(folderTwo.Children.OfType<LayoutBox>(), b => b.Label == "A");
         var subTwo = FindBox(limitTwo.Nodes, "Sub");
-        Assert.Equal("+2 more\u2026", Assert.IsType<LayoutLabel>(Assert.Single(subTwo.Children)).Text);
+        Assert.Equal("\u2026", Assert.IsType<LayoutLabel>(Assert.Single(subTwo.Children)).Text);
         Assert.DoesNotContain(CollectBoxes(limitTwo.Nodes), b => b.Label is "B" or "C");
 
         // Assert: limit 3 and no limit - everything is drawn with no truncation label
@@ -3731,7 +3934,7 @@ public sealed class GeneralViewLayoutStrategyTests
         {
             var sub = FindBox(layout.Nodes, "Sub");
             Assert.Equal(["B", "C"], sub.Children.OfType<LayoutBox>().Select(b => b.Label).Order().ToArray());
-            Assert.DoesNotContain(CollectNodes(layout.Nodes), n => n is LayoutLabel { Text: var t } && t.Contains("more"));
+            Assert.DoesNotContain(CollectNodes(layout.Nodes), n => n is LayoutLabel { Text: "\u2026" });
         }
     }
 
@@ -3791,7 +3994,7 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     The "+N more…" decoration is paired with its box by the node's identity (label, keyword,
+    ///     The ellipsis decoration is paired with its box by the node's identity (label, keyword,
     ///     shape), not by position: with the boxes placed in a different order than the graph nodes
     ///     (and a line among them), and with a nested container whose children are permuted too, only
     ///     the box standing for the truncated node is decorated.
@@ -3849,13 +4052,13 @@ public sealed class GeneralViewLayoutStrategyTests
         var result = InvokeDecorateTruncated(placed, [nodeA, nodeP, nodeB], hiddenByNode);
 
         // Assert: root scope - only B carries a label
-        Assert.Equal("+5 more\u2026", Assert.IsType<LayoutLabel>(Assert.Single(Assert.IsType<LayoutBox>(result[0]).Children)).Text);
+        Assert.Equal("\u2026", Assert.IsType<LayoutLabel>(Assert.Single(Assert.IsType<LayoutBox>(result[0]).Children)).Text);
         Assert.Empty(Assert.IsType<LayoutBox>(result[3]).Children);
 
         // Assert: nested scope - only Y carries a label
         var resultP = Assert.IsType<LayoutBox>(result[2]);
         var resultY = Assert.IsType<LayoutBox>(resultP.Children[0]);
-        Assert.Equal("+2 more\u2026", Assert.IsType<LayoutLabel>(Assert.Single(resultY.Children)).Text);
+        Assert.Equal("\u2026", Assert.IsType<LayoutLabel>(Assert.Single(resultY.Children)).Text);
         Assert.Empty(Assert.IsType<LayoutBox>(resultP.Children[2]).Children);
     }
 
@@ -3978,7 +4181,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var b = FindBox(layout.Nodes, "B");
         Assert.True(a.Y < b.Y || a.X < b.X);
         Assert.DoesNotContain(CollectBoxes(layout.Nodes), box => box.Label == "Z");
-        Assert.Equal("+1 more\u2026", Assert.IsType<LayoutLabel>(Assert.Single(FindBox(layout.Nodes, "Sub").Children)).Text);
+        Assert.Equal("\u2026", Assert.IsType<LayoutLabel>(Assert.Single(FindBox(layout.Nodes, "Sub").Children)).Text);
     }
 
     /// <summary>

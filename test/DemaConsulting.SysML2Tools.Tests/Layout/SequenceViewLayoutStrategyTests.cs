@@ -87,11 +87,11 @@ public sealed class SequenceViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: the message line is horizontal (equal Y) and has an open arrowhead at the target
+        // Assert: the message line is horizontal (equal Y) and has a hollow triangle head at the target
         var line = Assert.Single(layout.Nodes.OfType<LayoutLine>());
         Assert.Equal(line.Waypoints[0].Y, line.Waypoints[^1].Y, 6);
         Assert.NotEqual(line.Waypoints[0].X, line.Waypoints[^1].X);
-        Assert.Equal(EndMarkerStyle.OpenChevron, line.TargetEnd);
+        Assert.Equal(EndMarkerStyle.HollowTriangle, line.TargetEnd);
     }
 
     /// <summary>
@@ -111,10 +111,10 @@ public sealed class SequenceViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A sequence message arrow carries an open arrowhead at the receiver end.
+    ///     A sequence message arrow carries a hollow triangle head at the receiver end.
     /// </summary>
     [Fact]
-    public void SequenceView_BuildLayout_MessageArrow_HasOpenArrowhead()
+    public void SequenceView_BuildLayout_MessageArrow_HasHollowTriangleHead()
     {
         // Arrange: a single message sender -> receiver
         var strategy = new SequenceViewLayoutStrategy();
@@ -138,10 +138,43 @@ public sealed class SequenceViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: the message arrow has an open arrowhead at the receiver (target) end
+        // Assert: the message arrow has a hollow triangle head at the receiver (target) end
         var line = Assert.Single(layout.Nodes.OfType<LayoutLine>());
-        Assert.Equal(EndMarkerStyle.OpenChevron, line.TargetEnd);
+        Assert.Equal(EndMarkerStyle.HollowTriangle, line.TargetEnd);
         Assert.Equal(EndMarkerStyle.None, line.SourceEnd);
+    }
+
+    /// <summary>
+    ///     A self-message (both endpoints on the same lifeline) is drawn as a loop that likewise ends
+    ///     in a hollow triangle head.
+    /// </summary>
+    [Fact]
+    public void SequenceView_BuildLayout_SelfMessage_HasHollowTriangleHead()
+    {
+        // Arrange: a single message whose endpoints are both on the "worker" lifeline
+        var strategy = new SequenceViewLayoutStrategy();
+        var protocol = new SysmlDefinitionNode
+        {
+            Name = "P",
+            QualifiedName = "M::P",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlConnectionNode { Name = "tick", ConnectionKeyword = "message", EndpointA = "worker.a", EndpointB = "worker.b" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["M::P"] = protocol }
+        };
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("Sequence", workspace), new RenderOptions(Themes.Light));
+
+        // Assert: the loop (more than two waypoints) ends in a hollow triangle
+        var line = Assert.Single(layout.Nodes.OfType<LayoutLine>());
+        Assert.True(line.Waypoints.Count > 2, "a self-message is drawn as a multi-segment loop.");
+        Assert.Equal(EndMarkerStyle.HollowTriangle, line.TargetEnd);
     }
 
     /// <summary>

@@ -21,6 +21,29 @@ sections:
         tests:
           - BrowserView_BuildLayout_NestedElements_AreIndentedByDepth
 
+      - id: SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-RowLabels
+        title: >-
+          BrowserViewLayoutStrategy shall label each row with the element's keyword in
+          guillemet marks followed by its name line — the short name, name, and, for a feature, its
+          typing and multiplicity — so that a package reads as a package row with its name.
+        justification: |
+          The SysML v2 graphical notation shows an element's keyword in guillemet marks before its
+          name, and shows a feature's short name, typing, and multiplicity with its name.
+          Reading each tree row the same way keeps the browser consistent with the other views.
+        tests:
+          - BrowserView_BuildLayout_RowLabels_UseGuillemetKeyword
+
+      - id: SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-UniformRowShading
+        title: >-
+          BrowserViewLayoutStrategy shall draw every row with the same nesting-depth shading
+          regardless of its depth in the tree.
+        justification: |
+          Nesting is already conveyed by indentation and parent-to-child connectors, and the
+          specification's notation uses no depth-coded shading, so rows of every depth are drawn
+          alike.
+        tests:
+          - BrowserView_BuildLayout_RowBoxes_HaveDepthZero
+
       - id: SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-EmptyInput
         title: >-
           When the workspace contains no user-defined elements, BrowserViewLayoutStrategy shall

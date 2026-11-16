@@ -52,6 +52,18 @@ sections:
         tests:
           - ActionFlowView_BuildLayout_SuccessionEdge_IsDashedWithOpenArrowhead
 
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-StartDoneConnectorStyle
+        title: >-
+          ActionFlowViewLayoutStrategy shall draw the connector from the start marker to an action
+          and from an action to the done marker in the same style as an action-to-action
+          succession: a dashed line with an open end marker.
+        justification: |
+          In SysML v2 notation the start and done markers are joined to actions by successions,
+          which are drawn dashed with an open arrowhead. Drawing these connectors differently
+          from the other successions would misrepresent them as a different kind of relationship.
+        tests:
+          - ActionFlowView_BuildLayout_BranchAndJoin
+
       - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-OrthogonalFlow
         title: >-
           ActionFlowViewLayoutStrategy shall place actions top-to-bottom along the succession flow,

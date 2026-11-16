@@ -21,16 +21,46 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_OneUserPartDef_ProducesLayoutBox
           - GeneralViewLayoutStrategy_BuildLayout_MixedDefinitionKinds_RendersAllWithKeywords
 
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NameLine
+        title: >-
+          GeneralViewLayoutStrategy shall label each definition box's name line in the textual
+          notation — the short name, the name, and, for a definition, its specialization
+          (`:>`) as declared in the model — omitting any piece the model does not declare, and
+          shall size the box to fit that label.
+        justification: |
+          The SysML v2 graphical notation shows an element's short name before its name and a
+          definition's specialization after it. Showing the declared pieces lets a reader
+          identify each definition and its direct supertypes from the box alone; sizing the box
+          from the full label keeps the text from being clipped. A usage's subsetting references
+          are not shown, as they are drawn as relationships.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_DefinitionNameLine_ShowsShortNameAndSupertypes
+          - GeneralViewLayoutStrategy_FormatNameLine_AllOptionalsNull_ReturnsNameOnly
+          - GeneralViewLayoutStrategy_FormatNameLine_EachOptionalAlone_UsesTextualNotation
+          - GeneralViewLayoutStrategy_FormatNameLine_AllPieces_CombinesInSpecOrder
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageShape
+        title: >-
+          GeneralViewLayoutStrategy shall draw a top-level usage as a box with rounded corners
+          and a definition as a box with square corners.
+        justification: |
+          The SysML v2 graphical notation distinguishes usages from definitions by corner shape.
+          Drawing each with its own shape lets a reader tell the two apart without reading the
+          keyword.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_TopLevelUsage_IsRoundedAndDefinitionIsSquare
+
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-PackageGrouping
         title: >-
           When the view has no resolved expose scope, GeneralViewLayoutStrategy shall group the
           definitions that belong to a bare package within a folder-shaped container box labeled
-          with the package name.
+          with the package name, without a «package» keyword line.
         justification: |
           Grouping a package's definitions inside a labeled folder communicates ownership and
           keeps related definitions visually together, which is essential for readable diagrams
           of larger models, for the unscoped (whole-workspace) case where every ancestor package
-          is genuinely part of what the view renders.
+          is genuinely part of what the view renders. The SysML v2 graphical notation identifies
+          a package by its folder shape and name alone, so no keyword line is drawn.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_PackagedDefinitions_ProducesFolderBox
           - GeneralViewLayoutStrategy_BuildLayout_Unscoped_StillRendersFullPackageFolderStructure
@@ -75,6 +105,20 @@ sections:
           without opening another view.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CompartmentOrder
+        title: >-
+          GeneralViewLayoutStrategy shall list a definition box's compartments in a fixed
+          order — documentation first, then attributes, enums, parts, and ports, then every
+          other kind of compartment in declaration order — and shall title the compartment of
+          enumerated values "enums".
+        justification: |
+          The SysML v2 graphical notation stacks a definition's compartments in a fixed order
+          and titles the enumerated-value compartment "enums". A fixed order makes every box
+          read the same way regardless of the order its members were declared in.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_Compartments_AreInCanonicalOrder
+          - GeneralViewLayoutStrategy_BuildLayout_EnumDefLiteralValues_ProducesEnumsCompartment
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Specialization
         title: >-
@@ -172,15 +216,14 @@ sections:
         title: >-
           GeneralViewLayoutStrategy shall connect the owning rendered box of each resolved
           Allocate edge's source endpoint to the owning rendered box of its target endpoint with
-          a dashed line ending in an open chevron at the target, carrying a <c>«allocate»</c>
+          a solid line ending in an open chevron at the target, carrying a <c>«allocate»</c>
           midpoint label.
         justification: |
-          `allocate A to B;` is the SysML v2 allocation relationship, conventionally rendered as
-          a dashed dependency-style edge with an explicit <c>«allocate»</c> stereotype label
-          distinguishing it from an unlabeled Dependency edge that shares the same line style and
-          marker.
+          `allocate A to B;` is the SysML v2 allocation relationship, drawn as a solid line with
+          an open arrowhead and an explicit <c>«allocate»</c> stereotype label distinguishing it
+          from an unlabeled, dashed Dependency edge that shares the same marker.
         tests:
-          - GeneralViewLayoutStrategy_BuildLayout_Allocate_ProducesDashedChevronEdgeWithLabel
+          - GeneralViewLayoutStrategy_BuildLayout_Allocate_ProducesSolidChevronEdgeWithLabel
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Dependency
         title: >-
@@ -477,7 +520,7 @@ sections:
         title: >-
           GeneralViewLayoutStrategy shall render one `BoxShape.Note` box per definition that
           carries exposed `comment` annotations satisfying the view conditions, connected to the
-          definition's box by a plain solid line with no end marker (SysML 8.2.3.4 comment-node
+          definition's box by a plain dashed line with no end marker (SysML 8.2.3.4 comment-node
           and annotation-link), containing the Comment text (multiple comments concatenated with a
           blank-line separator into a single note), and shall emit no note box for a definition
           with no such comments.
@@ -585,7 +628,7 @@ sections:
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_RequirementSubject_UsesGuillemetTitle
           - GeneralViewLayoutStrategy_BuildLayout_ConstraintFeatures_ShowExpressionText
-          - GeneralViewLayoutStrategy_BuildLayout_EnumDefLiteralValues_ProducesEnumValuesCompartment
+          - GeneralViewLayoutStrategy_BuildLayout_EnumDefLiteralValues_ProducesEnumsCompartment
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposedPackageNodes
         title: >-
@@ -622,7 +665,7 @@ sections:
           peers, prevents relationships between their members from being drawn in the owner's
           context. Counting every enclosing folder as a nesting level keeps the depth limit
           consistent with how definitions nested inside definitions are already counted, and a
-          collapsed folder must still account for everything it hides.
+          collapsed folder must still hide everything beneath it.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_NestedPackage_RendersInsideOwnerFolder
           - GeneralViewLayoutStrategy_BuildLayout_NestedPackage_ParentWithoutDirectItems_CreatesEnclosingFolder
@@ -679,15 +722,30 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-TruncatedContainerDecoration
         title: >-
-          GeneralViewLayoutStrategy shall label each depth-truncated package folder or definition
-          with the number of elements it hides on that container's own placed box, independent of
-          the order in which the layout engine emits a scope's boxes.
+          GeneralViewLayoutStrategy shall mark each depth-truncated package folder with a bare
+          ellipsis (…) label on that folder's own placed box, independent of the order in which
+          the layout engine emits a scope's boxes.
         justification: |
-          The "+N more…" label tells the reader that content was collapsed by the depth limit. A
-          label attached to the wrong box (because the engine emitted boxes in a different order
-          than the nodes were added) would misreport which container is collapsed and how much it
-          hides.
+          The ellipsis tells the reader that content was collapsed by the depth limit. A label
+          attached to the wrong box (because the engine emitted boxes in a different order than
+          the nodes were added) would misreport which folder is collapsed.
         tests:
           - GeneralViewLayoutStrategy_DecorateTruncated_LineBeforeBoxes_DoesNotBreakBoxToNodePairing
           - GeneralViewLayoutStrategy_DecorateTruncated_BoxOrderDiffersFromNodeOrder_DecoratesMatchingNode
           - GeneralViewLayoutStrategy_BuildLayout_NestedPackages_DepthLimit_CountsPackageNesting
+          - GeneralViewLayoutStrategy_BuildLayout_PackageFolderContents_DepthLimitOne_StillTruncatesFolder
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-TruncatedDefinitionMarker
+        title: >-
+          When the depth limit hides the definitions nested inside a definition,
+          GeneralViewLayoutStrategy shall draw that definition as a single box whose last
+          compartment is an untitled ellipsis (…) row, after any compartments it already has,
+          instead of drawing the hidden definitions.
+        justification: |
+          The SysML v2 graphical notation ends a compartment stack with an ellipsis to show that
+          further contents exist but are not shown. Reusing that marker for depth-truncated
+          nested definitions tells the reader content was omitted without adding a placeholder
+          box to the diagram.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_NestedDefinitionContainment_DepthLimitTruncatesInnerLevel
+          - GeneralViewLayoutStrategy_BuildLayout_TruncatedDefinitionWithCompartments_AppendsEllipsisRow
