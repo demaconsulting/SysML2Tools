@@ -8,6 +8,7 @@ using DemaConsulting.SysML2Tools.Layout.Internal;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
+using DemaConsulting.SysML2Tools.Stdlib;
 
 namespace DemaConsulting.SysML2Tools.Tests.Layout;
 
@@ -681,13 +682,14 @@ public sealed class ActionFlowViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A named fork feeding two actions that later join renders a
-    ///     <see cref="BadgeShape.HorizontalBar"/> badge at both the fork and the join, with the
-    ///     succession edges wired between them (regression-guarding the ordinary-action rendering
-    ///     path: <c>b1</c>/<c>b2</c> still render as plain boxes).
+    ///     A named fork feeding two actions that later join renders a thick bar
+    ///     (<see cref="BadgeShape.ThickHorizontalBar"/>) at both the fork and the join, with no label
+    ///     (the notation draws the bar alone), and the succession edges wired between them
+    ///     (regression-guarding the ordinary-action rendering path: <c>b1</c>/<c>b2</c> still render
+    ///     as plain boxes).
     /// </summary>
     [Fact]
-    public void ActionFlowView_BuildLayout_ForkAndJoin_RenderHorizontalBarBadges()
+    public void ActionFlowView_BuildLayout_ForkAndJoin_RenderThickBarBadges_WithoutLabel()
     {
         var strategy = new ActionFlowViewLayoutStrategy();
         var process = new SysmlDefinitionNode
@@ -718,10 +720,10 @@ public sealed class ActionFlowViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var bars = layout.Nodes.OfType<LayoutBadge>().Where(b => b.Shape == BadgeShape.HorizontalBar).ToList();
+        var bars = layout.Nodes.OfType<LayoutBadge>().Where(b => b.Shape == BadgeShape.ThickHorizontalBar).ToList();
         Assert.Equal(2, bars.Count);
-        Assert.Contains(bars, b => b.Label == "f");
-        Assert.Contains(bars, b => b.Label == "j");
+        Assert.All(bars, b => Assert.Null(b.Label));
+        Assert.DoesNotContain(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.HorizontalBar);
 
         var actionBoxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "action").ToList();
         Assert.Equal(3, actionBoxes.Count);
@@ -771,11 +773,11 @@ public sealed class ActionFlowViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     Accept/send nodes render as rounded-rectangle boxes (like ordinary actions) but keep
-    ///     their own distinct keyword instead of the hard-coded <c>"action"</c> keyword.
+    ///     Accept/send nodes render as rounded-rectangle boxes carrying the specification's corner icon
+    ///     (the icon replaces the keyword line), so the box has no keyword and keeps its name.
     /// </summary>
     [Fact]
-    public void ActionFlowView_BuildLayout_AcceptAndSend_RenderBoxesWithDistinctKeyword()
+    public void ActionFlowView_BuildLayout_AcceptAndSend_RenderBoxesWithCornerIcons()
     {
         var strategy = new ActionFlowViewLayoutStrategy();
         var process = new SysmlDefinitionNode
@@ -800,9 +802,9 @@ public sealed class ActionFlowViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         var boxes = layout.Nodes.OfType<LayoutBox>().ToList();
-        Assert.Contains(boxes, b => b.Keyword == "accept" && b.Label == "sig");
-        Assert.Contains(boxes, b => b.Keyword == "send" && b.Label == "msg");
-        Assert.DoesNotContain(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape is BadgeShape.Diamond or BadgeShape.HorizontalBar);
+        Assert.Contains(boxes, b => b.Label == "sig" && b.Appearance?.CornerIcon == BoxCornerIcon.Accept && b.Keyword is null);
+        Assert.Contains(boxes, b => b.Label == "msg" && b.Appearance?.CornerIcon == BoxCornerIcon.Send && b.Keyword is null);
+        Assert.DoesNotContain(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape is BadgeShape.Diamond or BadgeShape.ThickHorizontalBar);
     }
 
     /// <summary>
@@ -821,10 +823,10 @@ public sealed class ActionFlowViewLayoutStrategyTests
             Children =
             [
                 new SysmlFeatureNode { Name = "a", QualifiedName = "P::Process::a", FeatureKeyword = "action" },
-                new SysmlFeatureNode { Name = "$fork0", QualifiedName = null, FeatureKeyword = "fork" },
+                new SysmlFeatureNode { Name = "$decide0", QualifiedName = null, FeatureKeyword = "decide" },
                 new SysmlFeatureNode { Name = "b1", QualifiedName = "P::Process::b1", FeatureKeyword = "action" },
-                new SysmlTransitionNode { Source = "a", Target = "$fork0" },
-                new SysmlTransitionNode { Source = "$fork0", Target = "b1" }
+                new SysmlTransitionNode { Source = "a", Target = "$decide0" },
+                new SysmlTransitionNode { Source = "$decide0", Target = "b1" }
             ]
         };
         var workspace = new SysmlWorkspace
@@ -836,8 +838,8 @@ public sealed class ActionFlowViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var bar = Assert.Single(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.HorizontalBar);
-        Assert.Null(bar.Label);
+        var diamond = Assert.Single(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.Diamond);
+        Assert.Null(diamond.Label);
     }
 
     /// <summary>
@@ -875,5 +877,361 @@ public sealed class ActionFlowViewLayoutStrategyTests
         Assert.Contains(boxes, b => b.Label == "a");
         Assert.Contains(boxes, b => b.Label == "b");
         Assert.Contains(layout.Nodes.OfType<LayoutLine>(), l => l.LineStyle == LineStyle.Dashed);
+    }
+
+    /// <summary>Builds an action definition from the given children and lays it out with the Light theme.</summary>
+    private static LayoutTree LayOut(params SysmlNode[] children)
+    {
+        var process = new SysmlDefinitionNode
+        {
+            Name = "Process",
+            QualifiedName = "P::Process",
+            DefinitionKeyword = "action def",
+            Children = children,
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::Process"] = process },
+        };
+        return new ActionFlowViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+    }
+
+    /// <summary>A feature of the given action-flow keyword (<c>action</c>, <c>fork</c>, <c>accept</c>, ...).</summary>
+    private static SysmlFeatureNode Node(string name, string keyword = "action", string? actionText = null) =>
+        new() { Name = name, QualifiedName = name.StartsWith('$') ? null : $"P::Process::{name}", FeatureKeyword = keyword, ActionText = actionText };
+
+    /// <summary>A succession between two named nodes.</summary>
+    private static SysmlTransitionNode Then(string source, string target, string? guard = null, bool isElse = false) =>
+        new() { Source = source, Target = target, Guard = guard, IsElse = isElse };
+
+    /// <summary>The fork's thick bar badge of a layout.</summary>
+    private static LayoutBadge Bar(LayoutTree layout) =>
+        Assert.Single(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.ThickHorizontalBar);
+
+    /// <summary>A fork bar grows with its fan-out so its connections fit on its long face.</summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_ThickBar_LengthGrowsWithFanOut()
+    {
+        // Arrange / Act
+        var narrow = LayOut(Node("a"), Node("f", "fork"), Node("b1"), Node("b2"), Then("a", "f"), Then("f", "b1"), Then("f", "b2"));
+        var wide = LayOut(
+            Node("a"), Node("f", "fork"), Node("b1"), Node("b2"), Node("b3"), Node("b4"), Node("b5"),
+            Then("a", "f"), Then("f", "b1"), Then("f", "b2"), Then("f", "b3"), Then("f", "b4"), Then("f", "b5"));
+
+        // Assert
+        Assert.True(Bar(wide).Size > Bar(narrow).Size);
+        Assert.True(Bar(wide).Size >= 6 * 24.0);
+        Assert.True(Bar(narrow).Size >= 64.0);
+    }
+
+    /// <summary>The connections leaving a fork attach at least 16 px apart along the bar's face.</summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_ThickBar_AnchorsAtLeast16pxApart()
+    {
+        // Arrange / Act
+        var layout = LayOut(
+            Node("a"), Node("f", "fork"), Node("b1"), Node("b2"), Node("b3"),
+            Then("a", "f"), Then("f", "b1"), Then("f", "b2"), Then("f", "b3"));
+        var bar = Bar(layout);
+
+        // Assert: the three outgoing connections start at distinct X positions on the bar
+        var starts = layout.Nodes.OfType<LayoutLine>()
+            .Where(l => Math.Abs(l.Waypoints[0].Y - (bar.CentreY + (NotationMetrics.ThickBarThickness / 2.0))) < 0.01)
+            .Select(l => l.Waypoints[0].X)
+            .Order()
+            .ToList();
+        Assert.Equal(3, starts.Count);
+        Assert.True(starts[1] - starts[0] >= 16.0 - 0.01 && starts[2] - starts[1] >= 16.0 - 0.01);
+        Assert.All(starts, x => Assert.InRange(x, bar.CentreX - (bar.Size / 2.0), bar.CentreX + (bar.Size / 2.0)));
+    }
+
+    /// <summary>Connectors stop at and start from the drawn bar, not the taller slot the engine reserved for it.</summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_ThickBar_ConnectorsTouchTheBar()
+    {
+        // Arrange / Act
+        var layout = LayOut(Node("a"), Node("f", "fork"), Node("b"), Then("a", "f"), Then("f", "b"));
+        var bar = Bar(layout);
+        var half = NotationMetrics.ThickBarThickness / 2.0;
+        var lines = layout.Nodes.OfType<LayoutLine>().ToList();
+
+        // Assert
+        Assert.Contains(lines, l => Math.Abs(l.Waypoints[^1].Y - (bar.CentreY - half)) < 0.01);
+        Assert.Contains(lines, l => Math.Abs(l.Waypoints[0].Y - (bar.CentreY + half)) < 0.01);
+    }
+
+    /// <summary>Connectors meet a decision diamond's outline, not the corner of its bounding box.</summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_Decision_ConnectorsTouchTheDiamondOutline()
+    {
+        // Arrange / Act
+        var layout = LayOut(
+            Node("a"), Node("d", "decide"), Node("b"), Node("c"),
+            Then("a", "d"), Then("d", "b", "ok"), Then("d", "c", isElse: true));
+        var diamond = Assert.Single(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.Diamond);
+
+        // Assert: every connector end on the diamond satisfies |dx| + |dy| = half the diagonal
+        var half = diamond.Size / 2.0;
+        var ends = layout.Nodes.OfType<LayoutLine>()
+            .SelectMany(l => new[] { l.Waypoints[0], l.Waypoints[^1] })
+            .Where(p => Math.Abs(p.X - diamond.CentreX) <= half + 0.01 && Math.Abs(p.Y - diamond.CentreY) <= half + 0.01)
+            .ToList();
+        Assert.Equal(3, ends.Count);
+        Assert.All(ends, p => Assert.Equal(half, Math.Abs(p.X - diamond.CentreX) + Math.Abs(p.Y - diamond.CentreY), precision: 2));
+    }
+
+    /// <summary>A bar's only connection attaches where the other end lies, so it runs straight instead of kinking.</summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_ThickBar_SingleConnection_RunsStraight()
+    {
+        // Arrange / Act: a fork and a join whose branches differ in length (so the join is off-center
+        // from the action below it), then one action after the join
+        var layout = LayOut(
+            Node("a"), Node("f", "fork"), Node("b1"), Node("c1"), Node("b2"), Node("j", "join"), Node("d"),
+            Then("a", "f"), Then("f", "b1"), Then("f", "b2"), Then("b1", "c1"), Then("c1", "j"), Then("b2", "j"), Then("j", "d"));
+        var join = layout.Nodes.OfType<LayoutBadge>().Single(b => b.Shape == BadgeShape.ThickHorizontalBar && b.CentreY > layout.Nodes.OfType<LayoutBox>().Single(x => x.Label == "c1").Y);
+        var bottom = join.CentreY + (NotationMetrics.ThickBarThickness / 2.0);
+
+        // Assert: the connector that leaves the join is one straight vertical segment
+        var line = Assert.Single(layout.Nodes.OfType<LayoutLine>(), l => Math.Abs(l.Waypoints[0].Y - bottom) < 0.01);
+        Assert.Equal(2, line.Waypoints.Count);
+        Assert.Equal(line.Waypoints[0].X, line.Waypoints[1].X, precision: 3);
+    }
+
+    /// <summary>A guarded succession is labeled with its bracketed guard.</summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_GuardedSuccession_LabelsEdge()
+    {
+        // Arrange / Act
+        var layout = LayOut(Node("d", "decide"), Node("b"), Then("d", "b", "ok"));
+
+        // Assert
+        Assert.Contains(layout.Nodes.OfType<LayoutLine>(), l => l.MidpointLabel == "[ok]");
+    }
+
+    /// <summary>The default branch of a decision is labeled <c>else</c>, without brackets.</summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_ElseSuccession_LabelsEdgeElse()
+    {
+        // Arrange / Act
+        var layout = LayOut(Node("d", "decide"), Node("b"), Node("c"), Then("d", "b", "ok"), Then("d", "c", isElse: true), Then("b", "c"));
+
+        // Assert
+        var labels = layout.Nodes.OfType<LayoutLine>().Select(l => l.MidpointLabel).ToList();
+        Assert.Contains("[ok]", labels);
+        Assert.Contains("else", labels);
+        Assert.Equal(2, labels.Count(l => l is not null));
+    }
+
+    /// <summary>A terminate node is a crossed circle that only receives successions.</summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_TerminateNode_RendersCrossedCircle_NoOutgoing()
+    {
+        // Arrange / Act
+        var layout = LayOut(Node("a"), Node("t", "terminate"), Then("a", "t"));
+
+        // Assert
+        var badge = Assert.Single(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.CrossedCircle);
+        Assert.Null(badge.Label);
+        var lines = layout.Nodes.OfType<LayoutLine>().ToList();
+        Assert.Contains(lines, l => Math.Abs(l.Waypoints[^1].Y - (badge.CentreY - (badge.Size / 2.0))) < 0.01);
+        Assert.DoesNotContain(lines, l => Math.Abs(l.Waypoints[0].Y - (badge.CentreY + (badge.Size / 2.0))) < 0.01);
+    }
+
+    /// <summary>A terminate node ends its flow, so it is not an inferred end that the done marker follows.</summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_TerminateNode_NotTreatedAsDoneSource()
+    {
+        // Arrange: a -> b -> (end), a -> t (terminate); no explicit done
+        var layout = LayOut(Node("a"), Node("b"), Node("t", "terminate"), Then("a", "b"), Then("a", "t"));
+        var done = Assert.Single(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.Bullseye);
+        var terminate = Assert.Single(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.CrossedCircle);
+
+        // Act: lines that arrive at the done marker
+        var intoDone = layout.Nodes.OfType<LayoutLine>()
+            .Where(l => Math.Abs(l.Waypoints[^1].X - done.CentreX) < 0.01 && Math.Abs(l.Waypoints[^1].Y - (done.CentreY - (done.Size / 2.0))) < 0.01)
+            .ToList();
+
+        // Assert: only b's flow reaches done; the terminate node has no outgoing line
+        Assert.Single(intoDone);
+        Assert.DoesNotContain(layout.Nodes.OfType<LayoutLine>(), l => Math.Abs(l.Waypoints[0].Y - (terminate.CentreY + (terminate.Size / 2.0))) < 0.01);
+    }
+
+    /// <summary>When every flow ends in a terminate node, no done marker is inferred.</summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_OnlyTerminateEnds_DrawsNoDoneMarker()
+    {
+        // Arrange / Act
+        var layout = LayOut(Node("a"), Node("t", "terminate"), Then("a", "t"));
+
+        // Assert
+        Assert.DoesNotContain(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.Bullseye);
+    }
+
+    /// <summary>
+    ///     An explicit <c>first start then X;</c> draws no <c>start</c> box and the start marker enters
+    ///     only X, even when another action has no predecessor.
+    /// </summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_ExplicitStart_NoStartBox_MarkerEntersTarget()
+    {
+        // Arrange: a -> b, and c with no predecessor; start enters a
+        var layout = LayOut(Node("a"), Node("b"), Node("c"), Then("start", "a"), Then("a", "b"));
+        var marker = Assert.Single(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.FilledCircle);
+        var boxes = layout.Nodes.OfType<LayoutBox>().ToList();
+        var a = boxes.Single(b => b.Label == "a");
+
+        // Act
+        var fromMarker = layout.Nodes.OfType<LayoutLine>()
+            .Where(l => Math.Abs(l.Waypoints[0].X - marker.CentreX) < 0.01 && Math.Abs(l.Waypoints[0].Y - (marker.CentreY + (marker.Size / 2.0))) < 0.01)
+            .ToList();
+
+        // Assert
+        Assert.DoesNotContain(boxes, b => b.Label == "start");
+        var line = Assert.Single(fromMarker);
+        Assert.InRange(line.Waypoints[^1].X, a.X, a.X + a.Width);
+        Assert.Equal(a.Y, line.Waypoints[^1].Y, precision: 2);
+    }
+
+    /// <summary>An explicit <c>then done;</c> draws no <c>done</c> box and the done marker follows only that action.</summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_ExplicitDone_ConnectsOnlyDeclaredSources()
+    {
+        // Arrange: a -> b and a -> c; only c declares done (b would otherwise be an inferred end)
+        var layout = LayOut(Node("a"), Node("b"), Node("c"), Then("a", "b"), Then("a", "c"), Then("c", "done"));
+        var done = Assert.Single(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.Bullseye);
+
+        // Act
+        var intoDone = layout.Nodes.OfType<LayoutLine>()
+            .Where(l => Math.Abs(l.Waypoints[^1].X - done.CentreX) < 0.01 && Math.Abs(l.Waypoints[^1].Y - (done.CentreY - (done.Size / 2.0))) < 0.01)
+            .ToList();
+
+        // Assert
+        Assert.DoesNotContain(layout.Nodes.OfType<LayoutBox>(), b => b.Label == "done");
+        var line = Assert.Single(intoDone);
+        var c = layout.Nodes.OfType<LayoutBox>().Single(b => b.Label == "c");
+        Assert.Equal(c.Y + c.Height, line.Waypoints[0].Y, precision: 2);
+    }
+
+    /// <summary>Without explicit start or done successions the markers are still inferred from the topology.</summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_NoExplicitMarkers_HeuristicUnchanged()
+    {
+        // Arrange / Act
+        var layout = LayOut(Node("a"), Node("b"), Then("a", "b"));
+
+        // Assert: one start marker, one done marker, and a connector at each
+        Assert.Single(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.FilledCircle);
+        Assert.Single(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.Bullseye);
+        Assert.Equal(3, layout.Nodes.OfType<LayoutLine>().Count());
+    }
+
+    /// <summary>A typed action shows <c>name : Type [multiplicity]</c> under its keyword.</summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_TypedAction_LabelShowsTypeAndMultiplicity()
+    {
+        // Arrange
+        var typed = new SysmlFeatureNode
+        {
+            Name = "build",
+            QualifiedName = "P::Process::build",
+            FeatureKeyword = "action",
+            FeatureTyping = "BuildStep",
+            Multiplicity = "[2]",
+        };
+
+        // Act
+        var layout = LayOut(typed, Node("test"), Then("build", "test"));
+
+        // Assert
+        Assert.Single(layout.Nodes.OfType<LayoutBox>(), b => b.Keyword == "action" && b.Label == "build : BuildStep [2]");
+        Assert.Single(layout.Nodes.OfType<LayoutBox>(), b => b.Keyword == "action" && b.Label == "test");
+    }
+
+    /// <summary>An accept or send node lists its payload in the box body and is wide enough for it.</summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_AcceptPayload_RendersTextRow()
+    {
+        // Arrange / Act
+        var payload = "accept " + new string('x', 40);
+        var layout = LayOut(
+            Node("waitFor", "accept", payload),
+            Node("tell", "send", "send report to carrier"),
+            Then("waitFor", "tell"));
+
+        // Assert
+        var accept = layout.Nodes.OfType<LayoutBox>().Single(b => b.Label == "waitFor");
+        var row = Assert.Single(Assert.Single(accept.Compartments).Rows);
+        Assert.Equal(payload, row);
+        Assert.True(accept.Width >= row.Length * Themes.Light.FontSizeBody * 0.62);
+        var send = layout.Nodes.OfType<LayoutBox>().Single(b => b.Label == "tell");
+        Assert.Equal(["send report to carrier"], Assert.Single(send.Compartments).Rows);
+    }
+
+    /// <summary>
+    ///     A succession that returns to an earlier action ends in an open chevron on a final straight
+    ///     approach at least as long as the marker.
+    /// </summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_BackEdge_OpenChevronWithFlushApproach()
+    {
+        // Arrange / Act: a -> b -> c -> a
+        var layout = LayOut(Node("a"), Node("b"), Node("c"), Then("a", "b"), Then("b", "c"), Then("c", "a"));
+
+        // Assert
+        var marker = NotationMetrics.RenderedAlongLineLength(EndMarkerStyle.OpenChevron, Themes.Light);
+        var successions = layout.Nodes.OfType<LayoutLine>().Where(l => l.LineStyle == LineStyle.Dashed).ToList();
+        Assert.All(successions, line =>
+        {
+            Assert.Equal(EndMarkerStyle.OpenChevron, line.TargetEnd);
+            var (last, previous) = (line.Waypoints[^1], line.Waypoints[^2]);
+            Assert.True(Math.Abs(last.X - previous.X) + Math.Abs(last.Y - previous.Y) >= marker - 0.01);
+        });
+    }
+
+    /// <summary>
+    ///     The gallery's pipeline model exercises the notation: thick bars, a labeled decision, an
+    ///     accept and a send icon, a typed action, a terminate node, and the explicit start and done.
+    /// </summary>
+    [Fact]
+    public async Task ActionFlowView_BuildLayout_PipelineGalleryModel_ShowsActionFlowNotation()
+    {
+        // Arrange
+        var dir = AppContext.BaseDirectory;
+        string? modelPath = null;
+        while (dir is not null && modelPath is null)
+        {
+            var candidate = Path.Combine(dir, "docs", "gallery", "models", "04-pipeline-action-flow.sysml");
+            modelPath = File.Exists(candidate) ? candidate : null;
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        if (modelPath is null)
+        {
+            return;
+        }
+
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([modelPath], stdlibTable);
+        Assert.NotNull(result.Workspace);
+
+        // Act
+        var layout = new ActionFlowViewLayoutStrategy().BuildLayout(new ViewContext("v", result.Workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        var badges = layout.Nodes.OfType<LayoutBadge>().ToList();
+        Assert.Equal(2, badges.Count(b => b.Shape == BadgeShape.ThickHorizontalBar));
+        Assert.Single(badges, b => b.Shape == BadgeShape.Diamond);
+        Assert.Single(badges, b => b.Shape == BadgeShape.CrossedCircle);
+        Assert.Single(badges, b => b.Shape == BadgeShape.Bullseye);
+        Assert.Single(badges, b => b.Shape == BadgeShape.FilledCircle);
+        var boxes = layout.Nodes.OfType<LayoutBox>().ToList();
+        Assert.Contains(boxes, b => b.Appearance?.CornerIcon == BoxCornerIcon.Accept && b.Label == "awaitApproval");
+        Assert.Contains(boxes, b => b.Appearance?.CornerIcon == BoxCornerIcon.Send && b.Label == "notifySuccess");
+        Assert.Contains(boxes, b => b.Label == "build : BuildStep");
+        Assert.DoesNotContain(boxes, b => b.Label is "start" or "done");
+        var labels = layout.Nodes.OfType<LayoutLine>().Select(l => l.MidpointLabel).ToList();
+        Assert.Contains("[smokePassed]", labels);
+        Assert.Contains("else", labels);
     }
 }

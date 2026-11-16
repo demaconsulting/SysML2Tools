@@ -6587,7 +6587,7 @@ public sealed class WorkspaceLoaderTests
             package P {
                 action def A {
                     action waitForIt accept Approval;
-                    action tell send report to oncall;
+                    action tell send report to carrier;
                 }
             }
             """);
@@ -6595,7 +6595,7 @@ public sealed class WorkspaceLoaderTests
         // Assert
         var children = DefinitionAt(result, "P::A").Children.OfType<SysmlFeatureNode>().ToList();
         Assert.Equal("accept Approval", children.Single(f => f.Name == "waitForIt").ActionText);
-        Assert.Equal("send report to oncall", children.Single(f => f.Name == "tell").ActionText);
+        Assert.Equal("send report to carrier", children.Single(f => f.Name == "tell").ActionText);
     }
 
     /// <summary>

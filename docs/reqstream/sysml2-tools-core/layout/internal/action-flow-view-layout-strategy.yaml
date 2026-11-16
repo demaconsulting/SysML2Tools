@@ -163,27 +163,112 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ControlNodeShapes
         title: >-
-          ActionFlowViewLayoutStrategy shall render "fork"/"join" action nodes as a
-          LayoutBadge with BadgeShape.HorizontalBar, "decide"/"merge" action nodes as a
-          LayoutBadge with BadgeShape.Diamond, and "accept"/"send" action nodes as a
-          LayoutBox with BoxShape.RoundedRectangle whose Keyword reflects the distinct
-          "accept"/"send" node kind, while leaving ordinary "action" node rendering
-          unchanged.
+          ActionFlowViewLayoutStrategy shall render "decide"/"merge" action nodes as a
+          LayoutBadge with BadgeShape.Diamond, "fork"/"join" nodes as a thick bar, "terminate"
+          nodes as a crossed circle, and "accept"/"send" action nodes as a LayoutBox with
+          BoxShape.RoundedRectangle, while leaving ordinary "action" node rendering unchanged.
         justification: |
           Control nodes are semantically distinct from ordinary actions and the existing
           State Transition View precedent already separates pseudostate markers from real
-          state boxes; Action Flow View needs the analogous visual separation so fork/join
-          branch points and decision/merge points are recognizable at a glance. No pentagon
-          primitive exists in the referenced rendering package, so accept/send nodes keep the
-          rounded-rectangle box shape but gain a distinguishing Keyword label instead of the
-          hard-coded "action" text. Badge-kind nodes use a fixed intrinsic size
-          (ControlNodeBadgeSize) rather than name-based sizing, and their rendered Label is
-          blanked when the underlying name is an AstBuilder-synthesized internal identifier.
-          Ordinary-action rendering is required to stay byte-for-byte unchanged, since many
-          existing gallery/test fixtures depend on today's plain-box behavior.
+          state boxes; Action Flow View needs the analogous visual separation so branch points,
+          decision points, and flow ends are recognizable at a glance. Diamond nodes use a size
+          derived from their connection count, and their rendered Label is blanked when the
+          underlying name is an AstBuilder-synthesized internal identifier.
         tests:
-          - ActionFlowView_BuildLayout_ForkAndJoin_RenderHorizontalBarBadges
           - ActionFlowView_BuildLayout_DecisionAndMerge_RenderDiamondBadges
-          - ActionFlowView_BuildLayout_AcceptAndSend_RenderBoxesWithDistinctKeyword
           - ActionFlowView_BuildLayout_SyntheticControlNodeName_RendersBlankLabel
           - ActionFlowView_BuildLayout_CompactActionThenIdiom_ResolvesBothNodes
+          - ActionFlowView_BuildLayout_Decision_ConnectorsTouchTheDiamondOutline
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ThickForkJoinBars
+        title: >-
+          ActionFlowViewLayoutStrategy shall render fork and join nodes as unlabeled thick bars
+          (BadgeShape.ThickHorizontalBar) long enough for their connections to attach at least
+          16 px apart, with every connector touching the drawn bar.
+        justification: |
+          The SysML v2 graphical notation draws a fork or join as a wide thick bar without a
+          label. The layout engine spreads connections on a face at least 16 px apart, so a bar
+          shorter than its fan-out allows would push connections onto its short sides. The engine
+          also reserves a taller slot than the 4 px bar, so connectors are snapped to the drawn
+          bar rather than left stopping short of it.
+        tests:
+          - ActionFlowView_BuildLayout_ForkAndJoin_RenderThickBarBadges_WithoutLabel
+          - ActionFlowView_BuildLayout_ThickBar_LengthGrowsWithFanOut
+          - ActionFlowView_BuildLayout_ThickBar_AnchorsAtLeast16pxApart
+          - ActionFlowView_BuildLayout_ThickBar_ConnectorsTouchTheBar
+          - ActionFlowView_BuildLayout_ThickBar_SingleConnection_RunsStraight
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-SuccessionGuards
+        title: >-
+          ActionFlowViewLayoutStrategy shall label a guarded succession with its bracketed guard
+          and a succession declared with else with the word else, without brackets.
+        justification: |
+          The SysML v2 graphical notation labels the branches of a decision with their guard
+          expressions and the default branch with else; without the labels a decision's
+          branches are indistinguishable.
+        tests:
+          - ActionFlowView_BuildLayout_GuardedSuccession_LabelsEdge
+          - ActionFlowView_BuildLayout_ElseSuccession_LabelsEdgeElse
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-TerminateNode
+        title: >-
+          ActionFlowViewLayoutStrategy shall render a terminate node as a crossed circle that
+          only receives successions, and shall not infer a done marker from a flow that ends in
+          a terminate node.
+        justification: |
+          A terminate node ends the whole behavior, so it is drawn as the notation's crossed
+          circle and is not an ordinary end that the done marker follows.
+        tests:
+          - ActionFlowView_BuildLayout_TerminateNode_RendersCrossedCircle_NoOutgoing
+          - ActionFlowView_BuildLayout_TerminateNode_NotTreatedAsDoneSource
+          - ActionFlowView_BuildLayout_OnlyTerminateEnds_DrawsNoDoneMarker
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-SendAcceptIcons
+        title: >-
+          ActionFlowViewLayoutStrategy shall render accept and send action nodes as rounded
+          boxes carrying the accept or send corner icon and listing their payload text in the
+          box body.
+        justification: |
+          The SysML v2 graphical notation marks an accept or send action with a pentagon icon in
+          the corner of its box and shows what it receives or sends. The icon replaces the
+          keyword line, and the box is sized so the icon never touches the name.
+        tests:
+          - ActionFlowView_BuildLayout_AcceptAndSend_RenderBoxesWithCornerIcons
+          - ActionFlowView_BuildLayout_AcceptPayload_RendersTextRow
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExplicitStartDone
+        title: >-
+          ActionFlowViewLayoutStrategy shall draw the start marker at the actions named by an
+          explicit "first start" succession and the done marker at the actions that declare an
+          explicit "then done" succession, without drawing start or done boxes, and shall infer
+          each marker from the flow topology only when the model declares none.
+        justification: |
+          A model that declares where its flow starts and ends should be drawn that way. The
+          topology heuristic remains for models that declare neither, so existing diagrams are
+          unchanged.
+        tests:
+          - ActionFlowView_BuildLayout_ExplicitStart_NoStartBox_MarkerEntersTarget
+          - ActionFlowView_BuildLayout_ExplicitDone_ConnectsOnlyDeclaredSources
+          - ActionFlowView_BuildLayout_NoExplicitMarkers_HeuristicUnchanged
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-NodeLabel
+        title: >-
+          ActionFlowViewLayoutStrategy shall label a typed action name : Type, followed by its
+          multiplicity when it has one.
+        justification: |
+          The SysML v2 graphical notation shows an action's typing and multiplicity in its name
+          line, as it does for every other usage.
+        tests:
+          - ActionFlowView_BuildLayout_TypedAction_LabelShowsTypeAndMultiplicity
+          - ActionFlowView_BuildLayout_PipelineGalleryModel_ShowsActionFlowNotation
+
+      - id: SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-BackEdgeApproach
+        title: >-
+          ActionFlowViewLayoutStrategy shall give every succession, including one that returns
+          to an earlier action, a final straight approach at least as long as its open chevron
+          end marker.
+        justification: |
+          An arrowhead entered through a rounded corner or a short stub is distorted. The
+          strategy declares the end marker on the layout graph so the engine sizes the approach.
+        tests:
+          - ActionFlowView_BuildLayout_BackEdge_OpenChevronWithFlushApproach

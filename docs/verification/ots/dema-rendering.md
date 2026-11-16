@@ -206,3 +206,80 @@ first run and above `C` in the second. This is the behavior the General View's o
 relies on; an upgrade that changes it fails this scenario.
 
 **Requirement coverage**: `SysML2Tools-OTS-DemaRendering-ComponentOrderFollowsInsertion`.
+
+#### ActionFlowView_BuildLayout_ForkAndJoin_RenderThickBarBadges_WithoutLabel
+
+**Scenario**: An action flow with a fork and a join is laid out and the strategy emits thick-bar
+badges for them.
+
+**Expected**: Two `BadgeShape.ThickHorizontalBar` badges are produced, and the renderers accept them.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationBadges`.
+
+#### ActionFlowView_BuildLayout_TerminateNode_RendersCrossedCircle_NoOutgoing
+
+**Scenario**: An action flow ending in a terminate node is laid out.
+
+**Expected**: A `BadgeShape.CrossedCircle` badge is produced for the terminate node.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationBadges`.
+
+#### ActionFlowView_BuildLayout_AcceptAndSend_RenderBoxesWithCornerIcons
+
+**Scenario**: An action flow with an accept and a send node is laid out.
+
+**Expected**: The accept and send boxes request `BoxCornerIcon.Accept` and `BoxCornerIcon.Send`.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-BoxCornerIcon`.
+
+#### ActionFlowView_BuildLayout_PipelineGalleryModel_ShowsActionFlowNotation
+
+**Scenario**: The gallery pipeline model is laid out.
+
+**Expected**: Its accept and send boxes carry the corner icons and its thick bars, crossed circle,
+and diamond are produced.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-BoxCornerIcon`.
+
+#### StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes
+
+**Scenario**: The package's `ConnectorLabelPlacer` places the transition labels of the gallery
+elevator layout with the state boxes as obstacles.
+
+**Expected**: No placed label overlaps a state box.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-LabelAvoidance`.
+
+#### StateTransitionView_BuildLayout_FrameWidth_AccountsForLongTransitionLabel
+
+**Scenario**: A state with a self-transition carrying a very long label is laid out; the placer is run
+over the result.
+
+**Expected**: The state definition frame contains the placed label.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-LabelAvoidance`.
+
+#### LayeredPlacement_Place_EdgeTargetEnd_ForwardedToGraphEdges
+
+**Scenario**: A three-node cycle is laid out with an open-chevron `TargetEnd` declared on every edge.
+
+**Expected**: Every returned polyline, including the back edge, ends in a straight approach at least
+as long as the marker.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-BackEdgeApproach`.
+
+#### StateTransitionView_BuildLayout_BackEdge_OpenChevronWithFlushApproach
+
+**Scenario**: A state machine whose last transition returns to the first state is laid out.
+
+**Expected**: Every transition ends in an open chevron on an approach at least as long as the marker.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-BackEdgeApproach`.
+
+#### ActionFlowView_BuildLayout_BackEdge_OpenChevronWithFlushApproach
+
+**Scenario**: An action flow whose last succession returns to the first action is laid out.
+
+**Expected**: Every succession ends in an open chevron on an approach at least as long as the marker.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-BackEdgeApproach`.

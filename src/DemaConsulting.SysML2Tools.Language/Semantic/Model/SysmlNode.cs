@@ -338,7 +338,7 @@ public sealed class SysmlFeatureNode : SysmlNode
     ///     <c>accept sig</c>, excluding the action body; <see langword="null"/> for every other
     ///     feature and for the empty form (<c>entry;</c>). For an action-flow <c>accept</c> or
     ///     <c>send</c> node it is the payload clause: <c>accept ApprovalSignal</c> or
-    ///     <c>send report to oncall</c>.
+    ///     <c>send report to carrier</c>.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ActionText { get; init; }

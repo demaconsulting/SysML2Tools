@@ -243,7 +243,7 @@ and data written before the members existed deserializes with all of them at the
 | `ReferenceSubsettingName` | feature | raw target of `::>`/`references`; unresolved, produces no edge |
 | `ConjugatedFeatureTyping` | feature | raw name after `~` in a conjugated port typing; unresolved |
 | `IsConjugated` | feature | computed (`ConjugatedFeatureTyping is not null`); not serialized |
-| `ActionText` | feature | declaration text of an `entry`/`do`/`exit` sub-action, or the payload of an `accept`/`send` node, body excluded |
+| `ActionText` | feature | `entry`/`do`/`exit` declaration text or an `accept`/`send` payload; body excluded |
 | `IsParallel` | definition, feature | `state def`/`state` declared `parallel` |
 | `Trigger`, `Effect` | transition | verbatim trigger and effect text |
 | `IsElse` | transition | succession declared with `else` |

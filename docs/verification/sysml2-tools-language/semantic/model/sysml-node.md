@@ -105,5 +105,6 @@ external services or additional configuration are required beyond a standard .NE
 | `IsParallel` | `WorkspaceLoader_LoadAsync_ParallelState_SetsIsParallel` |
 | Transition `Trigger`/`Effect` | `WorkspaceLoader_LoadAsync_TransitionTriggerGuardEffect_Captured` |
 | Transition `IsElse` | `WorkspaceLoader_LoadAsync_ElseSuccession_SetsIsElse` |
-| `IsElse` round trip and omission | `Serialize_NewModifierProperties_RoundTrip`, `Serialize_DefaultModifierProperties_AreOmittedFromJson` |
+| IsElse round trip | `Serialize_NewModifierProperties_RoundTrip` |
+| IsElse omitted when false | `Serialize_DefaultModifierProperties_AreOmittedFromJson` |
 | New members default for a plain model | `WorkspaceLoader_LoadAsync_PlainModel_AllNewMembersDefault` |

@@ -84,6 +84,13 @@ sections:
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-StartDoneConnectorStyle
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-BranchAndJoin
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ControlNodeShapes
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ThickForkJoinBars
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-SuccessionGuards
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-TerminateNode
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-SendAcceptIcons
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ExplicitStartDone
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-NodeLabel
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-BackEdgeApproach
           - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-Lifelines
           - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-HorizontalMessages
           - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessageArrowhead
