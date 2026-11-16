@@ -52,6 +52,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-LayoutCompactness
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CanvasFit
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-EndDecorationClearance
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UnconnectedDefinitionPlacement
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-FilterEvaluation
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageLevelCandidates
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-QualifiedForm

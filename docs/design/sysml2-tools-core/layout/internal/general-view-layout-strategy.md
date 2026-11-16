@@ -168,13 +168,16 @@ with one `LayoutEngine.Layout(graph)` call (the `LayOut` helper, which first set
 by the order they were added, so `ComputeItemOrder` is called on the first layout; when it reports a
 different item order for any folder, the graph is built a second time with that order and laid out
 again. The refinement is a single pass, so termination is guaranteed, and a no-op when no folder's
-order changes.
+order changes. A third, conditional layout then places the definitions that nothing refers to in the
+free space of the drawing (`TryTuckUnconnected`, see below); it only runs when such definitions
+exist next to connected content.
 
 The placed tree is then post-processed in a fixed sequence: `DecorateTruncated` stamps the bare `…`
-label onto each truncated folder's box; `FitConnectorsToCanvas` grows and shifts the canvas so every
-connector lies inside it (see below); `OrientEdges` turns back the connectors that were declared
-reversed (see *Direction and edge orientation*); and `ClearEndDecorations` moves the bends of the
-oriented connectors whose end decoration would reach into their last bend (see below). Finally the
+label onto each truncated folder's box; `TryTuckUnconnected` replaces the tree by the tucked one when it
+accepts (it decorates its own third layout the same way); `FitConnectorsToCanvas` grows and shifts the
+canvas so every connector lies inside it (see below); `OrientEdges` turns back the connectors that
+were declared reversed (see *Direction and edge orientation*); and `ClearEndDecorations` moves the bends
+of the oriented connectors whose end decoration would reach into their last bend (see below). Finally the
 returned tree's `Warnings` concatenates
 `ForUnevaluatedFilter` (view conditions that failed), `ForUnevaluatedExposeBracketFilter` (bracket
 filters that failed), and `ForDroppedRelationshipEdges` via the `LayoutTree with { Warnings = … }`
@@ -370,11 +373,13 @@ one part) — a rarer, legitimately self-referential shape.
 
 Builds the single input `LayoutGraph` and returns it as a `GraphBuild`. Its remaining parameters are
 `exposedPackages` (the exposed packages of a scoped view), `packageNames` (every package of the
-workspace), and `itemOrder`. The optional `itemOrder`
+workspace), `itemOrder`, and the optional `deferred` set. The optional `itemOrder`
 (folder key to item qualified names, produced by `ComputeItemOrder`) sets the order in which a folder's
 own boxes are placed (`OrderedItems`); without it, or for a folder it does not name, declaration order
 is used, names the folder does not own are ignored, and any item the order omits follows the named
-ones, so a stale or partial order can never drop a box.
+ones, so a stale or partial order can never drop a box. The optional `deferred` set (qualified names)
+names leaf definitions held directly by a folder or the root that are left out of the graph; it is
+used only by `TryTuckUnconnected`.
 
 The root graph is configured once, and every `CoreOptions` property cascades to the nested folder and
 container scopes unless a scope overrides it: `MergeParallelEdges = false` (every distinct model
@@ -467,7 +472,47 @@ other, whereas the automatic selection places connected groups with the layered 
 singletons with the containment algorithm; the regression test
 `TopDown_UnconnectedDefinitionsDoNotOverlap` guards this. The automatic selection places the
 unconnected-box bucket as a shelf beside or below the connected component, which can leave an empty
-region in a wide drawing; no option controls the bucket's shape.
+region in a wide drawing; no option controls the bucket's shape, so the strategy places those boxes
+itself (see `TryTuckUnconnected`).
+
+###### `TryTuckUnconnected(tree, build, rebuild, theme)`
+
+The automatic layout packs every childless box without an edge into one block beside the connected
+part of a scope. In a wide tree this block sits beside the tree while the lower part of the drawing
+stays empty, so the canvas is much larger than its content (diagram-quality B4/B5: the quadcopter model
+was 1959×1308 px with a 460 px empty square and 17.6 % of the canvas covered by blocks).
+`TryTuckUnconnected` places those boxes in the free space instead:
+
+1. `FindUnconnectedDefinitions` selects, per scope, the leaf boxes that no edge of the graph touches
+   (a definition with a comment note, a definition that owns usages or nested definitions, and a box that
+   is the end of any relationship are connected, so they are not selected), only for the root and
+   package-folder scopes, and only when the scope also holds connected
+   content. A scope of isolated boxes only keeps the engine's packing.
+2. The graph is built again through `rebuild` with these names deferred (`BuildGraph(…, deferred)`) and
+   laid out again, so the connected part keeps the engine's placement and the folder and the canvas
+   shrink to it. The result is decorated like the second layout. If its canvas is not strictly smaller
+   than the canvas of the second layout the method returns null.
+3. For each scope, `TuckScope` takes the deferred boxes from the second layout (with their compartments
+   and appearance) and calls `PlaceInFreeSpace` with the content bounds of the scope in the new layout
+   (the bounds of its boxes and connector waypoints, so no folder is resized) and the obstacles: the
+   boxes placed directly in the scope, every connector segment of the tree, and every connector label
+   (placed by `ConnectorLabelPlacer`).
+4. `PlaceInFreeSpace` rasterizes the bounds into cells of `TuckClearance` (12 px) and marks the cells that
+   an obstacle grown by that clearance touches. It tries the boxes, in placement order, as an arrangement
+   of one to six columns (`ArrangeInColumns`, a gap of `TuckGap` = 16 px) at every third cell, using
+   prefix sums to test that the footprint is free, and picks the position that leaves the smallest empty
+   square (`MeasureEmptySquares`, a dynamic-programming pass), then the fewest empty squares of any size,
+   then the position nearest the bottom-right corner; ties keep the first position tried, so the result is
+   deterministic. It returns null when no arrangement fits inside the bounds.
+5. A scope whose boxes do not fit is dropped from the set, and the whole attempt is repeated with that
+   scope's boxes in the engine's packing (the set shrinks every round, so the loop terminates). When no
+   scope remains the method returns null and the caller keeps the engine's layout unchanged.
+
+Nothing is moved outside a scope's own content bounds, so no sibling can overlap and no nested folder needs
+resizing. The cost is one more engine pass plus a few thousand cell evaluations (a few milliseconds for the
+quadcopter model); a layout without isolated boxes beside connected content does no extra work. The
+pass compensates for the missing bucket-shape control of the engine and can be retired when the engine
+offers one (see `ROADMAP.md`).
 
 ###### `FitConnectorsToCanvas(tree)`
 

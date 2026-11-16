@@ -583,6 +583,27 @@ sections:
           - GeneralViewLayoutStrategy_ClearEndDecorations_ShortFinalLeg_MovesLaneAwayFromOwner
           - GeneralViewLayoutStrategy_ClearEndDecorations_NoRoomOnFarLeg_LeavesConnectorUnchanged
 
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UnconnectedDefinitionPlacement
+        title: >-
+          GeneralViewLayoutStrategy shall place the definitions that no relationship touches in the
+          free space of the drawing, inside the bounds of the connected part and clear of every
+          box, connector, and connector label, when they fit and the canvas becomes smaller than
+          with the layout engine's own packing; otherwise it shall keep the engine's packing, and a
+          scope whose boxes are all unconnected shall keep the engine's packing.
+        justification: |
+          The layout engine packs every box without a relationship into one block beside the
+          connected drawing. In a wide tree this leaves a large empty corner, so the leaf blocks
+          cover a small share of a canvas that is wider than its content. Placing those boxes in
+          the free space of the drawing, and never when that would not shrink the canvas or not
+          fit, keeps the diagram compact without ever making a layout worse than the engine's.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ManyUnconnectedDefinitions_AreTuckedIntoFreeCornerOfWideTree
+          - GeneralViewLayoutStrategy_BuildLayout_UnconnectedDefinitions_NoFreeSpace_KeepEngineShelf
+          - GeneralViewLayoutStrategy_BuildLayout_UnconnectedDefinitions_InNestedFolder_AreTuckedInsideThatFolder
+          - GeneralViewLayoutStrategy_BuildLayout_AllDefinitionsUnconnected_KeepsEngineLayout
+          - GeneralViewLayoutStrategy_BuildLayout_DefinitionWithCommentNote_IsNotDeferred
+          - GeneralViewLayoutStrategy_BuildLayout_DroneGalleryModel_MeetsBlockPlacementCriteria
+
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposeScoping
         title: >-
           When a view's ViewContext carries one or more resolved Expose edges,

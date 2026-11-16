@@ -5402,6 +5402,263 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.True(AssertEndDecorationsHaveCleanApproach(layout, Themes.Light) >= 3);
     }
 
+    /// <summary>A wide drone-like model (seven usages in one row, typed definitions below) plus nine definitions that nothing refers to.</summary>
+    private const string WideTreeWithIsolatedDefinitions = """
+        part def Frame; part def Propeller;
+        part def Battery { port output : PowerPort; }
+        part def FlightController { port power : PowerPort; port sensors : SensorPort; }
+        part def Motor { port control : MotorControlPort; }
+        part def Motor2 :> Motor; part def Motor3 :> Motor2; part def Motor4 :> Motor3; part def Motor5 :> Motor4;
+        part def ImuSensor { port data : SensorPort; }
+        part def GpsSensor { port data : SensorPort; }
+        part def Drone {
+            part airframe : Frame; part battery : Battery; part controller : FlightController;
+            part motors : Motor[4]; part propellers : Propeller[4]; part imu : ImuSensor; part gps : GpsSensor;
+        }
+        part def Lonely1; part def Lonely2; part def Lonely3; part def Lonely4; part def Lonely5;
+        part def Lonely6; part def Lonely7; part def Lonely8; part def Lonely9;
+        """;
+
+    /// <summary>The labels of the nine isolated definitions of <see cref="WideTreeWithIsolatedDefinitions"/>.</summary>
+    private static readonly string[] IsolatedLabels = [.. Enumerable.Range(1, 9).Select(i => $"Lonely{i}")];
+
+    /// <summary>Returns the bounds of the boxes and connector waypoints of the connected part of a layout: everything except the boxes labeled <paramref name="isolated"/>.</summary>
+    private static (double Left, double Top, double Right, double Bottom) ConnectedBounds(LayoutTree layout, IReadOnlyCollection<string> isolated)
+    {
+        var boxes = CollectBoxes(layout.Nodes).Where(b => b.Shape != BoxShape.Folder && !isolated.Contains(b.Label ?? string.Empty)).ToList();
+        var points = CollectLines(layout.Nodes).SelectMany(l => l.Waypoints).ToList();
+        return (
+            Math.Min(boxes.Min(b => b.X), points.Min(p => p.X)),
+            Math.Min(boxes.Min(b => b.Y), points.Min(p => p.Y)),
+            Math.Max(boxes.Max(b => b.X + b.Width), points.Max(p => p.X)),
+            Math.Max(boxes.Max(b => b.Y + b.Height), points.Max(p => p.Y)));
+    }
+
+    /// <summary>Returns whether any segment of any connector of <paramref name="layout"/> passes through the box.</summary>
+    private static bool AnyConnectorCrosses(LayoutTree layout, LayoutBox box)
+    {
+        foreach (var waypoints in CollectLines(layout.Nodes).Select(l => l.Waypoints))
+        {
+            for (var i = 1; i < waypoints.Count; i++)
+            {
+                var (minX, maxX) = (Math.Min(waypoints[i - 1].X, waypoints[i].X), Math.Max(waypoints[i - 1].X, waypoints[i].X));
+                var (minY, maxY) = (Math.Min(waypoints[i - 1].Y, waypoints[i].Y), Math.Max(waypoints[i - 1].Y, waypoints[i].Y));
+                if (maxX > box.X && minX < box.X + box.Width && maxY > box.Y && minY < box.Y + box.Height)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     The definitions that nothing refers to are placed in the free space of a wide connected tree
+    ///     instead of beside it (diagram-quality B4/B5): each lies inside the bounds of the connected
+    ///     drawing, none overlaps another box or touches a connector, every one is drawn exactly once,
+    ///     and every box is inside the canvas.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ManyUnconnectedDefinitions_AreTuckedIntoFreeCornerOfWideTree()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync(WideTreeWithIsolatedDefinitions);
+
+        // Assert: every isolated definition is drawn once, inside the connected part's bounds
+        var (left, top, right, bottom) = ConnectedBounds(layout, IsolatedLabels);
+        foreach (var label in IsolatedLabels)
+        {
+            var box = FindBox(layout.Nodes, label);
+            Assert.True(box.X >= left && box.Y >= top && box.X + box.Width <= right && box.Y + box.Height <= bottom, $"{label} is outside the connected drawing");
+            Assert.False(AnyConnectorCrosses(layout, box), $"a connector crosses {label}");
+            Assert.True(box.X + box.Width <= layout.Width && box.Y + box.Height <= layout.Height, $"{label} is outside the canvas");
+        }
+
+        // Assert: nothing overlaps, and the canvas is no wider than the connected drawing plus its folder margin
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
+        Assert.True(layout.Width <= right + 40.0, $"the canvas ({layout.Width:F0}) is wider than the connected drawing ({right:F0})");
+    }
+
+    /// <summary>
+    ///     When the connected drawing has no free region big enough (a small tree and several isolated
+    ///     definitions) the engine's own packing is kept: the isolated definitions sit outside the bounds
+    ///     of the connected drawing, in the engine's shelf, with no overlap.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UnconnectedDefinitions_NoFreeSpace_KeepEngineShelf()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            part def A; part def B :> A;
+            part def U1; part def U2; part def U3; part def U4; part def U5;
+            """);
+
+        // Assert: all seven definitions are drawn, the isolated ones outside the connected bounds, none overlapping
+        string[] isolated = ["U1", "U2", "U3", "U4", "U5"];
+        var (left, top, right, bottom) = ConnectedBounds(layout, isolated);
+        Assert.Equal(7, CollectBoxes(layout.Nodes).Count(b => b.Shape == BoxShape.Rectangle));
+        foreach (var label in isolated)
+        {
+            var box = FindBox(layout.Nodes, label);
+            var inside = box.X >= left && box.Y >= top && box.X + box.Width <= right && box.Y + box.Height <= bottom;
+            Assert.False(inside, $"{label} was tucked into a connected drawing without free space");
+        }
+
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
+    }
+
+    /// <summary>
+    ///     The isolated definitions of a nested package folder are tucked into that folder's own free
+    ///     space: each stays inside the nested folder's box, none overlaps another box.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UnconnectedDefinitions_InNestedFolder_AreTuckedInsideThatFolder()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync($"package Outer {{ package Inner {{ {WideTreeWithIsolatedDefinitions} }} part def Sibling; }}");
+
+        // Assert: the nested folder holds all nine isolated definitions inside its own box
+        var inner = FindBox(layout.Nodes, "Inner", BoxShape.Folder);
+        foreach (var label in IsolatedLabels)
+        {
+            var box = FindBox(layout.Nodes, label);
+            Assert.True(box.X >= inner.X && box.Y >= inner.Y && box.X + box.Width <= inner.X + inner.Width && box.Y + box.Height <= inner.Y + inner.Height, $"{label} is outside the Inner folder");
+            Assert.False(AnyConnectorCrosses(layout, box), $"a connector crosses {label}");
+        }
+
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
+        Assert.Single(CollectBoxes(layout.Nodes), b => b.Label == "Sibling");
+    }
+
+    /// <summary>
+    ///     A folder whose definitions have no relationship at all (the shape of a package of independent
+    ///     elements) keeps the engine's packing: every box is drawn once and nothing overlaps.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_AllDefinitionsUnconnected_KeepsEngineLayout()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package P { part def A; part def B; part def C; part def D; part def E; part def F; }");
+
+        // Assert
+        Assert.Equal(6, CollectBoxes(layout.Nodes).Count(b => b.Shape == BoxShape.Rectangle));
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
+        var folder = FindBox(layout.Nodes, "P", BoxShape.Folder);
+        Assert.All(CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.Rectangle), b => Assert.True(b.X >= folder.X && b.X + b.Width <= folder.X + folder.Width));
+    }
+
+    /// <summary>
+    ///     A definition that carries a comment is joined to its note by a line, so it is part of the
+    ///     connected drawing and is not tucked as an isolated definition: its box and note stay
+    ///     connected by a dashed line.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_DefinitionWithCommentNote_IsNotDeferred()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync(WideTreeWithIsolatedDefinitions + " part def Noted { comment /* a remark */ }");
+
+        // Assert: the noted definition and its note are joined by a dashed line
+        var noted = FindBox(layout.Nodes, "Noted");
+        var note = Assert.Single(CollectBoxes(layout.Nodes), b => b.Shape == BoxShape.Note);
+        Assert.Contains(CollectLines(layout.Nodes), l => l.LineStyle == LineStyle.Dashed && RunsBetween(l, noted, note));
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
+    }
+
+    /// <summary>
+    ///     Standing regression for diagram-quality B4/B5 on the quadcopter drone gallery model: the leaf
+    ///     blocks cover at least 20 % of the canvas, and the largest empty square (obstacles are the
+    ///     boxes, the folder outline and the connectors, each grown by 12 px) is at most three times the
+    ///     average leaf block height.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_DroneGalleryModel_MeetsBlockPlacementCriteria()
+    {
+        // Arrange
+        var layout = await LayOutGalleryViewAsync("01-drone-general.sysml", "QuadcopterDrone::DroneGeneralView", SysmlThemes.Plain);
+        if (layout is null)
+        {
+            return;
+        }
+
+        // Act
+        var leaves = CollectBoxes(layout.Nodes).Where(b => b.Shape is BoxShape.Rectangle or BoxShape.RoundedRectangle).ToList();
+        var share = leaves.Sum(b => b.Width * b.Height) / (layout.Width * layout.Height);
+        var averageHeight = leaves.Average(b => b.Height);
+        var largestSquare = LargestEmptySquare(layout, 12.0);
+
+        // Assert
+        Assert.True(share >= 0.20, $"the leaf blocks cover {share:P1} of the canvas, below 20 %");
+        Assert.True(largestSquare <= 3.0 * averageHeight, $"the largest empty square is {largestSquare:F0} px, above {3.0 * averageHeight:F0} px");
+    }
+
+    /// <summary>
+    ///     Measures, in logical pixels on a 4 px grid, the side of the largest empty square of a layout,
+    ///     where the obstacles are every box (a folder only by its outline) and every connector segment,
+    ///     grown by <paramref name="clearance"/> on every side.
+    /// </summary>
+    private static double LargestEmptySquare(LayoutTree layout, double clearance)
+    {
+        const double step = 4.0;
+        var columns = (int)(layout.Width / step);
+        var rows = (int)(layout.Height / step);
+        var blocked = new bool[columns * rows];
+        void Block(double left, double top, double right, double bottom)
+        {
+            var x0 = Math.Max(0, (int)Math.Floor((left - clearance) / step));
+            var x1 = Math.Min(columns - 1, (int)Math.Floor((right + clearance) / step));
+            var y0 = Math.Max(0, (int)Math.Floor((top - clearance) / step));
+            var y1 = Math.Min(rows - 1, (int)Math.Floor((bottom + clearance) / step));
+            for (var y = y0; y <= y1; y++)
+            {
+                for (var x = x0; x <= x1; x++)
+                {
+                    blocked[(y * columns) + x] = true;
+                }
+            }
+        }
+
+        foreach (var box in CollectBoxes(layout.Nodes))
+        {
+            if (box.Shape == BoxShape.Folder)
+            {
+                Block(box.X, box.Y, box.X + box.Width, box.Y);
+                Block(box.X, box.Y + box.Height, box.X + box.Width, box.Y + box.Height);
+                Block(box.X, box.Y, box.X, box.Y + box.Height);
+                Block(box.X + box.Width, box.Y, box.X + box.Width, box.Y + box.Height);
+            }
+            else
+            {
+                Block(box.X, box.Y, box.X + box.Width, box.Y + box.Height);
+            }
+        }
+
+        foreach (var waypoints in CollectLines(layout.Nodes).Select(l => l.Waypoints))
+        {
+            for (var i = 1; i < waypoints.Count; i++)
+            {
+                Block(Math.Min(waypoints[i - 1].X, waypoints[i].X), Math.Min(waypoints[i - 1].Y, waypoints[i].Y), Math.Max(waypoints[i - 1].X, waypoints[i].X), Math.Max(waypoints[i - 1].Y, waypoints[i].Y));
+            }
+        }
+
+        var previous = new int[columns + 1];
+        var current = new int[columns + 1];
+        var largest = 0;
+        for (var y = 0; y < rows; y++)
+        {
+            for (var x = 0; x < columns; x++)
+            {
+                current[x + 1] = blocked[(y * columns) + x] ? 0 : 1 + Math.Min(Math.Min(previous[x], previous[x + 1]), current[x]);
+                largest = Math.Max(largest, current[x + 1]);
+            }
+
+            (previous, current) = (current, previous);
+        }
+
+        return largest * step;
+    }
+
     /// <summary>
     ///     Moving the first lane of an owner face away from the box moves every lane of that face by the
     ///     same distance, so the lanes of a seven-usage fan-out stay distinct, keep their order and are at

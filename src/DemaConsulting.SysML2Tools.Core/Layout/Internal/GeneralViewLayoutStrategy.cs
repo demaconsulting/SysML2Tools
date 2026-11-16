@@ -636,6 +636,17 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // through every nesting depth, not just the root.
         var placed = build.Truncated.Count == 0 ? tree : DecorateTruncated(tree, build.Graph, build.Truncated, theme);
 
+        // The engine packs the definitions that nothing refers to into one shelf beside the connected
+        // drawing, which in a wide tree leaves a large empty corner. Lay the connected part out on its
+        // own and place those definitions in the free space instead, when they fit and the canvas gets
+        // smaller (see TryTuckUnconnected); otherwise the engine's own packing above is kept.
+        var tucked = TryTuckUnconnected(
+            tree,
+            build,
+            deferred => BuildGraph(groups, childrenByParent, usagesByOwner, modelEdges, theme, options.DepthLimit, exposed, packageNames, itemOrder.Count > 0 ? itemOrder : null, deferred),
+            theme);
+        placed = tucked ?? placed;
+
         // The engine routes a connector between two root-level folders around the outside of the
         // drawing and does not grow the canvas for it (engine defect, see FitConnectorsToCanvas), so
         // the canvas is fitted to the connectors here.
@@ -2200,6 +2211,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// names in the wanted order) produced by <see cref="ComputeItemOrder"/>; null keeps declaration
     /// order. A folder or name it does not know is ignored.
     /// </param>
+    /// <param name="deferred">
+    /// Optional qualified names of leaf definitions directly held by a folder (or the root) that are
+    /// left out of the graph, so <see cref="TryTuckUnconnected"/> can place them in the free space
+    /// of the finished drawing instead; null defers nothing.
+    /// </param>
     /// <returns>The graph and the bookkeeping for decoration and order refinement.</returns>
     private static GraphBuild BuildGraph(
         IReadOnlyList<(string Package, List<DefBox> Items)> groups,
@@ -2210,7 +2226,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         int depthLimit,
         IReadOnlySet<string>? exposedPackages,
         IReadOnlySet<string> packageNames,
-        IReadOnlyDictionary<string, IReadOnlyList<string>>? itemOrder)
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? itemOrder,
+        IReadOnlySet<string>? deferred = null)
     {
         var graph = new LayoutGraph();
         var rootScope = new ScopeInfo(null, graph);
@@ -2267,6 +2284,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 // nested-definition children are still handled.
                 foreach (var def in groups[groupIndex].Items)
                 {
+                    if (deferred?.Contains(def.QualifiedName) == true)
+                    {
+                        continue;
+                    }
+
                     PlaceDef(def, rootScope, childrenByParent, usagesByOwner, located, theme, rootDepth, depthLimit);
                 }
 
@@ -2339,6 +2361,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
             foreach (var def in OrderedItems(plan, itemOrder))
             {
+                if (deferred?.Contains(def.QualifiedName) == true)
+                {
+                    continue;
+                }
+
                 PlaceDef(def, folderScope, childrenByParent, usagesByOwner, located, theme, contentDepth, depthLimit);
             }
         }
@@ -2970,6 +2997,491 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         },
         _ => node,
     };
+
+    /// <summary>Clearance, in logical pixels, kept between a tucked box and every other box, connector and label; also the cell size of the placement grid.</summary>
+    private const double TuckClearance = 12.0;
+
+    /// <summary>Gap, in logical pixels, between two boxes of one tucked arrangement.</summary>
+    private const double TuckGap = 16.0;
+
+    /// <summary>The most columns tried when arranging the tucked boxes of one scope.</summary>
+    private const int MaxTuckColumns = 6;
+
+    /// <summary>The step, in grid cells, between the positions tried for a tucked arrangement.</summary>
+    private const int TuckStride = 3;
+
+    /// <summary>A rectangle in absolute layout coordinates.</summary>
+    private readonly record struct Rect(double X, double Y, double Width, double Height)
+    {
+        /// <summary>Gets the x coordinate of the right edge.</summary>
+        public double Right => X + Width;
+
+        /// <summary>Gets the y coordinate of the bottom edge.</summary>
+        public double Bottom => Y + Height;
+    }
+
+    /// <summary>
+    /// Places the definitions that no relationship touches in the free space of the drawing instead of
+    /// in the engine's shelf of unconnected boxes. The engine packs every childless, edgeless box of a
+    /// scope into one block beside the connected part, which in a wide tree leaves a large empty corner
+    /// (diagram-quality B4/B5). The connected part is laid out again on its own, and each such box is then
+    /// placed, as an arrangement of one to six columns in declaration order, in the position inside the
+    /// scope's content bounds that leaves the smallest empty square and keeps a clearance to every box,
+    /// connector and connector label.
+    /// </summary>
+    /// <remarks>
+    /// The result is accepted only when every moved box fits inside the scope's existing content
+    /// bounds (so no folder is resized and no sibling is disturbed) and the canvas is strictly smaller
+    /// than the engine's own packing; a scope whose boxes do not fit keeps the engine's shelf (the
+    /// connected part is laid out again without that scope's boxes deferred), and when nothing can be
+    /// tucked the method returns null and the caller keeps the engine's layout unchanged. A scope with
+    /// no connected content (every box isolated) is never touched.
+    /// </remarks>
+    /// <param name="tree">The engine's layout of the whole graph.</param>
+    /// <param name="build">The graph that produced <paramref name="tree"/>.</param>
+    /// <param name="rebuild">Builds the graph again with the given qualified names left out.</param>
+    /// <param name="theme">The theme whose font metrics size the connector labels.</param>
+    /// <returns>The tree with the unconnected boxes tucked in, or null when the engine's layout is kept.</returns>
+    private static LayoutTree? TryTuckUnconnected(
+        LayoutTree tree,
+        GraphBuild build,
+        Func<IReadOnlySet<string>, GraphBuild> rebuild,
+        Theme theme)
+    {
+        var candidates = FindUnconnectedDefinitions(build);
+        while (candidates.Count > 0)
+        {
+            var deferred = candidates.Values.SelectMany(names => names).ToHashSet(StringComparer.Ordinal);
+            var third = rebuild(deferred);
+            var thirdTree = LayOut(third.Graph);
+            if (third.Truncated.Count > 0)
+            {
+                thirdTree = DecorateTruncated(thirdTree, third.Graph, third.Truncated, theme);
+            }
+
+            if (thirdTree.Width * thirdTree.Height >= tree.Width * tree.Height)
+            {
+                return null;
+            }
+
+            var failed = new List<ScopeInfo>();
+            foreach (var (scope, names) in candidates)
+            {
+                var tucked = TuckScope(tree, build, thirdTree, third, scope, names, theme);
+                if (tucked is null)
+                {
+                    failed.Add(scope);
+                }
+                else
+                {
+                    thirdTree = tucked;
+                }
+            }
+
+            if (failed.Count == 0)
+            {
+                return thirdTree;
+            }
+
+            foreach (var scope in failed)
+            {
+                candidates.Remove(scope);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Finds, per scope, the leaf definitions that no edge of the graph touches, in placement order.
+    /// Only the scopes of the root and of package folders qualify, and only when the scope also holds
+    /// connected content (a box or folder that an edge reaches), so a scope of isolated boxes keeps the
+    /// engine's packing.
+    /// </summary>
+    private static Dictionary<ScopeInfo, List<string>> FindUnconnectedDefinitions(GraphBuild build)
+    {
+        var incident = new HashSet<ILayoutConnectable>(ReferenceEqualityComparer.Instance);
+        CollectIncidentEnds(build.Graph, incident);
+
+        var result = new Dictionary<ScopeInfo, List<string>>(ReferenceEqualityComparer.Instance);
+        foreach (var (name, location) in build.Located)
+        {
+            var scope = location.Scope;
+            var unconnectedLeaf = !name.StartsWith(FolderKeyPrefix, StringComparison.Ordinal)
+                && !location.Node.HasChildren
+                && !incident.Contains(location.Node);
+            var inFolderOrRoot = scope.Owner is null || scope.Owner.Shape == BoxShape.Folder;
+            if (!unconnectedLeaf || !inFolderOrRoot || !HasConnectedContent(scope.Graph, incident))
+            {
+                continue;
+            }
+
+            if (!result.TryGetValue(scope, out var names))
+            {
+                names = [];
+                result[scope] = names;
+            }
+
+            names.Add(name);
+        }
+
+        return result;
+    }
+
+    /// <summary>Adds the source and target of every edge of <paramref name="graph"/> and of its nested graphs to <paramref name="incident"/>.</summary>
+    private static void CollectIncidentEnds(LayoutGraph graph, HashSet<ILayoutConnectable> incident)
+    {
+        foreach (var edge in graph.Edges)
+        {
+            incident.Add(edge.Source);
+            incident.Add(edge.Target);
+        }
+
+        foreach (var node in graph.Nodes.Where(n => n.HasChildren))
+        {
+            CollectIncidentEnds(node.Children, incident);
+        }
+    }
+
+    /// <summary>Returns whether a node of <paramref name="graph"/>, or of a graph nested in it, is reached by an edge.</summary>
+    private static bool HasConnectedContent(LayoutGraph graph, HashSet<ILayoutConnectable> incident) =>
+        graph.Nodes.Any(node => incident.Contains(node) || (node.HasChildren && HasConnectedContent(node.Children, incident)));
+
+    /// <summary>
+    /// Tucks the boxes <paramref name="names"/> of <paramref name="scope"/> (placed in
+    /// <paramref name="tree"/>, built from <paramref name="build"/>) into the free space of the same scope
+    /// in <paramref name="thirdTree"/>; returns the new tree, or null when they do not fit.
+    /// </summary>
+    private static LayoutTree? TuckScope(
+        LayoutTree tree,
+        GraphBuild build,
+        LayoutTree thirdTree,
+        GraphBuild third,
+        ScopeInfo scope,
+        IReadOnlyList<string> names,
+        Theme theme)
+    {
+        var boxes = new List<LayoutBox>();
+        foreach (var name in names)
+        {
+            var box = FindPlacedBox(tree.Nodes, build.Graph.Nodes, build.Located[name].Node);
+            if (box is null)
+            {
+                return null;
+            }
+
+            boxes.Add(box);
+        }
+
+        LayoutGraphNode? host = null;
+        if (scope.Owner is not null)
+        {
+            var key = build.Located
+                .Where(entry => entry.Key.StartsWith(FolderKeyPrefix, StringComparison.Ordinal) && ReferenceEquals(entry.Value.Node, scope.Owner))
+                .Select(entry => entry.Key)
+                .FirstOrDefault();
+            if (key is null || !third.Located.TryGetValue(key, out var hostLocation))
+            {
+                return null;
+            }
+
+            host = hostLocation.Node;
+        }
+
+        var children = host is null ? thirdTree.Nodes : FindPlacedBox(thirdTree.Nodes, third.Graph.Nodes, host)?.Children;
+        var region = children is null ? null : ContentBounds(children);
+        if (children is null || region is null)
+        {
+            return null;
+        }
+
+        var positions = PlaceInFreeSpace(region.Value, CollectObstacles(thirdTree, children, theme), [.. boxes.Select(b => (b.Width, b.Height))]);
+        if (positions is null)
+        {
+            return null;
+        }
+
+        var additions = new List<LayoutNode>();
+        for (var i = 0; i < boxes.Count; i++)
+        {
+            additions.Add(Translate(boxes[i], positions[i].X - boxes[i].X, positions[i].Y - boxes[i].Y));
+        }
+
+        if (host is null)
+        {
+            return thirdTree with { Nodes = [.. thirdTree.Nodes, .. additions] };
+        }
+
+        var nodes = AddChildren(thirdTree.Nodes, third.Graph.Nodes, host, additions);
+        return nodes is null ? null : thirdTree with { Nodes = nodes };
+    }
+
+    /// <summary>Returns the placed box of <paramref name="target"/> anywhere in <paramref name="nodes"/>, paired with the graph nodes of the same scope, or null.</summary>
+    private static LayoutBox? FindPlacedBox(IReadOnlyList<LayoutNode> nodes, IReadOnlyList<LayoutGraphNode> graphNodes, LayoutGraphNode target)
+    {
+        foreach (var (_, box, node) in PairBoxesWithNodes(nodes, graphNodes))
+        {
+            if (ReferenceEquals(node, target))
+            {
+                return box;
+            }
+
+            if (node.HasChildren && box.Children.Count > 0)
+            {
+                var inner = FindPlacedBox(box.Children, node.Children.Nodes, target);
+                if (inner is not null)
+                {
+                    return inner;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Returns <paramref name="nodes"/> with <paramref name="additions"/> appended to the children of the placed box of <paramref name="host"/>, or null when it is not found.</summary>
+    private static List<LayoutNode>? AddChildren(
+        IReadOnlyList<LayoutNode> nodes,
+        IReadOnlyList<LayoutGraphNode> graphNodes,
+        LayoutGraphNode host,
+        IReadOnlyList<LayoutNode> additions)
+    {
+        foreach (var (index, box, node) in PairBoxesWithNodes(nodes, graphNodes))
+        {
+            List<LayoutNode>? children = null;
+            if (ReferenceEquals(node, host))
+            {
+                children = [.. box.Children, .. additions];
+            }
+            else if (node.HasChildren && box.Children.Count > 0)
+            {
+                children = AddChildren(box.Children, node.Children.Nodes, host, additions);
+            }
+
+            if (children is not null)
+            {
+                var result = new List<LayoutNode>(nodes);
+                result[index] = box with { Children = children };
+                return result;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Returns the bounds of the boxes and connector waypoints of <paramref name="children"/>, or null when there are none.</summary>
+    private static Rect? ContentBounds(IReadOnlyList<LayoutNode> children)
+    {
+        var rects = children.OfType<LayoutBox>().Select(b => new Rect(b.X, b.Y, b.Width, b.Height)).ToList();
+        rects.AddRange(CollectNodeLines(children).SelectMany(l => l.Waypoints).Select(p => new Rect(p.X, p.Y, 0.0, 0.0)));
+        if (rects.Count == 0)
+        {
+            return null;
+        }
+
+        var left = rects.Min(r => r.X);
+        var top = rects.Min(r => r.Y);
+        return new Rect(left, top, rects.Max(r => r.Right) - left, rects.Max(r => r.Bottom) - top);
+    }
+
+    /// <summary>
+    /// Returns the rectangles a tucked box must keep clear of: the boxes placed directly in
+    /// <paramref name="children"/>, every connector segment of the tree and every connector label.
+    /// </summary>
+    private static List<Rect> CollectObstacles(LayoutTree tree, IReadOnlyList<LayoutNode> children, Theme theme)
+    {
+        var obstacles = children.OfType<LayoutBox>().Select(b => new Rect(b.X, b.Y, b.Width, b.Height)).ToList();
+        var lines = CollectNodeLines(tree.Nodes).ToList();
+        foreach (var waypoints in lines.Select(l => l.Waypoints))
+        {
+            for (var i = 1; i < waypoints.Count; i++)
+            {
+                var (a, b) = (waypoints[i - 1], waypoints[i]);
+                obstacles.Add(new Rect(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y)));
+            }
+        }
+
+        var labeled = lines.Where(l => l.MidpointLabel is not null).ToList();
+        if (labeled.Count > 0)
+        {
+            var positions = ConnectorLabelPlacer.Place(labeled, theme.FontSizeBody);
+            foreach (var line in labeled)
+            {
+                if (positions.TryGetValue(line, out var center))
+                {
+                    var width = (line.MidpointLabel!.Length * theme.FontSizeBody * 0.6) + (2.0 * theme.LabelPadding);
+                    var height = theme.FontSizeBody + (2.0 * theme.LabelPadding);
+                    obstacles.Add(new Rect(center.X - (width / 2.0), center.Y - (height / 2.0), width, height));
+                }
+            }
+        }
+
+        return obstacles;
+    }
+
+    /// <summary>
+    /// Finds the top-left positions that place boxes of the given <paramref name="sizes"/>, arranged in
+    /// columns in the given order, inside <paramref name="region"/> clear of every obstacle by
+    /// <see cref="TuckClearance"/>. Among the arrangements of one to <see cref="MaxTuckColumns"/> columns
+    /// and the positions on a grid of <see cref="TuckClearance"/> cells it picks the one that leaves the
+    /// smallest empty square in the region, then the fewest empty squares of any size, then the position
+    /// nearest the bottom-right corner. Returns null when no arrangement fits.
+    /// </summary>
+    private static List<Point2D>? PlaceInFreeSpace(Rect region, IReadOnlyList<Rect> obstacles, IReadOnlyList<(double Width, double Height)> sizes)
+    {
+        var nx = (int)Math.Ceiling(region.Width / TuckClearance);
+        var ny = (int)Math.Ceiling(region.Height / TuckClearance);
+        if (nx < 1 || ny < 1)
+        {
+            return null;
+        }
+
+        var occupied = new bool[nx * ny];
+        foreach (var obstacle in obstacles)
+        {
+            MarkOccupied(occupied, nx, ny, region, obstacle);
+        }
+
+        var prefix = new int[(nx + 1) * (ny + 1)];
+        for (var y = 0; y < ny; y++)
+        {
+            for (var x = 0; x < nx; x++)
+            {
+                prefix[((y + 1) * (nx + 1)) + x + 1] = (occupied[(y * nx) + x] ? 1 : 0) + prefix[(y * (nx + 1)) + x + 1] + prefix[((y + 1) * (nx + 1)) + x] - prefix[(y * (nx + 1)) + x];
+            }
+        }
+
+        List<Point2D>? best = null;
+        var bestScore = (Largest: int.MaxValue, Count: long.MaxValue, Corner: long.MaxValue);
+        for (var columns = 1; columns <= Math.Min(sizes.Count, MaxTuckColumns); columns++)
+        {
+            var (offsets, blockWidth, blockHeight) = ArrangeInColumns(sizes, columns);
+            var cw = (int)Math.Ceiling(blockWidth / TuckClearance);
+            var ch = (int)Math.Ceiling(blockHeight / TuckClearance);
+            foreach (var cy in GridSteps(ny - ch))
+            {
+                foreach (var cx in GridSteps(nx - cw))
+                {
+                    var fits = region.X + (cx * TuckClearance) + blockWidth <= region.Right + GeometryEpsilon
+                        && region.Y + (cy * TuckClearance) + blockHeight <= region.Bottom + GeometryEpsilon
+                        && RectangleSum(prefix, nx, cx, cy, cw, ch) == 0;
+                    if (!fits)
+                    {
+                        continue;
+                    }
+
+                    var (largest, count) = MeasureEmptySquares(occupied, nx, ny, (cx - 1, cy - 1, cx + cw + 1, cy + ch + 1));
+                    var corner = ((long)(nx - (cx + cw)) * (nx - (cx + cw))) + ((long)(ny - (cy + ch)) * (ny - (cy + ch)));
+                    if ((largest, count, corner).CompareTo(bestScore) < 0)
+                    {
+                        bestScore = (largest, count, corner);
+                        var origin = new Point2D(region.X + (cx * TuckClearance), region.Y + (cy * TuckClearance));
+                        best = [.. offsets.Select(o => new Point2D(origin.X + o.X, origin.Y + o.Y))];
+                    }
+                }
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>Yields 0, <see cref="TuckStride"/>, 2 × <see cref="TuckStride"/>, … up to <paramref name="max"/>, and <paramref name="max"/> itself.</summary>
+    private static IEnumerable<int> GridSteps(int max)
+    {
+        if (max < 0)
+        {
+            yield break;
+        }
+
+        var step = 0;
+        for (; step < max; step += TuckStride)
+        {
+            yield return step;
+        }
+
+        yield return max;
+    }
+
+    /// <summary>Marks the grid cells that <paramref name="obstacle"/>, inflated by <see cref="TuckClearance"/>, touches.</summary>
+    private static void MarkOccupied(bool[] occupied, int nx, int ny, Rect region, Rect obstacle)
+    {
+        var x0 = Math.Max(0, (int)Math.Floor((obstacle.X - TuckClearance - region.X) / TuckClearance));
+        var x1 = Math.Min(nx - 1, (int)Math.Ceiling((obstacle.Right + TuckClearance - region.X) / TuckClearance) - 1);
+        var y0 = Math.Max(0, (int)Math.Floor((obstacle.Y - TuckClearance - region.Y) / TuckClearance));
+        var y1 = Math.Min(ny - 1, (int)Math.Ceiling((obstacle.Bottom + TuckClearance - region.Y) / TuckClearance) - 1);
+        for (var y = y0; y <= y1; y++)
+        {
+            for (var x = x0; x <= x1; x++)
+            {
+                occupied[(y * nx) + x] = true;
+            }
+        }
+    }
+
+    /// <summary>Returns the number of occupied cells in the cell rectangle from (<paramref name="cx"/>, <paramref name="cy"/>) of the given size, using the prefix sums.</summary>
+    private static int RectangleSum(int[] prefix, int nx, int cx, int cy, int cw, int ch)
+    {
+        var stride = nx + 1;
+        return prefix[((cy + ch) * stride) + cx + cw] - prefix[(cy * stride) + cx + cw] - prefix[((cy + ch) * stride) + cx] + prefix[(cy * stride) + cx];
+    }
+
+    /// <summary>
+    /// Returns the side, in cells, of the largest empty square of the grid and the number of empty
+    /// squares of every size, with the cells of <paramref name="extra"/> (left, top, right and bottom
+    /// cell, the right and bottom ones exclusive) counted as occupied.
+    /// </summary>
+    private static (int Largest, long Count) MeasureEmptySquares(bool[] occupied, int nx, int ny, (int Left, int Top, int Right, int Bottom) extra)
+    {
+        var previous = new int[nx + 1];
+        var current = new int[nx + 1];
+        var largest = 0;
+        long count = 0;
+        for (var y = 0; y < ny; y++)
+        {
+            for (var x = 0; x < nx; x++)
+            {
+                var blocked = occupied[(y * nx) + x] || (x >= extra.Left && x < extra.Right && y >= extra.Top && y < extra.Bottom);
+                var side = blocked ? 0 : 1 + Math.Min(Math.Min(previous[x], previous[x + 1]), current[x]);
+                current[x + 1] = side;
+                largest = Math.Max(largest, side);
+                count += side;
+            }
+
+            (previous, current) = (current, previous);
+        }
+
+        return (largest, count);
+    }
+
+    /// <summary>
+    /// Arranges boxes of the given <paramref name="sizes"/> in <paramref name="columns"/> columns in
+    /// reading order, each box at the top-left of its grid cell, with <see cref="TuckGap"/> between
+    /// them; returns each box's offset in the block and the block's size.
+    /// </summary>
+    private static (List<Point2D> Offsets, double Width, double Height) ArrangeInColumns(IReadOnlyList<(double Width, double Height)> sizes, int columns)
+    {
+        var columnCount = Math.Min(columns, sizes.Count);
+        var rowCount = (sizes.Count + columnCount - 1) / columnCount;
+        var columnWidths = new double[columnCount];
+        var rowHeights = new double[rowCount];
+        for (var i = 0; i < sizes.Count; i++)
+        {
+            columnWidths[i % columnCount] = Math.Max(columnWidths[i % columnCount], sizes[i].Width);
+            rowHeights[i / columnCount] = Math.Max(rowHeights[i / columnCount], sizes[i].Height);
+        }
+
+        var offsets = new List<Point2D>();
+        for (var i = 0; i < sizes.Count; i++)
+        {
+            var column = i % columnCount;
+            var row = i / columnCount;
+            offsets.Add(new Point2D(
+                columnWidths.Take(column).Sum() + (column * TuckGap),
+                rowHeights.Take(row).Sum() + (row * TuckGap)));
+        }
+
+        return (offsets, columnWidths.Sum() + ((columnCount - 1) * TuckGap), rowHeights.Sum() + ((rowCount - 1) * TuckGap));
+    }
 
     /// <summary>The smallest gap kept between two parallel connector segments that run side by side.</summary>
     private const double LanePitch = 8.0;
