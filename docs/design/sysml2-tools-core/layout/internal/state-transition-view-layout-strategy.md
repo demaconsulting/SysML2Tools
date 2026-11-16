@@ -144,7 +144,9 @@ obstacle-aware `ConnectorLabelPlacer.Place(lines, fontSize, boxes, markerScale)`
 `DemaConsulting.Rendering.Abstractions` (the state boxes are the obstacles, so a label is moved clear
 of a box corner). `LabelRightExtent` calls the same overload with the same obstacles and uses
 `EstimateLabelWidth` for the text width, so the frame tracks where the renderers really draw each
-label; only the part of a label that genuinely overhangs the content widens the canvas.
+label; only the part of a label that genuinely overhangs the content widens the canvas. When a label
+overhangs the left edge of the content instead (`LabelLeftExtent`), `BuildLayout` rebuilds the
+content shifted right by the overhang so the label keeps a margin inside the frame.
 
 `AddInitialMarker` places a filled-circle badge above the initial state with a straight, solid
 arrow into it that ends in an open chevron (`EndMarkerStyle.OpenChevron`) — the specification's

@@ -90,17 +90,18 @@ configuration are required beyond a standard .NET SDK installation.
 | `StateTransitionView_BuildLayout_NoExplicitInitialTransition_DrawsNoInitialMarker` | No badge, arrow, or band |
 | `StateTransitionView_BuildLayout_DoneSourcedTransition_DrawsNoInitialMarker` | `done` source is not initial |
 | `StateTransitionView_BuildLayout_InitialMarkerArrow_IsSolidWithOpenArrowhead` | Solid arrow, open chevron head |
-| `StateTransitionView_BuildLayout_EntryDoExit_ProducesTitledCompartments` | `entry`/`do`/`exit` compartments, ordered, centered italic titles |
-| `StateTransitionView_BuildLayout_EntryDoExit_NoneDeclared_NoCompartments` | No compartments for plain or empty-form states |
+| `StateTransitionView_BuildLayout_EntryDoExit_ProducesTitledCompartments` | Titled compartments, in order |
+| `StateTransitionView_BuildLayout_EntryDoExit_NoneDeclared_NoCompartments` | No compartments when none declared |
 | `StateTransitionView_BuildLayout_EntryDoExit_WidensBoxToLongestRow` | Box wide and tall enough for its rows |
 | `StateTransitionView_BuildLayout_TypedState_NameLineShowsTypeAndMultiplicity` | `name : Type [m]` name line |
-| `StateTransitionView_BuildLayout_TransitionTriggerGuardEffect_LabelFormat` | `trigger [guard] / effect`, each part optional |
+| `StateTransitionView_BuildLayout_TransitionTriggerGuardEffect_LabelFormat` | `trigger [guard] / effect` label |
 | `StateTransitionView_BuildLayout_SelfTransition_CarriesFullLabel` | Self-loop carries the full label |
 | `StateTransitionView_BuildLayout_DoneTarget_RendersBullseyeNotStateBox` | `done` target is a bullseye badge |
 | `StateTransitionView_BuildLayout_DoneTarget_MultipleSources_SingleFinalBadge` | One shared final badge |
-| `StateTransitionView_BuildLayout_BackEdge_OpenChevronWithFlushApproach` | Final approach at least the marker length |
-| `StateTransitionView_BuildLayout_FrameWidth_AccountsForLongTransitionLabel` | Frame contains the placed label |
+| `StateTransitionView_BuildLayout_BackEdge_OpenChevronWithFlushApproach` | Approach at least the marker length |
+| `StateTransitionView_BuildLayout_FrameWidth_AccountsForLongTransitionLabel` | Frame contains the label |
+| `StateTransitionView_BuildLayout_LongLabel_OverhangingLeft_IsContainedByFrame` | Left overhang moves content right |
 | `StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes` | No label on a state box |
-| `StateTransitionView_BuildLayout_ElevatorGalleryModel_ShowsCompartmentsLabelsAndFinal` | Gallery model shows the notation |
+| `StateTransitionView_BuildLayout_ElevatorGalleryModel_ShowsCompartmentsLabelsAndFinal` | Gallery notation |
 | `LayeredPlacement_Place_EdgeTargetEnd_ForwardedToGraphEdges` | Edge end decoration reaches the engine |
 | `LayeredPlacement_Place_DefaultEdgeTargetEnd_PreservesBehavior` | Default placement unchanged |

@@ -143,28 +143,45 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         var offsetX = FrameInset + margin - minX;
         var offsetY = FrameInset + topReserve - minY;
 
-        var stateRects = new Rect[states.Count];
-        for (var i = 0; i < states.Count; i++)
+        // Builds the state boxes, the final badge, the initial marker and the transition lines for a
+        // given horizontal offset, in the frame's absolute coordinate space.
+        (List<LayoutNode> Nodes, int Crossings) Assemble(double shiftX)
         {
-            stateRects[i] = new Rect(placed.Rects[i].X + offsetX, placed.Rects[i].Y + offsetY, states[i].Width, states[i].Height);
+            var stateRects = new Rect[states.Count];
+            for (var i = 0; i < states.Count; i++)
+            {
+                stateRects[i] = new Rect(placed.Rects[i].X + shiftX, placed.Rects[i].Y + offsetY, states[i].Width, states[i].Height);
+            }
+
+            var built = new List<LayoutNode>();
+
+            // State boxes (rounded rectangles) and the final badge.
+            for (var i = 0; i < states.Count; i++)
+            {
+                built.Add(states[i].IsFinal ? MakeFinalBadge(stateRects[i]) : MakeStateBox(states[i], stateRects[i]));
+            }
+
+            // Initial pseudo-state entering the semantically-resolved initial target state.
+            if (initialIndex is { } initial)
+            {
+                AddInitialMarker(stateRects[initial], built);
+            }
+
+            // Transition edges (with labels), mapped from the algorithm's routed polylines.
+            var crossingCount = AddTransitions(transitions, flowTransitions, placed.EdgePolylines, stateRects, shiftX, offsetY, built);
+            return (built, crossingCount);
         }
 
-        var nodes = new List<LayoutNode>();
-
-        // State boxes (rounded rectangles) and the final badge.
-        for (var i = 0; i < states.Count; i++)
+        // A transition label is centered on its placed position and may overhang the states on either
+        // side. When one overhangs the left edge of the frame content, shift everything right so the
+        // label keeps a margin inside the frame (the renderers would otherwise clip it).
+        var (nodes, crossings) = Assemble(offsetX);
+        var leftOverhang = FrameInset + theme.LabelPadding - LabelLeftExtent(nodes, theme);
+        if (leftOverhang > 0.0)
         {
-            nodes.Add(states[i].IsFinal ? MakeFinalBadge(stateRects[i]) : MakeStateBox(states[i], stateRects[i]));
+            offsetX += leftOverhang;
+            (nodes, crossings) = Assemble(offsetX);
         }
-
-        // Initial pseudo-state entering the semantically-resolved initial target state.
-        if (initialIndex is { } initial)
-        {
-            AddInitialMarker(stateRects[initial], nodes);
-        }
-
-        // Transition edges (with guard labels), mapped from the algorithm's routed polylines.
-        var crossings = AddTransitions(transitions, flowTransitions, placed.EdgePolylines, stateRects, offsetX, offsetY, nodes);
 
         // Size the frame to the actual rendered content: state boxes plus routed transition
         // polylines (back edges can bulge beyond the box columns), the initial marker, and the
@@ -250,13 +267,45 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     /// </summary>
     private static double LabelRightExtent(IReadOnlyList<LayoutNode> nodes, Theme theme)
     {
+        var maxX = 0.0;
+        foreach (var (position, halfWidth) in PlaceLabels(nodes, theme))
+        {
+            maxX = Math.Max(maxX, position.X + halfWidth);
+        }
+
+        return maxX;
+    }
+
+    /// <summary>
+    /// Returns the minimum X reached by any rendered transition label (its center X minus half its
+    /// rendered text width), or <see cref="double.PositiveInfinity"/> when there are no labels. The
+    /// counterpart of <see cref="LabelRightExtent"/> for the frame's left side.
+    /// </summary>
+    private static double LabelLeftExtent(IReadOnlyList<LayoutNode> nodes, Theme theme)
+    {
+        var minX = double.PositiveInfinity;
+        foreach (var (position, halfWidth) in PlaceLabels(nodes, theme))
+        {
+            minX = Math.Min(minX, position.X - halfWidth);
+        }
+
+        return minX;
+    }
+
+    /// <summary>
+    /// Places every labeled transition line with the renderers' obstacle-aware placer and returns each
+    /// label's placed center and half text width.
+    /// </summary>
+    private static List<(LabelPlacement Position, double HalfWidth)> PlaceLabels(IReadOnlyList<LayoutNode> nodes, Theme theme)
+    {
+        var result = new List<(LabelPlacement, double)>();
         var lines = nodes
             .OfType<LayoutLine>()
             .Where(line => line.MidpointLabel is not null)
             .ToList();
         if (lines.Count == 0)
         {
-            return 0.0;
+            return result;
         }
 
         var positions = ConnectorLabelPlacer.Place(
@@ -264,19 +313,15 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             theme.FontSizeBody,
             nodes.OfType<LayoutBox>().ToList(),
             NotationMetrics.MarkerScale(theme));
-        var maxX = 0.0;
         foreach (var line in lines)
         {
-            if (!positions.TryGetValue(line, out var pos))
+            if (positions.TryGetValue(line, out var pos))
             {
-                continue;
+                result.Add((pos, ConnectorLabelPlacer.EstimateLabelWidth(line.MidpointLabel!, theme.FontSizeBody) / 2.0));
             }
-
-            var halfTextWidth = ConnectorLabelPlacer.EstimateLabelWidth(line.MidpointLabel!, theme.FontSizeBody) / 2.0;
-            maxX = Math.Max(maxX, pos.X + halfTextWidth);
         }
 
-        return maxX;
+        return result;
     }
 
     /// <summary>

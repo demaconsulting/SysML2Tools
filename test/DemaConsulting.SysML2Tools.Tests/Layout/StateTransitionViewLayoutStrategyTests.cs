@@ -1143,6 +1143,30 @@ public sealed class StateTransitionViewLayoutStrategyTests
         Assert.DoesNotContain(content.OfType<LayoutBox>(), b => b.Label == "done");
     }
 
+    /// <summary>
+    ///     A transition label that is wider than the states it sits between and overhangs the left edge
+    ///     of the content moves the content right so the label stays inside the frame.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_LongLabel_OverhangingLeft_IsContainedByFrame()
+    {
+        // Arrange: a -> b with a label far wider than either state
+        var layout = LayOut(
+            State("a"),
+            State("b"),
+            new SysmlTransitionNode { Source = "a", Target = "b", Trigger = new string('t', 60) });
+
+        // Act
+        var frame = Assert.IsType<LayoutBox>(Assert.Single(layout.Nodes));
+        var line = Assert.Single(frame.Children.OfType<LayoutLine>());
+        var obstacles = frame.Children.OfType<LayoutBox>().ToList();
+        var placement = ConnectorLabelPlacer.Place([line], Themes.Light.FontSizeBody, obstacles, NotationMetrics.MarkerScale(Themes.Light))[line];
+
+        // Assert
+        Assert.True(placement.X - placement.HalfWidth >= frame.X, "The label must not overhang the frame's left edge.");
+        Assert.True(placement.X + placement.HalfWidth <= frame.X + frame.Width, "The label must not overhang the frame's right edge.");
+    }
+
     /// <summary>Loads and lays out a gallery model, or returns null when the gallery is not available.</summary>
     private static async Task<LayoutTree?> LayOutGalleryModelAsync(string fileName)
     {

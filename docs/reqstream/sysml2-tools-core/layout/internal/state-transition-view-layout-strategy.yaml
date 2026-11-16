@@ -257,6 +257,7 @@ sections:
           do not sit on box corners.
         tests:
           - StateTransitionView_BuildLayout_FrameWidth_AccountsForLongTransitionLabel
+          - StateTransitionView_BuildLayout_LongLabel_OverhangingLeft_IsContainedByFrame
           - StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes
 
       - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-BackEdgeApproach
