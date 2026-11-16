@@ -15,34 +15,41 @@ using DemaConsulting.SysML2Tools.Semantic.Model;
 namespace DemaConsulting.SysML2Tools.Layout.Internal;
 
 /// <summary>
-/// Layout strategy for GeneralView diagrams. Renders every user-defined <c>def</c> element
-/// (part, port, interface, requirement, action, …) as a keyword-labeled box, groups boxes by
-/// their owning package inside folder-shaped containers (a nested package inside its owner's
-/// folder), and routes specialization, membership, and
-/// attribute-typing edges orthogonally between the boxes, whichever packages their endpoints sit in.
+/// Layout strategy for GeneralView diagrams (SysML v2 graphical notation, clause 8.2.3.6). Renders
+/// every user-defined <c>def</c> element (part, port, interface, requirement, action, …) as a
+/// keyword-labeled square box and every occurrence-kind usage and port (the Pilot
+/// <see cref="NodePolicy"/>) as a keyword-labeled rounded box of its own, groups boxes by their
+/// owning package inside folder-shaped containers (a nested package inside its owner's folder, the
+/// package name in the folder's tab), and routes the specification's relationship glyphs
+/// orthogonally between the boxes: specialization, owner feature membership (filled or hollow
+/// diamond), feature typing, subsetting, reference subsetting, redefinition, satisfy, verify and
+/// import edges, whichever packages their endpoints sit in.
 /// </summary>
 /// <remarks>
-/// Every definition and package folder is expressed as a single <see cref="LayoutGraph"/> — packages
-/// as <see cref="BoxShape.Folder"/>-shaped container nodes, definitions as leaf nodes carrying their
-/// <see cref="LayoutGraphNode.Keyword"/> and <see cref="LayoutGraphNode.Compartments"/> — and the
-/// whole graph is placed with a single <see cref="LayoutAlgorithmBase.Apply(LayoutGraph)"/> call via
-/// <see cref="AutoLayoutAlgorithm"/>: root-scope folders/top-level definitions are classified by
-/// connectivity, with connected groups routed through the bundled layered algorithm
-/// (<see cref="LayeredLayoutAlgorithm"/>) and disconnected/singleton nodes packed by reading order
-/// (<see cref="ContainmentLayoutAlgorithm"/>), while each folder's own contents are always ordered by
-/// their intra-package edges with the layered algorithm. All
+/// Every definition, usage and package folder is expressed as a single <see cref="LayoutGraph"/> —
+/// packages as <see cref="BoxShape.Folder"/>-shaped container nodes, definitions and usages as leaf
+/// nodes carrying their <see cref="LayoutGraphNode.Keyword"/> and
+/// <see cref="LayoutGraphNode.Compartments"/> — and the whole graph is placed with a single
+/// <see cref="LayoutAlgorithmBase.Apply(LayoutGraph)"/> call via <see cref="AutoLayoutAlgorithm"/>
+/// flowing bottom-to-top (<see cref="LayoutFlowDirection.Up"/>): every edge runs from the owned,
+/// specific or dependent element to the owner, general type or definition, so the latter is drawn
+/// above. Root-scope folders/top-level boxes are classified by connectivity, with connected groups
+/// routed through the bundled layered algorithm (<see cref="LayeredLayoutAlgorithm"/>) and
+/// disconnected/singleton nodes packed by reading order (<see cref="ContainmentLayoutAlgorithm"/>);
+/// each folder's own contents use the same automatic selection. All
 /// box sizing (title bands, compartment rows) remains this strategy's responsibility, since the
 /// layout stage is theme-agnostic. Standard-library declarations are excluded via
 /// <see cref="StdlibFilter"/>. <see cref="RenderOptions.DepthLimit"/> caps nesting depth
-/// uniformly regardless of whether the extra nesting comes from a package folder or from a
+/// uniformly regardless of whether the extra nesting comes from a package folder, from a
 /// definition containing another definition (nested-definition containment, via
-/// <see cref="PlaceDef"/>): depth-limited (truncated) content is never added to the graph as
+/// <see cref="PlaceDef"/>) or from a usage node owned by a definition (one level below its
+/// owner): depth-limited (truncated) content is never added to the graph as
 /// individual boxes — a truncated package folder becomes a single leaf node showing an ellipsis
-/// (<c>…</c>), and a truncated definition stays a leaf box whose last compartment is a trailing
-/// untitled <c>…</c> row (the specification's marker for contents that are not shown). Because the
-/// engine places a folder's contents without knowing where
+/// (<c>…</c>), and a truncated definition or usage stays a leaf box whose last compartment is a
+/// trailing untitled <c>…</c> row (the specification's marker for contents that are not shown).
+/// Because the engine places a folder's contents without knowing where
 /// the folder's external relationships lead, the items of each package folder are ordered by the
-/// vertical position of those relationships' far ends (see <see cref="ComputeItemOrder"/>), so
+/// horizontal position of those relationships' far ends (see <see cref="ComputeItemOrder"/>), so
 /// relationships leaving a folder do not need to cross one another.
 /// </remarks>
 internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
@@ -594,7 +601,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // The engine lays out each package folder's contents without knowing where the folder's
         // relationships to the outside lead, and stacks unconnected groups of those contents in the
         // order they were added - so declaration order alone can force relationships that leave a
-        // folder to cross one another. Refine once: reorder each folder's items by the vertical
+        // folder to cross one another. Refine once: reorder each folder's items by the horizontal
         // position (in the first layout) of the boxes their external relationships lead to, and lay
         // out again with that order. When no folder's order changes the first layout is kept as is.
         // NOTE: this compensates for the engine's SeparateChildren placement model and can be retired
@@ -612,6 +619,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // does not depend on the order in which the engine emits a scope's boxes; this recurses
         // through every nesting depth, not just the root.
         var placed = build.Truncated.Count == 0 ? tree : DecorateTruncated(tree, build.Graph, build.Truncated, theme);
+
+        // The engine routes a connector between two root-level folders around the outside of the
+        // drawing and does not grow the canvas for it (engine defect, see FitConnectorsToCanvas), so
+        // the canvas is fitted to the connectors here.
+        placed = FitConnectorsToCanvas(placed);
 
         // Surface any standalone `filter [<expr>];` evaluation failure, plus a distinct warning
         // for each `expose <path>::**[<expr>]` bracket filter that failed to parse or evaluate
@@ -1583,9 +1595,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Resolves the specialization, membership, attribute-typing, redefinition, subsetting,
-    /// connect, allocate, dependency, and binding relationships across every definition (regardless
-    /// of package) into a flat list of qualified-name edges. Self-references and unresolved targets
+    /// Resolves the specialization, owner membership, feature typing, subsetting, reference
+    /// subsetting, redefinition, connect, allocate, dependency, binding, satisfy, verify and import
+    /// relationships across every definition and usage (regardless of package) into a flat list of
+    /// qualified-name edges. The satisfy, verify and import edges are overlays: an endpoint that is
+    /// not rendered draws nothing and is never reported. Self-references and unresolved targets
     /// are skipped; whether an edge's endpoints actually receive a graph node (i.e., were not
     /// depth-truncated) is decided later, in <see cref="BuildGraph"/>. The second tuple element
     /// reports every <see cref="EdgeKind.Connect"/>/<see cref="EdgeKind.Allocate"/>/
@@ -2295,7 +2309,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             // connected groups, while unconnected definitions are packed by the containment
             // algorithm. A folder pinned to the layered algorithm with the bottom-to-top direction
             // stacks several unconnected nodes of one layer on top of each other (engine defect,
-            // see ExternalEdges_UpDirection_UnconnectedDefinitionsDoNotOverlap).
+            // see TopDown_UnconnectedDefinitionsDoNotOverlap).
             folder.Set(CoreOptions.Algorithm, AutoLayoutAlgorithm.AlgorithmId);
             var folderScope = new ScopeInfo(parentScope, folder.Children, folder);
             folderScopes[folderKey] = folderScope;
@@ -2812,6 +2826,86 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         return firstUnpaired;
     }
+
+    /// <summary>The space kept between the drawing's outermost connector and the canvas edge.</summary>
+    private const double CanvasMargin = 8.0;
+
+    /// <summary>
+    /// Grows and shifts the canvas so that every connector lies inside it. With the bottom-to-top
+    /// direction the engine routes a connector that joins two root-level folders through a channel
+    /// outside the drawing (negative coordinates) and reports the node bounds only, so the renderer
+    /// would clip that connector. When any waypoint lies outside the canvas the whole tree is
+    /// translated so the leftmost/topmost waypoint sits <see cref="CanvasMargin"/> inside the canvas,
+    /// and the canvas is widened/heightened to hold the rightmost/lowest waypoint; a tree whose
+    /// connectors are all inside is returned unchanged.
+    /// </summary>
+    /// <param name="tree">The placed tree.</param>
+    /// <returns>The tree with every connector inside its canvas.</returns>
+    private static LayoutTree FitConnectorsToCanvas(LayoutTree tree)
+    {
+        double minX = 0.0, minY = 0.0, maxX = tree.Width, maxY = tree.Height;
+        foreach (var point in CollectNodeLines(tree.Nodes).SelectMany(line => line.Waypoints))
+        {
+            minX = Math.Min(minX, point.X);
+            minY = Math.Min(minY, point.Y);
+            maxX = Math.Max(maxX, point.X);
+            maxY = Math.Max(maxY, point.Y);
+        }
+
+        var dx = minX < 0.0 ? CanvasMargin - minX : 0.0;
+        var dy = minY < 0.0 ? CanvasMargin - minY : 0.0;
+        var width = maxX > tree.Width ? maxX + dx + CanvasMargin : tree.Width + dx;
+        var height = maxY > tree.Height ? maxY + dy + CanvasMargin : tree.Height + dy;
+        if (minX >= 0.0 && minY >= 0.0 && maxX <= tree.Width && maxY <= tree.Height)
+        {
+            return tree;
+        }
+
+        return tree with
+        {
+            Width = width,
+            Height = height,
+            Nodes = [.. tree.Nodes.Select(node => Translate(node, dx, dy))],
+        };
+    }
+
+    /// <summary>Collects every <see cref="LayoutLine"/> of a placed tree, at any depth.</summary>
+    private static IEnumerable<LayoutLine> CollectNodeLines(IReadOnlyList<LayoutNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            switch (node)
+            {
+                case LayoutLine line:
+                    yield return line;
+                    break;
+                case LayoutBox box:
+                    foreach (var inner in CollectNodeLines(box.Children))
+                    {
+                        yield return inner;
+                    }
+
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns <paramref name="node"/> moved by (<paramref name="dx"/>, <paramref name="dy"/>); the
+    /// General view places boxes, connectors and labels only, so every other node is returned as is.
+    /// </summary>
+    private static LayoutNode Translate(LayoutNode node, double dx, double dy) => node switch
+    {
+        LayoutBox box => box with
+        {
+            X = box.X + dx,
+            Y = box.Y + dy,
+            Children = [.. box.Children.Select(child => Translate(child, dx, dy))],
+        },
+        LayoutLine line => line with { Waypoints = [.. line.Waypoints.Select(p => new Point2D(p.X + dx, p.Y + dy))] },
+        LayoutLabel label => label with { X = label.X + dx, Y = label.Y + dy },
+        _ => node,
+    };
 
     /// <summary>
     /// Runs the layout engine over <paramref name="graph"/> with the root scope delegated to the

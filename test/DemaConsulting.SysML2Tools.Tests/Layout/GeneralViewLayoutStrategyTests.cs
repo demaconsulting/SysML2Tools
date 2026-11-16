@@ -4569,5 +4569,572 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.NotEqual(FolderTitlePlacement.Tab, FindBox(empty.Nodes, "Pkg").Appearance?.FolderTitle ?? FolderTitlePlacement.Body);
         Assert.NotEqual(FolderTitlePlacement.Tab, FindBox(truncated.Nodes, "P").Appearance?.FolderTitle ?? FolderTitlePlacement.Body);
     }
+
+    /// <summary>
+    ///     Regression for an engine defect worked around by fitting the canvas to the connectors: with the
+    ///     bottom-to-top direction the engine routes a connector between two root-level folders through
+    ///     a channel outside the drawing (negative coordinates) without growing the canvas, so the
+    ///     renderer would clip it. Every waypoint of every connector must lie inside the canvas.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_TopDown_ConnectorsBetweenRootFolders_StayInsideCanvas()
+    {
+        // Act: an import and a typing edge join the two root-level packages
+        var layout = await LayOutUnscopedAsync("package Lib { part def X; } package Design { private import Lib::*; part def A { part p : X; } }");
+
+        // Assert
+        var lines = CollectLines(layout.Nodes);
+        Assert.NotEmpty(lines);
+        foreach (var point in lines.SelectMany(l => l.Waypoints))
+        {
+            Assert.InRange(point.X, 0.0, layout.Width);
+            Assert.InRange(point.Y, 0.0, layout.Height);
+        }
+    }
+
+    /// <summary>Returns the node policy named <paramref name="name"/> (<c>Pilot</c>, <c>AllUsages</c> or <c>RowsOnly</c>).</summary>
+    private static NodePolicy PolicyByName(string name) => name switch
+    {
+        "Pilot" => NodePolicy.Pilot,
+        "AllUsages" => NodePolicy.AllUsages,
+        _ => NodePolicy.RowsOnly,
+    };
+
+    /// <summary>
+    ///     The node policy decides by usage keyword whether a nested usage is a node: the Pilot policy
+    ///     draws occurrence-kind usages and ports as nodes and keeps attributes, plain references,
+    ///     enumeration values and constraints as rows; the all-usages policy draws every named usage
+    ///     with a keyword except constraints and enumeration values; the row-only policy draws none.
+    /// </summary>
+    /// <param name="policy">The policy name.</param>
+    /// <param name="keyword">The usage keyword.</param>
+    /// <param name="expected">Whether the usage is a node.</param>
+    [Theory]
+    [InlineData("Pilot", "part", true)]
+    [InlineData("Pilot", "item", true)]
+    [InlineData("Pilot", "port", true)]
+    [InlineData("Pilot", "action", true)]
+    [InlineData("Pilot", "state", true)]
+    [InlineData("Pilot", "requirement", true)]
+    [InlineData("Pilot", "occurrence", true)]
+    [InlineData("Pilot", "attribute", false)]
+    [InlineData("Pilot", "ref", false)]
+    [InlineData("Pilot", "enum value", false)]
+    [InlineData("Pilot", "constraint", false)]
+    [InlineData("Pilot", "subject", false)]
+    [InlineData("AllUsages", "part", true)]
+    [InlineData("AllUsages", "attribute", true)]
+    [InlineData("AllUsages", "ref", true)]
+    [InlineData("AllUsages", "enum value", false)]
+    [InlineData("AllUsages", "constraint", false)]
+    [InlineData("AllUsages", "require constraint", false)]
+    [InlineData("RowsOnly", "part", false)]
+    [InlineData("RowsOnly", "port", false)]
+    [InlineData("RowsOnly", "attribute", false)]
+    public void GeneralViewLayoutStrategy_NodePolicy_IsNode_KeywordMatrix_ReturnsExpected(string policy, string keyword, bool expected)
+    {
+        // Arrange: a named usage of the keyword
+        var usage = new SysmlFeatureNode { Name = "u", FeatureKeyword = keyword };
+
+        // Act
+        var isNode = PolicyByName(policy).IsNode(usage);
+
+        // Assert
+        Assert.Equal(expected, isNode);
+    }
+
+    /// <summary>
+    ///     An unnamed usage, a usage without keyword and a usage whose payload is an expression are never
+    ///     nodes, whatever the policy: there is nothing to key or label a box with.
+    /// </summary>
+    /// <param name="policy">The policy name.</param>
+    [Theory]
+    [InlineData("Pilot")]
+    [InlineData("AllUsages")]
+    [InlineData("RowsOnly")]
+    public void GeneralViewLayoutStrategy_NodePolicy_IsNode_UnnamedKeywordlessOrExpression_IsNeverNode(string policy)
+    {
+        // Arrange
+        var nodePolicy = PolicyByName(policy);
+
+        // Act / Assert
+        Assert.False(nodePolicy.IsNode(new SysmlFeatureNode { FeatureKeyword = "part" }));
+        Assert.False(nodePolicy.IsNode(new SysmlFeatureNode { Name = "u", FeatureKeyword = string.Empty }));
+        Assert.False(nodePolicy.IsNode(new SysmlFeatureNode { Name = "u", FeatureKeyword = "part", ExpressionText = "x > 1" }));
+    }
+
+    /// <summary>
+    ///     Under the Pilot policy a part usage owned by a definition is a rounded node placed beside
+    ///     its owner in the owner's own scope (the folder), not inside the owner's box, and the owner
+    ///     no longer lists it as a row.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PilotPolicy_PartUsage_IsOwnNodeBesideOwner()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package P { part def Wheel; part def Vehicle { part wheel : Wheel; } }");
+
+        // Assert: the usage is a rounded sibling of Vehicle inside folder P, and Vehicle has no rows for it
+        var folder = FindBox(layout.Nodes, "P");
+        var wheel = Assert.Single(folder.Children.OfType<LayoutBox>(), b => IsNamed(b, "wheel"));
+        Assert.Equal(BoxShape.RoundedRectangle, wheel.Shape);
+        Assert.Equal("part", wheel.Keyword);
+        Assert.Equal("wheel : Wheel", wheel.Label);
+        var vehicle = Assert.Single(folder.Children.OfType<LayoutBox>(), b => b.Label == "Vehicle");
+        Assert.Empty(vehicle.Children);
+        Assert.Empty(vehicle.Compartments);
+    }
+
+    /// <summary>
+    ///     Under the Pilot policy attribute usages and plain reference usages stay compartment rows of
+    ///     their owner while a part usage of the same owner becomes a node.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PilotPolicy_AttributeAndPlainReference_StayRows()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("part def Other; part def V { attribute mass : Real; ref link : Other; part p; }");
+
+        // Assert: p is a node, mass and link are rows; no box exists for either row
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.Contains(boxes, b => IsNamed(b, "p"));
+        Assert.DoesNotContain(boxes, b => IsNamed(b, "mass") || IsNamed(b, "link"));
+        var v = FindBox(layout.Nodes, "V");
+        Assert.Contains(v.Compartments, c => c.Title == "attributes" && c.Rows.Contains("mass : Real"));
+        Assert.Contains(v.Compartments, c => c.Title == "references" && c.Rows.Contains("link : Other"));
+        Assert.DoesNotContain(v.Compartments, c => c.Title == "parts");
+    }
+
+    /// <summary>
+    ///     Under the row-only policy a part usage stays a row of its owner and no usage edge of any kind
+    ///     (ownership, typing) is drawn.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_RowsOnlyPolicy_PartUsage_StaysRowAndDrawsNoEdges()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("part def W; part def V { part p : W; }", policy: NodePolicy.RowsOnly);
+
+        // Assert
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => IsNamed(b, "p"));
+        Assert.Contains(FindBox(layout.Nodes, "V").Compartments, c => c.Title == "parts" && c.Rows.Contains("p : W"));
+        Assert.Empty(CollectLines(layout.Nodes));
+    }
+
+    /// <summary>
+    ///     A usage nested in a usage (<c>part def A { part b { part c; } }</c>) is a node whose owner is
+    ///     the enclosing usage: the owner chain A, b, c is drawn with a filled diamond from each usage
+    ///     to its owner.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PilotPolicy_NestedUsageInUsage_ChainsOwners()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("part def A { part b { part c; } }");
+
+        // Assert: c is owned by b and b by A
+        var diamonds = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.FilledDiamond).ToList();
+        Assert.Equal(2, diamonds.Count);
+        Assert.Contains(diamonds, l => RunsBetween(l, FindBox(layout.Nodes, "b"), FindBox(layout.Nodes, "A")));
+        Assert.Contains(diamonds, l => RunsBetween(l, FindBox(layout.Nodes, "c"), FindBox(layout.Nodes, "b")));
+    }
+
+    /// <summary>
+    ///     The keyword of a usage node carries the prefix words the specification places inside the
+    ///     guillemets (<c>abstract part</c>, <c>variation part</c>, <c>individual part</c>,
+    ///     <c>variant part</c>, <c>ref part</c>); the engine adds the guillemets themselves.
+    /// </summary>
+    /// <param name="isAbstract">Whether the usage is abstract.</param>
+    /// <param name="isVariation">Whether the usage is a variation.</param>
+    /// <param name="isIndividual">Whether the usage is individual.</param>
+    /// <param name="isVariant">Whether the usage is a variant.</param>
+    /// <param name="isReference">Whether the usage is a reference usage.</param>
+    /// <param name="expected">The expected keyword.</param>
+    [Theory]
+    [InlineData(false, false, false, false, false, "part")]
+    [InlineData(true, false, false, false, false, "abstract part")]
+    [InlineData(false, true, false, false, false, "variation part")]
+    [InlineData(false, false, true, false, false, "individual part")]
+    [InlineData(false, false, false, true, false, "variant part")]
+    [InlineData(false, false, false, false, true, "ref part")]
+    [InlineData(true, false, false, false, true, "abstract ref part")]
+    public void GeneralViewLayoutStrategy_BuildLayout_UsageKeyword_PrefixWords_AreInsideTheKeyword(
+        bool isAbstract, bool isVariation, bool isIndividual, bool isVariant, bool isReference, string expected)
+    {
+        // Arrange: a top-level part usage with the modifiers
+        var usage = new SysmlFeatureNode
+        {
+            Name = "p",
+            QualifiedName = "p",
+            FeatureKeyword = "part",
+            IsAbstract = isAbstract,
+            IsVariation = isVariation,
+            IsIndividual = isIndividual,
+            IsVariant = isVariant,
+            IsReference = isReference
+        };
+        var workspace = new SysmlWorkspace { Declarations = new Dictionary<string, SysmlNode> { ["p"] = usage } };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        Assert.Equal(expected, FindBox(layout.Nodes, "p").Keyword);
+    }
+
+    /// <summary>
+    ///     A plain <c>ref</c> usage (keyword <c>ref</c>, reference by definition) is not prefixed a
+    ///     second time with <c>ref</c>.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_PlainReferenceUsage_KeywordIsNotDoubled()
+    {
+        // Arrange
+        var usage = new SysmlFeatureNode { Name = "r", QualifiedName = "r", FeatureKeyword = "ref", IsReference = true };
+        var workspace = new SysmlWorkspace { Declarations = new Dictionary<string, SysmlNode> { ["r"] = usage } };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        Assert.Equal("ref", FindBox(layout.Nodes, "r").Keyword);
+    }
+
+    /// <summary>
+    ///     A usage node's name line follows the textual notation: short name, name, typing,
+    ///     multiplicity, ordering, then subsetting, redefinition and reference subsetting.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_UsageNameLine_ShowsTypeMultiplicitySubsettingRedefinitionAndReferenceSubsetting()
+    {
+        // Arrange
+        var usage = new SysmlFeatureNode
+        {
+            Name = "p",
+            ShortName = "s",
+            QualifiedName = "p",
+            FeatureKeyword = "part",
+            FeatureTyping = "T",
+            Multiplicity = "[2]",
+            IsOrdered = true,
+            IsNonunique = true,
+            SupertypeNames = ["a", "b"],
+            RedefinedFeatureName = "r",
+            ReferenceSubsettingName = "c"
+        };
+        var workspace = new SysmlWorkspace { Declarations = new Dictionary<string, SysmlNode> { ["p"] = usage } };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        Assert.Equal("<s> p : T [2] ordered nonunique :> a, b :>> r ::> c", Assert.Single(CollectBoxes(layout.Nodes)).Label);
+    }
+
+    /// <summary>
+    ///     A conjugated typing is shown as <c>~Type</c> in the name line and drawn as a typing edge to
+    ///     the underlying port definition.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ConjugatedTyping_ShowsTildeAndTypesTheUsageByThePortDefinition()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("port def PortT; part def A { port p : ~PortT; }");
+
+        // Assert
+        var p = FindBox(layout.Nodes, "p");
+        Assert.Equal("p : ~PortT", p.Label);
+        var typing = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.True(RunsBetween(typing, p, FindBox(layout.Nodes, "PortT")));
+    }
+
+    /// <summary>
+    ///     Only a reference usage has a dashed outline; a composite usage keeps the default solid outline.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ReferenceUsage_OutlineIsDashedAndCompositeUsageIsSolid()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("part def T; part def V { part own : T; ref part shared : T; }");
+
+        // Assert
+        Assert.Equal(LineStyle.Dashed, FindBox(layout.Nodes, "shared").Appearance?.OutlineStyle);
+        Assert.NotEqual(LineStyle.Dashed, FindBox(layout.Nodes, "own").Appearance?.OutlineStyle ?? LineStyle.Solid);
+    }
+
+    /// <summary>
+    ///     The name of an abstract definition is italic (the specification's Table 4) and its keyword
+    ///     reads <c>abstract part def</c>; the name of an abstract usage stays upright.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_AbstractDefinition_NameIsItalicButAbstractUsageIsNot()
+    {
+        // Arrange: an abstract part def and an abstract part usage
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["D"] = new SysmlDefinitionNode { Name = "D", QualifiedName = "D", DefinitionKeyword = "part def", IsAbstract = true },
+                ["u"] = new SysmlFeatureNode { Name = "u", QualifiedName = "u", FeatureKeyword = "part", IsAbstract = true }
+            }
+        };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        var definition = FindBox(layout.Nodes, "D");
+        Assert.Equal("abstract part def", definition.Keyword);
+        Assert.Equal(TextStyle.BoldItalic, definition.Appearance?.NameStyle);
+        var usage = FindBox(layout.Nodes, "u");
+        Assert.Equal("abstract part", usage.Keyword);
+        Assert.Null(usage.Appearance?.NameStyle);
+    }
+
+    /// <summary>
+    ///     A row follows the textual notation: a direction keyword, a conjugated type, multiplicity with
+    ///     its ordering modifiers, subsetting and redefinition clauses and the value clause.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_FeatureRows_UseTextualNotation()
+    {
+        // Arrange: one definition owning rows of every shape (row-only policy)
+        var def = new SysmlDefinitionNode
+        {
+            Name = "D",
+            QualifiedName = "D",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "speed", FeatureKeyword = "attribute", FeatureTyping = "Real", Direction = SysmlFeatureDirection.In },
+                new SysmlFeatureNode { Name = "xs", FeatureKeyword = "attribute", FeatureTyping = "Real", Multiplicity = "[0..*]", IsOrdered = true, IsNonunique = true },
+                new SysmlFeatureNode { Name = "m", FeatureKeyword = "attribute", FeatureTyping = "Mass", SupertypeNames = ["base"], RedefinedFeatureName = "old" },
+                new SysmlFeatureNode { Name = "mass", FeatureKeyword = "attribute", FeatureTyping = "Real", ValueText = "= 5 [kg]" },
+                new SysmlFeatureNode { Name = "q", FeatureKeyword = "attribute", ConjugatedFeatureTyping = "PortT", Direction = SysmlFeatureDirection.Out }
+            ]
+        };
+        var workspace = new SysmlWorkspace { Declarations = new Dictionary<string, SysmlNode> { ["D"] = def } };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy(NodePolicy.RowsOnly).BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        var rows = FindBox(layout.Nodes, "D").Compartments.Single(c => c.Title == "attributes").Rows;
+        Assert.Equal(
+            ["in speed : Real", "xs : Real [0..*] ordered nonunique", "m : Mass :> base :>> old", "mass : Real = 5 [kg]", "out q : ~PortT"],
+            rows);
+    }
+
+    /// <summary>
+    ///     A usage that reference-subsets another (<c>part b ::&gt; a</c>) draws a solid line from
+    ///     <c>b</c> to <c>a</c> with a hollow triangle with four dots at <c>a</c>; an unresolvable
+    ///     reference draws nothing.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ReferenceSubsetting_ProducesHollowTriangleFourDotsEdgeOnlyWhenResolved()
+    {
+        // Act
+        var resolved = await LayOutUnscopedAsync("part def D { part a; part b ::> a; }");
+        var unresolved = await LayOutUnscopedAsync("part def D { part a; part b ::> nothing; }");
+
+        // Assert
+        var edge = Assert.Single(CollectLines(resolved.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleFourDots);
+        Assert.Equal(LineStyle.Solid, edge.LineStyle);
+        Assert.True(RunsBetween(edge, FindBox(resolved.Nodes, "b"), FindBox(resolved.Nodes, "a")));
+        Assert.DoesNotContain(CollectLines(unresolved.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleFourDots);
+    }
+
+    /// <summary>
+    ///     With a depth limit that does not permit the usage nodes of a definition, the definition stays
+    ///     a leaf whose last compartment row is the specification's truncation marker (<c>…</c>), and no
+    ///     usage node or edge is drawn.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_DepthLimit_OwnerWithUsageNodes_StaysLeafWithEllipsisRow()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("part def W; part def V { part p : W; }", depthLimit: 1);
+
+        // Assert
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => IsNamed(b, "p"));
+        var v = FindBox(layout.Nodes, "V");
+        Assert.Equal("\u2026", v.Compartments[^1].Rows[^1]);
+        Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.TargetEnd is EndMarkerStyle.FilledDiamond or EndMarkerStyle.HollowTriangleTwoDots);
+    }
+
+    /// <summary>
+    ///     A recursive expose (<c>P::**</c>) includes the usages owned by the exposed definition, which are
+    ///     drawn as nodes; a namespace expose (<c>P::*</c>) exposes only the definition, so its usages
+    ///     are not rendered and stay rows of the definition.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ScopedExpose_RecursiveIncludesUsageNodes_NamespaceKeepsRows()
+    {
+        // Arrange
+        const string model = """
+            package P { part def W; part def V { part p : W; } }
+            package Diagrams {
+                view Deep { expose P::**; }
+                view Shallow { expose P::*; }
+            }
+            """;
+
+        // Act
+        var deep = await LayOutDeclaredViewAsync(model, "Deep");
+        var shallow = await LayOutDeclaredViewAsync(model, "Shallow");
+
+        // Assert
+        Assert.Contains(CollectBoxes(deep.Nodes), b => IsNamed(b, "p"));
+        Assert.DoesNotContain(CollectBoxes(shallow.Nodes), b => IsNamed(b, "p"));
+        Assert.Contains(FindBox(shallow.Nodes, "V").Compartments, c => c.Title == "parts" && c.Rows.Contains("p : W"));
+    }
+
+    /// <summary>
+    ///     Two usage nodes of different owners that read exactly alike (<c>data : P</c>) are both drawn
+    ///     and the layout completes, although the layout cannot tell their boxes apart by label.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_IdenticalUsageNodesOfDifferentOwners_AreBothDrawn()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package Q { port def P; part def A { port data : P; } part def B { port data : P; } }");
+
+        // Assert
+        Assert.Equal(2, CollectBoxes(layout.Nodes).Count(b => b.Label == "data : P"));
+        Assert.Equal(2, CollectLines(layout.Nodes).Count(l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots));
+    }
+
+    /// <summary>
+    ///     A nested part's own <c>doc</c> is a compartment of the part's own node (not of its owner), and a
+    ///     <c>comment</c> on the nested part is a note joined to the part's own node by a dashed line
+    ///     without arrowhead.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_NestedPartDocAndComment_AttachToOwnNode()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            part def Vehicle {
+                part engine {
+                    doc /* The propulsion unit. */
+                    comment /* Sized for 120 kW. */
+                }
+            }
+            """);
+
+        // Assert: the doc is on engine, not on Vehicle
+        var engine = FindBox(layout.Nodes, "engine");
+        Assert.Contains(engine.Compartments, c => c.Title == "doc" && c.Rows.Any(r => r.Contains("propulsion", StringComparison.Ordinal)));
+        Assert.DoesNotContain(FindBox(layout.Nodes, "Vehicle").Compartments, c => c.Title == "doc");
+
+        // Assert: the comment is a note linked to engine by a dashed, arrowless line
+        var note = Assert.Single(CollectBoxes(layout.Nodes), b => b.Shape == BoxShape.Note);
+        var link = Assert.Single(CollectLines(layout.Nodes), l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.None);
+        Assert.True(RunsBetween(link, note, engine));
+    }
+
+    /// <summary>
+    ///     A <c>satisfy</c> relationship is drawn from the satisfying element to the requirement as a
+    ///     solid line with an open arrowhead and the <c>«satisfy»</c> label.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_Satisfy_ProducesSolidOpenArrowEdgeWithKeywordLabel()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package P {
+                requirement def R;
+                requirement req : R;
+                part def Q;
+                part subj : Q;
+                satisfy req by subj;
+            }
+            """);
+
+        // Assert
+        var edge = Assert.Single(CollectLines(layout.Nodes), l => l.MidpointLabel == "«satisfy»");
+        Assert.Equal(EndMarkerStyle.OpenChevron, edge.TargetEnd);
+        Assert.Equal(LineStyle.Solid, edge.LineStyle);
+        Assert.True(RunsBetween(edge, FindBox(layout.Nodes, "subj"), FindBox(layout.Nodes, "req")));
+    }
+
+    /// <summary>
+    ///     A <c>verify</c> relationship is drawn from the verifying element to the requirement with the
+    ///     <c>«verify»</c> label; when the verifying declaration is nested in a rendered box (an
+    ///     objective of a verification definition) the nearest rendered box on its path is the source.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_Verify_NestedSourceMapsToNearestRenderedBox()
+    {
+        // Arrange: a verification definition V (rendered) whose nested objective verifies requirement req
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::req"] = new SysmlFeatureNode { Name = "req", QualifiedName = "P::req", FeatureKeyword = "requirement" },
+                ["P::V"] = new SysmlDefinitionNode { Name = "V", QualifiedName = "P::V", DefinitionKeyword = "verification def" }
+            },
+            Index = new SemanticIndex([new SysmlEdge("P::V::obj", "P::req", SysmlEdgeKind.Verify)])
+        };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        var edge = Assert.Single(CollectLines(layout.Nodes), l => l.MidpointLabel == "«verify»");
+        Assert.Equal(EndMarkerStyle.OpenChevron, edge.TargetEnd);
+        Assert.Equal(LineStyle.Solid, edge.LineStyle);
+        Assert.True(RunsBetween(edge, FindBox(layout.Nodes, "V"), FindBox(layout.Nodes, "req")));
+    }
+
+    /// <summary>
+    ///     An import is drawn from the importing package's folder to the imported package's folder (or
+    ///     the imported definition's box) as a dashed line with an open arrowhead, labeled <c>«import»</c>
+    ///     for a membership import, <c>«import»*</c> for a namespace import and <c>«import»**</c> for a
+    ///     recursive one.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_Imports_ProduceDashedOpenArrowEdgesLabeledByKind()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package A { part def X; }
+            package B { private import A::*; part def Y; }
+            package C { import A::**; part def Z; }
+            package D { import A::X; part def W; }
+            """);
+
+        // Assert: one dashed open-arrow edge per import, labeled by kind, from the importer's folder
+        var imports = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed).ToList();
+        Assert.Equal(3, imports.Count);
+        var namespaceImport = Assert.Single(imports, l => l.MidpointLabel == "«import»*");
+        Assert.True(RunsBetween(namespaceImport, FindBox(layout.Nodes, "B"), FindBox(layout.Nodes, "A")));
+        var recursiveImport = Assert.Single(imports, l => l.MidpointLabel == "«import»**");
+        Assert.True(RunsBetween(recursiveImport, FindBox(layout.Nodes, "C"), FindBox(layout.Nodes, "A")));
+        var membershipImport = Assert.Single(imports, l => l.MidpointLabel == "«import»");
+        Assert.True(RunsBetween(membershipImport, FindBox(layout.Nodes, "D"), FindBox(layout.Nodes, "X")));
+    }
+
+    /// <summary>
+    ///     An import of the standard library (no rendered endpoint) and an import between a package and a
+    ///     package nested in it draw no edge and produce no warning.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_Imports_StdlibAndContainedNamespace_DrawNoEdge()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package Outer {
+                import ScalarValues::*;
+                import Inner::*;
+                package Inner { part def I; }
+                part def O;
+            }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.LineStyle == LineStyle.Dashed);
+        Assert.Empty(layout.Warnings);
+    }
 }
 
