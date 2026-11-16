@@ -129,3 +129,5 @@ sections:
           - SysML2Tools-OTS-DemaRendering-BoxCornerIcon
           - SysML2Tools-OTS-DemaRendering-LabelAvoidance
           - SysML2Tools-OTS-DemaRendering-BackEdgeApproach
+          - SysML2Tools-OTS-DemaRendering-NotationStyling
+          - SysML2Tools-OTS-DemaRendering-NestedDirectionAndAutoLayout

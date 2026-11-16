@@ -24,15 +24,15 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NameLine
         title: >-
           GeneralViewLayoutStrategy shall label each definition box's name line in the textual
-          notation — the short name, the name, and, for a definition, its specialization
-          (`:>`) as declared in the model — omitting any piece the model does not declare, and
-          shall size the box to fit that label.
+          notation — the short name, the name, and its specialization (`:>`) as declared in the
+          model — omitting any piece the model does not declare, and shall size the box to fit
+          that label.
         justification: |
           The SysML v2 graphical notation shows an element's short name before its name and a
           definition's specialization after it. Showing the declared pieces lets a reader
           identify each definition and its direct supertypes from the box alone; sizing the box
-          from the full label keeps the text from being clipped. A usage's subsetting references
-          are not shown, as they are drawn as relationships.
+          from the full label keeps the text from being clipped. The name line of a usage is
+          covered by the UsageNameLine requirement.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_DefinitionNameLine_ShowsShortNameAndSupertypes
           - GeneralViewLayoutStrategy_FormatNameLine_AllOptionalsNull_ReturnsNameOnly
@@ -41,14 +41,129 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageShape
         title: >-
-          GeneralViewLayoutStrategy shall draw a top-level usage as a box with rounded corners
-          and a definition as a box with square corners.
+          GeneralViewLayoutStrategy shall draw every usage that has a box of its own — a top-level
+          usage or a usage nested in another box — with rounded corners and a definition as a box
+          with square corners.
         justification: |
           The SysML v2 graphical notation distinguishes usages from definitions by corner shape.
           Drawing each with its own shape lets a reader tell the two apart without reading the
           keyword.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_TopLevelUsage_IsRoundedAndDefinitionIsSquare
+          - GeneralViewLayoutStrategy_BuildLayout_PilotPolicy_PartUsage_IsOwnNodeBesideOwner
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageNodes
+        title: >-
+          By default, GeneralViewLayoutStrategy shall draw each part, item, occurrence, action,
+          state, requirement, and concern usage, and each port usage that owns nested features,
+          as a box of its own placed beside its owner and joined to it, and shall list attributes,
+          enumeration values, plain reference usages, and ports without nested features as
+          compartment rows of their owner instead; a usage nested in a usage shall be joined to
+          that usage, and a usage nested at any depth shall not be dropped.
+        justification: |
+          The OMG SysML v2 reference implementation draws occurrence-kind usages as nodes and
+          shows attributes and plain references as compartment rows, so a General View that
+          follows it reads the same as the notation reference diagrams. A usage that owns content
+          (a port with nested features, a part with parts) needs a box in which that content can
+          be drawn, while a plain port or attribute is fully described by one row. Showing the
+          structure of nested usages as nodes also lets typing, subsetting, and redefinition be
+          drawn between the usages themselves. Dropping a nested usage whose owner is not
+          rendered would silently lose model content.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_PilotPolicy_PartUsage_IsOwnNodeBesideOwner
+          - GeneralViewLayoutStrategy_BuildLayout_PilotPolicy_AttributeAndPlainReference_StayRows
+          - GeneralViewLayoutStrategy_BuildLayout_PilotPolicy_NestedUsageInUsage_ChainsOwners
+          - GeneralViewLayoutStrategy_BuildLayout_PlainPort_IsRowOfOwnerPortsCompartment
+          - GeneralViewLayoutStrategy_BuildLayout_PortWithNestedContent_IsNodeAndPlainPortStaysRow
+          - GeneralViewLayoutStrategy_BuildLayout_IdenticalUsageNodesOfDifferentOwners_AreBothDrawn
+          - GeneralViewLayoutStrategy_BuildLayout_DepthLimit_OwnerWithUsageNodes_StaysLeafWithEllipsisRow
+          - GeneralViewLayoutStrategy_BuildLayout_ScopedExpose_RecursiveIncludesUsageNodes_NamespaceKeepsRows
+          - GeneralViewLayoutStrategy_BuildLayout_NoFilter_RendersDeeplyNestedGrandchildUsageWhenIntermediateParentExcluded
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NodePolicy
+        title: >-
+          GeneralViewLayoutStrategy shall decide by a selectable policy which nested usages are
+          drawn as boxes of their own: the default policy as specified for UsageNodes, an
+          alternative that draws every named usage with a keyword as a box (except constraint
+          expressions and enumeration values), and an alternative that draws no nested usage as a
+          box, lists every usage as a compartment row, and draws no usage relationship edge; an
+          unnamed usage, a usage without a keyword, and a usage that carries an expression shall
+          never be drawn as a box.
+        justification: |
+          Whether nested usages are boxes or rows is a notation-density decision that differs
+          between the SysML v2 reference implementation and compartment-only styles. Making the
+          decision a single selectable policy keeps the default faithful to the reference while
+          allowing a denser or a compartment-only presentation to be offered later without
+          changing how the rest of the diagram is built. The policy is not yet exposed through the
+          command line or the public rendering options.
+        tests:
+          - GeneralViewLayoutStrategy_NodePolicy_IsNode_KeywordMatrix_ReturnsExpected
+          - GeneralViewLayoutStrategy_NodePolicy_IsNode_UnnamedWithoutKeywordOrExpression_IsNeverNode
+          - GeneralViewLayoutStrategy_NodePolicy_IsNode_PilotPort_IsNodeOnlyWithNestedContent
+          - GeneralViewLayoutStrategy_BuildLayout_RowsOnlyPolicy_PartUsage_StaysRowAndDrawsNoEdges
+          - GeneralViewLayoutStrategy_BuildLayout_PortPolicyVariants_AllUsagesDrawsPlainPortAsNode_RowsOnlyDoesNot
+          - GeneralViewLayoutStrategy_BuildLayout_AllUsages_AttributeUsage_IsNodeWithTypingAndHollowDiamond
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageNameLine
+        title: >-
+          GeneralViewLayoutStrategy shall label the name line of a usage box in the textual
+          notation — the short name, the name, the typing (a conjugated typing with a leading
+          `~`), the multiplicity, the `ordered`/`nonunique` modifiers, then the subsetting
+          (`:>`), redefinition (`:>>`), and reference-subsetting (`::>`) references — omitting any
+          piece the model does not declare, and shall write the keyword of a usage with its
+          prefix words (`abstract`, `variation`, `individual`, `variant`, `ref`) inside the
+          guillemet marks without repeating `ref` for a plain reference usage.
+        justification: |
+          The SysML v2 graphical notation shows the same textual pieces on a usage node as in the
+          source model. Reproducing them lets a reader see a usage's type, multiplicity, and the
+          features it narrows or redefines from the box alone, and the prefix words classify the
+          usage (abstract, variant, reference) without a separate legend.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_UsageNameLine_ShowsTypeMultiplicitySubsettingRedefinitionAndReferenceSubsetting
+          - GeneralViewLayoutStrategy_BuildLayout_ConjugatedTyping_ShowsTildeAndTypesTheUsageByThePortDefinition
+          - GeneralViewLayoutStrategy_BuildLayout_UsageKeyword_PrefixWords_AreInsideTheKeyword
+          - GeneralViewLayoutStrategy_BuildLayout_PlainReferenceUsage_KeywordIsNotDoubled
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-FeatureRows
+        title: >-
+          GeneralViewLayoutStrategy shall write each usage that is shown as a compartment row in
+          the textual notation — an optional direction keyword (`in`, `out`, `inout`), the name,
+          the typing (a conjugated typing with a leading `~`), the multiplicity with its
+          `ordered`/`nonunique` modifiers, the subsetting, redefinition, and reference-subsetting
+          clauses, and the value clause — omitting any piece the model does not declare.
+        justification: |
+          Attributes, plain ports, and the other usages shown as rows are specified by their
+          textual form in the SysML v2 graphical notation. Showing every declared piece keeps the
+          row a faithful summary of the declaration, since these usages have no box of their own
+          to carry the detail.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_FeatureRows_UseTextualNotation
+          - GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AbstractDefinitionName
+        title: >-
+          GeneralViewLayoutStrategy shall write the name of an abstract definition in italics and
+          its keyword with the `abstract` prefix word, and shall not write the name of an abstract
+          usage in italics.
+        justification: |
+          Table 4 of the SysML v2 graphical notation sets the name of an abstract definition in
+          italics; an abstract usage is marked by its `abstract` keyword prefix only. Following
+          the table lets a reader recognize an abstract definition at a glance without confusing
+          it with an abstract usage.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_AbstractDefinition_NameIsItalicButAbstractUsageIsNot
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ReferenceUsageShape
+        title: >-
+          GeneralViewLayoutStrategy shall draw the box of a reference usage with a dashed outline
+          and the box of a composite usage with a solid outline.
+        justification: |
+          The SysML v2 graphical notation draws a reference part (a usage that does not own its
+          value) with a dashed outline. The outline style lets a reader tell a referenced usage
+          from an owned one without reading the keyword.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ReferenceUsage_OutlineIsDashedAndCompositeUsageIsSolid
+          - GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesHollowDiamondEdgeAndDashedNode
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-PackageGrouping
         title: >-
@@ -64,6 +179,19 @@ sections:
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_PackagedDefinitions_ProducesFolderBox
           - GeneralViewLayoutStrategy_BuildLayout_Unscoped_StillRendersFullPackageFolderStructure
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-PackageTabTitle
+        title: >-
+          GeneralViewLayoutStrategy shall write the name of a package folder that has content in
+          the folder's tab, and shall keep the name inside the body of a package that has no
+          content (an exposed package without exposed members) and of a package collapsed by the
+          depth limit.
+        justification: |
+          The SysML v2 graphical notation draws a package with its name in the tab when the
+          package shows its members, and with its name inside the body when it shows none. Placing
+          the name in the tab leaves the whole body to the members, which keeps the folder compact.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_PackageFolder_NameInTabOnlyWhenItHasContent
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NestedDefinitionContainment
         title: >-
@@ -97,12 +225,22 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Compartments
         title: >-
-          GeneralViewLayoutStrategy shall populate a definition box with compartments listing the
-          definition's owned usages.
+          GeneralViewLayoutStrategy shall populate a definition or usage box with compartments
+          listing the owned usages that are shown as rows rather than as boxes of their own.
         justification: |
-          The usages a definition owns (attributes, ports, parts, and so on) are part of its
-          shown content. Listing them in compartments lets a reader see a definition's features
-          without opening another view.
+          The usages a box owns (attributes, plain ports, and, under an all-rows presentation,
+          parts) are part of its shown content. Listing them in compartments lets a reader see
+          an element's features without opening another view.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CompartmentTitles
+        title: >-
+          GeneralViewLayoutStrategy shall center the title of every compartment of a box and write
+          it in italics.
+        justification: |
+          The SysML v2 graphical notation sets compartment titles (`attributes`, `parts`, `doc`,
+          and so on) centered and in italics, which separates a compartment's title from its rows.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments
 
@@ -164,30 +302,48 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CompositeMembership
         title: >-
-          GeneralViewLayoutStrategy shall connect a definition to the type of each owned feature
-          with keyword <c>part</c> or <c>port</c> with a filled-diamond end marker at the owning
-          definition end.
+          GeneralViewLayoutStrategy shall connect each usage box to the box of the definition or
+          usage that owns it with a solid line ending in a filled-diamond end marker at the owner
+          when the usage is composite.
         justification: |
-          Structural containment relationships — part and port features — are shown as
-          filled-diamond edges in a General View. Non-structural features (attribute, value,
-          item, etc.) are already visible in compartments and do not need a separate arrow.
+          Composite ownership (a part owning its sub-parts, a definition owning its parts and
+          ports) is the core structural relationship of a General View and is drawn as a solid
+          line with a filled diamond at the owner in the SysML v2 graphical notation.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_CompositeMembership_ProducesFilledDiamondEdge
           - GeneralViewLayoutStrategy_BuildLayout_PortFeature_ProducesFilledDiamondEdge
+          - GeneralViewLayoutStrategy_BuildLayout_PilotPolicy_NestedUsageInUsage_ChainsOwners
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ReferenceMembership
         title: >-
-          GeneralViewLayoutStrategy shall connect a definition to the type of each owned <c>ref</c>
-          feature with a dashed line ending in an open-chevron end marker at the referenced type,
-          sharing the same rendering as a standalone Dependency edge.
+          GeneralViewLayoutStrategy shall connect each usage box that is referential to the box of
+          its owner with a solid line ending in a hollow-diamond end marker at the owner.
         justification: |
-          A `ref` (reference usage) feature is a usage-type dependency per current OMG SysML v2
-          notation, not a diamond-marked structural membership. The previous hollow-diamond
-          membership marker for `ref` was an obsolete notation and has been removed; rendering
-          `ref` with the same dashed/open-chevron style as a `Dependency` edge keeps both visually
-          identical, matching their shared semantic meaning.
+          A reference usage (and an attribute or enumeration usage when it is drawn as a box) does
+          not own its value; the SysML v2 graphical notation shows that non-composite feature
+          membership with a hollow diamond at the owner, distinct from the filled diamond of
+          composite ownership.
         tests:
-          - GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesDependencyEdge
+          - GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesHollowDiamondEdgeAndDashedNode
+          - GeneralViewLayoutStrategy_BuildLayout_AllUsages_AttributeUsage_IsNodeWithTypingAndHollowDiamond
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-FeatureTyping
+        title: >-
+          GeneralViewLayoutStrategy shall connect each usage box to the box of the definition that
+          types it with a solid line ending in a hollow-triangle-with-two-dots end marker at the
+          definition (a conjugated typing connecting to the underlying port definition), and shall
+          draw no typing edge for a usage whose type does not resolve to a box in the view.
+        justification: |
+          Feature typing is the relationship between a usage and its definition and is drawn with
+          the triangle-and-two-dots glyph of the SysML v2 graphical notation. An unresolved type
+          has no box to connect to; drawing nothing is consistent with every other reference kind
+          of this unit, and the type remains readable in the usage's name line.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_AllUsages_AttributeUsage_IsNodeWithTypingAndHollowDiamond
+          - GeneralViewLayoutStrategy_BuildLayout_EnumTypedAttribute_ProducesFeatureTypingEdge
+          - GeneralViewLayoutStrategy_BuildLayout_UsageTyping_UnresolvedType_ProducesNoTypingEdge
+          - GeneralViewLayoutStrategy_BuildLayout_ConjugatedTyping_ShowsTildeAndTypesTheUsageByThePortDefinition
+          - GeneralViewLayoutStrategy_BuildLayout_TwoAttributesSameType_ProducesTwoTypingEdgesWithoutException
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Connect
         title: >-
@@ -234,8 +390,7 @@ sections:
         justification: |
           A standalone `dependency A to B;` declaration is the general OMG dependency
           relationship, rendered per convention as a dashed line with an open arrowhead pointing
-          at the depended-upon element — the same rendering the `ref`-fix reuses, since both are
-          semantically a usage-type dependency.
+          at the depended-upon element, distinct from the solid line of an allocation.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_Dependency_ProducesDashedChevronEdge
 
@@ -252,84 +407,157 @@ sections:
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_Binding_ProducesSolidEdgeWithEqualsLabel
 
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-SatisfyVerify
+        title: >-
+          GeneralViewLayoutStrategy shall connect the nearest rendered box of each resolved
+          satisfy or verify relationship's source to the nearest rendered box of the requirement
+          with a solid line ending in an open arrowhead at the requirement, carrying a
+          <c>«satisfy»</c> or <c>«verify»</c> midpoint label.
+        justification: |
+          `satisfy` and `verify` relate a design element or a verification to the requirement it
+          addresses and are drawn as solid lines with an open arrowhead and a keyword label in the
+          SysML v2 graphical notation. The relating element is often a nested declaration (an
+          objective, a subject) that has no box of its own, so it is drawn on the nearest box that
+          contains it.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_Satisfy_ProducesSolidOpenArrowEdgeWithKeywordLabel
+          - GeneralViewLayoutStrategy_BuildLayout_Verify_NestedSourceMapsToNearestRenderedBox
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ImportEdges
+        title: >-
+          GeneralViewLayoutStrategy shall connect the folder or box of each importing namespace to
+          the folder or box of the namespace it imports with a dashed line ending in an open
+          arrowhead at the imported namespace, labeled <c>«import»</c> for a membership import,
+          <c>«import»*</c> for a namespace import, and <c>«import»**</c> for a recursive import,
+          and shall draw nothing for an import of the standard library, of an unrendered
+          namespace, or between a namespace and a namespace nested in it.
+        justification: |
+          Imports make the structure of a multi-package model readable: they show which package
+          depends on which. The SysML v2 graphical notation draws them as dashed lines with an open
+          arrowhead and the import kind as the label. The standard library is excluded from the
+          diagram, and a package nested in its importer is already visible by containment, so
+          neither would add information.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_Imports_ProduceDashedOpenArrowEdgesLabeledByKind
+          - GeneralViewLayoutStrategy_BuildLayout_Imports_StdlibAndContainedNamespace_DrawNoEdge
+
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Subsetting
         title: >-
-          GeneralViewLayoutStrategy shall connect a subtype feature that declares a `subsets`/`:>`
-          reference to the owning definition of the subsetted (ancestor) feature — resolved via
-          the same owner-resolution walk used for Redefinition — with a dashed line ending in a
-          hollow-triangle end marker at the owner, matching each subsetted reference to its own
-          resolved edge by the reference's exact text, and shall draw no edge when the reference
-          cannot be resolved (including when only another reference of the same feature, such as
-          an alias of the same feature, resolved) or resolves back to the subtype's own owning
-          definition.
+          GeneralViewLayoutStrategy shall connect a usage box that declares a `subsets`/`:>`
+          reference to the box of the subsetted usage with a solid line ending in a hollow-triangle
+          end marker at the subsetted usage, matching each subsetted reference to its own resolved
+          edge by the reference's exact text, and shall draw no edge when the reference cannot be
+          resolved (including when only another reference of the same usage, such as an alias of
+          the same usage, resolved) or resolves back to the subsetting usage itself.
         justification: |
-          Subsetting (`subsets`/`:>` on a feature) is a distinct SysML v2 relationship from
-          redefinition, but shares the same "reference to an inherited member" resolution shape;
-          reusing `ResolveRedefinitionOwner` verbatim avoids adding a new public `SysmlEdgeKind`
-          or duplicating the owner-resolution algorithm, per this feature's explicit design
-          decision to keep Subsetting a private, view-layer-only classification derived from the
-          existing `SupertypeNames`/redefinition-owner machinery. The hollow-triangle marker
-          matches Specialization's marker (both express an "is-a-kind-of" narrowing), while the
-          dashed line style distinguishes it from Specialization's solid line, mirroring how
-          Typing is distinguished from Membership.
+          Subsetting is the SysML v2 relationship by which a usage narrows another usage; the
+          graphical notation draws it between the two usages with the hollow triangle that also
+          marks specialization, since both express an "is-a-kind-of" narrowing. A subsetting
+          between two usages of the same definition and one that crosses a specialization boundary
+          are both drawn between the usage boxes themselves. An unresolved or self-referential
+          reference has nothing to connect, so nothing is drawn.
         tests:
-          - GeneralViewLayoutStrategy_BuildLayout_Subsetting_CrossesSpecializationBoundary_ProducesDashedHollowTriangleEdge
+          - GeneralViewLayoutStrategy_BuildLayout_Subsetting_CrossesSpecializationBoundary_ProducesSolidHollowTriangleUsageEdge
+          - GeneralViewLayoutStrategy_BuildLayout_SameDefinitionSubsetting_ProducesUsageToUsageEdge
           - GeneralViewLayoutStrategy_BuildLayout_SelfReferentialSubsetting_ProducesNoEdge
           - GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndAliasOfSameFeature_DrawsOneEdge
 
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ReferenceSubsetting
+        title: >-
+          GeneralViewLayoutStrategy shall connect a usage box that declares a `::>` reference to
+          the box of the referenced usage with a solid line ending in a
+          hollow-triangle-with-four-dots end marker at the referenced usage, and shall draw no
+          edge when the reference cannot be resolved.
+        justification: |
+          Reference subsetting is the SysML v2 relationship by which a usage references another
+          usage, drawn with the triangle-and-four-dots glyph of the graphical notation. Resolving
+          the reference by name resolution lets the glyph connect the actual usages; an
+          unresolved reference draws nothing, as for every other reference kind of this unit.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_ReferenceSubsetting_ProducesHollowTriangleFourDotsEdgeOnlyWhenResolved
+
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NonStructuralMembership
         title: >-
-          GeneralViewLayoutStrategy shall not draw membership (diamond) edges for features with
-          non-structural keywords such as <c>attribute</c>, <c>value</c>, or <c>item</c>.
+          GeneralViewLayoutStrategy shall draw neither a membership edge nor a typing edge for a
+          feature that is shown as a compartment row — an attribute, an enumeration value, a
+          plain reference usage, or a port without nested features.
         justification: |
-          Non-structural features describe usage, not containment or reference. Omitting their
-          membership diamond edges prevents the General View from confusing attribute typing with
-          composition; where an attribute's type is a definition in the view it is instead shown as
-          a dependency edge (see the AttributeTyping requirement).
+          A feature shown as a row is fully described by the row, which already shows its type.
+          Joining it to its owner or to its type by an edge would add a line for every attribute
+          of every definition and bury the structural relationships of the diagram.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_AttributeFeature_DoesNotProduceDiamondEdge
-
-      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AttributeTyping
-        title: >-
-          GeneralViewLayoutStrategy shall connect a definition to the type of each owned
-          <c>attribute</c> (or <c>enum</c>-typed attribute) feature whose type resolves to a
-          definition in the view with a dashed dependency line ending in an open chevron at the
-          attribute-type definition.
-        justification: |
-          An attribute or enumeration definition referenced only by attribute features would
-          otherwise float as a disconnected box. Drawing an owner-to-type dependency joins it into
-          the cluster near the definitions that use it. Attribute typing is a usage-type dependency,
-          not composition, so it uses the OMG dependency notation (a dashed line with an open
-          arrowhead) rather than a membership diamond, keeping it visually distinct from structural
-          memberships (filled diamond) and specializations (hollow triangle). Unresolved types and
-          self-references are skipped, exactly as for the other edge kinds.
-        tests:
-          - GeneralViewLayoutStrategy_BuildLayout_AttributeTyping_ProducesDashedOpenChevronEdge
-          - GeneralViewLayoutStrategy_BuildLayout_EnumTypedAttribute_ProducesDashedOpenChevronEdge
-          - GeneralViewLayoutStrategy_BuildLayout_AttributeTyping_UnresolvedType_ProducesNoEdge
+          - GeneralViewLayoutStrategy_BuildLayout_AttributeTyping_RowDrawsNoTypingEdge
+          - GeneralViewLayoutStrategy_BuildLayout_PlainPort_IsRowOfOwnerPortsCompartment
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-LayeredPlacement
         title: >-
-          GeneralViewLayoutStrategy shall place definitions through the bundled
-          DemaConsulting.Rendering.Layout hierarchical layout engine so that no two definition
-          boxes overlap and every package folder stays clear of the others.
+          GeneralViewLayoutStrategy shall place definitions and usages through the bundled
+          DemaConsulting.Rendering.Layout hierarchical layout engine so that no two boxes overlap
+          — including many unconnected boxes of one package — and every package folder stays
+          clear of the others.
         justification: |
           The whole General View is expressed as a single input LayoutGraph — package folders as
-          container nodes, definitions as leaves — and placed with one LayoutEngine.Layout call
-          via the "auto" meta-algorithm (AutoLayoutAlgorithm): the root scope classifies folders
-          and top-level definitions by connectivity, routing connected groups through the bundled
-          layered algorithm (LayeredLayoutAlgorithm) and packing disconnected/singleton nodes by
-          reading order (ContainmentLayoutAlgorithm), while each folder's own contents are always
-          ordered by their intra-package edges with the layered algorithm. Delegating the whole
+          container nodes, definitions and usages as leaves — and placed with one LayoutEngine.Layout
+          call via the "auto" meta-algorithm (AutoLayoutAlgorithm): the root scope and each
+          folder's own contents are classified by connectivity, routing connected groups through
+          the bundled layered algorithm (LayeredLayoutAlgorithm) and packing disconnected or
+          singleton nodes by reading order (ContainmentLayoutAlgorithm). Delegating the whole
           placement, including cross-container edge
           anchoring, to Rendering's own engine gives the General View ELK-style box placement and
           orthogonal edge routing without SysML2Tools duplicating any layout logic. The observable
           guarantee that matters to readers is that boxes and folders never overlap, regardless of
-          model size or density, so the diagram stays legible without manual layout hints.
+          model size or density, so the diagram stays legible without manual layout hints; a
+          layered algorithm pinned to a folder was observed to stack unconnected boxes of one layer
+          on top of each other, so the unconnected case is guarded explicitly.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_AdaptiveGap_DenseModelProducesNonOverlappingBoxes
           - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_ConnectedModelKeepsBoxesSeparated
           - GeneralViewLayoutStrategy_BuildLayout_HeatLayout_SparseModelProducesCompactCanvas
+          - GeneralViewLayoutStrategy_BuildLayout_TopDown_UnconnectedDefinitionsDoNotOverlap
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Direction
+        title: >-
+          GeneralViewLayoutStrategy shall flow the diagram from top to bottom: the owner and the
+          supertype shall be placed above the usage or definition that is owned by it or
+          specializes it, and the definition that types a usage shall be placed below the usage;
+          each connector shall keep its notation direction, with its end marker on the owner,
+          the supertype, or the typing definition.
+        justification: |
+          The SysML v2 reference implementation and the training material draw the owner and the
+          general element on top, so a reader scans the diagram from the most general element down
+          to the most specific. A definition typing a usage hangs below the usage it types, which
+          keeps each definition close to the usages that rely on it instead of forming a rigid tier
+          above every usage. The marker still sits on the end the notation prescribes, whatever
+          direction the picture flows.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_TopDown_OwnerAndGeneralAboveUsageAndDefinitionBelow
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-LayoutCompactness
+        title: >-
+          GeneralViewLayoutStrategy shall keep a General View of one definition that owns several
+          usages compact: the usages of the owner shall share one row directly below it, each
+          definition typing a usage shall hang below that usage, and the drawing shall stay within
+          a readable size.
+        justification: |
+          A General View that grows several thousand pixels wide cannot be read in documentation
+          or shown on one page. Placing every usage of an owner in one row below it and each
+          typing definition below its usage, instead of in rigid tiers above every usage, keeps
+          the diagram a short tree whose size grows with the model rather than with its
+          relationships.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_DroneLikeModel_IsCompactAndTopDown
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CanvasFit
+        title: >-
+          GeneralViewLayoutStrategy shall size the canvas so that every connector of the drawing,
+          including a connector joining two top-level package folders, lies entirely inside it.
+        justification: |
+          A connector that leaves the canvas is clipped by the renderers, which hides a
+          relationship between packages. The layout engine does not grow the canvas for such a
+          connector, so the strategy fits the canvas to the connectors itself.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_TopDown_ConnectorsBetweenRootFolders_StayInsideCanvas
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposeScoping
         title: >-
@@ -419,24 +647,19 @@ sections:
           GeneralViewLayoutStrategy shall admit named usage-level declarations (feature usages),
           not only definitions, as filter/render candidates, so a metaclass-kind classification
           filter (e.g. `filter @SysML::PartUsage;`) that targets usages has matching candidates to
-          narrow, and shall render such a usage-level candidate as a standalone box only when it is
-          not already shown as a compartment row of an independently-rendered immediate parent.
+          narrow, and shall render such a usage-level candidate as a box of its own unless it is
+          shown as a compartment row of an independently-rendered owner.
         justification: |
-          `CollectDefinitions` doubles as both the filter-candidate source and the box-rendering
-          function for the entire General View diagram. Real-world corpus filters (e.g. OMG's
-          `42.Views/ViewsExample.sysml`, `filter @SysML::PartUsage;`) classify by usage-level
-          metaclass/kind, which a definitions-only candidate set could never satisfy — such a view
-          would render empty rather than narrowed. Widening the candidate set to include named
-          usages is a deliberate, planned behavior change, but rendering every admitted usage
-          unconditionally (Phase 2d, before Retry 1) was itself a genuine regression: a usage
-          nested inside an already-rendered definition/usage duplicates the compartment row it
-          already occupies there, more than doubling the box count of real corpus models (e.g. the
-          gallery's `01-drone-general.sysml`, 21 → 47 boxes). `RemoveRedundantNestedUsages` (Retry
-          1, hardened to a depth-ordered cascading pass in Retry 2 to avoid silently dropping
-          usages nested two or more levels deep) restores the pre-Phase-2d default-rendering box
-          count by excluding exactly the nested usages whose nearest still-rendered ancestor is
-          also independently rendered, while still admitting usages that survive scope/filter
-          narrowing when their parent does not.
+          The set of filter candidates and the set of rendered boxes come from the same pass over
+          the model. Real-world corpus filters (e.g. OMG's `42.Views/ViewsExample.sysml`,
+          `filter @SysML::PartUsage;`) classify by usage-level metaclass/kind, which a
+          definitions-only candidate set could never satisfy — such a view would render empty
+          rather than narrowed. Widening the candidate set to include named usages is deliberate,
+          but a usage that its rendered owner already lists as a compartment row (an attribute, a
+          plain port) must not also get a box, which would duplicate it and more than double the
+          box count of real corpus models. A usage that is drawn as a box is kept when its owner
+          was excluded by scope or filter, and a usage nested several levels deep is never dropped
+          merely because an intermediate usage is shown as a row.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_QualifiedPartUsageFilter_RendersOnlyPartUsages
           - GeneralViewLayoutStrategy_BuildLayout_BarePartUsageFilter_RendersOnlyPartUsages
@@ -470,43 +693,43 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-QualifiedForm
         title: >-
-          GeneralViewLayoutStrategy shall connect a subtype feature that declares a qualified
-          `Owner::feature` `redefines`/`:>>` reference to the named owner with a solid line
-          ending in a hollow-triangle-with-crossbar end marker at the owner.
+          GeneralViewLayoutStrategy shall connect a usage box that declares a qualified
+          `Owner::feature` `redefines`/`:>>` reference to the box of the named redefined usage with
+          a solid line ending in a hollow-triangle-with-crossbar end marker at the redefined usage.
         justification: |
-          `redefines`/`:>>` feature redefinition is core SysML v2 model structure completing the
-          ROADMAP's "Connector-end & line-style conformance" item: the already-existing
-          `HollowTriangleCrossbar` end-marker style needed a producing model edge to ever appear
-          in a rendered General View. A qualified reference names its owner directly, matching
-          the shape observed in the OMG corpus (e.g.
+          `redefines`/`:>>` feature redefinition is core SysML v2 model structure; the graphical
+          notation draws it between the redefining and the redefined usage with the
+          triangle-and-crossbar glyph. A qualified reference names the redefined usage directly,
+          matching the shape observed in the OMG corpus (e.g.
           `test/SysMLModels/OMG/validation/01-PartsTree/1a-PartsTree.sysml`'s qualified
           `redefines Vehicle::mass`).
         tests:
-          - GeneralViewLayoutStrategy_BuildLayout_QualifiedRedefinition_ProducesHollowTriangleCrossbarEdgeToOwner
+          - GeneralViewLayoutStrategy_BuildLayout_QualifiedRedefinition_ProducesHollowTriangleCrossbarEdgeToRedefinedUsage
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-BareNameForm
         title: >-
-          GeneralViewLayoutStrategy shall connect a subtype feature that declares a bare-name
-          `redefines`/`:>>` reference to the ancestor definition that declares a matching member,
-          found by walking the subtype's own supertype chain transitively, with a solid line
-          ending in a hollow-triangle-with-crossbar end marker at that ancestor.
+          GeneralViewLayoutStrategy shall connect a usage box that declares a bare-name
+          `redefines`/`:>>` reference to the box of the usage that the nearest ancestor of its
+          owner declares with that name, found by walking the owner's own supertype chain
+          transitively, with a solid line ending in a hollow-triangle-with-crossbar end marker at
+          that usage.
         justification: |
           The dominant real-world shape for `redefines` per the SysML v2 spec is a bare name
-          referencing a member the subtype inherits, matching the shape observed in the OMG
+          referencing a member the owner inherits, matching the shape observed in the OMG
           corpus (e.g.
           `test/SysMLModels/OMG/training/05.Redefinition/RedefinitionExample.sysml`'s bare-name
           `redefines eng`). Resolving transitively (not just one supertype hop) is required
           because the declaring ancestor is frequently two or more hops away from the redefining
-          subtype.
+          usage's owner.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_BareNameRedefinition_ProducesHollowTriangleCrossbarEdge
-          - GeneralViewLayoutStrategy_BuildLayout_TransitiveBareNameRedefinition_ProducesHollowTriangleCrossbarEdgeToDeclaringAncestor
+          - GeneralViewLayoutStrategy_BuildLayout_TransitiveBareNameRedefinition_ProducesHollowTriangleCrossbarEdgeToDeclaringAncestorUsage
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-NoEdgeOnFailure
         title: >-
           GeneralViewLayoutStrategy shall produce no redefinition edge and no diagnostic when a
           `redefines`/`:>>` reference cannot be resolved to any ancestor member, or when it
-          resolves back to the redefining feature's own owning definition.
+          resolves back to the redefining usage itself.
         justification: |
           Graceful degradation for an unresolvable or self-referential redefinition reference is
           consistent with how every other reference kind in this unit behaves on failure: false
@@ -518,11 +741,11 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AnnotationNote
         title: >-
-          GeneralViewLayoutStrategy shall render one `BoxShape.Note` box per definition that
+          GeneralViewLayoutStrategy shall render one `BoxShape.Note` box per definition or usage that
           carries exposed `comment` annotations satisfying the view conditions, connected to the
-          definition's box by a plain dashed line with no end marker (SysML 8.2.3.4 comment-node
+          element's box by a plain dashed line with no end marker (SysML 8.2.3.4 comment-node
           and annotation-link), containing the Comment text (multiple comments concatenated with a
-          blank-line separator into a single note), and shall emit no note box for a definition
+          blank-line separator into a single note), and shall emit no note box for an element
           with no such comments.
         justification: |
           The ROADMAP's "Annotating elements" gap: `comment` annotations were already
@@ -541,6 +764,19 @@ sections:
           - GeneralViewLayoutStrategy_BuildLayout_AnnotatedDefinition_EmitsNoteBox
           - GeneralViewLayoutStrategy_BuildLayout_UnannotatedDefinition_EmitsNoNoteBox
           - GeneralViewLayoutStrategy_BuildLayout_MultipleAnnotations_ProduceOneNoteBox
+
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageDocAndComment
+        title: >-
+          GeneralViewLayoutStrategy shall draw the `doc` of a usage that has a box of its own as a
+          compartment of that usage's box, and a `comment` on such a usage as a note joined to
+          that usage's box, rather than attaching either to the usage's owner.
+        justification: |
+          Documentation and comments belong to the element they are written on. A nested part is
+          a box of its own, so its documentation and notes must appear on that box; attaching them
+          to the owner would misattribute the text, and showing the part only as a row of its owner
+          would lose them.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_NestedPartDocAndComment_AttachToOwnNode
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-SameNamedDefinitions
         title: >-
@@ -701,7 +937,7 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExternalEdgeOrdering
         title: >-
           GeneralViewLayoutStrategy shall order the definitions inside a package folder by the
-          vertical position of the boxes their relationships lead to outside that folder, so that
+          horizontal position of the boxes their relationships lead to outside that folder, so that
           relationships leaving the folder do not need to cross one another and the picture does
           not depend on the order the definitions were declared in.
         justification: |
