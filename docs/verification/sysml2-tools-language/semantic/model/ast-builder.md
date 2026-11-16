@@ -111,7 +111,9 @@ external services or additional configuration are required beyond a standard .NE
 - `ordered`/`nonunique`, the value clause (`ValueText`, operator and whitespace preserved),
   `::>`/`references` targets, `~` conjugated typing, state sub-action declaration text, and
   `parallel` are captured as raw, unresolved data; `::>` targets stay out of `SupertypeNames`
-  and a conjugated typing leaves `FeatureTyping` null, so no edge or diagnostic is added.
+  and a conjugated typing leaves `FeatureTyping` null, so no edge or diagnostic is added. The same
+  data is captured on specialized usages (action, state, requirement, concern, constraint) through
+  the shared `ApplyFeatureNotation` helper, and action control nodes never receive `IsParallel`.
 - A transition's `Trigger` and `Effect` are captured verbatim for the full and attached forms
   (null for the entry-attached and action-flow forms and for empty effects), with `Guard`
   unchanged.
@@ -193,6 +195,9 @@ external services or additional configuration are required beyond a standard .NE
 | Modifiers in specialized bodies | `WorkspaceLoader_LoadAsync_ModifiersInSpecializedBodies_AppliedToUsagesOnly` |
 | `ordered`/`nonunique` | `WorkspaceLoader_LoadAsync_OrderedNonunique_Captured` |
 | Value clause verbatim | `WorkspaceLoader_LoadAsync_FeatureValue_CapturedVerbatim` |
+| Notation data on specialized usages | `WorkspaceLoader_LoadAsync_SpecializedUsages_CaptureNotationData` |
+| Leading modifiers on specialized usages | `WorkspaceLoader_LoadAsync_SpecializedUsages_CaptureLeadingModifiers` |
+| Action control nodes: no parallel data | `WorkspaceLoader_LoadAsync_ActionControlNodes_NoParallelOrNotationData` |
 | `::>`/`references` raw capture | `WorkspaceLoader_LoadAsync_ReferenceSubsetting_CapturedNotInSupertypeNames` |
 | `~` conjugated typing raw capture | `WorkspaceLoader_LoadAsync_ConjugatedPortTyping_CapturesNameKeepsTypingNull` |
 | Transition trigger/guard/effect | `WorkspaceLoader_LoadAsync_TransitionTriggerGuardEffect_Captured` |

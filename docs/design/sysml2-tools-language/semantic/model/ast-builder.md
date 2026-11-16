@@ -574,13 +574,22 @@ unchanged.
   only to the first definition or feature node, so synthesized transitions never receive flags.
   Doing this once, rather than in each of the ~35 definition and usage visitors, avoids per-visitor
   omissions.
-- **Usage data in `BuildUsageNode`.** `IsOrdered`/`IsNonunique` come from
+- **Shared usage data (`ApplyFeatureNotation`).** Every builder that turns a
+  `usageDeclaration`/`valuePart` pair into a `SysmlFeatureNode` — `BuildUsageNode` (generic
+  usages) and the specialized `VisitActionUsage`, `VisitStateUsage`, `VisitRequirementUsage`,
+  `VisitConcernUsage`, `VisitConstraintUsage`, the named form of `BuildConstraintFeatureNode`, and
+  `BuildActionNodeFeature` — calls this one helper rather than extracting the data itself, so no
+  usage form can silently drop it. `IsOrdered`/`IsNonunique` come from
   `featureSpecializationPart().multiplicityPart()` (independent of a `[..]` range);
-  `ValueText` is the verbatim text of `usageCompletion().valuePart().featureValue()`, operator
-  included; `ReferenceSubsettingName` comes from `ExtractReferenceSubsettingName` (the first
+  `ValueText` is the verbatim text of the `valuePart().featureValue()` (found under
+  `usageCompletion()` for generic usages, or under `actionUsageDeclaration()`/
+  `constraintUsageDeclaration()` for the specialized ones), operator included;
+  `ReferenceSubsettingName` comes from `ExtractReferenceSubsettingName` (the first
   `references()` clause); `ConjugatedFeatureTyping` comes from `ExtractConjugatedTypingName` (the
   `conjugatedPortTyping` alternative of the typings, which `ExtractFeatureTyping` ignores, so
-  `FeatureTyping` stays null and no `Typing` edge is produced).
+  `FeatureTyping` stays null and no `Typing` edge is produced). These members are `set` (not
+  `init`) so the helper can apply them after construction; the leading-modifier pass does the same
+  for its flags.
 - **Transitions.** `VisitTransitionUsage` and `BuildAttachedTransition` set `Trigger` and `Effect`
   from `triggerActionMember().triggerAction()` and `effectBehaviorMember().effectBehaviorUsage()`.
   `BuildEntryAttachedTransition` and `BuildActionTargetSuccession` have no trigger or effect in

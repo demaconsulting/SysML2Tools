@@ -6509,6 +6509,134 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     Action-flow control nodes (<c>decide</c>, <c>merge</c>, <c>fork</c>, <c>join</c>,
+    ///     <c>accept</c>, <c>send</c>) are never parallel and carry no spurious notation data;
+    ///     <c>IsParallel</c> belongs only to state definitions and state usages.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ActionControlNodes_NoParallelOrNotationData()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def Flow {
+                    action work;
+                    decide d;
+                    merge m;
+                    fork f;
+                    join j;
+                    accept a1;
+                    send s1;
+                }
+            }
+            """);
+
+        // Assert
+        var controlNodes = DefinitionAt(result, "P::Flow").Children.OfType<SysmlFeatureNode>().ToList();
+        Assert.NotEmpty(controlNodes);
+        Assert.All(controlNodes, n =>
+        {
+            Assert.False(n.IsParallel);
+            Assert.Null(n.ValueText);
+            Assert.False(n.IsOrdered);
+            Assert.False(n.IsNonunique);
+            Assert.Null(n.ReferenceSubsettingName);
+        });
+    }
+
+    /// <summary>
+    ///     Specialized usage builders (action, state, requirement, concern, constraint) capture the
+    ///     same ordered/nonunique, value, and reference-subsetting data as the generic usage path.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SpecializedUsages_CaptureNotationData()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def T;
+                part def H {
+                    part owner : T;
+                    action act [2] ordered nonunique ::> owner = 7;
+                    state st [2] ordered ::> owner := 3;
+                    requirement req [2] nonunique ::> owner = 4 { }
+                    concern con ordered ::> owner default = 5 { }
+                    constraint cst ::> owner = 6 { x > 1 }
+                    action plainAct;
+                    state plainSt;
+                    requirement plainReq { }
+                    concern plainCon { }
+                    constraint plainCst { x > 1 }
+                }
+            }
+            """);
+
+        // Assert
+        var act = FeatureAt(result, "P::H::act");
+        Assert.True(act.IsOrdered);
+        Assert.True(act.IsNonunique);
+        Assert.Equal("= 7", act.ValueText);
+        Assert.Equal("owner", act.ReferenceSubsettingName);
+
+        var st = FeatureAt(result, "P::H::st");
+        Assert.True(st.IsOrdered);
+        Assert.False(st.IsNonunique);
+        Assert.Equal(":= 3", st.ValueText);
+        Assert.Equal("owner", st.ReferenceSubsettingName);
+        Assert.False(st.IsParallel);
+
+        var req = FeatureAt(result, "P::H::req");
+        Assert.False(req.IsOrdered);
+        Assert.True(req.IsNonunique);
+        Assert.Equal("= 4", req.ValueText);
+        Assert.Equal("owner", req.ReferenceSubsettingName);
+
+        var con = FeatureAt(result, "P::H::con");
+        Assert.True(con.IsOrdered);
+        Assert.Equal("default = 5", con.ValueText);
+        Assert.Equal("owner", con.ReferenceSubsettingName);
+
+        var cst = FeatureAt(result, "P::H::cst");
+        Assert.Equal("= 6", cst.ValueText);
+        Assert.Equal("owner", cst.ReferenceSubsettingName);
+
+        foreach (var plain in new[] { "plainAct", "plainSt", "plainReq", "plainCon", "plainCst" })
+        {
+            var feature = FeatureAt(result, $"P::H::{plain}");
+            Assert.Null(feature.ValueText);
+            Assert.False(feature.IsOrdered);
+            Assert.False(feature.IsNonunique);
+            Assert.Null(feature.ReferenceSubsettingName);
+        }
+    }
+
+    /// <summary>
+    ///     Leading modifiers (<c>abstract</c>, <c>variation</c>, <c>ref</c>, direction) are captured
+    ///     on specialized usages (state, action, requirement) as well as on generic usages.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SpecializedUsages_CaptureLeadingModifiers()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def H {
+                    abstract state st;
+                    abstract action act;
+                    abstract requirement req { }
+                    in item inItem;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.True(FeatureAt(result, "P::H::st").IsAbstract);
+        Assert.True(FeatureAt(result, "P::H::act").IsAbstract);
+        Assert.True(FeatureAt(result, "P::H::req").IsAbstract);
+        Assert.Equal(SysmlFeatureDirection.In, FeatureAt(result, "P::H::inItem").Direction);
+    }
+
+    /// <summary>
     ///     A model that uses none of the new syntax leaves every new member at its default.
     /// </summary>
     [Fact]

@@ -504,12 +504,16 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             return null;
         }
 
-        return new SysmlFeatureNode
-        {
-            Name = name,
-            QualifiedName = QualifyName(name),
-            FeatureKeyword = "action",
-        };
+        var declaration = context.actionUsageDeclaration();
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = QualifyName(name),
+                FeatureKeyword = "action",
+            },
+            declaration?.usageDeclaration(),
+            declaration?.valuePart());
     }
 
     /// <inheritdoc/>
@@ -749,14 +753,17 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var declaredName = GetDeclaredName(decl?.identification());
         var name = declaredName ?? $"${keyword}{_anonymousNodeCounter++}";
 
-        return new SysmlFeatureNode
-        {
-            Name = name,
-            QualifiedName = declaredName is not null ? QualifyName(name) : null,
-            FeatureKeyword = keyword,
-            Children = Array.Empty<SysmlNode>(),
-            Annotations = Array.Empty<SysmlAnnotation>(),
-        };
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = declaredName is not null ? QualifyName(name) : null,
+                FeatureKeyword = keyword,
+                Children = Array.Empty<SysmlNode>(),
+                Annotations = Array.Empty<SysmlAnnotation>(),
+            },
+            decl,
+            null);
     }
 
     /// <inheritdoc/>
@@ -1130,15 +1137,18 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             ? FindVerificationMembers(body)
             : Array.Empty<string>();
 
-        return new SysmlFeatureNode
-        {
-            Name = name,
-            QualifiedName = name is not null ? QualifyName(name) : null,
-            FeatureKeyword = "requirement",
-            VerifiedRequirementNames = verifiedRequirementNames,
-            Children = children,
-            Annotations = annotations,
-        };
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = name is not null ? QualifyName(name) : null,
+                FeatureKeyword = "requirement",
+                VerifiedRequirementNames = verifiedRequirementNames,
+                Children = children,
+                Annotations = annotations,
+            },
+            context.constraintUsageDeclaration()?.usageDeclaration(),
+            context.constraintUsageDeclaration()?.valuePart());
     }
 
     /// <inheritdoc/>
@@ -1166,15 +1176,18 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             ? FindVerificationMembers(body)
             : Array.Empty<string>();
 
-        return new SysmlFeatureNode
-        {
-            Name = name,
-            QualifiedName = name is not null ? QualifyName(name) : null,
-            FeatureKeyword = "concern",
-            VerifiedRequirementNames = verifiedRequirementNames,
-            Children = children,
-            Annotations = annotations,
-        };
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = name is not null ? QualifyName(name) : null,
+                FeatureKeyword = "concern",
+                VerifiedRequirementNames = verifiedRequirementNames,
+                Children = children,
+                Annotations = annotations,
+            },
+            context.constraintUsageDeclaration()?.usageDeclaration(),
+            context.constraintUsageDeclaration()?.valuePart());
     }
 
     /// <inheritdoc/>
@@ -1253,13 +1266,16 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var name = GetDeclaredName(usage.constraintUsageDeclaration()?.usageDeclaration()?.identification());
         var expressionText = usage.calculationBody()?.GetText();
 
-        return new SysmlFeatureNode
-        {
-            Name = name,
-            QualifiedName = name is not null ? QualifyName(name) : null,
-            FeatureKeyword = keyword,
-            ExpressionText = expressionText,
-        };
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = name is not null ? QualifyName(name) : null,
+                FeatureKeyword = keyword,
+                ExpressionText = expressionText,
+            },
+            usage.constraintUsageDeclaration()?.usageDeclaration(),
+            usage.constraintUsageDeclaration()?.valuePart());
     }
 
     /// <inheritdoc/>
@@ -1273,13 +1289,16 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var name = GetDeclaredName(context.constraintUsageDeclaration()?.usageDeclaration()?.identification());
         var expressionText = context.calculationBody()?.GetText();
 
-        return new SysmlFeatureNode
-        {
-            Name = name,
-            QualifiedName = name is not null ? QualifyName(name) : null,
-            FeatureKeyword = "constraint",
-            ExpressionText = expressionText,
-        };
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = name is not null ? QualifyName(name) : null,
+                FeatureKeyword = "constraint",
+                ExpressionText = expressionText,
+            },
+            context.constraintUsageDeclaration()?.usageDeclaration(),
+            context.constraintUsageDeclaration()?.valuePart());
     }
 
     /// <inheritdoc/>
@@ -1395,16 +1414,19 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var (children, annotations) = CollectChildren(context.stateUsageBody()?.stateBodyItem() ?? []);
         _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
 
-        return new SysmlFeatureNode
-        {
-            Name = name,
-            QualifiedName = QualifyName(name),
-            FeatureKeyword = "state",
-            FeatureTyping = typing,
-            Children = children,
-            Annotations = annotations,
-            IsParallel = context.stateUsageBody()?.PARALLEL() is not null,
-        };
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = QualifyName(name),
+                FeatureKeyword = "state",
+                FeatureTyping = typing,
+                Children = children,
+                Annotations = annotations,
+                IsParallel = context.stateUsageBody()?.PARALLEL() is not null,
+            },
+            decl,
+            context.actionUsageDeclaration()?.valuePart());
     }
 
     /// <summary>
@@ -1679,10 +1701,6 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var redefined = ExtractRedefinedFeature(decl?.featureSpecializationPart());
         var supertypeNames = ExtractSubsettingTargetNames(decl?.featureSpecializationPart());
         var multiplicity = ExtractMultiplicity(decl?.featureSpecializationPart());
-        var multiplicityPart = decl?.featureSpecializationPart()?.multiplicityPart();
-        var referenceSubsetting = ExtractReferenceSubsettingName(decl?.featureSpecializationPart());
-        var conjugatedTyping = ExtractConjugatedTypingName(decl?.featureSpecializationPart());
-        var valueText = OriginalTextOrNull(usage.usageCompletion()?.valuePart()?.featureValue());
 
         // An unnamed usage that redefines a feature (e.g. `port redefines fuelTankPort { ... }`,
         // with no name token of its own) implicitly takes the redefined feature's own simple name
@@ -1713,7 +1731,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             }
         }
 
-        return new SysmlFeatureNode
+        var node = new SysmlFeatureNode
         {
             Name = effectiveName,
             QualifiedName = qualifiedName,
@@ -1722,14 +1740,39 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             RedefinedFeatureName = redefined,
             SupertypeNames = supertypeNames,
             Multiplicity = multiplicity,
-            IsOrdered = multiplicityPart?.ORDERED() is not null,
-            IsNonunique = multiplicityPart?.NONUNIQUE() is not null,
-            ValueText = valueText,
-            ReferenceSubsettingName = referenceSubsetting,
-            ConjugatedFeatureTyping = conjugatedTyping,
             Children = children,
             Annotations = annotations,
         };
+
+        return ApplyFeatureNotation(node, decl, usage.usageCompletion()?.valuePart());
+    }
+
+    /// <summary>
+    ///     Shared notation-data enrichment applied by every builder that produces a
+    ///     <see cref="SysmlFeatureNode"/> from a <c>usageDeclaration</c>/<c>valuePart</c> pair
+    ///     (generic usages, and the specialized action, state, requirement, concern and constraint
+    ///     usages): captures <c>ordered</c>/<c>nonunique</c>, the verbatim value clause, the
+    ///     <c>::&gt;</c> reference-subsetting target and any conjugated typing name. Leading
+    ///     modifiers (<c>abstract</c>, <c>ref</c>, direction, ...) are applied separately and
+    ///     centrally by <see cref="ApplyLeadingModifiers"/>.
+    /// </summary>
+    /// <param name="node">The feature node to enrich.</param>
+    /// <param name="decl">The usage declaration, or null when the usage has none.</param>
+    /// <param name="valuePart">The value part (<c>= expr</c>), or null when none is declared.</param>
+    /// <returns><paramref name="node"/>, for call chaining.</returns>
+    private static SysmlFeatureNode ApplyFeatureNotation(
+        SysmlFeatureNode node,
+        SysMLv2Parser.UsageDeclarationContext? decl,
+        SysMLv2Parser.ValuePartContext? valuePart)
+    {
+        var specializationPart = decl?.featureSpecializationPart();
+        var multiplicityPart = specializationPart?.multiplicityPart();
+        node.IsOrdered = multiplicityPart?.ORDERED() is not null;
+        node.IsNonunique = multiplicityPart?.NONUNIQUE() is not null;
+        node.ReferenceSubsettingName = ExtractReferenceSubsettingName(specializationPart);
+        node.ConjugatedFeatureTyping = ExtractConjugatedTypingName(specializationPart);
+        node.ValueText = OriginalTextOrNull(valuePart?.featureValue());
+        return node;
     }
 
     /// <summary>

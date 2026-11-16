@@ -538,6 +538,9 @@ sections:
         tests:
           - WorkspaceLoader_LoadAsync_FeatureValue_CapturedVerbatim
           - WorkspaceLoader_LoadAsync_OrderedNonunique_Captured
+          - WorkspaceLoader_LoadAsync_SpecializedUsages_CaptureNotationData
+          - WorkspaceLoader_LoadAsync_SpecializedUsages_CaptureLeadingModifiers
+          - WorkspaceLoader_LoadAsync_ActionControlNodes_NoParallelOrNotationData
 
       - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ReferenceSubsettingConjugationRawCapture
         title: >-

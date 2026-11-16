@@ -286,7 +286,7 @@ public sealed class SysmlFeatureNode : SysmlNode
     ///     that predates this property.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public bool IsOrdered { get; init; }
+    public bool IsOrdered { get; set; }
 
     /// <summary>
     ///     Gets a value indicating whether the usage's multiplicity declares <c>nonunique</c>
@@ -294,7 +294,7 @@ public sealed class SysmlFeatureNode : SysmlNode
     ///     data that predates this property.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public bool IsNonunique { get; init; }
+    public bool IsNonunique { get; set; }
 
     /// <summary>
     ///     Gets the whole value clause of the usage verbatim, including its operator and original
@@ -304,7 +304,7 @@ public sealed class SysmlFeatureNode : SysmlNode
     ///     constraint body.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ValueText { get; init; }
+    public string? ValueText { get; set; }
 
     /// <summary>
     ///     Gets the raw, unresolved target of the usage's <c>::&gt;</c>/<c>references</c>
@@ -313,7 +313,7 @@ public sealed class SysmlFeatureNode : SysmlNode
     ///     diagnostic.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ReferenceSubsettingName { get; init; }
+    public string? ReferenceSubsettingName { get; set; }
 
     /// <summary>
     ///     Gets the raw, unresolved name of the conjugated type of a conjugated typing
@@ -322,7 +322,7 @@ public sealed class SysmlFeatureNode : SysmlNode
     ///     <see langword="null"/> for such a usage, so no typing edge is produced.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ConjugatedFeatureTyping { get; init; }
+    public string? ConjugatedFeatureTyping { get; set; }
 
     /// <summary>
     ///     Gets a value indicating whether the usage is typed by a conjugated port definition
