@@ -19,8 +19,12 @@ configuration are required beyond a standard .NET SDK installation.
 ##### Acceptance Criteria
 
 - All `StateTransitionViewLayoutStrategyTests` pass with zero failures across all four target frameworks.
-- A state definition yields one state box per state, an initial-state badge, and guard-labeled
-  transition lines.
+- A state definition yields one state box per state, an initial-state badge (when the model
+  declares an explicit initial transition), and guard-labeled transition lines.
+- The whole diagram is enclosed in a single frame box, inset symmetrically from the canvas edge so
+  its outline is not clipped, labeled with the state
+  definition's name and keyword `state def`, whose children are the state boxes, initial marker,
+  and transitions, with the state boxes positioned below the frame's title band.
 - A state named only by a transition is still rendered as a box.
 - An outgoing and an incoming transition on the same edge use distinct anchor points.
 - Each transition edge carries an open chevron end marker at the target state.
@@ -46,16 +50,18 @@ configuration are required beyond a standard .NET SDK installation.
   entry-action feature's name) is never rendered as its own state box.
 - The initial-state marker's arrow lands on the resolved target of a pseudostate- or
   entry-action-sourced transition, not the first-declared state, when such a transition exists.
-- When no pseudostate/entry-action-sourced transition exists, the initial-state marker's arrow
-  still lands on the first-declared state, unchanged from the pre-existing heuristic (protecting
-  the `03-elevator-state.sysml` gallery example and every other model using no explicit initial
-  transition).
+- When no pseudostate/entry-action-sourced transition exists, no initial-state marker is drawn —
+  neither a badge nor an arrow, and no top band is reserved for one — rather than guessing the
+  first-declared state.
+- The initial-state marker's arrow is a solid line with an open chevron end marker (not a filled
+  arrowhead).
 
 ##### Test Scenarios
 
 | Test | Assertion |
 | --- | --- |
-| `StateTransitionView_BuildLayout_StatesAndTransitions_ProducesBoxesBadgeAndLines` | State boxes, badge, guard line |
+| `StateTransitionView_BuildLayout_StatesAndTransitions_ProducesBoxesBadgeAndLines` | Boxes, badge, guard line |
+| `StateTransitionView_BuildLayout_RootDefinition_IsEnclosedInStateDefFrame` | `«state def»` frame holds all content |
 | `StateTransitionView_BuildLayout_UndeclaredStateInTransition_IsCreated` | Transition-only target rendered as a box |
 | `StateTransitionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas` | Canvas with no nodes |
 | `StateTransitionView_BuildLayout_InAndOutOnSameEdge_UseDistinctAnchors` | In/out transitions use distinct anchors |
@@ -71,4 +77,6 @@ configuration are required beyond a standard .NET SDK installation.
 | `StateTransitionView_BuildLayout_PseudostateSourceTransition_MarksResolvedTargetNotFirstDeclared` | Resolved target |
 | `StateTransitionView_BuildLayout_PseudostateSourceTransition_NoSpuriousBox` | No `"start"` box |
 | `StateTransitionView_BuildLayout_EntryActionSourceTransition_NoSpuriousBoxUsesResolvedTarget` | No entry box |
-| `StateTransitionView_BuildLayout_NoExplicitInitialTransition_FallsBackToFirstDeclared` | Fallback unchanged |
+| `StateTransitionView_BuildLayout_NoExplicitInitialTransition_DrawsNoInitialMarker` | No badge, arrow, or band |
+| `StateTransitionView_BuildLayout_DoneSourcedTransition_DrawsNoInitialMarker` | `done` source is not initial |
+| `StateTransitionView_BuildLayout_InitialMarkerArrow_IsSolidWithOpenArrowhead` | Solid arrow, open chevron head |

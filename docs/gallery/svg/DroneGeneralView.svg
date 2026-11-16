@@ -1,201 +1,200 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="2165.60" height="1261.55" viewBox="0 0 2165.60 1261.55">
+<svg xmlns="http://www.w3.org/2000/svg" width="2165.60" height="1243.55" viewBox="0 0 2165.60 1243.55">
   <defs>
     <marker id="line-end-open-chevron" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polyline points="0 0, 10 3.5, 0 7" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
+      <polyline points="0 0, 10 3.5, 0 7" fill="none" stroke="#000000" stroke-width="1.00"/>
     </marker>
     <marker id="line-end-hollow-triangle" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
     </marker>
     <marker id="line-end-filled-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+      <polygon points="0 0, 10 3.5, 0 7" fill="#000000" stroke="#000000" stroke-width="1.00"/>
     </marker>
     <marker id="line-end-hollow-triangle-crossbar" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-      <line x1="7" y1="0" x2="7" y2="7" stroke="#1A1A2E" stroke-width="1.50"/>
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+      <line x1="7" y1="0" x2="7" y2="7" stroke="#000000" stroke-width="1.00"/>
     </marker>
     <marker id="line-end-hollow-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
-      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
     </marker>
     <marker id="line-end-filled-diamond" markerWidth="14" markerHeight="8" refX="13" refY="4" orient="auto">
-      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#1A1A2E" stroke="#1A1A2E" stroke-width="1.50"/>
+      <polygon points="1 4, 7 0, 13 4, 7 8" fill="#000000" stroke="#000000" stroke-width="1.00"/>
     </marker>
     <marker id="line-end-circle" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
-      <circle cx="5" cy="5" r="4" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
+      <circle cx="5" cy="5" r="4" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
     </marker>
     <marker id="line-end-bar" markerWidth="4" markerHeight="12" refX="2" refY="6" orient="auto">
-      <line x1="2" y1="0" x2="2" y2="12" stroke="#1A1A2E" stroke-width="1.50"/>
+      <line x1="2" y1="0" x2="2" y2="12" stroke="#000000" stroke-width="1.00"/>
     </marker>
     <filter id="label-bg" x="-0.05" y="-0.05" width="1.1" height="1.1">
       <feFlood flood-color="#FFFFFF"/>
       <feComposite in="SourceGraphic" operator="over"/>
     </filter>
   </defs>
-  <path d="M 12.00 36.00 L 12.00 12.00 L 123.00 12.00 L 123.00 36.00 L 2153.60 36.00 L 2153.60 1249.55 L 12.00 1249.55 Z" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="1082.80" y="48.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«package»</text>
-  <text x="1082.80" y="67.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">QuadcopterDrone</text>
-  <rect x="44.00" y="112.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="109.00" y="127.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«interface def»</text>
-  <text x="109.00" y="146.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">PowerBus</text>
-  <rect x="204.00" y="112.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="269.00" y="127.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«interface def»</text>
-  <text x="269.00" y="146.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">DataBus</text>
-  <rect x="44.00" y="239.06" width="130.00" height="50.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="109.00" y="254.06" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«port def»</text>
-  <text x="109.00" y="273.06" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">PowerPort</text>
-  <rect x="44.00" y="379.06" width="130.00" height="50.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="109.00" y="394.06" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«port def»</text>
-  <text x="109.00" y="413.06" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">TelemetryPort</text>
-  <rect x="44.00" y="655.55" width="150.88" height="50.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="119.44" y="670.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«port def»</text>
-  <text x="119.44" y="689.55" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">MotorControlPort</text>
-  <rect x="44.00" y="565.55" width="130.00" height="60.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="109.00" y="585.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«port def»</text>
-  <text x="109.00" y="604.55" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">SensorPort</text>
-  <rect x="1991.60" y="934.48" width="130.00" height="80.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="2056.60" y="964.48" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«attribute def»</text>
-  <text x="2056.60" y="983.48" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Mass</text>
-  <rect x="1687.84" y="401.52" width="130.00" height="50.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="1752.84" y="416.52" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«attribute def»</text>
-  <text x="1752.84" y="435.52" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Voltage</text>
-  <rect x="1190.00" y="192.00" width="130.00" height="134.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="1255.00" y="204.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«enum def»</text>
-  <text x="1255.00" y="223.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">FlightMode</text>
-  <line x1="1190.00" y1="236.00" x2="1320.00" y2="236.00" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="1196.00" y="248.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">enum values</text>
-  <text x="1196.00" y="272.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">idle</text>
-  <text x="1196.00" y="290.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">manual</text>
-  <text x="1196.00" y="308.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">autonomous</text>
-  <rect x="1190.00" y="356.00" width="285.84" height="284.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="1332.92" y="368.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="1332.92" y="387.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Battery</text>
-  <line x1="1190.00" y1="400.00" x2="1475.84" y2="400.00" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="1196.00" y="412.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">doc</text>
-  <text x="1196.00" y="436.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Rechargeable lithium-polymer battery</text>
-  <text x="1196.00" y="454.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">pack supplying the drone's flight</text>
-  <text x="1196.00" y="472.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">controller, motors, and sensor bus</text>
-  <text x="1196.00" y="490.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">via the PowerPort interface. Drawn</text>
-  <text x="1196.00" y="508.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">as a doc compartment inside the</text>
-  <text x="1196.00" y="526.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Battery box.</text>
-  <line x1="1190.00" y1="538.00" x2="1475.84" y2="538.00" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="1196.00" y="550.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">attributes</text>
-  <text x="1196.00" y="574.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">capacity : Voltage</text>
-  <line x1="1190.00" y1="586.00" x2="1475.84" y2="586.00" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="1196.00" y="598.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">ports</text>
-  <text x="1196.00" y="622.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">output : PowerPort</text>
-  <path d="M 44.00 319.06 L 419.06 319.06 L 426.56 326.56 L 426.56 349.06 L 44.00 349.06 Z" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <path d="M 419.06 319.06 L 419.06 326.56 L 426.56 326.56" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="50.00" y="331.06" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">Demonstrates the BoxShape.Note comment rendering.</text>
-  <rect x="702.56" y="324.89" width="204.00" height="200.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="804.56" y="336.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="804.56" y="355.89" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">FlightController</text>
-  <line x1="702.56" y1="368.89" x2="906.56" y2="368.89" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="708.56" y="380.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">attributes</text>
-  <text x="708.56" y="404.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">mode : FlightMode</text>
-  <line x1="702.56" y1="416.89" x2="906.56" y2="416.89" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="708.56" y="428.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">ports</text>
-  <text x="708.56" y="452.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">power : PowerPort</text>
-  <text x="708.56" y="470.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">telemetry : TelemetryPort</text>
-  <text x="708.56" y="488.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">motors : MotorControlPort</text>
-  <text x="708.56" y="506.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">sensors : SensorPort</text>
-  <rect x="702.56" y="900.89" width="211.44" height="146.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="808.28" y="912.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="808.28" y="931.89" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Motor</text>
-  <line x1="702.56" y1="944.89" x2="914.00" y2="944.89" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="708.56" y="956.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">attributes</text>
-  <text x="708.56" y="980.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">maxThrust : Mass</text>
-  <line x1="702.56" y1="992.89" x2="914.00" y2="992.89" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="708.56" y="1004.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">ports</text>
-  <text x="708.56" y="1028.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">control : MotorControlPort</text>
-  <rect x="44.00" y="735.55" width="130.00" height="50.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="109.00" y="750.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="109.00" y="769.55" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Propeller</text>
-  <rect x="702.56" y="614.89" width="144.48" height="98.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="774.80" y="626.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="774.80" y="645.89" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">ImuSensor</text>
-  <line x1="702.56" y1="658.89" x2="847.04" y2="658.89" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="708.56" y="670.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">ports</text>
-  <text x="708.56" y="694.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">data : SensorPort</text>
-  <rect x="702.56" y="742.89" width="144.48" height="98.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="774.80" y="754.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="774.80" y="773.89" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">GpsSensor</text>
-  <line x1="702.56" y1="786.89" x2="847.04" y2="786.89" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="708.56" y="798.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">ports</text>
-  <text x="708.56" y="822.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">data : SensorPort</text>
-  <rect x="44.00" y="1167.55" width="130.00" height="50.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="109.00" y="1182.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="109.00" y="1201.55" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Frame</text>
-  <rect x="44.00" y="1039.55" width="137.04" height="98.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="112.52" y="1051.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="112.52" y="1070.55" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">RacingMotor</text>
-  <line x1="44.00" y1="1083.55" x2="181.04" y2="1083.55" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="50.00" y="1095.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">attributes</text>
-  <text x="50.00" y="1119.55" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">maxThrust : Mass</text>
-  <rect x="44.00" y="485.55" width="150.88" height="50.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="119.44" y="500.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="119.44" y="519.55" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">EnduranceBattery</text>
-  <rect x="1687.84" y="696.09" width="233.76" height="254.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="1804.72" y="708.09" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="1804.72" y="727.09" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">Drone</text>
-  <line x1="1687.84" y1="740.09" x2="1921.60" y2="740.09" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="1693.84" y="752.09" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">attributes</text>
-  <text x="1693.84" y="776.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">totalMass : Mass</text>
-  <line x1="1687.84" y1="788.09" x2="1921.60" y2="788.09" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="1693.84" y="800.09" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">parts</text>
-  <text x="1693.84" y="824.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">airframe : Frame</text>
-  <text x="1693.84" y="842.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">battery : Battery</text>
-  <text x="1693.84" y="860.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">controller : FlightController</text>
-  <text x="1693.84" y="878.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">motors : Motor [4]</text>
-  <text x="1693.84" y="896.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">propellers : Propeller [4]</text>
-  <text x="1693.84" y="914.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">imu : ImuSensor</text>
-  <text x="1693.84" y="932.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">gps : GpsSensor</text>
-  <rect x="1190.00" y="840.76" width="189.12" height="98.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="1284.56" y="852.76" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«part def»</text>
-  <text x="1284.56" y="871.76" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">RacingDrone</text>
-  <line x1="1190.00" y1="884.76" x2="1379.12" y2="884.76" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="1196.00" y="896.76" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">parts</text>
-  <text x="1196.00" y="920.76" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">frontMotors : Motor [2]</text>
-  <rect x="44.00" y="815.55" width="218.88" height="194.00" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="153.44" y="827.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">«requirement def»</text>
-  <text x="153.44" y="846.55" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle">FlightTimeRequirement</text>
-  <line x1="44.00" y1="859.55" x2="262.88" y2="859.55" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="50.00" y="871.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">«subject»</text>
-  <text x="50.00" y="895.55" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">drone : Drone</text>
-  <line x1="44.00" y1="907.55" x2="262.88" y2="907.55" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="50.00" y="919.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">attributes</text>
-  <text x="50.00" y="943.55" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">minFlightTimeMinutes : Mass</text>
-  <line x1="44.00" y1="955.55" x2="262.88" y2="955.55" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="50.00" y="967.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">«require constraint»</text>
-  <text x="50.00" y="991.55" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="start" dominant-baseline="middle">{drone.totalMass&lt;=2500}</text>
-  <path d="M 426.56 338.31 L 432.56 338.31 A 4.00 4.00 0 0 0 436.56 334.31 L 436.56 298.89 A 4.00 4.00 0 0 1 440.56 294.89 L 984.00 294.89 A 4.00 4.00 0 0 1 988.00 298.89 L 988.00 423.00 A 4.00 4.00 0 0 0 992.00 427.00 L 1190.00 427.00" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
-  <path d="M 174.00 251.56 L 432.56 251.56 A 4.00 4.00 0 0 1 436.56 255.56 L 436.56 260.89 A 4.00 4.00 0 0 0 440.56 264.89 L 1000.00 264.89 A 4.00 4.00 0 0 1 1004.00 268.89 L 1004.00 375.67 A 4.00 4.00 0 0 0 1008.00 379.67 L 1190.00 379.67" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 1475.84 427.00 L 1485.60 427.00 A 0.24 0.24 0 0 0 1485.84 426.76 L 1485.84 426.76 A 0.24 0.24 0 0 1 1486.08 426.52 L 1687.84 426.52" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
-  <path d="M 174.00 276.56 L 448.56 276.56 A 4.00 4.00 0 0 1 452.56 280.56 L 452.56 345.89 A 4.00 4.00 0 0 0 456.56 349.89 L 702.56 349.89" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 174.00 404.06 L 434.48 404.06 A 2.08 2.08 0 0 0 436.56 401.98 L 436.56 401.98 A 2.08 2.08 0 0 1 438.64 399.89 L 702.56 399.89" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 194.88 668.05 L 448.56 668.05 A 4.00 4.00 0 0 0 452.56 664.05 L 452.56 503.89 A 4.00 4.00 0 0 1 456.56 499.89 L 702.56 499.89" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 174.00 575.55 L 432.56 575.55 A 4.00 4.00 0 0 0 436.56 571.55 L 436.56 453.89 A 4.00 4.00 0 0 1 440.56 449.89 L 702.56 449.89" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 906.56 349.89 L 1016.00 349.89 A 4.00 4.00 0 0 0 1020.00 345.89 L 1020.00 263.00 A 4.00 4.00 0 0 1 1024.00 259.00 L 1190.00 259.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
-  <path d="M 194.88 693.05 L 432.56 693.05 A 4.00 4.00 0 0 1 436.56 697.05 L 436.56 921.23 A 4.00 4.00 0 0 0 440.56 925.23 L 702.56 925.23" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 914.00 1022.56 L 920.90 1022.56 A 3.10 3.10 0 0 1 924.00 1025.66 L 924.00 1025.66 A 3.10 3.10 0 0 0 927.10 1028.76 L 1529.84 1028.76 A 4.00 4.00 0 0 0 1533.84 1024.76 L 1533.84 997.67 A 4.00 4.00 0 0 1 1537.84 993.67 L 1927.60 993.67 A 4.00 4.00 0 0 0 1931.60 989.67 L 1931.60 968.48 A 4.00 4.00 0 0 1 1935.60 964.48 L 1991.60 964.48" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
-  <path d="M 174.00 595.55 L 480.56 595.55 A 4.00 4.00 0 0 1 484.56 599.55 L 484.56 659.89 A 4.00 4.00 0 0 0 488.56 663.89 L 702.56 663.89" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 174.00 615.55 L 464.56 615.55 A 4.00 4.00 0 0 1 468.56 619.55 L 468.56 787.89 A 4.00 4.00 0 0 0 472.56 791.89 L 702.56 791.89" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 181.04 1055.88 L 432.56 1055.88 A 4.00 4.00 0 0 0 436.56 1051.88 L 436.56 977.89 A 4.00 4.00 0 0 1 440.56 973.89 L 702.56 973.89" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-hollow-triangle)"/>
-  <path d="M 181.04 1121.21 L 432.56 1121.21 A 4.00 4.00 0 0 1 436.56 1125.21 L 436.56 1132.89 A 4.00 4.00 0 0 0 440.56 1136.89 L 968.00 1136.89 A 4.00 4.00 0 0 0 972.00 1132.89 L 972.00 1098.66 A 4.00 4.00 0 0 1 976.00 1094.66 L 1561.84 1094.66 A 4.00 4.00 0 0 0 1565.84 1090.66 L 1565.84 1057.67 A 4.00 4.00 0 0 1 1569.84 1053.67 L 1959.60 1053.67 A 4.00 4.00 0 0 0 1963.60 1049.67 L 1963.60 1008.48 A 4.00 4.00 0 0 1 1967.60 1004.48 L 1991.60 1004.48" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
-  <path d="M 181.04 1088.55 L 448.56 1088.55 A 4.00 4.00 0 0 0 452.56 1084.55 L 452.56 1026.56 A 4.00 4.00 0 0 1 456.56 1022.56 L 702.56 1022.56" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-hollow-triangle-crossbar)"/>
-  <path d="M 194.88 510.55 L 464.56 510.55 A 4.00 4.00 0 0 1 468.56 514.55 L 468.56 550.89 A 4.00 4.00 0 0 0 472.56 554.89 L 920.00 554.89 A 4.00 4.00 0 0 1 924.00 558.89 L 924.00 565.00 A 4.00 4.00 0 0 0 928.00 569.00 L 1190.00 569.00" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-hollow-triangle)"/>
-  <path d="M 174.00 1192.55 L 464.56 1192.55 A 4.00 4.00 0 0 0 468.56 1188.55 L 468.56 1080.89 A 4.00 4.00 0 0 1 472.56 1076.89 L 936.00 1076.89 A 4.00 4.00 0 0 0 940.00 1072.89 L 940.00 1002.76 A 4.00 4.00 0 0 1 944.00 998.76 L 1513.84 998.76 A 4.00 4.00 0 0 0 1517.84 994.76 L 1517.84 939.98 A 4.00 4.00 0 0 1 1521.84 935.98 L 1687.84 935.98" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 1475.84 569.00 L 1513.84 569.00 A 4.00 4.00 0 0 1 1517.84 573.00 L 1517.84 706.20 A 4.00 4.00 0 0 0 1521.84 710.20 L 1687.84 710.20" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 906.56 499.89 L 936.00 499.89 A 4.00 4.00 0 0 1 940.00 503.89 L 940.00 666.00 A 4.00 4.00 0 0 0 944.00 670.00 L 1497.84 670.00 A 4.00 4.00 0 0 1 1501.84 674.00 L 1501.84 734.43 A 4.00 4.00 0 0 0 1505.84 738.43 L 1687.84 738.43" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 914.00 973.89 L 921.43 973.89 A 2.57 2.57 0 0 0 924.00 971.33 L 924.00 971.33 A 2.57 2.57 0 0 1 926.57 968.76 L 1497.84 968.76 A 4.00 4.00 0 0 0 1501.84 964.76 L 1501.84 911.76 A 4.00 4.00 0 0 1 1505.84 907.76 L 1687.84 907.76" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 174.00 760.55 L 448.56 760.55 A 4.00 4.00 0 0 1 452.56 764.55 L 452.56 866.89 A 4.00 4.00 0 0 0 456.56 870.89 L 920.00 870.89 A 4.00 4.00 0 0 0 924.00 866.89 L 924.00 814.76 A 4.00 4.00 0 0 1 928.00 810.76 L 1481.84 810.76 A 4.00 4.00 0 0 1 1485.84 814.76 L 1485.84 819.09 A 4.00 4.00 0 0 0 1489.84 823.09 L 1687.84 823.09" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 847.04 663.89 L 920.00 663.89 A 4.00 4.00 0 0 1 924.00 667.89 L 924.00 710.65 A 4.00 4.00 0 0 0 928.00 714.65 L 1481.84 714.65 A 4.00 4.00 0 0 1 1485.84 718.65 L 1485.84 762.65 A 4.00 4.00 0 0 0 1489.84 766.65 L 1687.84 766.65" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 847.04 791.89 L 920.00 791.89 A 4.00 4.00 0 0 0 924.00 787.89 L 924.00 784.76 A 4.00 4.00 0 0 1 928.00 780.76 L 1481.84 780.76 A 4.00 4.00 0 0 1 1485.84 784.76 L 1485.84 790.87 A 4.00 4.00 0 0 0 1489.84 794.87 L 1687.84 794.87" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 1921.60 823.09 L 1927.60 823.09 A 4.00 4.00 0 0 1 1931.60 827.09 L 1931.60 940.48 A 4.00 4.00 0 0 0 1935.60 944.48 L 1991.60 944.48" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
-  <path d="M 1379.12 865.26 L 1481.84 865.26 A 4.00 4.00 0 0 0 1485.84 861.26 L 1485.84 855.32 A 4.00 4.00 0 0 1 1489.84 851.32 L 1687.84 851.32" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-hollow-triangle)"/>
-  <path d="M 914.00 925.23 L 920.00 925.23 A 4.00 4.00 0 0 0 924.00 921.23 L 924.00 893.76 A 4.00 4.00 0 0 1 928.00 889.76 L 1190.00 889.76" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 1379.12 914.26 L 1481.84 914.26 A 4.00 4.00 0 0 0 1485.84 910.26 L 1485.84 883.54 A 4.00 4.00 0 0 1 1489.84 879.54 L 1687.84 879.54" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-hollow-triangle)" stroke-dasharray="6 3"/>
-  <path d="M 262.88 961.05 L 480.56 961.05 A 4.00 4.00 0 0 1 484.56 965.05 L 484.56 1102.89 A 4.00 4.00 0 0 0 488.56 1106.89 L 952.00 1106.89 A 4.00 4.00 0 0 0 956.00 1102.89 L 956.00 1068.66 A 4.00 4.00 0 0 1 960.00 1064.66 L 1545.84 1064.66 A 4.00 4.00 0 0 0 1549.84 1060.66 L 1549.84 1027.67 A 4.00 4.00 0 0 1 1553.84 1023.67 L 1943.60 1023.67 A 4.00 4.00 0 0 0 1947.60 1019.67 L 1947.60 988.48 A 4.00 4.00 0 0 1 1951.60 984.48 L 1991.60 984.48" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
-  <path d="M 262.88 864.05 L 496.56 864.05 A 4.00 4.00 0 0 0 500.56 860.05 L 500.56 588.89 A 4.00 4.00 0 0 1 504.56 584.89 L 952.00 584.89 A 4.00 4.00 0 0 1 956.00 588.89 L 956.00 612.33 A 4.00 4.00 0 0 0 960.00 616.33 L 1190.00 616.33" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
-  <path d="M 906.56 399.89 L 968.00 399.89 A 4.00 4.00 0 0 1 972.00 403.89 L 972.00 470.33 A 4.00 4.00 0 0 0 976.00 474.33 L 1190.00 474.33" fill="none" stroke="#1A1A2E" stroke-width="1.50" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
-  <path d="M 906.56 449.89 L 952.00 449.89 A 4.00 4.00 0 0 1 956.00 453.89 L 956.00 517.67 A 4.00 4.00 0 0 0 960.00 521.67 L 1190.00 521.67" fill="none" stroke="#1A1A2E" stroke-width="1.50"/>
-  <text x="728.28" y="584.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#1A1A2E" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">«allocate»</text>
+  <path d="M 12.00 36.00 L 12.00 12.00 L 123.00 12.00 L 123.00 36.00 L 2153.60 36.00 L 2153.60 1231.55 L 12.00 1231.55 Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="1082.80" y="49.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">QuadcopterDrone</text>
+  <rect x="44.00" y="94.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="109.00" y="109.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«interface def»</text>
+  <text x="109.00" y="128.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">PowerBus</text>
+  <rect x="204.00" y="94.00" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="269.00" y="109.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«interface def»</text>
+  <text x="269.00" y="128.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">DataBus</text>
+  <rect x="44.00" y="221.06" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="109.00" y="236.06" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«port def»</text>
+  <text x="109.00" y="255.06" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">PowerPort</text>
+  <rect x="44.00" y="361.06" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="109.00" y="376.06" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«port def»</text>
+  <text x="109.00" y="395.06" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">TelemetryPort</text>
+  <rect x="44.00" y="637.55" width="150.88" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="119.44" y="652.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«port def»</text>
+  <text x="119.44" y="671.55" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">MotorControlPort</text>
+  <rect x="44.00" y="547.55" width="130.00" height="60.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="109.00" y="567.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«port def»</text>
+  <text x="109.00" y="586.55" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">SensorPort</text>
+  <rect x="1991.60" y="916.48" width="130.00" height="80.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="2056.60" y="946.48" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«attribute def»</text>
+  <text x="2056.60" y="965.48" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Mass</text>
+  <rect x="1687.84" y="383.52" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="1752.84" y="398.52" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«attribute def»</text>
+  <text x="1752.84" y="417.52" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Voltage</text>
+  <rect x="1190.00" y="174.00" width="130.00" height="134.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="1255.00" y="186.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«enum def»</text>
+  <text x="1255.00" y="205.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">FlightMode</text>
+  <line x1="1190.00" y1="218.00" x2="1320.00" y2="218.00" stroke="#000000" stroke-width="1.00"/>
+  <text x="1196.00" y="230.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">enums</text>
+  <text x="1196.00" y="254.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">idle</text>
+  <text x="1196.00" y="272.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">manual</text>
+  <text x="1196.00" y="290.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">autonomous</text>
+  <rect x="1190.00" y="338.00" width="285.84" height="284.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="1332.92" y="350.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="1332.92" y="369.00" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Battery</text>
+  <line x1="1190.00" y1="382.00" x2="1475.84" y2="382.00" stroke="#000000" stroke-width="1.00"/>
+  <text x="1196.00" y="394.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">doc</text>
+  <text x="1196.00" y="418.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Rechargeable lithium-polymer battery</text>
+  <text x="1196.00" y="436.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">pack supplying the drone's flight</text>
+  <text x="1196.00" y="454.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">controller, motors, and sensor bus</text>
+  <text x="1196.00" y="472.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">via the PowerPort interface. Drawn</text>
+  <text x="1196.00" y="490.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">as a doc compartment inside the</text>
+  <text x="1196.00" y="508.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Battery box.</text>
+  <line x1="1190.00" y1="520.00" x2="1475.84" y2="520.00" stroke="#000000" stroke-width="1.00"/>
+  <text x="1196.00" y="532.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">attributes</text>
+  <text x="1196.00" y="556.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">capacity : Voltage</text>
+  <line x1="1190.00" y1="568.00" x2="1475.84" y2="568.00" stroke="#000000" stroke-width="1.00"/>
+  <text x="1196.00" y="580.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">ports</text>
+  <text x="1196.00" y="604.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">output : PowerPort</text>
+  <path d="M 44.00 301.06 L 419.06 301.06 L 426.56 308.56 L 426.56 331.06 L 44.00 331.06 Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <path d="M 419.06 301.06 L 419.06 308.56 L 426.56 308.56" fill="none" stroke="#000000" stroke-width="1.00"/>
+  <text x="50.00" y="313.06" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Demonstrates the BoxShape.Note comment rendering.</text>
+  <rect x="702.56" y="306.89" width="204.00" height="200.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="804.56" y="318.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="804.56" y="337.89" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">FlightController</text>
+  <line x1="702.56" y1="350.89" x2="906.56" y2="350.89" stroke="#000000" stroke-width="1.00"/>
+  <text x="708.56" y="362.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">attributes</text>
+  <text x="708.56" y="386.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">mode : FlightMode</text>
+  <line x1="702.56" y1="398.89" x2="906.56" y2="398.89" stroke="#000000" stroke-width="1.00"/>
+  <text x="708.56" y="410.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">ports</text>
+  <text x="708.56" y="434.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">power : PowerPort</text>
+  <text x="708.56" y="452.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">telemetry : TelemetryPort</text>
+  <text x="708.56" y="470.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">motors : MotorControlPort</text>
+  <text x="708.56" y="488.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">sensors : SensorPort</text>
+  <rect x="702.56" y="882.89" width="211.44" height="146.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="808.28" y="894.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="808.28" y="913.89" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Motor</text>
+  <line x1="702.56" y1="926.89" x2="914.00" y2="926.89" stroke="#000000" stroke-width="1.00"/>
+  <text x="708.56" y="938.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">attributes</text>
+  <text x="708.56" y="962.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">maxThrust : Mass</text>
+  <line x1="702.56" y1="974.89" x2="914.00" y2="974.89" stroke="#000000" stroke-width="1.00"/>
+  <text x="708.56" y="986.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">ports</text>
+  <text x="708.56" y="1010.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">control : MotorControlPort</text>
+  <rect x="44.00" y="717.55" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="109.00" y="732.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="109.00" y="751.55" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Propeller</text>
+  <rect x="702.56" y="596.89" width="144.48" height="98.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="774.80" y="608.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="774.80" y="627.89" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">ImuSensor</text>
+  <line x1="702.56" y1="640.89" x2="847.04" y2="640.89" stroke="#000000" stroke-width="1.00"/>
+  <text x="708.56" y="652.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">ports</text>
+  <text x="708.56" y="676.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">data : SensorPort</text>
+  <rect x="702.56" y="724.89" width="144.48" height="98.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="774.80" y="736.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="774.80" y="755.89" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">GpsSensor</text>
+  <line x1="702.56" y1="768.89" x2="847.04" y2="768.89" stroke="#000000" stroke-width="1.00"/>
+  <text x="708.56" y="780.89" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">ports</text>
+  <text x="708.56" y="804.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">data : SensorPort</text>
+  <rect x="44.00" y="1149.55" width="130.00" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="109.00" y="1164.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="109.00" y="1183.55" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Frame</text>
+  <rect x="44.00" y="1021.55" width="185.60" height="98.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="136.80" y="1033.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="136.80" y="1052.55" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">RacingMotor :&gt; Motor</text>
+  <line x1="44.00" y1="1065.55" x2="229.60" y2="1065.55" stroke="#000000" stroke-width="1.00"/>
+  <text x="50.00" y="1077.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">attributes</text>
+  <text x="50.00" y="1101.55" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">maxThrust : Mass</text>
+  <rect x="44.00" y="467.55" width="246.36" height="50.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="167.18" y="482.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="167.18" y="501.55" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">EnduranceBattery :&gt; Battery</text>
+  <rect x="1687.84" y="678.09" width="233.76" height="254.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="1804.72" y="690.09" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="1804.72" y="709.09" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">Drone</text>
+  <line x1="1687.84" y1="722.09" x2="1921.60" y2="722.09" stroke="#000000" stroke-width="1.00"/>
+  <text x="1693.84" y="734.09" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">attributes</text>
+  <text x="1693.84" y="758.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">totalMass : Mass</text>
+  <line x1="1687.84" y1="770.09" x2="1921.60" y2="770.09" stroke="#000000" stroke-width="1.00"/>
+  <text x="1693.84" y="782.09" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">parts</text>
+  <text x="1693.84" y="806.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">airframe : Frame</text>
+  <text x="1693.84" y="824.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">battery : Battery</text>
+  <text x="1693.84" y="842.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">controller : FlightController</text>
+  <text x="1693.84" y="860.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">motors : Motor [4]</text>
+  <text x="1693.84" y="878.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">propellers : Propeller [4]</text>
+  <text x="1693.84" y="896.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">imu : ImuSensor</text>
+  <text x="1693.84" y="914.09" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">gps : GpsSensor</text>
+  <rect x="1190.00" y="822.76" width="189.12" height="98.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="1284.56" y="834.76" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«part def»</text>
+  <text x="1284.56" y="853.76" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">RacingDrone :&gt; Drone</text>
+  <line x1="1190.00" y1="866.76" x2="1379.12" y2="866.76" stroke="#000000" stroke-width="1.00"/>
+  <text x="1196.00" y="878.76" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">parts</text>
+  <text x="1196.00" y="902.76" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">frontMotors : Motor [2]</text>
+  <rect x="44.00" y="797.55" width="218.88" height="194.00" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
+  <text x="153.44" y="809.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">«requirement def»</text>
+  <text x="153.44" y="828.55" font-family="Noto Sans, sans-serif" font-size="14.00" font-weight="bold" fill="#000000" text-anchor="middle" dominant-baseline="middle">FlightTimeRequirement</text>
+  <line x1="44.00" y1="841.55" x2="262.88" y2="841.55" stroke="#000000" stroke-width="1.00"/>
+  <text x="50.00" y="853.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">attributes</text>
+  <text x="50.00" y="877.55" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">minFlightTimeMinutes : Mass</text>
+  <line x1="44.00" y1="889.55" x2="262.88" y2="889.55" stroke="#000000" stroke-width="1.00"/>
+  <text x="50.00" y="901.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">«subject»</text>
+  <text x="50.00" y="925.55" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">drone : Drone</text>
+  <line x1="44.00" y1="937.55" x2="262.88" y2="937.55" stroke="#000000" stroke-width="1.00"/>
+  <text x="50.00" y="949.55" font-family="Noto Sans, sans-serif" font-size="12.00" font-weight="bold" font-style="italic" fill="#000000" text-anchor="start" dominant-baseline="middle">«require constraint»</text>
+  <text x="50.00" y="973.55" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">{drone.totalMass&lt;=2500}</text>
+  <path d="M 426.56 320.31 L 432.56 320.31 A 4.00 4.00 0 0 0 436.56 316.31 L 436.56 280.89 A 4.00 4.00 0 0 1 440.56 276.89 L 984.00 276.89 A 4.00 4.00 0 0 1 988.00 280.89 L 988.00 405.00 A 4.00 4.00 0 0 0 992.00 409.00 L 1190.00 409.00" fill="none" stroke="#000000" stroke-width="1.00" stroke-dasharray="6 3"/>
+  <path d="M 174.00 233.56 L 432.56 233.56 A 4.00 4.00 0 0 1 436.56 237.56 L 436.56 242.89 A 4.00 4.00 0 0 0 440.56 246.89 L 1000.00 246.89 A 4.00 4.00 0 0 1 1004.00 250.89 L 1004.00 357.67 A 4.00 4.00 0 0 0 1008.00 361.67 L 1190.00 361.67" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 1475.84 409.00 L 1485.60 409.00 A 0.24 0.24 0 0 0 1485.84 408.76 L 1485.84 408.76 A 0.24 0.24 0 0 1 1486.08 408.52 L 1687.84 408.52" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 174.00 258.56 L 448.56 258.56 A 4.00 4.00 0 0 1 452.56 262.56 L 452.56 327.89 A 4.00 4.00 0 0 0 456.56 331.89 L 702.56 331.89" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 174.00 386.06 L 434.48 386.06 A 2.08 2.08 0 0 0 436.56 383.98 L 436.56 383.98 A 2.08 2.08 0 0 1 438.64 381.89 L 702.56 381.89" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 194.88 650.05 L 448.56 650.05 A 4.00 4.00 0 0 0 452.56 646.05 L 452.56 485.89 A 4.00 4.00 0 0 1 456.56 481.89 L 702.56 481.89" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 174.00 557.55 L 432.56 557.55 A 4.00 4.00 0 0 0 436.56 553.55 L 436.56 435.89 A 4.00 4.00 0 0 1 440.56 431.89 L 702.56 431.89" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 906.56 331.89 L 1016.00 331.89 A 4.00 4.00 0 0 0 1020.00 327.89 L 1020.00 245.00 A 4.00 4.00 0 0 1 1024.00 241.00 L 1190.00 241.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 194.88 675.05 L 432.56 675.05 A 4.00 4.00 0 0 1 436.56 679.05 L 436.56 903.23 A 4.00 4.00 0 0 0 440.56 907.23 L 702.56 907.23" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 914.00 1004.56 L 920.90 1004.56 A 3.10 3.10 0 0 1 924.00 1007.66 L 924.00 1007.66 A 3.10 3.10 0 0 0 927.10 1010.76 L 1529.84 1010.76 A 4.00 4.00 0 0 0 1533.84 1006.76 L 1533.84 979.67 A 4.00 4.00 0 0 1 1537.84 975.67 L 1927.60 975.67 A 4.00 4.00 0 0 0 1931.60 971.67 L 1931.60 950.48 A 4.00 4.00 0 0 1 1935.60 946.48 L 1991.60 946.48" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 174.00 577.55 L 480.56 577.55 A 4.00 4.00 0 0 1 484.56 581.55 L 484.56 641.89 A 4.00 4.00 0 0 0 488.56 645.89 L 702.56 645.89" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 174.00 597.55 L 464.56 597.55 A 4.00 4.00 0 0 1 468.56 601.55 L 468.56 769.89 A 4.00 4.00 0 0 0 472.56 773.89 L 702.56 773.89" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 229.60 1037.88 L 432.56 1037.88 A 4.00 4.00 0 0 0 436.56 1033.88 L 436.56 959.89 A 4.00 4.00 0 0 1 440.56 955.89 L 702.56 955.89" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle)"/>
+  <path d="M 229.60 1103.21 L 432.56 1103.21 A 4.00 4.00 0 0 1 436.56 1107.21 L 436.56 1114.89 A 4.00 4.00 0 0 0 440.56 1118.89 L 968.00 1118.89 A 4.00 4.00 0 0 0 972.00 1114.89 L 972.00 1080.66 A 4.00 4.00 0 0 1 976.00 1076.66 L 1561.84 1076.66 A 4.00 4.00 0 0 0 1565.84 1072.66 L 1565.84 1039.67 A 4.00 4.00 0 0 1 1569.84 1035.67 L 1959.60 1035.67 A 4.00 4.00 0 0 0 1963.60 1031.67 L 1963.60 990.48 A 4.00 4.00 0 0 1 1967.60 986.48 L 1991.60 986.48" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 229.60 1070.55 L 448.56 1070.55 A 4.00 4.00 0 0 0 452.56 1066.55 L 452.56 1008.56 A 4.00 4.00 0 0 1 456.56 1004.56 L 702.56 1004.56" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle-crossbar)"/>
+  <path d="M 290.36 492.55 L 464.56 492.55 A 4.00 4.00 0 0 1 468.56 496.55 L 468.56 532.89 A 4.00 4.00 0 0 0 472.56 536.89 L 920.00 536.89 A 4.00 4.00 0 0 1 924.00 540.89 L 924.00 547.00 A 4.00 4.00 0 0 0 928.00 551.00 L 1190.00 551.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle)"/>
+  <path d="M 174.00 1174.55 L 464.56 1174.55 A 4.00 4.00 0 0 0 468.56 1170.55 L 468.56 1062.89 A 4.00 4.00 0 0 1 472.56 1058.89 L 936.00 1058.89 A 4.00 4.00 0 0 0 940.00 1054.89 L 940.00 984.76 A 4.00 4.00 0 0 1 944.00 980.76 L 1513.84 980.76 A 4.00 4.00 0 0 0 1517.84 976.76 L 1517.84 921.98 A 4.00 4.00 0 0 1 1521.84 917.98 L 1687.84 917.98" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 1475.84 551.00 L 1513.84 551.00 A 4.00 4.00 0 0 1 1517.84 555.00 L 1517.84 688.20 A 4.00 4.00 0 0 0 1521.84 692.20 L 1687.84 692.20" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 906.56 481.89 L 936.00 481.89 A 4.00 4.00 0 0 1 940.00 485.89 L 940.00 648.00 A 4.00 4.00 0 0 0 944.00 652.00 L 1497.84 652.00 A 4.00 4.00 0 0 1 1501.84 656.00 L 1501.84 716.43 A 4.00 4.00 0 0 0 1505.84 720.43 L 1687.84 720.43" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 914.00 955.89 L 921.43 955.89 A 2.57 2.57 0 0 0 924.00 953.33 L 924.00 953.33 A 2.57 2.57 0 0 1 926.57 950.76 L 1497.84 950.76 A 4.00 4.00 0 0 0 1501.84 946.76 L 1501.84 893.76 A 4.00 4.00 0 0 1 1505.84 889.76 L 1687.84 889.76" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 174.00 742.55 L 448.56 742.55 A 4.00 4.00 0 0 1 452.56 746.55 L 452.56 848.89 A 4.00 4.00 0 0 0 456.56 852.89 L 920.00 852.89 A 4.00 4.00 0 0 0 924.00 848.89 L 924.00 796.76 A 4.00 4.00 0 0 1 928.00 792.76 L 1481.84 792.76 A 4.00 4.00 0 0 1 1485.84 796.76 L 1485.84 801.09 A 4.00 4.00 0 0 0 1489.84 805.09 L 1687.84 805.09" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 847.04 645.89 L 920.00 645.89 A 4.00 4.00 0 0 1 924.00 649.89 L 924.00 692.65 A 4.00 4.00 0 0 0 928.00 696.65 L 1481.84 696.65 A 4.00 4.00 0 0 1 1485.84 700.65 L 1485.84 744.65 A 4.00 4.00 0 0 0 1489.84 748.65 L 1687.84 748.65" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 847.04 773.89 L 920.00 773.89 A 4.00 4.00 0 0 0 924.00 769.89 L 924.00 766.76 A 4.00 4.00 0 0 1 928.00 762.76 L 1481.84 762.76 A 4.00 4.00 0 0 1 1485.84 766.76 L 1485.84 772.87 A 4.00 4.00 0 0 0 1489.84 776.87 L 1687.84 776.87" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 1921.60 805.09 L 1927.60 805.09 A 4.00 4.00 0 0 1 1931.60 809.09 L 1931.60 922.48 A 4.00 4.00 0 0 0 1935.60 926.48 L 1991.60 926.48" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 1379.12 847.26 L 1481.84 847.26 A 4.00 4.00 0 0 0 1485.84 843.26 L 1485.84 837.32 A 4.00 4.00 0 0 1 1489.84 833.32 L 1687.84 833.32" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle)"/>
+  <path d="M 914.00 907.23 L 920.00 907.23 A 4.00 4.00 0 0 0 924.00 903.23 L 924.00 875.76 A 4.00 4.00 0 0 1 928.00 871.76 L 1190.00 871.76" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 1379.12 896.26 L 1481.84 896.26 A 4.00 4.00 0 0 0 1485.84 892.26 L 1485.84 865.54 A 4.00 4.00 0 0 1 1489.84 861.54 L 1687.84 861.54" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle)" stroke-dasharray="6 3"/>
+  <path d="M 262.88 943.05 L 480.56 943.05 A 4.00 4.00 0 0 1 484.56 947.05 L 484.56 1084.89 A 4.00 4.00 0 0 0 488.56 1088.89 L 952.00 1088.89 A 4.00 4.00 0 0 0 956.00 1084.89 L 956.00 1050.66 A 4.00 4.00 0 0 1 960.00 1046.66 L 1545.84 1046.66 A 4.00 4.00 0 0 0 1549.84 1042.66 L 1549.84 1009.67 A 4.00 4.00 0 0 1 1553.84 1005.67 L 1943.60 1005.67 A 4.00 4.00 0 0 0 1947.60 1001.67 L 1947.60 970.48 A 4.00 4.00 0 0 1 1951.60 966.48 L 1991.60 966.48" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 262.88 846.05 L 496.56 846.05 A 4.00 4.00 0 0 0 500.56 842.05 L 500.56 570.89 A 4.00 4.00 0 0 1 504.56 566.89 L 952.00 566.89 A 4.00 4.00 0 0 1 956.00 570.89 L 956.00 594.33 A 4.00 4.00 0 0 0 960.00 598.33 L 1190.00 598.33" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)"/>
+  <path d="M 906.56 381.89 L 968.00 381.89 A 4.00 4.00 0 0 1 972.00 385.89 L 972.00 452.33 A 4.00 4.00 0 0 0 976.00 456.33 L 1190.00 456.33" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-open-chevron)" stroke-dasharray="6 3"/>
+  <path d="M 906.56 431.89 L 952.00 431.89 A 4.00 4.00 0 0 1 956.00 435.89 L 956.00 499.67 A 4.00 4.00 0 0 0 960.00 503.67 L 1190.00 503.67" fill="none" stroke="#000000" stroke-width="1.00"/>
+  <text x="728.28" y="566.89" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="middle" dominant-baseline="middle" filter="url(#label-bg)">«allocate»</text>
 </svg>

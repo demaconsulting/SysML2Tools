@@ -31,7 +31,11 @@ on context output and exit code. File-writing scenarios use a temporary director
 - Output files written to `--output` directory
 - No output files written when workspace has no views
 - Informational message written when workspace has no views
-- `--walk-depth 1` produces SVG output containing the ellipsis character `"…"`
+- `--walk-depth 1` produces SVG output containing the ellipsis character `"…"` as the marker for
+  truncated content
+- Rendering without any theme option draws the diagram in the plain monochrome theme: the SVG
+  output contains black (`#000000`) strokes and none of the light theme's tinted depth fill
+  colors or the dark theme's colors
 - Multiple views without `--view` renders every declared view, producing one output file per
   view, exit code 0
 - Two views whose display names sanitize to the same output file name (declared in different
@@ -128,7 +132,14 @@ informational message.
 #### RenderSubsystem_WithWalkDepth_LimitsNesting
 
 Verifies that `--walk-depth 1` causes the SVG output to contain the ellipsis character `"…"`,
-confirming that child part-def boxes were replaced by the depth-limit indicator.
+confirming that content hidden by the depth limit is marked with a trailing ellipsis.
+
+#### RenderSubsystem_DefaultTheme_IsPlainMonochrome
+
+Verifies that rendering a model with a view definition to SVG, with no theme option (none
+exists), uses the plain monochrome theme by default: the SVG text contains `#000000` strokes and
+contains neither the light theme's depth-tinted fill (`#EEF4FF`) nor a dark-theme color
+(`#1A1A2E`). Satisfies `SysML2Tools-Tool-Render-DefaultTheme`.
 
 #### RenderSubsystem_MultipleViews_NoViewFlag_RendersAllViews
 

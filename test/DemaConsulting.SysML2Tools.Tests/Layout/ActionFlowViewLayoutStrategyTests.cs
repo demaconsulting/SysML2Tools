@@ -256,7 +256,8 @@ public sealed class ActionFlowViewLayoutStrategyTests
     /// <summary>
     ///     A branch-and-join graph renders all four action boxes, a start marker that enters only the
     ///     source action, a done marker that leaves only the sink action, and four dashed
-    ///     open-chevron successions.
+    ///     open-chevron successions; the start and done connectors use the same dashed open-chevron
+    ///     style as the successions.
     /// </summary>
     [Fact]
     public void ActionFlowView_BuildLayout_BranchAndJoin()
@@ -296,29 +297,41 @@ public sealed class ActionFlowViewLayoutStrategyTests
         Assert.Contains(boxes, box => box.Label == "a");
         Assert.Contains(boxes, box => box.Label == "d");
 
-        // Assert: the start marker enters only 'a' and the done marker leaves only 'd'.
+        // Assert: the start marker enters only 'a' and the done marker leaves only 'd'; both
+        // connectors are dashed with an open chevron, exactly like the successions.
         var a = boxes.Single(box => box.Label == "a");
         var d = boxes.Single(box => box.Label == "d");
-        var solidFlows = layout.Nodes.OfType<LayoutLine>()
-            .Where(l => l.LineStyle == LineStyle.Solid && l.TargetEnd == EndMarkerStyle.FilledArrow)
+        var startBadge = layout.Nodes.OfType<LayoutBadge>().Single(b => b.Shape == BadgeShape.FilledCircle);
+        var doneBadge = layout.Nodes.OfType<LayoutBadge>().Single(b => b.Shape == BadgeShape.Bullseye);
+        var allLines = layout.Nodes.OfType<LayoutLine>().ToList();
+        var startFlows = allLines
+            .Where(l => Math.Abs(l.Waypoints[0].Y - (startBadge.CentreY + (startBadge.Size / 2.0))) < 1e-6)
             .ToList();
-        var startFlows = solidFlows
-            .Where(l => Math.Abs(l.Waypoints[^1].Y - a.Y) < 1e-6)
-            .ToList();
-        Assert.Single(startFlows);
-        Assert.True(Math.Abs(startFlows[0].Waypoints[^1].X - (a.X + (a.Width / 2.0))) < 1e-6,
+        var startFlow = Assert.Single(startFlows);
+        Assert.True(Math.Abs(startFlow.Waypoints[^1].Y - a.Y) < 1e-6 &&
+                    Math.Abs(startFlow.Waypoints[^1].X - (a.X + (a.Width / 2.0))) < 1e-6,
             "the start connector should enter the top center of action 'a'.");
-        var doneFlows = solidFlows
-            .Where(l => Math.Abs(l.Waypoints[0].Y - (d.Y + d.Height)) < 1e-6)
+        var doneFlows = allLines
+            .Where(l => Math.Abs(l.Waypoints[^1].Y - (doneBadge.CentreY - (doneBadge.Size / 2.0))) < 1e-6)
             .ToList();
-        Assert.Single(doneFlows);
+        var doneFlow = Assert.Single(doneFlows);
+        Assert.True(Math.Abs(doneFlow.Waypoints[0].Y - (d.Y + d.Height)) < 1e-6,
+            "the done connector should leave the bottom of action 'd'.");
+        Assert.All(new[] { startFlow, doneFlow }, l =>
+        {
+            Assert.Equal(LineStyle.Dashed, l.LineStyle);
+            Assert.Equal(EndMarkerStyle.OpenChevron, l.TargetEnd);
+        });
 
         // Assert: all four successions are dashed with an open chevron at the target.
-        var successions = layout.Nodes.OfType<LayoutLine>()
-            .Where(l => l.MidpointLabel is null && l.LineStyle == LineStyle.Dashed)
-            .ToList();
+        var successions = allLines.Except([startFlow, doneFlow]).ToList();
         Assert.Equal(4, successions.Count);
-        Assert.All(successions, l => Assert.Equal(EndMarkerStyle.OpenChevron, l.TargetEnd));
+        Assert.All(successions, l =>
+        {
+            Assert.Null(l.MidpointLabel);
+            Assert.Equal(LineStyle.Dashed, l.LineStyle);
+            Assert.Equal(EndMarkerStyle.OpenChevron, l.TargetEnd);
+        });
     }
 
     /// <summary>

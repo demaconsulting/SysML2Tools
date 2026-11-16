@@ -45,10 +45,11 @@ Builds the diagram:
    `pitch` is computed by `ComputePitch` from the widest label (clamped to a minimum). Message Y is
    `firstMessageY + messageOrdinal * rowPitch`. Header height and margins derive from the theme.
 6. **Node emission.** Each lifeline becomes a `LayoutLifeline`; each message becomes a horizontal
-   `LayoutLine` with no source end marker and an open target end marker, carrying the message label
+   `LayoutLine` with no source end marker and a hollow-triangle target end marker
+   (`EndMarkerStyle.HollowTriangle`), carrying the message label
    as its midpoint label. A message whose sender and receiver are the same lifeline is emitted by
-   `BuildSelfMessage` as a small rectangular self-loop. The open target end marker matches SysML v2
-   sequence message notation.
+   `BuildSelfMessage` as a small rectangular self-loop with the same hollow-triangle head. The
+   hollow-triangle target end marker matches SysML v2 sequence message notation.
 
 When no root is found (including when scoping excludes every heuristic candidate), or there are no
 lifelines or messages (including when scoping excludes every message's remaining endpoint), a

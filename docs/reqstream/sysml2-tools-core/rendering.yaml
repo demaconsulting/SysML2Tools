@@ -163,3 +163,19 @@ sections:
           - Themes_Light_IsInitialized
           - Themes_Dark_IsInitialized
           - Themes_Print_IsInitialized
+
+      - id: SysML2Tools-Core-Rendering-PlainTheme
+        title: >-
+          The Rendering subsystem shall provide a plain monochrome theme in which every
+          box, container, and table-header fill is white and every border and line is a
+          black one-pixel stroke, regardless of nesting depth, while keeping the layout
+          metrics (fonts, padding, and routing geometry) of the light theme.
+        justification: |
+          The SysML v2 specification draws its graphical notation black-on-white and
+          conveys meaning through shape, border style, and text rather than fill color.
+          A monochrome theme lets diagrams match that notation, print cleanly, and embed
+          in documents without depth-coded tints, while unchanged layout metrics keep
+          diagrams the same size as with the light theme.
+        tests:
+          - SysmlThemes_Plain_IsMonochrome
+          - SysmlThemes_Plain_BackgroundColorIsWhite

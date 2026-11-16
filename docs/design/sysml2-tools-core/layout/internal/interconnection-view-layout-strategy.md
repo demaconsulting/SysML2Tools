@@ -15,8 +15,10 @@ regardless of the view's conditions.
 `InterconnectionViewLayoutStrategy` has no instance state; all input arrives through the
 `BuildLayout` parameters. Layout constants (`MinPartWidth`, `CharWidthFactor`) are declared as
 `private const double` fields. Four private records carry intermediate data: `PartItem` (a nested
-part usage with its computed box size, typing, and — when the part is a container — its
-pre-laid-out `InnerContent`), `TopLevelPart` (pairs a top-level-fallback `PartItem` with its owning
+part usage with its computed box size, typing, the display-only `ShortName` and `Multiplicity`
+that join the name and typing in its box label, and — when the part is a container — its
+pre-laid-out `InnerContent`; `Name` remains the identity used to resolve connector endpoints),
+`TopLevelPart` (pairs a top-level-fallback `PartItem` with its owning
 definition's qualified name, `OwnerQualifiedName`, so `ResolveTopLevelConnections` can scope
 endpoint resolution correctly per owning definition — see _No-single-root scoped fallback_ below),
 `ConnPair` (a resolved binary connection between two nested-part
@@ -181,7 +183,7 @@ name added to a copy of `visited`, `scope: null` — nested composition structur
 never re-derived from its own qualified name, matching `CollectParts`'s own documented recursion
 behavior — and `ancestorUnlimitedRecursion: unlimitedRecursion`, propagating this branch's
 already-decided flag unchanged to every descendant; see _Per-Branch Depth-Limited Recursion_ above)
-or computing an intrinsic leaf size via `ComputePartSize` otherwise — which happens both
+or computing an intrinsic leaf size via `ComputePartSize(label, theme)` otherwise — which happens both
 when the feature's type does not resolve to a container, and, unconditionally, whenever
 `unlimitedRecursion` is `false` (a container part still renders as its own node; only its interior
 expansion is suppressed). Here, `unlimitedRecursion` is always the concrete, already-decided
@@ -253,6 +255,14 @@ node by its parent, which is laid out with the **same** flat placement.
   mirroring the `hasLabel: true, hasKeyword: true` convention already used for `TitleAreaHeight`
   above), which activates the engine's automatic title-vs-side-port reservation so no port is ever
   placed across the box's own title band.
+- **Part label.** `PartLabel(name, shortName, typing, multiplicity)` builds every part box's
+  label by calling the shared `GeneralViewLayoutStrategy.FormatNameLine` (without supertypes), so a
+  part reads `<shortName> name : Type [2]` with every piece the model does not declare omitted
+  — the same textual notation the General and Browser views use (SysML v2 graphical BNF, clause
+  8.2.3). `ComputePartSize(label, theme)` sizes a leaf part from that same label and `MakePartBox`
+  draws it, so a leaf box is always wide enough for its text (a container part's box label is built
+  the same way, and its size comes from its laid-out interior). Connector endpoint
+  resolution is unaffected: it keys on the plain part name, never on the label.
 - **Positioning.** `MakePartBox` builds a leaf box with empty `Children` (unchanged), and a
   container box whose `Children` are its `InnerContent` translated from the child's local origin
   `(0, 0)` to the box's absolute top-left by `TranslateNodes`, which recursively shifts box

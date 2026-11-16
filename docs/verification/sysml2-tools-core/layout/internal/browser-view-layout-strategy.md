@@ -17,6 +17,9 @@ configuration are required beyond a standard .NET SDK installation.
 - The browser-view tests in `BrowserAndGridViewLayoutStrategyTests` pass with zero failures across
   all target frameworks.
 - A nested element's box is indented further than its ancestor's box.
+- Each row's text is the element's keyword in guillemet marks followed by its name line: a package
+  reads `«package» Name`, and a feature row also shows its short name, typing, and multiplicity.
+- Every row box has depth 0, regardless of its depth in the tree.
 - A workspace with no user-defined elements yields an empty diagram.
 - A view whose `ViewContext.ViewNode` carries a resolved `Expose` edge scopes the tree to that
   target's containment subtree, excluding unrelated sibling elements and producing fewer boxes than
@@ -33,6 +36,8 @@ configuration are required beyond a standard .NET SDK installation.
 | Test | Assertion |
 | --- | --- |
 | `BrowserView_BuildLayout_NestedElements_AreIndentedByDepth` | Nested element box has larger X than its ancestor box |
+| `BrowserView_BuildLayout_RowLabels_UseGuillemetKeyword` | Rows read `«keyword» name`, with feature typing |
+| `BrowserView_BuildLayout_RowBoxes_HaveDepthZero` | All rows of a three-level hierarchy have `Depth == 0` |
 | `BrowserAndGrid_BuildLayout_EmptyWorkspace_ReturnMinimalCanvas` | Empty workspace yields no nodes |
 | `BrowserView_BuildLayout_ExposedName_UnionsAdditionalSubtree` | Resolved `Expose` scopes to fewer boxes |
 | `BrowserView_BuildLayout_NullViewNode_RendersFullWorkspaceUnchanged` | Null `ViewNode` renders full forest unchanged |

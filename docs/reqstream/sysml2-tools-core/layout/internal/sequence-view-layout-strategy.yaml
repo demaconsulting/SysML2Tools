@@ -43,13 +43,14 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessageArrowhead
         title: >-
-          SequenceViewLayoutStrategy shall draw each message arrow with an open end marker at the
-          receiver end.
+          SequenceViewLayoutStrategy shall draw each message arrow, including a message from a
+          lifeline to itself, with a hollow triangular end marker at the receiver end.
         justification: |
-          SysML v2 sequence message notation uses an open end marker at the receiver. Applying this
-          property makes rendered message arrows conform to the standard notation.
+          SysML v2 sequence message notation uses a hollow triangular end marker at the receiver.
+          Applying this property makes rendered message arrows conform to the standard notation.
         tests:
-          - SequenceView_BuildLayout_MessageArrow_HasOpenArrowhead
+          - SequenceView_BuildLayout_MessageArrow_HasHollowTriangleHead
+          - SequenceView_BuildLayout_SelfMessage_HasHollowTriangleHead
 
       - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-LifelineQualifiedNameReconstruction
         title: >-

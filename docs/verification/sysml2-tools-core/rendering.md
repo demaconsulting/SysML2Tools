@@ -8,7 +8,8 @@ SysML-agnostic rendering contracts and renderers (`IRenderer`, `Theme`, `RenderO
 off-the-shelf by the `DemaConsulting.Rendering` packages; the tests exercise them through
 SysML2Tools to confirm the integration. Tests assert that the renderers report their media type
 and default extension and write valid output for an empty `LayoutTree`, that the `Themes` static
-properties are non-null and correctly initialized, that `RenderOptions` default parameter values
+properties are non-null and correctly initialized, that the `SysmlThemes.Plain` preset is
+monochrome (white fills, black strokes), that `RenderOptions` default parameter values
 match their documented defaults, and that `DiagramRenderer` orchestrates the pipeline. No I/O or
 filesystem access is required.
 
@@ -31,6 +32,9 @@ All test inputs are constructed inline. No external network access or services a
 - `Themes.Dark` is non-null and has `DepthFillColors.Count >= 1` and non-empty `StrokeColor`.
 - `Themes.Print` is non-null and has `DepthFillColors.Count >= 1` and non-empty `StrokeColor`.
 - `new RenderOptions(Themes.Light)` has `Scale == 1.0`, `Dpi == 96.0`, `DepthLimit == 0`.
+- `SysmlThemes.Plain` has the single depth fill `"#FFFFFF"`, the stroke color `"#000000"`, a
+  stroke width of `1.0`, and the same body font size as `Themes.Light`; its derived
+  `BackgroundColor` is `"#FFFFFF"`.
 - `RenderOutput` stores `SuggestedFileName`, `MediaType`, and `Data` as supplied.
 - `ViewContext` constructed with only the required `ViewName`/`Workspace` arguments has a
   `null` `ViewNode`; constructed with an explicit `SysmlViewNode` stores it unchanged.
@@ -79,6 +83,17 @@ non-empty.
 **Themes_Print_IsInitialized**: `Themes.Print` is accessed; the result is asserted to be
 non-null, `DepthFillColors` to have at least one element, and `StrokeColor` to be
 non-empty.
+
+**SysmlThemes_Plain_IsMonochrome**: `SysmlThemes.Plain` is read alongside `Themes.Light`; the
+`DepthFillColors` list is asserted to equal the single entry `"#FFFFFF"`, `StrokeColor` to equal
+`"#000000"`, `StrokeWidth` to equal `1.0`, and `FontSizeBody` to equal the light theme's value
+(confirming layout metrics are inherited unchanged). Satisfies
+`SysML2Tools-Core-Rendering-PlainTheme`.
+
+**SysmlThemes_Plain_BackgroundColorIsWhite**: The derived `BackgroundColor` of
+`SysmlThemes.Plain` is read and asserted to equal `"#FFFFFF"`, confirming that the engine-derived
+background (and therefore the grid-header and hollow-marker fills) is white because the single
+white depth fill drives it.
 
 **RenderOptions_DefaultScale_IsOne**: A `RenderOptions` is constructed with only the
 required `Theme` parameter; the `Scale` property is asserted to equal `1.0`.

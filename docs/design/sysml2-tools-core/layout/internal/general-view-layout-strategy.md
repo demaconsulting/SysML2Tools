@@ -5,7 +5,9 @@
 `GeneralViewLayoutStrategy` implements `ILayoutStrategy` to produce a General View diagram. It
 renders every user-defined definition (part, port, interface, requirement, action, and so on) and
 — since Phase 2d (see `ROADMAP.md`'s "View `filter [<expr>];` expression evaluation" section) —
-every named usage-level declaration too, as a keyword-labeled box, groups the boxes that belong to
+every named usage-level declaration too, as a keyword-labeled box (square-cornered for a definition,
+rounded for a usage) whose name line shows the declared short name and, for a definition, its
+specialization (`:>`), groups the boxes that belong to
 a bare package (one with no admitted definition as its own owner) inside a folder-shaped
 container when the view is unscoped — drawing a package nested in another package inside its
 owner's folder — nests a definition that owns nested definitions recursively
@@ -35,7 +37,7 @@ box title and folder-tab geometry come from `BoxMetrics` in `DemaConsulting.Rend
 `GeneralViewLayoutStrategy` has no instance state; all input arrives through the `BuildLayout`
 parameters. Layout constants (`MinBoxWidth`, `CharWidthFactor`) are declared as `private const`
 fields. Private records carry intermediate data: `DefBox` (a user definition with its computed
-size, keyword, supertype names, memberships, compartments, and `Annotations` — the definition's
+size, keyword, displayed name line `Label`, supertype names, memberships, compartments, and `Annotations` — the definition's
 own `comment` annotations from `SysmlNode.Annotations`, threaded through by `CollectDefinitions` so `AddAnnotationNote`
 (below) can render them without a second workspace lookup), `ModelEdge` (a resolved
 specialization/membership/attribute-typing/redefinition/subsetting/connect/allocate/dependency/
@@ -51,9 +53,12 @@ folder plans, which the order-refinement pass reads), `FolderPlan` (the
 pre-materialization plan for one package folder: its key, nearest enclosing folder, directly owned
 definitions, ordered child-folder keys, nesting level, and the hidden-element count reported if it is
 truncated; see `BuildGraph`), and `TruncatedContainer` (a
-depth-truncated package folder's or nested-definition-containing definition's leaf placeholder graph
-node, hidden-item count, and vertical title-band offset, used to stamp its ellipsis label onto the
-placed box after layout — see `DecorateTruncated` below). `DroppedRelationshipEdge` (a private record)
+depth-truncated package folder's leaf placeholder graph
+node, hidden-item count — retained for diagnostics only, since the rendered marker is a bare
+ellipsis that does not report it — and vertical title-band offset, used to stamp its ellipsis label onto the
+placed box after layout — see `DecorateTruncated` below; a depth-truncated *definition* needs no such
+record because it stays an ordinary leaf box carrying its own trailing `…` compartment row, see
+`PlaceDef`). `DroppedRelationshipEdge` (a private record)
 carries the short kind label, raw source/target reference, and human-readable reason for one
 `Connect`/`Allocate`/`Dependency`/`Binding` edge `BuildModelEdges` could not map to two distinct
 rendered boxes, feeding `LayoutWarnings.ForDroppedRelationshipEdges`. `FeatureMembership` (a private record) carries
@@ -78,8 +83,9 @@ enumeration classifies each edge as
 `Dependency`, or `Binding`; `Subsetting` is a purely view-layer classification — it does not
 correspond to a public `SysmlEdgeKind` — reusing `SupertypeNames` and the same owner-resolution
 walk (`ResolveRedefinitionOwner`) already used for `Redefinition`. The `LineStyleForKind` helper
-maps each kind to a rendered line style (dashed for `Typing`, `Allocate`, `Dependency`, and
-`Subsetting`; solid for all others), so an attribute-typing/allocate/dependency/subsetting
+maps each kind to a rendered line style (dashed for `Typing`, `Dependency`, and
+`Subsetting`; solid for all others, including `Allocate`, which the specification draws as a
+solid line with an open arrowhead), so an attribute-typing/dependency/subsetting
 dependency is visually distinct from the structural relationships.
 
 ##### Key Methods
@@ -131,9 +137,10 @@ it reports none (no folder has two or more items with external relationships who
 change) the first layout is kept unchanged. The refinement is a single pass — there is no iteration
 to a fixed point, so termination is guaranteed — and it is documented as a compensation for the
 engine's placement model that can be retired once the engine orders a container's interior by its
-cross-hierarchy edges. When any package folder or nested-definition-containing definition was
-depth-truncated, `DecorateTruncated` stamps each truncated container's "+N more…" ellipsis label onto
-its placed box of the final layout. Finally, the returned tree's `Warnings` concatenates
+cross-hierarchy edges. When any package folder was
+depth-truncated, `DecorateTruncated` stamps each truncated folder's bare ellipsis (`…`) label onto
+its placed box of the final layout. (A depth-truncated definition is not decorated here: it is an
+ordinary leaf box that already carries its trailing `…` compartment row.) Finally, the returned tree's `Warnings` concatenates
 `LayoutWarnings.ForUnevaluatedFilter` (only when standalone filter parsing/evaluation failed),
 `LayoutWarnings.ForUnevaluatedExposeBracketFilter(context.ViewName, scope?.Failures ?? [])` (Phase
 2a: one warning per bracket-filter expression that failed to parse or evaluate — a
@@ -161,8 +168,13 @@ see below), which removes exactly the nested usages
 that would duplicate an already-rendered immediate parent's compartment row. For each kept
 declaration it builds the
 compartments from the owned usage features (grouped by keyword, each formatted via
-`FormatFeatureRow`), collects the typed memberships, and computes the box size from the title
-and the longest compartment row. `BuildCompartments`/`CollectMemberships` take the common
+`FormatFeatureRow`), collects the typed memberships, and computes the box size from the name
+line, keyword, and the longest compartment row. The box's displayed name line is
+`FormatNameLine(declaration.ShortName, simpleName, specializationSupertypeNames)` stored in
+`DefBox.Label`, where the supertype list is only passed for a definition (a usage's
+`SupertypeNames` are subsetting references, drawn as edges, so they never reach the label); the
+box width is computed from that label, while `DefBox.SimpleName` remains the identity used for
+grouping, ordering, and edge endpoints. `BuildCompartments`/`CollectMemberships` take the common
 `SysmlNode` base type (not `SysmlDefinitionNode`) precisely so a usage-level candidate's owned
 features are collected identically to a definition's.
 
@@ -172,15 +184,39 @@ the generic pluralized-keyword default: `"subject"` → `"«subject»"`, `"assum
 `"«assume constraint»"`, `"require constraint"` → `"«require constraint»"`, and `"constraint"` →
 `"«constraint»"`. This reuses the exact guillemet convention already established elsewhere in this
 file for the `«allocate»` edge midpoint label (see `BuildModelEdges`), rather than inventing a new
-one. Every other keyword introduced alongside this work — `"enum value"` (rendered as the
-compartment title `"enum values"`), `"actor"`, `"stakeholder"` — falls through to the generic
+one. The keyword `"enum value"` is special-cased to the title `"enums"` — the specification's
+compartment title for enumerated values, rather than the naive plural `"enum values"`. Every other
+keyword introduced alongside this work — `"actor"`, `"stakeholder"` — falls through to the generic
 pluralized-keyword default, matching the OMG spec figures' own compartment-heading conventions for
 those kinds.
+
+*Compartment order.* `BuildCompartments` groups the owned features by keyword and emits the
+groups in a fixed order: the `doc` compartment first (added afterward by `CollectDefinitions` via
+`BuildDocCompartment`, ahead of everything else), then the canonical keyword groups `attribute`,
+`enum value`, `part`, and `port` — in that order, from the private `CanonicalCompartmentKeywords`
+array — and then every other keyword group in the declaration order in which it was first seen. This
+is the stacking order of the specification's compartment list (SysML v2 graphical BNF, clause
+8.2.3), and it makes every box read the same way regardless of member declaration order. A visible
+side effect is that a `requirement def` lists its `attributes` compartment before `«subject»`.
 
 `FormatFeatureRow` renders a feature with a non-null, non-empty `ExpressionText` (constraint-kind
 features only) as its raw expression text alone (unnamed) or as `"{name}: {expr}"` (named)
 instead of the generic `"name : Type [multiplicity]"` shape used by every other feature kind,
 since a constraint's defining content is its expression, not a type/multiplicity pair.
+
+###### `FormatNameLine(shortName, name, supertypes, typing, multiplicity)`
+
+An `internal static` helper shared by the General, Interconnection, and Browser views so a given
+element reads the same way in every view. It formats the name line in the specification's textual
+notation — `<shortName> name :> Super1, Super2 : Type [2]` — omitting every piece that is
+`null` or empty: the short name (wrapped in angle brackets) first, then the name, then the
+comma-separated supertypes (` :> `), then the typing (` : `), then the multiplicity text
+as written (including its brackets). This is the order of the name compartment in the SysML v2
+graphical BNF (clause 8.2.3). Supertypes and typing are passed through exactly as written in the
+model (possibly qualified); nothing is resolved here. `GeneralViewLayoutStrategy` passes the
+short name, name, and — for a definition only — its supertypes; `InterconnectionViewLayoutStrategy`
+passes the short name, name, typing, and multiplicity of a part usage; `BrowserViewLayoutStrategy`
+passes the short name and name, plus a feature's typing and multiplicity.
 
 ###### `RemoveRedundantNestedUsages(defs)` (Retry 1 fix; cascading depth-ordered pass hardened in Retry 2)
 
@@ -383,7 +419,9 @@ box* via `ResolveOwningBox` (see below) — necessary because a `Connect`/`Bindi
 frequently a dotted feature-chain qualified name (e.g. `Drone::controller::power`), not itself a
 definition, so it must be mapped up to the definition that actually owns the referenced feature
 before it can become a graph edge endpoint. `Allocate` edges carry an open chevron at the target
-and a `«allocate»` midpoint label; `Dependency` edges carry an open chevron with no label (matching
+and a `«allocate»` midpoint label — an `Allocate` edge is drawn as a **solid** line, which the
+specification uses for allocation, whereas a `Dependency` edge is dashed; `Dependency` edges carry
+an open chevron with no label (matching
 the `ref`-fix rendering above); `Connect` edges carry no end marker and no label; `Binding` edges
 carry no end marker and an `=` midpoint label. An edge is only emitted when both endpoints resolve
 to *distinct* boxes — a same-box result is a genuine self-loop and is dropped, exactly as every
@@ -477,17 +515,20 @@ Each folder is nested in its nearest enclosing planned folder, or sits on the ro
 (so in a scoped view a nested exposed package attaches to its nearest *exposed* ancestor, else the
 root). The plan records each folder's nesting level (the number of enclosing folders) and its
 subtree count — its own definitions plus, for each nested folder, one for the folder and its own
-subtree count — which is the number a truncated folder reports as hidden.
+subtree count — which is the number a truncated folder records as hidden (diagnostics only; the
+rendered marker is a bare `…`).
 
 *Materialization.* Folders are materialized in plan order, so a folder's parent scope always exists
 first; a folder whose parent was collapsed by the depth limit is skipped (the parent's subtree count
 already includes it). A folder with no definitions and no nested folders is drawn as a leaf package
 node (`Shape = Folder`, name inside, sized to its label) — the SysML 8.2.3.5 `package-node` with no
 compartments — instead of an empty canvas; this case is handled before depth truncation, so a depth
-limit never decorates an empty package node with a `+0 more…` indicator. Any other folder becomes a
-container node (`Shape = Folder`, `Keyword = "package"`, `Label` the simple package name,
-`TitleHeight` set from `BoxMetrics.TitleAreaHeight` so the hierarchical engine reserves the exact
-title band the renderer will draw) added to its parent scope — the root graph, or the enclosing
+limit never decorates an empty package node with an ellipsis (`…`) indicator. Any other folder becomes a
+container node (`Shape = Folder`, no `Keyword` — the specification draws a package as a folder with
+its name only, so no `«package»` line is drawn — `Label` the simple package name,
+`TitleHeight` set from `BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: false)` so the
+hierarchical engine reserves exactly the name-only title band the renderer will draw) added to its
+parent scope — the root graph, or the enclosing
 folder's own `Children` graph, which is how a nested package is drawn inside its owner — with its own
 definitions placed via `PlaceDef` under `folder.Children` and a new `ScopeInfo` whose parent is the
 enclosing scope. The folder's own `CoreOptions.Algorithm` is set to `LayeredLayoutAlgorithm.AlgorithmId`
@@ -495,9 +536,10 @@ per the established per-container-algorithm convention (the algorithm override l
 node itself, while every other `CoreOptions` property would live on its `Children` graph). When the
 depth limit forbids a folder's contents, its definitions and nested folders are never added as
 individual boxes at all — the folder becomes a single leaf node (its `Children` graph is never
-touched, so the hierarchical engine keeps this caller-computed ellipsis size rather than auto-sizing
-it as a container) sized like the previous ellipsis-indicator formula from its subtree count, and
-recorded as a `TruncatedContainer` for later decoration.
+touched, so the hierarchical engine keeps this caller-computed placeholder size rather than auto-sizing
+it as a container) sized by `ComputeEllipsisSize(theme)` — the minimum box width and a body tall enough
+for the folder's name and the ellipsis below it, independent of how many elements are hidden — showing the folder's name
+and a bare `…` label, and recorded as a `TruncatedContainer` for later decoration.
 
 Package-folder contents sit at depth `1 + nesting level`: the contents of a top-level folder, and the
 top-level/scoped-promoted items placed directly on the root graph, are at depth 1 — the pre-existing
@@ -546,7 +588,7 @@ Returns the innermost `ScopeInfo` that encloses both arguments (a scope encloses
 the ancestors of `a` (by reference identity) and walking `b` upward until one of them is found; the
 root scope is on both chains, so a result always exists.
 
-###### `PlaceDef(def, scope, childrenByParent, located, theme, depth, depthLimit, truncated)`
+###### `PlaceDef(def, scope, childrenByParent, located, theme, depth, depthLimit)`
 
 Places a single definition's node into `scope.Graph` via `MakeDefNode`, records its `Location` in
 `located` (the node and the `scope` that directly holds it, for edge scoping), and emits its
@@ -556,26 +598,25 @@ nesting depth, using the same numbering `BuildGraph` uses for package-folder con
 top-level definition is depth 1; a folder's definition is its folder's content depth, per `BuildGraph`
 above); `def`'s own immediate nested children (if any) sit one depth deeper, at `depth + 1`.
 
-When `def` owns nested definitions (a `childrenByParent` entry keyed by `def.QualifiedName`), the
-definition's own node's `TitleHeight` is set to `def.Height` (which already includes the title band
-and every compartment row for `def`'s own owned usages, from `ComputeBoxSize`) regardless of what
-happens next, reserving exactly that band above where its nested content begins. Then, exactly one
-of two things happens to that nested content:
+When `def` owns nested definitions (a `childrenByParent` entry keyed by `def.QualifiedName`), exactly
+one of two things happens to that nested content:
 
 - If `depthLimit` is positive and does not permit the children's depth (`depthLimit <= depth + 1`),
   the children are **not** recursed into or rendered as individual boxes at all — mirroring
   `BuildGraph`'s `truncateFolderContents` package-folder-contents truncation one nesting level
-  deeper. A single ellipsis placeholder leaf node (sized by the same `ComputeEllipsisSize` helper
-  `BuildGraph`'s folder truncation uses) is added to `def`'s own `node.Children` scope instead, and
-  recorded in `truncated` with a `TitleOffset` of `0` (unlike a truncated package folder's
-  placeholder, this ellipsis node is an ordinary child placed inside `def`'s own already-title
-  reserved `Children` scope, not a standalone box carrying its own title/keyword band, so no further
-  offset is needed once its absolute position is known). No child `ScopeInfo` is created for `def` in
-  this branch (nothing beyond the single ellipsis leaf is ever placed in its scope, so no
-  intra-container edge could resolve there), and none of the hidden children
-  receive a `located` entry, so every edge touching one is dropped exactly like a depth-truncated
-  package folder's contents.
-- Otherwise, a new `ScopeInfo` (enclosed by `scope`, graph `node.Children`) is created for `def`, so
+  deeper. Before the node is created, `def` is replaced by `WithTruncationRow(def, theme)`, which
+  appends one extra, untitled `LayoutCompartment` whose single row is `…` after every compartment
+  `def` already has and recomputes the box size with `ComputeBoxSize` so the extra row fits. The
+  result is a leaf box (no `Children` scope, no placeholder child box, no `TitleHeight` override):
+  the trailing `…` is the specification's marker that a box has further contents which are not
+  shown — the graphical BNF (clause 8.2.3) ends the contents of every compartment production with
+  an optional `'…'`. No child `ScopeInfo` is created for `def` in this branch, and none of the
+  hidden children receive a `located` entry, so every edge touching one is dropped exactly like a
+  depth-truncated package folder's contents.
+- Otherwise, `def`'s own node's `TitleHeight` is set to `def.Height` (which already includes the
+  title band and every compartment row for `def`'s own owned usages, from `ComputeBoxSize`),
+  reserving exactly that band above where its nested content begins, and a new `ScopeInfo` (enclosed
+  by `scope`, graph `node.Children`) is created for `def`, so
   edges between `def`'s own nested children — or between one of them and a node elsewhere — resolve to
   their lowest common scope rather than always the root, and each child is placed by a recursive call
   to `PlaceDef` with that new scope and `depth + 1` as the child's
@@ -589,17 +630,22 @@ container this way with no engine-side change: the `HierarchicalLayoutAlgorithm`
 pass grows any container whose placed content needs more room than its initial `Width`/`Height`,
 exactly as an (initially `0, 0`-sized) package folder already relied on.
 
-###### `ComputeEllipsisSize(hiddenCount, theme)`
+###### `ComputeEllipsisSize(theme)`
 
-Computes the width/height of a "+N more…" ellipsis placeholder leaf from its hidden-item count.
-Factored out of the pre-existing package-folder-contents-truncation sizing formula so both
-`BuildGraph`'s folder truncation and `PlaceDef`'s nested-definition-containment truncation size
-their placeholder identically.
+Computes the width/height of a truncated package folder's ellipsis (`…`) placeholder leaf body: the
+minimum box width and a height of three title lines plus margins, so the folder's name (which the
+renderer centers in the body) and the ellipsis drawn below it stay clear of each other. The
+placeholder shows only the ellipsis glyph, so — unlike the earlier "+N more…" label — the size no
+longer depends on how many elements were hidden. Only `BuildGraph`'s folder truncation uses it; a
+truncated definition is sized by `WithTruncationRow` instead.
 
 ###### `MakeDefNode(scope, def)`
 
 Adds one definition as a leaf node to the given scope (the root graph or a folder's `Children`),
-carrying its `Label`, `Shape = Rectangle`, `Keyword`, and `Compartments`.
+carrying its `Label` (the displayed name line, `def.Label`), `Keyword`, and `Compartments`. The
+`Shape` is `RoundedRectangle` for a usage (`def.IsUsage`) and `Rectangle` for a definition: the
+graphical BNF (clause 8.2.3) draws definition nodes with square corners and usage nodes with
+rounded corners.
 
 ###### View conditions and annotation visibility
 
@@ -638,8 +684,8 @@ the limit is hard-broken. Documentation is never drawn as a separate note.
 
 Called immediately after `MakeDefNode` for every definition (both top-level and folder-scoped),
 this no-ops when `def.Annotations` is empty; otherwise it adds one `BoxShape.Note` node (id
-`note:{qualifiedName}`) to the same `scope` as `defNode`, plus a plain solid edge with no end
-marker (id `note-edge:{qualifiedName}`, `TargetEnd = EndMarkerStyle.None`) from the note to the
+`note:{qualifiedName}`) to the same `scope` as `defNode`, plus a plain dashed edge with no end
+marker (id `note-edge:{qualifiedName}`, `LineStyle.Dashed`, `TargetEnd = EndMarkerStyle.None`) from the note to the
 definition. `def.Annotations` holds only the element's `comment` annotations that are visible —
 exposed with the owner's members and satisfying every view condition for metaclass `Comment` —
 so this draws the SysML 8.2.3.4 `comment-node` with its `annotation-link`; `doc` (Documentation)
@@ -707,10 +753,11 @@ also relies on the engine's insertion-order behavior, which is pinned by the OTS
 
 ###### `DecorateTruncated(tree, graph, truncated, theme)`
 
-Replaces each truncated container's placed box with one carrying its "+N more…" ellipsis label,
-positioned within the box's now-known absolute placement, using each `TruncatedContainer`'s own
-`TitleOffset` to position the label below any title/keyword band the placeholder box itself
-carries. Delegates to a recursive worker overload that walks the tree scope-by-scope: at every
+Replaces each truncated package folder's placed box with one carrying a bare ellipsis (`…`) label,
+centered horizontally in the box's now-known absolute placement and anchored at its bottom, below
+the folder's name and never above the title band that each `TruncatedContainer`'s own
+`TitleOffset` reserves. (The label is the glyph alone: the hidden count is no longer displayed.) Delegates to a
+recursive worker overload that walks the tree scope-by-scope: at every
 compound-graph scope (the root graph, or any container node's own `Children` graph) the engine emits
 one box per node of that scope, possibly interleaved with the lines of the scope's own routed
 edges, and not necessarily in node order. `LayoutBox` carries no `Id`, so each placed box is paired
@@ -720,15 +767,13 @@ the identity signature the strategy itself set
 on the node and the engine copies verbatim onto the box — `Label`, `Keyword`, and `Shape`: each box
 takes the first not-yet-paired node with an equal signature, so the pairing does not depend on box
 order. Nodes with an equal signature (only duplicated, never-truncated nodes can have one; a
-truncated folder's simple name is unique among its siblings, and a truncated definition's ellipsis
-placeholder is the only child of its scope) pair in order, and a box with no signature match falls
+truncated folder's simple name is unique among its siblings) pair in order, and a box with no signature match falls
 back to the first unpaired node. The worker decorates any box whose paired graph node is a recorded
 truncation, and otherwise — when that graph node itself owns children and the placed box has its own
 nested children — recurses one level deeper into that box's own `Children` against the graph node's
-own `Children.Nodes`. This is what lets a truncated nested-definition-containment placeholder or a
-truncated nested package folder (potentially several levels deep — inside a folder, inside another
-definition, or both) be found and decorated exactly like a root-level truncated package folder, not
-just the ones directly on the root graph.
+own `Children.Nodes`. This is what lets a truncated nested package folder (potentially several
+levels deep — inside another folder, inside a definition, or both) be found and decorated exactly
+like a root-level truncated package folder, not just the ones directly on the root graph.
 
 ##### Error Handling
 

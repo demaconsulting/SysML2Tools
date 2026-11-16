@@ -98,7 +98,7 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
             nodes.Add(new LayoutLine(
                 Waypoints: [new Point2D(centreX[msg.From], y), new Point2D(centreX[msg.To], y)],
                 SourceEnd: EndMarkerStyle.None,
-                TargetEnd: EndMarkerStyle.OpenChevron,
+                TargetEnd: EndMarkerStyle.HollowTriangle,
                 LineStyle: LineStyle.Solid,
                 MidpointLabel: msg.Label.Length > 0 ? msg.Label : null));
         }
@@ -256,7 +256,7 @@ internal sealed class SequenceViewLayoutStrategy : ILayoutStrategy
         return new LayoutLine(
             Waypoints: waypoints,
             SourceEnd: EndMarkerStyle.None,
-            TargetEnd: EndMarkerStyle.OpenChevron,
+            TargetEnd: EndMarkerStyle.HollowTriangle,
             LineStyle: LineStyle.Solid,
             MidpointLabel: label.Length > 0 ? label : null);
     }

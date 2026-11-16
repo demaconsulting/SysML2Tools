@@ -532,12 +532,13 @@ a single line). The `lint` command does not lay views out, so it does not report
 ## Depth Limiting
 
 Use `--walk-depth <n>` to limit the nesting depth rendered. Parts beyond the limit are replaced
-with an ellipsis footer (`+N more…`). Silent omission is never used — truncation is always
-visible in the output. In a General View every enclosing package counts as one nesting level, the
-same as a definition nested inside another definition: with `--walk-depth 1` each top-level package
-is drawn collapsed, and with `--walk-depth 2` its own definitions are drawn while its nested
-packages are collapsed. A collapsed package reports everything it hides, including nested packages,
-in its `+N more…` label, and relationships to hidden definitions are not drawn.
+with an ellipsis marker (`…`): a trailing `…` row in a definition whose nested definitions are
+hidden, and a bare `…` in a collapsed package. Silent omission is never used — truncation is
+always visible in the output. In a General View every enclosing package counts as one nesting
+level, the same as a definition nested inside another definition: with `--walk-depth 1` each
+top-level package is drawn collapsed, and with `--walk-depth 2` its own definitions are drawn while
+its nested packages are collapsed. A collapsed package hides everything it contains, including
+nested packages, and relationships to hidden definitions are not drawn.
 
 ```bash
 sysml2tools render model.sysml --output out --walk-depth 3

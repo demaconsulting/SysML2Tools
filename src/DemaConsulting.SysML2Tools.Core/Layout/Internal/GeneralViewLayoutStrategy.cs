@@ -37,9 +37,10 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// uniformly regardless of whether the extra nesting comes from a package folder or from a
 /// definition containing another definition (nested-definition containment, via
 /// <see cref="PlaceDef"/>): depth-limited (truncated) content is never added to the graph as
-/// individual boxes — the truncated folder or definition body becomes (or gains) a single leaf
-/// node sized like a plain ellipsis indicator, and the "+N more…" label is stamped onto its placed
-/// box once the layout is known. Because the engine places a folder's contents without knowing where
+/// individual boxes — a truncated package folder becomes a single leaf node showing an ellipsis
+/// (<c>…</c>), and a truncated definition stays a leaf box whose last compartment is a trailing
+/// untitled <c>…</c> row (the specification's marker for contents that are not shown). Because the
+/// engine places a folder's contents without knowing where
 /// the folder's external relationships lead, the items of each package folder are ordered by the
 /// vertical position of those relationships' far ends (see <see cref="ComputeItemOrder"/>), so
 /// relationships leaving a folder do not need to cross one another.
@@ -132,7 +133,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         Connect,
 
         /// <summary>
-        /// A resolved <c>allocate A to B</c> reference: dashed line, open chevron at the target,
+        /// A resolved <c>allocate A to B</c> reference: solid line, open chevron at the target,
         /// with a <c>«allocate»</c> midpoint label.
         /// </summary>
         Allocate,
@@ -171,15 +172,22 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         EdgeKind Kind,
         string? Label = null);
 
-    /// <summary>Maps an edge kind to its rendered line style: typing/allocate/dependency/subsetting edges are dashed, all others solid.</summary>
+    /// <summary>
+    /// Maps an edge kind to its rendered line style: typing/dependency/subsetting edges are dashed,
+    /// all others (including allocate, which the specification draws as a solid line) are solid.
+    /// </summary>
     private static LineStyle LineStyleForKind(EdgeKind kind) =>
-        kind is EdgeKind.Typing or EdgeKind.Allocate or EdgeKind.Dependency or EdgeKind.Subsetting
+        kind is EdgeKind.Typing or EdgeKind.Dependency or EdgeKind.Subsetting
             ? LineStyle.Dashed
             : LineStyle.Solid;
 
     /// <summary>A user-defined definition or named usage together with its computed box size and supertypes.</summary>
     /// <param name="QualifiedName">The definition or usage's fully qualified name.</param>
-    /// <param name="SimpleName">The definition or usage's simple (unqualified) name.</param>
+    /// <param name="SimpleName">The definition or usage's simple (unqualified) name; the box's identity for grouping, ordering, and edges.</param>
+    /// <param name="Label">
+    /// The displayed name line (see <see cref="FormatNameLine"/>): short name, name, and — for a
+    /// definition — its <c>:&gt;</c> specialization, as written in the model.
+    /// </param>
     /// <param name="Keyword">The definition or usage keyword (e.g. <c>part</c>, <c>requirement</c>).</param>
     /// <param name="SupertypeNames">The declared supertype names (specialization/subsetting/redefinition targets).</param>
     /// <param name="Memberships">The owned feature memberships to render as compartment rows.</param>
@@ -196,6 +204,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     private sealed record DefBox(
         string QualifiedName,
         string SimpleName,
+        string Label,
         string Keyword,
         IReadOnlyList<string> SupertypeNames,
         IReadOnlyList<FeatureMembership> Memberships,
@@ -281,23 +290,24 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// A package folder or nested-definition container whose contents were depth-truncated:
-    /// replaced by a leaf ellipsis-indicator node, decorated with its "+N more…" label once the
-    /// layout places it. Covers both <see cref="BuildGraph"/>'s package-folder-contents truncation
-    /// (<c>truncateFolderContents</c>) and <see cref="PlaceDef"/>'s nested-definition-containment
-    /// truncation, so <see cref="RenderOptions.DepthLimit"/> caps nesting depth uniformly regardless
-    /// of whether the extra nesting level comes from a package folder or from a definition
-    /// containing another definition.
+    /// A package folder whose contents were depth-truncated: replaced by a leaf placeholder folder
+    /// node, decorated with an ellipsis (<c>…</c>) label once the layout places it. Covers
+    /// <see cref="BuildGraph"/>'s package-folder-contents truncation; a truncated nested definition
+    /// needs no entry because it stays an ordinary leaf box carrying its own trailing <c>…</c>
+    /// compartment row (see <see cref="WithTruncationRow"/>), so <see cref="RenderOptions.DepthLimit"/>
+    /// still caps nesting depth uniformly regardless of whether the extra nesting level comes from a
+    /// package folder or from a definition containing another definition.
     /// </summary>
-    /// <param name="Node">The leaf graph node standing in for the truncated folder or definition body.</param>
-    /// <param name="HiddenCount">Number of hidden definitions the ellipsis label reports.</param>
+    /// <param name="Node">The leaf graph node standing in for the truncated folder.</param>
+    /// <param name="HiddenCount">
+    /// Number of hidden definitions and nested packages. Retained for diagnostics; the rendered
+    /// marker is the bare <c>…</c> glyph and does not report the count.
+    /// </param>
     /// <param name="TitleOffset">
     /// Vertical offset, in logical pixels, from the placed leaf node's own top edge down to where
     /// the ellipsis label should be drawn. A truncated package folder's placeholder node carries its
-    /// own title/keyword band (it stands in for the whole folder, not just its contents), so its
-    /// label sits below that reserved band. A truncated definition's ellipsis node is instead an
-    /// ordinary child placed inside the definition's own already-title-reserved
-    /// <see cref="LayoutGraphNode.Children"/> scope, so no further offset is needed (0).
+    /// own title band (it stands in for the whole folder, not just its contents), so its label sits
+    /// below that reserved band.
     /// </param>
     private sealed record TruncatedContainer(LayoutGraphNode Node, int HiddenCount, double TitleOffset);
 
@@ -487,8 +497,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             tree = LayOut(build.Graph);
         }
 
-        // Stamp the "+N more…" ellipsis label onto each truncated folder's or truncated
-        // definition's placed box. Every placed box is paired with its graph node by identity
+        // Stamp the ellipsis ("…") label onto each truncated package folder's placed box. Every placed
+        // box is paired with its graph node by identity
         // (label, keyword, shape) within its own scope rather than by position, so the pairing
         // does not depend on the order in which the engine emits a scope's boxes; this recurses
         // through every nesting depth, not just the root.
@@ -629,11 +639,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 ? declaration.SupertypeNames
                 : Array.Empty<string>();
 
+            // The box's name line follows the specification's textual notation: the short name (if
+            // any) before the name, then the specialization (:>) of a definition. A usage's
+            // SupertypeNames are subsetting references (see above), so they never reach the label.
+            var label = FormatNameLine(declaration.ShortName, simpleName, specializationSupertypeNames);
+
             // Build compartments from the declaration's owned usages (attributes, ports, parts, …).
             var compartments = BuildCompartments(declaration);
 
             var memberships = CollectMemberships(declaration);
-            var (width, height) = ComputeBoxSize(simpleName, keyword, compartments, theme);
+            var (width, height) = ComputeBoxSize(label, keyword, compartments, theme);
 
             // Exposed, unfiltered documentation is drawn as a "doc" compartment inside its owner's
             // box (SysML 8.2.3.4 documentation-compartment), wrapped to the box width.
@@ -641,7 +656,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 BuildDocCompartment(declaration.Annotations, width, theme) is { } docCompartment)
             {
                 compartments = [docCompartment, .. compartments];
-                (width, height) = ComputeBoxSize(simpleName, keyword, compartments, theme);
+                (width, height) = ComputeBoxSize(label, keyword, compartments, theme);
             }
 
             // Exposed, unfiltered explicit comments are drawn as notes attached to their owner
@@ -649,7 +664,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             var comments = annotationVisible(qualifiedName, "Comment")
                 ? declaration.Annotations.Where(a => a.Kind == SysmlAnnotationKind.Comment).ToList()
                 : new List<SysmlAnnotation>();
-            result.Add(new DefBox(qualifiedName, simpleName, keyword, specializationSupertypeNames, memberships, compartments, width, height, comments, declaration is SysmlFeatureNode));
+            result.Add(new DefBox(qualifiedName, simpleName, label, keyword, specializationSupertypeNames, memberships, compartments, width, height, comments, declaration is SysmlFeatureNode));
         }
 
         return result;
@@ -771,8 +786,19 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             rows.Add(FormatFeatureRow(feature));
         }
 
-        return [.. order.Select(k => new LayoutCompartment(Pluralize(k), groups[k]))];
+        // Canonical compartments first, in the order the specification's compartment stack lists
+        // them (attributes, enums, parts, ports), then every other keyword group in the
+        // declaration order in which it was first seen.
+        var emitted = CanonicalCompartmentKeywords.Where(groups.ContainsKey).ToList();
+        emitted.AddRange(order.Where(k => !CanonicalCompartmentKeywords.Contains(k)));
+        return [.. emitted.Select(k => new LayoutCompartment(Pluralize(k), groups[k]))];
     }
+
+    /// <summary>
+    /// The usage keywords whose compartments are always emitted first, in this order, ahead of
+    /// every other keyword group (which keep first-seen declaration order).
+    /// </summary>
+    private static readonly string[] CanonicalCompartmentKeywords = ["attribute", "enum value", "part", "port"];
 
     /// <summary>
     /// Minimum number of characters per wrapped <c>doc</c> compartment row, so documentation on a
@@ -907,10 +933,66 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         return row.Length == 0 ? "\u2014" : row;
     }
 
+    /// <summary>
+    /// Formats the name line of a node label in the specification's textual notation:
+    /// <c>&lt;shortName&gt; name :&gt; Super1, Super2 : Type [multiplicity]</c>, omitting every piece that is
+    /// <see langword="null"/> or empty.
+    /// </summary>
+    /// <remarks>
+    /// Shared by the General, Interconnection, and Browser views so a given element reads the same
+    /// way in every view (SysML v2 graphical BNF, clause 8.2.3: the name compartment lists the
+    /// short name before the name, then the specialization, then the typing and
+    /// multiplicity). Supertypes and typing are passed through exactly as written in the model
+    /// (possibly qualified); nothing is resolved here.
+    /// </remarks>
+    /// <param name="shortName">The declared short name (without angle brackets), or null.</param>
+    /// <param name="name">The element's name; must not be null.</param>
+    /// <param name="supertypes">The raw specialization (<c>:&gt;</c>) references, or null.</param>
+    /// <param name="typing">The raw feature-typing reference (<c>: Type</c>), or null.</param>
+    /// <param name="multiplicity">The multiplicity text including brackets (e.g. <c>[2]</c>), or null.</param>
+    /// <returns>The formatted name line.</returns>
+    internal static string FormatNameLine(
+        string? shortName,
+        string name,
+        IEnumerable<string>? supertypes = null,
+        string? typing = null,
+        string? multiplicity = null)
+    {
+        var line = new System.Text.StringBuilder();
+        if (!string.IsNullOrEmpty(shortName))
+        {
+            line.Append('<').Append(shortName).Append("> ");
+        }
+
+        line.Append(name);
+
+        var supers = supertypes?.Where(s => !string.IsNullOrEmpty(s)).ToList();
+        if (supers is { Count: > 0 })
+        {
+            line.Append(" :> ").Append(string.Join(", ", supers));
+        }
+
+        if (!string.IsNullOrEmpty(typing))
+        {
+            line.Append(" : ").Append(typing);
+        }
+
+        if (!string.IsNullOrEmpty(multiplicity))
+        {
+            line.Append(' ').Append(multiplicity);
+        }
+
+        return line.ToString();
+    }
+
     /// <summary>Returns a simple plural form of a usage keyword for use as a compartment title.</summary>
     private static string Pluralize(string keyword) => keyword switch
     {
         "ref" => "references",
+
+        // The specification's compartment title for enumerated values is "enums", not the naive
+        // plural of the "enum value" keyword.
+        "enum value" => "enums",
 
         // Stereotype-style titles, per the OMG spec's Graphical Notation chapter conventions —
         // reusing this file's existing guillemet convention already established for edge midpoint
@@ -1546,8 +1628,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// 1, each enclosing folder adds one further level (a nested folder's contents sit at depth 2,
     /// and so on), and every level of nested-definition containment <see cref="PlaceDef"/>
     /// recurses into is one depth deeper again — see <see cref="PlaceDef"/>'s own remarks for how that
-    /// deeper truncation is applied. A truncated folder is a single ellipsis leaf that reports the
-    /// number of hidden definitions and nested packages.
+    /// deeper truncation is applied. A truncated folder is a single leaf placeholder showing an
+    /// ellipsis (<c>…</c>).
     /// </summary>
     /// <param name="groups">The package groups (package qualified name and its directly owned definitions).</param>
     /// <param name="childrenByParent">Definitions nested inside a definition, keyed by the owning definition's qualified name.</param>
@@ -1586,9 +1668,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         graph.Set(CoreOptions.MergeParallelEdges, false);
         var truncated = new List<TruncatedContainer>();
 
-        // Reserve the full title area (package keyword + name) above a folder's contents so the
-        // label never overlaps the first child box; the renderer draws the smaller tab notch within.
-        var folderTitleHeight = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true);
+        // Reserve the title area (the package name only — the specification draws a package with no
+        // «package» keyword) above a folder's contents so the label never overlaps the first child
+        // box; the renderer draws the smaller tab notch within.
+        var folderTitleHeight = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: false);
 
         // Folder contents (and top-level or scoped-promoted items placed directly on the root) sit at
         // depth 1 - the baseline every PlaceDef call below starts from; each enclosing folder adds
@@ -1614,7 +1697,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 // nested-definition children are still handled.
                 foreach (var def in groups[groupIndex].Items)
                 {
-                    PlaceDef(def, rootScope, childrenByParent, located, theme, rootDepth, depthLimit, truncated);
+                    PlaceDef(def, rootScope, childrenByParent, located, theme, rootDepth, depthLimit);
                 }
 
                 continue;
@@ -1643,7 +1726,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 var packageNode = parentScope.Graph.AddNode($"folder:{folderKey}", width, folderTitleHeight + theme.FontSizeTitle + (2.0 * theme.LabelPadding));
                 packageNode.Label = label;
                 packageNode.Shape = BoxShape.Folder;
-                packageNode.Keyword = "package";
                 continue;
             }
 
@@ -1655,11 +1737,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 // ellipsis indicator. It stays a leaf (its Children graph is never touched) so the
                 // hierarchical engine keeps this caller-computed size rather than auto-sizing it as
                 // a container.
-                var (ellipsisWidth, ellipsisHeight) = ComputeEllipsisSize(plan.SubtreeCount, theme);
+                var (ellipsisWidth, ellipsisHeight) = ComputeEllipsisSize(theme);
                 var placeholder = parentScope.Graph.AddNode($"folder:{folderKey}", ellipsisWidth, folderTitleHeight + ellipsisHeight);
                 placeholder.Label = label;
                 placeholder.Shape = BoxShape.Folder;
-                placeholder.Keyword = "package";
                 truncated.Add(new TruncatedContainer(placeholder, plan.SubtreeCount, folderTitleHeight));
 
                 // None of the folder's contents receive a node: every edge touching one is dropped.
@@ -1669,7 +1750,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             var folder = parentScope.Graph.AddNode($"folder:{folderKey}", 0, 0);
             folder.Label = label;
             folder.Shape = BoxShape.Folder;
-            folder.Keyword = "package";
             folder.TitleHeight = folderTitleHeight;
             folder.Set(CoreOptions.Algorithm, LayeredLayoutAlgorithm.AlgorithmId);
             var folderScope = new ScopeInfo(parentScope, folder.Children, folder);
@@ -1677,7 +1757,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
             foreach (var def in OrderedItems(plan, itemOrder))
             {
-                PlaceDef(def, folderScope, childrenByParent, located, theme, contentDepth, depthLimit, truncated);
+                PlaceDef(def, folderScope, childrenByParent, located, theme, contentDepth, depthLimit);
             }
         }
 
@@ -1862,15 +1942,13 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// folder-scoped definition is depth 1); nested-definition containment is one depth deeper per
     /// recursive call, so <paramref name="def"/>'s immediate nested children sit at
     /// <c>depth + 1</c>. When <paramref name="depthLimit"/> is positive and does not permit that
-    /// next depth, the children are <em>not</em> recursed into or rendered as full boxes at all —
-    /// mirroring <c>BuildGraph</c>'s <c>truncateFolderContents</c> package-folder-contents
-    /// truncation one level deeper — and a single "+N more…" ellipsis leaf (recorded in
-    /// <paramref name="truncated"/>) is placed inside <paramref name="def"/>'s own
-    /// <see cref="LayoutGraphNode.Children"/> scope instead, so <see cref="RenderOptions.DepthLimit"/>
-    /// caps nested-definition containment depth exactly as it already caps package-folder nesting.
-    /// A truncated definition creates no child scope (nothing
-    /// is ever placed inside its scope beyond the ellipsis leaf, so no intra-container edge could
-    /// ever resolve there); an edge touching one of the hidden children has no <paramref name="located"/>
+    /// next depth, the children are <em>not</em> recursed into or rendered as boxes at all:
+    /// <paramref name="def"/> instead stays a leaf node whose last compartment is the
+    /// specification's trailing untitled <c>…</c> row (see <see cref="WithTruncationRow"/>), so
+    /// <see cref="RenderOptions.DepthLimit"/> caps nested-definition containment depth exactly as it
+    /// already caps package-folder nesting. A truncated definition creates no child scope (nothing
+    /// is ever placed inside it, so no intra-container edge could ever resolve there); an edge touching
+    /// one of the hidden children has no <paramref name="located"/>
     /// entry to reference and is dropped, exactly like a depth-truncated package folder's contents.
     /// Otherwise, a child <see cref="ScopeInfo"/> (enclosed by <paramref name="scope"/>) is created for
     /// its nested children, so an edge between them — or between one of them and any node elsewhere —
@@ -1883,64 +1961,73 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         Dictionary<string, Location> located,
         Theme theme,
         int depth,
-        int depthLimit,
-        List<TruncatedContainer> truncated)
+        int depthLimit)
     {
+        var childDepth = depth + 1;
+        var hasChildren = childrenByParent.TryGetValue(def.QualifiedName, out var children);
+
+        // When the depth limit forbids def's nested children from being rendered at all, def stays a
+        // leaf whose last compartment is the specification's trailing "…" row (see
+        // WithTruncationRow) instead of becoming a container around a placeholder box. None of the
+        // hidden children receive a node, so every edge touching one is dropped.
+        var isTruncated = hasChildren && depthLimit > 0 && depthLimit <= childDepth;
+        if (isTruncated)
+        {
+            def = WithTruncationRow(def, theme);
+        }
+
         var node = MakeDefNode(scope.Graph, def);
         located[def.QualifiedName] = new Location(node, scope);
         AddAnnotationNote(scope.Graph, def, node, theme);
 
-        if (!childrenByParent.TryGetValue(def.QualifiedName, out var children))
+        if (!hasChildren || isTruncated)
         {
             return;
         }
 
         node.TitleHeight = def.Height;
-        var childDepth = depth + 1;
-
-        if (depthLimit > 0 && depthLimit <= childDepth)
-        {
-            // The depth limit forbids def's nested children from being rendered as individual boxes
-            // at all: replace them with a single leaf ellipsis indicator inside def's own Children
-            // scope, exactly like truncateFolderContents' package-level ellipsis in BuildGraph, one
-            // nesting level deeper. None of the hidden children receive a node, so every edge
-            // touching one is dropped.
-            var (ellipsisWidth, ellipsisHeight) = ComputeEllipsisSize(children.Count, theme);
-            var placeholder = node.Children.AddNode($"more:{def.QualifiedName}", ellipsisWidth, ellipsisHeight);
-            truncated.Add(new TruncatedContainer(placeholder, children.Count, TitleOffset: 0.0));
-            return;
-        }
-
         var childScope = new ScopeInfo(scope, node.Children, node);
 
-        foreach (var child in children)
+        foreach (var child in children!)
         {
-            PlaceDef(child, childScope, childrenByParent, located, theme, childDepth, depthLimit, truncated);
+            PlaceDef(child, childScope, childrenByParent, located, theme, childDepth, depthLimit);
         }
     }
 
     /// <summary>
-    /// Computes the width/height of a "+N more…" ellipsis placeholder leaf from its hidden-item
-    /// count, shared by <see cref="BuildGraph"/>'s package-folder-contents truncation and
-    /// <see cref="PlaceDef"/>'s nested-definition-containment truncation so both depth-limiting
-    /// paths size their placeholder identically.
+    /// Computes the width/height of a truncated package folder's ellipsis (<c>…</c>) placeholder
+    /// leaf body. The placeholder shows only the ellipsis glyph, so its size does not depend on how
+    /// many elements were hidden; it is tall enough for the folder's name (centered in the body by
+    /// the renderer) and the ellipsis below it to stay clear of each other.
     /// </summary>
-    private static (double Width, double Height) ComputeEllipsisSize(int hiddenCount, Theme theme)
+    private static (double Width, double Height) ComputeEllipsisSize(Theme theme)
     {
-        var margin = 2.0 * theme.LabelPadding;
-        var width = Math.Max(
-            MinBoxWidth,
-            (2.0 * margin) + (hiddenCount.ToString(System.Globalization.CultureInfo.InvariantCulture).Length * 8.0) + 60.0);
-        var height = (2.0 * margin) + theme.FontSizeTitle;
-        return (width, height);
+        var height = (3.0 * theme.FontSizeTitle) + (2.0 * theme.LabelPadding);
+        return (MinBoxWidth, height);
+    }
+
+    /// <summary>
+    /// Returns <paramref name="def"/> with a trailing untitled <c>…</c> compartment row appended and
+    /// its size recomputed to include that row — the specification's marker (the trailing
+    /// <c>'…'?</c> of every compartment-contents production in the graphical BNF, clause 8.2.3)
+    /// that the box has further contents which are not shown.
+    /// </summary>
+    private static DefBox WithTruncationRow(DefBox def, Theme theme)
+    {
+        IReadOnlyList<LayoutCompartment> compartments = [.. def.Compartments, new LayoutCompartment(null, ["\u2026"])];
+        var (width, height) = ComputeBoxSize(def.Label, def.Keyword, compartments, theme);
+        return def with { Compartments = compartments, Width = Math.Max(def.Width, width), Height = height };
     }
 
     /// <summary>Creates a definition leaf node in the given scope, carrying its keyword and compartments.</summary>
     private static LayoutGraphNode MakeDefNode(LayoutGraph scope, DefBox def)
     {
         var node = scope.AddNode(def.QualifiedName, def.Width, def.Height);
-        node.Label = def.SimpleName;
-        node.Shape = BoxShape.Rectangle;
+        node.Label = def.Label;
+
+        // A usage is drawn with rounded corners and a definition with square corners (SysML v2
+        // graphical BNF, clause 8.2.3: definition nodes are plain rectangles, usage nodes rounded).
+        node.Shape = def.IsUsage ? BoxShape.RoundedRectangle : BoxShape.Rectangle;
         node.Keyword = def.Keyword;
         node.Compartments = def.Compartments;
         return node;
@@ -1982,7 +2069,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         var edge = scope.AddEdge($"note-edge:{def.QualifiedName}", note, defNode);
         edge.TargetEnd = EndMarkerStyle.None;
-        edge.LineStyle = LineStyle.Solid;
+        edge.LineStyle = LineStyle.Dashed;
     }
 
     /// <summary>
@@ -2023,11 +2110,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Replaces each truncated folder's or truncated definition's placed box with one carrying its
-    /// "+N more…" ellipsis label, positioned within the box's now-known absolute placement. Recurses
+    /// Replaces each truncated package folder's placed box with one carrying its
+    /// ellipsis (<c>…</c>) label, positioned within the box's now-known absolute placement. Recurses
     /// into every placed container box's own <see cref="LayoutBox.Children"/> against its matching
     /// <see cref="LayoutGraphNode.Children"/>'s <see cref="LayoutGraph.Nodes"/>, so a truncated
-    /// definition nested at any depth — inside a folder, inside another definition, or both — is
+    /// folder nested at any depth — inside another folder, inside a definition, or both — is
     /// found and decorated exactly like a root-level truncated folder, not just the ones directly on
     /// the root graph.
     /// </summary>
@@ -2067,11 +2154,17 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         {
             if (hiddenByNode.TryGetValue(graphNode, out var hidden))
             {
+                // The renderers anchor a centered label at its X coordinate, so X is the box's
+                // horizontal center (anchoring at the left padding would hang half the glyph out of
+                // the box). The folder's name is drawn centered in the body, so the ellipsis sits at
+                // the bottom of the box, below the name, and never above the reserved title band.
                 var indicator = new LayoutLabel(
-                    X: box.X + theme.LabelPadding,
-                    Y: box.Y + hidden.TitleOffset + theme.LabelPadding + (theme.FontSizeTitle / 2.0),
+                    X: box.X + (box.Width / 2.0),
+                    Y: Math.Max(
+                        box.Y + hidden.TitleOffset + theme.LabelPadding + (theme.FontSizeTitle / 2.0),
+                        box.Y + box.Height - theme.LabelPadding - (theme.FontSizeTitle / 2.0)),
                     MaxWidth: box.Width - (2.0 * theme.LabelPadding),
-                    Text: $"+{hidden.HiddenCount} more\u2026",
+                    Text: "\u2026",
                     Align: TextAlign.Center,
                     Weight: FontWeight.Regular,
                     Style: FontStyle.Normal,

@@ -22,6 +22,8 @@ configuration are required beyond a standard .NET SDK installation.
 - An action definition yields one box per action, a start marker, a done marker, and flow lines.
 - A succession's target action is positioned below its source action.
 - Each succession flow edge is a dashed line with an open end marker at the target action.
+- The connector from the start marker to an action and from an action to the done marker is drawn
+  in the same style as a succession: a dashed line with an open end marker at its target.
 - A forward chain of successions flows top-to-bottom with orthogonal succession polylines and no
   overlapping action boxes.
 - A branch-and-join flow renders every action, attaches the start marker only to source actions and
@@ -56,7 +58,7 @@ configuration are required beyond a standard .NET SDK installation.
 | `ActionFlowView_BuildLayout_SuccessionEdge_IsDashedWithOpenArrowhead` | Dashed line with open end marker |
 | `ActionFlowView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally` | Top-to-bottom orthogonal flow |
 | `ActionFlowView_BuildLayout_NoOverlap` | Action boxes do not overlap |
-| `ActionFlowView_BuildLayout_BranchAndJoin` | Branch/join renders all boxes, markers, and successions |
+| `ActionFlowView_BuildLayout_BranchAndJoin` | Branch/join; start/done connectors dashed, open marker |
 | `ActionFlowView_BuildLayout_Cycle_IsBroken` | Cyclic flow successions keep open markers at true targets |
 | `ActionFlowView_BuildLayout_NullViewNode_PicksHeuristicRootUnchanged` | Null `ViewNode` renders unchanged |
 | `ActionFlowView_BuildLayout_ExposeNonHeuristicRoot_SelectsExposedRoot` | Non-heuristic root is selected |

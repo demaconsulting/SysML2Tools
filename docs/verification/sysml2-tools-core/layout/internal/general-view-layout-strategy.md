@@ -24,8 +24,13 @@ configuration are required beyond a standard .NET SDK installation.
 
 - All `GeneralViewLayoutStrategyTests` pass with zero failures across all four target frameworks.
 - Each user definition appears as a box carrying its definition keyword.
+- A definition's name line shows the declared short name and specialization in the textual
+  notation (`<PD2> PartDef2`, `Car :> Vehicle`, `<T> Truck :> Vehicle, Hauler`), and the box is at
+  least as wide as that label; `FormatNameLine` omits every null or empty piece and orders the
+  pieces short name, name, supertypes, typing, multiplicity.
+- A top-level usage is a rounded-rectangle box, while a definition is a plain rectangle.
 - When the view has no resolved `expose` scope, a bare package's definitions appear inside a
-  folder-shaped box labeled with the package name.
+  folder-shaped box labeled with the package name and carrying no keyword (no `«package»` line).
 - A definition that owns nested definitions appears as exactly one box, with its nested
   definitions placed inside that box (as its own `Children`) rather than as a duplicate sibling
   container — regardless of whether the view is scoped or unscoped.
@@ -33,6 +38,12 @@ configuration are required beyond a standard .NET SDK installation.
   folder merely because it is an ancestor of admitted content; the package's admitted items are
   promoted directly to the diagram's root instead.
 - A definition's owned usages appear as compartment rows formatted `name : Type`.
+- A definition's compartments are ordered `doc` first, then `attributes`, `enums`, `parts`, and
+  `ports`, then every other group in declaration order, regardless of the order the usages are
+  declared in.
+- When the depth limit hides a definition's nested definitions, the definition is a single leaf box
+  (no placeholder child box) whose last compartment is an untitled `…` row, appended after any
+  compartments the definition already has, making the box taller than the same untruncated leaf.
 - A specialization yields a line with an open end marker at the supertype end.
 - A `part`-feature yields a line with a filled-diamond end marker at the owner end.
 - A `port`-feature yields a line with a filled-diamond end marker at the owner end.
@@ -102,7 +113,7 @@ configuration are required beyond a standard .NET SDK installation.
   — e.g. two sibling features of the same enclosing definition with no distinguishing owner)
   yields no edge, and the drop is surfaced as a `Connect`-kind warning via
   `LayoutWarnings.ForDroppedRelationshipEdges`.
-- A resolved `Allocate` edge yields a dashed line with an open-chevron end marker at the target
+- A resolved `Allocate` edge yields a solid line with an open-chevron end marker at the target
   and a `«allocate»` midpoint label.
 - A resolved `Dependency` edge yields a dashed line with an open-chevron end marker at the target
   and no midpoint label — the same rendering as the `ref`-fix.
@@ -118,14 +129,14 @@ configuration are required beyond a standard .NET SDK installation.
   solely by the endpoint falling outside an active `expose` scope narrowing, which is expected
   behavior and produces no warning.
 - Every definition with one or more `Documentation`/`Comment` annotations gets exactly one
-  `BoxShape.Note` box, connected to the definition's own box by a plain solid line with no end
+  `BoxShape.Note` box, connected to the definition's own box by a plain dashed line with no end
   marker; a definition with no annotations gets no note box.
 - A `"subject"`/`"assume constraint"`/`"require constraint"`/`"constraint"`-keyword feature
   compartment is titled with the guillemet-wrapped stereotype form (e.g. `«subject»`), not the
   generic pluralized-keyword default.
 - A constraint-kind feature (non-null `ExpressionText`) renders its raw expression text in place
   of the generic `name : Type [multiplicity]` row shape.
-- An `"enum value"`-keyword feature compartment is titled `"enum values"`.
+- An `"enum value"`-keyword feature compartment is titled `"enums"`.
 - `CollectDefinitions` admits named usage-level (`SysmlFeatureNode`) candidates alongside
   definitions (Phase 2d), so a bare or `SysML::`-qualified metaclass-kind filter
   (`filter @PartUsage;`/`filter @SysML::PartUsage;`) renders only the matching usage-kind boxes,
@@ -174,10 +185,10 @@ configuration are required beyond a standard .NET SDK installation.
   sibling-subpackage pair); a relationship between a definition and a definition it contains lays
   out without error.
 - The depth limit counts each enclosing package folder as one nesting level: a limit of 1 collapses
-  the top-level folder (its label reports every hidden definition and nested package), a limit of 2
+  the top-level folder to a bare `…` label, a limit of 2
   keeps the top-level folder's own definitions and collapses the nested folder, and a relationship to
   a definition hidden by the limit draws no connector.
-- A "+N more…" truncation label is attached to the box of the truncated node regardless of the order
+- A bare `…` truncation label is attached to the box of the truncated package folder regardless of the order
   in which the layout engine emitted a scope's boxes, at the root and inside nested containers.
 - The gallery model `docs/gallery/models/11-nested-packages-general.sysml` renders `Powertrain` and
   `Body` folders inside the `Vehicle` folder with the cross-package specialization and the
@@ -201,7 +212,19 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_MixedDefinitionKinds_RendersAllWithKeywords`:
   Each def carries its keyword
 - `GeneralViewLayoutStrategy_BuildLayout_PackagedDefinitions_ProducesFolderBox`:
-  Folder box with package keyword
+  Folder box labeled with the package name and carrying no keyword
+- `GeneralViewLayoutStrategy_BuildLayout_TopLevelUsage_IsRoundedAndDefinitionIsSquare`:
+  A top-level `part` usage is a `RoundedRectangle` box and its `part def` a `Rectangle` box
+- `GeneralViewLayoutStrategy_BuildLayout_DefinitionNameLine_ShowsShortNameAndSupertypes`:
+  Labels `Vehicle`, `Car :> Vehicle`, `<PD2> PartDef2`, and `<T> Truck :> Vehicle, Hauler`; the
+  longest label's box is wide enough for it
+- `GeneralViewLayoutStrategy_FormatNameLine_AllOptionalsNull_ReturnsNameOnly`:
+  Only the name is returned when every optional piece is absent
+- `GeneralViewLayoutStrategy_FormatNameLine_EachOptionalAlone_UsesTextualNotation`:
+  Short name, supertypes, typing, and multiplicity each render on their own (`<c1> Car`,
+  `Car :> A, B`, `car : Car`, `car [2]`); empty values behave like null
+- `GeneralViewLayoutStrategy_FormatNameLine_AllPieces_CombinesInSpecOrder`:
+  `<r> ram :> Base : Memory [1..*]`
 - `GeneralViewLayoutStrategy_BuildLayout_Subclassification_ProducesEdge`:
   Line with open end marker at supertype
 - `GeneralViewLayoutStrategy_BuildLayout_UnresolvedSupertypeAndAliasOfSameTarget_DrawsOneEdge`:
@@ -224,6 +247,9 @@ configuration are required beyond a standard .NET SDK installation.
   Seed-listed definitions excluded; empty canvas
 - `GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments`:
   Attribute and port compartments
+- `GeneralViewLayoutStrategy_BuildLayout_Compartments_AreInCanonicalOrder`:
+  A part def declaring an item, port, enum value, part, and attribute (in that order) plus
+  documentation lists `doc`, `attributes`, `enums`, `parts`, `ports`, `items` in that order
 - `GeneralViewLayoutStrategy_BuildLayout_CompositeMembership_ProducesFilledDiamondEdge`:
   Filled-diamond at owner for `part` feature
 - `GeneralViewLayoutStrategy_BuildLayout_PortFeature_ProducesFilledDiamondEdge`:
@@ -293,8 +319,8 @@ configuration are required beyond a standard .NET SDK installation.
   End-to-end regression guard: the real `WorkspaceLoader` + `BuildLayout` pipeline (no synthetic
   edges) renders a `Connect` edge between two distinct boxes for the dominant real-world shape,
   with no dropped-edge warning
-- `GeneralViewLayoutStrategy_BuildLayout_Allocate_ProducesDashedChevronEdgeWithLabel`:
-  An `Allocate` edge produces a dashed open-chevron line with a `«allocate»` midpoint label
+- `GeneralViewLayoutStrategy_BuildLayout_Allocate_ProducesSolidChevronEdgeWithLabel`:
+  An `Allocate` edge produces a solid open-chevron line with a `«allocate»` midpoint label
 - `GeneralViewLayoutStrategy_BuildLayout_Dependency_ProducesDashedChevronEdge`:
   A `Dependency` edge produces a dashed open-chevron line with no midpoint label
 - `GeneralViewLayoutStrategy_BuildLayout_Binding_ProducesSolidEdgeWithEqualsLabel`:
@@ -307,11 +333,11 @@ configuration are required beyond a standard .NET SDK installation.
   produces no edge
 - `GeneralViewLayoutStrategy_BuildLayout_AnnotatedDefinition_EmitsNoteBox`:
   A definition with a `Comment` annotation gets a `BoxShape.Note` box connected by
-  a plain solid line with no end marker
+  a plain dashed line with no end marker
 - `GeneralViewLayoutStrategy_BuildLayout_BarePackageExpose_DrawsEmptyPackageNode`:
   `expose Pkg;` draws exactly one folder-shaped package node labeled `Pkg` with no children
 - `GeneralViewLayoutStrategy_BuildLayout_BarePackageExposeWithDepthLimitOne_HasNoTruncationIndicator`:
-  with a depth limit of 1 the empty package node still has no children (no `+0 more…` indicator)
+  with a depth limit of 1 the empty package node still has no children (no `…` truncation indicator)
 - `GeneralViewLayoutStrategy_BuildLayout_ViewConditionOnExposedPackage_KeepsOrRemovesPackageNode`:
   `filter @SysML::Package;` keeps the exposed package node; `filter @SysML::PartDefinition;` removes it
 - `GeneralViewLayoutStrategy_BuildLayout_NamespaceExpose_DrawsMembersWithoutPackageNode`:
@@ -371,8 +397,8 @@ configuration are required beyond a standard .NET SDK installation.
   `"require constraint"`/`"assume constraint"` features render their raw `ExpressionText` instead
   of a `name : Type [multiplicity]` row, under `«require constraint»`/`«assume constraint»`
   compartment titles
-- `GeneralViewLayoutStrategy_BuildLayout_EnumDefLiteralValues_ProducesEnumValuesCompartment`:
-  `"enum value"`-keyword features are grouped under an `"enum values"` compartment title
+- `GeneralViewLayoutStrategy_BuildLayout_EnumDefLiteralValues_ProducesEnumsCompartment`:
+  `"enum value"`-keyword features are grouped under an `"enums"` compartment title
 - `GeneralViewLayoutStrategy_BuildLayout_QualifiedPartUsageFilter_RendersOnlyPartUsages`:
   A `filter @SysML::PartUsage;` expression renders only usage-level candidates whose own keyword
   maps to `PartUsage`, reproducing the OMG `42.Views/ViewsExample.sysml` regression pattern against
@@ -450,13 +476,25 @@ configuration are required beyond a standard .NET SDK installation.
 - `GeneralViewLayoutStrategy_BuildLayout_EdgeBetweenContainerAndOwnDescendant_DoesNotThrow`:
   A definition related to a definition it contains lays out without error with both boxes present
 - `GeneralViewLayoutStrategy_BuildLayout_NestedPackages_DepthLimit_CountsPackageNesting`:
-  Depth limit 1 collapses `P` to `+4 more…`; limit 2 keeps `A` and collapses `Sub` to `+2 more…`; limit 3
+  Depth limit 1 collapses `P` to a bare `…` label; limit 2 keeps `A` and collapses `Sub` to `…`; limit 3
   and no limit show everything with no truncation label
 - `GeneralViewLayoutStrategy_BuildLayout_NestedPackages_DepthLimit_EdgeToTruncatedPackageIsDropped`:
   A relationship into a nested package collapsed by the depth limit draws no line and does not throw
+- `GeneralViewLayoutStrategy_BuildLayout_PackageFolderContents_DepthLimitOne_StillTruncatesFolder`:
+  A depth limit of 1 over a package with two sibling definitions draws the folder with a bare `…`
+  label child and neither definition's box
+- `GeneralViewLayoutStrategy_BuildLayout_NestedDefinitionContainment_DepthLimitTruncatesInnerLevel`:
+  A depth limit of 2 over `Outer` owning `Inner` keeps `Outer` as a leaf box (no children, no `Inner`
+  box) whose last compartment is an untitled `…` row
+- `GeneralViewLayoutStrategy_BuildLayout_TruncatedDefinitionWithCompartments_AppendsEllipsisRow`:
+  A truncated definition that already has an `attributes` compartment keeps it and gains the `…` row
+  as a separate trailing untitled compartment, and is taller than the same definition untruncated
+- `GeneralViewLayoutStrategy_DecorateTruncated_LineBeforeBoxes_DoesNotBreakBoxToNodePairing`:
+  A line placed before the boxes does not shift the box-to-node pairing: only the truncated node's
+  box carries the bare `…` label
 - `GeneralViewLayoutStrategy_DecorateTruncated_BoxOrderDiffersFromNodeOrder_DecoratesMatchingNode`:
   With the placed boxes (and a line) in a different order than the graph nodes, at the root and inside a
-  nested container, only the box of the truncated node carries the "+N more…" label
+  nested container, only the box of the truncated node carries the `…` label
 - `GeneralViewLayoutStrategy_BuildLayout_NestedPackagesGalleryModel_RendersFoldersNestedAndCrossPackageEdges`:
   The gallery model `11-nested-packages-general.sysml` draws `Powertrain` and `Body` inside `Vehicle`, the
   `Hybrid` to `Engine` specialization and both compositions into `Car` in the `Vehicle` scope between the

@@ -595,6 +595,60 @@ public sealed class InterconnectionViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A container part's box is at least as wide as its own formatted label (short name, type,
+    ///     multiplicity) even when the child definition's contents are narrower, so the label never
+    ///     overflows the rounded box.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ContainerWithLongLabel_IsAtLeastLabelWide()
+    {
+        // Arrange: Computer { part <longShortName> board : Motherboard [1..1000000]; ... } where the
+        // Motherboard interior (cpu/chipset) is far narrower than the formatted label.
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildNestedWorkspace();
+        var computer = (SysmlDefinitionNode)workspace.Declarations["M::Computer"];
+        var board = (SysmlFeatureNode)computer.Children[0];
+        const string expectedLabel = "<aVeryLongShortNameForTheMainBoard> board : Motherboard [1..1000000]";
+        var longComputer = new SysmlDefinitionNode
+        {
+            Name = computer.Name,
+            QualifiedName = computer.QualifiedName,
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode
+                {
+                    Name = board.Name,
+                    ShortName = "aVeryLongShortNameForTheMainBoard",
+                    QualifiedName = board.QualifiedName,
+                    FeatureKeyword = "part",
+                    FeatureTyping = "Motherboard",
+                    Multiplicity = "[1..1000000]"
+                },
+                .. computer.Children.Skip(1)
+            ]
+        };
+        workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["M::Computer"] = longComputer,
+                ["M::Motherboard"] = workspace.Declarations["M::Motherboard"]
+            }
+        };
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("ComputerInterconnectionView", workspace), options);
+
+        // Assert: container (has children) is at least label-wide (0.62 is the strategy's per-character estimate)
+        var boardBox = FindPartBox(layout, expectedLabel);
+        Assert.NotEmpty(boardBox.Children);
+        var labelWidth = (expectedLabel.Length * options.Theme.FontSizeTitle * 0.62) + (2.0 * options.Theme.LabelPadding);
+        Assert.True(boardBox.Width >= labelWidth, $"container width {boardBox.Width} must be >= label width {labelWidth}");
+    }
+
+    /// <summary>
     ///     Nested children are emitted at absolute coordinates offset by the container origin, so the
     ///     renderer (which uses absolute coordinates) draws them in the right place.
     /// </summary>
@@ -666,6 +720,62 @@ public sealed class InterconnectionViewLayoutStrategyTests
         var partBoxes = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
         Assert.Equal(2, partBoxes.Count);
         Assert.All(partBoxes, b => Assert.Empty(b.Children));
+    }
+
+    /// <summary>
+    ///     A part usage's box label includes its declared short name and multiplicity
+    ///     (<c>&lt;r&gt; ram : Memory [2]</c>), and the box is wide enough for the longer label; a
+    ///     plain part keeps the unchanged <c>name : Type</c> form.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_PartWithShortNameAndMultiplicity_ShowsThemInLabel()
+    {
+        // Arrange: Sys { part cpu : Cpu; part <r> ram : Memory [2]; connect cpu to ram }
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var root = new SysmlDefinitionNode
+        {
+            Name = "Sys",
+            QualifiedName = "M::Sys",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "cpu", QualifiedName = "M::Sys::cpu", FeatureKeyword = "part", FeatureTyping = "Cpu" },
+                new SysmlFeatureNode
+                {
+                    Name = "ram",
+                    ShortName = "r",
+                    QualifiedName = "M::Sys::ram",
+                    FeatureKeyword = "part",
+                    FeatureTyping = "Memory",
+                    Multiplicity = "[2]"
+                },
+                new SysmlConnectionNode { ConnectionKeyword = "connection", EndpointA = "cpu", EndpointB = "ram" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["M::Sys"] = root,
+                ["M::Cpu"] = new SysmlDefinitionNode { Name = "Cpu", QualifiedName = "M::Cpu", DefinitionKeyword = "part def" },
+                ["M::Memory"] = new SysmlDefinitionNode { Name = "Memory", QualifiedName = "M::Memory", DefinitionKeyword = "part def" }
+            }
+        };
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("Interconnection", workspace), options);
+
+        // Assert: labels follow the specification's name-line form and the connector still resolved
+        var partBoxes = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
+        Assert.Contains(partBoxes, b => b.Label == "cpu : Cpu");
+        var ram = Assert.Single(partBoxes, b => b.Label == "<r> ram : Memory [2]");
+        Assert.Single(CollectLines(layout.Nodes));
+
+        // Assert: the box is sized to its (longer) label
+        var theme = options.Theme;
+        var minWidth = ("<r> ram : Memory [2]".Length * theme.FontSizeTitle * 0.62) + (2.0 * theme.LabelPadding);
+        Assert.True(ram.Width >= minWidth - 1e-6, $"box width {ram.Width} must fit its label ({minWidth}).");
     }
 
     /// <summary>

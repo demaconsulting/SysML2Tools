@@ -13,6 +13,10 @@ inferred from each view's name (see the
 [DiagramTypeRouter design](../design/sysml2-tools-core/rendering/internal/diagram-type-router.md)
 for the full dispatch rules).
 
+Every diagram uses the same plain, spec-style notation: white boxes with black one-pixel
+borders and lines (the `SysmlThemes.Plain` theme), with meaning carried by shape, border and
+line style, and text rather than by fill color.
+
 To regenerate the gallery, run for each model:
 
 ```pwsh
@@ -38,22 +42,24 @@ the plain, unmarked solid line used for `connect` between two sibling parts'
 ports. `RacingDrone`'s `part frontMotors : Motor[2] subsets motors;` narrows
 `Drone`'s inherited `motors` feature, demonstrating the dashed hollow-triangle
 marker used for `subsets`/`:>` feature subsetting. `allocate FlightTimeRequirement
-to Battery;` demonstrates the dashed open-chevron line carrying the
+to Battery;` demonstrates the solid open-chevron line carrying the
 `«allocate»` stereotype label used for allocation relationships, while the
 standalone `dependency FlightController to Battery;` statement demonstrates the
-same dashed open-chevron line without a label, used for general OMG
+dashed open-chevron line without a label, used for general OMG
 dependency relationships.
 
 `Battery`'s `comment /* ... */` annotation demonstrates the `BoxShape.Note`
 (folded-corner) box rendered for a commented element, connected to its box by
-a plain solid line, and its `doc /* ... */` documentation is drawn as a
+a dashed line with no arrowhead, and its `doc /* ... */` documentation is drawn as a
 word-wrapped `doc` compartment inside the `Battery` box. `FlightMode` is now an
 `enum def` with literal values
-(`idle`/`manual`/`autonomous`), demonstrating the `enum values` compartment.
+(`idle`/`manual`/`autonomous`), demonstrating the `enums` compartment.
 `FlightTimeRequirement` gains a `subject`/`require constraint` body,
 demonstrating the stereotype-titled `«subject»`/`«require constraint»`
 compartments (a constraint compartment shows its raw expression text rather
-than a `name : Type` row).
+than a `name : Type` row). A definition that specializes another shows the
+specialization in its name line (`RacingDrone :> Drone`), and a definition's short name
+(`<shortName>`) would be shown ahead of its name.
 
 Model: [`models/01-drone-general.sysml`](models/01-drone-general.sysml) ·
 SVG: [`svg/DroneGeneralView.svg`](svg/DroneGeneralView.svg)
@@ -111,10 +117,12 @@ SVG: [`svg/CoreLinkInterconnectionView.svg`](svg/CoreLinkInterconnectionView.svg
 
 ## 3. State Transition View — Elevator Controller
 
-Shows states placed top-to-bottom by the layered layout pipeline, an initial pseudo-state, and
-guarded transitions routed as orthogonal `[guard]`-labeled arrows. The initial marker targets
-the state named by an explicit `first start then idle;` transition (rather than the
-first-declared state), and the `idle`/`doorsClosing` pair uses the attached-transition idiom
+Shows states placed top-to-bottom by the layered layout pipeline inside a frame headed
+`«state def» ElevatorStates`, an initial pseudo-state, and guarded transitions routed as
+orthogonal `[guard]`-labeled arrows. The initial marker (an open-arrowhead arrow) targets
+the state named by the explicit `first start then idle;` transition; a state machine with no
+explicit initial transition is drawn without an initial marker. The `idle`/`doorsClosing` pair
+uses the attached-transition idiom
 (`state idle; accept callReceived then doorsClosing;`) instead of a standalone `transition`
 statement.
 
@@ -128,7 +136,8 @@ SVG: [`svg/ElevatorStateTransitionView.svg`](svg/ElevatorStateTransitionView.svg
 ## 4. Action Flow View — CI/CD Pipeline
 
 Shows actions arranged top-to-bottom by the layered layout pipeline, with a start node, a done
-node, and a quality-gate branch and join. The `build` step fans out through a named `fork`
+node, and a quality-gate branch and join. The start and done connectors are dashed open-arrowhead
+lines like every succession. The `build` step fans out through a named `fork`
 (rendered as a horizontal-bar badge) into parallel `unitTest`/`securityScan` branches that rejoin
 through a named `join` (also a horizontal-bar badge) before `qualityGate`. The `checkout` step
 uses the compact `action checkout; then restoreDependencies;` idiom instead of a standalone
@@ -144,7 +153,7 @@ SVG: [`svg/PipelineActionFlowView.svg`](svg/PipelineActionFlowView.svg)
 ## 5. Sequence View — OAuth 2.0 Login
 
 Shows lifelines for each participant and the ordered messages exchanged during an
-OAuth authorization-code login.
+OAuth authorization-code login; each message ends in a hollow triangle arrowhead.
 
 Model: [`models/05-oauth-sequence.sysml`](models/05-oauth-sequence.sysml) ·
 SVG: [`svg/OAuthSequenceView.svg`](svg/OAuthSequenceView.svg)
@@ -196,7 +205,8 @@ SVG: [`svg/CarLineageGridView.svg`](svg/CarLineageGridView.svg)
 ## 7. Browser View — Avionics System
 
 Shows the membership hierarchy of nested packages and definitions as an indented
-tree with parent-to-child connectors. The view declares an explicit `render
+tree with parent-to-child connectors; each row reads `«keyword» Name` (for example
+`«part def» Aileron`). The view declares an explicit `render
 asTreeDiagram;` statement, so the browser strategy is selected directly rather
 than inferred from the view's name.
 

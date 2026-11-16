@@ -17,13 +17,21 @@ namespace DemaConsulting.SysML2Tools.Tests.Layout;
 public sealed class StateTransitionViewLayoutStrategyTests
 {
     /// <summary>
+    ///     Returns the content (states, initial marker, transition lines) the layout encloses in its
+    ///     single state-definition frame.
+    /// </summary>
+    private static IReadOnlyList<LayoutNode> Content(LayoutTree layout) =>
+        Assert.IsType<LayoutBox>(Assert.Single(layout.Nodes)).Children;
+
+    /// <summary>
     ///     A state definition with states and transitions produces a state box per state, an initial
     ///     pseudo-state badge, and a transition line carrying its guard label.
     /// </summary>
     [Fact]
     public void StateTransitionView_BuildLayout_StatesAndTransitions_ProducesBoxesBadgeAndLines()
     {
-        // Arrange: a Light state def with two states and a guarded transition
+        // Arrange: a Light state def with two states and a guarded transition, plus an explicit
+        // initial transition so an initial marker is drawn
         var strategy = new StateTransitionViewLayoutStrategy();
         var light = new SysmlDefinitionNode
         {
@@ -32,6 +40,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
             DefinitionKeyword = "state def",
             Children =
             [
+                new SysmlTransitionNode { Source = "start", Target = "stop" },
                 new SysmlFeatureNode { Name = "stop", QualifiedName = "SM::Light::stop", FeatureKeyword = "state" },
                 new SysmlFeatureNode { Name = "go", QualifiedName = "SM::Light::go", FeatureKeyword = "state" },
                 new SysmlTransitionNode { Source = "stop", Target = "go", Guard = "t" }
@@ -48,9 +57,65 @@ public sealed class StateTransitionViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: two state boxes, an initial badge, and a guard-labeled transition line
-        Assert.Equal(2, layout.Nodes.OfType<LayoutBox>().Count(b => b.Keyword == "state"));
-        Assert.Contains(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.FilledCircle);
-        Assert.Contains(layout.Nodes.OfType<LayoutLine>(), l => l.MidpointLabel == "[t]");
+        Assert.Equal(2, Content(layout).OfType<LayoutBox>().Count(b => b.Keyword == "state"));
+        Assert.Contains(Content(layout).OfType<LayoutBadge>(), b => b.Shape == BadgeShape.FilledCircle);
+        Assert.Contains(Content(layout).OfType<LayoutLine>(), l => l.MidpointLabel == "[t]");
+    }
+
+    /// <summary>
+    ///     The whole diagram is enclosed in one frame box headed with the state definition's keyword
+    ///     and name; the frame is inset symmetrically from the canvas edge so its outline is not
+    ///     clipped, and the states, initial marker, and transitions are its children and sit below
+    ///     the frame's title band.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_RootDefinition_IsEnclosedInStateDefFrame()
+    {
+        // Arrange: a state def with an initial transition and one guarded transition
+        var machine = new SysmlDefinitionNode
+        {
+            Name = "Machine",
+            QualifiedName = "SM::Machine",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlTransitionNode { Source = "start", Target = "a" },
+                new SysmlFeatureNode { Name = "a", QualifiedName = "SM::Machine::a", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "b", QualifiedName = "SM::Machine::b", FeatureKeyword = "state" },
+                new SysmlTransitionNode { Source = "a", Target = "b", Guard = "g" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["SM::Machine"] = machine }
+        };
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = new StateTransitionViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), options);
+
+        // Assert: one top-level frame labeled «state def» Machine, inset symmetrically inside the canvas
+        // so its outline stroke is not clipped by the canvas edge
+        var frame = Assert.IsType<LayoutBox>(Assert.Single(layout.Nodes));
+        Assert.Equal("state def", frame.Keyword);
+        Assert.Equal("Machine", frame.Label);
+        Assert.True(frame.X > 0, "the frame must be inset from the left canvas edge.");
+        Assert.True(frame.Y > 0, "the frame must be inset from the top canvas edge.");
+        Assert.Equal(frame.X, frame.Y, precision: 3);
+        Assert.Equal(layout.Width, frame.X + frame.Width + frame.X, precision: 3);
+        Assert.Equal(layout.Height, frame.Y + frame.Height + frame.Y, precision: 3);
+
+        // Assert: all content is inside the frame, with the states clear of the title band
+        var titleArea = BoxMetrics.TitleAreaHeight(options.Theme, hasLabel: true, hasKeyword: true);
+        var states = frame.Children.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        Assert.Equal(2, states.Count);
+        Assert.All(states, s =>
+        {
+            Assert.True(s.Y >= titleArea, "states must start below the frame's title band.");
+            Assert.True(s.X + s.Width <= frame.Width && s.Y + s.Height <= frame.Height, "states must lie inside the frame.");
+        });
+        Assert.Single(frame.Children.OfType<LayoutBadge>());
+        Assert.Contains(frame.Children.OfType<LayoutLine>(), l => l.MidpointLabel == "[g]");
     }
 
     /// <summary>States referenced only by transitions are still created as boxes.</summary>
@@ -81,7 +146,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: two state boxes exist (a declared, b synthesized from the transition)
-        Assert.Equal(2, layout.Nodes.OfType<LayoutBox>().Count(b => b.Keyword == "state"));
+        Assert.Equal(2, Content(layout).OfType<LayoutBox>().Count(b => b.Keyword == "state"));
     }
 
     /// <summary>An empty workspace yields a minimal canvas.</summary>
@@ -132,7 +197,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
 
         // The forward line leaves state 'a' at its first waypoint; the reverse line enters state 'a'
         // at its last waypoint. Both are on a's edge facing b, so they must be different points.
-        var lines = layout.Nodes.OfType<LayoutLine>().ToList();
+        var lines = Content(layout).OfType<LayoutLine>().ToList();
         var forward = lines.Single(l => l.MidpointLabel == "[fwd]");
         var reverse = lines.Single(l => l.MidpointLabel == "[rev]");
         var outAnchor = forward.Waypoints[0];
@@ -174,7 +239,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: the transition line has an open arrowhead at the target end
-        var transitionLine = layout.Nodes.OfType<LayoutLine>()
+        var transitionLine = Content(layout).OfType<LayoutLine>()
             .FirstOrDefault(l => l.MidpointLabel == "[g]");
         Assert.NotNull(transitionLine);
         Assert.Equal(EndMarkerStyle.OpenChevron, transitionLine.TargetEnd);
@@ -214,7 +279,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: boxes flow top-to-bottom (a above b above c).
-        var boxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        var boxes = Content(layout).OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
         var a = boxes.Single(b => b.Label == "a");
         var b = boxes.Single(b => b.Label == "b");
         var c = boxes.Single(b => b.Label == "c");
@@ -222,7 +287,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
         Assert.True(b.Y < c.Y, "state 'b' should be placed above state 'c'.");
 
         // Assert: every transition polyline is orthogonal.
-        foreach (var line in layout.Nodes.OfType<LayoutLine>().Where(l => l.MidpointLabel is "[ab]" or "[bc]"))
+        foreach (var line in Content(layout).OfType<LayoutLine>().Where(l => l.MidpointLabel is "[ab]" or "[bc]"))
         {
             for (var i = 0; i + 1 < line.Waypoints.Count; i++)
             {
@@ -294,7 +359,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var boxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        var boxes = Content(layout).OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
         Assert.Contains(boxes, b => b.Label == "s1");
         Assert.Contains(boxes, b => b.Label == "s2");
     }
@@ -321,7 +386,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var boxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        var boxes = Content(layout).OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
         Assert.Contains(boxes, b => b.Label == "b1");
         Assert.Contains(boxes, b => b.Label == "b2");
         Assert.DoesNotContain(boxes, b => b.Label is "s1" or "s2" or "s3");
@@ -349,7 +414,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var boxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        var boxes = Content(layout).OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
         Assert.Contains(boxes, b => b.Label == "b1");
     }
 
@@ -422,7 +487,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var boxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        var boxes = Content(layout).OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
         Assert.Contains(boxes, b => b.Label == "b1");
         Assert.DoesNotContain(boxes, b => b.Label is "s1" or "s2" or "s3");
     }
@@ -477,8 +542,8 @@ public sealed class StateTransitionViewLayoutStrategyTests
         var scoped = strategy.BuildLayout(context, options);
         var full = strategy.BuildLayout(new ViewContext("full", workspace), options);
 
-        var scopedLabels = scoped.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").Select(b => b.Label).ToList();
-        var fullLabels = full.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").Select(b => b.Label).ToList();
+        var scopedLabels = Content(scoped).OfType<LayoutBox>().Where(b => b.Keyword == "state").Select(b => b.Label).ToList();
+        var fullLabels = Content(full).OfType<LayoutBox>().Where(b => b.Keyword == "state").Select(b => b.Label).ToList();
 
         Assert.Contains("s1", scopedLabels);
         Assert.Contains("s2", scopedLabels);
@@ -516,7 +581,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
 
         var layout = strategy.BuildLayout(context, options);
 
-        var boxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        var boxes = Content(layout).OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
         Assert.Contains(boxes, b => b.Label == "b1");
         Assert.Contains(boxes, b => b.Label == "b2");
     }
@@ -560,12 +625,10 @@ public sealed class StateTransitionViewLayoutStrategyTests
         // Assert: the initial marker's arrow terminates at "b"'s top edge (Y), not "a"'s — using Y
         // rather than X since a linear a->b chain may share a column (same X) under the layered
         // placement algorithm, but "a" (flow source) and "b" (flow target) never share the same Y.
-        var badge = Assert.Single(layout.Nodes.OfType<LayoutBadge>());
-        var bBox = layout.Nodes.OfType<LayoutBox>().Single(b => b.Keyword == "state" && b.Label == "b");
-        var aBox = layout.Nodes.OfType<LayoutBox>().Single(b => b.Keyword == "state" && b.Label == "a");
-        var markerArrow = layout.Nodes.OfType<LayoutLine>()
-            .Single(l => l.TargetEnd == EndMarkerStyle.FilledArrow && l.Waypoints.Count == 2 &&
-                         Math.Abs(l.Waypoints[0].X - badge.CentreX) < 0.01);
+        var badge = Assert.Single(Content(layout).OfType<LayoutBadge>());
+        var bBox = Content(layout).OfType<LayoutBox>().Single(b => b.Keyword == "state" && b.Label == "b");
+        var aBox = Content(layout).OfType<LayoutBox>().Single(b => b.Keyword == "state" && b.Label == "a");
+        var markerArrow = InitialArrow(layout, badge);
         var arrowEndY = markerArrow.Waypoints[^1].Y;
         Assert.Equal(bBox.Y, arrowEndY, precision: 3);
         Assert.NotEqual(aBox.Y, arrowEndY, precision: 3);
@@ -603,7 +666,7 @@ public sealed class StateTransitionViewLayoutStrategyTests
         var layout = strategy.BuildLayout(context, options);
 
         // Assert: exactly one state box ("off"), never a "start" box.
-        var stateBoxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        var stateBoxes = Content(layout).OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
         Assert.Single(stateBoxes);
         Assert.DoesNotContain(stateBoxes, b => b.Label == "start");
     }
@@ -644,28 +707,24 @@ public sealed class StateTransitionViewLayoutStrategyTests
 
         // Assert: two state boxes ("a", "off"), no "initial" box, and the initial marker arrow
         // lands on "off" (the entry action's declared target) rather than "a" (first declared).
-        var stateBoxes = layout.Nodes.OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        var stateBoxes = Content(layout).OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
         Assert.Equal(2, stateBoxes.Count);
         Assert.DoesNotContain(stateBoxes, b => b.Label == "initial");
 
-        var badge = Assert.Single(layout.Nodes.OfType<LayoutBadge>());
+        var badge = Assert.Single(Content(layout).OfType<LayoutBadge>());
         var offBox = stateBoxes.Single(b => b.Label == "off");
-        var markerArrow = layout.Nodes.OfType<LayoutLine>()
-            .Single(l => l.TargetEnd == EndMarkerStyle.FilledArrow && l.Waypoints.Count == 2 &&
-                         Math.Abs(l.Waypoints[0].X - badge.CentreX) < 0.01);
+        var markerArrow = InitialArrow(layout, badge);
         var arrowEndX = markerArrow.Waypoints[^1].X;
         Assert.InRange(arrowEndX, offBox.X, offBox.X + offBox.Width);
     }
 
     /// <summary>
-    ///     Regression guard: when no pseudostate-sourced transition exists, the initial marker's
-    ///     arrow still lands on the first-declared state — the pre-existing heuristic — exactly as
-    ///     before this fix (protects every pre-existing passing test in this file, and the gallery's
-    ///     <c>03-elevator-state.sysml</c>, which uses only guarded <c>transition first idle if ...
-    ///     then ...;</c> chains with no pseudostate source at all).
+    ///     When no explicit initial transition (<c>first start then X;</c> or an entry-action-sourced
+    ///     transition) exists, no initial marker is drawn: neither a badge nor an arrow, and no top
+    ///     band is reserved for one — the first-declared state is never guessed.
     /// </summary>
     [Fact]
-    public void StateTransitionView_BuildLayout_NoExplicitInitialTransition_FallsBackToFirstDeclared()
+    public void StateTransitionView_BuildLayout_NoExplicitInitialTransition_DrawsNoInitialMarker()
     {
         // Arrange: ordinary declared-state-to-state transitions only, no "start"/entry source.
         var strategy = new StateTransitionViewLayoutStrategy();
@@ -691,13 +750,94 @@ public sealed class StateTransitionViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: the initial marker's arrow lands on "a" (the first-declared state).
-        var badge = Assert.Single(layout.Nodes.OfType<LayoutBadge>());
-        var aBox = layout.Nodes.OfType<LayoutBox>().Single(b => b.Keyword == "state" && b.Label == "a");
-        var markerArrow = layout.Nodes.OfType<LayoutLine>()
-            .Single(l => l.TargetEnd == EndMarkerStyle.FilledArrow && l.Waypoints.Count == 2 &&
-                         Math.Abs(l.Waypoints[0].X - badge.CentreX) < 0.01);
-        var arrowEndX = markerArrow.Waypoints[^1].X;
-        Assert.InRange(arrowEndX, aBox.X, aBox.X + aBox.Width);
+        // Assert: no badge and no two-point marker arrow; the only line is the guarded transition
+        var content = Content(layout);
+        Assert.Empty(content.OfType<LayoutBadge>());
+        Assert.Single(content.OfType<LayoutLine>());
+
+        // Assert: the first state sits directly below the frame's top edge plus title band plus margin
+        // (no marker band)
+        var titleArea = BoxMetrics.TitleAreaHeight(options.Theme, hasLabel: true, hasKeyword: true);
+        var frameTop = Assert.IsType<LayoutBox>(Assert.Single(layout.Nodes)).Y;
+        var aBox = content.OfType<LayoutBox>().Single(b => b.Keyword == "state" && b.Label == "a");
+        Assert.Equal(frameTop + titleArea + (options.Theme.LabelPadding * 4.0), aBox.Y, precision: 3);
     }
+
+    /// <summary>
+    ///     A transition sourced from the completion pseudostate <c>done</c> is an ordinary
+    ///     (non-initial) transition: it never draws the initial marker at its target.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_DoneSourcedTransition_DrawsNoInitialMarker()
+    {
+        // Arrange: only "done"-sourced transition to a declared state
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var machine = new SysmlDefinitionNode
+        {
+            Name = "M",
+            QualifiedName = "P::M",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a", QualifiedName = "P::M::a", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "b", QualifiedName = "P::M::b", FeatureKeyword = "state" },
+                new SysmlTransitionNode { Source = "done", Target = "b" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::M"] = machine }
+        };
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert: no initial badge
+        Assert.Empty(Content(layout).OfType<LayoutBadge>());
+    }
+
+    /// <summary>
+    ///     The initial marker's arrow is a solid line with an open (two-stroke) arrowhead, not a
+    ///     filled one.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_InitialMarkerArrow_IsSolidWithOpenArrowhead()
+    {
+        // Arrange: a state def with an explicit initial transition
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var machine = new SysmlDefinitionNode
+        {
+            Name = "M",
+            QualifiedName = "P::M",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlTransitionNode { Source = "start", Target = "a" },
+                new SysmlFeatureNode { Name = "a", QualifiedName = "P::M::a", FeatureKeyword = "state" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::M"] = machine }
+        };
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert: the marker arrow is solid with an open chevron head
+        var badge = Assert.Single(Content(layout).OfType<LayoutBadge>());
+        var arrow = InitialArrow(layout, badge);
+        Assert.Equal(EndMarkerStyle.OpenChevron, arrow.TargetEnd);
+        Assert.Equal(LineStyle.Solid, arrow.LineStyle);
+    }
+
+    /// <summary>
+    ///     Finds the initial marker's arrow: the two-point line that starts at the bottom of the
+    ///     initial badge (real transitions never start on the badge).
+    /// </summary>
+    private static LayoutLine InitialArrow(LayoutTree layout, LayoutBadge badge) =>
+        Content(layout).OfType<LayoutLine>().Single(l =>
+            l.Waypoints.Count == 2 &&
+            Math.Abs(l.Waypoints[0].X - badge.CentreX) < 0.01 &&
+            Math.Abs(l.Waypoints[0].Y - (badge.CentreY + (badge.Size / 2.0))) < 0.01);
 }

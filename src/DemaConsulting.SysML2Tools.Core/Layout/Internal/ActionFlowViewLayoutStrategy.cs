@@ -396,7 +396,8 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Adds the start marker (filled circle) entering the actions with no predecessor and the done
-    /// marker (bullseye) leaving the actions with no successor, each joined by a solid flow line.
+    /// marker (bullseye) leaving the actions with no successor, each joined by a dashed
+    /// open-arrowhead succession line.
     /// </summary>
     private static void AddStartAndDone(
         IReadOnlyList<ActionItem> actions,
@@ -424,7 +425,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         nodes.Add(new LayoutBadge(startX, startY, MarkerSize, BadgeShape.FilledCircle, null));
         foreach (var i in starts)
         {
-            nodes.Add(FlowLine(new Point2D(startX, startY + (MarkerSize / 2.0)),
+            nodes.Add(SuccessionLine(new Point2D(startX, startY + (MarkerSize / 2.0)),
                 new Point2D(rects[i].X + (rects[i].Width / 2.0), rects[i].Y)));
         }
 
@@ -438,20 +439,23 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         nodes.Add(new LayoutBadge(doneX, doneY, MarkerSize, BadgeShape.Bullseye, null));
         foreach (var i in ends)
         {
-            nodes.Add(FlowLine(new Point2D(rects[i].X + (rects[i].Width / 2.0), rects[i].Y + rects[i].Height),
+            nodes.Add(SuccessionLine(new Point2D(rects[i].X + (rects[i].Width / 2.0), rects[i].Y + rects[i].Height),
                 new Point2D(doneX, doneY - (MarkerSize / 2.0))));
         }
     }
 
-    /// <summary>Builds a straight downward flow line with a filled arrowhead at the target.</summary>
-    private static LayoutLine FlowLine(Point2D source, Point2D target) =>
+    /// <summary>
+    /// Builds a straight downward succession line from a start/done marker to an action (or back),
+    /// drawn exactly like an action-to-action succession: dashed with an open arrowhead at the target.
+    /// </summary>
+    private static LayoutLine SuccessionLine(Point2D source, Point2D target) =>
         new(
             Waypoints: Math.Abs(source.X - target.X) < 1e-9
                 ? [source, target]
                 : [source, new Point2D(source.X, (source.Y + target.Y) / 2.0), new Point2D(target.X, (source.Y + target.Y) / 2.0), target],
             SourceEnd: EndMarkerStyle.None,
-            TargetEnd: EndMarkerStyle.FilledArrow,
-            LineStyle: LineStyle.Solid,
+            TargetEnd: EndMarkerStyle.OpenChevron,
+            LineStyle: LineStyle.Dashed,
             MidpointLabel: null);
 
     /// <summary>Returns the maximum X and Y coordinate reached by any built layout node.</summary>

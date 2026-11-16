@@ -12,7 +12,9 @@ The SysML-agnostic rendering contracts — `IRenderer` (low-level render interfa
 result) — are provided off-the-shelf by the `DemaConsulting.Rendering.Abstractions` package.
 The SysML-coupled types that remain in this subsystem are `ILayoutStrategy` and `ViewContext`
 (the layout computation contract) and `DiagramRenderer` (orchestrator), together with the
-internal `DiagramTypeRouter` and `StdlibFilter` helpers. SysML2Tools verifies its integration
+internal `DiagramTypeRouter` and `StdlibFilter` helpers, and the public `SysmlThemes` preset
+provider (`Rendering/SysmlThemes.cs`) that derives SysML-notation themes from the off-the-shelf
+`Theme`. SysML2Tools verifies its integration
 with the off-the-shelf contracts through its own tests.
 
 ### Interfaces
@@ -84,6 +86,23 @@ flowchart TD
 - *Role*: Factory.
 - *Contract*: Three static read-only properties — `Themes.Light` (screen display),
   `Themes.Dark` (dark-mode screen), `Themes.Print` (black-and-white output).
+
+**SysmlThemes**: Static provider of SysML-specific theme presets.
+
+- *Type*: Public static class (`DemaConsulting.SysML2Tools.Rendering`).
+- *Role*: Factory.
+- *Contract*: One static read-only property, `Theme Plain`, built once as
+  `Themes.Light with { DepthFillColors = ["#FFFFFF"], StrokeColor = "#000000", StrokeWidth = 1.0 }`.
+  Every box, container, and grid-header fill is white and every border and line is a black
+  one-pixel stroke. The single-entry `DepthFillColors` list makes the modulo indexing of the
+  per-depth fill resolve to white at every nesting depth, and the engine derives the theme's
+  background color (and therefore grid-header and hollow-marker fills) from that single entry, so
+  both are white as well. Fonts, padding, corner radius, and routing metrics are inherited from
+  `Themes.Light` unchanged, so layout geometry is identical to the light theme. The monochrome
+  look follows the SysML v2 graphical notation (OMG formal/2025-09-03, clause 8.2.3), which draws
+  every element black-on-white and expresses meaning through shape, border style, and text rather
+  than fill color. The `render` command uses `SysmlThemes.Plain` by default; the self-test
+  continues to use `Themes.Light`. The instance is immutable and safe to share across threads.
 
 **RenderOptions**: Per-render configuration.
 
@@ -195,3 +214,4 @@ flowchart TD
 | SysML2Tools-Core-Rendering-DiagramRenderer | `DiagramRenderer.RenderWorkspace`; `DiagramTypeRouter`; `StdlibFilter` |
 | SysML2Tools-Core-Rendering-RenderOutput | `RenderOutput` record |
 | SysML2Tools-Core-Rendering-BuiltinThemes | `Themes.Light`, `Themes.Dark`, `Themes.Print` |
+| SysML2Tools-Core-Rendering-PlainTheme | `SysmlThemes.Plain` |

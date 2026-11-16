@@ -49,8 +49,8 @@ analysis][workflow]
   (`lint`/`render`/`query`/`export`), or a specific `query` verb — identical output to the
   corresponding `<command> --help`
 - **GeneralView Layout**: Package-grouped definition block diagrams placed by a layered (ELK-style)
-  engine with orthogonal specialization and membership edges, depth-coded fill colors, compartments,
-  and configurable depth limiting
+  engine with orthogonal specialization and membership edges, a spec-style black-on-white notation,
+  compartments, and configurable depth limiting
 - **SVG Output**: Zero external dependencies
 - **PNG Output**: Pixel-identical across Windows, Linux, and macOS via CanvasNet and an
   embedded Noto Sans font
@@ -105,7 +105,7 @@ sysml2tools render "src/**/*.sysml" --view SystemContext --output out --format s
 # Auto-render the top-level part def when no view is defined
 sysml2tools render model.sysml --auto --output out --format svg
 
-# Limit nesting depth (truncated parts show "+N more…")
+# Limit nesting depth (truncated parts show "…")
 sysml2tools render model.sysml --output out --walk-depth 3
 
 # Dynamic (ad-hoc) view: render any resolvable element without declaring a view def in the model
@@ -255,7 +255,7 @@ sysml2tools help [lint|render|query [<query-verb>]|export]
 | `--view-type <kind>` | Dynamic view kind (`general`/`interconnection`/`state`/`action`/`sequence`/`grid`/`browser`) |
 | `--view-target <name>` | Qualified name of the dynamic view's target element; requires `--view-type` |
 | `--filter <expr>` | Bracket-filter expression narrowing a dynamic view's rendered scope (requires `--view-type`) |
-| `--walk-depth <#>` | Limit rendered nesting depth; truncated parts show `+N more…` |
+| `--walk-depth <#>` | Limit rendered nesting depth; truncated parts show `…` |
 
 `--view-type` and `--view-target` must be specified together, and are mutually exclusive with
 `--view`/`--auto`; `--filter` is only valid alongside `--view-type`/`--view-target`.

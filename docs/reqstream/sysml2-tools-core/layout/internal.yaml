@@ -23,6 +23,10 @@ sections:
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-PackageGrouping
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NestedDefinitionContainment
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Compartments
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CompartmentOrder
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NameLine
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageShape
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-TruncatedDefinitionMarker
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Specialization
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CompositeMembership
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ReferenceMembership
@@ -59,6 +63,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ParallelConnectorPreservation
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PortLabeling
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-CrossBoundaryLabelResolution
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PartLabel
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-States
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ImplicitStates
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-DistinctAnchors
@@ -66,9 +71,12 @@ sections:
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-TopToBottomFlow
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-PseudostateExclusion
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-SemanticInitialMarker
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-InitialMarkerArrow
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-StateDefFrame
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-Actions
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-TopToBottom
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-SuccessionLineStyle
+          - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-StartDoneConnectorStyle
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-BranchAndJoin
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-ControlNodeShapes
           - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-Lifelines
@@ -79,6 +87,8 @@ sections:
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-Direction
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-MergeParallelEdgesOptOut
           - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-IndentedTree
+          - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-RowLabels
+          - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-UniformRowShading
           - SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-SpecializationMatrix
           - SysML2Tools-Core-Layout-Internal-GridViewLayoutStrategy-SameNamedSupertypes
         tests:
