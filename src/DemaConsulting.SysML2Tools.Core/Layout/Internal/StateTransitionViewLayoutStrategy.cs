@@ -14,8 +14,8 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// <summary>
 /// Layout strategy for State Transition View diagrams. Renders state usages as rounded boxes placed
 /// top-to-bottom by the layered layout algorithm inside a frame headed <c>«state def» Name</c>, an
-/// initial pseudo-state marker entering the explicitly declared initial state, and transitions as
-/// orthogonal arrows annotated with their guard conditions.
+/// initial pseudo-state marker entering the explicitly declared initial state, a final (done)
+/// pseudo-state, and transitions as orthogonal arrows labeled <c>trigger [guard] / effect</c>.
 /// </summary>
 /// <remarks>
 /// States are placed by the bundled layered algorithm flowing top-to-bottom (down) so the state
@@ -24,9 +24,14 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// The cyclic transition graph is made acyclic by the algorithm's cycle-breaking stage; self-transitions
 /// are drawn as a small loop above the state. The initial state is the target of the explicit initial
 /// transition (<c>first start then X;</c> or an entry-action-sourced transition); a state machine that
-/// declares none is drawn without an initial marker. The whole diagram is one frame box (labeled with
-/// the state definition's keyword and name) whose children are the state boxes, the initial marker, and
-/// the transition lines in the frame's own absolute coordinate space.
+/// declares none is drawn without an initial marker. A transition whose target is the reserved name
+/// <c>done</c> ends in one shared final badge (a bullseye) rather than a state box. A state that
+/// declares <c>entry</c>, <c>do</c>, or <c>exit</c> actions lists them in compartments titled with
+/// the keyword. The whole diagram is one frame box (labeled with the state definition's keyword and
+/// name) whose children are the state boxes, the pseudo-state badges, and the transition lines in the
+/// frame's own absolute coordinate space. Composite (nested) states and control nodes are not drawn:
+/// a composite state renders as an ordinary box and its nested states are ignored, and the grammar
+/// admits no fork, join, decision, merge, or terminate node inside a state body.
 /// </remarks>
 internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 {
@@ -38,6 +43,12 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>Diameter of the initial pseudo-state marker.</summary>
     private const double InitialMarkerSize = 18.0;
+
+    /// <summary>Diameter of the final (done) pseudo-state badge.</summary>
+    private const double FinalMarkerSize = 18.0;
+
+    /// <summary>The reserved name of the final (completion) pseudo-state, the target of <c>then done;</c>.</summary>
+    private const string DoneName = "done";
 
     /// <summary>Vertical gap between the initial pseudo-state marker and the first state box.</summary>
     private const double InitialMarkerGap = 10.0;
@@ -55,11 +66,21 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     /// </summary>
     private const double FrameInset = 2.0;
 
-    /// <summary>A state with its computed box size.</summary>
-    private sealed record StateItem(string Name, double Width, double Height);
+    /// <summary>
+    /// A state with its computed box size, displayed name line, and entry/do/exit compartments. A
+    /// final item (<paramref name="IsFinal"/>) is the shared completion pseudo-state drawn as a badge
+    /// rather than a box.
+    /// </summary>
+    private sealed record StateItem(
+        string Name,
+        double Width,
+        double Height,
+        string NameLine,
+        IReadOnlyList<LayoutCompartment> Compartments,
+        bool IsFinal = false);
 
-    /// <summary>A resolved transition between two state indices with an optional guard.</summary>
-    private sealed record TransitionItem(int Source, int Target, string? Guard);
+    /// <summary>A resolved transition between two state indices with an optional <c>trigger [guard] / effect</c> label.</summary>
+    private sealed record TransitionItem(int Source, int Target, string? Label);
 
     /// <inheritdoc/>
     public LayoutTree BuildLayout(ViewContext context, RenderOptions options)
@@ -83,7 +104,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             return new LayoutTree(200.0, 100.0, []);
         }
 
-        var transitions = ResolveTransitions(root, index);
+        var transitions = ResolveTransitions(root, index, states);
 
         // Place state boxes with the layered algorithm flowing top-to-bottom (down). Non-self
         // transitions become directed edges; the algorithm's cycle-breaking stage makes the (cyclic)
@@ -96,7 +117,8 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             states.Select(s => (s.Width, s.Height)).ToList(),
             flowTransitions.Select(t => (t.Source, t.Target)).ToList(),
             LayoutFlowDirection.Down,
-            mergeParallelEdges: false);
+            mergeParallelEdges: false,
+            edgeTargetEnd: EndMarkerStyle.OpenChevron);
 
         // Compute the top-left of the content bounding box over the real state nodes and the screen
         // offset that normalizes it into the canvas. The state definition is drawn as an enclosing
@@ -129,10 +151,10 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
         var nodes = new List<LayoutNode>();
 
-        // State boxes (rounded rectangles).
+        // State boxes (rounded rectangles) and the final badge.
         for (var i = 0; i < states.Count; i++)
         {
-            nodes.Add(MakeStateBox(states[i], stateRects[i]));
+            nodes.Add(states[i].IsFinal ? MakeFinalBadge(stateRects[i]) : MakeStateBox(states[i], stateRects[i]));
         }
 
         // Initial pseudo-state entering the semantically-resolved initial target state.
@@ -146,12 +168,12 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
         // Size the frame to the actual rendered content: state boxes plus routed transition
         // polylines (back edges can bulge beyond the box columns), the initial marker, and the
-        // guard labels. Guard labels are drawn centered on their segment midpoints, so most sit on
+        // guard labels. Transition labels are drawn centered on their placed positions, so most sit on
         // interior vertical segments already inside the content extent and add nothing; only the
         // part of a label that genuinely overhangs the polyline extent enlarges the canvas. We size
-        // to each label's true rendered right edge (computed with the same placer the renderers use)
-        // rather than adding the longest guard-label width wholesale. The frame is also at least as
-        // wide as its own title so a long definition name is never clipped.
+        // to each label's true rendered right edge (computed with the same obstacle-aware placer the
+        // renderers use) rather than adding the longest label width wholesale. The frame is also at
+        // least as wide as its own title so a long definition name is never clipped.
         var (contentMaxX, contentMaxY) = ContentExtent(nodes);
         var labelMaxX = LabelRightExtent(nodes, theme);
 
@@ -218,15 +240,13 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         return (maxX, maxY);
     }
 
-    /// <summary>Character-width factor used by <see cref="ConnectorLabelPlacer"/> to size labels.</summary>
-    private const double LabelCharWidthFactor = 0.6;
-
     /// <summary>
-    /// Returns the maximum X reached by any rendered guard label. Labels are placed with the same
-    /// <see cref="ConnectorLabelPlacer"/> the SVG and PNG renderers use and drawn centered
-    /// (<c>text-anchor="middle"</c>) on their chosen segment midpoint, so a label's true right edge
-    /// is its center X plus half its rendered text width. Most guard labels sit on interior vertical
-    /// segments and do not overhang the content, so this typically adds little or nothing.
+    /// Returns the maximum X reached by any rendered transition label. Labels are placed with the
+    /// same obstacle-aware <see cref="ConnectorLabelPlacer"/> overload the SVG and PNG renderers use
+    /// (the state boxes are the obstacles, so a label is moved clear of a box corner) and drawn
+    /// centered on the chosen position, so a label's true right edge is its center X plus half its
+    /// rendered text width. Most labels sit on interior vertical segments and do not overhang the
+    /// content, so this typically adds little or nothing.
     /// </summary>
     private static double LabelRightExtent(IReadOnlyList<LayoutNode> nodes, Theme theme)
     {
@@ -239,7 +259,11 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             return 0.0;
         }
 
-        var positions = ConnectorLabelPlacer.Place(lines, theme.FontSizeBody);
+        var positions = ConnectorLabelPlacer.Place(
+            lines,
+            theme.FontSizeBody,
+            nodes.OfType<LayoutBox>().ToList(),
+            NotationMetrics.MarkerScale(theme));
         var maxX = 0.0;
         foreach (var line in lines)
         {
@@ -248,12 +272,13 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            var halfTextWidth = line.MidpointLabel!.Length * theme.FontSizeBody * LabelCharWidthFactor / 2.0;
+            var halfTextWidth = ConnectorLabelPlacer.EstimateLabelWidth(line.MidpointLabel!, theme.FontSizeBody) / 2.0;
             maxX = Math.Max(maxX, pos.X + halfTextWidth);
         }
 
         return maxX;
     }
+
     /// <summary>
     /// Finds the state-machine definition whose states/transitions to render: the non-stdlib
     /// definition with the most <see cref="SysmlTransitionNode"/> children. When
@@ -333,7 +358,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         var index = new Dictionary<string, int>(StringComparer.Ordinal);
         var pseudoSourceNames = new HashSet<string>(StringComparer.Ordinal) { "start", "done" };
 
-        void Add(string name)
+        void Add(SysmlFeatureNode? declaration, string name)
         {
             if (index.ContainsKey(name))
             {
@@ -341,8 +366,19 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             }
 
             index[name] = states.Count;
-            var (width, height) = ComputeStateSize(name, theme);
-            states.Add(new StateItem(name, width, height));
+            states.Add(BuildStateItem(name, declaration, theme));
+        }
+
+        // The completion pseudo-state is one shared badge, however many transitions reach it.
+        void AddFinal()
+        {
+            if (index.ContainsKey(DoneName))
+            {
+                return;
+            }
+
+            index[DoneName] = states.Count;
+            states.Add(new StateItem(DoneName, FinalMarkerSize, FinalMarkerSize, DoneName, [], IsFinal: true));
         }
 
         // Declared state usages first (preserves declaration order for the initial-state choice).
@@ -367,24 +403,32 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            Add(feature.Name);
+            Add(feature, feature.Name);
         }
 
         // Any additional states referenced only by transition endpoints. The source side is
         // skipped when it names a pseudostate/entry-action feature — such a name must never be
         // drawn as an ordinary state box (it is rendered, if at all, only via the initial-marker
         // arrow computed by FindInitialTargetIndex). The target side is unaffected: a real state
-        // reached only via such a transition is still a real state and must still get a box.
+        // reached only via such a transition is still a real state and must still get a box — except
+        // the reserved name "done", which is the final pseudo-state and becomes a badge.
         foreach (var transition in root.Children.OfType<SysmlTransitionNode>())
         {
             if (LastSegment(transition.Source) is { } s && !pseudoSourceNames.Contains(s))
             {
-                Add(s);
+                Add(null, s);
             }
 
             if (LastSegment(transition.Target) is { } t)
             {
-                Add(t);
+                if (t == DoneName && !index.ContainsKey(DoneName))
+                {
+                    AddFinal();
+                }
+                else
+                {
+                    Add(null, t);
+                }
             }
         }
 
@@ -424,7 +468,10 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>Resolves transition endpoints to state indices via their last name segment.</summary>
-    private static IReadOnlyList<TransitionItem> ResolveTransitions(SysmlDefinitionNode root, Dictionary<string, int> index)
+    private static IReadOnlyList<TransitionItem> ResolveTransitions(
+        SysmlDefinitionNode root,
+        Dictionary<string, int> index,
+        IReadOnlyList<StateItem> states)
     {
         var result = new List<TransitionItem>();
         foreach (var transition in root.Children.OfType<SysmlTransitionNode>())
@@ -437,19 +484,154 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            result.Add(new TransitionItem(si, ti, transition.Guard));
+            // Nothing leaves the final pseudo-state.
+            if (states[si].IsFinal)
+            {
+                continue;
+            }
+
+            result.Add(new TransitionItem(si, ti, BuildTransitionLabel(transition)));
         }
 
         return result;
     }
 
-    /// <summary>Computes the intrinsic size of a state box.</summary>
-    private static (double Width, double Height) ComputeStateSize(string name, Theme theme)
+    /// <summary>
+    /// Builds the specification's transition label <c>trigger [guard] / effect</c> (graphical BNF,
+    /// clause 8.2.3: <c>transition-label</c>), omitting every part the transition does not declare:
+    /// <c>callReceived [doorsSafe] / raiseCar</c>, <c>[atFloor]</c>, <c>/ chime</c>. A leading
+    /// <c>action</c> keyword is dropped from the effect, and runs of whitespace collapse to one space.
+    /// Returns null when the transition declares none of the three.
+    /// </summary>
+    private static string? BuildTransitionLabel(SysmlTransitionNode transition)
     {
-        var labelWidth = (name.Length * theme.FontSizeTitle * CharWidthFactor) + (4.0 * theme.LabelPadding);
-        var width = Math.Max(MinStateWidth, labelWidth);
+        var label = new System.Text.StringBuilder();
+        if (NormalizeText(transition.Trigger) is { Length: > 0 } trigger)
+        {
+            label.Append(trigger);
+        }
+
+        if (transition.Guard is { Length: > 0 } guard)
+        {
+            label.Append(label.Length > 0 ? " " : string.Empty).Append('[').Append(guard).Append(']');
+        }
+
+        if (NormalizeText(StripActionKeyword(transition.Effect)) is { Length: > 0 } effect)
+        {
+            label.Append(label.Length > 0 ? " " : string.Empty).Append("/ ").Append(effect);
+        }
+
+        return label.Length > 0 ? label.ToString() : null;
+    }
+
+    /// <summary>Removes a leading <c>action</c> keyword (and the whitespace after it) from declaration text.</summary>
+    private static string? StripActionKeyword(string? text) =>
+        text is not null && text.StartsWith("action", StringComparison.Ordinal) &&
+        (text.Length == 6 || char.IsWhiteSpace(text[6]))
+            ? text[6..]
+            : text;
+
+    /// <summary>Collapses runs of whitespace to single spaces and trims the result; null stays null.</summary>
+    private static string? NormalizeText(string? text) =>
+        text is null ? null : string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    /// <summary>
+    /// Builds a state's item: its name line (<c>name : Type [multiplicity]</c> for a typed usage), its
+    /// <c>entry</c>/<c>do</c>/<c>exit</c> compartments, and the box size that fits them.
+    /// </summary>
+    private static StateItem BuildStateItem(string name, SysmlFeatureNode? declaration, Theme theme)
+    {
+        var nameLine = GeneralViewLayoutStrategy.FormatNameLine(
+            null,
+            name,
+            typing: declaration?.FeatureTyping,
+            multiplicity: declaration?.Multiplicity);
+        var compartments = BuildActionCompartments(declaration);
+        var (width, height) = ComputeStateSize(nameLine, compartments, theme);
+        return new StateItem(name, width, height, nameLine, compartments);
+    }
+
+    /// <summary>
+    /// Builds one compartment per <c>entry</c>, <c>do</c>, and <c>exit</c> sub-action kind the state
+    /// declares, in that order, titled with the keyword (centered, italic) and listing each action's
+    /// declaration text (the specification's textual form, with a leading <c>action</c> keyword
+    /// dropped; the name when the declaration has no text). An empty form (<c>entry;</c>) adds no row.
+    /// </summary>
+    private static IReadOnlyList<LayoutCompartment> BuildActionCompartments(SysmlFeatureNode? state)
+    {
+        if (state is null)
+        {
+            return [];
+        }
+
+        var compartments = new List<LayoutCompartment>();
+        foreach (var keyword in new[] { "entry", "do", "exit" })
+        {
+            var rows = state.Children
+                .OfType<SysmlFeatureNode>()
+                .Where(c => c.FeatureKeyword == keyword)
+                .Select(c => NormalizeText(StripActionKeyword(c.ActionText)) ?? c.Name)
+                .Where(row => !string.IsNullOrEmpty(row))
+                .Select(row => row!)
+                .ToList();
+            if (rows.Count > 0)
+            {
+                compartments.Add(new LayoutCompartment(keyword, rows, TextAlign.Center, TextStyle.Italic));
+            }
+        }
+
+        return compartments;
+    }
+
+    /// <summary>
+    /// Computes the intrinsic size of a state box: wide enough for its name line, compartment titles
+    /// and rows, and tall enough for the title area plus every compartment.
+    /// </summary>
+    private static (double Width, double Height) ComputeStateSize(
+        string nameLine,
+        IReadOnlyList<LayoutCompartment> compartments,
+        Theme theme)
+    {
+        var width = Math.Max(MinStateWidth, (nameLine.Length * theme.FontSizeTitle * CharWidthFactor) + (4.0 * theme.LabelPadding));
+        foreach (var compartment in compartments)
+        {
+            if (compartment.Title is { } title)
+            {
+                width = Math.Max(width, (title.Length * theme.FontSizeBody * CharWidthFactor) + (2.0 * theme.LabelPadding));
+            }
+
+            foreach (var row in compartment.Rows)
+            {
+                width = Math.Max(width, (row.Length * theme.FontSizeBody * CharWidthFactor) + (3.0 * theme.LabelPadding));
+            }
+        }
+
         var height = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true) + theme.LabelPadding;
+        foreach (var compartment in compartments)
+        {
+            height += ComputeCompartmentHeight(compartment, theme);
+        }
+
         return (width, height);
+    }
+
+    /// <summary>
+    /// Computes the rendered height of a compartment, matching the renderer's layout: an optional
+    /// title row followed by one row per entry and a closing gap. (Mirrors the General view's
+    /// computation of the same renderer layout; it is repeated here so the two strategies stay
+    /// independent units.)
+    /// </summary>
+    private static double ComputeCompartmentHeight(LayoutCompartment compartment, Theme theme)
+    {
+        var height = 0.0;
+        if (compartment.Title is not null)
+        {
+            height += theme.LabelPadding + theme.FontSizeBody + theme.LabelPadding;
+        }
+
+        height += compartment.Rows.Count * (theme.LabelPadding + theme.FontSizeBody);
+        height += theme.LabelPadding;
+        return height;
     }
 
     /// <summary>Creates a rounded-rectangle state box at the given position.</summary>
@@ -459,12 +641,16 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             Y: rect.Y,
             Width: rect.Width,
             Height: rect.Height,
-            Label: state.Name,
+            Label: state.NameLine,
             Depth: 1,
             Shape: BoxShape.RoundedRectangle,
-            Compartments: [],
+            Compartments: state.Compartments,
             Children: [],
             Keyword: "state");
+
+    /// <summary>Creates the final pseudo-state badge (a bullseye) centered in the given rectangle.</summary>
+    private static LayoutBadge MakeFinalBadge(Rect rect) =>
+        new(rect.X + (rect.Width / 2.0), rect.Y + (rect.Height / 2.0), FinalMarkerSize, BadgeShape.Bullseye, null);
 
     /// <summary>Adds the initial pseudo-state marker and its open-arrowhead arrow into the initial state.</summary>
     private static void AddInitialMarker(Rect first, List<LayoutNode> nodes)
@@ -520,7 +706,7 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
         foreach (var transition in transitions)
         {
-            var label = transition.Guard is { Length: > 0 } g ? $"[{g}]" : null;
+            var label = transition.Label;
 
             if (transition.Source == transition.Target)
             {

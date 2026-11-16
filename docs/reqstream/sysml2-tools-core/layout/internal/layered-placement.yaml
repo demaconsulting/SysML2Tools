@@ -140,3 +140,17 @@ sections:
         tests:
           - InterconnectionView_BuildLayout_PartWithPorts_PortsNeverOverlapBoxTitleArea
           - InterconnectionView_BuildLayout_HighConnectionDegreePart_BoxesDoNotOverlapAndPortsAreLabeled
+
+      - id: SysML2Tools-Core-Layout-Internal-LayeredPlacement-EdgeTargetEnd
+        title: >-
+          Place shall declare a caller-supplied end decoration on every edge it adds to the
+          layout graph, so the layout engine sizes each edge's final approach to the marker the
+          caller draws there.
+        justification: |
+          The layered algorithm sizes the final approach of a back edge from the end decoration
+          declared on the edge. Without it, an arrowhead on a back edge is entered through a
+          rounded corner. The default leaves the decoration unset, so callers that draw no marker
+          are unchanged.
+        tests:
+          - LayeredPlacement_Place_EdgeTargetEnd_ForwardedToGraphEdges
+          - LayeredPlacement_Place_DefaultEdgeTargetEnd_PreservesBehavior

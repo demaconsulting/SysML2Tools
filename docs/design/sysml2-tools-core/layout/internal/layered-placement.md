@@ -41,14 +41,19 @@ title-vs-side-port reservation for that node (see step 2 below).
 
 ##### Key Methods
 
-###### `Place(nodes, edges, direction, mergeParallelEdges = true)`
+###### `Place(nodes, edges, direction, mergeParallelEdges = true, edgeTargetEnd = None)`
 
 Places sized nodes and directed edges by delegating to the public layout engine facade:
 
 1. Validates that `nodes` and `edges` are non-null.
 2. Builds a `LayoutGraph`, adding one `LayoutGraphNode` per input node (sized from the supplied
    width and height, keyed by its ordinal index) and one edge per input edge (keyed by its ordinal
-   index) between the referenced graph nodes.
+   index) between the referenced graph nodes, setting each edge's `TargetEnd` to the
+   `edgeTargetEnd` argument (default `EndMarkerStyle.None`, which leaves the engine's behavior
+   unchanged). The layered algorithm reads the end decoration to size the final approach of a back
+   edge, so a caller that draws an arrowhead at the target passes the same style it puts on the drawn
+   line (`ActionFlowViewLayoutStrategy` and `StateTransitionViewLayoutStrategy` pass
+   `EndMarkerStyle.OpenChevron`).
 3. Sets the requested `LayoutFlowDirection` directly on the graph via
    `graph.Set(CoreOptions.Direction, direction)`. When `mergeParallelEdges` is `false`, also sets
    `graph.Set(CoreOptions.MergeParallelEdges, false)` on the graph — the additive optional

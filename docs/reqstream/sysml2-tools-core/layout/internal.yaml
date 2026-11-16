@@ -73,6 +73,11 @@ sections:
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-SemanticInitialMarker
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-InitialMarkerArrow
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-StateDefFrame
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-EntryDoExitCompartments
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-TransitionLabel
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-FinalNode
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-LabelPlacement
+          - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-BackEdgeApproach
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-Actions
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-TopToBottom
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-SuccessionLineStyle
@@ -86,6 +91,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-Orientation
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-Direction
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-MergeParallelEdgesOptOut
+          - SysML2Tools-Core-Layout-Internal-LayeredPlacement-EdgeTargetEnd
           - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-IndentedTree
           - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-RowLabels
           - SysML2Tools-Core-Layout-Internal-BrowserViewLayoutStrategy-UniformRowShading

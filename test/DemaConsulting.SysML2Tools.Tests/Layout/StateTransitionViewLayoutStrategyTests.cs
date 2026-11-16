@@ -8,6 +8,7 @@ using DemaConsulting.SysML2Tools.Layout.Internal;
 using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
+using DemaConsulting.SysML2Tools.Stdlib;
 
 namespace DemaConsulting.SysML2Tools.Tests.Layout;
 
@@ -840,4 +841,328 @@ public sealed class StateTransitionViewLayoutStrategyTests
             l.Waypoints.Count == 2 &&
             Math.Abs(l.Waypoints[0].X - badge.CentreX) < 0.01 &&
             Math.Abs(l.Waypoints[0].Y - (badge.CentreY + (badge.Size / 2.0))) < 0.01);
+
+    /// <summary>Builds a state definition from the given children and lays it out with the Light theme.</summary>
+    private static LayoutTree LayOut(params SysmlNode[] children)
+    {
+        var machine = new SysmlDefinitionNode
+        {
+            Name = "M",
+            QualifiedName = "P::M",
+            DefinitionKeyword = "state def",
+            Children = children,
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::M"] = machine },
+        };
+        return new StateTransitionViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+    }
+
+    /// <summary>A named state usage with the given sub-action children.</summary>
+    private static SysmlFeatureNode State(string name, params SysmlNode[] children) =>
+        new() { Name = name, QualifiedName = $"P::M::{name}", FeatureKeyword = "state", Children = children };
+
+    /// <summary>An <c>entry</c>/<c>do</c>/<c>exit</c> sub-action feature with its declaration text.</summary>
+    private static SysmlFeatureNode StateAction(string keyword, string? actionText, string? name = null) =>
+        new() { Name = name, FeatureKeyword = keyword, ActionText = actionText };
+
+    /// <summary>
+    ///     A state's <c>entry</c>, <c>do</c>, and <c>exit</c> actions become compartments titled with
+    ///     the keyword (centered, italic), in that order, whatever order they were declared in, each
+    ///     row holding the action text without a leading <c>action</c> keyword.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_EntryDoExit_ProducesTitledCompartments()
+    {
+        // Arrange: actions declared out of order, one without the action keyword
+        var layout = LayOut(
+            State("open", StateAction("exit", "action chime", "chime"), StateAction("entry", "action openDoors", "openDoors"), StateAction("do", "holdOpen")));
+
+        // Act
+        var box = Content(layout).OfType<LayoutBox>().Single(b => b.Label == "open");
+
+        // Assert
+        Assert.Equal(["entry", "do", "exit"], box.Compartments.Select(c => c.Title).ToArray());
+        Assert.Equal(["openDoors"], box.Compartments[0].Rows);
+        Assert.Equal(["holdOpen"], box.Compartments[1].Rows);
+        Assert.Equal(["chime"], box.Compartments[2].Rows);
+        Assert.All(box.Compartments, c =>
+        {
+            Assert.Equal(TextAlign.Center, c.TitleAlign);
+            Assert.Equal(TextStyle.Italic, c.TitleStyle);
+        });
+    }
+
+    /// <summary>A state that declares no sub-actions has no compartments, and an empty form adds none.</summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_EntryDoExit_NoneDeclared_NoCompartments()
+    {
+        // Arrange
+        var layout = LayOut(State("plain"), State("empty", StateAction("entry", null)));
+
+        // Act / Assert
+        Assert.All(Content(layout).OfType<LayoutBox>().Where(b => b.Keyword == "state"), b => Assert.Empty(b.Compartments));
+    }
+
+    /// <summary>The box is widened to the longest compartment row and is taller than a plain state.</summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_EntryDoExit_WidensBoxToLongestRow()
+    {
+        // Arrange
+        var longRow = "action " + new string('x', 60);
+        var layout = LayOut(State("plain"), State("busy", StateAction("do", longRow)));
+
+        // Act
+        var boxes = Content(layout).OfType<LayoutBox>().Where(b => b.Keyword == "state").ToList();
+        var plain = boxes.Single(b => b.Label == "plain");
+        var busy = boxes.Single(b => b.Label == "busy");
+
+        // Assert
+        var theme = Themes.Light;
+        Assert.True(busy.Width >= 60 * theme.FontSizeBody * 0.62, "Box must be at least as wide as its longest row.");
+        Assert.True(busy.Width > plain.Width);
+        Assert.True(busy.Height > plain.Height);
+    }
+
+    /// <summary>A typed state usage shows <c>name : Type [multiplicity]</c> as its name line.</summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_TypedState_NameLineShowsTypeAndMultiplicity()
+    {
+        // Arrange
+        var typed = new SysmlFeatureNode
+        {
+            Name = "door",
+            QualifiedName = "P::M::door",
+            FeatureKeyword = "state",
+            FeatureTyping = "DoorState",
+            Multiplicity = "[2]",
+        };
+        var layout = LayOut(typed);
+
+        // Act / Assert
+        Assert.Single(Content(layout).OfType<LayoutBox>(), b => b.Label == "door : DoorState [2]");
+    }
+
+    /// <summary>
+    ///     A transition is labeled <c>trigger [guard] / effect</c>, each part omitted when the
+    ///     transition does not declare it; a leading <c>action</c> keyword is dropped from the effect
+    ///     and whitespace is normalized.
+    /// </summary>
+    [Theory]
+    [InlineData("sig", "g", "act", "sig [g] / act")]
+    [InlineData("sig", null, null, "sig")]
+    [InlineData(null, "g", null, "[g]")]
+    [InlineData(null, null, "act", "/ act")]
+    [InlineData("sig", null, "act", "sig / act")]
+    [InlineData(null, "g", "act", "[g] / act")]
+    [InlineData("at   5", "g", "action  doIt", "at 5 [g] / doIt")]
+    [InlineData(null, null, null, null)]
+    public void StateTransitionView_BuildLayout_TransitionTriggerGuardEffect_LabelFormat(
+        string? trigger, string? guard, string? effect, string? expected)
+    {
+        // Arrange
+        var layout = LayOut(
+            State("a"),
+            State("b"),
+            new SysmlTransitionNode { Source = "a", Target = "b", Trigger = trigger, Guard = guard, Effect = effect });
+
+        // Act
+        var line = Assert.Single(Content(layout).OfType<LayoutLine>());
+
+        // Assert
+        Assert.Equal(expected, line.MidpointLabel);
+    }
+
+    /// <summary>A self-transition carries the same full label as any other transition.</summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_SelfTransition_CarriesFullLabel()
+    {
+        // Arrange
+        var layout = LayOut(
+            State("a"),
+            new SysmlTransitionNode { Source = "a", Target = "a", Trigger = "tick", Guard = "ok", Effect = "count" });
+
+        // Act / Assert
+        var line = Assert.Single(Content(layout).OfType<LayoutLine>());
+        Assert.Equal("tick [ok] / count", line.MidpointLabel);
+    }
+
+    /// <summary>A transition into <c>done</c> ends in a bullseye badge, never a state box named done.</summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_DoneTarget_RendersBullseyeNotStateBox()
+    {
+        // Arrange
+        var layout = LayOut(State("a"), new SysmlTransitionNode { Source = "a", Target = "done", Trigger = "stop" });
+
+        // Act
+        var content = Content(layout);
+
+        // Assert: one bullseye, only the real state box, and a line that ends at the badge
+        var badge = Assert.Single(content.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.Bullseye);
+        Assert.Equal("a", Assert.Single(content.OfType<LayoutBox>(), b => b.Keyword == "state").Label);
+        var line = Assert.Single(content.OfType<LayoutLine>());
+        Assert.Equal("stop", line.MidpointLabel);
+        var end = line.Waypoints[^1];
+        Assert.True(Math.Abs(end.X - badge.CentreX) <= badge.Size / 2.0 + 0.5);
+        Assert.True(Math.Abs(end.Y - badge.CentreY) <= badge.Size / 2.0 + 0.5);
+    }
+
+    /// <summary>However many transitions reach <c>done</c>, there is a single final badge.</summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_DoneTarget_MultipleSources_SingleFinalBadge()
+    {
+        // Arrange
+        var layout = LayOut(
+            State("a"),
+            State("b"),
+            new SysmlTransitionNode { Source = "a", Target = "done" },
+            new SysmlTransitionNode { Source = "b", Target = "done" },
+            new SysmlTransitionNode { Source = "a", Target = "b" });
+
+        // Act
+        var content = Content(layout);
+
+        // Assert
+        Assert.Single(content.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.Bullseye);
+        Assert.Equal(3, content.OfType<LayoutLine>().Count());
+    }
+
+    /// <summary>
+    ///     A back edge (one that returns to an earlier state) ends in an open chevron on a final
+    ///     straight approach at least as long as the marker, so the arrowhead enters cleanly.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_BackEdge_OpenChevronWithFlushApproach()
+    {
+        // Arrange: a -> b -> c -> a
+        var layout = LayOut(
+            State("a"),
+            State("b"),
+            State("c"),
+            new SysmlTransitionNode { Source = "a", Target = "b" },
+            new SysmlTransitionNode { Source = "b", Target = "c" },
+            new SysmlTransitionNode { Source = "c", Target = "a" });
+
+        // Act
+        var lines = Content(layout).OfType<LayoutLine>().ToList();
+
+        // Assert
+        var marker = NotationMetrics.RenderedAlongLineLength(EndMarkerStyle.OpenChevron, Themes.Light);
+        Assert.Equal(3, lines.Count);
+        foreach (var line in lines)
+        {
+            Assert.Equal(EndMarkerStyle.OpenChevron, line.TargetEnd);
+            var (last, previous) = (line.Waypoints[^1], line.Waypoints[^2]);
+            var approach = Math.Abs(last.X - previous.X) + Math.Abs(last.Y - previous.Y);
+            Assert.True(approach >= marker - 0.01, $"Final approach {approach} is shorter than the marker {marker}.");
+        }
+    }
+
+    /// <summary>
+    ///     The frame grows to the right edge of a long transition label as the renderers would place
+    ///     it (obstacle-aware), so the label is never clipped by the frame.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_FrameWidth_AccountsForLongTransitionLabel()
+    {
+        // Arrange: a self-transition near the right edge with a very long label
+        var layout = LayOut(
+            State("a"),
+            new SysmlTransitionNode { Source = "a", Target = "a", Trigger = new string('t', 80) });
+
+        // Act
+        var frame = Assert.IsType<LayoutBox>(Assert.Single(layout.Nodes));
+        var line = Assert.Single(frame.Children.OfType<LayoutLine>());
+        var obstacles = frame.Children.OfType<LayoutBox>().ToList();
+        var placement = ConnectorLabelPlacer.Place([line], Themes.Light.FontSizeBody, obstacles, NotationMetrics.MarkerScale(Themes.Light))[line];
+
+        // Assert
+        Assert.True(frame.X + frame.Width >= placement.X + placement.HalfWidth - 0.5, "Frame must contain the placed label.");
+    }
+
+    /// <summary>
+    ///     Transition labels are placed clear of every state box (the same obstacle-aware placement
+    ///     the renderers use), so none lands on a box corner or edge.
+    /// </summary>
+    [Fact]
+    public async Task StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes()
+    {
+        // Arrange
+        var layout = await LayOutGalleryModelAsync("03-elevator-state.sysml");
+        if (layout is null)
+        {
+            return;
+        }
+
+        // Act
+        var frame = Assert.IsType<LayoutBox>(Assert.Single(layout.Nodes));
+        var boxes = frame.Children.OfType<LayoutBox>().ToList();
+        var lines = frame.Children.OfType<LayoutLine>().Where(l => l.MidpointLabel is not null).ToList();
+        var placements = ConnectorLabelPlacer.Place(lines, Themes.Light.FontSizeBody, boxes, NotationMetrics.MarkerScale(Themes.Light));
+
+        // Assert
+        Assert.NotEmpty(lines);
+        foreach (var line in lines)
+        {
+            var p = placements[line];
+            foreach (var box in boxes)
+            {
+                var overlaps = p.X - p.HalfWidth < box.X + box.Width && p.X + p.HalfWidth > box.X &&
+                               p.Y - p.HalfHeight < box.Y + box.Height && p.Y + p.HalfHeight > box.Y;
+                Assert.False(overlaps, $"Label '{line.MidpointLabel}' overlaps state box '{box.Label}'.");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     The gallery's elevator model exercises the notation: entry/do/exit compartments on
+    ///     <c>doorsOpening</c>, a <c>trigger [guard] / effect</c> label, plain guard labels, and one
+    ///     final badge.
+    /// </summary>
+    [Fact]
+    public async Task StateTransitionView_BuildLayout_ElevatorGalleryModel_ShowsCompartmentsLabelsAndFinal()
+    {
+        // Arrange
+        var layout = await LayOutGalleryModelAsync("03-elevator-state.sysml");
+        if (layout is null)
+        {
+            return;
+        }
+
+        // Act
+        var content = Content(layout);
+
+        // Assert
+        var opening = content.OfType<LayoutBox>().Single(b => b.Label == "doorsOpening");
+        Assert.Equal(["entry", "do", "exit"], opening.Compartments.Select(c => c.Title).ToArray());
+        Assert.Contains(content.OfType<LayoutLine>(), l => l.MidpointLabel == "callReceived [doorsClear] / dimLights");
+        Assert.Contains(content.OfType<LayoutLine>(), l => l.MidpointLabel == "[atFloor]");
+        Assert.Contains(content.OfType<LayoutLine>(), l => l.MidpointLabel == "shutdown");
+        Assert.Single(content.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.Bullseye);
+        Assert.DoesNotContain(content.OfType<LayoutBox>(), b => b.Label == "done");
+    }
+
+    /// <summary>Loads and lays out a gallery model, or returns null when the gallery is not available.</summary>
+    private static async Task<LayoutTree?> LayOutGalleryModelAsync(string fileName)
+    {
+        var dir = AppContext.BaseDirectory;
+        string? modelPath = null;
+        while (dir is not null && modelPath is null)
+        {
+            var candidate = Path.Combine(dir, "docs", "gallery", "models", fileName);
+            modelPath = File.Exists(candidate) ? candidate : null;
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        if (modelPath is null)
+        {
+            return null;
+        }
+
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([modelPath], stdlibTable);
+        Assert.NotNull(result.Workspace);
+        return new StateTransitionViewLayoutStrategy().BuildLayout(new ViewContext("v", result.Workspace), new RenderOptions(Themes.Light));
+    }
 }

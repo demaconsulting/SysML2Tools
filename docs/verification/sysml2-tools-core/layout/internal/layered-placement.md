@@ -3,7 +3,8 @@
 ##### Verification Approach
 
 `LayeredPlacement` is a thin adapter over the off-the-shelf `DemaConsulting.Rendering.Layout`
-layered algorithm and has no direct unit test of its own. It is verified indirectly through the
+layered algorithm. The caller-supplied end decoration (`edgeTargetEnd`) is verified directly by
+`LayeredPlacementTests`; everything else is verified indirectly through the
 view layout strategy tests that depend on it: `ActionFlowViewLayoutStrategyTests`,
 `StateTransitionViewLayoutStrategyTests`, `InterconnectionViewLayoutStrategyTests`, and
 `GeneralViewLayoutStrategyTests`. `ActionFlowViewLayoutStrategyTests` and
@@ -32,9 +33,12 @@ configuration are required beyond a standard .NET SDK installation and the refer
   `ActionFlowViewLayoutStrategy`/`StateTransitionViewLayoutStrategy`) is exercised transitively via
   `InterconnectionViewLayoutStrategyTests`, whose parallel-connection tests assert distinct routed
   waypoints per parallel edge — `PlaceWithPorts` (which that strategy calls) unconditionally
-  disables parallel-edge merging, so the same distinct-waypoints guarantee holds there too. No
-  dedicated `LayeredPlacementTests` file exists — consistent with the established pattern of
-  covering this adapter only through the strategies that call it.
+  disables parallel-edge merging, so the same distinct-waypoints guarantee holds there too.
+- The additive `edgeTargetEnd` parameter on `Place` (default `None`) declares the given end
+  decoration on every edge, so every returned polyline — including a back edge — ends in a straight
+  approach at least as long as the marker (`LayeredPlacement_Place_EdgeTargetEnd_ForwardedToGraphEdges`),
+  and omitting it leaves placement unchanged
+  (`LayeredPlacement_Place_DefaultEdgeTargetEnd_PreservesBehavior`).
 - `PlaceWithPorts` returns exactly one correctly correlated placed port per requested port endpoint
   (`null` only when no port was requested for that endpoint), each carrying the requested
   `EdgePortRef.Label` as its `ExternalLabel`, verified transitively via
@@ -58,6 +62,8 @@ configuration are required beyond a standard .NET SDK installation and the refer
 | `InterconnectionView_BuildLayout_TwoConnectionsSamePair_ProducesTwoConnectorsWithoutException` | Distinct waypoints |
 | `InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors` | Distinct routes |
 | `InterconnectionView_BuildLayout_HighConnectionDegreePart_BoxesDoNotOverlapAndPortsAreLabeled` | Port correlation |
+| `LayeredPlacement_Place_EdgeTargetEnd_ForwardedToGraphEdges` | End decoration declared on every edge |
+| `LayeredPlacement_Place_DefaultEdgeTargetEnd_PreservesBehavior` | Default placement unchanged |
 | `InterconnectionView_BuildLayout_PartWithPorts_PortsNeverOverlapBoxTitleArea` | Title area reservation |
 | `InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap` | Placed rectangles do not overlap |
 | `ActionFlowView_BuildLayout_NoOverlap` | Placed action boxes do not overlap |
