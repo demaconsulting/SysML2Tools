@@ -397,6 +397,36 @@ SVG: [`svg/VehiclePackagesGeneralView.svg`](svg/VehiclePackagesGeneralView.svg)
 
 ---
 
+## 12. State Transition View — Heater (notation showcase)
+
+A deliberately small state machine that shows the state notation on its own: `standby` lists an
+`entry` action, `heating` lists `entry`, `do`, and `exit` actions in compartments titled with the
+keyword, `heat [tempLow] / beep` is a full `trigger [guard] / effect` label, `cooled` is a back
+edge into `standby`, and the machine starts at an initial state and ends in a final state. The
+model's `then done;` produces one lint warning (see section 3).
+
+Model: [`models/12-heater-state.sysml`](models/12-heater-state.sysml) ·
+SVG: [`svg/HeaterStateView.svg`](svg/HeaterStateView.svg)
+
+![Heater State Transition View: standby, heating, and cooling states with entry, do, and exit compartments, trigger-guard-effect labels, and initial and final states](png/HeaterStateView.png)
+
+---
+
+## 13. Action Flow View — Order Handling (notation showcase)
+
+A deliberately small action flow that shows the action-flow notation on its own: a start node,
+`receive` as an accept action, a decision (a diamond) that branches on `[inStock]` or `else`, a
+fork and a join drawn as thick bars, `ship` as a send action, a done node after `ship`, and a
+crossed-circle terminate node after `reject`. The model's `then done;` produces one lint warning
+(see section 3).
+
+Model: [`models/13-order-action-flow.sysml`](models/13-order-action-flow.sysml) ·
+SVG: [`svg/OrderActionFlowView.svg`](svg/OrderActionFlowView.svg)
+
+![Order Handling Action Flow View: an accept action, a guarded decision with an else branch, a fork and join as thick bars, a send action, and done and terminate nodes](png/OrderActionFlowView.png)
+
+---
+
 ## 14. General View — Usages, Typing, Subsetting and Redefinition
 
 A small model (`DriveSystem`) that shows how a General View draws **usages** as nodes and
@@ -452,36 +482,6 @@ Model: [`models/16-nested-packages-typing-general.sysml`](models/16-nested-packa
 SVG: [`svg/VehicleTypingGeneralView.svg`](svg/VehicleTypingGeneralView.svg)
 
 ![Vehicle Typing General View: Powertrain and Body folders nested inside the Vehicle folder, with the engine and chassis part usages typed by definitions inside them](png/VehicleTypingGeneralView.png)
-
----
-
-## 12. State Transition View — Heater (notation showcase)
-
-A deliberately small state machine that shows the state notation on its own: `standby` lists an
-`entry` action, `heating` lists `entry`, `do`, and `exit` actions in compartments titled with the
-keyword, `heat [tempLow] / beep` is a full `trigger [guard] / effect` label, `cooled` is a back
-edge into `standby`, and the machine starts at an initial state and ends in a final state. The
-model's `then done;` produces one lint warning (see section 3).
-
-Model: [`models/12-heater-state.sysml`](models/12-heater-state.sysml) ·
-SVG: [`svg/HeaterStateView.svg`](svg/HeaterStateView.svg)
-
-![Heater State Transition View: standby, heating, and cooling states with entry, do, and exit compartments, trigger-guard-effect labels, and initial and final states](png/HeaterStateView.png)
-
----
-
-## 13. Action Flow View — Order Handling (notation showcase)
-
-A deliberately small action flow that shows the action-flow notation on its own: a start node,
-`receive` as an accept action, a decision (a diamond) that branches on `[inStock]` or `else`, a
-fork and a join drawn as thick bars, `ship` as a send action, a done node after `ship`, and a
-crossed-circle terminate node after `reject`. The model's `then done;` produces one lint warning
-(see section 3).
-
-Model: [`models/13-order-action-flow.sysml`](models/13-order-action-flow.sysml) ·
-SVG: [`svg/OrderActionFlowView.svg`](svg/OrderActionFlowView.svg)
-
-![Order Handling Action Flow View: an accept action, a guarded decision with an else branch, a fork and join as thick bars, a send action, and done and terminate nodes](png/OrderActionFlowView.png)
 
 ---
 
