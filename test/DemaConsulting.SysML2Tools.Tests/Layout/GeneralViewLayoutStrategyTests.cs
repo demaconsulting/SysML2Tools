@@ -747,9 +747,9 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = await LayOutViewVAsync("""
             package Lib {
                 part def Holder { part slotX; part spareX; }
-                part def Child :> Holder { part childSub :> slotX; part childRedef redefines spareX; }
+                part def Child :> Holder { part childSub :> slotX; part childRedefining redefines spareX; }
             }
-            package App { part def Consumer { part consumerSub :> slotX; part consumerRedef redefines spareX; } }
+            package App { part def Consumer { part consumerSub :> slotX; part consumerRedefining redefines spareX; } }
             package Diagrams { view V { expose Lib::**; expose App::**; } }
             """);
 
@@ -758,7 +758,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var subsetting = Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && RunsBetween(l, FindBox(layout.Nodes, "childSub"), FindBox(layout.Nodes, "slotX")));
         Assert.Equal(LineStyle.Solid, subsetting.LineStyle);
         var redefinition = Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
-        Assert.True(RunsBetween(redefinition, FindBox(layout.Nodes, "childRedef"), FindBox(layout.Nodes, "spareX")));
+        Assert.True(RunsBetween(redefinition, FindBox(layout.Nodes, "childRedefining"), FindBox(layout.Nodes, "spareX")));
         Assert.Empty(layout.Warnings);
     }
 
@@ -775,7 +775,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = await LayOutViewVAsync("""
             package Lib { part def Holder { part slot; part spare; } }
             import Lib::Holder::*;
-            package App { part def Consumer { part consumerSub :> slot; part consumerRedef redefines spare; } }
+            package App { part def Consumer { part consumerSub :> slot; part consumerRedefining redefines spare; } }
             package Diagrams { view V { expose Lib::**; expose App::**; } }
             """);
 
@@ -783,7 +783,7 @@ public sealed class GeneralViewLayoutStrategyTests
         var lines = CollectLines(layout.Nodes);
         Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && RunsBetween(l, FindBox(layout.Nodes, "consumerSub"), FindBox(layout.Nodes, "slot")));
         var redefinition = Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
-        Assert.True(RunsBetween(redefinition, FindBox(layout.Nodes, "consumerRedef"), FindBox(layout.Nodes, "spare")));
+        Assert.True(RunsBetween(redefinition, FindBox(layout.Nodes, "consumerRedefining"), FindBox(layout.Nodes, "spare")));
         Assert.Empty(layout.Warnings);
     }
 
@@ -954,7 +954,7 @@ public sealed class GeneralViewLayoutStrategyTests
     /// <summary>
     ///     A part def that owns a reference part usage (<c>ref part</c>) draws the usage as a node
     ///     with a dashed outline and the keyword <c>ref part</c>, joined to the owner by a solid
-    ///     line with a hollow diamond at the owner (noncomposite feature membership).
+    ///     line with a hollow diamond at the owner (non-composite feature membership).
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesHollowDiamondEdgeAndDashedNode()
@@ -4797,7 +4797,7 @@ public sealed class GeneralViewLayoutStrategyTests
     [InlineData("Pilot")]
     [InlineData("AllUsages")]
     [InlineData("RowsOnly")]
-    public void GeneralViewLayoutStrategy_NodePolicy_IsNode_UnnamedKeywordlessOrExpression_IsNeverNode(string policy)
+    public void GeneralViewLayoutStrategy_NodePolicy_IsNode_UnnamedWithoutKeywordOrExpression_IsNeverNode(string policy)
     {
         // Arrange
         var nodePolicy = PolicyByName(policy);
@@ -4910,8 +4910,8 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     The keyword of a usage node carries the prefix words the specification places inside the
-    ///     guillemets (<c>abstract part</c>, <c>variation part</c>, <c>individual part</c>,
-    ///     <c>variant part</c>, <c>ref part</c>); the engine adds the guillemets themselves.
+    ///     guillemet marks (<c>abstract part</c>, <c>variation part</c>, <c>individual part</c>,
+    ///     <c>variant part</c>, <c>ref part</c>); the engine adds the guillemet marks themselves.
     /// </summary>
     /// <param name="isAbstract">Whether the usage is abstract.</param>
     /// <param name="isVariation">Whether the usage is a variation.</param>
@@ -5202,7 +5202,7 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Contains(engine.Compartments, c => c.Title == "doc" && c.Rows.Any(r => r.Contains("propulsion", StringComparison.Ordinal)));
         Assert.DoesNotContain(FindBox(layout.Nodes, "Vehicle").Compartments, c => c.Title == "doc");
 
-        // Assert: the comment is a note linked to engine by a dashed, arrowless line
+        // Assert: the comment is a note linked to engine by a dashed line without an arrowhead
         var note = Assert.Single(CollectBoxes(layout.Nodes), b => b.Shape == BoxShape.Note);
         var link = Assert.Single(CollectLines(layout.Nodes), l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.None);
         Assert.True(RunsBetween(link, engine, note));

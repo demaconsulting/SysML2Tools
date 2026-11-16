@@ -302,7 +302,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// </param>
     /// <param name="Keyword">
     /// The definition or usage keyword including its prefix words (e.g. <c>part def</c>,
-    /// <c>abstract part def</c>, <c>ref part</c>); the engine adds the guillemets.
+    /// <c>abstract part def</c>, <c>ref part</c>); the engine adds the guillemet marks.
     /// </param>
     /// <param name="SupertypeNames">The declared specialization targets of a definition (empty for a usage).</param>
     /// <param name="Compartments">The computed compartments to render inside the box (filled in by <see cref="FinalizeBoxes"/>).</param>
@@ -857,8 +857,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Returns the keyword text of a definition, with the prefix words the specification places
-    /// inside the guillemets (<c>abstract part def</c>, <c>variation part def</c>,
-    /// <c>individual part def</c>); the engine adds the guillemets themselves.
+    /// inside the guillemet marks (<c>abstract part def</c>, <c>variation part def</c>,
+    /// <c>individual part def</c>); the engine adds the guillemet marks themselves.
     /// </summary>
     private static string DefinitionKeyword(SysmlDefinitionNode definition)
     {
@@ -884,7 +884,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
     /// <summary>
     /// Returns the keyword text of a usage, with the prefix words the specification places inside
-    /// the guillemets (<c>abstract part</c>, <c>variation part</c>, <c>individual part</c>,
+    /// the guillemet marks (<c>abstract part</c>, <c>variation part</c>, <c>individual part</c>,
     /// <c>variant part</c>, <c>ref part</c>); a plain <c>ref</c> usage is not prefixed twice.
     /// </summary>
     private static string UsageKeyword(SysmlFeatureNode feature)
@@ -1260,7 +1260,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <summary>
     /// Formats a usage feature as a compartment row in the specification's textual notation
     /// (SysML v2 graphical BNF, clause 8.2.3: <c>el-prefix? UsagePrefix usage-cp</c>):
-    /// <c>[in|out|inout] name : [~]Type [mult] [ordered] [nonunique] [:&gt; subsetted]
+    /// <c>[in|out|inout] name : [~]Type [multiplicity] [ordered] [nonunique] [:&gt; subsetted]
     /// [:&gt;&gt; redefined] [::&gt; referenced] [= value]</c>, omitting every part the model does not
     /// declare. A constraint-kind feature shows its raw expression text instead.
     /// </summary>
@@ -1331,7 +1331,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         };
 
     /// <summary>
-    /// Formats the name line of a usage node: <c>&lt;shortName&gt; name : Type [mult] ordered
+    /// Formats the name line of a usage node: <c>&lt;shortName&gt; name : Type [multiplicity] ordered
     /// nonunique :&gt; subsetted :&gt;&gt; redefined ::&gt; referenced</c>.
     /// </summary>
     private static string FormatUsageNameLine(SysmlFeatureNode feature, string name) =>
