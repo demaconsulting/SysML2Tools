@@ -20,6 +20,8 @@ beyond a standard .NET SDK installation.
 - Deserializing package and definition nodes restores their qualified names.
 - Deserializing restores every concrete node type as the same type it was serialized from.
 - Supertype names, imported names, and diagnostics are restored to match the serialized input.
+- Every additive modifier and notation member is restored, and JSON written without any of them
+  (data predating the members) loads with every new member at its default.
 
 #### Test Scenarios
 
@@ -30,3 +32,5 @@ beyond a standard .NET SDK installation.
 | `Serialize_AllNodeTypes_RoundTrip` | Every concrete node type deserializes as the same type |
 | `Serialize_SupertypeAndImportedNames_Preserved` | Supertype and imported names are restored |
 | `Serialize_Diagnostics_RoundTrip` | Diagnostics are restored through deserialization |
+| `Serialize_NewModifierProperties_RoundTrip` | Every new modifier/notation member is restored |
+| `Deserialize_LegacyJsonWithoutNewProperties_UsesDefaults` | Legacy JSON loads with all new members at their defaults |

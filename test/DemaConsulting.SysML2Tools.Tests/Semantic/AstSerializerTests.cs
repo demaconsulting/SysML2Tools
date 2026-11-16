@@ -340,4 +340,160 @@ public sealed class AstSerializerTests
         var verifyingCase = Assert.IsType<SysmlDefinitionNode>(result.Symbols["verifyingCase"]);
         Assert.Equivalent(new[] { "MassRequirement" }, verifyingCase.VerifiedRequirementNames);
     }
+
+    /// <summary>
+    ///     Every additive modifier/notation member of definitions, features and transitions —
+    ///     including the <see cref="SysmlFeatureDirection"/> enum — round-trips.
+    /// </summary>
+    [Fact]
+    public void Serialize_NewModifierProperties_RoundTrip()
+    {
+        // Arrange
+        var table = new SymbolTable();
+        table.RegisterAll(new SysmlDefinitionNode
+        {
+            Name = "def",
+            QualifiedName = "def",
+            DefinitionKeyword = "state def",
+            IsAbstract = true,
+            IsVariation = true,
+            IsIndividual = true,
+            IsParallel = true,
+        });
+        table.RegisterAll(new SysmlFeatureNode
+        {
+            Name = "feat",
+            QualifiedName = "feat",
+            FeatureKeyword = "part",
+            IsAbstract = true,
+            IsVariation = true,
+            IsIndividual = true,
+            IsVariant = true,
+            IsReference = true,
+            Direction = SysmlFeatureDirection.InOut,
+            IsOrdered = true,
+            IsNonunique = true,
+            ValueText = "= 5 [kg]",
+            ReferenceSubsettingName = "owner",
+            ConjugatedFeatureTyping = "PortT",
+            ActionText = "action initial",
+            IsParallel = true,
+        });
+        table.RegisterAll(new SysmlTransitionNode
+        {
+            Name = "tr",
+            QualifiedName = "tr",
+            Source = "a",
+            Target = "b",
+            Trigger = "sig via pp",
+            Effect = "act",
+        });
+
+        // Act
+        var bytes = AstSerializer.Serialize(table, []);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        // Assert
+        var def = Assert.IsType<SysmlDefinitionNode>(result.Symbols["def"]);
+        Assert.True(def.IsAbstract);
+        Assert.True(def.IsVariation);
+        Assert.True(def.IsIndividual);
+        Assert.True(def.IsParallel);
+        var feat = Assert.IsType<SysmlFeatureNode>(result.Symbols["feat"]);
+        Assert.True(feat.IsAbstract);
+        Assert.True(feat.IsVariation);
+        Assert.True(feat.IsIndividual);
+        Assert.True(feat.IsVariant);
+        Assert.True(feat.IsReference);
+        Assert.Equal(SysmlFeatureDirection.InOut, feat.Direction);
+        Assert.True(feat.IsOrdered);
+        Assert.True(feat.IsNonunique);
+        Assert.Equal("= 5 [kg]", feat.ValueText);
+        Assert.Equal("owner", feat.ReferenceSubsettingName);
+        Assert.Equal("PortT", feat.ConjugatedFeatureTyping);
+        Assert.True(feat.IsConjugated);
+        Assert.Equal("action initial", feat.ActionText);
+        Assert.True(feat.IsParallel);
+        var tr = Assert.IsType<SysmlTransitionNode>(result.Symbols["tr"]);
+        Assert.Equal("sig via pp", tr.Trigger);
+        Assert.Equal("act", tr.Effect);
+    }
+
+    /// <summary>
+    ///     Nodes that leave the new members at their defaults serialize without any of the new
+    ///     property names, so existing output and the pre-compiled stdlib stay unchanged in size.
+    /// </summary>
+    [Fact]
+    public void Serialize_DefaultModifierProperties_AreOmittedFromJson()
+    {
+        // Arrange
+        var table = new SymbolTable();
+        table.RegisterAll(new SysmlDefinitionNode { Name = "def", QualifiedName = "def", DefinitionKeyword = "part def" });
+        table.RegisterAll(new SysmlFeatureNode { Name = "feat", QualifiedName = "feat", FeatureKeyword = "part" });
+        table.RegisterAll(new SysmlTransitionNode { Name = "tr", QualifiedName = "tr" });
+
+        // Act
+        var json = System.Text.Encoding.UTF8.GetString(AstSerializer.Serialize(table, []));
+
+        // Assert
+        foreach (var name in new[]
+                 {
+                     "IsAbstract", "IsVariation", "IsIndividual", "IsParallel", "IsVariant", "IsReference",
+                     "Direction", "IsOrdered", "IsNonunique", "ValueText", "ReferenceSubsettingName",
+                     "ConjugatedFeatureTyping", "IsConjugated", "ActionText", "Trigger", "Effect",
+                 })
+        {
+            Assert.DoesNotContain($"\"{name}\"", json);
+        }
+    }
+
+    /// <summary>
+    ///     <see cref="SysmlFeatureDirection"/> is written as a readable string, and only when set.
+    /// </summary>
+    [Fact]
+    public void Serialize_Direction_WrittenAsString()
+    {
+        // Arrange
+        var table = new SymbolTable();
+        table.RegisterAll(new SysmlFeatureNode
+        {
+            Name = "feat",
+            QualifiedName = "feat",
+            Direction = SysmlFeatureDirection.InOut,
+        });
+
+        // Act
+        var json = System.Text.Encoding.UTF8.GetString(AstSerializer.Serialize(table, []));
+
+        // Assert
+        Assert.Contains("\"Direction\":\"InOut\"", json.Replace(" ", string.Empty));
+    }
+
+    /// <summary>
+    ///     Data written before the new members existed (no new properties) loads with all of them
+    ///     at their defaults.
+    /// </summary>
+    [Fact]
+    public void Deserialize_LegacyJsonWithoutNewProperties_UsesDefaults()
+    {
+        // Arrange: hand-written JSON in the shape written before the new members existed
+        const string legacyJson =
+            """
+            {"Symbols":{"feat":{"$type":"feature","FeatureKeyword":"part","FeatureTyping":null,"Name":"feat","QualifiedName":"feat"}},"Diagnostics":[]}
+            """;
+        var legacyBytes = System.Text.Encoding.UTF8.GetBytes(legacyJson);
+
+        // Act
+        var (result, _) = AstDeserializer.Deserialize(legacyBytes);
+
+        // Assert
+        var feat = Assert.IsType<SysmlFeatureNode>(result.Symbols["feat"]);
+        Assert.False(feat.IsAbstract);
+        Assert.False(feat.IsReference);
+        Assert.Null(feat.Direction);
+        Assert.False(feat.IsOrdered);
+        Assert.Null(feat.ValueText);
+        Assert.False(feat.IsConjugated);
+        Assert.Null(feat.ActionText);
+    }
 }

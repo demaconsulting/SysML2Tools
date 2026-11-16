@@ -12,14 +12,14 @@ connections, transitions, dependency declarations, and requirement-satisfaction 
 | --- | --- |
 | `SysmlNode` (abstract) | Base properties common to all nodes (see Properties below) |
 | `SysmlPackageNode` | Package or namespace declaration |
-| `SysmlDefinitionNode` | Definition element (part def, attribute def, etc.); adds DefinitionKeyword |
-| `SysmlFeatureNode` | Feature/usage element |
+| `SysmlDefinitionNode` | Definition element (part def, etc.); adds DefinitionKeyword and modifier flags |
+| `SysmlFeatureNode` | Feature/usage element; adds typing, multiplicity, and modifier/notation data |
 | `SysmlImportNode` | Import declaration; adds ImportedNamespace, IsWildcard |
 | `SysmlMetadataNode` | Applied metadata annotation; adds TypeReference and Attributes |
 | `SysmlViewNode` | View definition; adds RenderTargetName, ExposeMembers, and filter-expression fields |
 | `SysmlViewpointNode` | Viewpoint definition |
 | `SysmlConnectionNode` | Connection/binding/allocation usage; adds ConnectionKeyword, EndpointA, EndpointB |
-| `SysmlTransitionNode` | State transition; adds Source, Target, Guard |
+| `SysmlTransitionNode` | State transition; adds Source, Target, Guard, Trigger, Effect |
 | `SysmlSatisfyNode` | `satisfy X by Y;` requirement-satisfaction usage; adds RequirementName, SubjectName |
 | `SysmlDependencyNode` | Standalone `dependency A, B to C, D;` declaration; adds FromNames, ToNames |
 
@@ -80,6 +80,9 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
 `SysmlDefinitionNode` adds:
 
 - `DefinitionKeyword` — the grammar keyword string (e.g., `"part def"`, `"attribute def"`).
+- `IsAbstract`, `IsVariation`, `IsIndividual` — `true` when the definition declares the leading
+  `abstract`, `variation`, or `individual` modifier; `IsParallel` — `true` for a `state def`
+  declared `parallel`. See "Modifier and notation data" below.
 
 `SysmlFeatureNode` adds:
 
@@ -100,6 +103,10 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   raw-text-only capture; no expression-tree modeling is attempted. Rendered by
   `GeneralViewLayoutStrategy.FormatFeatureRow` in place of the generic `name : Type
   [multiplicity]` row shape when non-null.
+- Modifier and notation members (`IsAbstract`, `IsVariation`, `IsIndividual`, `IsVariant`,
+  `IsReference`, `Direction`, `IsOrdered`, `IsNonunique`, `ValueText`, `ReferenceSubsettingName`,
+  `ConjugatedFeatureTyping`, computed `IsConjugated`, `ActionText`, `IsParallel`) — see
+  "Modifier and notation data" below.
 
 `SysmlConnectionNode` adds:
 
@@ -121,7 +128,13 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   `SysmlEdgeKind.Transition` edge together with `Target` — emitted only when both resolve; an
   implied/omitted `Source` produces no edge.
 - `Target` — the target state reference. Resolved the same way as `Source`.
-- `Guard` — the guard expression text (the condition after `if`), or null when unguarded.
+- `Guard` — the guard expression text (the condition after `if`), or null when unguarded. Captured
+  from `GetText()`, so inter-token whitespace is dropped (`x > 5` is recorded as `x>5`); unchanged.
+- `Trigger` — the verbatim text of the trigger after `accept` (e.g. `callReceived`, `sig via pp`,
+  `at 5`), or null. `Effect` — the verbatim text of the effect after `do`, or null. Both keep
+  original whitespace and are captured only for the full `transition ...` form and attached
+  transitions; transitions synthesized from an entry action's attached successions or an
+  action-flow target succession leave them null.
 
 `SysmlSatisfyNode` adds:
 
@@ -206,6 +219,36 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
 - `ViewDefinitionName` — a view usage's raw view definition reference (`view V : Def`), resolved by
   `ReferenceResolver` into a `Typing` edge; the usage inherits that definition's view conditions
   and rendering (SysML 7.26.2).
+
+##### Modifier and notation data
+
+The members below capture data the SysML v2 notation displays. They are purely additive: every
+member is optional, defaults to `false`/null, is never resolved, and never changes any edge,
+diagnostic, or layout. Each carries `JsonIgnore(WhenWritingDefault)` (flags) or
+`JsonIgnore(WhenWritingNull)` (text, direction), so a node that does not use a member serializes
+exactly as before — including in the pre-compiled stdlib and in the `export` JSON/JSONL output —
+and data written before the members existed deserializes with all of them at their defaults.
+
+| Member | Node | Meaning |
+| --- | --- | --- |
+| `IsAbstract`, `IsVariation`, `IsIndividual` | definition, feature | leading modifiers; set by `AstBuilder` |
+| `IsVariant` | feature | `variant part x;` usage |
+| `IsReference` | feature | declared with `ref` (`ref part x` or `ref x : T`); no composite flag is captured |
+| `Direction` | feature | `SysmlFeatureDirection` `In`/`Out`/`InOut`, serialized as a string; null when none |
+| `IsOrdered`, `IsNonunique` | feature | multiplicity modifiers, with or without a `[..]` range |
+| `ValueText` | feature | whole value clause verbatim, operator included (`= 5 [kg]`); never parsed |
+| `ReferenceSubsettingName` | feature | raw target of `::>`/`references`; unresolved, produces no edge |
+| `ConjugatedFeatureTyping` | feature | raw name after `~` in a conjugated port typing; unresolved |
+| `IsConjugated` | feature | computed (`ConjugatedFeatureTyping is not null`); not serialized |
+| `ActionText` | feature | declaration text of an `entry`/`do`/`exit` sub-action, body excluded |
+| `IsParallel` | definition, feature | `state def`/`state` declared `parallel` |
+| `Trigger`, `Effect` | transition | verbatim trigger and effect text |
+
+`ReferenceSubsettingName` and `ConjugatedFeatureTyping` are deliberately **not** merged into
+`SupertypeNames` or `FeatureTyping`: doing so would add `Supertype`/`Typing` edges and change
+diagnostics and layout. Bare direction-only parameters (`in x : T;`) are not AST nodes today, so
+they carry no direction; `derived`/`constant`/`end`/`readonly` and modifiers on view, viewpoint, and
+connection nodes are not captured.
 
 ##### Error Handling
 

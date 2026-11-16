@@ -31,3 +31,14 @@ sections:
         tests:
           - Serialize_SupertypeAndImportedNames_Preserved
           - Serialize_Diagnostics_RoundTrip
+
+      - id: SysML2Tools-Language-Semantic-AstDeserializer-ModifierDataCompatibility
+        title: >-
+          AstDeserializer.Deserialize shall restore the optional modifier and notation members of
+          nodes, and shall load data written without them, giving each its default value.
+        justification: |
+          The members are additive, so a serialized symbol table produced before they existed must
+          still load, with every new member at its default.
+        tests:
+          - Serialize_NewModifierProperties_RoundTrip
+          - Deserialize_LegacyJsonWithoutNewProperties_UsesDefaults

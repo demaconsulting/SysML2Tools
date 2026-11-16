@@ -55,6 +55,11 @@ external services or additional configuration are required beyond a standard .NE
   `redefines`/`:>>` clause (bare-name and qualified `Owner::feature` forms, both keyword and
   operator syntax), and is `null` for a feature with no redefinition. It is resolved by
   `ReferenceResolver` into a `Redefinition`-kind edge, mirroring `FeatureTyping`.
+- The additive modifier and notation members (`IsAbstract`, `IsVariation`, `IsIndividual`,
+  `IsVariant`, `IsReference`, `Direction`, `IsOrdered`, `IsNonunique`, `ValueText`,
+  `ReferenceSubsettingName`, `ConjugatedFeatureTyping`/`IsConjugated`, `ActionText`, `IsParallel`
+  on definitions and features; `Trigger`/`Effect` on transitions) hold their documented values for
+  models that use the corresponding syntax and their defaults (`false`/null) otherwise.
 
 ##### Test Scenarios
 
@@ -87,3 +92,16 @@ external services or additional configuration are required beyond a standard .NE
 | `RedefinedFeatureName` — `:>>` operator | `WorkspaceLoader_LoadAsync_ColonGtGtOperator_CapturesRedefinedFeatureName` |
 | `RedefinedFeatureName` — qualified | `WorkspaceLoader_LoadAsync_QualifiedRedefinition_CapturesRawText` |
 | `RedefinedFeatureName` — null when absent | `WorkspaceLoader_LoadAsync_NoRedefinition_RedefinedFeatureNameIsNull` |
+| Definition `abstract` | `WorkspaceLoader_LoadAsync_AbstractModifier_SetsIsAbstract` |
+| Definition `variation` | `WorkspaceLoader_LoadAsync_VariationAndVariant_SetFlags` |
+| Definition `individual` | `WorkspaceLoader_LoadAsync_IndividualPrefix_SetsIsIndividual` |
+| Feature `ref` | `WorkspaceLoader_LoadAsync_RefPrefix_SetsIsReference` |
+| Feature direction | `WorkspaceLoader_LoadAsync_FeatureDirection_Captured` |
+| `ordered`/`nonunique` | `WorkspaceLoader_LoadAsync_OrderedNonunique_Captured` |
+| `ValueText` | `WorkspaceLoader_LoadAsync_FeatureValue_CapturedVerbatim` |
+| Reference subsetting | `WorkspaceLoader_LoadAsync_ReferenceSubsetting_CapturedNotInSupertypeNames` |
+| Conjugated typing | `WorkspaceLoader_LoadAsync_ConjugatedPortTyping_CapturesNameKeepsTypingNull` |
+| `ActionText` | `WorkspaceLoader_LoadAsync_StateEntryDoExitActions_CaptureActionText` |
+| `IsParallel` | `WorkspaceLoader_LoadAsync_ParallelState_SetsIsParallel` |
+| Transition `Trigger`/`Effect` | `WorkspaceLoader_LoadAsync_TransitionTriggerGuardEffect_Captured` |
+| New members default for a plain model | `WorkspaceLoader_LoadAsync_PlainModel_AllNewMembersDefault` |

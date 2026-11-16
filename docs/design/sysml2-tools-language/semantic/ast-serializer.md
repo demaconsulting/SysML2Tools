@@ -38,6 +38,13 @@ reference text that layout consumers use to match a reference to its edge. `Sysm
 markers included) that is omitted when null, so data serialized before the property existed still
 deserializes (with `null`).
 
+The additive modifier and notation members of `SysmlDefinitionNode`, `SysmlFeatureNode`, and
+`SysmlTransitionNode` (see the `SysmlNode` chapter) are serialized with
+`JsonIgnore(WhenWritingDefault)` for flags and `WhenWritingNull` for text and direction, so a node
+that does not use them serializes exactly as before. `SysmlFeatureDirection` is written as a string
+(`"In"`, `"Out"`, `"InOut"`) through a `JsonStringEnumConverter` declared on the enum. The format
+has no version field: the members are additive, so no format change or version bump is needed.
+
 #### Dependencies
 
 - **SymbolTable** — source of the `Symbols` dictionary being serialized.

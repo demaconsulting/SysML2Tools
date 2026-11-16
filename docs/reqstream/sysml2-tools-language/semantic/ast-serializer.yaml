@@ -48,3 +48,17 @@ sections:
           - Serialize_EdgeRawReference_RoundTripsAndNullIsOmitted
           - Serialize_ImportAndExposeRawReferenceText_RoundTripsAndNullIsOmitted
           - Serialize_Diagnostics_RoundTrip
+
+      - id: SysML2Tools-Language-Semantic-AstSerializer-ModifierData
+        title: >-
+          AstSerializer.Serialize shall preserve the optional modifier and notation members of
+          definition, feature, and transition nodes (including the feature Direction as a string),
+          and shall omit each from the serialized form when it holds its default value.
+        justification: |
+          The pre-compiled standard library carries these members to consumers, while omitting
+          defaults keeps the serialized form of nodes that do not use them unchanged in content and
+          size.
+        tests:
+          - Serialize_NewModifierProperties_RoundTrip
+          - Serialize_DefaultModifierProperties_AreOmittedFromJson
+          - Serialize_Direction_WrittenAsString

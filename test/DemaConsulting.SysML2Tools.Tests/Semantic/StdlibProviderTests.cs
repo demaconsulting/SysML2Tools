@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics;
+using DemaConsulting.SysML2Tools.Parser;
+using DemaConsulting.SysML2Tools.Semantic.Model;
 using DemaConsulting.SysML2Tools.Stdlib;
 
 namespace DemaConsulting.SysML2Tools.Tests.Semantic;
@@ -70,5 +72,29 @@ public sealed class StdlibProviderTests
     {
         var (_, diagnostics) = StdlibProvider.GetSymbolTable();
         Assert.NotNull(diagnostics);
+    }
+
+    /// <summary>
+    ///     The pre-compiled stdlib carries the additive modifier data: <c>Parts::Part</c> is
+    ///     declared <c>abstract part def Part</c>. Fails if the stdlib resource was not regenerated.
+    /// </summary>
+    [Fact]
+    public void GetSymbolTable_RegeneratedStdlib_CarriesModifiers()
+    {
+        var (table, _) = StdlibProvider.GetSymbolTable();
+
+        var part = Assert.IsType<SysmlDefinitionNode>(table.Symbols["Parts::Part"]);
+        Assert.True(part.IsAbstract);
+    }
+
+    /// <summary>
+    ///     The stdlib diagnostics contain no errors.
+    /// </summary>
+    [Fact]
+    public void GetSymbolTable_Diagnostics_ContainNoErrors()
+    {
+        var (_, diagnostics) = StdlibProvider.GetSymbolTable();
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
 }

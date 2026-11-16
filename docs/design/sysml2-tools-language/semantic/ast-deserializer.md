@@ -27,6 +27,10 @@ source files.
 The `$type` discriminator written during serialization drives the reconstruction of each concrete
 `SysmlNode` subtype.
 
+The format carries no version field and the modifier and notation members are additive: data
+written before they existed (with none of the new properties) loads with every new member at its
+default (`false`/null), and unknown properties are ignored by `System.Text.Json`.
+
 #### Dependencies
 
 - **SymbolTable** — reconstructed from the deserialized symbol dictionary.

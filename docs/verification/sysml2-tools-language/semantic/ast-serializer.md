@@ -25,6 +25,9 @@ standard .NET SDK installation.
 - `SysmlImportNode.RawReferenceText` and `ExposeMember.RawReferenceText` are preserved through
   the round trip and omitted from the JSON text when `null`.
 - Diagnostics are preserved through the round trip.
+- Every additive modifier and notation member of definition, feature, and transition nodes
+  (including `Direction`, written as a string) is preserved through the round trip, and each is
+  omitted from the JSON text when it holds its default value.
 
 #### Test Scenarios
 
@@ -38,3 +41,6 @@ standard .NET SDK installation.
 | `Serialize_EdgeRawReference_RoundTripsAndNullIsOmitted` | `RawReference` round-trips; `null` is omitted |
 | `Serialize_ImportAndExposeRawReferenceText_RoundTripsAndNullIsOmitted` | Raw text round-trips; `null` omitted |
 | `Serialize_Diagnostics_RoundTrip` | Diagnostics are preserved through the round trip |
+| `Serialize_NewModifierProperties_RoundTrip` | Every new modifier/notation member round-trips |
+| `Serialize_DefaultModifierProperties_AreOmittedFromJson` | Default-valued new members are absent from the JSON |
+| `Serialize_Direction_WrittenAsString` | `Direction` is written as `"InOut"` rather than a number |

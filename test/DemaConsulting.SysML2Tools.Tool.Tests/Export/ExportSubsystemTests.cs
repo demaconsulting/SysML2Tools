@@ -59,6 +59,108 @@ public class ExportSubsystemTests
         }
         """;
 
+    // ---- Modifier / notation data on exported nodes ----
+
+    private const string ModifierFixture = """
+        package Model {
+            abstract part def Base;
+            part def Holder {
+                in attribute speed = 5 [kg];
+                ref part r;
+            }
+            state def S parallel {
+                state a;
+                state b;
+                transition t first a accept sig do act then b;
+            }
+        }
+        """;
+
+    /// <summary>Parses the JSON document printed by an <c>export --format json</c> run.</summary>
+    private static System.Text.Json.JsonDocument ParseJsonOutput(string output)
+    {
+        var start = output.IndexOf('{');
+        var end = output.LastIndexOf("\n}", StringComparison.Ordinal) + 2;
+        return System.Text.Json.JsonDocument.Parse(output[start..end]);
+    }
+
+    /// <summary>Returns the named child of a node element, or throws when absent.</summary>
+    private static System.Text.Json.JsonElement ChildNamed(System.Text.Json.JsonElement node, string name) =>
+        node.GetProperty("Children").EnumerateArray().First(c =>
+            c.TryGetProperty("Name", out var n) && n.GetString() == name);
+
+    /// <summary>
+    ///     The JSON export carries the additive modifier and notation data of each node (definition
+    ///     flags, feature flags and direction, value text, transition trigger/effect, parallel).
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_FormatJson_IncludesModifierData()
+    {
+        // Arrange / Act
+        var (output, exitCode) = await ExportTestFixtures.RunExportAsync(ModifierFixture, "--format", "json");
+
+        // Assert
+        Assert.Equal(0, exitCode);
+        using var document = ParseJsonOutput(output);
+        var declarations = document.RootElement.GetProperty("Declarations");
+        Assert.True(declarations.GetProperty("Model::Base").GetProperty("IsAbstract").GetBoolean());
+        var holder = declarations.GetProperty("Model::Holder");
+        var speed = ChildNamed(holder, "speed");
+        Assert.Equal("In", speed.GetProperty("Direction").GetString());
+        Assert.Equal("= 5 [kg]", speed.GetProperty("ValueText").GetString());
+        Assert.True(ChildNamed(holder, "r").GetProperty("IsReference").GetBoolean());
+        var state = declarations.GetProperty("Model::S");
+        Assert.True(state.GetProperty("IsParallel").GetBoolean());
+        var transition = ChildNamed(state, "t");
+        Assert.Equal("sig", transition.GetProperty("Trigger").GetString());
+        Assert.Equal("act", transition.GetProperty("Effect").GetString());
+    }
+
+    /// <summary>
+    ///     The JSONL export carries the same additive data on each declaration line's node.
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_FormatJsonl_DeclarationNodeIncludesModifierData()
+    {
+        // Arrange / Act
+        var (output, exitCode) = await ExportTestFixtures.RunExportAsync(ModifierFixture, "--format", "jsonl");
+
+        // Assert
+        Assert.Equal(0, exitCode);
+        var line = output.Split('\n')
+            .Select(l => l.Trim())
+            .Where(l => l.StartsWith("{\"Kind\":\"declaration\"", StringComparison.Ordinal))
+            .Select(l => System.Text.Json.JsonDocument.Parse(l))
+            .First(d => d.RootElement.GetProperty("QualifiedName").GetString() == "Model::Base");
+        using (line)
+        {
+            var node = line.RootElement.GetProperty("Node");
+            Assert.True(node.GetProperty("IsAbstract").GetBoolean());
+        }
+    }
+
+    /// <summary>
+    ///     A model that uses none of the new syntax exports none of the new properties.
+    /// </summary>
+    [Fact]
+    public async Task ExportSubsystem_DefaultNodes_OmitNewModifierProperties()
+    {
+        // Arrange / Act
+        var (output, exitCode) = await ExportTestFixtures.RunExportAsync(Fixture, "--format", "json");
+
+        // Assert
+        Assert.Equal(0, exitCode);
+        foreach (var name in new[]
+                 {
+                     "IsAbstract", "IsVariation", "IsIndividual", "IsParallel", "IsVariant", "IsReference",
+                     "Direction", "IsOrdered", "IsNonunique", "ValueText", "ReferenceSubsettingName",
+                     "ConjugatedFeatureTyping", "IsConjugated", "ActionText", "Trigger", "Effect",
+                 })
+        {
+            Assert.DoesNotContain($"\"{name}\"", output);
+        }
+    }
+
     // ---- ExportArgumentParser ----
 
     /// <summary>

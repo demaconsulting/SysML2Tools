@@ -554,6 +554,52 @@ expose-scope filtering (`ExposeScopeResolver.IsInSubjectScope`) in
 `assignmentNode`, `terminateNode`, `ifNode`, `whileLoopNode`, and `forLoopNode` remain
 intentionally unhandled — a pre-existing gap, not introduced by this change.
 
+###### Modifier and notation data capture
+
+All of the following is additive raw capture; none of it touches `SupertypeNames`,
+`FeatureTyping`, naming, `Guard`, or `ReferenceResolver`, so edges, diagnostics, and layout are
+unchanged.
+
+- **Leading modifiers (central pass).** `ApplyMembershipDetails` — already the single place that
+  applies `ShortName` and `Visibility` after a node is built, called from every `Collect*` method —
+  now also calls `ApplyLeadingModifiers(node, element)`. It lazily walks the element's terminal
+  tokens (`EnumerateTokens`) in source order, skips the visibility keyword and a leading `then`,
+  consumes tokens while they are `abstract`, `variation`, `individual`, `variant`, `ref`, `in`,
+  `out`, or `inout` (tolerating, but not capturing, `derived` and `constant`), and stops at the
+  first other token (the kind keyword, an identifier, `#`, ...). `IsAbstract`/`IsVariation`/
+  `IsIndividual` are applied to definition and feature nodes, and `IsVariant`/`IsReference`/
+  `Direction` to feature nodes only; other node types are untouched. The grammar orders the basic
+  prefix keywords before metadata keywords and the kind keyword, so the stop rule never reaches a
+  nested member. For an item that yields several nodes (a `MultiNodeCapture`), the pass is applied
+  only to the first definition or feature node, so synthesized transitions never receive flags.
+  Doing this once, rather than in each of the ~35 definition and usage visitors, avoids per-visitor
+  omissions.
+- **Usage data in `BuildUsageNode`.** `IsOrdered`/`IsNonunique` come from
+  `featureSpecializationPart().multiplicityPart()` (independent of a `[..]` range);
+  `ValueText` is the verbatim text of `usageCompletion().valuePart().featureValue()`, operator
+  included; `ReferenceSubsettingName` comes from `ExtractReferenceSubsettingName` (the first
+  `references()` clause); `ConjugatedFeatureTyping` comes from `ExtractConjugatedTypingName` (the
+  `conjugatedPortTyping` alternative of the typings, which `ExtractFeatureTyping` ignores, so
+  `FeatureTyping` stays null and no `Typing` edge is produced).
+- **Transitions.** `VisitTransitionUsage` and `BuildAttachedTransition` set `Trigger` and `Effect`
+  from `triggerActionMember().triggerAction()` and `effectBehaviorMember().effectBehaviorUsage()`.
+  `BuildEntryAttachedTransition` and `BuildActionTargetSuccession` have no trigger or effect in
+  their grammar rules and leave them null. `Guard` is unchanged and still concatenates tokens
+  without whitespace (`x > 5` is recorded as `x>5`); the new members use original text instead.
+- **State actions.** `BuildStateActionFeatureNode` sets `ActionText` from
+  `ExtractStateActionText`, which returns the original text of the perform/accept/send/assignment
+  declaration alternative of the `stateActionUsage`, excluding the action body; null for the empty
+  form.
+- **Parallel.** `VisitStateDefinition` and `VisitStateUsage` set `IsParallel` from
+  `stateDefBody().PARALLEL()` / `stateUsageBody().PARALLEL()`.
+- **`OriginalTextOrNull`.** A null-safe variant of `GetOriginalText` used for all new text
+  captures: it returns null when the context is absent or matches no tokens (epsilon rules such as
+  `emptyActionUsage_`, whose `Stop` token is null or precedes `Start`).
+
+Bare direction-only parameters (`in x : T;`, grammar `defaultReferenceUsage`) still produce no AST
+node, so no direction is captured for them: creating nodes would add `Children` to many
+definitions and change compartment, layout, and stdlib symbol inputs.
+
 ##### Error Handling
 
 Anonymous elements (null declared names) are silently skipped — visitor methods return `null`

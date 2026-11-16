@@ -104,6 +104,17 @@ external services or additional configuration are required beyond a standard .NE
   and `examples/CommentExamples/Comments.sysml`/`training/01.Packages/DocumentationExample.sysml`
   parse with no error diagnostics and produce the expected enum-value/subject/constraint/
   annotation captures.
+- A body element's leading `abstract`/`variation`/`individual`/`variant`/`ref` and
+  `in`/`out`/`inout` keywords are applied to its definition or feature node in definition, state,
+  action, and requirement bodies (skipping visibility and a leading `then`), never to a
+  synthesized transition; a bare direction-only parameter produces no node.
+- `ordered`/`nonunique`, the value clause (`ValueText`, operator and whitespace preserved),
+  `::>`/`references` targets, `~` conjugated typing, state sub-action declaration text, and
+  `parallel` are captured as raw, unresolved data; `::>` targets stay out of `SupertypeNames`
+  and a conjugated typing leaves `FeatureTyping` null, so no edge or diagnostic is added.
+- A transition's `Trigger` and `Effect` are captured verbatim for the full and attached forms
+  (null for the entry-attached and action-flow forms and for empty effects), with `Guard`
+  unchanged.
 
 ##### Test Scenarios
 
@@ -173,3 +184,21 @@ external services or additional configuration are required beyond a standard .NE
 | Enum def OMG corpus fixtures | `Enumeration_OmgCorpusFixtures_CaptureAllLiteralForms` |
 | Requirement OMG corpus fixtures | `Requirement_OmgCorpusFixtures_CaptureSubjectAndConstraints` |
 | Comment/documentation OMG corpus fixtures | `CommentAndDocumentation_OmgCorpusFixtures_CaptureAnnotations` |
+| `abstract` modifier | `WorkspaceLoader_LoadAsync_AbstractModifier_SetsIsAbstract` |
+| `variation`/`variant` modifiers | `WorkspaceLoader_LoadAsync_VariationAndVariant_SetFlags` |
+| `individual` modifier | `WorkspaceLoader_LoadAsync_IndividualPrefix_SetsIsIndividual` |
+| `ref` modifier | `WorkspaceLoader_LoadAsync_RefPrefix_SetsIsReference` |
+| Feature direction | `WorkspaceLoader_LoadAsync_FeatureDirection_Captured` |
+| Bare direction parameter yields no node | `WorkspaceLoader_LoadAsync_BareDirectionParameter_ProducesNoNode` |
+| Modifiers in specialized bodies | `WorkspaceLoader_LoadAsync_ModifiersInSpecializedBodies_AppliedToUsagesOnly` |
+| `ordered`/`nonunique` | `WorkspaceLoader_LoadAsync_OrderedNonunique_Captured` |
+| Value clause verbatim | `WorkspaceLoader_LoadAsync_FeatureValue_CapturedVerbatim` |
+| `::>`/`references` raw capture | `WorkspaceLoader_LoadAsync_ReferenceSubsetting_CapturedNotInSupertypeNames` |
+| `~` conjugated typing raw capture | `WorkspaceLoader_LoadAsync_ConjugatedPortTyping_CapturesNameKeepsTypingNull` |
+| Transition trigger/guard/effect | `WorkspaceLoader_LoadAsync_TransitionTriggerGuardEffect_Captured` |
+| Attached transition trigger/guard/effect | `WorkspaceLoader_LoadAsync_AttachedTransition_CapturesTriggerGuardEffect` |
+| Synthesized successions: no trigger/effect | `WorkspaceLoader_LoadAsync_SynthesizedSuccessions_TriggerEffectNull` |
+| State entry/do/exit action declaration text | `WorkspaceLoader_LoadAsync_StateEntryDoExitActions_CaptureActionText` |
+| Empty state entry action | `WorkspaceLoader_LoadAsync_EmptyStateEntryAction_ActionTextNull` |
+| `parallel` state | `WorkspaceLoader_LoadAsync_ParallelState_SetsIsParallel` |
+| Plain model leaves new members at defaults | `WorkspaceLoader_LoadAsync_PlainModel_AllNewMembersDefault` |

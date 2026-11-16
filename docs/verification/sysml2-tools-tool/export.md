@@ -40,6 +40,10 @@ shape. Tests run against the tool's target framework.
 - JSONL output is one compact JSON object per line, each carrying a `"Kind"` discriminator
   (`"declaration"`/`"edge"`/`"diagnostic"`), with declarations, then edges, then diagnostics;
   an edge line includes `RawReference` only when the edge has one.
+- A declaration node carries the additive modifier and notation members of its node type
+  (`IsAbstract`, `Direction` as a string, `ValueText`, `IsReference`, `IsParallel`, `Trigger`,
+  `Effect`, ...) in both JSON and JSONL output, and a model that uses none of that syntax exports
+  none of those property names.
 - A full CLI invocation (`export --format json`/`export --format jsonl --output <path>`)
   against a real `test/SysMLModels` fixture produces valid, deserializable JSON/JSONL
   containing non-empty declarations, edges, and diagnostics, with stdlib content correctly
@@ -102,6 +106,16 @@ trailing `--target`/`--filter` with no following value throws `ArgumentException
 **`ExportSubsystem_FormatJsonl_DispatchesAndPrintsJsonLines`**: Verifies each accepted
 `--format` value (and the default) dispatches successfully and produces output in the
 expected shape.
+
+**`ExportSubsystem_FormatJson_IncludesModifierData`**: Verifies the JSON export carries
+`IsAbstract`, `Direction` (`"In"`), `ValueText`, `IsReference`, `IsParallel`, and a transition's
+`Trigger`/`Effect` for a fixture that uses those constructs.
+
+**`ExportSubsystem_FormatJsonl_DeclarationNodeIncludesModifierData`**: Verifies the JSONL
+declaration line's `Node` carries the same additive members.
+
+**`ExportSubsystem_DefaultNodes_OmitNewModifierProperties`**: Verifies a model using none of the
+new syntax exports none of the new property names.
 
 **`ExportSubsystem_InvalidFormat_ThrowsArgumentException`**: Verifies an unsupported
 `--format` value throws `ArgumentException` naming the bad value.
