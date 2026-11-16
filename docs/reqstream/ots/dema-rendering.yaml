@@ -122,15 +122,23 @@ sections:
               DemaConsulting.Rendering shall carry per-node box appearance (outline style, name
               style, folder-title placement), compartment title alignment and style, and the
               hollow-triangle-with-two-dots and hollow-triangle-with-four-dots end markers from the
-              input graph to the placed layout tree, and shall draw them in its SVG and PNG output.
+              input graph to the placed layout tree, and shall draw them, together with the
+              hollow-triangle-with-crossbar end marker, in its SVG and PNG output.
             justification: |
               The General View follows the SysML v2 graphical notation: a dashed outline for a
               reference usage, an italic name for an abstract definition, the package name in the
-              folder tab, centered italic compartment titles, and the typing and reference-subsetting
-              end markers. The strategy states each of these on the graph and relies on the package
-              to keep it through placement and to draw it. Version 0.3.0-beta.3 of the package family
-              introduced these capabilities. The placed boxes, compartments, and lines carrying the
-              requested style are the observable evidence that the package preserved it.
+              folder tab, centered italic compartment titles, and the typing, reference-subsetting,
+              and redefinition end markers. The strategy states each of these on the graph and
+              relies on the package to keep it through placement and to draw it. Version
+              0.3.0-beta.3 of the package family introduced these capabilities. The placed boxes,
+              compartments, and lines carrying the requested style are the evidence that the
+              package preserved it; focused renderer tests on small hand-built layout trees are the
+              evidence that it draws it: the SVG tests assert the dash pattern, the italic font
+              style, the centered title anchor, the name position inside the folder tab, and the
+              marker definitions (triangle plus two dots, four dots, or a crossbar), and the PNG
+              tests probe pixels for the alternating dashed outline and for the dots behind the
+              triangle. A generic "the output contains the element names" check cannot detect a
+              regression in any of these and is therefore not used as evidence.
             tags: [ots]
             tests:
               - GeneralViewLayoutStrategy_BuildLayout_ReferenceUsage_OutlineIsDashedAndCompositeUsageIsSolid
@@ -139,8 +147,15 @@ sections:
               - GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments
               - GeneralViewLayoutStrategy_BuildLayout_ReferenceSubsetting_ProducesHollowTriangleFourDotsEdgeOnlyWhenResolved
               - GeneralViewLayoutStrategy_BuildLayout_AllUsages_AttributeUsage_IsNodeWithTypingAndHollowDiamond
-              - DiagramRenderer_RenderWorkspace_GeneralViewModel_SvgContainsElementNames
-              - DiagramRenderer_RenderWorkspace_GeneralViewModel_PngProducesValidOutput
+              - SvgRenderer_Render_DashedOutline_ReferenceUsageHasDashArrayAndCompositeUsageIsSolid
+              - SvgRenderer_Render_ItalicName_AbstractDefinitionIsItalicAndConcreteIsNot
+              - SvgRenderer_Render_CompartmentTitle_CenteredAndItalicWhenRequested
+              - SvgRenderer_Render_FolderNameInTab_NameInsideTabWithoutSecondTitleBand
+              - SvgRenderer_Render_HollowTriangleTwoDots_MarkerHasTriangleAndTwoDots
+              - SvgRenderer_Render_HollowTriangleFourDots_MarkerHasTriangleAndFourDots
+              - SvgRenderer_Render_HollowTriangleCrossbar_MarkerHasTriangleAndBarWithoutDots
+              - PngRenderer_Render_DashedOutline_TopEdgeAlternatesDarkAndWhiteAndSolidEdgeDoesNot
+              - PngRenderer_Render_HollowTriangleFourDots_DrawsDarkDotsBehindTriangle
 
           - id: SysML2Tools-OTS-DemaRendering-NestedDirectionAndAutoLayout
             title: >-
