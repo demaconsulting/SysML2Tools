@@ -179,11 +179,15 @@ configuration are required beyond a standard .NET SDK installation.
   `LayoutTree.Warnings` (defense-in-depth diagnostic) — except an unresolved-endpoint drop caused
   solely by the endpoint falling outside an active `expose` scope narrowing, which is expected
   behavior and produces no warning.
-- Every definition or usage with one or more `Comment` annotations gets exactly one
+- Every definition or usage rendered as a box with one or more `Comment` annotations gets exactly one
   `BoxShape.Note` box, connected to the element's own box by a plain dashed line with no end
   marker; an element with no annotations gets no note box. A nested part's `doc` is a compartment of
   the part's own box (not of its owner), and a `comment` on the nested part is a note joined to the
-  part's own box.
+  part's own box. Under the default Pilot `NodePolicy`, attributes, plain references, and ports without
+  nested features stay compartment rows of their owner, and the documentation and comments of such a
+  row are not rendered (consistent with the Pilot implementation); this is verified only for usages
+  rendered as their own boxes, and the row limitation is recorded as a follow-up in `ROADMAP.md`
+  (annotating a row through a dashed link to the row, which the specification permits).
 - A `"subject"`/`"assume constraint"`/`"require constraint"`/`"constraint"`-keyword feature
   compartment is titled with the guillemet-wrapped stereotype form (e.g. `«subject»`), not the
   generic pluralized-keyword default.
@@ -624,7 +628,9 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
   a plain dashed line with no end marker
 - `GeneralViewLayoutStrategy_BuildLayout_NestedPartDocAndComment_AttachToOwnNode`:
   A nested part's `doc` is a compartment of the part's own node (not of its owner) and a `comment` on it is
-  a note joined to the part's own node by a dashed line without arrowhead
+  a note joined to the part's own node by a dashed line without arrowhead; this covers usages rendered as
+  their own boxes, while the documentation and comments of attributes and plain ports, which stay
+  compartment rows, are not rendered under the default policy
 - `GeneralViewLayoutStrategy_BuildLayout_Satisfy_ProducesSolidOpenArrowEdgeWithKeywordLabel`:
   `satisfy` draws a solid open-arrowhead line from the satisfying box to the requirement, labeled
   `«satisfy»`

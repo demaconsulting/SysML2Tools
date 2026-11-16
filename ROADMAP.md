@@ -69,6 +69,10 @@ Remaining work, each independently scoped:
 - **Owned and unowned membership glyphs** (`⊕` and `○`) when a member is drawn outside its owner.
 - **Comment details.** The comment keyword, name, locale, and `about` target need these fields on
   `SysmlAnnotation` first.
+- **Annotations on compartment rows.** Under the default node policy, an attribute, plain reference,
+  or port without nested features stays a compartment row, and its `doc` and `comment` are not drawn
+  (as in the OMG Pilot implementation). Draw them as a note joined to the row by a dashed link, which
+  the specification permits.
 - **Requirement-usage typing gap.** `requirement r : R;` (also concern and constraint usages) keeps no
   typing in the syntax tree, so it draws no typing edge and its box shows `r` instead of `r : R`.
 - **Standard-library name collision.** A user package named like a standard-library package (for

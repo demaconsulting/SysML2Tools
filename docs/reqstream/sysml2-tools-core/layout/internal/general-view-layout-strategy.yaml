@@ -786,12 +786,13 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AnnotationNote
         title: >-
-          GeneralViewLayoutStrategy shall render one `BoxShape.Note` box per definition or usage that
-          carries exposed `comment` annotations satisfying the view conditions, connected to the
+          GeneralViewLayoutStrategy shall render one `BoxShape.Note` box per definition or usage
+          rendered as a box that carries exposed `comment` annotations satisfying the view
+          conditions, connected to the
           element's box by a plain dashed line with no end marker (SysML 8.2.3.4 comment-node
           and annotation-link), containing the Comment text (multiple comments concatenated with a
           blank-line separator into a single note), and shall emit no note box for an element
-          with no such comments.
+          with no such comments. A usage that stays a compartment row draws no note.
         justification: |
           The ROADMAP's "Annotating elements" gap: `comment` annotations were already
           captured into SysmlNode.Annotations by AstBuilder but never rendered anywhere in the
@@ -812,14 +813,19 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageDocAndComment
         title: >-
-          GeneralViewLayoutStrategy shall draw the `doc` of a usage that has a box of its own as a
-          compartment of that usage's box, and a `comment` on such a usage as a note joined to
-          that usage's box, rather than attaching either to the usage's owner.
+          GeneralViewLayoutStrategy shall draw the `doc` of a usage that is rendered as a box of its
+          own as a compartment of that usage's box, and a `comment` on such a usage as a note joined
+          to that usage's box, rather than attaching either to the usage's owner. Under the default
+          node policy, an attribute, a plain reference, or a port without nested features stays a
+          compartment row of its owner, and its documentation and comments are not drawn.
         justification: |
           Documentation and comments belong to the element they are written on. A nested part is
           a box of its own, so its documentation and notes must appear on that box; attaching them
           to the owner would misattribute the text, and showing the part only as a row of its owner
-          would lose them.
+          would lose them. A usage that stays a row has no box to carry its documentation or
+          comments, and the OMG Pilot implementation likewise draws neither; the specification
+          permits a dashed annotation link from a note to the row, which is recorded as a
+          follow-up in the ROADMAP rather than claimed here.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_NestedPartDocAndComment_AttachToOwnNode
 
@@ -874,12 +880,13 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-DocumentationCompartment
         title: >-
-          GeneralViewLayoutStrategy shall render each exposed `doc` (Documentation) of a rendered
-          element that satisfies the view conditions as a `doc` compartment inside the element's
+          GeneralViewLayoutStrategy shall render each exposed `doc` (Documentation) of an element
+          rendered as a box that satisfies the view conditions as a `doc` compartment inside the
+          element's
           own box — never as a separate note — word-wrapped into rows that fit the box width
           (widening a narrow box to a minimum readable column); documentation is exposed with its
           owner's members (`expose X::**;`, `expose X::*;`, or an unscoped view), not by a bare
-          `expose X;`.
+          `expose X;`. The documentation of a usage that stays a compartment row is not drawn.
         justification: |
           KerML 7.2.4.2: documentation is an owned member of the documented element, so exposing
           an element's members exposes its documentation. SysML 8.2.3.4 provides the

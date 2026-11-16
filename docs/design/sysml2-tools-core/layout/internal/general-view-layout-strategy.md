@@ -618,7 +618,10 @@ characters that fit the box width computed without the doc compartment — using
 `FontSizeBody * CharWidthFactor` estimate and `3 * LabelPadding` inset as `ComputeBoxSize`, so a wrapped
 row never widens the box — but never fewer than `MinDocWrapChars` (36) characters, so a narrow box
 widens to a readable column instead of wrapping into a tall sliver. A word longer than the limit is
-hard-broken. Documentation is never drawn as a separate note.
+hard-broken. Documentation is never drawn as a separate note. Only an element that is rendered as a box
+reaches `FinalizeBoxes`, so the documentation of a usage that stays a compartment row under the default
+`NodePolicy` (an attribute, a plain reference, or a port without nested features) is not drawn, matching
+the OMG Pilot implementation.
 
 ###### `AddAnnotationNote(scope, def, defNode, theme)`
 
@@ -638,7 +641,9 @@ The note is an ordinary `LayoutGraph` node and edge added during the same single
 traversal that builds each box, a deliberate deviation from the post-layout marker decoration used by
 `StateTransitionViewLayoutStrategy.AddInitialMarker`: this strategy builds its entire graph in one pass
 with no separate decoration phase, so adding the note up front lets the engine route and position it
-like any other element. Comment keyword, name, locale, and `about` are not shown, because
+like any other element. A usage that stays a compartment row has no box, so its comments are not
+drawn either (the specification permits a dashed link from a note to the row; see `ROADMAP.md`).
+Comment keyword, name, locale, and `about` are not shown, because
 `SysmlAnnotation` carries only the kind and the text.
 
 ###### `ComputeItemOrder(tree, build, edges)`
