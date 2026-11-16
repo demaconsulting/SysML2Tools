@@ -721,7 +721,10 @@ internal sealed class InterconnectionViewLayoutStrategy : ILayoutStrategy
             // branch shares the same depth-limiting decision.
             var childVisited = new HashSet<string>(visited, StringComparer.Ordinal) { childDef.QualifiedName! };
             var inner = LayOutInterior(childDef, theme, depth + 1, defsByName, childVisited, scope: null, ancestorUnlimitedRecursion: unlimitedRecursion);
-            return new PartItem(name, "part", feature.FeatureTyping, inner.Width, inner.Height, inner.Content, feature.ShortName, feature.Multiplicity);
+            // The container is never narrower than its own formatted label (short name, type,
+            // multiplicity); the child definition's interior width alone ignores the usage label.
+            var labelWidth = ComputePartSize(PartLabel(name, feature.ShortName, feature.FeatureTyping, feature.Multiplicity), theme).Width;
+            return new PartItem(name, "part", feature.FeatureTyping, Math.Max(inner.Width, labelWidth), inner.Height, inner.Content, feature.ShortName, feature.Multiplicity);
         }
 
         // Leaf part: intrinsic size, no nested content. Reached either because the type does not

@@ -595,6 +595,60 @@ public sealed class InterconnectionViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A container part's box is at least as wide as its own formatted label (short name, type,
+    ///     multiplicity) even when the child definition's contents are narrower, so the label never
+    ///     overflows the rounded box.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_ContainerWithLongLabel_IsAtLeastLabelWide()
+    {
+        // Arrange: Computer { part <longShortName> board : Motherboard [1..1000000]; ... } where the
+        // Motherboard interior (cpu/chipset) is far narrower than the formatted label.
+        var strategy = new InterconnectionViewLayoutStrategy();
+        var workspace = BuildNestedWorkspace();
+        var computer = (SysmlDefinitionNode)workspace.Declarations["M::Computer"];
+        var board = (SysmlFeatureNode)computer.Children[0];
+        const string expectedLabel = "<aVeryLongShortNameForTheMainBoard> board : Motherboard [1..1000000]";
+        var longComputer = new SysmlDefinitionNode
+        {
+            Name = computer.Name,
+            QualifiedName = computer.QualifiedName,
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode
+                {
+                    Name = board.Name,
+                    ShortName = "aVeryLongShortNameForTheMainBoard",
+                    QualifiedName = board.QualifiedName,
+                    FeatureKeyword = "part",
+                    FeatureTyping = "Motherboard",
+                    Multiplicity = "[1..1000000]"
+                },
+                .. computer.Children.Skip(1)
+            ]
+        };
+        workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["M::Computer"] = longComputer,
+                ["M::Motherboard"] = workspace.Declarations["M::Motherboard"]
+            }
+        };
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("ComputerInterconnectionView", workspace), options);
+
+        // Assert: container (has children) is at least label-wide (0.62 is the strategy's per-character estimate)
+        var boardBox = FindPartBox(layout, expectedLabel);
+        Assert.NotEmpty(boardBox.Children);
+        var labelWidth = (expectedLabel.Length * options.Theme.FontSizeTitle * 0.62) + (2.0 * options.Theme.LabelPadding);
+        Assert.True(boardBox.Width >= labelWidth, $"container width {boardBox.Width} must be >= label width {labelWidth}");
+    }
+
+    /// <summary>
     ///     Nested children are emitted at absolute coordinates offset by the container origin, so the
     ///     renderer (which uses absolute coordinates) draws them in the right place.
     /// </summary>

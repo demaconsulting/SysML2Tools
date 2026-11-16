@@ -179,6 +179,7 @@ sections:
         tests:
           - StateTransitionView_BuildLayout_PseudostateSourceTransition_MarksResolvedTargetNotFirstDeclared
           - StateTransitionView_BuildLayout_NoExplicitInitialTransition_DrawsNoInitialMarker
+          - StateTransitionView_BuildLayout_DoneSourcedTransition_DrawsNoInitialMarker
 
       - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-InitialMarkerArrow
         title: >-

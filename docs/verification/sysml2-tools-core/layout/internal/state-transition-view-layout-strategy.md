@@ -78,4 +78,5 @@ configuration are required beyond a standard .NET SDK installation.
 | `StateTransitionView_BuildLayout_PseudostateSourceTransition_NoSpuriousBox` | No `"start"` box |
 | `StateTransitionView_BuildLayout_EntryActionSourceTransition_NoSpuriousBoxUsesResolvedTarget` | No entry box |
 | `StateTransitionView_BuildLayout_NoExplicitInitialTransition_DrawsNoInitialMarker` | No badge, arrow, or band |
+| `StateTransitionView_BuildLayout_DoneSourcedTransition_DrawsNoInitialMarker` | `done` source is not initial |
 | `StateTransitionView_BuildLayout_InitialMarkerArrow_IsSolidWithOpenArrowhead` | Solid arrow, open chevron head |

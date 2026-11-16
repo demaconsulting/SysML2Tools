@@ -764,6 +764,39 @@ public sealed class StateTransitionViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     A transition sourced from the completion pseudostate <c>done</c> is an ordinary
+    ///     (non-initial) transition: it never draws the initial marker at its target.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_DoneSourcedTransition_DrawsNoInitialMarker()
+    {
+        // Arrange: only "done"-sourced transition to a declared state
+        var strategy = new StateTransitionViewLayoutStrategy();
+        var machine = new SysmlDefinitionNode
+        {
+            Name = "M",
+            QualifiedName = "P::M",
+            DefinitionKeyword = "state def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a", QualifiedName = "P::M::a", FeatureKeyword = "state" },
+                new SysmlFeatureNode { Name = "b", QualifiedName = "P::M::b", FeatureKeyword = "state" },
+                new SysmlTransitionNode { Source = "done", Target = "b" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::M"] = machine }
+        };
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert: no initial badge
+        Assert.Empty(Content(layout).OfType<LayoutBadge>());
+    }
+
+    /// <summary>
     ///     The initial marker's arrow is a solid line with an open (two-stroke) arrowhead, not a
     ///     filled one.
     /// </summary>

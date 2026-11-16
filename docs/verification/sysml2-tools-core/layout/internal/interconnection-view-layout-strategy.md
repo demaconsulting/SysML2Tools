@@ -183,6 +183,7 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_CrossBoundaryEndpoint_LabelReflectsNestedTarget` | Nested label, boundary connector |
 | `InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap` | No two rounded part boxes overlap |
 | `InterconnectionView_BuildLayout_PartWithShortNameAndMultiplicity_ShowsThemInLabel` | Label shows short name, type |
+| `InterconnectionView_BuildLayout_ContainerWithLongLabel_IsAtLeastLabelWide` | Container box at least label-wide |
 | `InterconnectionView_BuildLayout_EmptyWorkspace_ReturnsMinimalCanvas` | Canvas with no nodes |
 | `InterconnectionView_BuildLayout_NestedContainer_PlacesChildrenInsideContainerBox` | Children nested inside the box |
 | `InterconnectionView_BuildLayout_ContainerSize_BoundsChildrenAndTitle` | Size bounds children, title, insets |

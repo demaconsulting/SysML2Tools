@@ -316,6 +316,7 @@ sections:
           source, and sizing the box from the full label keeps the text from being clipped.
         tests:
           - InterconnectionView_BuildLayout_PartWithShortNameAndMultiplicity_ShowsThemInLabel
+          - InterconnectionView_BuildLayout_ContainerWithLongLabel_IsAtLeastLabelWide
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ScopedSpecificityTieBreak
         title: >-

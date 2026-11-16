@@ -405,7 +405,11 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     {
         foreach (var transition in root.Children.OfType<SysmlTransitionNode>())
         {
-            if (LastSegment(transition.Source) is not { } source || !pseudoSourceNames.Contains(source))
+            // "done" is the completion pseudostate: a transition leaving it is an ordinary
+            // transition, never the initial one (only "start" / entry-action sources are).
+            if (LastSegment(transition.Source) is not { } source
+                || source == "done"
+                || !pseudoSourceNames.Contains(source))
             {
                 continue;
             }
