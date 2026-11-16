@@ -559,6 +559,30 @@ sections:
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_TopDown_ConnectorsBetweenRootFolders_StayInsideCanvas
 
+      - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-EndDecorationClearance
+        title: >-
+          GeneralViewLayoutStrategy shall give every connector end decoration that is reached
+          over a lane (a connector with two bends) a straight final leg at least as long as the
+          decoration plus one corner radius, and shall keep the lanes of one box face distinct,
+          ordered, and at least one lane pitch apart.
+        justification: |
+          A connector that bends within the length of its own end decoration (a diamond or a
+          triangle at an owner) leaves sideways from the decoration's tip instead of from a clean
+          approach, so the decoration looks torn from the line. The layout engine reserves this
+          approach only at the target end of an edge, and the General View declares most edges
+          reversed so that the owner is drawn on top, which puts the decoration at the engine's
+          source end. The strategy therefore moves the lanes of that face away from the box by the
+          shortfall, as the engine would at a target end.
+        tests:
+          - GeneralViewLayoutStrategy_BuildLayout_OwnerFanOut_EndDecorationsHaveCleanApproach
+          - GeneralViewLayoutStrategy_BuildLayout_SpecializationAndReferenceUsageFanOut_EndDecorationsHaveCleanApproach
+          - GeneralViewLayoutStrategy_BuildLayout_FanOutLanes_KeepDistinctOrderedLanes
+          - GeneralViewLayoutStrategy_BuildLayout_GalleryGeneralViews_EndDecorationsHaveCleanApproach
+          - GeneralViewLayoutStrategy_ClearEndDecorations_NoViolation_ReturnsTreeUnchanged
+          - GeneralViewLayoutStrategy_ClearEndDecorations_LShapedConnector_IsLeftAlone
+          - GeneralViewLayoutStrategy_ClearEndDecorations_ShortFinalLeg_MovesLaneAwayFromOwner
+          - GeneralViewLayoutStrategy_ClearEndDecorations_NoRoomOnFarLeg_LeavesConnectorUnchanged
+
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposeScoping
         title: >-
           When a view's ViewContext carries one or more resolved Expose edges,

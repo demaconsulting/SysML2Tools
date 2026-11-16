@@ -172,8 +172,10 @@ order changes.
 
 The placed tree is then post-processed in a fixed sequence: `DecorateTruncated` stamps the bare `…`
 label onto each truncated folder's box; `FitConnectorsToCanvas` grows and shifts the canvas so every
-connector lies inside it (see below); and `OrientEdges` turns back the connectors that were declared
-reversed (see *Direction and edge orientation*). Finally the returned tree's `Warnings` concatenates
+connector lies inside it (see below); `OrientEdges` turns back the connectors that were declared
+reversed (see *Direction and edge orientation*); and `ClearEndDecorations` moves the bends of the
+oriented connectors whose end decoration would reach into their last bend (see below). Finally the
+returned tree's `Warnings` concatenates
 `ForUnevaluatedFilter` (view conditions that failed), `ForUnevaluatedExposeBracketFilter` (bracket
 filters that failed), and `ForDroppedRelationshipEdges` via the `LayoutTree with { Warnings = … }`
 record-copy idiom.
@@ -476,6 +478,38 @@ lies outside the canvas, the whole tree is translated so the leftmost and topmos
 lowest waypoint; a tree whose connectors are all inside is returned unchanged. Labels outside the
 canvas are not covered (see `ROADMAP.md`).
 
+###### `ClearEndDecorations(tree, theme)`
+
+The engine guarantees a clean straight final leg (the end marker plus one corner radius, see
+`Theme.CleanLegMargin`) only at the *target* end of an edge. The General View declares most edges
+reversed, so after `OrientEdges` the owner-end decoration (a diamond or a triangle) sits at the
+engine's *source* end, where only the connector stub is reserved: the first lane out of an owner face is
+a fixed 10 px from the box, which is less than the length of a diamond plus the bend radius, so the connector would leave sideways
+from the decoration's tip (diagram-quality C10). `ClearEndDecorations` runs after `OrientEdges`, when
+the marker is on the last waypoint, and applies to every connector with four or more axis-aligned
+waypoints whose last leg, the lane before it, and the leg before the lane form a Z shape. A connector
+with a single bend (three waypoints) has no lane and is left alone.
+
+The Z-shaped connectors are grouped by the box face their last waypoint lies on (the box whose outline
+contains it, and the outward direction of the last leg). The required approach of a connector is
+`NotationMetrics.RenderedAlongLineLength(TargetEnd, theme) + Theme.LineCornerRadius +
+Theme.CleanLegMargin` (zero without a marker). The group's shift is the largest shortfall of its
+members, and every member's last two bend points move away from the box by that one distance, so the
+lane order and the lane pitch of the face are preserved (moving only the short lane would collapse it
+onto the next one). A group is left unchanged, as the engine routed it, when any of these guards fail:
+
+- the leg that starts at the other box would shrink below two corner radii plus the margin;
+- a moved segment would pass through the inside of a leaf box;
+- the moved set would add a conflict between connectors: a crossing of perpendicular segments, or
+  parallel segments closer than 8 px (`LanePitch`) whose extents overlap or are less than 8 px apart.
+  Conflicts that exist before the move are not counted.
+
+Each face is decided once, in the order the connectors were first seen, with no iteration, so the pass is
+deterministic and terminates; a tree without a violation is returned as the same instance. It is a
+post-pass of this unit rather than an engine option because the engine exposes no source-end marker
+and no first-lane distance (see `ROADMAP.md`); it can be retired when the engine reserves a clean leg
+at the source end too.
+
 ###### `PlaceDef(def, scope, childrenByParent, usagesByOwner, located, theme, depth, depthLimit)`
 
 Places a single box's node into `scope.Graph` via `MakeDefNode`, records its `Location`, and emits its
@@ -620,7 +654,8 @@ minimal empty canvas. A reference that cannot be resolved, an unrendered endpoin
 draw no edge and raise no exception. A view condition that cannot be parsed is reported as a layout
 warning and skipped. Delegated placement produces valid geometry, so no crossing warnings are emitted;
 the one geometry defect of the engine that the strategy corrects itself is a connector outside the
-canvas (`FitConnectorsToCanvas`).
+canvas (`FitConnectorsToCanvas`), together with the owner-end decoration that is too close to its bend
+(`ClearEndDecorations`).
 
 ##### Dependencies
 

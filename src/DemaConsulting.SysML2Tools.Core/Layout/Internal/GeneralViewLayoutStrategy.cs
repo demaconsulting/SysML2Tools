@@ -641,7 +641,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // the canvas is fitted to the connectors here.
         placed = FitConnectorsToCanvas(placed);
         placed = OrientEdges(placed);
-
+        placed = ClearEndDecorations(placed, theme);
         // Surface any standalone `filter [<expr>];` evaluation failure, plus a distinct warning
         // for each `expose <path>::**[<expr>]` bracket filter that failed to parse or evaluate
         // (see ExposeScopeResolver.ResolveExposedScope's ExposedScope.Failures) — a
@@ -2970,6 +2970,305 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         },
         _ => node,
     };
+
+    /// <summary>The smallest gap kept between two parallel connector segments that run side by side.</summary>
+    private const double LanePitch = 8.0;
+
+    /// <summary>Tolerance, in logical pixels, for comparing waypoint coordinates.</summary>
+    private const double GeometryEpsilon = 0.01;
+
+    /// <summary>Identifies one face of one box: the box index and the outward unit direction of the face.</summary>
+    private readonly record struct FaceKey(int Box, int Dx, int Dy, double Coordinate);
+
+    /// <summary>
+    /// Moves the bends of connectors whose end decoration would otherwise overlap the connector's
+    /// last bend. After <see cref="OrientEdges(LayoutTree)"/> the end marker sits on the last waypoint. When a
+    /// connector reaches it over a Z-shaped lane (two bends), the final straight leg must be at least
+    /// the rendered marker length plus the corner radius and <see cref="Theme.CleanLegMargin"/>, as
+    /// the engine itself guarantees at the target end of an edge: here the marker sits at the engine's
+    /// source end, where only the stub of the connector is reserved, so the first lane out of an
+    /// owner face lies closer to the box than the decoration is long.
+    /// </summary>
+    /// <remarks>
+    /// All lanes of one box face are moved by the same distance (the largest shortfall of the face),
+    /// which keeps their order and spacing. A face is left unchanged when the move would leave a
+    /// remaining leg too short, run a segment through a box, or add a crossing or a near-parallel
+    /// overlap between connectors. The pass is a pure function of the tree and the theme, makes one
+    /// decision per face and is a no-op when no decorated end is too close to its bend.
+    /// </remarks>
+    /// <param name="tree">The placed tree, already oriented.</param>
+    /// <param name="theme">The theme whose marker metrics and corner radius apply.</param>
+    /// <returns>The tree with a clean straight approach at every decorated Z-shaped connector end.</returns>
+    private static LayoutTree ClearEndDecorations(LayoutTree tree, Theme theme)
+    {
+        var lines = CollectNodeLines(tree.Nodes).ToList();
+        var boxes = new List<LayoutBox>();
+        CollectBoxes(tree.Nodes, boxes);
+
+        // Group the Z-shaped connectors by the box face they end on, in first-seen order.
+        var groups = new Dictionary<FaceKey, List<LayoutLine>>();
+        foreach (var line in lines)
+        {
+            if (!TryGetLaneDirection(line, out var dx, out var dy))
+            {
+                continue;
+            }
+
+            var anchor = line.Waypoints[^1];
+            var box = boxes.FindIndex(b => IsOnBoundary(b, anchor));
+            var coordinate = 0.0;
+            if (box < 0)
+            {
+                // The anchor is on no box: group by the face line it lies on instead.
+                coordinate = Math.Round(dx != 0 ? anchor.X : anchor.Y, 1);
+            }
+
+            var key = new FaceKey(box, dx, dy, coordinate);
+            if (!groups.TryGetValue(key, out var members))
+            {
+                members = [];
+                groups[key] = members;
+            }
+
+            members.Add(line);
+        }
+
+        var current = lines.ToList();
+        var replacements = new Dictionary<LayoutLine, LayoutLine>(ReferenceEqualityComparer.Instance);
+        var minRemaining = (2.0 * theme.LineCornerRadius) + theme.CleanLegMargin;
+        foreach (var (key, members) in groups)
+        {
+            var shift = members.Max(line => RequiredApproach(line, theme) - FinalLegLength(line));
+            if (shift <= GeometryEpsilon)
+            {
+                continue;
+            }
+
+            var moved = new Dictionary<LayoutLine, LayoutLine>(ReferenceEqualityComparer.Instance);
+            foreach (var member in members)
+            {
+                moved[member] = ShiftLane(member, key.Dx, key.Dy, shift);
+            }
+            if (moved.Keys.Any(line => RemainingLeg(line, key.Dx, key.Dy) - shift < minRemaining))
+            {
+                continue;
+            }
+
+            var candidate = current.Select(line => moved.TryGetValue(line, out var m) ? m : line).ToList();
+            var obstructed = moved.Values.Any(line => HitsLeafBox(line, boxes));
+            if (obstructed || CountConflicts(candidate) > CountConflicts(current))
+            {
+                continue;
+            }
+
+            current = candidate;
+            foreach (var (original, changed) in moved)
+            {
+                replacements[original] = changed;
+            }
+        }
+
+        return replacements.Count == 0
+            ? tree
+            : tree with { Nodes = [.. tree.Nodes.Select(node => ReplaceLines(node, replacements))] };
+    }
+
+    /// <summary>Applies the line replacements of <see cref="ClearEndDecorations"/> to <paramref name="node"/> and its children.</summary>
+    private static LayoutNode ReplaceLines(LayoutNode node, IReadOnlyDictionary<LayoutLine, LayoutLine> replacements) => node switch
+    {
+        LayoutBox box => box with { Children = [.. box.Children.Select(child => ReplaceLines(child, replacements))] },
+        LayoutLine line when replacements.TryGetValue(line, out var replacement) => replacement,
+        _ => node,
+    };
+
+    /// <summary>Collects every <see cref="LayoutBox"/> of a placed tree, at any depth.</summary>
+    private static void CollectBoxes(IReadOnlyList<LayoutNode> nodes, List<LayoutBox> boxes)
+    {
+        foreach (var box in nodes.OfType<LayoutBox>())
+        {
+            boxes.Add(box);
+            CollectBoxes(box.Children, boxes);
+        }
+    }
+
+    /// <summary>Returns whether <paramref name="point"/> lies on the outline of <paramref name="box"/>.</summary>
+    private static bool IsOnBoundary(LayoutBox box, Point2D point)
+    {
+        var insideX = point.X >= box.X - GeometryEpsilon && point.X <= box.X + box.Width + GeometryEpsilon;
+        var insideY = point.Y >= box.Y - GeometryEpsilon && point.Y <= box.Y + box.Height + GeometryEpsilon;
+        var onVerticalSide = Math.Abs(point.X - box.X) <= GeometryEpsilon || Math.Abs(point.X - (box.X + box.Width)) <= GeometryEpsilon;
+        var onHorizontalSide = Math.Abs(point.Y - box.Y) <= GeometryEpsilon || Math.Abs(point.Y - (box.Y + box.Height)) <= GeometryEpsilon;
+        return insideX && insideY && (onVerticalSide || onHorizontalSide);
+    }
+
+    /// <summary>
+    /// Returns whether <paramref name="line"/> reaches its last waypoint over a Z-shaped lane: at least
+    /// four waypoints, a last leg, a lane perpendicular to it, and a leg before the lane parallel to
+    /// it, all axis-aligned. The direction (<paramref name="dx"/>, <paramref name="dy"/>) points from
+    /// the last waypoint back along the last leg.
+    /// </summary>
+    private static bool TryGetLaneDirection(LayoutLine line, out int dx, out int dy)
+    {
+        dx = 0;
+        dy = 0;
+        var points = line.Waypoints;
+        var n = points.Count;
+        if (n < 4)
+        {
+            return false;
+        }
+
+        var last = Direction(points[n - 1], points[n - 2]);
+        var lane = Direction(points[n - 2], points[n - 3]);
+        var before = Direction(points[n - 3], points[n - 4]);
+        if (last is null || lane is null || before is null)
+        {
+            return false;
+        }
+
+        var (lx, ly) = last.Value;
+        var (ax, ay) = lane.Value;
+        var (bx, by) = before.Value;
+
+        // The lane is perpendicular to the last leg and the leg before the lane runs back along
+        // the direction of the last leg (the Z shape).
+        if ((lx * ax) + (ly * ay) != 0 || (bx * lx) + (by * ly) != 1)
+        {
+            return false;
+        }
+
+        dx = lx;
+        dy = ly;
+        return true;
+    }
+
+    /// <summary>Returns the axis-aligned unit direction from <paramref name="from"/> to <paramref name="to"/>, or null for a zero-length or diagonal step.</summary>
+    private static (int X, int Y)? Direction(Point2D from, Point2D to)
+    {
+        var ddx = to.X - from.X;
+        var ddy = to.Y - from.Y;
+        if (Math.Abs(ddx) > GeometryEpsilon && Math.Abs(ddy) <= GeometryEpsilon)
+        {
+            return (Math.Sign(ddx), 0);
+        }
+
+        return Math.Abs(ddy) > GeometryEpsilon && Math.Abs(ddx) <= GeometryEpsilon ? (0, Math.Sign(ddy)) : null;
+    }
+
+    /// <summary>The straight approach <paramref name="line"/> needs before its end marker: the marker, one corner radius and the safety margin.</summary>
+    private static double RequiredApproach(LayoutLine line, Theme theme) =>
+        line.TargetEnd == EndMarkerStyle.None
+            ? 0.0
+            : NotationMetrics.RenderedAlongLineLength(line.TargetEnd, theme) + theme.LineCornerRadius + theme.CleanLegMargin;
+
+    /// <summary>The length of the last straight leg of <paramref name="line"/>.</summary>
+    private static double FinalLegLength(LayoutLine line)
+    {
+        var n = line.Waypoints.Count;
+        return Math.Abs(line.Waypoints[n - 1].X - line.Waypoints[n - 2].X) + Math.Abs(line.Waypoints[n - 1].Y - line.Waypoints[n - 2].Y);
+    }
+
+    /// <summary>The length of the leg before the lane (the leg that shortens when the lane moves away from the face).</summary>
+    private static double RemainingLeg(LayoutLine line, int dx, int dy)
+    {
+        var n = line.Waypoints.Count;
+        var a = line.Waypoints[n - 4];
+        var b = line.Waypoints[n - 3];
+        return ((a.X - b.X) * dx) + ((a.Y - b.Y) * dy);
+    }
+
+    /// <summary>Returns <paramref name="line"/> with its lane and last bend moved by <paramref name="shift"/> along (<paramref name="dx"/>, <paramref name="dy"/>), away from the face.</summary>
+    private static LayoutLine ShiftLane(LayoutLine line, int dx, int dy, double shift)
+    {
+        var points = line.Waypoints.ToList();
+        var n = points.Count;
+        points[n - 2] = new Point2D(points[n - 2].X + (dx * shift), points[n - 2].Y + (dy * shift));
+        points[n - 3] = new Point2D(points[n - 3].X + (dx * shift), points[n - 3].Y + (dy * shift));
+        return line with { Waypoints = points };
+    }
+
+    /// <summary>Returns whether a segment of <paramref name="line"/> passes through the inside of a leaf box.</summary>
+    private static bool HitsLeafBox(LayoutLine line, IReadOnlyList<LayoutBox> boxes)
+    {
+        var points = line.Waypoints;
+        for (var i = 1; i < points.Count; i++)
+        {
+            var (minX, maxX) = (Math.Min(points[i - 1].X, points[i].X), Math.Max(points[i - 1].X, points[i].X));
+            var (minY, maxY) = (Math.Min(points[i - 1].Y, points[i].Y), Math.Max(points[i - 1].Y, points[i].Y));
+            foreach (var box in boxes.Where(b => b.Children.Count == 0))
+            {
+                if (maxX > box.X + 0.5 && minX < box.X + box.Width - 0.5 && maxY > box.Y + 0.5 && minY < box.Y + box.Height - 0.5)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Counts the conflicts between different connectors: perpendicular segments that cross, and
+    /// parallel segments closer than <see cref="LanePitch"/> whose extents overlap or are less than
+    /// <see cref="LanePitch"/> apart along the line (so two collinear pieces never read as one).
+    /// </summary>
+    private static int CountConflicts(IReadOnlyList<LayoutLine> lines)
+    {
+        var segments = lines
+            .SelectMany((line, index) => line.Waypoints.Zip(line.Waypoints.Skip(1), (a, b) => (Index: index, A: a, B: b)))
+            .ToList();
+        var conflicts = 0;
+        for (var i = 0; i < segments.Count; i++)
+        {
+            for (var j = i + 1; j < segments.Count; j++)
+            {
+                if (segments[i].Index != segments[j].Index && SegmentsConflict(segments[i].A, segments[i].B, segments[j].A, segments[j].B))
+                {
+                    conflicts++;
+                }
+            }
+        }
+
+        return conflicts;
+    }
+
+    /// <summary>Returns whether two axis-aligned segments cross, or run in parallel closer than <see cref="LanePitch"/> over, or within <see cref="LanePitch"/> of, a shared extent.</summary>
+    private static bool SegmentsConflict(Point2D a1, Point2D a2, Point2D b1, Point2D b2)
+    {
+        var aHorizontal = Math.Abs(a1.Y - a2.Y) <= GeometryEpsilon;
+        var bHorizontal = Math.Abs(b1.Y - b2.Y) <= GeometryEpsilon;
+        var aVertical = Math.Abs(a1.X - a2.X) <= GeometryEpsilon;
+        var bVertical = Math.Abs(b1.X - b2.X) <= GeometryEpsilon;
+        if ((aHorizontal && aVertical) || (bHorizontal && bVertical))
+        {
+            return false;
+        }
+
+        if (aHorizontal && bVertical)
+        {
+            return StrictlyBetween(b1.X, a1.X, a2.X) && StrictlyBetween(a1.Y, b1.Y, b2.Y);
+        }
+
+        if (aVertical && bHorizontal)
+        {
+            return StrictlyBetween(a1.X, b1.X, b2.X) && StrictlyBetween(b1.Y, a1.Y, a2.Y);
+        }
+
+        if (aHorizontal && bHorizontal)
+        {
+            return Math.Abs(a1.Y - b1.Y) < LanePitch && Overlap(a1.X, a2.X, b1.X, b2.X) > -LanePitch;
+        }
+
+        return aVertical && bVertical && Math.Abs(a1.X - b1.X) < LanePitch && Overlap(a1.Y, a2.Y, b1.Y, b2.Y) > -LanePitch;
+    }
+
+    /// <summary>Returns whether <paramref name="value"/> lies strictly between <paramref name="a"/> and <paramref name="b"/> (in either order).</summary>
+    private static bool StrictlyBetween(double value, double a, double b) =>
+        value > Math.Min(a, b) + GeometryEpsilon && value < Math.Max(a, b) - GeometryEpsilon;
+
+    /// <summary>Returns the length of the overlap of the intervals [<paramref name="a1"/>, <paramref name="a2"/>] and [<paramref name="b1"/>, <paramref name="b2"/>] (each in either order).</summary>
+    private static double Overlap(double a1, double a2, double b1, double b2) =>
+        Math.Min(Math.Max(a1, a2), Math.Max(b1, b2)) - Math.Max(Math.Min(a1, a2), Math.Min(b1, b2));
 
     /// <summary>
     /// Runs the layout engine over <paramref name="graph"/> with the root scope delegated to the

@@ -5311,5 +5311,303 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.LineStyle == LineStyle.Dashed);
         Assert.Empty(layout.Warnings);
     }
+
+    /// <summary>
+    ///     Asserts that every connector with an end decoration that reaches it over a lane (four or more
+    ///     waypoints) ends with a straight leg at least as long as the decoration plus one corner radius,
+    ///     and returns the number of connectors checked.
+    /// </summary>
+    private static int AssertEndDecorationsHaveCleanApproach(LayoutTree layout, Theme theme)
+    {
+        var checkedLines = 0;
+        foreach (var line in CollectLines(layout.Nodes).Where(l => l.TargetEnd != EndMarkerStyle.None && l.Waypoints.Count >= 4))
+        {
+            var n = line.Waypoints.Count;
+            var leg = Math.Abs(line.Waypoints[n - 1].X - line.Waypoints[n - 2].X) + Math.Abs(line.Waypoints[n - 1].Y - line.Waypoints[n - 2].Y);
+            var required = NotationMetrics.RenderedAlongLineLength(line.TargetEnd, theme) + theme.LineCornerRadius;
+            Assert.True(leg + 0.001 >= required, $"{line.TargetEnd} decoration has a final leg of {leg:F2} px, shorter than the required {required:F2} px");
+            checkedLines++;
+        }
+
+        return checkedLines;
+    }
+
+    /// <summary>Invokes the private <c>ClearEndDecorations</c> post-pass.</summary>
+    private static LayoutTree InvokeClearEndDecorations(LayoutTree tree, Theme theme)
+    {
+        var method = typeof(GeneralViewLayoutStrategy)
+            .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
+            .Single(m => m.Name == "ClearEndDecorations");
+        return (LayoutTree)method.Invoke(null, [tree, theme])!;
+    }
+
+    /// <summary>Builds a tree of an owner box above a lower box joined by one oriented, filled-diamond connector with a lane of the given distance from the owner.</summary>
+    private static LayoutTree MakeFanOutFixture(double laneDistance, bool lShaped)
+    {
+        var owner = MakeFixtureBox("Owner", BoxShape.Rectangle, "part def") with { X = 100, Y = 0 };
+        var lower = MakeFixtureBox("Lower", BoxShape.Rectangle, "part def") with { X = 0, Y = 200 };
+        IReadOnlyList<Point2D> waypoints = lShaped
+            ? [new Point2D(250, 60 + laneDistance), new Point2D(150, 60 + laneDistance), new Point2D(150, 60)]
+            : [new Point2D(50, 200), new Point2D(50, 60 + laneDistance), new Point2D(150, 60 + laneDistance), new Point2D(150, 60)];
+        var line = new LayoutLine(waypoints, EndMarkerStyle.None, EndMarkerStyle.FilledDiamond, LineStyle.Solid, null);
+        return new LayoutTree(400, 300, [owner, lower, line]);
+    }
+
+    /// <summary>
+    ///     The first lane out of an owner face lies a decoration length away from the box or farther: a
+    ///     charger-like owner with two part usages draws both filled diamonds with a straight approach of
+    ///     at least the diamond length plus the corner radius (diagram-quality C10), the same distance
+    ///     the engine keeps at the target end of an edge.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_OwnerFanOut_EndDecorationsHaveCleanApproach()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            part def Cable; part def Plug;
+            part def Charger { part cable : Cable; part plug : Plug; }
+            """);
+
+        // Assert: both composition diamonds sit at the end of a lane and have a clean approach
+        var diamonds = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.FilledDiamond && l.Waypoints.Count >= 4).ToList();
+        Assert.Equal(2, diamonds.Count);
+        Assert.True(AssertEndDecorationsHaveCleanApproach(layout, Themes.Light) >= 2);
+    }
+
+    /// <summary>
+    ///     A hollow diamond (reference usage), a filled diamond (composite usage) and a specialization
+    ///     triangle that end on the same face of one owner are all moved clear of their bends: each has a
+    ///     straight approach of its own decoration length plus the corner radius.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_SpecializationAndReferenceUsageFanOut_EndDecorationsHaveCleanApproach()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            abstract part def Motor;
+            part def InductionMotor :> Motor;
+            part def DriveUnit {
+                part motors : Motor [2];
+                part main : Motor;
+                ref part spare : InductionMotor;
+            }
+            part def RearDrive :> DriveUnit { part frontMotor :> motors; part mainMotor :>> main; }
+            """);
+
+        // Assert: the three kinds of owner-end decoration are present and all have a clean approach
+        var lines = CollectLines(layout.Nodes);
+        Assert.Contains(lines, l => l.TargetEnd == EndMarkerStyle.HollowDiamond);
+        Assert.Contains(lines, l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.Contains(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle);
+        Assert.True(AssertEndDecorationsHaveCleanApproach(layout, Themes.Light) >= 3);
+    }
+
+    /// <summary>
+    ///     Moving the first lane of an owner face away from the box moves every lane of that face by the
+    ///     same distance, so the lanes of a seven-usage fan-out stay distinct, keep their order and are at
+    ///     least one lane pitch (8 px) apart, with no two collinear segments overlapping.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_FanOutLanes_KeepDistinctOrderedLanes()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            part def Frame; part def Battery; part def FlightController; part def Motor;
+            part def Propeller; part def ImuSensor; part def GpsSensor;
+            part def Drone {
+                part airframe : Frame; part battery : Battery; part controller : FlightController;
+                part motors : Motor[4]; part propellers : Propeller[4]; part imu : ImuSensor; part gps : GpsSensor;
+            }
+            """);
+
+        // Assert: lanes whose horizontal extents overlap are at least 8 px apart, the nearest lane clears the decoration
+        var drone = FindBox(layout.Nodes, "Drone");
+        var diamondLines = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.FilledDiamond && l.Waypoints.Count >= 4).ToList();
+        Assert.True(diamondLines.Count >= 4, "the fan-out has no lanes");
+        Assert.All(diamondLines, l => Assert.True(l.Waypoints[^2].Y > drone.Y + drone.Height));
+        for (var i = 0; i < diamondLines.Count; i++)
+        {
+            for (var j = i + 1; j < diamondLines.Count; j++)
+            {
+                var (a, b) = (diamondLines[i].Waypoints, diamondLines[j].Waypoints);
+                var overlap = Math.Min(Math.Max(a[^2].X, a[^3].X), Math.Max(b[^2].X, b[^3].X)) - Math.Max(Math.Min(a[^2].X, a[^3].X), Math.Min(b[^2].X, b[^3].X));
+                if (overlap > 0.0)
+                {
+                    Assert.True(Math.Abs(a[^2].Y - b[^2].Y) >= 8.0, $"lanes at {a[^2].Y:F1} and {b[^2].Y:F1} overlap and are closer than 8 px");
+                }
+            }
+        }
+
+        var nearest = diamondLines.Min(l => l.Waypoints[^2].Y);
+        Assert.True(nearest - (drone.Y + drone.Height) >= NotationMetrics.RenderedAlongLineLength(EndMarkerStyle.FilledDiamond, Themes.Light));
+        Assert.Equal(0, CountCollinearOverlaps(diamondLines));
+    }
+
+    /// <summary>Counts pairs of horizontal segments of different lines that lie on the same y and overlap in x.</summary>
+    private static int CountCollinearOverlaps(IReadOnlyList<LayoutLine> lines)
+    {
+        var count = 0;
+        for (var i = 0; i < lines.Count; i++)
+        {
+            for (var j = i + 1; j < lines.Count; j++)
+            {
+                for (var a = 0; a + 1 < lines[i].Waypoints.Count; a++)
+                {
+                    for (var b = 0; b + 1 < lines[j].Waypoints.Count; b++)
+                    {
+                        var (a1, a2) = (lines[i].Waypoints[a], lines[i].Waypoints[a + 1]);
+                        var (b1, b2) = (lines[j].Waypoints[b], lines[j].Waypoints[b + 1]);
+                        var sameY = Math.Abs(a1.Y - a2.Y) < 0.01 && Math.Abs(b1.Y - b2.Y) < 0.01 && Math.Abs(a1.Y - b1.Y) < 0.01;
+                        var overlap = Math.Min(Math.Max(a1.X, a2.X), Math.Max(b1.X, b2.X)) - Math.Max(Math.Min(a1.X, a2.X), Math.Min(b1.X, b2.X));
+                        if (sameY && overlap > 0.01)
+                        {
+                            count++;
+                        }
+                    }
+                }
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    ///     Real-corpus guard (diagram-quality C10): every General View of the gallery models that ends a
+    ///     connector in an end decoration over a lane gives it a clean straight approach, with the theme
+    ///     the tool renders with (plain) and, for the models whose lanes have room, the light theme. The
+    ///     light-theme drone view is not asserted: its decorations are longer, and moving the lanes of the
+    ///     <c>Battery</c> face would leave a note link and a dependency lane almost collinear, so the
+    ///     post-pass keeps the engine's routing there by design.
+    /// </summary>
+    /// <param name="modelFile">The gallery model file name.</param>
+    /// <param name="viewQualifiedName">The qualified name of the General View to lay out.</param>
+    /// <param name="plainTheme">True for the tool's plain theme, false for the light theme.</param>
+    [Theory]
+    [InlineData("01-drone-general.sysml", "QuadcopterDrone::DroneGeneralView", true)]
+    [InlineData("01-drone-general.sysml", "QuadcopterDrone::BatterySubsystemView", true)]
+    [InlineData("11-nested-packages-general.sysml", "Vehicle::VehiclePackagesGeneralView", true)]
+    [InlineData("14-usages-typing-general.sysml", "DriveSystem::DriveUnitGeneralView", true)]
+    [InlineData("14-usages-typing-general.sysml", "DriveSystem::DriveUnitGeneralView", false)]
+    [InlineData("15-doc-comment-general.sysml", "ChargingStation::ChargerGeneralView", true)]
+    [InlineData("15-doc-comment-general.sysml", "ChargingStation::ChargerGeneralView", false)]
+    [InlineData("16-nested-packages-typing-general.sysml", "Vehicle::VehicleTypingGeneralView", true)]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_GalleryGeneralViews_EndDecorationsHaveCleanApproach(
+        string modelFile, string viewQualifiedName, bool plainTheme)
+    {
+        // Arrange
+        var theme = plainTheme ? SysmlThemes.Plain : Themes.Light;
+        var layout = await LayOutGalleryViewAsync(modelFile, viewQualifiedName, theme);
+        if (layout is null)
+        {
+            return;
+        }
+
+        // Assert
+        AssertEndDecorationsHaveCleanApproach(layout, theme);
+    }
+
+    /// <summary>
+    ///     Loads a gallery model by file name and lays out one of its views with the general view
+    ///     strategy; returns null when the gallery is not available (for example in a packaged test run).
+    /// </summary>
+    private static async Task<LayoutTree?> LayOutGalleryViewAsync(string modelFile, string viewQualifiedName, Theme theme)
+    {
+        var galleryModelsRoot = FindGalleryModelsRoot();
+        var modelPath = galleryModelsRoot is null ? null : Path.Combine(galleryModelsRoot, modelFile);
+        if (modelPath is null || !File.Exists(modelPath))
+        {
+            return null;
+        }
+
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([modelPath], stdlibTable);
+        Assert.NotNull(result.Workspace);
+        var viewNode = Assert.IsType<SysmlViewNode>(result.Workspace.Declarations[viewQualifiedName]);
+        return new GeneralViewLayoutStrategy().BuildLayout(
+            new ViewContext("v", result.Workspace, viewNode), new RenderOptions(theme));
+    }
+
+    /// <summary>
+    ///     A connector whose final leg is already long enough is not touched: the post-pass returns the
+    ///     very same tree instance.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_ClearEndDecorations_NoViolation_ReturnsTreeUnchanged()
+    {
+        // Arrange: the lane is 50 px from the owner, far more than the diamond needs
+        var tree = MakeFanOutFixture(laneDistance: 50, lShaped: false);
+
+        // Act
+        var result = InvokeClearEndDecorations(tree, Themes.Light);
+
+        // Assert
+        Assert.Same(tree, result);
+    }
+
+    /// <summary>
+    ///     A connector with a single bend (three waypoints) has no lane to move: it is left alone even
+    ///     when its final leg is short.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_ClearEndDecorations_LShapedConnector_IsLeftAlone()
+    {
+        // Arrange
+        var tree = MakeFanOutFixture(laneDistance: 10, lShaped: true);
+
+        // Act
+        var result = InvokeClearEndDecorations(tree, Themes.Light);
+
+        // Assert
+        Assert.Same(tree, result);
+    }
+
+    /// <summary>
+    ///     A Z-shaped connector whose final leg is shorter than its decoration is moved so the leg is
+    ///     exactly as long as the decoration, one corner radius and the safety margin require, and only
+    ///     the two bend points move: the start point and the anchor stay where they are.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_ClearEndDecorations_ShortFinalLeg_MovesLaneAwayFromOwner()
+    {
+        // Arrange
+        var theme = Themes.Light;
+        var tree = MakeFanOutFixture(laneDistance: 10, lShaped: false);
+        var before = Assert.Single(CollectLines(tree.Nodes));
+        var required = NotationMetrics.RenderedAlongLineLength(EndMarkerStyle.FilledDiamond, theme) + theme.LineCornerRadius + theme.CleanLegMargin;
+
+        // Act
+        var result = InvokeClearEndDecorations(tree, theme);
+
+        // Assert
+        var after = Assert.Single(CollectLines(result.Nodes));
+        Assert.Equal(before.Waypoints[0], after.Waypoints[0]);
+        Assert.Equal(before.Waypoints[^1], after.Waypoints[^1]);
+        Assert.Equal(60 + required, after.Waypoints[1].Y, 3);
+        Assert.Equal(60 + required, after.Waypoints[2].Y, 3);
+        Assert.Equal(before.Waypoints[1].X, after.Waypoints[1].X);
+        Assert.Equal(before.Waypoints[2].X, after.Waypoints[2].X);
+    }
+
+    /// <summary>
+    ///     When moving the lane would leave too little of the leg that starts at the lower box, the
+    ///     connector is left as the engine routed it instead of being squeezed against that box.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_ClearEndDecorations_NoRoomOnFarLeg_LeavesConnectorUnchanged()
+    {
+        // Arrange: the lower box starts 22 px below the owner, so the lane cannot move 5 px
+        var owner = MakeFixtureBox("Owner", BoxShape.Rectangle, "part def") with { X = 100, Y = 0 };
+        var lower = MakeFixtureBox("Lower", BoxShape.Rectangle, "part def") with { X = 0, Y = 82 };
+        var line = new LayoutLine(
+            [new Point2D(50, 82), new Point2D(50, 70), new Point2D(150, 70), new Point2D(150, 60)],
+            EndMarkerStyle.None, EndMarkerStyle.FilledDiamond, LineStyle.Solid, null);
+        var tree = new LayoutTree(400, 300, [owner, lower, line]);
+
+        // Act
+        var result = InvokeClearEndDecorations(tree, Themes.Light);
+
+        // Assert
+        Assert.Same(tree, result);
+    }
 }
 
