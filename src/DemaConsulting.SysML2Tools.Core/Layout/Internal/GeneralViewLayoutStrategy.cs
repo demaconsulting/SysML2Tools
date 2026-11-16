@@ -54,31 +54,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     private const double CharWidthFactor = 0.62;
 
     /// <summary>
-    /// A feature membership: the keyword, raw typing reference (if any), simple name, raw
-    /// redefined-feature reference (if any), and raw subsetted-feature reference(s) (if any) of
-    /// one owned feature. <see cref="TypeName"/> is nullable because a feature may declare a
-    /// redefinition/subsetting without an explicit type annotation. <see cref="ResolvedTypeName"/>
-    /// is the qualified name the semantic model's <see cref="SysmlEdgeKind.Typing"/> edge resolved
-    /// <see cref="TypeName"/> to (honoring the feature's own namespace and imports), or
-    /// <see langword="null"/> when the feature carries no resolved typing edge.
-    /// <see cref="ResolvedRedefinedFeatureName"/> is likewise the qualified name of the feature's
-    /// resolved <see cref="SysmlEdgeKind.Redefinition"/> edge target, and
-    /// <see cref="ResolvedSubsettedNames"/> holds, for each <see cref="SubsettedFeatureNames"/>
-    /// entry by index, the semantic model's <see cref="EdgeAnswer"/> for that reference (looked up
-    /// by the reference's own identity, see <see cref="TryGetResolvedTarget"/>); the whole list is
-    /// <see langword="null"/> when the feature has no subsetted references.
-    /// </summary>
-    private sealed record FeatureMembership(
-        string Keyword,
-        string? TypeName,
-        string? Name,
-        string? RedefinedFeatureName,
-        IReadOnlyList<string> SubsettedFeatureNames,
-        string? ResolvedTypeName = null,
-        string? ResolvedRedefinedFeatureName = null,
-        IReadOnlyList<EdgeAnswer>? ResolvedSubsettedNames = null);
-
-    /// <summary>
     /// The semantic model's answer for one raw reference: when <see cref="Known"/> is
     /// <see langword="true"/> the answer is authoritative and <see cref="Target"/> is the resolved
     /// target (null when the reference is semantically unresolved, so nothing is drawn); when
@@ -92,38 +67,138 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             new(TryGetResolvedTarget(declaration, kind, rawReference, out var target), target);
     }
 
+    /// <summary>How the General view decides which nested usages become nodes of their own.</summary>
+    internal enum UsageNodeMode
+    {
+        /// <summary>
+        /// The OMG SysML v2 Pilot default: every occurrence-kind usage (part, item, port, action,
+        /// state, requirement, …) is its own node; attribute usages, enumeration values, plain
+        /// reference usages and the other non-occurrence features stay compartment rows.
+        /// </summary>
+        Pilot,
+
+        /// <summary>Every named usage with a keyword is its own node (except constraint expressions and enumeration values).</summary>
+        AllUsages,
+
+        /// <summary>No nested usage is a node: every usage owned by a rendered box is a compartment row and no usage relationship edge is drawn.</summary>
+        RowsOnly,
+    }
+
+    /// <summary>
+    /// The policy deciding which usages nested in a rendered definition or usage are drawn as nodes
+    /// of their own (joined to their owner by a composite/reference membership edge) and which stay
+    /// compartment rows. Internal on purpose: the default (<see cref="Pilot"/>) reproduces the
+    /// SysML v2 Pilot implementation, and the other variants exist so tests (and a later public
+    /// option) can flip the decision with a single line.
+    /// </summary>
+    internal sealed class NodePolicy
+    {
+        /// <summary>The usage keywords the Pilot implementation draws as separate nodes (occurrence-kind usages).</summary>
+        private static readonly HashSet<string> PilotNodeKeywords = new(StringComparer.Ordinal)
+        {
+            "part", "item", "port", "occurrence", "action", "state", "requirement", "concern",
+            "analysis", "verification", "use case", "case",
+        };
+
+        /// <summary>The usage keywords that never become a node under <see cref="UsageNodeMode.AllUsages"/>.</summary>
+        private static readonly HashSet<string> NeverNodeKeywords = new(StringComparer.Ordinal)
+        {
+            "constraint", "assume constraint", "require constraint", "enum value",
+        };
+
+        /// <summary>Initializes a policy of the given mode.</summary>
+        private NodePolicy(UsageNodeMode mode)
+        {
+            Mode = mode;
+        }
+
+        /// <summary>Gets the Pilot policy (the default): occurrence-kind usages and ports are nodes.</summary>
+        public static NodePolicy Pilot { get; } = new(UsageNodeMode.Pilot);
+
+        /// <summary>Gets the policy that draws every named usage as a node.</summary>
+        public static NodePolicy AllUsages { get; } = new(UsageNodeMode.AllUsages);
+
+        /// <summary>Gets the policy that draws no nested usage as a node.</summary>
+        public static NodePolicy RowsOnly { get; } = new(UsageNodeMode.RowsOnly);
+
+        /// <summary>Gets the policy's mode.</summary>
+        public UsageNodeMode Mode { get; }
+
+        /// <summary>
+        /// Returns whether <paramref name="usage"/>, nested in a rendered box, is drawn as a node of
+        /// its own. The decision is by usage keyword only; whether the usage is a reference usage
+        /// changes its look (dashed outline, hollow diamond) but never whether it is a node.
+        /// </summary>
+        /// <param name="usage">The nested usage.</param>
+        /// <returns><see langword="true"/> for a node; <see langword="false"/> for a compartment row.</returns>
+        public bool IsNode(SysmlFeatureNode usage)
+        {
+            ArgumentNullException.ThrowIfNull(usage);
+            if (Mode == UsageNodeMode.RowsOnly ||
+                string.IsNullOrEmpty(usage.Name) ||
+                string.IsNullOrEmpty(usage.FeatureKeyword) ||
+                usage.ExpressionText is { Length: > 0 })
+            {
+                return false;
+            }
+
+            return Mode == UsageNodeMode.AllUsages
+                ? !NeverNodeKeywords.Contains(usage.FeatureKeyword)
+                : PilotNodeKeywords.Contains(usage.FeatureKeyword);
+        }
+    }
+
+    /// <summary>The policy deciding which nested usages are nodes.</summary>
+    private readonly NodePolicy _policy;
+
+    /// <summary>Initializes the strategy with the default (Pilot) node policy.</summary>
+    internal GeneralViewLayoutStrategy()
+        : this(NodePolicy.Pilot)
+    {
+    }
+
+    /// <summary>Initializes the strategy with an explicit node policy (used by tests to flip the decision).</summary>
+    /// <param name="policy">The policy deciding which nested usages are nodes.</param>
+    internal GeneralViewLayoutStrategy(NodePolicy policy)
+    {
+        _policy = policy ?? throw new ArgumentNullException(nameof(policy));
+    }
+
     /// <summary>
     /// The classification of an edge, which selects its line style so the renderer can distinguish
-    /// the three relationships the General view draws between definition boxes.
+    /// the relationships the General view draws between its boxes.
     /// </summary>
     private enum EdgeKind
     {
         /// <summary>Subtype → supertype specialization: solid line, hollow triangle at the supertype.</summary>
         Specialization,
 
-        /// <summary>Member-type → owner structural/reference membership: solid line, diamond at the owner.</summary>
+        /// <summary>
+        /// Owned usage → owner feature membership: solid line, filled diamond (composite) or hollow
+        /// diamond (referential) at the owner.
+        /// </summary>
         Membership,
 
-        /// <summary>
-        /// Owner → attribute-type dependency (attribute typing): dashed line, open chevron at the type.
-        /// Attribute typing is a usage-type dependency, not composition, so it uses the OMG dependency
-        /// notation (dashed + open arrowhead) rather than a membership diamond.
-        /// </summary>
-        Typing,
+        /// <summary>Usage → its definition (feature typing): solid line, hollow triangle with two dots at the definition.</summary>
+        FeatureTyping,
 
-        /// <summary>
-        /// Subtype feature redefinition → the owning definition of the redefined feature: solid
-        /// line, hollow-triangle-with-crossbar at the owner.
-        /// </summary>
+        /// <summary>Usage → the usage it redefines: solid line, hollow triangle with crossbar at the redefined usage.</summary>
         Redefinition,
 
-        /// <summary>
-        /// Subtype feature subsetting → the owning definition of the subsetted (ancestor) feature:
-        /// dashed line, hollow triangle at the owner (the same marker as
-        /// <see cref="Specialization"/>, distinguished purely by line style, mirroring how
-        /// <see cref="Typing"/> is distinguished from <see cref="Membership"/>).
-        /// </summary>
+        /// <summary>Usage → the usage it subsets: solid line, hollow triangle at the subsetted usage.</summary>
         Subsetting,
+
+        /// <summary>Usage → the usage it reference-subsets (<c>::&gt;</c>): solid line, hollow triangle with four dots at the referenced usage.</summary>
+        ReferenceSubsetting,
+
+        /// <summary>A <c>satisfy</c> relationship, satisfier → requirement: solid line, open arrowhead, <c>«satisfy»</c> label.</summary>
+        Satisfy,
+
+        /// <summary>A <c>verify</c> relationship, verifier → requirement: solid line, open arrowhead, <c>«verify»</c> label.</summary>
+        Verify,
+
+        /// <summary>An <c>import</c>, importing namespace → imported namespace: dashed line, open arrowhead, <c>«import»</c> label.</summary>
+        Import,
 
         /// <summary>
         /// A resolved <c>connect A to B</c>/message reference between two definitions (each
@@ -139,9 +214,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         Allocate,
 
         /// <summary>
-        /// A resolved standalone <c>dependency</c> reference, and the <c>ref</c>-keyword's
-        /// feature-typing dependency (sharing this same rendering so both are visually
-        /// identical): dashed line, open chevron at the depended-upon element.
+        /// A resolved standalone <c>dependency</c> reference: dashed line, open chevron at the
+        /// depended-upon element.
         /// </summary>
         Dependency,
 
@@ -154,11 +228,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// A model edge between two definitions, expressed by qualified name so it can be resolved into
-    /// the correct graph scope once every definition's node (or absence, if depth-truncated) is known.
+    /// A model edge between two boxes, expressed by qualified name so it can be resolved into
+    /// the correct graph scope once every box's node (or absence, if depth-truncated) is known.
+    /// A package folder endpoint is keyed <c>folder:&lt;package qualified name&gt;</c>.
     /// </summary>
-    /// <param name="SourceQualified">Qualified name of the source definition.</param>
-    /// <param name="TargetQualified">Qualified name of the target (supertype, owner, or attribute-type) definition.</param>
+    /// <param name="SourceQualified">Qualified name of the source box (the dependent, specific or owned element).</param>
+    /// <param name="TargetQualified">Qualified name of the target box (the general, owning or depended-upon element).</param>
     /// <param name="Arrowhead">Arrowhead drawn at the target end.</param>
     /// <param name="Kind">The edge classification, which selects the rendered line style.</param>
     /// <param name="Label">
@@ -173,33 +248,51 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         string? Label = null);
 
     /// <summary>
-    /// Maps an edge kind to its rendered line style: typing/dependency/subsetting edges are dashed,
-    /// all others (including allocate, which the specification draws as a solid line) are solid.
+    /// Maps an edge kind to its rendered line style: dependency and import edges are dashed, all
+    /// others (including allocate, which the specification draws as a solid line) are solid.
     /// </summary>
     private static LineStyle LineStyleForKind(EdgeKind kind) =>
-        kind is EdgeKind.Typing or EdgeKind.Dependency or EdgeKind.Subsetting
+        kind is EdgeKind.Dependency or EdgeKind.Import
             ? LineStyle.Dashed
             : LineStyle.Solid;
+
+    /// <summary>
+    /// The prefix of a <see cref="ModelEdge"/> endpoint key that names a package folder rather than
+    /// a definition or usage box.
+    /// </summary>
+    private const string FolderKeyPrefix = "folder:";
+
+    /// <summary>
+    /// The name style of an abstract definition: bold italic (the specification, Table 4, sets the
+    /// name of an abstract definition in italics; the engine's default name style is bold). The
+    /// name of an abstract <em>usage</em> is not italic in the specification and stays default.
+    /// </summary>
+    private static readonly TextStyle AbstractDefinitionNameStyle = TextStyle.BoldItalic;
 
     /// <summary>A user-defined definition or named usage together with its computed box size and supertypes.</summary>
     /// <param name="QualifiedName">The definition or usage's fully qualified name.</param>
     /// <param name="SimpleName">The definition or usage's simple (unqualified) name; the box's identity for grouping, ordering, and edges.</param>
     /// <param name="Label">
     /// The displayed name line (see <see cref="FormatNameLine"/>): short name, name, and — for a
-    /// definition — its <c>:&gt;</c> specialization, as written in the model.
+    /// definition — its <c>:&gt;</c> specialization, for a usage its typing, multiplicity and
+    /// subsetting/redefinition, as written in the model.
     /// </param>
-    /// <param name="Keyword">The definition or usage keyword (e.g. <c>part</c>, <c>requirement</c>).</param>
-    /// <param name="SupertypeNames">The declared supertype names (specialization/subsetting/redefinition targets).</param>
-    /// <param name="Memberships">The owned feature memberships to render as compartment rows.</param>
-    /// <param name="Compartments">The computed compartments to render inside the box.</param>
+    /// <param name="Keyword">
+    /// The definition or usage keyword including its prefix words (e.g. <c>part def</c>,
+    /// <c>abstract part def</c>, <c>ref part</c>); the engine adds the guillemets.
+    /// </param>
+    /// <param name="SupertypeNames">The declared specialization targets of a definition (empty for a usage).</param>
+    /// <param name="Compartments">The computed compartments to render inside the box (filled in by <see cref="FinalizeBoxes"/>).</param>
     /// <param name="Width">The computed box width.</param>
     /// <param name="Height">The computed box height.</param>
     /// <param name="Annotations">The element's <c>comment</c> annotations, drawn as an attached note.</param>
-    /// <param name="IsUsage">
-    /// <see langword="true"/> when this box represents a <see cref="SysmlFeatureNode"/> usage
-    /// (rather than a <see cref="SysmlDefinitionNode"/> definition). Used by
-    /// <see cref="RemoveRedundantNestedUsages"/> to decide which boxes are eligible for
-    /// nested-duplicate exclusion — definitions are never excluded by that rule.
+    /// <param name="Declaration">The definition or usage declaration the box represents.</param>
+    /// <param name="DocVisible">Whether the element's documentation is exposed and drawn as a <c>doc</c> compartment.</param>
+    /// <param name="Appearance">The box's outline/name styling, or <see langword="null"/> for the default look.</param>
+    /// <param name="OwnerQualifiedName">
+    /// The qualified name of the rendered box that owns this usage (set by
+    /// <see cref="RemoveRowUsages"/>), or <see langword="null"/> for a definition and for a usage
+    /// whose owner is not rendered.
     /// </param>
     private sealed record DefBox(
         string QualifiedName,
@@ -207,12 +300,21 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         string Label,
         string Keyword,
         IReadOnlyList<string> SupertypeNames,
-        IReadOnlyList<FeatureMembership> Memberships,
         IReadOnlyList<LayoutCompartment> Compartments,
         double Width,
         double Height,
         IReadOnlyList<SysmlAnnotation> Annotations,
-        bool IsUsage);
+        SysmlNode Declaration,
+        bool DocVisible,
+        BoxAppearance? Appearance = null,
+        string? OwnerQualifiedName = null)
+    {
+        /// <summary>Gets the usage declaration this box represents, or <see langword="null"/> for a definition.</summary>
+        public SysmlFeatureNode? Feature => Declaration as SysmlFeatureNode;
+
+        /// <summary>Gets a value indicating whether this box represents a usage rather than a definition.</summary>
+        public bool IsUsage => Declaration is SysmlFeatureNode;
+    }
 
     /// <summary>
     /// One container scope of the layout graph: the root graph, a package folder's own
@@ -371,7 +473,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         // Collect all user-defined definitions, sized for rendering, restricted to the resolved
         // scope when one applies.
-        var defs = CollectDefinitions(context.Workspace, theme, scope, AnnotationVisible);
+        var defs = CollectDefinitions(context.Workspace, scope, AnnotationVisible);
 
         // Packages that are themselves exposed (SysML 8.3.26.3: `expose P;` and `expose P::**;`
         // expose the Package element P) are drawn as package nodes (SysML 8.2.3.5 package-node),
@@ -400,47 +502,53 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             return new LayoutTree(200.0, 100.0, []) { Warnings = conditionWarnings };
         }
 
-        // Drop any usage-level box that would duplicate content already shown as a compartment row
-        // of its nearest still-rendered ancestor box (see RemoveRedundantNestedUsages, which
-        // processes boxes shallowest-first so that a usage excluded earlier in the same pass is
-        // treated as absent for its own children's test — cascading correctly through any nesting
-        // depth instead of silently dropping a deeper-nested usage). This must run after the
-        // standalone filter narrowing above (not before it and not inside CollectDefinitions), so
-        // that a usage whose parent was excluded by the filter — rather than by scope — is
-        // correctly kept as its own standalone box instead of being wrongly dropped by an
-        // earlier-run dedup pass that saw the parent still present in a pre-filter set.
-        defs = RemoveRedundantNestedUsages(defs);
+        // Drop every usage that is shown as a compartment row of its nearest still-rendered owner
+        // instead of as a node of its own (see RemoveRowUsages, which processes boxes
+        // shallowest-first so that a usage excluded earlier in the same pass is treated as absent
+        // for its own children's test — cascading correctly through any nesting depth instead of
+        // silently dropping a deeper-nested usage), and record the owner of every usage that stays.
+        // This must run after the standalone filter narrowing above (not before it and not inside
+        // CollectDefinitions), so that a usage whose parent was excluded by the filter — rather
+        // than by scope — is correctly kept as its own standalone box instead of being wrongly
+        // dropped by an earlier-run dedup pass that saw the parent still present in a pre-filter set.
+        defs = RemoveRowUsages(defs, _policy);
         if (defs.Count == 0 && exposedPackages.Count == 0)
         {
             return new LayoutTree(200.0, 100.0, []);
         }
 
-        // Partition the admitted definitions into two disjoint sets before grouping by package:
-        // items whose immediate parent (the qualified-name prefix before the last "::") is itself
-        // an admitted definition are diverted into childrenByParent, so they are nested recursively
-        // inside their owning definition's own box instead of being handed to GroupByPackage — which
-        // would otherwise (incorrectly) bucket them under their parent definition's own qualified
-        // name and render that parent a second time as a duplicate sibling folder (see PlaceDef).
-        // Everything else (a bare top-level item, or an item whose immediate parent is a bare
-        // package) is unaffected and flows into GroupByPackage exactly as before.
+        // Now that the final set of boxes is known, build every box's compartments (usages that are
+        // nodes are not rows) and size it.
+        defs = FinalizeBoxes(defs, theme);
+
+        // Partition the admitted boxes into three disjoint sets before grouping by package:
+        // definitions whose immediate parent (the qualified-name prefix before the last "::") is
+        // itself an admitted box are diverted into childrenByParent, so they are nested recursively
+        // inside their owning box instead of being handed to GroupByPackage — which would otherwise
+        // (incorrectly) bucket them under their parent's own qualified name and render that parent
+        // a second time as a duplicate sibling folder (see PlaceDef); usages with a rendered owner
+        // are diverted into usagesByOwner, to be placed beside their owner in the owner's own scope;
+        // everything else (a bare top-level item, or an item whose immediate parent is a bare
+        // package) flows into GroupByPackage.
         var defByQualified = defs.ToDictionary(d => d.QualifiedName, StringComparer.Ordinal);
         var childrenByParent = new Dictionary<string, List<DefBox>>(StringComparer.Ordinal);
+        var usagesByOwner = new Dictionary<string, List<DefBox>>(StringComparer.Ordinal);
         var packageOrRootItems = new List<DefBox>();
 
         foreach (var def in defs)
         {
+            if (def.OwnerQualifiedName is { } owner)
+            {
+                AddTo(usagesByOwner, owner, def);
+                continue;
+            }
+
             var sep = def.QualifiedName.LastIndexOf("::", StringComparison.Ordinal);
             var immediateParent = sep >= 0 ? def.QualifiedName[..sep] : string.Empty;
 
             if (immediateParent.Length > 0 && defByQualified.ContainsKey(immediateParent))
             {
-                if (!childrenByParent.TryGetValue(immediateParent, out var list))
-                {
-                    list = [];
-                    childrenByParent[immediateParent] = list;
-                }
-
-                list.Add(def);
+                AddTo(childrenByParent, immediateParent, def);
             }
             else
             {
@@ -448,11 +556,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             }
         }
 
-        // Group the remaining (non-nested-under-a-definition) items by their owning package
-        // (prefix before the last "::"). GroupByPackage itself is unchanged; it simply never again
-        // sees an admitted definition's own qualified name as a bucket key, which is what removes
-        // the duplicate-folder symptom.
-        var groups = GroupByPackage(packageOrRootItems);
+        // Group the remaining (non-nested) items by their owning package (prefix before the last
+        // "::"; for a usage whose owner is not rendered, the nearest enclosing package — never the
+        // owner's own qualified name, which would draw a folder for a definition or usage).
+        var groups = GroupByPackage(packageOrRootItems, context.Workspace);
 
         // An exposed package none of whose members are exposed still gets its (empty) package node.
         var groupedPackages = groups.Select(g => g.Package).ToHashSet(StringComparer.Ordinal);
@@ -463,16 +570,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 .Select(package => (Package: package, Items: new List<DefBox>())))
             .ToList();
 
-        // Resolve the specialization/membership/attribute-typing edge set by qualified name; the
-        // graph-construction pass below drops any edge touching a definition that never received a
-        // node (because its folder was depth-truncated).
-        var (modelEdges, droppedEdges) = BuildModelEdges(defs, context.Workspace, scope is not null);
+        // Resolve the specialization/membership/typing/subsetting/redefinition/satisfy/verify/import
+        // edge set by qualified name; the graph-construction pass below drops any edge touching a
+        // box that never received a node (because its folder or owner was depth-truncated).
+        var (modelEdges, droppedEdges) = BuildModelEdges(defs, context.Workspace, scope is not null, _policy);
 
         // Build the single input graph: package folders as containers (nested packages inside their
-        // owner's folder), definitions as leaves.
+        // owner's folder), definitions and usages as leaves.
         var packageNames = CollectPackageNames(context.Workspace);
         var exposed = scope is not null ? exposedPackages : null;
-        var build = BuildGraph(groups, childrenByParent, modelEdges, theme, options.DepthLimit, exposed, packageNames, itemOrder: null);
+        var build = BuildGraph(groups, childrenByParent, usagesByOwner, modelEdges, theme, options.DepthLimit, exposed, packageNames, itemOrder: null);
 
         // Lay out the whole graph in one call, delegating root-scope algorithm selection to "auto":
         // it classifies the root's own folders/top-level definitions by connectivity, routing
@@ -493,7 +600,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var itemOrder = ComputeItemOrder(tree, build, modelEdges);
         if (itemOrder.Count > 0)
         {
-            build = BuildGraph(groups, childrenByParent, modelEdges, theme, options.DepthLimit, exposed, packageNames, itemOrder);
+            build = BuildGraph(groups, childrenByParent, usagesByOwner, modelEdges, theme, options.DepthLimit, exposed, packageNames, itemOrder);
             tree = LayOut(build.Graph);
         }
 
@@ -583,7 +690,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// admitted usage must be present here for such a filter to have anything meaningful to
     /// narrow. This superset necessarily includes usages nested inside an already-admitted
     /// definition/usage, which would duplicate that parent's compartment row if rendered as its own
-    /// box; the second stage, <see cref="RemoveRedundantNestedUsages"/>, runs later in
+    /// box; the second stage, <see cref="RemoveRowUsages"/>, runs later in
     /// <see cref="BuildLayout"/> — after the standalone <c>filter [&lt;expr&gt;];</c> narrowing —
     /// and removes exactly those nested usages whose nearest still-rendered ancestor is present in
     /// the final, fully scope-and-filter-narrowed set (cascading through any nesting depth so a
@@ -594,90 +701,205 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// keying its box on the declaration's own qualified name, exactly as it did before usage-level
     /// candidates were introduced.
     /// </remarks>
-    /// <seealso cref="RemoveRedundantNestedUsages"/>
+    /// <seealso cref="RemoveRowUsages"/>
     private static IReadOnlyList<DefBox> CollectDefinitions(
         SysmlWorkspace workspace,
-        Theme theme,
         ExposedScope? scope,
         Func<string, string, bool> annotationVisible)
     {
         var result = new List<DefBox>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        // Visits one declaration (and, recursively, the usages nested in its Children): a real
+        // workspace registers every nested declaration under its own qualified name in
+        // Declarations, while a hand-built one may list nested usages only as Children, so both
+        // sources are walked and each qualified name is admitted once.
+        void Visit(string qualifiedName, SysmlNode declaration)
+        {
+            if (declaration is not (SysmlDefinitionNode or SysmlFeatureNode) ||
+                (declaration is SysmlFeatureNode && declaration.Name is null) ||
+                !seen.Add(qualifiedName))
+            {
+                return;
+            }
+
+            if (!StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames) &&
+                (scope is null || ExposeScopeResolver.IsInSubjectScope(qualifiedName, scope)))
+            {
+                result.Add(CreateBox(qualifiedName, declaration, annotationVisible));
+            }
+
+            foreach (var child in declaration.Children)
+            {
+                if (child is SysmlFeatureNode { Name: { } childName })
+                {
+                    Visit(child.QualifiedName ?? $"{qualifiedName}::{childName}", child);
+                }
+            }
+        }
 
         foreach (var (qualifiedName, declaration) in workspace.Declarations)
         {
-            if (declaration is not (SysmlDefinitionNode or SysmlFeatureNode) ||
-                (declaration is SysmlFeatureNode && declaration.Name is null))
-            {
-                continue;
-            }
-
-            if (StdlibFilter.IsStdlibElement(qualifiedName, workspace.StdlibNames))
-            {
-                continue;
-            }
-
-            if (scope is not null && !ExposeScopeResolver.IsInSubjectScope(qualifiedName, scope))
-            {
-                continue;
-            }
-
-            var simpleName = declaration.Name ?? qualifiedName;
-            var rawKeyword = declaration switch
-            {
-                SysmlDefinitionNode def => def.DefinitionKeyword,
-                SysmlFeatureNode feature => feature.FeatureKeyword,
-                _ => string.Empty,
-            };
-            var keyword = string.IsNullOrEmpty(rawKeyword) ? "def" : rawKeyword;
-
-            // Specialization edges (below, in BuildModelEdges) are drawn from DefBox.SupertypeNames.
-            // On a SysmlFeatureNode, SupertypeNames is populated only from a usage-level `subsets`/`:>`
-            // clause (see SysmlNode.SupertypeNames's remarks) — subsetting, not specialization — so it
-            // must not be surfaced here as a specialization target; only definition-level SupertypeNames
-            // (`part def X :> Y`) are genuine specialization targets.
-            var specializationSupertypeNames = declaration is SysmlDefinitionNode
-                ? declaration.SupertypeNames
-                : Array.Empty<string>();
-
-            // The box's name line follows the specification's textual notation: the short name (if
-            // any) before the name, then the specialization (:>) of a definition. A usage's
-            // SupertypeNames are subsetting references (see above), so they never reach the label.
-            var label = FormatNameLine(declaration.ShortName, simpleName, specializationSupertypeNames);
-
-            // Build compartments from the declaration's owned usages (attributes, ports, parts, …).
-            var compartments = BuildCompartments(declaration);
-
-            var memberships = CollectMemberships(declaration);
-            var (width, height) = ComputeBoxSize(label, keyword, compartments, theme);
-
-            // Exposed, unfiltered documentation is drawn as a "doc" compartment inside its owner's
-            // box (SysML 8.2.3.4 documentation-compartment), wrapped to the box width.
-            if (annotationVisible(qualifiedName, "Documentation") &&
-                BuildDocCompartment(declaration.Annotations, width, theme) is { } docCompartment)
-            {
-                compartments = [docCompartment, .. compartments];
-                (width, height) = ComputeBoxSize(label, keyword, compartments, theme);
-            }
-
-            // Exposed, unfiltered explicit comments are drawn as notes attached to their owner
-            // (SysML 8.2.3.4 comment-node with annotation-link); documentation never is.
-            var comments = annotationVisible(qualifiedName, "Comment")
-                ? declaration.Annotations.Where(a => a.Kind == SysmlAnnotationKind.Comment).ToList()
-                : new List<SysmlAnnotation>();
-            result.Add(new DefBox(qualifiedName, simpleName, label, keyword, specializationSupertypeNames, memberships, compartments, width, height, comments, declaration is SysmlFeatureNode));
+            Visit(qualifiedName, declaration);
         }
 
         return result;
     }
 
     /// <summary>
-    /// Removes usage-level (<see cref="DefBox.IsUsage"/>) boxes from <paramref name="defs"/> whose
-    /// nearest still-rendered ancestor is a definition/usage that is itself independently rendered
-    /// as a box — i.e., a usage nested (directly, or transitively through one or more other
-    /// excluded usages) inside a box that already shows it as a compartment row.
+    /// Creates the (not yet sized) box of one definition or usage: its keyword with prefix words,
+    /// name line, appearance, visible comments and documentation flag. The compartments and size are
+    /// filled in by <see cref="FinalizeBoxes"/> once the final set of boxes is known.
+    /// </summary>
+    /// <param name="qualifiedName">The declaration's qualified name (the box's key).</param>
+    /// <param name="declaration">The definition or named usage.</param>
+    /// <param name="annotationVisible">Whether an owner's annotation of a metaclass is exposed and unfiltered.</param>
+    /// <returns>The box.</returns>
+    private static DefBox CreateBox(
+        string qualifiedName,
+        SysmlNode declaration,
+        Func<string, string, bool> annotationVisible)
+    {
+        var simpleName = declaration.Name ?? qualifiedName;
+
+        // Specialization edges (in BuildModelEdges) are drawn from DefBox.SupertypeNames. On a
+        // SysmlFeatureNode, SupertypeNames is populated only from a usage-level `subsets`/`:>` clause
+        // (see SysmlNode.SupertypeNames's remarks) — subsetting, not specialization — so it is not
+        // surfaced here as a specialization target; only definition-level SupertypeNames
+        // (`part def X :> Y`) are genuine specialization targets.
+        var specializationSupertypeNames = declaration is SysmlDefinitionNode
+            ? declaration.SupertypeNames
+            : Array.Empty<string>();
+
+        string keyword;
+        string label;
+        BoxAppearance? appearance = null;
+        if (declaration is SysmlFeatureNode feature)
+        {
+            keyword = UsageKeyword(feature);
+            label = FormatUsageNameLine(feature, simpleName);
+
+            // A reference usage (not composite) is drawn with a dashed outline (SysML v2 graphical
+            // BNF, clause 8.2.3.6: part-ref).
+            if (feature.IsReference)
+            {
+                appearance = new BoxAppearance(LineStyle.Dashed);
+            }
+        }
+        else
+        {
+            var definition = (SysmlDefinitionNode)declaration;
+            keyword = DefinitionKeyword(definition);
+
+            // The box's name line follows the specification's textual notation: the short name (if
+            // any) before the name, then the specialization (:>) of the definition.
+            label = FormatNameLine(declaration.ShortName, simpleName, specializationSupertypeNames);
+            if (definition.IsAbstract)
+            {
+                appearance = new BoxAppearance(NameStyle: AbstractDefinitionNameStyle);
+            }
+        }
+
+        // Exposed, unfiltered explicit comments are drawn as notes attached to their owner
+        // (SysML 8.2.3.4 comment-node with annotation-link); documentation never is.
+        var comments = annotationVisible(qualifiedName, "Comment")
+            ? declaration.Annotations.Where(a => a.Kind == SysmlAnnotationKind.Comment).ToList()
+            : new List<SysmlAnnotation>();
+
+        // Exposed, unfiltered documentation is drawn as a "doc" compartment inside its owner's box
+        // (SysML 8.2.3.4 documentation-compartment).
+        var docVisible = annotationVisible(qualifiedName, "Documentation");
+        return new DefBox(
+            qualifiedName,
+            simpleName,
+            label,
+            keyword,
+            specializationSupertypeNames,
+            [],
+            MinBoxWidth,
+            0.0,
+            comments,
+            declaration,
+            docVisible,
+            appearance);
+    }
+
+    /// <summary>
+    /// Returns the keyword text of a definition, with the prefix words the specification places
+    /// inside the guillemets (<c>abstract part def</c>, <c>variation part def</c>,
+    /// <c>individual part def</c>); the engine adds the guillemets themselves.
+    /// </summary>
+    private static string DefinitionKeyword(SysmlDefinitionNode definition)
+    {
+        var words = new List<string>();
+        if (definition.IsAbstract)
+        {
+            words.Add("abstract");
+        }
+
+        if (definition.IsVariation)
+        {
+            words.Add("variation");
+        }
+
+        if (definition.IsIndividual)
+        {
+            words.Add("individual");
+        }
+
+        words.Add(string.IsNullOrEmpty(definition.DefinitionKeyword) ? "def" : definition.DefinitionKeyword);
+        return string.Join(' ', words);
+    }
+
+    /// <summary>
+    /// Returns the keyword text of a usage, with the prefix words the specification places inside
+    /// the guillemets (<c>abstract part</c>, <c>variation part</c>, <c>individual part</c>,
+    /// <c>variant part</c>, <c>ref part</c>); a plain <c>ref</c> usage is not prefixed twice.
+    /// </summary>
+    private static string UsageKeyword(SysmlFeatureNode feature)
+    {
+        var words = new List<string>();
+        if (feature.IsAbstract)
+        {
+            words.Add("abstract");
+        }
+
+        if (feature.IsVariation)
+        {
+            words.Add("variation");
+        }
+
+        if (feature.IsIndividual)
+        {
+            words.Add("individual");
+        }
+
+        if (feature.IsVariant)
+        {
+            words.Add("variant");
+        }
+
+        if (feature.IsReference && feature.FeatureKeyword != "ref")
+        {
+            words.Add("ref");
+        }
+
+        words.Add(string.IsNullOrEmpty(feature.FeatureKeyword) ? "usage" : feature.FeatureKeyword);
+        return string.Join(' ', words);
+    }
+
+    /// <summary>
+    /// Removes the usage-level (<see cref="DefBox.IsUsage"/>) boxes from <paramref name="defs"/>
+    /// that <paramref name="policy"/> says are compartment rows of their rendered immediate owner,
+    /// and records the owner (<see cref="DefBox.OwnerQualifiedName"/>) of every nested usage that
+    /// stays as a node of its own.
     /// </summary>
     /// <remarks>
     /// This is the second stage of <see cref="CollectDefinitions"/>'s admit-then-dedup design.
+    /// A usage nested in a rendered box is excluded only when it is not a node under the policy
+    /// (<see cref="NodePolicy.IsNode"/>), because the owner's compartment then shows it as a row;
+    /// a node-kind usage is kept and its owner recorded, so the owner and the usage are joined by
+    /// a feature membership edge.
     /// Every node's qualified name is built as a strict <c>parent::child</c> containment chain, so
     /// a usage's immediate-parent qualified name is recovered by stripping the qualified name's
     /// last <c>"::"</c>-separated segment, and every ancestor is therefore strictly shallower
@@ -704,10 +926,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// scope) is correctly kept as its own standalone box instead of being wrongly dropped against a
     /// pre-filter parent set.
     /// </remarks>
-    private static IReadOnlyList<DefBox> RemoveRedundantNestedUsages(IReadOnlyList<DefBox> defs)
+    private static IReadOnlyList<DefBox> RemoveRowUsages(IReadOnlyList<DefBox> defs, NodePolicy policy)
     {
         var qualifiedNames = new HashSet<string>(defs.Select(d => d.QualifiedName), StringComparer.Ordinal);
         var excluded = new HashSet<string>(StringComparer.Ordinal);
+        var owners = new Dictionary<string, string>(StringComparer.Ordinal);
 
         // Process shallowest-first so that, by the time a usage is tested, its immediate parent's
         // own exclusion decision has already been finalized (parents always have strictly fewer
@@ -719,7 +942,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         foreach (var (box, _) in ordered)
         {
-            if (!box.IsUsage)
+            if (box.Feature is not { } feature)
             {
                 continue;
             }
@@ -731,18 +954,44 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             }
 
             var parentQualifiedName = box.QualifiedName[..separatorIndex];
-            if (qualifiedNames.Contains(parentQualifiedName) && !excluded.Contains(parentQualifiedName))
+            if (!qualifiedNames.Contains(parentQualifiedName) || excluded.Contains(parentQualifiedName))
+            {
+                continue;
+            }
+
+            if (policy.IsNode(feature))
+            {
+                owners[box.QualifiedName] = parentQualifiedName;
+            }
+            else
             {
                 excluded.Add(box.QualifiedName);
             }
         }
 
-        return defs.Where(d => !excluded.Contains(d.QualifiedName)).ToList();
+        return defs
+            .Where(d => !excluded.Contains(d.QualifiedName))
+            .Select(d => owners.TryGetValue(d.QualifiedName, out var owner) ? d with { OwnerQualifiedName = owner } : d)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Adds <paramref name="item"/> to the list stored under <paramref name="key"/>, creating the list on first use.
+    /// </summary>
+    private static void AddTo(Dictionary<string, List<DefBox>> map, string key, DefBox item)
+    {
+        if (!map.TryGetValue(key, out var list))
+        {
+            list = [];
+            map[key] = list;
+        }
+
+        list.Add(item);
     }
 
     /// <summary>
     /// Counts the number of non-overlapping occurrences of <paramref name="token"/> in
-    /// <paramref name="value"/>, used by <see cref="RemoveRedundantNestedUsages"/> as a nesting-depth
+    /// <paramref name="value"/>, used by <see cref="RemoveRowUsages"/> as a nesting-depth
     /// proxy for ordering (only relative shallower-before-deeper order matters, not an exact count).
     /// </summary>
     private static int CountOccurrences(string value, string token)
@@ -759,10 +1008,58 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Builds compartments for a definition or usage by grouping its owned usage features by
-    /// keyword and formatting each as a <c>name : Type [n]</c> row.
+    /// Completes every box once the final set of boxes is known: builds its compartments (a usage
+    /// owned by the box as a node is not a row), prepends the <c>doc</c> compartment, and sizes it.
     /// </summary>
-    private static IReadOnlyList<LayoutCompartment> BuildCompartments(SysmlNode def)
+    private static IReadOnlyList<DefBox> FinalizeBoxes(IReadOnlyList<DefBox> defs, Theme theme)
+    {
+        var nodeChildren = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var def in defs.Where(d => d.OwnerQualifiedName is not null))
+        {
+            if (!nodeChildren.TryGetValue(def.OwnerQualifiedName!, out var set))
+            {
+                set = new HashSet<string>(StringComparer.Ordinal);
+                nodeChildren[def.OwnerQualifiedName!] = set;
+            }
+
+            set.Add(def.QualifiedName);
+        }
+
+        var result = new List<DefBox>(defs.Count);
+        foreach (var def in defs)
+        {
+            nodeChildren.TryGetValue(def.QualifiedName, out var drawnAsNodes);
+            var compartments = BuildCompartments(def.Declaration, def.QualifiedName, drawnAsNodes);
+            var (width, height) = ComputeBoxSize(def.Label, def.Keyword, compartments, theme);
+
+            // Exposed, unfiltered documentation is drawn as a "doc" compartment inside its owner's
+            // box (SysML 8.2.3.4 documentation-compartment), wrapped to the box width.
+            if (def.DocVisible &&
+                BuildDocCompartment(def.Declaration.Annotations, width, theme) is { } docCompartment)
+            {
+                compartments = [docCompartment, .. compartments];
+                (width, height) = ComputeBoxSize(def.Label, def.Keyword, compartments, theme);
+            }
+
+            result.Add(def with { Compartments = compartments, Width = width, Height = height });
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Builds compartments for a definition or usage by grouping its owned usage features by
+    /// keyword and formatting each as a row of the specification's textual notation (see
+    /// <see cref="FormatFeatureRow"/>). A feature drawn as a node of its own
+    /// (<paramref name="drawnAsNodes"/>) is not a row. Every compartment title is centered and italic.
+    /// </summary>
+    /// <param name="def">The definition or usage whose owned features become rows.</param>
+    /// <param name="qualifiedName">The qualified name of <paramref name="def"/>.</param>
+    /// <param name="drawnAsNodes">The qualified names of the owned features drawn as separate nodes, or null.</param>
+    private static IReadOnlyList<LayoutCompartment> BuildCompartments(
+        SysmlNode def,
+        string qualifiedName,
+        IReadOnlySet<string>? drawnAsNodes)
     {
         // Preserve keyword first-seen order so compartments appear in declaration order.
         var order = new List<string>();
@@ -771,6 +1068,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         foreach (var child in def.Children)
         {
             if (child is not SysmlFeatureNode feature)
+            {
+                continue;
+            }
+
+            if (drawnAsNodes is not null &&
+                drawnAsNodes.Contains(child.QualifiedName ?? $"{qualifiedName}::{child.Name}"))
             {
                 continue;
             }
@@ -791,8 +1094,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // declaration order in which it was first seen.
         var emitted = CanonicalCompartmentKeywords.Where(groups.ContainsKey).ToList();
         emitted.AddRange(order.Where(k => !CanonicalCompartmentKeywords.Contains(k)));
-        return [.. emitted.Select(k => new LayoutCompartment(Pluralize(k), groups[k]))];
+        return [.. emitted.Select(k => MakeCompartment(Pluralize(k), groups[k]))];
     }
+
+    /// <summary>
+    /// Creates a compartment whose title is centered and italic, as the specification draws every
+    /// compartment title (SysML v2 graphical BNF, clause 8.2.3: a separator line with the title
+    /// centered in italics below it).
+    /// </summary>
+    private static LayoutCompartment MakeCompartment(string title, IReadOnlyList<string> rows) =>
+        new(title, rows, TitleAlign: TextAlign.Center, TitleStyle: TextStyle.Italic);
 
     /// <summary>
     /// The usage keywords whose compartments are always emitted first, in this order, ahead of
@@ -831,7 +1142,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         var fitChars = (int)Math.Floor(((boxWidth - (3.0 * theme.LabelPadding)) / (theme.FontSizeBody * CharWidthFactor)) + 1e-9);
         var maxChars = Math.Max(MinDocWrapChars, fitChars);
         var rows = paragraphs.SelectMany(p => WrapText(p, maxChars)).ToList();
-        return new LayoutCompartment("doc", rows);
+        return MakeCompartment("doc", rows);
     }
 
     /// <summary>
@@ -915,7 +1226,13 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         return rows;
     }
 
-    /// <summary>Formats a usage feature as a compartment row: <c>name : Type [n]</c>.</summary>
+    /// <summary>
+    /// Formats a usage feature as a compartment row in the specification's textual notation
+    /// (SysML v2 graphical BNF, clause 8.2.3: <c>el-prefix? UsagePrefix usage-cp</c>):
+    /// <c>[in|out|inout] name : [~]Type [mult] [ordered] [nonunique] [:&gt; subsetted]
+    /// [:&gt;&gt; redefined] [::&gt; referenced] [= value]</c>, omitting every part the model does not
+    /// declare. A constraint-kind feature shows its raw expression text instead.
+    /// </summary>
     private static string FormatFeatureRow(SysmlFeatureNode feature)
     {
         // A constraint-kind feature's payload is a boolean expression, not a type reference — show
@@ -926,12 +1243,77 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             return feature.Name is { Length: > 0 } exprName ? $"{exprName}: {expr}" : expr;
         }
 
-        var name = feature.Name ?? string.Empty;
-        var typing = feature.FeatureTyping is { Length: > 0 } t ? $" : {t}" : string.Empty;
-        var multiplicity = feature.Multiplicity is { Length: > 0 } m ? $" {m}" : string.Empty;
-        var row = $"{name}{typing}{multiplicity}".Trim();
+        var row = FormatNameLine(
+            shortName: null,
+            feature.Name ?? string.Empty,
+            supertypes: null,
+            typing: FormatTyping(feature),
+            multiplicity: feature.Multiplicity,
+            subsets: feature.SupertypeNames,
+            redefines: feature.RedefinedFeatureName,
+            referenceSubsets: feature.ReferenceSubsettingName,
+            modifiers: FormatModifiers(feature));
+
+        // A declared direction prefixes the row; a declared value follows it verbatim (the value
+        // clause already carries its own operator, e.g. "= 5 [kg]").
+        if (feature.Direction is { } direction)
+        {
+            row = $"{DirectionKeyword(direction)} {row}";
+        }
+
+        if (feature.ValueText is { Length: > 0 } value)
+        {
+            row = $"{row} {value}";
+        }
+
+        row = row.Trim();
         return row.Length == 0 ? "\u2014" : row;
     }
+
+    /// <summary>Returns the keyword of a feature direction.</summary>
+    private static string DirectionKeyword(SysmlFeatureDirection direction) => direction switch
+    {
+        SysmlFeatureDirection.In => "in",
+        SysmlFeatureDirection.Out => "out",
+        _ => "inout",
+    };
+
+    /// <summary>Returns the typing text of a usage: the typing reference, or the conjugated one prefixed with <c>~</c>; null when untyped.</summary>
+    private static string? FormatTyping(SysmlFeatureNode feature)
+    {
+        if (feature.ConjugatedFeatureTyping is { Length: > 0 } conjugated)
+        {
+            return $"~{conjugated}";
+        }
+
+        return feature.FeatureTyping is { Length: > 0 } typing ? typing : null;
+    }
+
+    /// <summary>Returns the <c>ordered</c>/<c>nonunique</c> multiplicity modifiers of a usage, or null when it has none.</summary>
+    private static string? FormatModifiers(SysmlFeatureNode feature) =>
+        (feature.IsOrdered, feature.IsNonunique) switch
+        {
+            (true, true) => "ordered nonunique",
+            (true, false) => "ordered",
+            (false, true) => "nonunique",
+            _ => null,
+        };
+
+    /// <summary>
+    /// Formats the name line of a usage node: <c>&lt;shortName&gt; name : Type [mult] ordered
+    /// nonunique :&gt; subsetted :&gt;&gt; redefined ::&gt; referenced</c>.
+    /// </summary>
+    private static string FormatUsageNameLine(SysmlFeatureNode feature, string name) =>
+        FormatNameLine(
+            feature.ShortName,
+            name,
+            supertypes: null,
+            typing: FormatTyping(feature),
+            multiplicity: feature.Multiplicity,
+            subsets: feature.SupertypeNames,
+            redefines: feature.RedefinedFeatureName,
+            referenceSubsets: feature.ReferenceSubsettingName,
+            modifiers: FormatModifiers(feature));
 
     /// <summary>
     /// Formats the name line of a node label in the specification's textual notation:
@@ -943,20 +1325,32 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// way in every view (SysML v2 graphical BNF, clause 8.2.3: the name compartment lists the
     /// short name before the name, then the specialization, then the typing and
     /// multiplicity). Supertypes and typing are passed through exactly as written in the model
-    /// (possibly qualified); nothing is resolved here.
+    /// (possibly qualified); nothing is resolved here. The optional trailing parameters
+    /// (<paramref name="modifiers"/>, <paramref name="subsets"/>, <paramref name="redefines"/>,
+    /// <paramref name="referenceSubsets"/>) extend the line the way the textual notation does for a
+    /// usage and are appended after the multiplicity, in that order; callers that do not pass them
+    /// are unaffected.
     /// </remarks>
     /// <param name="shortName">The declared short name (without angle brackets), or null.</param>
     /// <param name="name">The element's name; must not be null.</param>
     /// <param name="supertypes">The raw specialization (<c>:&gt;</c>) references, or null.</param>
     /// <param name="typing">The raw feature-typing reference (<c>: Type</c>), or null.</param>
     /// <param name="multiplicity">The multiplicity text including brackets (e.g. <c>[2]</c>), or null.</param>
+    /// <param name="subsets">The raw subsetting (<c>:&gt;</c>) references of a usage, or null.</param>
+    /// <param name="redefines">The raw redefinition (<c>:&gt;&gt;</c>) reference of a usage, or null.</param>
+    /// <param name="referenceSubsets">The raw reference-subsetting (<c>::&gt;</c>) reference of a usage, or null.</param>
+    /// <param name="modifiers">The multiplicity modifiers (<c>ordered nonunique</c>), or null.</param>
     /// <returns>The formatted name line.</returns>
     internal static string FormatNameLine(
         string? shortName,
         string name,
         IEnumerable<string>? supertypes = null,
         string? typing = null,
-        string? multiplicity = null)
+        string? multiplicity = null,
+        IEnumerable<string>? subsets = null,
+        string? redefines = null,
+        string? referenceSubsets = null,
+        string? modifiers = null)
     {
         var line = new System.Text.StringBuilder();
         if (!string.IsNullOrEmpty(shortName))
@@ -982,6 +1376,27 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             line.Append(' ').Append(multiplicity);
         }
 
+        if (!string.IsNullOrEmpty(modifiers))
+        {
+            line.Append(' ').Append(modifiers);
+        }
+
+        var subsetted = subsets?.Where(s => !string.IsNullOrEmpty(s)).ToList();
+        if (subsetted is { Count: > 0 })
+        {
+            line.Append(" :> ").Append(string.Join(", ", subsetted));
+        }
+
+        if (!string.IsNullOrEmpty(redefines))
+        {
+            line.Append(" :>> ").Append(redefines);
+        }
+
+        if (!string.IsNullOrEmpty(referenceSubsets))
+        {
+            line.Append(" ::> ").Append(referenceSubsets);
+        }
+
         return line.ToString();
     }
 
@@ -1005,38 +1420,6 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         "constraint" => "«constraint»",
         _ => keyword + "s",
     };
-
-    /// <summary>
-    /// Collects the feature memberships of a definition: the keyword, type reference (if any), simple
-    /// name, redefined-feature reference (if any), and subsetted-feature reference(s) (if any) of
-    /// each owned feature that carries a type annotation, a redefinition, and/or a subsetting.
-    /// </summary>
-    private static IReadOnlyList<FeatureMembership> CollectMemberships(SysmlNode def)
-    {
-        var result = new List<FeatureMembership>();
-        foreach (var child in def.Children)
-        {
-            if (child is not SysmlFeatureNode feature)
-            {
-                continue;
-            }
-
-            var typing = feature.FeatureTyping is { Length: > 0 } ft ? ft : null;
-            if (typing is not null || feature.RedefinedFeatureName is not null || feature.SupertypeNames.Count > 0)
-            {
-                var keyword = string.IsNullOrEmpty(feature.FeatureKeyword) ? "feature" : feature.FeatureKeyword;
-                var resolvedType = feature.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Typing)?.TargetQualifiedName;
-                var resolvedRedefinition = feature.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Redefinition)?.TargetQualifiedName;
-                var resolvedSubsettings = feature.SupertypeNames.Count == 0
-                    ? null
-                    : (IReadOnlyList<EdgeAnswer>)[.. feature.SupertypeNames.Select(raw => EdgeAnswer.For(feature, SysmlEdgeKind.Supertype, raw))];
-                result.Add(new FeatureMembership(
-                    keyword, typing, feature.Name, feature.RedefinedFeatureName, feature.SupertypeNames, resolvedType, resolvedRedefinition, resolvedSubsettings));
-            }
-        }
-
-        return result;
-    }
 
     /// <summary>Computes the intrinsic box size needed for the title and any compartments.</summary>
     private static (double Width, double Height) ComputeBoxSize(
@@ -1093,10 +1476,15 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
-    /// Groups definitions by their parent package name (the qualified-name prefix before the last
-    /// <c>::</c>), preserving first-seen order. Top-level definitions use an empty package key.
+    /// Groups boxes by their parent package name (the qualified-name prefix before the last
+    /// <c>::</c>), preserving first-seen order. Top-level boxes use an empty package key. A usage
+    /// (whose owner is not rendered) is keyed by the nearest enclosing declaration that is not a
+    /// definition or another usage, so a usage nested in an excluded definition is never given a
+    /// package folder named after that definition.
     /// </summary>
-    private static IReadOnlyList<(string Package, List<DefBox> Items)> GroupByPackage(IReadOnlyList<DefBox> defs)
+    private static IReadOnlyList<(string Package, List<DefBox> Items)> GroupByPackage(
+        IReadOnlyList<DefBox> defs,
+        SysmlWorkspace workspace)
     {
         var order = new List<string>();
         var map = new Dictionary<string, List<DefBox>>(StringComparer.Ordinal);
@@ -1105,6 +1493,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         {
             var sep = def.QualifiedName.LastIndexOf("::", StringComparison.Ordinal);
             var package = sep >= 0 ? def.QualifiedName[..sep] : string.Empty;
+            if (def.IsUsage)
+            {
+                package = PlacementPackage(package, workspace);
+            }
 
             if (!map.TryGetValue(package, out var list))
             {
@@ -1117,6 +1509,24 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         }
 
         return [.. order.Select(p => (p, map[p]))];
+    }
+
+    /// <summary>
+    /// Returns the nearest enclosing namespace of a usage that is not itself a definition or usage:
+    /// walks <paramref name="prefix"/> outward while it names a declared definition or usage.
+    /// A prefix with no declaration (a hand-built workspace) or a package is returned as is.
+    /// </summary>
+    private static string PlacementPackage(string prefix, SysmlWorkspace workspace)
+    {
+        while (prefix.Length > 0 &&
+               workspace.Declarations.TryGetValue(prefix, out var declaration) &&
+               declaration is SysmlDefinitionNode or SysmlFeatureNode)
+        {
+            var sep = prefix.LastIndexOf("::", StringComparison.Ordinal);
+            prefix = sep >= 0 ? prefix[..sep] : string.Empty;
+        }
+
+        return prefix;
     }
 
     /// <summary>
@@ -1190,11 +1600,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// is always reported, regardless of scoping, since it can never be an intended outcome.
     /// </summary>
     private static (List<ModelEdge> Edges, List<DroppedRelationshipEdge> Dropped) BuildModelEdges(
-        IReadOnlyList<DefBox> defs, SysmlWorkspace workspace, bool isScoped)
+        IReadOnlyList<DefBox> defs, SysmlWorkspace workspace, bool isScoped, NodePolicy policy)
     {
         // Every reference is resolved to a rendered box by the semantic model's edge first, then
         // KerML name resolution (see TypeResolver); an unresolved reference draws no edge.
         var byQualified = new HashSet<string>(defs.Select(d => d.QualifiedName), StringComparer.Ordinal);
+        var usageBoxes = new HashSet<string>(defs.Where(d => d.IsUsage).Select(d => d.QualifiedName), StringComparer.Ordinal);
         var types = new TypeResolver(byQualified, FilterExpressionEvaluator.CreateNameResolver(workspace));
 
         var edges = new List<ModelEdge>();
@@ -1216,98 +1627,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 }
             }
 
-            // Membership: member-type → owner, diamond at the owner (target) end. Structural keywords
-            // (part/port) use a filled diamond; others emit none. (The "ref" keyword previously used
-            // an obsolete hollow-diamond marker here — it has moved to its own Dependency-shaped edge
-            // below, per current OMG SysML v2 notation for reference usages.)
-            foreach (var membership in def.Memberships)
+            // The relationships of a usage node. A row-only policy draws none (everything is shown
+            // in the compartments), and a usage drawn as a row has no box here at all.
+            if (def.Feature is { } usage && policy.Mode != UsageNodeMode.RowsOnly)
             {
-                var arrowhead = membership.Keyword switch
-                {
-                    "part" or "port" => EndMarkerStyle.FilledDiamond,
-                    _ => EndMarkerStyle.None,
-                };
-
-                if (arrowhead != EndMarkerStyle.None &&
-                    types.TryResolveMemberType(membership, def.QualifiedName, out var memberType) &&
-                    memberType != def.QualifiedName)
-                {
-                    edges.Add(new ModelEdge(memberType, def.QualifiedName, arrowhead, EdgeKind.Membership));
-                }
-            }
-
-            // Attribute typing: owner → attribute-type dependency, open chevron at the type (target)
-            // end. This is a usage-type dependency, not composition, so it uses the OMG dependency
-            // notation rather than a membership diamond. Unresolved types and self-references are
-            // skipped, exactly as above.
-            foreach (var membership in def.Memberships)
-            {
-                if (membership.Keyword is not ("attribute" or "enum"))
-                {
-                    continue;
-                }
-
-                if (types.TryResolveMemberType(membership, def.QualifiedName, out var attrType) &&
-                    attrType != def.QualifiedName)
-                {
-                    edges.Add(new ModelEdge(def.QualifiedName, attrType, EndMarkerStyle.OpenChevron, EdgeKind.Typing));
-                }
-            }
-
-            // ref (reference usage) typing: owner → referenced-type dependency, sharing the same
-            // Dependency rendering (dashed, open chevron) as the new public Dependency edge kind
-            // below, per current OMG SysML v2 notation for reference usages (no longer an obsolete
-            // hollow-diamond membership marker).
-            foreach (var membership in def.Memberships)
-            {
-                if (membership.Keyword != "ref")
-                {
-                    continue;
-                }
-
-                if (types.TryResolveMemberType(membership, def.QualifiedName, out var refType) &&
-                    refType != def.QualifiedName)
-                {
-                    edges.Add(new ModelEdge(def.QualifiedName, refType, EndMarkerStyle.OpenChevron, EdgeKind.Dependency));
-                }
-            }
-
-            // Redefinition: subtype → the owning definition of the redefined feature, hollow
-            // triangle with crossbar at the owner (target) end. The semantic redefinition edge's
-            // resolved target is used first; else a qualified reference (Owner::feature) resolves
-            // the owner directly and a bare reference is looked up by walking the definition's own
-            // supertype chain for a matching member name. An unresolved reference draws no edge.
-            foreach (var membership in def.Memberships)
-            {
-                if (membership.RedefinedFeatureName is not { Length: > 0 } redefinedRef)
-                {
-                    continue;
-                }
-
-                var owner = types.ResolveRedefinitionOwner(def.QualifiedName, redefinedRef, membership.ResolvedRedefinedFeatureName);
-                if (owner is not null && owner != def.QualifiedName)
-                {
-                    edges.Add(new ModelEdge(def.QualifiedName, owner, EndMarkerStyle.HollowTriangleCrossbar, EdgeKind.Redefinition));
-                }
-            }
-
-            // Subsetting: subtype → the owning definition of each subsetted (ancestor) feature,
-            // hollow triangle (dashed) at the owner (target) end. A subsetted-feature reference is
-            // resolved like a redefined-feature reference: the semantic edge matched to it by exact
-            // reference text first, else a qualified reference resolves the owner directly and a
-            // bare reference walks the definition's own supertype chain for a matching member name.
-            // An unresolved reference draws no edge.
-            foreach (var membership in def.Memberships)
-            {
-                for (var i = 0; i < membership.SubsettedFeatureNames.Count; i++)
-                {
-                    var answer = membership.ResolvedSubsettedNames is { } answers ? answers[i] : default;
-                    var owner = types.ResolveSubsettedOwner(def.QualifiedName, membership.SubsettedFeatureNames[i], answer);
-                    if (owner is not null && owner != def.QualifiedName)
-                    {
-                        edges.Add(new ModelEdge(def.QualifiedName, owner, EndMarkerStyle.HollowTriangle, EdgeKind.Subsetting));
-                    }
-                }
+                AddUsageEdges(edges, def, usage, types);
             }
         }
 
@@ -1344,8 +1668,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             {
                 case SysmlEdgeKind.Connect:
                     {
-                        var source = ResolveOwningBox(sourceRef, workspace, byQualified);
-                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified);
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, usageBoxes);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, usageBoxes);
                         if (source is not null && target is not null && source != target)
                         {
                             edges.Add(new ModelEdge(source, target, EndMarkerStyle.None, EdgeKind.Connect));
@@ -1360,8 +1684,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
                 case SysmlEdgeKind.Allocate:
                     {
-                        var source = ResolveOwningBox(sourceRef, workspace, byQualified);
-                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified);
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, usageBoxes);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, usageBoxes);
                         if (source is not null && target is not null && source != target)
                         {
                             edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Allocate, "«allocate»"));
@@ -1376,8 +1700,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
                 case SysmlEdgeKind.Dependency:
                     {
-                        var source = ResolveOwningBox(sourceRef, workspace, byQualified);
-                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified);
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, usageBoxes);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, usageBoxes);
                         if (source is not null && target is not null && source != target)
                         {
                             edges.Add(new ModelEdge(source, target, EndMarkerStyle.OpenChevron, EdgeKind.Dependency));
@@ -1392,8 +1716,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
                 case SysmlEdgeKind.Binding:
                     {
-                        var source = ResolveOwningBox(sourceRef, workspace, byQualified);
-                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified);
+                        var source = ResolveOwningBox(sourceRef, workspace, byQualified, usageBoxes);
+                        var target = ResolveOwningBox(edge.TargetQualifiedName, workspace, byQualified, usageBoxes);
                         if (source is not null && target is not null && source != target)
                         {
                             edges.Add(new ModelEdge(source, target, EndMarkerStyle.None, EdgeKind.Binding, "="));
@@ -1410,6 +1734,64 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         return (edges, dropped);
     }
+
+    /// <summary>
+    /// Adds the relationship edges of one usage node. Every edge runs from the usage (the owned,
+    /// dependent or specific element) to the general element, with the glyph at the general end:
+    /// the owner (filled diamond for a composite usage, hollow diamond for a referential one), the
+    /// definition (feature typing: hollow triangle with two dots), the subsetted usage (hollow
+    /// triangle), the reference-subsetted usage (hollow triangle with four dots) and the redefined
+    /// usage (hollow triangle with a crossbar), per SysML v2 graphical BNF, clause 8.2.3.6. An
+    /// unresolved reference, an unrendered target and a self-reference draw no edge.
+    /// </summary>
+    private static void AddUsageEdges(List<ModelEdge> edges, DefBox box, SysmlFeatureNode usage, TypeResolver types)
+    {
+        var self = box.QualifiedName;
+        var ownerNamespace = EnclosingPackage(self);
+
+        void Add(string? target, EndMarkerStyle marker, EdgeKind kind)
+        {
+            if (target is not null && target != self)
+            {
+                edges.Add(new ModelEdge(self, target, marker, kind));
+            }
+        }
+
+        // Feature membership: owned usage → owner, diamond at the owner.
+        Add(box.OwnerQualifiedName, IsReferential(usage) ? EndMarkerStyle.HollowDiamond : EndMarkerStyle.FilledDiamond, EdgeKind.Membership);
+
+        // Feature typing: usage → definition.
+        Add(types.ResolveTyping(usage, ownerNamespace), EndMarkerStyle.HollowTriangleTwoDots, EdgeKind.FeatureTyping);
+
+        // Subsetting: usage → each subsetted usage; each raw reference is matched to its own
+        // semantic edge by exact reference text (see TryGetResolvedTarget).
+        foreach (var raw in usage.SupertypeNames)
+        {
+            var answer = EdgeAnswer.For(usage, SysmlEdgeKind.Supertype, raw);
+            Add(types.ResolveSubsetting(raw, answer, ownerNamespace), EndMarkerStyle.HollowTriangle, EdgeKind.Subsetting);
+        }
+
+        // Reference subsetting: usage → referenced usage.
+        if (usage.ReferenceSubsettingName is { Length: > 0 } referenceSubsetting)
+        {
+            Add(types.ResolveReferenceSubsetting(referenceSubsetting, ownerNamespace), EndMarkerStyle.HollowTriangleFourDots, EdgeKind.ReferenceSubsetting);
+        }
+
+        // Redefinition: usage → redefined usage.
+        if (usage.RedefinedFeatureName is { Length: > 0 } redefined)
+        {
+            Add(types.ResolveRedefinition(usage, redefined, ownerNamespace), EndMarkerStyle.HollowTriangleCrossbar, EdgeKind.Redefinition);
+        }
+    }
+
+    /// <summary>
+    /// Returns whether a usage is referential (not composite): a reference usage, or an attribute,
+    /// plain reference or enumeration usage, which KerML/SysML declare non-composite by default
+    /// (part, item, port, action, state, requirement … usages are composite). A referential usage
+    /// joins its owner with a hollow diamond, a composite one with a filled diamond.
+    /// </summary>
+    private static bool IsReferential(SysmlFeatureNode usage) =>
+        usage.IsReference || usage.FeatureKeyword is "attribute" or "ref" or "enum";
 
     /// <summary>
     /// Returns a short human-readable reason a Connect/Allocate/Dependency/Binding edge's endpoints
@@ -1439,22 +1821,22 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <summary>
     /// Resolves the qualified name of the rendered box that "owns" the given endpoint reference,
     /// for <see cref="EdgeKind.Connect"/>/<see cref="EdgeKind.Binding"/> endpoint mapping. A
-    /// reference that already names a definition resolves directly (the common case for
+    /// reference that already names a rendered box resolves directly (the common case for
     /// definition-to-definition references, e.g. <see cref="EdgeKind.Allocate"/>/
-    /// <see cref="EdgeKind.Dependency"/>); otherwise this walks successively shorter <c>"::"</c>
-    /// prefixes of the (dotted-chain-resolved) qualified name, from longest to shortest, looking
-    /// for a <see cref="SysmlFeatureNode"/> whose resolved <see cref="SysmlEdgeKind.Typing"/> edge
-    /// targets a rendered box; the <em>shortest</em> matching prefix wins (the feature immediately
-    /// owned by the rendered enclosing definition), which prevents the self-loop a naive
-    /// "nearest enclosing definition" walk would produce for the dominant real-world shape where
-    /// both sides of a <c>connect</c>/<c>bind</c> are nested inside the very same definition (e.g.
-    /// <c>connect controller.power to battery.output;</c> inside <c>Drone</c> — walking to the
-    /// nearest enclosing definition would resolve both sides to <c>Drone</c> itself).
+    /// <see cref="EdgeKind.Dependency"/>). Otherwise the <em>shortest</em> <c>"::"</c> prefix that
+    /// names a rendered <em>usage</em> box wins (the usage node immediately owned by the rendered
+    /// enclosing definition): <c>connect controller.power to battery.output;</c> inside
+    /// <c>Drone</c> joins the <c>controller</c> and <c>battery</c> nodes instead of resolving both
+    /// sides to <c>Drone</c> itself and dropping a self-loop. Last, for an endpoint nested in a
+    /// feature that is a row rather than a node, this walks successively shorter prefixes, longest
+    /// first, looking for a <see cref="SysmlFeatureNode"/> whose resolved
+    /// <see cref="SysmlEdgeKind.Typing"/> edge targets a rendered box; the shortest matching prefix wins.
     /// </summary>
     private static string? ResolveOwningBox(
         string qualifiedName,
         SysmlWorkspace workspace,
-        HashSet<string> byQualified)
+        HashSet<string> byQualified,
+        HashSet<string> usageBoxes)
     {
         if (byQualified.Contains(qualifiedName))
         {
@@ -1462,6 +1844,17 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         }
 
         var segments = qualifiedName.Split("::");
+
+        // The outermost rendered usage node on the path.
+        for (var length = 1; length < segments.Length; length++)
+        {
+            var prefix = string.Join("::", segments.Take(length));
+            if (usageBoxes.Contains(prefix))
+            {
+                return prefix;
+            }
+        }
+
         string? candidate = null;
         for (var length = segments.Length; length >= 1; length--)
         {
@@ -1506,21 +1899,24 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         }
 
         /// <summary>
-        /// Resolves a feature membership's type: the feature's resolved <see cref="SysmlEdgeKind.Typing"/>
-        /// target, else the raw type reference relative to the feature's owning namespace — the
-        /// owning definition (KerML 8.2.3.5.2, FeatureTyping is a Specialization).
+        /// Resolves the rendered box a usage is typed by: the feature's resolved
+        /// <see cref="SysmlEdgeKind.Typing"/> target, else the raw type reference relative to the
+        /// feature's owning namespace (KerML 8.2.3.5.2, FeatureTyping is a Specialization). A
+        /// conjugated typing (<c>: ~PortT</c>) resolves to the underlying port definition. An
+        /// unresolved or unrendered type yields null.
         /// </summary>
-        public bool TryResolveMemberType(
-            FeatureMembership membership, string ownerQualifiedName, [MaybeNullWhen(false)] out string qualified)
+        public string? ResolveTyping(SysmlFeatureNode usage, string? ownerNamespace)
         {
-            if (membership.ResolvedTypeName is { } resolved)
+            if (usage.FeatureTyping is { Length: > 0 } typeName)
             {
-                qualified = resolved;
-                return _rendered.Contains(qualified);
+                return usage.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Typing) is { } edge
+                    ? RenderedOrNull(edge.TargetQualifiedName)
+                    : Resolve(typeName, ownerNamespace);
             }
 
-            qualified = membership.TypeName is { Length: > 0 } typeName ? Resolve(typeName, ownerQualifiedName) : null;
-            return qualified is not null;
+            return usage.ConjugatedFeatureTyping is { Length: > 0 } conjugated
+                ? Resolve(conjugated, ownerNamespace)
+                : null;
         }
 
         /// <summary>
@@ -1547,42 +1943,46 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         }
 
         /// <summary>
-        /// Resolves the rendered box owning a redefined feature: the redefinition edge's resolved
-        /// target <paramref name="resolvedTarget"/> when the semantic model supplied one; else per
-        /// KerML 8.2.3.5.1 the reference is resolved with each general type of the redefining
-        /// feature's owning type as the local namespace in turn, then (leniently, as the semantic
-        /// resolver does) by ordinary resolution from the owning type. The owner is the resolved
-        /// feature's owning namespace; an unresolved reference yields null.
+        /// Resolves the rendered usage box a usage redefines: the redefinition edge's resolved
+        /// target when the semantic model supplied one; else per KerML 8.2.3.5.1 the reference is
+        /// resolved with each general type of the redefining feature's owning type as the local
+        /// namespace in turn, then (leniently, as the semantic resolver does) by ordinary
+        /// resolution from the owning type. An unresolved reference yields null.
         /// </summary>
-        public string? ResolveRedefinitionOwner(string owningType, string redefinedReference, string? resolvedTarget) =>
-            OwnerIfRendered(
-                resolvedTarget ??
-                _resolver.ResolveRedefinedFeature(redefinedReference, owningType) ??
-                _resolver.Resolve(redefinedReference, owningType));
+        public string? ResolveRedefinition(SysmlFeatureNode usage, string redefinedReference, string? ownerNamespace) =>
+            RenderedOrNull(
+                usage.ResolvedEdges.FirstOrDefault(e => e.Kind == SysmlEdgeKind.Redefinition)?.TargetQualifiedName ??
+                (ownerNamespace is null ? null : _resolver.ResolveRedefinedFeature(redefinedReference, ownerNamespace)) ??
+                _resolver.Resolve(redefinedReference, ownerNamespace));
 
         /// <summary>
-        /// Resolves the rendered box owning a subsetted feature: the target of the semantic
-        /// model's <paramref name="answer"/> when it is known (a reference with no matching
-        /// resolved <see cref="SysmlEdgeKind.Supertype"/> edge is unresolved and yields null);
-        /// else the reference resolved relative to the subsetting feature's owning namespace (its
-        /// owning definition, whose inherited memberships include the ancestor's features).
-        /// An unresolved reference yields null.
+        /// Resolves the rendered box a usage subsets: the target of the semantic model's
+        /// <paramref name="answer"/> when it is known (a reference with no matching resolved
+        /// <see cref="SysmlEdgeKind.Supertype"/> edge is unresolved and yields null); else the
+        /// reference resolved relative to the subsetting feature's owning namespace, whose
+        /// inherited memberships include the ancestor's features. An unresolved reference yields null.
         /// </summary>
-        public string? ResolveSubsettedOwner(string owningType, string subsettedReference, EdgeAnswer answer) =>
-            OwnerIfRendered(answer.Known ? answer.Target : _resolver.Resolve(subsettedReference, owningType));
+        public string? ResolveSubsetting(string subsettedReference, EdgeAnswer answer, string? ownerNamespace) =>
+            answer.Known ? RenderedOrNull(answer.Target) : Resolve(subsettedReference, ownerNamespace);
+
+        /// <summary>
+        /// Resolves the rendered box a usage reference-subsets (<c>::&gt;</c>). The semantic model
+        /// records no edge for it, so the raw reference is resolved by name resolution relative to
+        /// the feature's owning namespace. An unresolved reference yields null.
+        /// </summary>
+        public string? ResolveReferenceSubsetting(string reference, string? ownerNamespace) =>
+            Resolve(reference, ownerNamespace);
 
         /// <summary>
         /// Resolves a raw reference to a rendered box; returns null when it resolves to nothing
         /// rendered.
         /// </summary>
         private string? Resolve(string reference, string? localNamespace) =>
-            _resolver.Resolve(reference, localNamespace) is { } qualified && _rendered.Contains(qualified)
-                ? qualified
-                : null;
+            RenderedOrNull(_resolver.Resolve(reference, localNamespace));
 
-        /// <summary>Returns the owner of a resolved feature when that owner is rendered, else null.</summary>
-        private string? OwnerIfRendered(string? featureQualifiedName) =>
-            OwnerOf(featureQualifiedName) is { } owner && _rendered.Contains(owner) ? owner : null;
+        /// <summary>Returns <paramref name="qualifiedName"/> when it names a rendered box, else null.</summary>
+        private string? RenderedOrNull(string? qualifiedName) =>
+            qualifiedName is not null && _rendered.Contains(qualifiedName) ? qualifiedName : null;
 
         /// <summary>Returns the owning namespace's qualified name, or null at the root.</summary>
         private static string? OwnerOf(string? qualifiedName)
@@ -1632,7 +2032,8 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// ellipsis (<c>…</c>).
     /// </summary>
     /// <param name="groups">The package groups (package qualified name and its directly owned definitions).</param>
-    /// <param name="childrenByParent">Definitions nested inside a definition, keyed by the owning definition's qualified name.</param>
+    /// <param name="childrenByParent">Definitions nested inside a box, keyed by the owning box's qualified name.</param>
+    /// <param name="usagesByOwner">Usage nodes keyed by the qualified name of the box that owns them; each is placed beside its owner.</param>
     /// <param name="modelEdges">The model relationships to draw as graph edges.</param>
     /// <param name="theme">The theme used to size title bands and ellipsis placeholders.</param>
     /// <param name="depthLimit">The nesting depth limit, or a non-positive value for none.</param>
@@ -1647,6 +2048,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     private static GraphBuild BuildGraph(
         IReadOnlyList<(string Package, List<DefBox> Items)> groups,
         IReadOnlyDictionary<string, List<DefBox>> childrenByParent,
+        IReadOnlyDictionary<string, List<DefBox>> usagesByOwner,
         IReadOnlyList<ModelEdge> modelEdges,
         Theme theme,
         int depthLimit,
@@ -1697,7 +2099,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 // nested-definition children are still handled.
                 foreach (var def in groups[groupIndex].Items)
                 {
-                    PlaceDef(def, rootScope, childrenByParent, located, theme, rootDepth, depthLimit);
+                    PlaceDef(def, rootScope, childrenByParent, usagesByOwner, located, theme, rootDepth, depthLimit);
                 }
 
                 continue;
@@ -1750,14 +2152,19 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             var folder = parentScope.Graph.AddNode($"folder:{folderKey}", 0, 0);
             folder.Label = label;
             folder.Shape = BoxShape.Folder;
-            folder.TitleHeight = folderTitleHeight;
+
+            // The package name goes in the folder's tab (a package with content, per the
+            // specification's package-with-name-in-tab); the engine reserves the tab's own height,
+            // so no title band (TitleHeight) is requested on top of it.
+            folder.Appearance = new BoxAppearance(FolderTitle: FolderTitlePlacement.Tab);
             folder.Set(CoreOptions.Algorithm, LayeredLayoutAlgorithm.AlgorithmId);
             var folderScope = new ScopeInfo(parentScope, folder.Children, folder);
             folderScopes[folderKey] = folderScope;
+            located[FolderKeyPrefix + folderKey] = new Location(folder, parentScope);
 
             foreach (var def in OrderedItems(plan, itemOrder))
             {
-                PlaceDef(def, folderScope, childrenByParent, located, theme, contentDepth, depthLimit);
+                PlaceDef(def, folderScope, childrenByParent, usagesByOwner, located, theme, contentDepth, depthLimit);
             }
         }
 
@@ -1958,6 +2365,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         DefBox def,
         ScopeInfo scope,
         IReadOnlyDictionary<string, List<DefBox>> childrenByParent,
+        IReadOnlyDictionary<string, List<DefBox>> usagesByOwner,
         Dictionary<string, Location> located,
         Theme theme,
         int depth,
@@ -1965,12 +2373,14 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     {
         var childDepth = depth + 1;
         var hasChildren = childrenByParent.TryGetValue(def.QualifiedName, out var children);
+        var hasUsages = usagesByOwner.TryGetValue(def.QualifiedName, out var usages);
 
-        // When the depth limit forbids def's nested children from being rendered at all, def stays a
-        // leaf whose last compartment is the specification's trailing "…" row (see
-        // WithTruncationRow) instead of becoming a container around a placeholder box. None of the
-        // hidden children receive a node, so every edge touching one is dropped.
-        var isTruncated = hasChildren && depthLimit > 0 && depthLimit <= childDepth;
+        // When the depth limit forbids def's nested children (nested definitions and the usages it
+        // owns) from being rendered at all, def stays a leaf whose last compartment is the
+        // specification's trailing "…" row (see WithTruncationRow) instead of becoming a container
+        // around a placeholder box. None of the hidden children receive a node, so every edge
+        // touching one is dropped.
+        var isTruncated = (hasChildren || hasUsages) && depthLimit > 0 && depthLimit <= childDepth;
         if (isTruncated)
         {
             def = WithTruncationRow(def, theme);
@@ -1980,7 +2390,23 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         located[def.QualifiedName] = new Location(node, scope);
         AddAnnotationNote(scope.Graph, def, node, theme);
 
-        if (!hasChildren || isTruncated)
+        if (isTruncated)
+        {
+            return;
+        }
+
+        // The usages the box owns are placed in the box's own scope, beside it: an edge between a
+        // container and one of its own descendants is not drawn, so a usage can never be nested in
+        // the owner it is joined to.
+        if (hasUsages)
+        {
+            foreach (var usage in usages!)
+            {
+                PlaceDef(usage, scope, childrenByParent, usagesByOwner, located, theme, childDepth, depthLimit);
+            }
+        }
+
+        if (!hasChildren)
         {
             return;
         }
@@ -1990,7 +2416,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
 
         foreach (var child in children!)
         {
-            PlaceDef(child, childScope, childrenByParent, located, theme, childDepth, depthLimit);
+            PlaceDef(child, childScope, childrenByParent, usagesByOwner, located, theme, childDepth, depthLimit);
         }
     }
 
@@ -2030,6 +2456,11 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         node.Shape = def.IsUsage ? BoxShape.RoundedRectangle : BoxShape.Rectangle;
         node.Keyword = def.Keyword;
         node.Compartments = def.Compartments;
+        if (def.Appearance is { } appearance)
+        {
+            node.Appearance = appearance;
+        }
+
         return node;
     }
 
