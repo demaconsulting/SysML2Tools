@@ -252,6 +252,47 @@ specialization or typing that crosses from one package into another — as a con
 two definition boxes themselves. The repository's diagram gallery shows both in the example
 `11-nested-packages-general.sysml`.
 
+### State Transition and Action Flow View Notation
+
+The State Transition View and the Action Flow View draw a behavior with the notation of SysML v2
+(graphical notation, clause 8.2.3). Every construct below comes from the textual model; the
+repository's diagram gallery shows them in `03-elevator-state.sysml`,
+`04-pipeline-action-flow.sysml`, and the two small showcase models `12-heater-state.sysml` and
+`13-order-action-flow.sysml`.
+
+State Transition View:
+
+| Textual form | Drawn as |
+| --- | --- |
+| `state s { entry action a; }` | an `entry`/`do`/`exit` compartment per kind, with a centered italic title |
+| `state s : Type;` | `s : Type` as the state's name line |
+| `accept t if g do action e then s2;` | a transition labeled `t [g] / e`; each part appears only when declared |
+| `first start then s;` | the initial state: a filled circle and an open arrow into `s` |
+| `then done;` | a final state: one bullseye that every `done` transition reaches |
+
+An undeclared initial transition draws no initial marker. A composite state (one with nested states)
+is drawn as an ordinary box and its nested states are not drawn.
+
+Action Flow View:
+
+| Textual form | Drawn as |
+| --- | --- |
+| `fork f;` / `join j;` | a thick bar with no label, long enough for its connections |
+| `decide d;` / `merge m;` | a diamond |
+| `if g then a;` | the succession labeled `[g]` |
+| `else a;` | the succession labeled `else` |
+| `terminate;` | a crossed circle; a flow that ends in it has no done marker |
+| `action a accept Signal;` | a box with the accept icon in its corner and the payload `accept Signal` in its body |
+| `action a send msg to target;` | a box with the send icon in its corner and the payload in its body |
+| `action a : Type [2];` | `«action» a : Type [2]` |
+| `first start then a;` / `then done;` | the start marker enters `a` / the done marker follows the action |
+
+Without an explicit `first start` or `then done` the start marker enters the actions that have no
+predecessor and the done marker follows the actions that have no successor (not counting a terminate
+node). A model that uses `then done;` reports the lint warning `Unresolved reference: 'done'`;
+the diagram is unaffected. Nested actions, action parameters, swim-lanes, and control structures
+(`if`, `while`, `for`) are not drawn.
+
 ## View Body Statements
 
 A `view def`/`view` declaration's body may contain `render <target>;` and `filter [<expr>];`
@@ -870,7 +911,7 @@ names are written exactly as shown (no case conversion), like the other node pro
 | `ValueText` | usages | the value clause as written, operator included: `"= 5 [kg]"`, `":= 3"` |
 | `ReferenceSubsettingName` | usages | the raw target of `::>` / `references` |
 | `ConjugatedFeatureTyping` | usages | the raw type name of a conjugated typing (`port p : ~PortT` gives `"PortT"`) |
-| `ActionText` | `entry`/`do`/`exit` actions, `accept`/`send` nodes | the action declaration or payload as written (`accept Signal`, `send report to oncall`), body excluded |
+| `ActionText` | `entry`/`do`/`exit` actions, `accept`/`send` nodes | the declaration or payload, body excluded |
 | `IsParallel` | state definitions, state usages | declared `parallel` |
 | `Trigger`, `Effect` | transitions | the text after `accept` and after `do`, as written |
 | `IsElse` | action successions | declared with `else` (the default branch of a `decide` node) |

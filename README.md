@@ -51,6 +51,9 @@ analysis][workflow]
 - **GeneralView Layout**: Package-grouped definition block diagrams placed by a layered (ELK-style)
   engine with orthogonal specialization and membership edges, a spec-style black-on-white notation,
   compartments, and configurable depth limiting
+- **State and Action Flow Layouts**: Spec-style state machines (entry/do/exit compartments,
+  `trigger [guard] / effect` labels, initial and final states) and action flows (thick fork/join
+  bars, guarded decisions, accept/send icons, terminate nodes)
 - **SVG Output**: Zero external dependencies
 - **PNG Output**: Pixel-identical across Windows, Linux, and macOS via CanvasNet and an
   embedded Noto Sans font
