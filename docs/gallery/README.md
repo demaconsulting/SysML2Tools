@@ -51,12 +51,15 @@ Each part usage (`airframe`, `controller`, `motors`, and so on) is drawn as its 
 labeled `name : Type`, joined to its owner `Drone` by a filled-diamond composition edge and to
 the definition that types it, drawn below it, by a feature-typing edge (a hollow triangle with
 two dots at the definition). Definitions that nothing refers to are packed together beside the
-main diagram. See [section 12](#12-general-view--usages-typing-subsetting-and-redefinition) for
+main diagram. See [section 14](#14-general-view--usages-typing-subsetting-and-redefinition) for
 the usage notation in a small model of its own.
 
 `RacingMotor` also redefines `Motor`'s inherited `maxThrust` attribute
-(`attribute :>> maxThrust : Mass;`), demonstrating the hollow-triangle-crossbar
-marker used for `redefines`/`:>>` relationships.
+(`attribute :>> maxThrust : Mass;`). An attribute is a compartment row, so the redefinition
+is shown as the row `maxThrust : Mass :>> maxThrust` in the `attributes` compartment and not
+as a connector. The hollow-triangle-with-crossbar marker of a redefinition appears when a usage
+that is drawn as a node redefines another usage; see
+[section 14](#14-general-view--usages-typing-subsetting-and-redefinition) (`mainMotor :>> main`).
 
 `Drone`'s `connect controller.power to battery.output;` statement demonstrates
 the plain, unmarked solid line used for `connect` between two sibling parts'
@@ -381,8 +384,9 @@ folders and ends on the definition boxes, not on the folder borders. Specializat
 package (`ElectricMotor :> Engine`, `SportsChassis :> Chassis`) stay inside that package's folder.
 
 The diagram flows top-to-bottom: `Car` and its usages on top, the definitions below. The
-`Hybrid` specialization leads from `Engine` down into the `Body` folder, so the `Powertrain` folder
-is drawn above the `Body` folder. [Section 14](#14-general-view--nested-packages-and-feature-typing)
+`Hybrid` specialization starts in the `Body` folder and points up to `Engine`, so the `Powertrain`
+folder is drawn above the `Body` folder. Its connector crosses the `ElectricMotor` to `Engine`
+line once (an engine routing outcome). [Section 16](#16-general-view--nested-packages-and-feature-typing)
 shows the same package structure without `Hybrid`, side by side.
 
 Model: [`models/11-nested-packages-general.sysml`](models/11-nested-packages-general.sysml) ·
@@ -392,7 +396,7 @@ SVG: [`svg/VehiclePackagesGeneralView.svg`](svg/VehiclePackagesGeneralView.svg)
 
 ---
 
-## 12. General View — Usages, Typing, Subsetting and Redefinition
+## 14. General View — Usages, Typing, Subsetting and Redefinition
 
 A small model (`DriveSystem`) that shows how a General View draws **usages** as nodes and
 every relationship a usage can have:
@@ -413,14 +417,14 @@ every relationship a usage can have:
 - `main` owns a `doc` and a `comment`: the documentation is a `doc` compartment inside the
   box and the comment is a note attached by a dashed line.
 
-Model: [`models/12-usages-typing-general.sysml`](models/12-usages-typing-general.sysml) ·
+Model: [`models/14-usages-typing-general.sysml`](models/14-usages-typing-general.sysml) ·
 SVG: [`svg/DriveUnitGeneralView.svg`](svg/DriveUnitGeneralView.svg)
 
 ![Drive Unit General View: part usages as rounded boxes with typing, subsetting and redefinition edges, a dashed reference usage, and an abstract definition with an italic name](png/DriveUnitGeneralView.png)
 
 ---
 
-## 13. General View — Documentation and Comments on Nested Parts
+## 15. General View — Documentation and Comments on Nested Parts
 
 A minimal model (`ChargingStation`) that isolates how a General View draws annotations owned
 by a nested part usage. `Charger` owns the part usages `cable : Cable` and `plug : Plug`.
@@ -428,14 +432,14 @@ Documentation owned by a usage is drawn as a `doc` compartment inside that usage
 `cable` and `plug`). A comment owned by a usage is drawn as a separate folded-corner note,
 attached to the usage's box by a dashed line with no arrowhead (the note below `cable`).
 
-Model: [`models/13-doc-comment-general.sysml`](models/13-doc-comment-general.sysml) ·
+Model: [`models/15-doc-comment-general.sysml`](models/15-doc-comment-general.sysml) ·
 SVG: [`svg/ChargerGeneralView.svg`](svg/ChargerGeneralView.svg)
 
 ![Charger General View: nested part usages cable and plug with doc compartments, and a comment note attached to cable](png/ChargerGeneralView.png)
 
 ---
 
-## 14. General View — Nested Packages and Feature Typing
+## 16. General View — Nested Packages and Feature Typing
 
 The `Vehicle` package of section 11 without the cross-package specialization, which keeps the
 diagram small: `Powertrain` and `Body` are folders inside the `Vehicle` folder, each showing its
@@ -443,7 +447,7 @@ name in its tab because it holds content. `Car`'s `engine` and `chassis` part us
 below `Car`, joined to it by filled-diamond composition edges, and each is joined to the
 definition that types it inside a nested folder by a feature-typing edge.
 
-Model: [`models/14-nested-packages-typing-general.sysml`](models/14-nested-packages-typing-general.sysml) ·
+Model: [`models/16-nested-packages-typing-general.sysml`](models/16-nested-packages-typing-general.sysml) ·
 SVG: [`svg/VehicleTypingGeneralView.svg`](svg/VehicleTypingGeneralView.svg)
 
 ![Vehicle Typing General View: Powertrain and Body folders nested inside the Vehicle folder, with the engine and chassis part usages typed by definitions inside them](png/VehicleTypingGeneralView.png)
@@ -511,6 +515,6 @@ single-column flows; the State Transition images (Elevator 23.8 %, Heater 22.9 %
 | 11 | General View — Nested Packages | Vehicle Packages | ✅ |
 | 12 | State Transition View — notation showcase | Heater | ✅ |
 | 13 | Action Flow View — notation showcase | Order Handling | ✅ |
-| 12 | General View — Usages, Typing, Subsetting, Redefinition | Drive Unit | ✅ |
-| 13 | General View — Documentation and Comments on Nested Parts | Charging Station | ✅ |
-| 14 | General View — Nested Packages and Feature Typing | Vehicle Typing | ✅ |
+| 14 | General View — Usages, Typing, Subsetting, Redefinition | Drive Unit | ✅ |
+| 15 | General View — Documentation and Comments on Nested Parts | Charging Station | ✅ |
+| 16 | General View — Nested Packages and Feature Typing | Vehicle Typing | ✅ |

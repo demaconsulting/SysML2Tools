@@ -280,7 +280,10 @@ Lines are solid, except imports, dependencies, and comment links, which are dash
 | Open arrowhead, `«satisfy»` or `«verify»` | A design element satisfies, or a verification verifies, a requirement |
 | Dashed, open arrowhead, `«import»` | Package import; `«import»*` for `::*` and `«import»**` for `::**` |
 | Dashed, no arrowhead, to a folded note | A `comment` on the element (documentation is a `doc` compartment) |
-| Plain line, `=`, dashed arrow, `«allocate»` | `connect`, `bind`, `dependency`, and `allocate` relationships |
+| Plain solid line, no end marker | `connect` between two features |
+| Plain solid line labeled `=` | `bind` between two features |
+| Dashed line with an open arrowhead | `dependency` |
+| Solid line with an open arrowhead, `«allocate»` | `allocate` |
 
 The documentation and comments of a nested part appear on that part's own box. Satisfy, verify, and
 import lines are drawn only when both ends are drawn in the view, and the standard library is never
@@ -292,9 +295,9 @@ folder, and it draws every relationship between two drawn definitions — includ
 specialization or typing that crosses from one package into another — as a connector between the
 two definition boxes themselves. The repository's diagram gallery shows these in the examples
 `11-nested-packages-general.sysml` (nested packages and cross-package edges),
-`12-usages-typing-general.sysml` (usages, typing, subsetting, redefinition, reference and abstract
-styling), `13-doc-comment-general.sysml` (documentation and comments on nested parts), and
-`14-nested-packages-typing-general.sysml` (nested packages with typed usages).
+`14-usages-typing-general.sysml` (usages, typing, subsetting, redefinition, reference and abstract
+styling), `15-doc-comment-general.sysml` (documentation and comments on nested parts), and
+`16-nested-packages-typing-general.sysml` (nested packages with typed usages).
 
 ### State Transition and Action Flow View Notation
 

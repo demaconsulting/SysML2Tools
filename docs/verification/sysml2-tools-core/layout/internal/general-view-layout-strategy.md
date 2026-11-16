@@ -272,12 +272,12 @@ Because the diagram flows top-to-bottom, C8 is applied in the top-to-bottom read
   names in tabs, no edges.
 - `11`, `VehiclePackagesGeneralView`: nested folders, cross-package specialization, typing glyph at
   `Engine` and `Chassis`, no crossing.
-- `12`, `DriveUnitGeneralView`: square definitions, rounded usages, dashed `«ref part»`,
+- `14`, `DriveUnitGeneralView`: square definitions, rounded usages, dashed `«ref part»`,
   `«abstract part def»` with an italic name, ◆ versus ◇ at the owner, typing, subsetting, redefinition,
   and specialization glyphs, `doc` compartment, note.
-- `13`, `ChargerGeneralView`: `doc` compartments and the dashed comment link without arrowhead on
+- `15`, `ChargerGeneralView`: `doc` compartments and the dashed comment link without arrowhead on
   nested parts.
-- `14`, `VehicleTypingGeneralView`: tab names, ◆ at `Car`, typing glyph with dots at the definition,
+- `16`, `VehicleTypingGeneralView`: tab names, ◆ at `Car`, typing glyph with dots at the definition,
   triangles.
 
 Known limitations accepted for the PR, each caused by the layout engine and not hand-tuned: in

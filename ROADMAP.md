@@ -28,7 +28,7 @@ flat whole-workspace General View plus a single subsystem view:
 - A subsystem-boundary view showing cross-subsystem `dependency` edges without full
   implementation detail.
 - A variant/specialization view showing `abstract` definitions and variants alongside the
-  subsetting and redefinition that gallery model 12 already shows on a drive unit.
+  subsetting and redefinition that gallery model 14 already shows on a drive unit.
 
 This also exercises `--filter`'s metadata classification-test path (e.g. tagging parts with
 `@Critical`/`@Requirement` metadata) rather than only the bracket/expose-subtree path the
