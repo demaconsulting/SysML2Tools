@@ -117,6 +117,9 @@ external services or additional configuration are required beyond a standard .NE
 - A transition's `Trigger` and `Effect` are captured verbatim for the full and attached forms
   (null for the entry-attached and action-flow forms and for empty effects), with `Guard`
   unchanged.
+- A succession declared with `else` sets `IsElse` (and has no guard); a `terminate` node produces a
+  `terminate` feature (synthetic name when unnamed); an action usage captures its typing and
+  multiplicity; `accept` and `send` nodes capture their payload clause as `ActionText`.
 
 ##### Test Scenarios
 
@@ -206,4 +209,8 @@ external services or additional configuration are required beyond a standard .NE
 | State entry/do/exit action declaration text | `WorkspaceLoader_LoadAsync_StateEntryDoExitActions_CaptureActionText` |
 | Empty state entry action | `WorkspaceLoader_LoadAsync_EmptyStateEntryAction_ActionTextNull` |
 | `parallel` state | `WorkspaceLoader_LoadAsync_ParallelState_SetsIsParallel` |
+| `else` succession sets `IsElse` | `WorkspaceLoader_LoadAsync_ElseSuccession_SetsIsElse` |
+| `terminate` node | `WorkspaceLoader_LoadAsync_TerminateNode_ProducesTerminateFeature` |
+| Action usage typing and multiplicity | `WorkspaceLoader_LoadAsync_ActionUsage_CapturesTypingAndMultiplicity` |
+| Accept/send payload text | `WorkspaceLoader_LoadAsync_AcceptSendNodes_CapturePayloadText` |
 | Plain model leaves new members at defaults | `WorkspaceLoader_LoadAsync_PlainModel_AllNewMembersDefault` |

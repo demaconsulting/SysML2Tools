@@ -870,13 +870,16 @@ names are written exactly as shown (no case conversion), like the other node pro
 | `ValueText` | usages | the value clause as written, operator included: `"= 5 [kg]"`, `":= 3"` |
 | `ReferenceSubsettingName` | usages | the raw target of `::>` / `references` |
 | `ConjugatedFeatureTyping` | usages | the raw type name of a conjugated typing (`port p : ~PortT` gives `"PortT"`) |
-| `ActionText` | `entry`/`do`/`exit` actions | the action declaration as written, body excluded |
+| `ActionText` | `entry`/`do`/`exit` actions, `accept`/`send` nodes | the action declaration or payload as written (`accept Signal`, `send report to oncall`), body excluded |
 | `IsParallel` | state definitions, state usages | declared `parallel` |
 | `Trigger`, `Effect` | transitions | the text after `accept` and after `do`, as written |
+| `IsElse` | action successions | declared with `else` (the default branch of a `decide` node) |
 
 Notes:
 
 - Text values keep the original spacing; they are never parsed or evaluated.
+- `terminate` nodes are exported as features with the `terminate` keyword, and an action usage now
+  exports its typing and multiplicity (`action build : BuildStep [2]`) like any other usage.
 - `ReferenceSubsettingName` and `ConjugatedFeatureTyping` are raw and unresolved: they produce no
   edge and no diagnostic, and a conjugated usage still has a `null` typing reference.
 - Only usages that become model elements carry a `Direction`. A bare parameter such as

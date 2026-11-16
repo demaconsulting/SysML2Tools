@@ -254,3 +254,17 @@ sections:
           - WorkspaceLoader_LoadAsync_TransitionTriggerGuardEffect_Captured
           - WorkspaceLoader_LoadAsync_AttachedTransition_CapturesTriggerGuardEffect
           - WorkspaceLoader_LoadAsync_SynthesizedSuccessions_TriggerEffectNull
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-TransitionIsElse
+        title: >-
+          SysmlTransitionNode shall expose IsElse, true only for a succession declared with
+          `else`, so that the default branch of a decision is distinguishable from an
+          unconditional succession.
+        justification: |
+          A decision's default branch carries no guard expression, so without a flag it is
+          indistinguishable from an unconditional succession and the notation cannot label it
+          `else`. The flag is omitted from serialized output when false.
+        tests:
+          - WorkspaceLoader_LoadAsync_ElseSuccession_SetsIsElse
+          - Serialize_NewModifierProperties_RoundTrip
+          - Serialize_DefaultModifierProperties_AreOmittedFromJson

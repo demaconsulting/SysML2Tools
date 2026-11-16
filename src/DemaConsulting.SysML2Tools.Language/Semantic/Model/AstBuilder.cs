@@ -505,12 +505,15 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         }
 
         var declaration = context.actionUsageDeclaration();
+        var specializationPart = declaration?.usageDeclaration()?.featureSpecializationPart();
         return ApplyFeatureNotation(
             new SysmlFeatureNode
             {
                 Name = name,
                 QualifiedName = QualifyName(name),
                 FeatureKeyword = "action",
+                FeatureTyping = ExtractFeatureTyping(specializationPart),
+                Multiplicity = ExtractMultiplicity(specializationPart),
             },
             declaration?.usageDeclaration(),
             declaration?.valuePart());
@@ -647,7 +650,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     (unguarded, target via a bare <see cref="SysMLv2Parser.ConnectorEndMemberContext"/>),
     ///     <c>guardedTargetSuccession</c> (<c>if ... then ...</c>, guard captured), and
     ///     <c>defaultTargetSuccession</c> (<c>else ...</c>, no guard expression exists in the
-    ///     grammar for this alternative — a known, documented simplification). The trailing
+    ///     grammar for this alternative; it is flagged with <see cref="SysmlTransitionNode.IsElse"/>
+    ///     so it can be told apart from an unconditional succession). The trailing
     ///     <c>usageBody()</c> is ignored, mirroring <see cref="BuildAttachedTransition"/>'s
     ///     treatment of <c>targetTransitionUsage</c>'s own trailing <c>actionBody()</c>.
     /// </summary>
@@ -682,6 +686,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 Source = sourceName,
                 Target = ConnectorEndReference(
                     defaultTargetSuccession.transitionSuccessionMember()?.transitionSuccession()?.connectorEndMember()),
+                IsElse = true,
             };
         }
 
@@ -715,8 +720,12 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     /// <inheritdoc/>
     public override SysmlNode? VisitAcceptNode(SysMLv2Parser.AcceptNodeContext context)
     {
-        var declaration = context.acceptNodeDeclaration()?.actionNodeUsageDeclaration();
-        return BuildActionNodeFeature(declaration?.usageDeclaration(), "accept");
+        var declaration = context.acceptNodeDeclaration();
+        var payload = OriginalTextOrNull(declaration?.acceptParameterPart());
+        return BuildActionNodeFeature(
+            declaration?.actionNodeUsageDeclaration()?.usageDeclaration(),
+            "accept",
+            payload is null ? null : $"accept {payload}");
     }
 
     /// <inheritdoc/>
@@ -724,13 +733,20 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     {
         var declaration = context.actionNodeUsageDeclaration()?.usageDeclaration()
             ?? context.actionUsageDeclaration()?.usageDeclaration();
-        return BuildActionNodeFeature(declaration, "send");
+        var payload = OriginalTextSpanOrNull(context.nodeParameterMember(), context.senderReceiverPart());
+        return BuildActionNodeFeature(declaration, "send", payload is null ? null : $"send {payload}");
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitTerminateNode(SysMLv2Parser.TerminateNodeContext context)
+    {
+        return BuildActionNodeFeature(context.actionNodeUsageDeclaration()?.usageDeclaration(), "terminate");
     }
 
     /// <summary>
     ///     Builds a minimal, deliberately non-behavioral <see cref="SysmlFeatureNode"/> for a
-    ///     <c>merge</c>/<c>decide</c>/<c>join</c>/<c>fork</c>/<c>accept</c>/<c>send</c> action-flow
-    ///     control node, registering only its (possibly synthesized) name with no children. When
+    ///     <c>merge</c>/<c>decide</c>/<c>join</c>/<c>fork</c>/<c>accept</c>/<c>send</c>/<c>terminate</c>
+    ///     action-flow node, registering only its (possibly synthesized) name with no children. When
     ///     <paramref name="decl"/> yields no declared name — the dominant real-world idiom for
     ///     <c>fork</c>/<c>decide</c>/<c>send</c> per the OMG training corpus (e.g. <c>then fork;</c>
     ///     immediately followed by several <c>then &lt;name&gt;;</c> successions) — a synthetic
@@ -744,11 +760,17 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     <see cref="QualifyName"/> so it is registered in the symbol table and correctly subject
     ///     to expose-scope filtering, mirroring <see cref="BuildStateActionFeatureNode"/>. The
     ///     nested <c>actionBody</c>'s internal semantics are deliberately NOT modeled, mirroring
-    ///     <see cref="BuildStateActionFeatureNode"/>. <c>assignmentNode</c>/<c>terminateNode</c>/
-    ///     <c>ifNode</c>/<c>whileLoopNode</c>/<c>forLoopNode</c> remain an intentional, out-of-scope
+    ///     <see cref="BuildStateActionFeatureNode"/>. <c>assignmentNode</c>/<c>ifNode</c>/
+    ///     <c>whileLoopNode</c>/<c>forLoopNode</c> remain an intentional, out-of-scope
     ///     gap — not handled here or anywhere else in <see cref="AstBuilder"/>.
     /// </summary>
-    private SysmlFeatureNode BuildActionNodeFeature(SysMLv2Parser.UsageDeclarationContext? decl, string keyword)
+    /// <param name="decl">The node's usage declaration, or null when it declares none.</param>
+    /// <param name="keyword">The node keyword stored as <see cref="SysmlFeatureNode.FeatureKeyword"/>.</param>
+    /// <param name="actionText">The payload text to expose as <see cref="SysmlFeatureNode.ActionText"/>, or null.</param>
+    private SysmlFeatureNode BuildActionNodeFeature(
+        SysMLv2Parser.UsageDeclarationContext? decl,
+        string keyword,
+        string? actionText = null)
     {
         var declaredName = GetDeclaredName(decl?.identification());
         var name = declaredName ?? $"${keyword}{_anonymousNodeCounter++}";
@@ -761,6 +783,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
                 FeatureKeyword = keyword,
                 Children = Array.Empty<SysmlNode>(),
                 Annotations = Array.Empty<SysmlAnnotation>(),
+                ActionText = actionText,
             },
             decl,
             null);
@@ -2147,6 +2170,27 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         }
 
         return GetOriginalText(context);
+    }
+
+    /// <summary>
+    ///     Returns the original text spanning the present contexts among <paramref name="parts"/>
+    ///     (from the earliest start to the latest stop, preserving the inter-token spacing), or
+    ///     null when none of them matched any tokens.
+    /// </summary>
+    private static string? OriginalTextSpanOrNull(params Antlr4.Runtime.ParserRuleContext?[] parts)
+    {
+        var present = parts
+            .Where(p => p?.Start is not null && p.Stop is not null && p.Stop.StopIndex >= p.Start.StartIndex)
+            .Select(p => p!)
+            .ToList();
+        if (present.Count == 0)
+        {
+            return null;
+        }
+
+        var start = present.Min(p => p.Start.StartIndex);
+        var stop = present.Max(p => p.Stop.StopIndex);
+        return present[0].Start.InputStream.GetText(new Antlr4.Runtime.Misc.Interval(start, stop));
     }
 
     /// <summary>Extracts the <c>viewRenderingMember()</c> accessor common to both view body item types.</summary>

@@ -6484,6 +6484,121 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A succession declared with <c>else</c> is flagged <c>IsElse</c> and carries no guard; a
+    ///     guarded and an unconditional succession are not flagged.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ElseSuccession_SetsIsElse()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def A {
+                    action a;
+                    action b;
+                    action c;
+                    first a then d1;
+                    decide d1;
+                    if ok then b;
+                    else c;
+                    first b then c;
+                }
+            }
+            """);
+
+        // Assert
+        var successions = DefinitionAt(result, "P::A").Children.OfType<SysmlTransitionNode>().ToList();
+        var elseBranch = Assert.Single(successions, t => t.IsElse);
+        Assert.Equal("d1", elseBranch.Source);
+        Assert.Equal("c", elseBranch.Target);
+        Assert.Null(elseBranch.Guard);
+        var guarded = Assert.Single(successions, t => t.Guard == "ok");
+        Assert.False(guarded.IsElse);
+        Assert.Equal("b", guarded.Target);
+        Assert.All(successions.Where(t => t != elseBranch), t => Assert.False(t.IsElse));
+    }
+
+    /// <summary>
+    ///     A <c>terminate</c> node becomes a feature with the <c>terminate</c> keyword; an unnamed one
+    ///     receives a synthetic name and can be the target of a succession.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_TerminateNode_ProducesTerminateFeature()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def A {
+                    action a;
+                    then terminate;
+                    action b;
+                    then action halt terminate;
+                }
+            }
+            """);
+
+        // Assert
+        var children = DefinitionAt(result, "P::A").Children;
+        var terminates = children.OfType<SysmlFeatureNode>().Where(f => f.FeatureKeyword == "terminate").ToList();
+        Assert.Equal(2, terminates.Count);
+        Assert.Contains(terminates, t => t.Name is not null && t.Name.StartsWith("$terminate", StringComparison.Ordinal));
+        Assert.Contains(terminates, t => t.Name == "halt");
+        Assert.Contains(children.OfType<SysmlTransitionNode>(), t => t.Source == "a" && t.Target is not null);
+    }
+
+    /// <summary>
+    ///     An action usage captures its feature typing and multiplicity.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ActionUsage_CapturesTypingAndMultiplicity()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def Step;
+                action def A {
+                    action single : Step;
+                    action many : Step [2];
+                    action plain;
+                }
+            }
+            """);
+
+        // Assert
+        var children = DefinitionAt(result, "P::A").Children.OfType<SysmlFeatureNode>().ToList();
+        Assert.Equal("Step", children.Single(f => f.Name == "single").FeatureTyping);
+        var many = children.Single(f => f.Name == "many");
+        Assert.Equal("Step", many.FeatureTyping);
+        Assert.Equal("[2]", many.Multiplicity);
+        var plain = children.Single(f => f.Name == "plain");
+        Assert.Null(plain.FeatureTyping);
+        Assert.Null(plain.Multiplicity);
+    }
+
+    /// <summary>
+    ///     <c>accept</c> and <c>send</c> nodes keep their payload clause (original spacing) as action
+    ///     text.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_AcceptSendNodes_CapturePayloadText()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def A {
+                    action waitForIt accept Approval;
+                    action tell send report to oncall;
+                }
+            }
+            """);
+
+        // Assert
+        var children = DefinitionAt(result, "P::A").Children.OfType<SysmlFeatureNode>().ToList();
+        Assert.Equal("accept Approval", children.Single(f => f.Name == "waitForIt").ActionText);
+        Assert.Equal("send report to oncall", children.Single(f => f.Name == "tell").ActionText);
+    }
+
+    /// <summary>
     ///     <c>parallel</c> on a state definition or state usage sets <c>IsParallel</c>.
     /// </summary>
     [Fact]

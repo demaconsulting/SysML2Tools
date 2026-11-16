@@ -135,6 +135,9 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
   original whitespace and are captured only for the full `transition ...` form and attached
   transitions; transitions synthesized from an entry action's attached successions or an
   action-flow target succession leave them null.
+- `IsElse` — `true` only for an action-flow succession declared with `else` (the default branch of
+  a `decide` node, which has no guard expression); `false` otherwise. Omitted from serialized output
+  when `false`.
 
 `SysmlSatisfyNode` adds:
 
@@ -240,9 +243,10 @@ and data written before the members existed deserializes with all of them at the
 | `ReferenceSubsettingName` | feature | raw target of `::>`/`references`; unresolved, produces no edge |
 | `ConjugatedFeatureTyping` | feature | raw name after `~` in a conjugated port typing; unresolved |
 | `IsConjugated` | feature | computed (`ConjugatedFeatureTyping is not null`); not serialized |
-| `ActionText` | feature | declaration text of an `entry`/`do`/`exit` sub-action, body excluded |
+| `ActionText` | feature | declaration text of an `entry`/`do`/`exit` sub-action, or the payload of an `accept`/`send` node, body excluded |
 | `IsParallel` | definition, feature | `state def`/`state` declared `parallel` |
 | `Trigger`, `Effect` | transition | verbatim trigger and effect text |
+| `IsElse` | transition | succession declared with `else` |
 
 `ReferenceSubsettingName` and `ConjugatedFeatureTyping` are deliberately **not** merged into
 `SupertypeNames` or `FeatureTyping`: doing so would add `Supertype`/`Typing` edges and change

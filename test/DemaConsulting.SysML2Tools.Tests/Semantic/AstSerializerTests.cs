@@ -387,6 +387,7 @@ public sealed class AstSerializerTests
             Target = "b",
             Trigger = "sig via pp",
             Effect = "act",
+            IsElse = true,
         });
 
         // Act
@@ -417,6 +418,7 @@ public sealed class AstSerializerTests
         var tr = Assert.IsType<SysmlTransitionNode>(result.Symbols["tr"]);
         Assert.Equal("sig via pp", tr.Trigger);
         Assert.Equal("act", tr.Effect);
+        Assert.True(tr.IsElse);
     }
 
     /// <summary>
@@ -440,7 +442,7 @@ public sealed class AstSerializerTests
                  {
                      "IsAbstract", "IsVariation", "IsIndividual", "IsParallel", "IsVariant", "IsReference",
                      "Direction", "IsOrdered", "IsNonunique", "ValueText", "ReferenceSubsettingName",
-                     "ConjugatedFeatureTyping", "IsConjugated", "ActionText", "Trigger", "Effect",
+                     "ConjugatedFeatureTyping", "IsConjugated", "ActionText", "Trigger", "Effect", "IsElse",
                  })
         {
             Assert.DoesNotContain($"\"{name}\"", json);
