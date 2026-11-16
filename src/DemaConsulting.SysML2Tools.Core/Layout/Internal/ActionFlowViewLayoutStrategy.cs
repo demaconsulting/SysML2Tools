@@ -70,6 +70,12 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
     /// </summary>
     private const double MarkerLayerGap = 70.0;
 
+    /// <summary>
+    /// How far below its source a labeled branch's horizontal run is placed: the 4 px corner radius of
+    /// the connector's rounded bends plus 1 px, the shortest first run whose bend still starts on the
+    /// connector's own vertical stub, which leaves the final drop as long as possible.
+    /// </summary>
+    private const double JogClearance = 5.0;
     /// <summary>The reserved name of the start pseudo-node (<c>first start;</c>).</summary>
     private const string StartName = "start";
 
@@ -539,6 +545,7 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
         List<LayoutNode> nodes)
     {
         var crossings = 0;
+        var drawn = new List<(int Edge, string? Label, List<Point2D> Waypoints)>();
         for (var e = 0; e < edges.Count; e++)
         {
             var (from, to, label) = edges[e];
@@ -552,8 +559,14 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
 
             StraightenThroughBar(waypoints, actions[from], rects[from], edges.Count(x => x.From == from), actions[to], rects[to], edges.Count(x => x.To == to));
             SnapEndsToBadges(waypoints, actions[from], rects[from], actions[to], rects[to]);
+            drawn.Add((e, label, waypoints));
+        }
 
-            if (CrossesNonEndpointBox(waypoints, rects, from, to))
+        MoveLabeledJogsTowardsSource(edges, drawn);
+
+        foreach (var (e, label, waypoints) in drawn)
+        {
+            if (CrossesNonEndpointBox(waypoints, rects, edges[e].From, edges[e].To))
             {
                 crossings++;
             }
@@ -568,6 +581,53 @@ internal sealed class ActionFlowViewLayoutStrategy : ILayoutStrategy
 
         return crossings;
     }
+
+    /// <summary>
+    /// Moves the horizontal run of a labeled down-across-down (Z) branch up to just below its source, so
+    /// the branch's final vertical drop, not the horizontal run, is its longest segment and carries the
+    /// label. The label placer centers a label on the longest segment of its connector; on a decision's
+    /// branch the engine puts the jog a corridor-width above the target, so the sideways run is the
+    /// longest and a wide <c>[guard]</c> would sit on it, hiding the run and the connector's start at the
+    /// diamond. All the Z branches that leave one source are moved by the same amount (the smallest first
+    /// run less <see cref="JogClearance"/>), which keeps the spacing between sibling lanes, so two
+    /// branches never share a horizontal run. The move is made only when the final drop then becomes
+    /// longer than every labeled branch's horizontal run; otherwise the engine's route is kept.
+    /// </summary>
+    private static void MoveLabeledJogsTowardsSource(
+        IReadOnlyList<SuccessionItem> edges,
+        IReadOnlyList<(int Edge, string? Label, List<Point2D> Waypoints)> drawn)
+    {
+        foreach (var branches in drawn.Where(d => IsDownAcrossDown(d.Waypoints)).GroupBy(d => edges[d.Edge].From))
+        {
+            var group = branches.ToList();
+            if (group.All(b => b.Label is null))
+            {
+                continue;
+            }
+
+            var delta = group.Min(b => b.Waypoints[1].Y - b.Waypoints[0].Y) - JogClearance;
+            if (delta <= 0.5 || group.Where(b => b.Label is not null).Any(b =>
+                    b.Waypoints[3].Y - (b.Waypoints[1].Y - delta) <= Math.Abs(b.Waypoints[2].X - b.Waypoints[1].X)))
+            {
+                continue;
+            }
+
+            foreach (var (_, _, waypoints) in group)
+            {
+                waypoints[1] = waypoints[1] with { Y = waypoints[1].Y - delta };
+                waypoints[2] = waypoints[2] with { Y = waypoints[2].Y - delta };
+            }
+        }
+    }
+
+    /// <summary>Returns whether a polyline is a four-point connector that runs down, across, then down.</summary>
+    private static bool IsDownAcrossDown(IReadOnlyList<Point2D> waypoints) =>
+        waypoints.Count == 4 &&
+        Math.Abs(waypoints[0].X - waypoints[1].X) < 1e-6 &&
+        Math.Abs(waypoints[1].Y - waypoints[2].Y) < 1e-6 &&
+        Math.Abs(waypoints[2].X - waypoints[3].X) < 1e-6 &&
+        waypoints[0].Y < waypoints[1].Y &&
+        waypoints[1].Y < waypoints[3].Y;
 
     /// <summary>
     /// Removes the small sideways jog from a connector whose bar end may sit anywhere along the bar. The

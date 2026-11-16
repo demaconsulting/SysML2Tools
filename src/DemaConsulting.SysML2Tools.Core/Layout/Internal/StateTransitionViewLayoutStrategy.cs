@@ -67,6 +67,22 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     private const double FrameInset = 2.0;
 
     /// <summary>
+    /// Vertical padding the renderers' opaque label background adds around the text rectangle the label
+    /// placer reasons about; a label is only clear of a box or a connector end when it is clear with this
+    /// padding. The placer's rectangle is already wider than the rendered text, so no horizontal padding is added.
+    /// </summary>
+    private const double LabelBackgroundPad = 4.0;
+
+    /// <summary>Extra spacing, beyond the two widest labels' half widths, that a widened face keeps between anchors.</summary>
+    private const double LabelSpacingSlack = 8.0;
+
+    /// <summary>
+    /// Most times the states are re-laid-out with wider boxes to spread colliding sibling labels
+    /// (see <c>WidenForLabelClearance</c>); a best-effort bound, so the layout always terminates.
+    /// </summary>
+    private const int MaxWideningPasses = 3;
+
+    /// <summary>
     /// A state with its computed box size, displayed name line, and entry/do/exit compartments. A
     /// final item (<paramref name="IsFinal"/>) is the shared completion pseudo-state drawn as a badge
     /// rather than a box.
@@ -105,34 +121,14 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         }
 
         var transitions = ResolveTransitions(root, index, states);
-
-        // Place state boxes with the layered algorithm flowing top-to-bottom (down). Non-self
-        // transitions become directed edges; the algorithm's cycle-breaking stage makes the (cyclic)
-        // state graph acyclic, so it tolerates back edges and loops. MergeParallelEdges is disabled so
-        // AddTransitions' 1:1 edgePolylines[e] indexing (see its own remarks) stays valid: with merging
-        // enabled, a back edge sharing a node pair with a forward edge (a cycle) collapses onto one
-        // shared line, leaving fewer routed lines than input transitions.
         var flowTransitions = transitions.Where(t => t.Source != t.Target).ToList();
-        var placed = LayeredPlacement.Place(
-            states.Select(s => (s.Width, s.Height)).ToList(),
-            flowTransitions.Select(t => (t.Source, t.Target)).ToList(),
-            LayoutFlowDirection.Down,
-            mergeParallelEdges: false,
-            edgeTargetEnd: EndMarkerStyle.OpenChevron);
 
-        // Compute the top-left of the content bounding box over the real state nodes and the screen
-        // offset that normalizes it into the canvas. The state definition is drawn as an enclosing
-        // frame (see below), so the top reserves room for the frame's «state def» title band and,
-        // only when an initial marker is drawn, for that marker and its arrow.
+        // The frame, margins and the initial marker do not depend on the state sizes, so they are
+        // fixed up front. The state definition is drawn as an enclosing frame (see below), so the top
+        // reserves room for the frame's «state def» title band and, only when an initial marker is
+        // drawn, for that marker and its arrow.
         var margin = theme.LabelPadding * 4.0;
         var titleArea = BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: true);
-        var minX = double.PositiveInfinity;
-        var minY = double.PositiveInfinity;
-        for (var i = 0; i < states.Count; i++)
-        {
-            minX = Math.Min(minX, placed.Rects[i].X);
-            minY = Math.Min(minY, placed.Rects[i].Y);
-        }
 
         // An initial marker exists only for an explicit initial transition (`first start then X;` or
         // an entry-action-sourced transition); the specification draws none for a state machine
@@ -140,47 +136,91 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         var initialIndex = FindInitialTargetIndex(root, pseudoSourceNames, index);
         var markerReserve = initialIndex is null ? 0.0 : InitialMarkerSize + InitialMarkerGap;
         var topReserve = titleArea + margin + markerReserve;
-        var offsetX = FrameInset + margin - minX;
-        var offsetY = FrameInset + topReserve - minY;
 
-        // Builds the state boxes, the final badge, the initial marker and the transition lines for a
-        // given horizontal offset, in the frame's absolute coordinate space.
-        (List<LayoutNode> Nodes, int Crossings) Assemble(double shiftX)
+        // Lays out the given states and returns the built nodes, the number of transitions that cross
+        // a state box, and each transition line with the transition it draws.
+        (List<LayoutNode> Nodes, int Crossings, List<(LayoutLine Line, TransitionItem Transition)> Lines) LayOutStates(
+            IReadOnlyList<StateItem> items)
         {
-            var stateRects = new Rect[states.Count];
-            for (var i = 0; i < states.Count; i++)
+            // Place state boxes with the layered algorithm flowing top-to-bottom (down). Non-self
+            // transitions become directed edges; the algorithm's cycle-breaking stage makes the
+            // (cyclic) state graph acyclic, so it tolerates back edges and loops. MergeParallelEdges is
+            // disabled so AddTransitions' 1:1 edgePolylines[e] indexing (see its own remarks) stays
+            // valid: with merging enabled, a back edge sharing a node pair with a forward edge (a
+            // cycle) collapses onto one shared line, leaving fewer routed lines than input transitions.
+            var placed = LayeredPlacement.Place(
+                items.Select(s => (s.Width, s.Height)).ToList(),
+                flowTransitions.Select(t => (t.Source, t.Target)).ToList(),
+                LayoutFlowDirection.Down,
+                mergeParallelEdges: false,
+                edgeTargetEnd: EndMarkerStyle.OpenChevron);
+
+            // Compute the top-left of the content bounding box over the real state nodes and the
+            // screen offset that normalizes it into the canvas.
+            var minX = double.PositiveInfinity;
+            var minY = double.PositiveInfinity;
+            for (var i = 0; i < items.Count; i++)
             {
-                stateRects[i] = new Rect(placed.Rects[i].X + shiftX, placed.Rects[i].Y + offsetY, states[i].Width, states[i].Height);
+                minX = Math.Min(minX, placed.Rects[i].X);
+                minY = Math.Min(minY, placed.Rects[i].Y);
             }
 
-            var built = new List<LayoutNode>();
+            var offsetX = FrameInset + margin - minX;
+            var offsetY = FrameInset + topReserve - minY;
 
-            // State boxes (rounded rectangles) and the final badge.
-            for (var i = 0; i < states.Count; i++)
+            // Builds the state boxes, the final badge, the initial marker and the transition lines for
+            // a given horizontal offset, in the frame's absolute coordinate space.
+            (List<LayoutNode> Nodes, int Crossings, List<(LayoutLine Line, TransitionItem Transition)> Lines) Assemble(double shiftX)
             {
-                built.Add(states[i].IsFinal ? MakeFinalBadge(stateRects[i]) : MakeStateBox(states[i], stateRects[i]));
+                var stateRects = new Rect[items.Count];
+                for (var i = 0; i < items.Count; i++)
+                {
+                    stateRects[i] = new Rect(placed.Rects[i].X + shiftX, placed.Rects[i].Y + offsetY, items[i].Width, items[i].Height);
+                }
+
+                var built = new List<LayoutNode>();
+
+                // State boxes (rounded rectangles) and the final badge.
+                for (var i = 0; i < items.Count; i++)
+                {
+                    built.Add(items[i].IsFinal ? MakeFinalBadge(stateRects[i]) : MakeStateBox(items[i], stateRects[i]));
+                }
+
+                // Initial pseudo-state entering the semantically-resolved initial target state.
+                if (initialIndex is { } initial)
+                {
+                    AddInitialMarker(stateRects[initial], built);
+                }
+
+                // Transition edges (with labels), mapped from the algorithm's routed polylines.
+                var drawn = new List<(LayoutLine, TransitionItem)>();
+                var crossingCount = AddTransitions(transitions, flowTransitions, placed.EdgePolylines, stateRects, shiftX, offsetY, built, drawn);
+                return (built, crossingCount, drawn);
             }
 
-            // Initial pseudo-state entering the semantically-resolved initial target state.
-            if (initialIndex is { } initial)
-            {
-                AddInitialMarker(stateRects[initial], built);
-            }
-
-            // Transition edges (with labels), mapped from the algorithm's routed polylines.
-            var crossingCount = AddTransitions(transitions, flowTransitions, placed.EdgePolylines, stateRects, shiftX, offsetY, built);
-            return (built, crossingCount);
+            // A transition label is centered on its placed position and may overhang the states on
+            // either side. When one overhangs the left edge of the frame content, shift everything
+            // right so the label keeps a margin inside the frame (the renderers would otherwise clip it).
+            var assembled = Assemble(offsetX);
+            var leftOverhang = FrameInset + theme.LabelPadding - LabelLeftExtent(assembled.Nodes, theme);
+            return leftOverhang > 0.0 ? Assemble(offsetX + leftOverhang) : assembled;
         }
 
-        // A transition label is centered on its placed position and may overhang the states on either
-        // side. When one overhangs the left edge of the frame content, shift everything right so the
-        // label keeps a margin inside the frame (the renderers would otherwise clip it).
-        var (nodes, crossings) = Assemble(offsetX);
-        var leftOverhang = FrameInset + theme.LabelPadding - LabelLeftExtent(nodes, theme);
-        if (leftOverhang > 0.0)
+        // Lay the states out, then widen any state whose arrival or departure anchors are so close that
+        // two sibling labels collide (see WidenForLabelClearance) and lay them out again. The pass is
+        // bounded and best effort: nothing changes for a diagram whose labels are already clear.
+        var sized = states;
+        var (nodes, crossings, lineMap) = LayOutStates(sized);
+        for (var pass = 0; pass < MaxWideningPasses; pass++)
         {
-            offsetX += leftOverhang;
-            (nodes, crossings) = Assemble(offsetX);
+            var widened = WidenForLabelClearance(sized, states, nodes, lineMap, theme);
+            if (widened is null)
+            {
+                break;
+            }
+
+            sized = widened;
+            (nodes, crossings, lineMap) = LayOutStates(sized);
         }
 
         // Size the frame to the actual rendered content: state boxes plus routed transition
@@ -193,13 +233,14 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         // least as wide as its own title so a long definition name is never clipped.
         var (contentMaxX, contentMaxY) = ContentExtent(nodes);
         var labelMaxX = LabelRightExtent(nodes, theme);
+        var labelMaxY = LabelBottomExtent(nodes, theme);
 
         var frameLabel = root.Name ?? "State";
         var frameKeyword = string.IsNullOrEmpty(root.DefinitionKeyword) ? "state def" : root.DefinitionKeyword;
         var titleWidth = (Math.Max(frameLabel.Length * theme.FontSizeTitle, (frameKeyword.Length + 2) * theme.FontSizeBody) * CharWidthFactor)
             + (4.0 * theme.LabelPadding);
         var frameRight = Math.Max(Math.Max(contentMaxX, labelMaxX) + margin, FrameInset + titleWidth);
-        var frameBottom = contentMaxY + margin + theme.FontSizeTitle;
+        var frameBottom = Math.Max(contentMaxY, labelMaxY) + margin;
         var frameWidth = frameRight - FrameInset;
         var frameHeight = frameBottom - FrameInset;
 
@@ -293,6 +334,22 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
     }
 
     /// <summary>
+    /// Returns the maximum Y reached by the bottom of any rendered transition label (its center Y plus
+    /// half its rendered height), or zero when there are no labels. Used so the frame always encloses
+    /// a label that hangs below the lowest state or connector.
+    /// </summary>
+    private static double LabelBottomExtent(IReadOnlyList<LayoutNode> nodes, Theme theme)
+    {
+        var maxY = 0.0;
+        foreach (var (position, _) in PlaceLabels(nodes, theme))
+        {
+            maxY = Math.Max(maxY, position.Y + position.HalfHeight);
+        }
+
+        return maxY;
+    }
+
+    /// <summary>
     /// Places every labeled transition line with the renderers' obstacle-aware placer and returns each
     /// label's placed center and half text width.
     /// </summary>
@@ -319,6 +376,162 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
             {
                 result.Add((pos, ConnectorLabelPlacer.EstimateLabelWidth(line.MidpointLabel!, theme.FontSizeBody) / 2.0));
             }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Widens the states whose arrival or departure anchors are too close together for the labels of
+    /// the transitions that share them, and returns the resized states, or <see langword="null"/>
+    /// when no label needs one. The layout engine spreads the anchors on a state's face evenly across
+    /// its width and each label is centered on a run of its own connector, so two sibling labels wider
+    /// than the anchor spacing collide: the second is pushed onto a short jog beside, or onto the
+    /// border of, the state. A label is a violation when it (with the renderers' background padding)
+    /// covers a state box or the first or last marker length of its own connector. For each violating
+    /// label the state at an end of its connector whose face carries two or more labeled anchors is
+    /// widened to the number of anchors times the spacing the two widest labels need, but never beyond
+    /// twice its natural width. The state sizes the engine is asked to place are therefore the only
+    /// thing that changes, so a diagram without a violation is laid out exactly as before.
+    /// </summary>
+    private static List<StateItem>? WidenForLabelClearance(
+        IReadOnlyList<StateItem> current,
+        IReadOnlyList<StateItem> natural,
+        IReadOnlyList<LayoutNode> nodes,
+        IReadOnlyList<(LayoutLine Line, TransitionItem Transition)> lineMap,
+        Theme theme)
+    {
+        var labeled = lineMap.Where(m => m.Line.MidpointLabel is not null).ToList();
+        if (labeled.Count == 0)
+        {
+            return null;
+        }
+
+        var boxes = nodes.OfType<LayoutBox>().ToList();
+        var placements = ConnectorLabelPlacer.Place(
+            labeled.Select(m => m.Line).ToList(),
+            theme.FontSizeBody,
+            boxes,
+            NotationMetrics.MarkerScale(theme));
+        var marker = NotationMetrics.RenderedAlongLineLength(EndMarkerStyle.OpenChevron, theme);
+
+        // States occupy the first nodes in index order; only a box (not the final badge) can be widened.
+        Rect? RectOf(int state) => nodes[state] is LayoutBox b ? new Rect(b.X, b.Y, b.Width, b.Height) : null;
+
+        var widths = current.Select(s => s.Width).ToArray();
+        var changed = false;
+        foreach (var (line, transition) in labeled)
+        {
+            if (transition.Source == transition.Target || !placements.TryGetValue(line, out var p))
+            {
+                continue;
+            }
+
+            // The placer's text rectangle already includes a 2 px gap and overestimates the glyph width,
+            // so only the vertical background padding is added.
+            var rect = new Rect(
+                p.X - p.HalfWidth,
+                p.Y - p.HalfHeight - LabelBackgroundPad,
+                2.0 * p.HalfWidth,
+                2.0 * (p.HalfHeight + LabelBackgroundPad));
+            var hidesBoxOrEnd = boxes.Any(b => RectsOverlap(rect, new Rect(b.X, b.Y, b.Width, b.Height)))
+                || PathHitsRect(PathPrefix(line.Waypoints, marker), rect)
+                || PathHitsRect(PathPrefix([.. line.Waypoints.Reverse()], marker), rect);
+
+            foreach (var (state, isSource) in new[] { (transition.Source, true), (transition.Target, false) })
+            {
+                if (RectOf(state) is not { } box || current[state].IsFinal)
+                {
+                    continue;
+                }
+
+                var anchor = isSource ? line.Waypoints[0] : line.Waypoints[^1];
+                double faceY;
+                if (Math.Abs(anchor.Y - box.Y) <= 0.5)
+                {
+                    faceY = box.Y;
+                }
+                else if (Math.Abs(anchor.Y - (box.Y + box.Height)) <= 0.5)
+                {
+                    faceY = box.Y + box.Height;
+                }
+                else
+                {
+                    continue;
+                }
+
+                // Every connector, in either direction, that touches this same top or bottom face of this state.
+                var onFace = lineMap
+                    .Where(m => (m.Transition.Source == state && Math.Abs(m.Line.Waypoints[0].Y - faceY) <= 0.5)
+                        || (m.Transition.Target == state && Math.Abs(m.Line.Waypoints[^1].Y - faceY) <= 0.5))
+                    .ToList();
+                if (onFace.Count < 2)
+                {
+                    continue;
+                }
+
+                // A label that hides a box or its own end, or a sibling connector arriving on the same
+                // face, is cured by spreading the anchors on that face further apart.
+                var hidesSibling = onFace.Any(m => !ReferenceEquals(m.Line, line) && PathHitsRect(m.Line.Waypoints, rect));
+                if (!hidesBoxOrEnd && !hidesSibling)
+                {
+                    continue;
+                }
+
+                var widthsOnFace = onFace
+                    .Select(m => m.Line.MidpointLabel is null ? 0.0 : ConnectorLabelPlacer.EstimateLabelWidth(m.Line.MidpointLabel, theme.FontSizeBody))
+                    .OrderByDescending(w => w)
+                    .ToList();
+                var spacing = ((widthsOnFace[0] + widthsOnFace[1]) / 2.0) + LabelSpacingSlack;
+                var wanted = Math.Min(2.0 * natural[state].Width, Math.Max(widths[state], onFace.Count * spacing));
+                if (wanted > widths[state] + 0.5)
+                {
+                    widths[state] = wanted;
+                    changed = true;
+                }
+            }
+        }
+
+        return changed ? current.Select((s, i) => s with { Width = widths[i] }).ToList() : null;
+    }
+
+    /// <summary>Returns whether two rectangles overlap in more than an edge.</summary>
+    private static bool RectsOverlap(Rect a, Rect b) =>
+        a.X < b.X + b.Width && a.X + a.Width > b.X && a.Y < b.Y + b.Height && a.Y + a.Height > b.Y;
+
+    /// <summary>Returns whether any segment of the polyline passes through the interior of the rectangle.</summary>
+    private static bool PathHitsRect(IReadOnlyList<Point2D> points, Rect rect)
+    {
+        for (var i = 0; i + 1 < points.Count; i++)
+        {
+            if (SegmentIntersectsRect(points[i], points[i + 1], rect))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Returns the leading part of a polyline no longer than <paramref name="length"/>.</summary>
+    private static List<Point2D> PathPrefix(IReadOnlyList<Point2D> points, double length)
+    {
+        var result = new List<Point2D> { points[0] };
+        var remaining = length;
+        for (var i = 1; i < points.Count && remaining > 0.0; i++)
+        {
+            var (dx, dy) = (points[i].X - points[i - 1].X, points[i].Y - points[i - 1].Y);
+            var segment = Math.Sqrt((dx * dx) + (dy * dy));
+            if (segment <= remaining)
+            {
+                result.Add(points[i]);
+                remaining -= segment;
+                continue;
+            }
+
+            var t = remaining / segment;
+            result.Add(new Point2D(points[i - 1].X + (dx * t), points[i - 1].Y + (dy * t)));
+            break;
         }
 
         return result;
@@ -736,7 +949,8 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
         Rect[] stateRects,
         double offsetX,
         double offsetY,
-        List<LayoutNode> nodes)
+        List<LayoutNode> nodes,
+        List<(LayoutLine Line, TransitionItem Transition)> drawn)
     {
         // Build the routed (source, target) -> polyline lookup from the non-self transitions, which are
         // index-aligned with the algorithm's returned polylines.
@@ -755,7 +969,9 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
 
             if (transition.Source == transition.Target)
             {
-                nodes.Add(BuildSelfLoop(stateRects[transition.Source], label));
+                var loop = BuildSelfLoop(stateRects[transition.Source], label);
+                nodes.Add(loop);
+                drawn.Add((loop, transition));
                 continue;
             }
 
@@ -781,12 +997,14 @@ internal sealed class StateTransitionViewLayoutStrategy : ILayoutStrategy
                 crossings++;
             }
 
-            nodes.Add(new LayoutLine(
+            var drawnLine = new LayoutLine(
                 Waypoints: waypoints,
                 SourceEnd: EndMarkerStyle.None,
                 TargetEnd: EndMarkerStyle.OpenChevron,
                 LineStyle: LineStyle.Solid,
-                MidpointLabel: label));
+                MidpointLabel: label);
+            nodes.Add(drawnLine);
+            drawn.Add((drawnLine, transition));
         }
 
         return crossings;

@@ -1197,26 +1197,7 @@ public sealed class ActionFlowViewLayoutStrategyTests
     public async Task ActionFlowView_BuildLayout_PipelineGalleryModel_ShowsActionFlowNotation()
     {
         // Arrange
-        var dir = AppContext.BaseDirectory;
-        string? modelPath = null;
-        while (dir is not null && modelPath is null)
-        {
-            var candidate = Path.Combine(dir, "docs", "gallery", "models", "04-pipeline-action-flow.sysml");
-            modelPath = File.Exists(candidate) ? candidate : null;
-            dir = Directory.GetParent(dir)?.FullName;
-        }
-
-        if (modelPath is null)
-        {
-            return;
-        }
-
-        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
-        var result = await WorkspaceLoader.LoadAsync([modelPath], stdlibTable);
-        Assert.NotNull(result.Workspace);
-
-        // Act
-        var layout = new ActionFlowViewLayoutStrategy().BuildLayout(new ViewContext("v", result.Workspace), new RenderOptions(Themes.Light));
+        var layout = await LayOutGalleryModelAsync("04-pipeline-action-flow.sysml");
 
         // Assert
         var badges = layout.Nodes.OfType<LayoutBadge>().ToList();
@@ -1233,5 +1214,105 @@ public sealed class ActionFlowViewLayoutStrategyTests
         var labels = layout.Nodes.OfType<LayoutLine>().Select(l => l.MidpointLabel).ToList();
         Assert.Contains("[smokePassed]", labels);
         Assert.Contains("else", labels);
+    }
+
+    /// <summary>
+    ///     Each labeled decision branch of the gallery's pipeline and order models carries its label
+    ///     on a vertical run, and the label (with its background padding) leaves the diamond end of
+    ///     its connector, the horizontal run, other connectors, and the arrowhead visible.
+    /// </summary>
+    [Theory]
+    [InlineData("04-pipeline-action-flow.sysml")]
+    [InlineData("13-order-action-flow.sysml")]
+    public async Task ActionFlowView_BuildLayout_DecisionBranchLabels_SitOnVerticalDrop_AndKeepRunsVisible(string model)
+    {
+        // Arrange
+        var layout = await LayOutGalleryModelAsync(model);
+        var lines = layout.Nodes.OfType<LayoutLine>().Where(l => l.MidpointLabel is not null).ToList();
+        var boxes = layout.Nodes.OfType<LayoutBox>().ToList();
+        var placements = ConnectorLabelPlacer.Place(lines, SysmlThemes.Plain.FontSizeBody, boxes, NotationMetrics.MarkerScale(SysmlThemes.Plain));
+        var marker = NotationMetrics.RenderedAlongLineLength(EndMarkerStyle.OpenChevron, SysmlThemes.Plain);
+
+        // Act
+        var violations = LabelClearance.FindViolations(layout.Nodes, SysmlThemes.Plain, startZone: 12.0, endZone: marker);
+
+        // Assert: both branch labels exist, each centered on a vertical run of its own connector
+        Assert.Contains(lines, l => l.MidpointLabel == "else");
+        Assert.Contains(lines, l => l.MidpointLabel!.StartsWith('['));
+        foreach (var line in lines)
+        {
+            var p = placements[line];
+            var onVertical = false;
+            for (var i = 0; i + 1 < line.Waypoints.Count; i++)
+            {
+                var (a, b) = (line.Waypoints[i], line.Waypoints[i + 1]);
+                onVertical |= Math.Abs(a.X - b.X) < 0.01 && Math.Abs(p.X - a.X) < 0.5 &&
+                              p.Y >= Math.Min(a.Y, b.Y) - 0.5 && p.Y <= Math.Max(a.Y, b.Y) + 0.5;
+            }
+
+            Assert.True(onVertical, $"Label '{line.MidpointLabel}' must sit on a vertical run of its connector.");
+        }
+
+        Assert.True(violations.Count == 0, string.Join(Environment.NewLine, violations));
+    }
+
+    /// <summary>
+    ///     A labeled branch whose horizontal run is longer than its final vertical drop keeps the
+    ///     engine's route (its jog is not pulled up toward the source, which would not help the label).
+    /// </summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_WideBranchBoxes_LabeledJogIsLeftUnchanged()
+    {
+        // Arrange: two very wide branch boxes force long horizontal runs from the decision
+        var wide1 = new string('x', 50);
+        var wide2 = new string('y', 50);
+        var layout = LayOut(
+            Node("a"), Node("d", "decide"), Node(wide1), Node(wide2),
+            Then("a", "d"), Then("d", wide1, "ok"), Then("d", wide2, isElse: true));
+
+        // Act
+        var branches = layout.Nodes.OfType<LayoutLine>().Where(l => l.MidpointLabel is not null && l.Waypoints.Count == 4).ToList();
+
+        // Assert: a long horizontal, and a first run that is the engine's, not the 8 px clearance
+        Assert.Equal(2, branches.Count);
+        foreach (var branch in branches)
+        {
+            var (p0, p1, p2, p3) = (branch.Waypoints[0], branch.Waypoints[1], branch.Waypoints[2], branch.Waypoints[3]);
+            Assert.True(Math.Abs(p2.X - p1.X) > p3.Y - p2.Y, "Precondition: the horizontal run is longer than the final drop.");
+            Assert.True(p1.Y - p0.Y > 15.0, "The engine's route is kept when moving the jog cannot make the final drop the longest run.");
+        }
+    }
+
+    /// <summary>
+    ///     When labeled branches leave a decision on the same side, their jogs move together, so
+    ///     sibling lanes keep distinct horizontal runs and never become collinear.
+    /// </summary>
+    [Fact]
+    public void ActionFlowView_BuildLayout_DecisionWithManyBranches_KeepsDistinctJogLanes()
+    {
+        // Arrange: four labeled branches from one decision
+        var layout = LayOut(
+            Node("a"), Node("d", "decide"), Node("b1"), Node("b2"), Node("b3"), Node("b4"),
+            Then("a", "d"), Then("d", "b1", "one"), Then("d", "b2", "two"), Then("d", "b3", "three"), Then("d", "b4", isElse: true));
+
+        // Act
+        var diamond = Assert.Single(layout.Nodes.OfType<LayoutBadge>(), b => b.Shape == BadgeShape.Diamond);
+        var branches = layout.Nodes.OfType<LayoutLine>()
+            .Where(l => l.MidpointLabel is not null && l.Waypoints.Count == 4 && Math.Abs(l.Waypoints[0].Y - (diamond.CentreY + (diamond.Size / 2.0))) < diamond.Size)
+            .ToList();
+
+        // Assert: within each side the horizontal runs have distinct Y values
+        foreach (var side in branches.GroupBy(l => Math.Sign(l.Waypoints[3].X - l.Waypoints[0].X)))
+        {
+            var jogs = side.Select(l => Math.Round(l.Waypoints[1].Y, 1)).ToList();
+            Assert.Equal(jogs.Count, jogs.Distinct().Count());
+        }
+    }
+
+    /// <summary>Loads and lays out a gallery model; a gallery model that cannot be found fails the test.</summary>
+    private static async Task<LayoutTree> LayOutGalleryModelAsync(string fileName)
+    {
+        var workspace = await LabelClearance.LoadGalleryWorkspaceAsync(fileName);
+        return new ActionFlowViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(SysmlThemes.Plain));
     }
 }

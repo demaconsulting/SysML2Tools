@@ -1082,37 +1082,114 @@ public sealed class StateTransitionViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     Transition labels are placed clear of every state box (the same obstacle-aware placement
-    ///     the renderers use), so none lands on a box corner or edge.
+    ///     Transition labels, drawn with their opaque background padding, are clear of every state
+    ///     box, of every other connector, and of the first and last marker length of their own
+    ///     connector (so a label never erases a box border, hides another arrow, or covers its own
+    ///     arrowhead). Checked on the Elevator gallery model.
     /// </summary>
     [Fact]
     public async Task StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes()
     {
         // Arrange
         var layout = await LayOutGalleryModelAsync("03-elevator-state.sysml");
-        if (layout is null)
-        {
-            return;
-        }
+
+        // Act / Assert
+        AssertLabelsClear(layout, SysmlThemes.Plain);
+    }
+
+    /// <summary>The same label-clearance guarantee holds on the Heater gallery model.</summary>
+    [Fact]
+    public async Task StateTransitionView_BuildLayout_HeaterGalleryModel_LabelsAreClear()
+    {
+        // Arrange
+        var layout = await LayOutGalleryModelAsync("12-heater-state.sysml");
+
+        // Act / Assert
+        AssertLabelsClear(layout, SysmlThemes.Plain);
+    }
+
+    /// <summary>
+    ///     Two transitions with the same wide label that arrive on one face of a narrow state are
+    ///     spread by widening that state until their labels no longer collide, so neither label ends
+    ///     up on the state's border.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_SiblingLabelsOnSharedFace_AreWidenedApart()
+    {
+        // Arrange: a and b both reach c with the same wide guard (c would be only 100 px wide)
+        var layout = LayOut(
+            State("a"),
+            State("b"),
+            State("c"),
+            new SysmlTransitionNode { Source = "a", Target = "c", Guard = "atFloorNow" },
+            new SysmlTransitionNode { Source = "b", Target = "c", Guard = "atFloorNow" });
+
+        // Act
+        var c = Content(layout).OfType<LayoutBox>().Single(b => b.Label == "c");
+
+        // Assert
+        AssertLabelsClear(layout, Themes.Light);
+        Assert.True(c.Width > 100.0, "State c must be widened to spread its two arrival anchors.");
+    }
+
+    /// <summary>A state whose labels do not collide keeps its natural width.</summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_NoLabelCollision_KeepsNaturalWidth()
+    {
+        // Arrange: short labels that fit between the anchors of a 100 px state
+        var layout = LayOut(
+            State("a"),
+            State("b"),
+            State("c"),
+            new SysmlTransitionNode { Source = "a", Target = "c", Guard = "g" },
+            new SysmlTransitionNode { Source = "b", Target = "c", Guard = "h" });
+
+        // Act
+        var c = Content(layout).OfType<LayoutBox>().Single(b => b.Label == "c");
+
+        // Assert
+        AssertLabelsClear(layout, Themes.Light);
+        Assert.Equal(100.0, c.Width, precision: 3);
+    }
+
+    /// <summary>
+    ///     The frame ends one margin below the lowest content, matching the side margin, so no empty
+    ///     band is left under the last state or final badge.
+    /// </summary>
+    [Fact]
+    public void StateTransitionView_BuildLayout_FrameBottom_IsOneMarginBelowContent()
+    {
+        // Arrange
+        var layout = LayOut(
+            State("a"),
+            new SysmlTransitionNode { Source = "a", Target = "done", Trigger = "stop" });
 
         // Act
         var frame = Assert.IsType<LayoutBox>(Assert.Single(layout.Nodes));
-        var boxes = frame.Children.OfType<LayoutBox>().ToList();
-        var lines = frame.Children.OfType<LayoutLine>().Where(l => l.MidpointLabel is not null).ToList();
-        var placements = ConnectorLabelPlacer.Place(lines, Themes.Light.FontSizeBody, boxes, NotationMetrics.MarkerScale(Themes.Light));
+        var contentBottom = frame.Children.Max(n => n switch
+        {
+            LayoutBox b => b.Y + b.Height,
+            LayoutBadge g => g.CentreY + (g.Size / 2.0),
+            LayoutLine l => l.Waypoints.Max(p => p.Y),
+            _ => 0.0,
+        });
 
         // Assert
-        Assert.NotEmpty(lines);
-        foreach (var line in lines)
-        {
-            var p = placements[line];
-            foreach (var box in boxes)
-            {
-                var overlaps = p.X - p.HalfWidth < box.X + box.Width && p.X + p.HalfWidth > box.X &&
-                               p.Y - p.HalfHeight < box.Y + box.Height && p.Y + p.HalfHeight > box.Y;
-                Assert.False(overlaps, $"Label '{line.MidpointLabel}' overlaps state box '{box.Label}'.");
-            }
-        }
+        Assert.Equal(contentBottom + (Themes.Light.LabelPadding * 4.0), frame.Y + frame.Height, precision: 3);
+    }
+
+    /// <summary>
+    ///     Asserts that no label of the laid-out state diagram, with its renderer background padding,
+    ///     covers a state box, another connector, or the first or last marker length of its own connector.
+    /// </summary>
+    private static void AssertLabelsClear(LayoutTree layout, Theme theme)
+    {
+        var marker = NotationMetrics.RenderedAlongLineLength(EndMarkerStyle.OpenChevron, theme);
+        var content = Content(layout);
+        Assert.Contains(content.OfType<LayoutLine>(), l => l.MidpointLabel is not null);
+        var violations = LabelClearance.FindViolations(
+            content, theme, marker, marker, containers: layout.Nodes.OfType<LayoutBox>().ToList());
+        Assert.True(violations.Count == 0, string.Join(Environment.NewLine, violations));
     }
 
     /// <summary>
@@ -1125,10 +1202,6 @@ public sealed class StateTransitionViewLayoutStrategyTests
     {
         // Arrange
         var layout = await LayOutGalleryModelAsync("03-elevator-state.sysml");
-        if (layout is null)
-        {
-            return;
-        }
 
         // Act
         var content = Content(layout);
@@ -1167,26 +1240,10 @@ public sealed class StateTransitionViewLayoutStrategyTests
         Assert.True(placement.X + placement.HalfWidth <= frame.X + frame.Width, "The label must not overhang the frame's right edge.");
     }
 
-    /// <summary>Loads and lays out a gallery model, or returns null when the gallery is not available.</summary>
-    private static async Task<LayoutTree?> LayOutGalleryModelAsync(string fileName)
+    /// <summary>Loads and lays out a gallery model with the theme the <c>render</c> command uses; a missing model fails the test.</summary>
+    private static async Task<LayoutTree> LayOutGalleryModelAsync(string fileName)
     {
-        var dir = AppContext.BaseDirectory;
-        string? modelPath = null;
-        while (dir is not null && modelPath is null)
-        {
-            var candidate = Path.Combine(dir, "docs", "gallery", "models", fileName);
-            modelPath = File.Exists(candidate) ? candidate : null;
-            dir = Directory.GetParent(dir)?.FullName;
-        }
-
-        if (modelPath is null)
-        {
-            return null;
-        }
-
-        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
-        var result = await WorkspaceLoader.LoadAsync([modelPath], stdlibTable);
-        Assert.NotNull(result.Workspace);
-        return new StateTransitionViewLayoutStrategy().BuildLayout(new ViewContext("v", result.Workspace), new RenderOptions(Themes.Light));
+        var workspace = await LabelClearance.LoadGalleryWorkspaceAsync(fileName);
+        return new StateTransitionViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(SysmlThemes.Plain));
     }
 }
