@@ -31,9 +31,10 @@ namespace DemaConsulting.SysML2Tools.Layout.Internal;
 /// nodes carrying their <see cref="LayoutGraphNode.Keyword"/> and
 /// <see cref="LayoutGraphNode.Compartments"/> — and the whole graph is placed with a single
 /// <see cref="LayoutAlgorithmBase.Apply(LayoutGraph)"/> call via <see cref="AutoLayoutAlgorithm"/>
-/// flowing bottom-to-top (<see cref="LayoutFlowDirection.Up"/>): every edge runs from the owned,
-/// specific or dependent element to the owner, general type or definition, so the latter is drawn
-/// above. Root-scope folders/top-level boxes are classified by connectivity, with connected groups
+/// flowing top-to-bottom (<see cref="LayoutFlowDirection.Down"/>): every layout edge runs from the
+/// element drawn above (owner, general type, subsetted usage) to the element drawn below (owned
+/// usage, specific type, typed usage's definition), and the connectors of the edges whose arrow
+/// points up are turned back after the layout. Root-scope folders/top-level boxes are classified by connectivity, with connected groups
 /// routed through the bundled layered algorithm (<see cref="LayeredLayoutAlgorithm"/>) and
 /// disconnected/singleton nodes packed by reading order (<see cref="ContainmentLayoutAlgorithm"/>);
 /// each folder's own contents use the same automatic selection. All
@@ -103,9 +104,12 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         /// <summary>The usage keywords the Pilot implementation draws as separate nodes (occurrence-kind usages).</summary>
         private static readonly HashSet<string> PilotNodeKeywords = new(StringComparer.Ordinal)
         {
-            "part", "item", "port", "occurrence", "action", "state", "requirement", "concern",
+            "part", "item", "occurrence", "action", "state", "requirement", "concern",
             "analysis", "verification", "use case", "case",
         };
+
+        /// <summary>The keyword of a port usage, a node under <see cref="UsageNodeMode.Pilot"/> only when it has nested content.</summary>
+        private const string PortKeyword = "port";
 
         /// <summary>The usage keywords that never become a node under <see cref="UsageNodeMode.AllUsages"/>.</summary>
         private static readonly HashSet<string> NeverNodeKeywords = new(StringComparer.Ordinal)
@@ -119,7 +123,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             Mode = mode;
         }
 
-        /// <summary>Gets the Pilot policy (the default): occurrence-kind usages and ports are nodes.</summary>
+        /// <summary>Gets the Pilot policy (the default): occurrence-kind usages and ports with nested content are nodes.</summary>
         public static NodePolicy Pilot { get; } = new(UsageNodeMode.Pilot);
 
         /// <summary>Gets the policy that draws every named usage as a node.</summary>
@@ -149,10 +153,22 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 return false;
             }
 
-            return Mode == UsageNodeMode.AllUsages
-                ? !NeverNodeKeywords.Contains(usage.FeatureKeyword)
+            if (Mode == UsageNodeMode.AllUsages)
+            {
+                return !NeverNodeKeywords.Contains(usage.FeatureKeyword);
+            }
+
+            // A plain port (no nested features) is a compartment row of its owner, like an
+            // attribute; a port that owns nested content (features, ports, parts, ...) is a node
+            // of its own so that the content has somewhere to be drawn.
+            return usage.FeatureKeyword == PortKeyword
+                ? HasNestedContent(usage)
                 : PilotNodeKeywords.Contains(usage.FeatureKeyword);
         }
+
+        /// <summary>Returns whether <paramref name="usage"/> owns at least one named nested feature.</summary>
+        private static bool HasNestedContent(SysmlFeatureNode usage) =>
+            usage.Children.Any(child => child is SysmlFeatureNode { Name: { Length: > 0 } });
     }
 
     /// <summary>The policy deciding which nested usages are nodes.</summary>
@@ -624,6 +640,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // drawing and does not grow the canvas for it (engine defect, see FitConnectorsToCanvas), so
         // the canvas is fitted to the connectors here.
         placed = FitConnectorsToCanvas(placed);
+        placed = OrientEdges(placed);
 
         // Surface any standalone `filter [<expr>];` evaluation failure, plus a distinct warning
         // for each `expose <path>::**[<expr>]` bracket filter that failed to parse or evaluate
@@ -2208,12 +2225,17 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         // definition-container scope (edges are declared in those scopes too), so it is set once here.
         graph.Set(CoreOptions.MergeParallelEdges, false);
 
-        // The graph flows bottom-to-top: an edge runs from its source (the owned, specific or
-        // dependent element) to its target (the owner, general or depended-upon element), so the
-        // target is placed above the source and the owner, supertype or definition reads on top, as
-        // in the OMG Pilot implementation and the SysML v2 training material. The direction
-        // cascades from this root to every nested folder and definition-container scope.
-        graph.Set(CoreOptions.Direction, LayoutFlowDirection.Up);
+        // The graph flows top-to-bottom, and every layout edge runs from the element that is drawn
+        // above to the element drawn below: owner → owned usage, general → specific, subsetted →
+        // subsetting, requirement → satisfier, imported → importing, and usage → typing definition.
+        // So the owner, supertype and general element read on top, as in the OMG Pilot
+        // implementation and the SysML v2 training material, and the definition typing a usage hangs
+        // below it. The bundled layered algorithm assigns layers by longest path from the sources, so
+        // with every edge declared this way each element hangs directly below the top-most element
+        // that reaches it. Edges whose arrow points up are declared reversed and turned back after the
+        // layout (see OrientEdges). The direction cascades from this root to every nested folder and
+        // definition-container scope.
+        graph.Set(CoreOptions.Direction, LayoutFlowDirection.Down);
         var truncated = new List<TruncatedContainer>();
 
         // Reserve the title area (the package name only — the specification draws a package with no
@@ -2307,9 +2329,9 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             folder.Appearance = new BoxAppearance(FolderTitle: FolderTitlePlacement.Tab);
             // Each folder's contents use the "auto" algorithm: the layered algorithm places the
             // connected groups, while unconnected definitions are packed by the containment
-            // algorithm. A folder pinned to the layered algorithm with the bottom-to-top direction
-            // stacks several unconnected nodes of one layer on top of each other (engine defect,
-            // see TopDown_UnconnectedDefinitionsDoNotOverlap).
+            // algorithm. (A folder pinned to the layered algorithm with the bottom-to-top direction
+            // was observed to stack several unconnected nodes of one layer on top of each other, see
+            // TopDown_UnconnectedDefinitionsDoNotOverlap, so the automatic selection is kept.)
             folder.Set(CoreOptions.Algorithm, AutoLayoutAlgorithm.AlgorithmId);
             var folderScope = new ScopeInfo(parentScope, folder.Children, folder);
             folderScopes[folderKey] = folderScope;
@@ -2336,7 +2358,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
                 continue;
             }
 
-            var added = LowestCommonScope(source.Scope, target.Scope).Graph.AddEdge($"e{edgeId++}", source.Node, target.Node);
+            // Declare the edge from the element drawn above to the element drawn below (see the
+            // direction comment above): a typing edge keeps its direction (usage → definition),
+            // every other directed edge is declared reversed, from its drawn target to its drawn
+            // source, with the marker still on the layout target. OrientEdges turns each reversed
+            // connector back so the marker ends up at the drawn target. An undirected edge
+            // (connect, bind) keeps its direction.
+            var scopeOfEdge = LowestCommonScope(source.Scope, target.Scope).Graph;
+            var added = IsDeclaredReversed(edge)
+                ? scopeOfEdge.AddEdge($"e{edgeId++}", target.Node, source.Node)
+                : scopeOfEdge.AddEdge($"e{edgeId++}", source.Node, target.Node);
             added.TargetEnd = edge.Arrowhead;
             added.LineStyle = LineStyleForKind(edge.Kind);
             added.Label = edge.Label;
@@ -2651,7 +2682,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
         note.Shape = BoxShape.Note;
         note.Compartments = [new LayoutCompartment(null, lines)];
 
-        var edge = scope.AddEdge($"note-edge:{def.QualifiedName}", note, defNode);
+        var edge = scope.AddEdge($"note-edge:{def.QualifiedName}", defNode, note);
         edge.TargetEnd = EndMarkerStyle.None;
         edge.LineStyle = LineStyle.Dashed;
     }
@@ -2831,10 +2862,10 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     private const double CanvasMargin = 8.0;
 
     /// <summary>
-    /// Grows and shifts the canvas so that every connector lies inside it. With the bottom-to-top
-    /// direction the engine routes a connector that joins two root-level folders through a channel
+    /// Grows and shifts the canvas so that every connector lies inside it. The engine can route a
+    /// connector that joins two root-level folders through a channel
     /// outside the drawing (negative coordinates) and reports the node bounds only, so the renderer
-    /// would clip that connector. When any waypoint lies outside the canvas the whole tree is
+    /// would clip that connector (seen with the bottom-to-top direction). When any waypoint lies outside the canvas the whole tree is
     /// translated so the leftmost/topmost waypoint sits <see cref="CanvasMargin"/> inside the canvas,
     /// and the canvas is widened/heightened to hold the rightmost/lowest waypoint; a tree whose
     /// connectors are all inside is returned unchanged.
@@ -2908,6 +2939,39 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     };
 
     /// <summary>
+    /// Returns whether <paramref name="edge"/> is declared to the layout engine from its drawn
+    /// target to its drawn source (so the target is drawn above). Every directed edge is, except
+    /// feature typing, whose definition is drawn below the usage; connect and bind edges have no
+    /// direction and are not reversed.
+    /// </summary>
+    private static bool IsDeclaredReversed(ModelEdge edge) =>
+        edge.Kind is not (EdgeKind.FeatureTyping or EdgeKind.Connect or EdgeKind.Binding);
+
+    /// <summary>
+    /// Turns every connector declared reversed (see <see cref="IsDeclaredReversed"/>) back to its
+    /// drawn direction. A reversed connector starts at its drawn target and ends, carrying the end
+    /// marker, at its drawn source; this reverses its waypoints so the marker sits at the drawn target.
+    /// A connector declared in its drawn direction carries either no marker (connect, bind, note
+    /// link) or the typing marker, which no reversed edge uses, so the marker identifies the
+    /// connectors to reverse.
+    /// </summary>
+    /// <param name="tree">The placed tree.</param>
+    /// <returns>The tree with every connector pointing from its drawn source to its drawn target.</returns>
+    private static LayoutTree OrientEdges(LayoutTree tree) =>
+        tree with { Nodes = [.. tree.Nodes.Select(OrientEdges)] };
+
+    /// <summary>Reverses the reversed-declared connectors in <paramref name="node"/> and, recursively, in its children.</summary>
+    private static LayoutNode OrientEdges(LayoutNode node) => node switch
+    {
+        LayoutBox box => box with { Children = [.. box.Children.Select(OrientEdges)] },
+        LayoutLine line when line.TargetEnd is not (EndMarkerStyle.None or EndMarkerStyle.HollowTriangleTwoDots) => line with
+        {
+            Waypoints = [.. line.Waypoints.Reverse()],
+        },
+        _ => node,
+    };
+
+    /// <summary>
     /// Runs the layout engine over <paramref name="graph"/> with the root scope delegated to the
     /// "auto" algorithm, so both layout passes of <see cref="BuildLayout"/> are configured identically.
     /// </summary>
@@ -2930,7 +2994,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// their positions; the keyed items are sorted into the slots the keyed items occupied. The key
     /// of an item aggregates the relationships of the item and of the usage nodes placed beside it.
     /// Only package-folder items are considered, the key is horizontal only (the graph flows
-    /// bottom-to-top, so a layer is a row) and one refinement pass is made with no iteration, so the
+    /// top-to-bottom, so a layer is a row) and one refinement pass is made with no iteration, so the
     /// computation always terminates and is a no-op, returning an empty result, whenever no
     /// folder's order changes.
     /// </remarks>

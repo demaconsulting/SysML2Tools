@@ -1449,13 +1449,13 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A part def that owns a <c>port</c> usage draws the port as its own node (the Pilot
-    ///     default), joined to the owning definition's box by a filled diamond at the owner.
+    ///     A part def that owns a <c>port</c> usage with nested content draws the port as its own
+    ///     node, joined to the owning definition's box by a filled diamond at the owner.
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_PortFeature_ProducesFilledDiamondEdge()
     {
-        // Arrange: Vehicle owns a port typed as FuelPort; both are user definitions
+        // Arrange: Vehicle owns a port typed as FuelPort that itself owns an attribute; both are user definitions
         var strategy = new GeneralViewLayoutStrategy();
         var workspace = new SysmlWorkspace
         {
@@ -1469,7 +1469,14 @@ public sealed class GeneralViewLayoutStrategyTests
                     DefinitionKeyword = "part def",
                     Children =
                     [
-                        new SysmlFeatureNode { Name = "fuel", QualifiedName = "P::Vehicle::fuel", FeatureKeyword = "port", FeatureTyping = "FuelPort" }
+                        new SysmlFeatureNode
+                        {
+                            Name = "fuel",
+                            QualifiedName = "P::Vehicle::fuel",
+                            FeatureKeyword = "port",
+                            FeatureTyping = "FuelPort",
+                            Children = [new SysmlFeatureNode { Name = "level", QualifiedName = "P::Vehicle::fuel::level", FeatureKeyword = "attribute" }]
+                        }
                     ]
                 }
             }
@@ -1483,6 +1490,71 @@ public sealed class GeneralViewLayoutStrategyTests
         // Assert: the port is a node, joined to the owner by a filled diamond
         var membershipEdge = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
         Assert.True(RunsBetween(membershipEdge, FindBox(layout.Nodes, "fuel"), FindBox(layout.Nodes, "Vehicle")));
+    }
+
+    /// <summary>
+    ///     A <c>port</c> usage without nested content is a row of the owner's <c>ports</c> compartment
+    ///     (like an attribute), not a node, under the default policy: only the owner is drawn, with no
+    ///     membership edge and no typing edge for the port.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PlainPort_IsRowOfOwnerPortsCompartment()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("port def FuelPort; part def Vehicle { port fuel : FuelPort; }");
+
+        // Assert: no box for the port, one row in the owner's ports compartment, no edge
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => IsNamed(b, "fuel"));
+        var vehicle = FindBox(layout.Nodes, "Vehicle");
+        var ports = Assert.Single(vehicle.Compartments, c => c.Title == "ports");
+        Assert.Equal(["fuel : FuelPort"], ports.Rows);
+        Assert.Empty(CollectLines(layout.Nodes));
+    }
+
+    /// <summary>
+    ///     A <c>port</c> usage that owns nested features is a node of its own (joined to its owner by a
+    ///     filled diamond) and lists the nested features in its own compartments, while a plain sibling
+    ///     port stays a row of the owner.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PortWithNestedContent_IsNodeAndPlainPortStaysRow()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            port def FuelPort;
+            part def Vehicle {
+                port plain : FuelPort;
+                port rich : FuelPort { attribute level : Real; }
+            }
+            """);
+
+        // Assert
+        var rich = FindBox(layout.Nodes, "rich");
+        Assert.Equal("port", rich.Keyword);
+        Assert.Contains(rich.Compartments, c => c.Title == "attributes" && c.Rows.Contains("level : Real"));
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => IsNamed(b, "plain"));
+        var vehicle = FindBox(layout.Nodes, "Vehicle");
+        Assert.Equal(["plain : FuelPort"], Assert.Single(vehicle.Compartments, c => c.Title == "ports").Rows);
+        Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+    }
+
+    /// <summary>
+    ///     The all-usages policy still draws a plain port as a node (the variant exists so a later
+    ///     option can flip the decision), and the row-only policy draws no port as a node.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PortPolicyVariants_AllUsagesDrawsPlainPortAsNode_RowsOnlyDoesNot()
+    {
+        // Arrange
+        const string model = "port def FuelPort; part def Vehicle { port fuel : FuelPort { attribute level : Real; } }";
+
+        // Act
+        var allUsages = await LayOutUnscopedAsync("port def FuelPort; part def Vehicle { port fuel : FuelPort; }", policy: NodePolicy.AllUsages);
+        var rowsOnly = await LayOutUnscopedAsync(model, policy: NodePolicy.RowsOnly);
+
+        // Assert
+        Assert.Contains(CollectBoxes(allUsages.Nodes), b => IsNamed(b, "fuel"));
+        Assert.DoesNotContain(CollectBoxes(rowsOnly.Nodes), b => IsNamed(b, "fuel"));
     }
 
     /// <summary>
@@ -4495,13 +4567,14 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     The General view flows bottom-to-top: for a specialization, a feature membership and a
-    ///     feature typing edge the target (the general type, the owner, the definition) is placed
-    ///     above the source, and the line leaves the source's top border and enters the target's
-    ///     bottom border.
+    ///     The General view flows top-to-bottom: the owner and the general type are placed above the
+    ///     element they own or specialize, and the definition typing a usage is placed below the
+    ///     usage. The connectors keep their drawn direction: a specialization and a feature
+    ///     membership line run upward from the source, with the marker at the upper box's bottom
+    ///     border, while a typing line runs downward with the marker at the definition's top border.
     /// </summary>
     [Fact]
-    public async Task GeneralViewLayoutStrategy_BuildLayout_TopDown_TargetOfEveryEdgeIsAboveSource()
+    public async Task GeneralViewLayoutStrategy_BuildLayout_TopDown_OwnerAndGeneralAboveUsageAndDefinitionBelow()
     {
         // Act
         var layout = await LayOutUnscopedAsync("""
@@ -4510,21 +4583,91 @@ public sealed class GeneralViewLayoutStrategyTests
             part def Car :> Vehicle;
             """);
 
-        // Assert: Vehicle above Car (specialization), Vehicle above wheel (membership) and Wheel above wheel (typing)
+        // Assert: Vehicle above Car (specialization), Vehicle above wheel (membership) and Wheel below wheel (typing)
         var vehicle = FindBox(layout.Nodes, "Vehicle");
         var car = FindBox(layout.Nodes, "Car");
         var wheelUsage = FindBox(layout.Nodes, "wheel");
         var wheelDef = FindBox(layout.Nodes, "Wheel");
         Assert.True(vehicle.Y + vehicle.Height <= car.Y);
         Assert.True(vehicle.Y + vehicle.Height <= wheelUsage.Y);
-        Assert.True(wheelDef.Y + wheelDef.Height <= wheelUsage.Y);
+        Assert.True(wheelUsage.Y + wheelUsage.Height <= wheelDef.Y);
 
-        // Assert: each line starts at the lower (source) box's top border and ends at the upper box's bottom border
-        foreach (var line in CollectLines(layout.Nodes))
+        // Assert: specialization and membership lines start at the lower box and end at the upper one
+        // (marker at the upper box); the typing line starts at the usage and ends at the definition below
+        var lines = CollectLines(layout.Nodes);
+        Assert.Equal(3, lines.Count);
+        foreach (var line in lines)
         {
             var start = line.Waypoints[0];
             var end = line.Waypoints[^1];
-            Assert.True(start.Y > end.Y, $"line from ({start.X},{start.Y}) to ({end.X},{end.Y}) does not run upward");
+            if (line.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots)
+            {
+                Assert.True(RunsBetween(line, wheelUsage, wheelDef));
+                Assert.True(start.Y < end.Y, "the typing line does not run downward");
+            }
+            else
+            {
+                Assert.True(start.Y > end.Y, $"line from ({start.X},{start.Y}) to ({end.X},{end.Y}) does not run upward");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Layout compactness regression for a drone-like model (one definition owning eight part usages,
+    ///     one specialization with a subsetting usage, and a handful of unrelated definitions): the
+    ///     usages of the owner share one row directly below it, each typing definition hangs below its
+    ///     usage, and the drawing stays within a readable size instead of the former two rigid tiers
+    ///     that grew several thousand pixels wide.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_DroneLikeModel_IsCompactAndTopDown()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            part def Mass; part def Frame; part def Propeller;
+            part def Battery { port output : PowerPort; }
+            part def FlightController { port power : PowerPort; port sensors : SensorPort; }
+            part def Motor { port control : MotorControlPort; }
+            part def ImuSensor { port data : SensorPort; }
+            part def GpsSensor { port data : SensorPort; }
+            interface def PowerBus;
+            port def PowerPort; port def SensorPort; port def MotorControlPort;
+            enum def FlightMode { enum idle; enum manual; }
+            part def Drone {
+                attribute totalMass : Mass;
+                part airframe : Frame;
+                part battery : Battery;
+                part controller : FlightController;
+                part motors : Motor[4];
+                part propellers : Propeller[4];
+                part imu : ImuSensor;
+                part gps : GpsSensor;
+            }
+            part def RacingDrone :> Drone { part frontMotors : Motor[2] subsets motors; }
+            """);
+
+        // Assert: the drawing is compact and nothing overlaps
+        Assert.InRange(layout.Width, 1.0, 2000.0);
+        Assert.InRange(layout.Height, 1.0, 1300.0);
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
+
+        // Assert: the owner is on top, its seven direct usages share one row below it, and every typing
+        // definition is below the usage it types
+        var drone = FindBox(layout.Nodes, "Drone");
+        var usageNames = new[] { "airframe", "battery", "controller", "motors", "propellers", "imu", "gps" };
+        var usages = usageNames.Select(name => FindBox(layout.Nodes, name)).ToList();
+        Assert.All(usages, usage => Assert.True(drone.Y + drone.Height <= usage.Y));
+        Assert.Single(usages.Select(usage => Math.Round(usage.Y)).Distinct());
+        foreach (var (usage, definition) in usages.Zip(new[] { "Frame", "Battery", "FlightController", "Motor", "Propeller", "ImuSensor", "GpsSensor" }))
+        {
+            Assert.True(usage.Y + usage.Height <= FindBox(layout.Nodes, definition).Y, $"{definition} is not below its usage");
+        }
+
+        // Assert: every connector end lies inside the canvas
+        foreach (var point in CollectLines(layout.Nodes).SelectMany(l => l.Waypoints))
+        {
+            Assert.InRange(point.X, 0.0, layout.Width);
+            Assert.InRange(point.Y, 0.0, layout.Height);
         }
     }
 
@@ -4602,8 +4745,9 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     The node policy decides by usage keyword whether a nested usage is a node: the Pilot policy
-    ///     draws occurrence-kind usages and ports as nodes and keeps attributes, plain references,
-    ///     enumeration values and constraints as rows; the all-usages policy draws every named usage
+    ///     draws occurrence-kind usages and ports that own nested content as nodes and keeps attributes,
+    ///     plain references, plain ports (no nested content), enumeration values and constraints as
+    ///     rows; the all-usages policy draws every named usage
     ///     with a keyword except constraints and enumeration values; the row-only policy draws none.
     /// </summary>
     /// <param name="policy">The policy name.</param>
@@ -4612,7 +4756,7 @@ public sealed class GeneralViewLayoutStrategyTests
     [Theory]
     [InlineData("Pilot", "part", true)]
     [InlineData("Pilot", "item", true)]
-    [InlineData("Pilot", "port", true)]
+    [InlineData("Pilot", "port", false)]
     [InlineData("Pilot", "action", true)]
     [InlineData("Pilot", "state", true)]
     [InlineData("Pilot", "requirement", true)]
@@ -4623,6 +4767,7 @@ public sealed class GeneralViewLayoutStrategyTests
     [InlineData("Pilot", "constraint", false)]
     [InlineData("Pilot", "subject", false)]
     [InlineData("AllUsages", "part", true)]
+    [InlineData("AllUsages", "port", true)]
     [InlineData("AllUsages", "attribute", true)]
     [InlineData("AllUsages", "ref", true)]
     [InlineData("AllUsages", "enum value", false)]
@@ -4661,6 +4806,30 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.False(nodePolicy.IsNode(new SysmlFeatureNode { FeatureKeyword = "part" }));
         Assert.False(nodePolicy.IsNode(new SysmlFeatureNode { Name = "u", FeatureKeyword = string.Empty }));
         Assert.False(nodePolicy.IsNode(new SysmlFeatureNode { Name = "u", FeatureKeyword = "part", ExpressionText = "x > 1" }));
+    }
+
+    /// <summary>
+    ///     Under the Pilot policy a <c>port</c> usage is a node only when it owns at least one named
+    ///     nested feature; a port without nested features, or whose only children are unnamed, stays a row.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_NodePolicy_IsNode_PilotPort_IsNodeOnlyWithNestedContent()
+    {
+        // Arrange
+        var plain = new SysmlFeatureNode { Name = "p", FeatureKeyword = "port" };
+        var unnamedChild = new SysmlFeatureNode { Name = "p", FeatureKeyword = "port", Children = [new SysmlFeatureNode { FeatureKeyword = "attribute" }] };
+        var withContent = new SysmlFeatureNode
+        {
+            Name = "p",
+            FeatureKeyword = "port",
+            Children = [new SysmlFeatureNode { Name = "a", FeatureKeyword = "attribute" }]
+        };
+
+        // Act / Assert
+        Assert.False(NodePolicy.Pilot.IsNode(plain));
+        Assert.False(NodePolicy.Pilot.IsNode(unnamedChild));
+        Assert.True(NodePolicy.Pilot.IsNode(withContent));
+        Assert.False(NodePolicy.RowsOnly.IsNode(withContent));
     }
 
     /// <summary>
@@ -4839,7 +5008,7 @@ public sealed class GeneralViewLayoutStrategyTests
     public async Task GeneralViewLayoutStrategy_BuildLayout_ConjugatedTyping_ShowsTildeAndTypesTheUsageByThePortDefinition()
     {
         // Act
-        var layout = await LayOutUnscopedAsync("port def PortT; part def A { port p : ~PortT; }");
+        var layout = await LayOutUnscopedAsync("port def PortT; part def A { port p : ~PortT { attribute x : Real; } }");
 
         // Assert
         var p = FindBox(layout.Nodes, "p");
@@ -4997,7 +5166,13 @@ public sealed class GeneralViewLayoutStrategyTests
     public async Task GeneralViewLayoutStrategy_BuildLayout_IdenticalUsageNodesOfDifferentOwners_AreBothDrawn()
     {
         // Act
-        var layout = await LayOutUnscopedAsync("package Q { port def P; part def A { port data : P; } part def B { port data : P; } }");
+        var layout = await LayOutUnscopedAsync("""
+            package Q {
+                port def P;
+                part def A { port data : P { attribute x : Real; } }
+                part def B { port data : P { attribute x : Real; } }
+            }
+            """);
 
         // Assert
         Assert.Equal(2, CollectBoxes(layout.Nodes).Count(b => b.Label == "data : P"));
@@ -5030,7 +5205,7 @@ public sealed class GeneralViewLayoutStrategyTests
         // Assert: the comment is a note linked to engine by a dashed, arrowless line
         var note = Assert.Single(CollectBoxes(layout.Nodes), b => b.Shape == BoxShape.Note);
         var link = Assert.Single(CollectLines(layout.Nodes), l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.None);
-        Assert.True(RunsBetween(link, note, engine));
+        Assert.True(RunsBetween(link, engine, note));
     }
 
     /// <summary>
