@@ -149,6 +149,16 @@ statement but no `expose` statement.
 - `Diagnostics` (`IReadOnlyList<SysmlDiagnostic>`) — every diagnostic produced while loading
   the workspace, unfiltered.
 
+Each declaration node is the `SysmlNode` itself, so its additive modifier and notation members
+(`IsAbstract`, `IsVariation`, `IsIndividual`, `IsVariant`, `IsReference`, `Direction`, `IsOrdered`,
+`IsNonunique`, `ValueText`, `ReferenceSubsettingName`, `ConjugatedFeatureTyping`, `ActionText`,
+`IsParallel` on definitions and features; `Trigger`, `Effect` on transitions; see the `SysmlNode`
+design) are exported with no export-specific code. Each is written only when set (flags when
+`true`, text and direction when non-null), so nodes that do not use them export exactly as before.
+`Direction` is the string `"In"`, `"Out"`, or `"InOut"`; the property names carry no naming policy
+(`"IsAbstract"`, `"ValueText"`), like the existing node properties. `ReferenceSubsettingName` and
+`ConjugatedFeatureTyping` are raw, unresolved text and produce no edge.
+
 ##### JSON Rendering (`--format json`, default)
 
 A single indented JSON document is produced via

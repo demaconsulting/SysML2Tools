@@ -56,6 +56,20 @@ sections:
           - SysML2Tools-Language-Semantic-Model-AstBuilder-StandaloneConstraintUsageAndDefinition
           - SysML2Tools-Language-Semantic-Model-AstBuilder-RequirementVerifyFrameNoHoist
           - SysML2Tools-Language-Semantic-Model-SymbolTable-Register
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-DefinitionModifiers
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-FeatureModifiers
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-FeatureDirection
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-MultiplicityModifiers
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-FeatureValueText
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-ReferenceSubsettingAndConjugation
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-StateActionText
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-TransitionTriggerEffect
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-LeadingModifiers
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-FeatureValueAndMultiplicityModifiers
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ReferenceSubsettingConjugationRawCapture
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-TransitionTriggerEffect
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-StateActionText
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ParallelState
         tests:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
           - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames

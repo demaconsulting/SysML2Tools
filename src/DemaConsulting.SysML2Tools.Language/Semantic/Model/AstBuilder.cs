@@ -504,12 +504,16 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             return null;
         }
 
-        return new SysmlFeatureNode
-        {
-            Name = name,
-            QualifiedName = QualifyName(name),
-            FeatureKeyword = "action",
-        };
+        var declaration = context.actionUsageDeclaration();
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = QualifyName(name),
+                FeatureKeyword = "action",
+            },
+            declaration?.usageDeclaration(),
+            declaration?.valuePart());
     }
 
     /// <inheritdoc/>
@@ -749,14 +753,17 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var declaredName = GetDeclaredName(decl?.identification());
         var name = declaredName ?? $"${keyword}{_anonymousNodeCounter++}";
 
-        return new SysmlFeatureNode
-        {
-            Name = name,
-            QualifiedName = declaredName is not null ? QualifyName(name) : null,
-            FeatureKeyword = keyword,
-            Children = Array.Empty<SysmlNode>(),
-            Annotations = Array.Empty<SysmlAnnotation>(),
-        };
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = declaredName is not null ? QualifyName(name) : null,
+                FeatureKeyword = keyword,
+                Children = Array.Empty<SysmlNode>(),
+                Annotations = Array.Empty<SysmlAnnotation>(),
+            },
+            decl,
+            null);
     }
 
     /// <inheritdoc/>
@@ -785,6 +792,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             SupertypeNames = supertypeNames,
             Children = children,
             Annotations = annotations,
+            IsParallel = context.stateDefBody()?.PARALLEL() is not null,
         };
     }
 
@@ -1129,15 +1137,18 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             ? FindVerificationMembers(body)
             : Array.Empty<string>();
 
-        return new SysmlFeatureNode
-        {
-            Name = name,
-            QualifiedName = name is not null ? QualifyName(name) : null,
-            FeatureKeyword = "requirement",
-            VerifiedRequirementNames = verifiedRequirementNames,
-            Children = children,
-            Annotations = annotations,
-        };
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = name is not null ? QualifyName(name) : null,
+                FeatureKeyword = "requirement",
+                VerifiedRequirementNames = verifiedRequirementNames,
+                Children = children,
+                Annotations = annotations,
+            },
+            context.constraintUsageDeclaration()?.usageDeclaration(),
+            context.constraintUsageDeclaration()?.valuePart());
     }
 
     /// <inheritdoc/>
@@ -1165,15 +1176,18 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             ? FindVerificationMembers(body)
             : Array.Empty<string>();
 
-        return new SysmlFeatureNode
-        {
-            Name = name,
-            QualifiedName = name is not null ? QualifyName(name) : null,
-            FeatureKeyword = "concern",
-            VerifiedRequirementNames = verifiedRequirementNames,
-            Children = children,
-            Annotations = annotations,
-        };
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = name is not null ? QualifyName(name) : null,
+                FeatureKeyword = "concern",
+                VerifiedRequirementNames = verifiedRequirementNames,
+                Children = children,
+                Annotations = annotations,
+            },
+            context.constraintUsageDeclaration()?.usageDeclaration(),
+            context.constraintUsageDeclaration()?.valuePart());
     }
 
     /// <inheritdoc/>
@@ -1252,13 +1266,16 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var name = GetDeclaredName(usage.constraintUsageDeclaration()?.usageDeclaration()?.identification());
         var expressionText = usage.calculationBody()?.GetText();
 
-        return new SysmlFeatureNode
-        {
-            Name = name,
-            QualifiedName = name is not null ? QualifyName(name) : null,
-            FeatureKeyword = keyword,
-            ExpressionText = expressionText,
-        };
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = name is not null ? QualifyName(name) : null,
+                FeatureKeyword = keyword,
+                ExpressionText = expressionText,
+            },
+            usage.constraintUsageDeclaration()?.usageDeclaration(),
+            usage.constraintUsageDeclaration()?.valuePart());
     }
 
     /// <inheritdoc/>
@@ -1272,13 +1289,16 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var name = GetDeclaredName(context.constraintUsageDeclaration()?.usageDeclaration()?.identification());
         var expressionText = context.calculationBody()?.GetText();
 
-        return new SysmlFeatureNode
-        {
-            Name = name,
-            QualifiedName = name is not null ? QualifyName(name) : null,
-            FeatureKeyword = "constraint",
-            ExpressionText = expressionText,
-        };
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = name is not null ? QualifyName(name) : null,
+                FeatureKeyword = "constraint",
+                ExpressionText = expressionText,
+            },
+            context.constraintUsageDeclaration()?.usageDeclaration(),
+            context.constraintUsageDeclaration()?.valuePart());
     }
 
     /// <inheritdoc/>
@@ -1394,15 +1414,19 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         var (children, annotations) = CollectChildren(context.stateUsageBody()?.stateBodyItem() ?? []);
         _namespaceStack.RemoveAt(_namespaceStack.Count - 1);
 
-        return new SysmlFeatureNode
-        {
-            Name = name,
-            QualifiedName = QualifyName(name),
-            FeatureKeyword = "state",
-            FeatureTyping = typing,
-            Children = children,
-            Annotations = annotations,
-        };
+        return ApplyFeatureNotation(
+            new SysmlFeatureNode
+            {
+                Name = name,
+                QualifiedName = QualifyName(name),
+                FeatureKeyword = "state",
+                FeatureTyping = typing,
+                Children = children,
+                Annotations = annotations,
+                IsParallel = context.stateUsageBody()?.PARALLEL() is not null,
+            },
+            decl,
+            context.actionUsageDeclaration()?.valuePart());
     }
 
     /// <summary>
@@ -1502,6 +1526,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             Source = sourceName,
             Target = target,
             Guard = guard,
+            Trigger = OriginalTextOrNull(usage?.triggerActionMember()?.triggerAction()),
+            Effect = OriginalTextOrNull(usage?.effectBehaviorMember()?.effectBehaviorUsage()),
         };
     }
 
@@ -1573,8 +1599,22 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             FeatureKeyword = keyword,
             Children = Array.Empty<SysmlNode>(),
             Annotations = Array.Empty<SysmlAnnotation>(),
+            ActionText = ExtractStateActionText(usage),
         };
     }
+
+    /// <summary>
+    ///     Extracts the verbatim declaration text of a <c>stateActionUsage</c> (the
+    ///     <c>performActionUsageDeclaration</c>, <c>acceptNodeDeclaration</c>,
+    ///     <c>sendNodeDeclaration</c>, or <c>assignmentNodeDeclaration</c> of whichever alternative
+    ///     is present), excluding its action body, or <see langword="null"/> for the empty form
+    ///     (<c>entry;</c>).
+    /// </summary>
+    private static string? ExtractStateActionText(SysMLv2Parser.StateActionUsageContext? usage) =>
+        OriginalTextOrNull(usage?.statePerformActionUsage()?.performActionUsageDeclaration())
+        ?? OriginalTextOrNull(usage?.stateAcceptActionUsage()?.acceptNodeDeclaration())
+        ?? OriginalTextOrNull(usage?.stateSendActionUsage()?.sendNodeDeclaration())
+        ?? OriginalTextOrNull(usage?.stateAssignmentActionUsage()?.assignmentNodeDeclaration());
 
     /// <summary>
     ///     Extracts the declared name of a <c>stateActionUsage</c>, or <see langword="null"/> when
@@ -1610,6 +1650,8 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             Source = source,
             Target = target,
             Guard = guard,
+            Trigger = OriginalTextOrNull(context.triggerActionMember()?.triggerAction()),
+            Effect = OriginalTextOrNull(context.effectBehaviorMember()?.effectBehaviorUsage()),
         };
     }
 
@@ -1689,7 +1731,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             }
         }
 
-        return new SysmlFeatureNode
+        var node = new SysmlFeatureNode
         {
             Name = effectiveName,
             QualifiedName = qualifiedName,
@@ -1701,6 +1743,36 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             Children = children,
             Annotations = annotations,
         };
+
+        return ApplyFeatureNotation(node, decl, usage.usageCompletion()?.valuePart());
+    }
+
+    /// <summary>
+    ///     Shared notation-data enrichment applied by every builder that produces a
+    ///     <see cref="SysmlFeatureNode"/> from a <c>usageDeclaration</c>/<c>valuePart</c> pair
+    ///     (generic usages, and the specialized action, state, requirement, concern and constraint
+    ///     usages): captures <c>ordered</c>/<c>nonunique</c>, the verbatim value clause, the
+    ///     <c>::&gt;</c> reference-subsetting target and any conjugated typing name. Leading
+    ///     modifiers (<c>abstract</c>, <c>ref</c>, direction, ...) are applied separately and
+    ///     centrally by <see cref="ApplyLeadingModifiers"/>.
+    /// </summary>
+    /// <param name="node">The feature node to enrich.</param>
+    /// <param name="decl">The usage declaration, or null when the usage has none.</param>
+    /// <param name="valuePart">The value part (<c>= expr</c>), or null when none is declared.</param>
+    /// <returns><paramref name="node"/>, for call chaining.</returns>
+    private static SysmlFeatureNode ApplyFeatureNotation(
+        SysmlFeatureNode node,
+        SysMLv2Parser.UsageDeclarationContext? decl,
+        SysMLv2Parser.ValuePartContext? valuePart)
+    {
+        var specializationPart = decl?.featureSpecializationPart();
+        var multiplicityPart = specializationPart?.multiplicityPart();
+        node.IsOrdered = multiplicityPart?.ORDERED() is not null;
+        node.IsNonunique = multiplicityPart?.NONUNIQUE() is not null;
+        node.ReferenceSubsettingName = ExtractReferenceSubsettingName(specializationPart);
+        node.ConjugatedFeatureTyping = ExtractConjugatedTypingName(specializationPart);
+        node.ValueText = OriginalTextOrNull(valuePart?.featureValue());
+        return node;
     }
 
     /// <summary>
@@ -1867,6 +1939,71 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <summary>
+    ///     Extracts the raw reference text of the first <c>::&gt;</c>/<c>references</c>
+    ///     reference-subsetting clause from a feature specialization part, or null when the feature
+    ///     declares none. Deliberately kept out of <c>SupertypeNames</c>, which drives
+    ///     <see cref="SysmlEdgeKind.Supertype"/> edges and subsetting classification.
+    /// </summary>
+    private static string? ExtractReferenceSubsettingName(SysMLv2Parser.FeatureSpecializationPartContext? fsp)
+    {
+        if (fsp is null)
+        {
+            return null;
+        }
+
+        foreach (var fs in fsp.featureSpecialization())
+        {
+            var target = fs.references()?.ownedReferenceSubsetting();
+            if (target is not null)
+            {
+                return target.GetText();
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Extracts the raw type name of the first conjugated feature typing (<c>~PortT</c>) from a
+    ///     feature specialization part, or null when the feature is not conjugated-typed.
+    ///     <see cref="ExtractFeatureTyping"/> deliberately ignores such typings, so no typing edge
+    ///     is produced for them.
+    /// </summary>
+    private static string? ExtractConjugatedTypingName(SysMLv2Parser.FeatureSpecializationPartContext? fsp)
+    {
+        if (fsp is null)
+        {
+            return null;
+        }
+
+        foreach (var fs in fsp.featureSpecialization())
+        {
+            var typings = fs.typings();
+            if (typings is null)
+            {
+                continue;
+            }
+
+            var fromTypedBy = typings.typedBy()?.featureTyping()?.conjugatedPortTyping()?.qualifiedName();
+            if (fromTypedBy is not null)
+            {
+                return fromTypedBy.GetText();
+            }
+
+            foreach (var ft in typings.featureTyping())
+            {
+                var conjugated = ft.conjugatedPortTyping()?.qualifiedName();
+                if (conjugated is not null)
+                {
+                    return conjugated.GetText();
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     ///     Extracts the multiplicity text (e.g. <c>[4]</c>) from a feature specialization part,
     ///     or null when no multiplicity is declared.
     /// </summary>
@@ -1996,6 +2133,21 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     private static string GetOriginalText(Antlr4.Runtime.ParserRuleContext context) =>
         context.Start.InputStream.GetText(
             new Antlr4.Runtime.Misc.Interval(context.Start.StartIndex, context.Stop.StopIndex));
+
+    /// <summary>
+    ///     Null-safe variant of <see cref="GetOriginalText"/> for contexts that may be absent or
+    ///     match no tokens (epsilon rules such as <c>emptyActionUsage_</c>, whose <c>Stop</c> token
+    ///     is null or precedes <c>Start</c>). Returns null in those cases.
+    /// </summary>
+    private static string? OriginalTextOrNull(Antlr4.Runtime.ParserRuleContext? context)
+    {
+        if (context?.Start is null || context.Stop is null || context.Stop.StopIndex < context.Start.StartIndex)
+        {
+            return null;
+        }
+
+        return GetOriginalText(context);
+    }
 
     /// <summary>Extracts the <c>viewRenderingMember()</c> accessor common to both view body item types.</summary>
     private static SysMLv2Parser.ViewRenderingMemberContext? GetViewRenderingMember(Antlr4.Runtime.ParserRuleContext item) =>
@@ -2179,10 +2331,15 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     ///     and its declared short name (from the element's own leading <c>identification</c>) to
     ///     the node built from it. Imports carry their own visibility from
     ///     <see cref="VisitImportRule"/> and so are left as built; aliases take the member
-    ///     visibility but keep the short name <see cref="BuildAliasNode"/> already extracted.
+    ///     visibility but keep the short name <see cref="BuildAliasNode"/> already extracted. Unless
+    ///     <paramref name="applyModifiers"/> is false, the element's leading prefix keywords are also
+    ///     applied (see <see cref="ApplyLeadingModifiers"/>).
     /// </summary>
     private static void ApplyMembershipDetails(
-        SysmlNode node, SysMLv2Parser.MemberPrefixContext? memberPrefix, Antlr4.Runtime.ParserRuleContext element)
+        SysmlNode node,
+        SysMLv2Parser.MemberPrefixContext? memberPrefix,
+        Antlr4.Runtime.ParserRuleContext element,
+        bool applyModifiers = true)
     {
         if (node is SysmlImportNode)
         {
@@ -2198,12 +2355,19 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         {
             node.ShortName = identification.name()[0].GetText();
         }
+
+        if (applyModifiers)
+        {
+            ApplyLeadingModifiers(node, element);
+        }
     }
 
     /// <summary>
-    ///     Applies <see cref="ApplyMembershipDetails(SysmlNode, SysMLv2Parser.MemberPrefixContext?, Antlr4.Runtime.ParserRuleContext)"/>
+    ///     Applies <see cref="ApplyMembershipDetails(SysmlNode, SysMLv2Parser.MemberPrefixContext?, Antlr4.Runtime.ParserRuleContext, bool)"/>
     ///     to every node built from one body item of a specialized (type, state, action, or
-    ///     requirement) body, using the item's own member prefix.
+    ///     requirement) body, using the item's own member prefix. Leading modifiers apply only to
+    ///     the first definition or feature node, so transitions synthesized from the same item
+    ///     (a <see cref="MultiNodeCapture"/>) never receive them.
     /// </summary>
     private static void ApplyMembershipDetails(IEnumerable<SysmlNode> nodes, Antlr4.Runtime.Tree.IParseTree item)
     {
@@ -2213,9 +2377,119 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         }
 
         var memberPrefix = FindMemberPrefix(context);
+        var modifiersApplied = false;
         foreach (var node in nodes)
         {
-            ApplyMembershipDetails(node, memberPrefix, context);
+            var applyModifiers = !modifiersApplied && node is SysmlDefinitionNode or SysmlFeatureNode;
+            modifiersApplied |= applyModifiers;
+            ApplyMembershipDetails(node, memberPrefix, context, applyModifiers);
+        }
+    }
+
+    /// <summary>
+    ///     Applies the leading prefix keywords of a body element (<c>abstract</c>, <c>variation</c>,
+    ///     <c>individual</c>, <c>variant</c>, <c>ref</c>, and the <c>in</c>/<c>out</c>/<c>inout</c>
+    ///     direction) to the definition or feature node built from it. Walks the element's terminal
+    ///     tokens in order, skips the member's visibility keyword and a leading <c>then</c>,
+    ///     consumes tokens while they are prefix keywords (also tolerating <c>derived</c> and
+    ///     <c>constant</c>, which are not captured), and stops at the first other token (the kind
+    ///     keyword, an identifier, <c>#</c>, ...). Done centrally so that every definition and usage
+    ///     visitor is covered without per-visitor edits. Nodes other than definitions and features
+    ///     are left untouched.
+    /// </summary>
+    private static void ApplyLeadingModifiers(SysmlNode node, Antlr4.Runtime.ParserRuleContext element)
+    {
+        if (node is not (SysmlDefinitionNode or SysmlFeatureNode))
+        {
+            return;
+        }
+
+        var isAbstract = false;
+        var isVariation = false;
+        var isIndividual = false;
+        var isVariant = false;
+        var isReference = false;
+        SysmlFeatureDirection? direction = null;
+        var leading = true;
+        foreach (var tokenType in EnumerateTokens(element).Select(token => token.Type))
+        {
+            if (leading && tokenType is SysMLv2Parser.PUBLIC or SysMLv2Parser.PRIVATE
+                or SysMLv2Parser.PROTECTED or SysMLv2Parser.THEN)
+            {
+                continue;
+            }
+
+            leading = false;
+            switch (tokenType)
+            {
+                case SysMLv2Parser.ABSTRACT:
+                    isAbstract = true;
+                    continue;
+                case SysMLv2Parser.VARIATION:
+                    isVariation = true;
+                    continue;
+                case SysMLv2Parser.INDIVIDUAL:
+                    isIndividual = true;
+                    continue;
+                case SysMLv2Parser.VARIANT:
+                    isVariant = true;
+                    continue;
+                case SysMLv2Parser.REF:
+                    isReference = true;
+                    continue;
+                case SysMLv2Parser.IN:
+                    direction = SysmlFeatureDirection.In;
+                    continue;
+                case SysMLv2Parser.OUT:
+                    direction = SysmlFeatureDirection.Out;
+                    continue;
+                case SysMLv2Parser.INOUT:
+                    direction = SysmlFeatureDirection.InOut;
+                    continue;
+                case SysMLv2Parser.DERIVED:
+                case SysMLv2Parser.CONSTANT:
+                    continue;
+            }
+
+            break;
+        }
+
+        switch (node)
+        {
+            case SysmlDefinitionNode definition:
+                definition.IsAbstract = isAbstract;
+                definition.IsVariation = isVariation;
+                definition.IsIndividual = isIndividual;
+                break;
+            case SysmlFeatureNode feature:
+                feature.IsAbstract = isAbstract;
+                feature.IsVariation = isVariation;
+                feature.IsIndividual = isIndividual;
+                feature.IsVariant = isVariant;
+                feature.IsReference = isReference;
+                feature.Direction = direction;
+                break;
+        }
+    }
+
+    /// <summary>
+    ///     Lazily enumerates the terminal-node tokens of a parse tree in source (pre-)order, so a
+    ///     caller that needs only the first few tokens does not walk the whole subtree.
+    /// </summary>
+    private static IEnumerable<Antlr4.Runtime.IToken> EnumerateTokens(Antlr4.Runtime.Tree.IParseTree tree)
+    {
+        if (tree is Antlr4.Runtime.Tree.ITerminalNode terminal)
+        {
+            yield return terminal.Symbol;
+            yield break;
+        }
+
+        for (var i = 0; i < tree.ChildCount; i++)
+        {
+            foreach (var token in EnumerateTokens(tree.GetChild(i)))
+            {
+                yield return token;
+            }
         }
     }
 

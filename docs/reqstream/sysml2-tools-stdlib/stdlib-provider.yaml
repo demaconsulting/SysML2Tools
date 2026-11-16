@@ -51,3 +51,16 @@ sections:
           parse warnings rather than hiding them from end users.
         tests:
           - GetSymbolTable_DiagnosticsNotNull
+
+      - id: SysML2Tools-Stdlib-StdlibProvider-ModifierData
+        title: >-
+          StdlibProvider.GetSymbolTable shall return standard library declarations that carry the
+          modifier data of the standard library source (for example `Parts::Part`, declared
+          `abstract part def Part`, is flagged abstract) and no error diagnostics.
+        justification: |
+          The pre-compiled binary is regenerated from the standard library source; verifying a
+          known modifier proves the regeneration happened and that the additive members reach
+          consumers of the standard library symbol table.
+        tests:
+          - GetSymbolTable_RegeneratedStdlib_CarriesModifiers
+          - GetSymbolTable_Diagnostics_ContainNoErrors

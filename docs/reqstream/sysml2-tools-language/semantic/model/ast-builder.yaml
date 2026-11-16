@@ -508,3 +508,80 @@ sections:
           change.
         tests:
           - WorkspaceLoader_LoadAsync_RequirementVerifyMember_DoesNotHoistNestedContent
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-LeadingModifiers
+        title: >-
+          AstBuilder shall apply a body element's leading `abstract`, `variation`, `individual`,
+          `variant`, `ref`, and `in`/`out`/`inout` prefix keywords to the definition or feature
+          node built from it, in every kind of body, skipping the member's visibility keyword and
+          a leading `then`, stopping at the first non-prefix token, and applying them only to the
+          first definition or feature node of an item that yields several nodes.
+        justification: |
+          One central pass over the element's leading tokens covers every definition and usage
+          visitor without per-visitor edits, and the stop rule and first-node rule prevent a
+          modifier from being attributed to a nested member or a synthesized transition.
+        tests:
+          - WorkspaceLoader_LoadAsync_AbstractModifier_SetsIsAbstract
+          - WorkspaceLoader_LoadAsync_VariationAndVariant_SetFlags
+          - WorkspaceLoader_LoadAsync_IndividualPrefix_SetsIsIndividual
+          - WorkspaceLoader_LoadAsync_RefPrefix_SetsIsReference
+          - WorkspaceLoader_LoadAsync_FeatureDirection_Captured
+          - WorkspaceLoader_LoadAsync_ModifiersInSpecializedBodies_AppliedToUsagesOnly
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-FeatureValueAndMultiplicityModifiers
+        title: >-
+          AstBuilder shall capture a usage's value clause verbatim into ValueText and its
+          `ordered`/`nonunique` multiplicity modifiers into IsOrdered and IsNonunique.
+        justification: |
+          These are display data of the notation that the grammar already parses; capturing them
+          requires no grammar change.
+        tests:
+          - WorkspaceLoader_LoadAsync_FeatureValue_CapturedVerbatim
+          - WorkspaceLoader_LoadAsync_OrderedNonunique_Captured
+          - WorkspaceLoader_LoadAsync_SpecializedUsages_CaptureNotationData
+          - WorkspaceLoader_LoadAsync_SpecializedUsages_CaptureLeadingModifiers
+          - WorkspaceLoader_LoadAsync_ActionControlNodes_NoParallelOrNotationData
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ReferenceSubsettingConjugationRawCapture
+        title: >-
+          AstBuilder shall capture `::>`/`references` targets and `~` conjugated typing names as
+          raw text without adding them to SupertypeNames or FeatureTyping, so they cause no new
+          edge or diagnostic.
+        justification: |
+          Adding either to the existing resolved members would add supertype or typing edges and
+          change diagnostics and layout; raw capture keeps this change data-only.
+        tests:
+          - WorkspaceLoader_LoadAsync_ReferenceSubsetting_CapturedNotInSupertypeNames
+          - WorkspaceLoader_LoadAsync_ConjugatedPortTyping_CapturesNameKeepsTypingNull
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-TransitionTriggerEffect
+        title: >-
+          AstBuilder shall capture the trigger and effect text of full and attached transitions
+          into Trigger and Effect, leaving Guard unchanged, and shall tolerate empty effect forms.
+        justification: |
+          The transition label needs trigger and effect text. The guard keeps its existing
+          whitespace-less form because changing it would alter rendered labels.
+        tests:
+          - WorkspaceLoader_LoadAsync_TransitionTriggerGuardEffect_Captured
+          - WorkspaceLoader_LoadAsync_AttachedTransition_CapturesTriggerGuardEffect
+          - WorkspaceLoader_LoadAsync_SynthesizedSuccessions_TriggerEffectNull
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-StateActionText
+        title: >-
+          AstBuilder shall capture the declaration text of an `entry`/`do`/`exit` state
+          sub-action, excluding its body, into ActionText, and null for the empty form.
+        justification: |
+          The notation displays what a state sub-action performs, while the existing node
+          deliberately models only its name.
+        tests:
+          - WorkspaceLoader_LoadAsync_StateEntryDoExitActions_CaptureActionText
+          - WorkspaceLoader_LoadAsync_EmptyStateEntryAction_ActionTextNull
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ParallelState
+        title: >-
+          AstBuilder shall set IsParallel on a state definition or state usage whose body is
+          declared `parallel`.
+        justification: |
+          Parallel (concurrent) states are drawn differently, so the flag must be observable.
+        tests:
+          - WorkspaceLoader_LoadAsync_ParallelState_SetsIsParallel

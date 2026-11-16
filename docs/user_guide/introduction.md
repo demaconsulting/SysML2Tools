@@ -853,6 +853,36 @@ OMG standard-library declarations and edges by default (mirroring `query`'s
 `WorkspaceLoader` diagnostics only ever come from the user's own supplied files (the stdlib
 symbol table is a pre-resolved seed, never re-parsed).
 
+### Modifier and notation data on nodes
+
+Declaration nodes carry additional optional properties that capture what the SysML v2 notation
+displays. Each appears **only when it is set**, so a node that does not use the syntax is exported
+exactly as before, and a consumer that does not know a property can ignore it. The property
+names are written exactly as shown (no case conversion), like the other node properties.
+
+| Property | On | Meaning |
+| --- | --- | --- |
+| `IsAbstract`, `IsVariation`, `IsIndividual` | definitions, usages | leading `abstract`/`variation`/`individual` |
+| `IsVariant` | usages | a `variant` usage |
+| `IsReference` | usages | declared with `ref` (`ref part x`, `ref x : T`) |
+| `Direction` | usages | the string `"In"`, `"Out"`, or `"InOut"` for `in`, `out`, `inout` |
+| `IsOrdered`, `IsNonunique` | usages | the `ordered` / `nonunique` multiplicity modifiers |
+| `ValueText` | usages | the value clause as written, operator included: `"= 5 [kg]"`, `":= 3"` |
+| `ReferenceSubsettingName` | usages | the raw target of `::>` / `references` |
+| `ConjugatedFeatureTyping` | usages | the raw type name of a conjugated typing (`port p : ~PortT` gives `"PortT"`) |
+| `ActionText` | `entry`/`do`/`exit` actions | the action declaration as written, body excluded |
+| `IsParallel` | state definitions, state usages | declared `parallel` |
+| `Trigger`, `Effect` | transitions | the text after `accept` and after `do`, as written |
+
+Notes:
+
+- Text values keep the original spacing; they are never parsed or evaluated.
+- `ReferenceSubsettingName` and `ConjugatedFeatureTyping` are raw and unresolved: they produce no
+  edge and no diagnostic, and a conjugated usage still has a `null` typing reference.
+- Only usages that become model elements carry a `Direction`. A bare parameter such as
+  `in x : T;` is not a model element, so it is not exported.
+- `derived`, `constant`, and `end` modifiers are not captured.
+
 # Global Options
 
 The following global options are accepted before the verb:

@@ -147,3 +147,110 @@ sections:
           - AstBuilder_ImportForms_CaptureWrittenReferenceText
           - AstBuilder_ExposeNamespaceDirectChildren_CapturesNamespaceDirectChildren
           - Serialize_ImportAndExposeRawReferenceText_RoundTripsAndNullIsOmitted
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-DefinitionModifiers
+        title: >-
+          SysmlDefinitionNode shall expose the IsAbstract, IsVariation, IsIndividual, and
+          IsParallel flags, each false unless the definition declares the corresponding
+          `abstract`, `variation`, `individual`, or (state definition) `parallel` modifier.
+        justification: |
+          The standard notation displays these modifiers, so they must be observable in the
+          semantic model. They are optional additive members, so hand-built nodes and data
+          serialized before they existed remain valid.
+        tests:
+          - WorkspaceLoader_LoadAsync_AbstractModifier_SetsIsAbstract
+          - WorkspaceLoader_LoadAsync_VariationAndVariant_SetFlags
+          - WorkspaceLoader_LoadAsync_IndividualPrefix_SetsIsIndividual
+          - WorkspaceLoader_LoadAsync_ParallelState_SetsIsParallel
+          - WorkspaceLoader_LoadAsync_PlainModel_AllNewMembersDefault
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-FeatureModifiers
+        title: >-
+          SysmlFeatureNode shall expose the IsAbstract, IsVariation, IsIndividual, IsVariant,
+          IsReference, and IsParallel flags, each false unless the usage declares the
+          corresponding `abstract`, `variation`, `individual`, `variant`, `ref`, or (state
+          usage) `parallel` modifier.
+        justification: |
+          The standard notation displays these usage modifiers, so they must be observable in the
+          semantic model; optional additive members keep older data valid.
+        tests:
+          - WorkspaceLoader_LoadAsync_AbstractModifier_SetsIsAbstract
+          - WorkspaceLoader_LoadAsync_VariationAndVariant_SetFlags
+          - WorkspaceLoader_LoadAsync_IndividualPrefix_SetsIsIndividual
+          - WorkspaceLoader_LoadAsync_RefPrefix_SetsIsReference
+          - WorkspaceLoader_LoadAsync_ParallelState_SetsIsParallel
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-FeatureDirection
+        title: >-
+          SysmlFeatureNode shall expose an optional Direction (In, Out, or InOut) for a usage
+          declared with an `in`, `out`, or `inout` keyword, null otherwise; a bare
+          direction-only parameter that produces no node carries no direction.
+        justification: |
+          Flow direction is part of how ports and parameters are drawn. Bare parameters are not
+          AST nodes today and creating them would change layout inputs, so only usages with a
+          direction keyword
+          carry a direction.
+        tests:
+          - WorkspaceLoader_LoadAsync_FeatureDirection_Captured
+          - WorkspaceLoader_LoadAsync_BareDirectionParameter_ProducesNoNode
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-MultiplicityModifiers
+        title: >-
+          SysmlFeatureNode shall expose IsOrdered and IsNonunique, true when the usage declares
+          the `ordered` or `nonunique` multiplicity modifier, with or without a multiplicity
+          range.
+        justification: |
+          The notation shows `ordered` and `nonunique` after the multiplicity, so they must be
+          observable independently of the multiplicity text.
+        tests:
+          - WorkspaceLoader_LoadAsync_OrderedNonunique_Captured
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-FeatureValueText
+        title: >-
+          SysmlFeatureNode shall expose an optional ValueText: the usage's whole value clause
+          verbatim, operator and original whitespace included, null when the usage declares no
+          value; the text shall never be parsed or evaluated.
+        justification: |
+          The notation displays a usage's value; keeping the operator (`=`, `:=`, `default`)
+          makes the text display-ready, and leaving it unevaluated matches the tool's
+          no-expression-tree scope boundary.
+        tests:
+          - WorkspaceLoader_LoadAsync_FeatureValue_CapturedVerbatim
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ReferenceSubsettingAndConjugation
+        title: >-
+          SysmlFeatureNode shall expose an optional raw, unresolved ReferenceSubsettingName (the
+          target of `::>`/`references`) and ConjugatedFeatureTyping (the name after `~`) with a
+          computed IsConjugated; neither shall be part of SupertypeNames or FeatureTyping.
+        justification: |
+          The notation shows reference subsetting and conjugated typing, which the model
+          previously dropped. Storing them in separate unresolved members preserves the data
+          without adding supertype or typing edges, so resolution, diagnostics, and layout are
+          unchanged.
+        tests:
+          - WorkspaceLoader_LoadAsync_ReferenceSubsetting_CapturedNotInSupertypeNames
+          - WorkspaceLoader_LoadAsync_ConjugatedPortTyping_CapturesNameKeepsTypingNull
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-StateActionText
+        title: >-
+          SysmlFeatureNode shall expose an optional ActionText: the verbatim declaration text
+          (body excluded) of an `entry`, `do`, or `exit` state sub-action, null for the empty
+          form and for every other feature.
+        justification: |
+          The notation shows what each state sub-action performs; the existing node only carried
+          its optional name, so the declaration text is captured raw.
+        tests:
+          - WorkspaceLoader_LoadAsync_StateEntryDoExitActions_CaptureActionText
+          - WorkspaceLoader_LoadAsync_EmptyStateEntryAction_ActionTextNull
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-TransitionTriggerEffect
+        title: >-
+          SysmlTransitionNode shall expose an optional Trigger (the text after `accept`) and
+          Effect (the text after `do`), verbatim with original whitespace, null when absent.
+        justification: |
+          The notation labels a transition with its trigger, guard, and effect; the guard was
+          already captured, so trigger and effect complete the label data.
+        tests:
+          - WorkspaceLoader_LoadAsync_TransitionTriggerGuardEffect_Captured
+          - WorkspaceLoader_LoadAsync_AttachedTransition_CapturesTriggerGuardEffect
+          - WorkspaceLoader_LoadAsync_SynthesizedSuccessions_TriggerEffectNull

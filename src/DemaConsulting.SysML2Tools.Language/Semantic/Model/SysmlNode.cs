@@ -147,6 +147,42 @@ public sealed class SysmlDefinitionNode : SysmlNode
     ///     Gets the definition keyword (e.g., "part def", "attribute def").
     /// </summary>
     public string DefinitionKeyword { get; init; } = string.Empty;
+
+    /// <summary>
+    ///     Gets a value indicating whether the definition was declared with the leading
+    ///     <c>abstract</c> modifier. <see langword="false"/> for a definition without it and for
+    ///     data that predates this property.
+    /// </summary>
+    /// <remarks>
+    ///     Set post-construction by <see cref="AstBuilder"/> from the definition's prefix
+    ///     keywords. Written to JSON only when <see langword="true"/>.
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsAbstract { get; set; }
+
+    /// <summary>
+    ///     Gets a value indicating whether the definition was declared with the leading
+    ///     <c>variation</c> modifier (a definition whose <c>variant</c> usages are its
+    ///     alternatives). <see langword="false"/> for data that predates this property.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsVariation { get; set; }
+
+    /// <summary>
+    ///     Gets a value indicating whether the definition was declared with the <c>individual</c>
+    ///     modifier (e.g. <c>individual part def Earth</c>). <see langword="false"/> for data that
+    ///     predates this property.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsIndividual { get; set; }
+
+    /// <summary>
+    ///     Gets a value indicating whether a <c>state def</c> declares its nested states to be
+    ///     concurrent (<c>state def S parallel { ... }</c>). <see langword="false"/> for every
+    ///     other definition and for data that predates this property.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsParallel { get; init; }
 }
 
 /// <summary>
@@ -190,6 +226,145 @@ public sealed class SysmlFeatureNode : SysmlNode
     ///     boundary.
     /// </summary>
     public string? ExpressionText { get; init; }
+
+    /// <summary>
+    ///     Gets a value indicating whether the usage was declared with the <c>abstract</c>
+    ///     modifier. <see langword="false"/> for data that predates this property.
+    /// </summary>
+    /// <remarks>
+    ///     Set post-construction by <see cref="AstBuilder"/> from the usage's prefix keywords.
+    ///     Written to JSON only when <see langword="true"/>.
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsAbstract { get; set; }
+
+    /// <summary>
+    ///     Gets a value indicating whether the usage was declared with the <c>variation</c>
+    ///     modifier. <see langword="false"/> for data that predates this property.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsVariation { get; set; }
+
+    /// <summary>
+    ///     Gets a value indicating whether the usage was declared with the <c>individual</c>
+    ///     modifier. <see langword="false"/> for data that predates this property.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsIndividual { get; set; }
+
+    /// <summary>
+    ///     Gets a value indicating whether the usage is a <c>variant</c> of an enclosing
+    ///     variation (<c>variant part x;</c>). <see langword="false"/> for data that predates
+    ///     this property.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsVariant { get; set; }
+
+    /// <summary>
+    ///     Gets a value indicating whether the usage was declared with the <c>ref</c> keyword
+    ///     (<c>ref part x</c> or <c>ref x : T</c>). No composite flag is captured; composition is
+    ///     the default for most usage kinds. <see langword="false"/> for data that predates this
+    ///     property.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsReference { get; set; }
+
+    /// <summary>
+    ///     Gets the declared flow direction (<c>in</c>, <c>out</c>, <c>inout</c>) of the usage, or
+    ///     <see langword="null"/> when none is declared.
+    /// </summary>
+    /// <remarks>
+    ///     Only usages that become AST nodes carry a direction; a bare parameter such as
+    ///     <c>in x : T;</c> produces no node and therefore no direction.
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SysmlFeatureDirection? Direction { get; set; }
+
+    /// <summary>
+    ///     Gets a value indicating whether the usage's multiplicity declares <c>ordered</c>
+    ///     (<c>[0..*] ordered</c> or <c>part x ordered;</c>). <see langword="false"/> for data
+    ///     that predates this property.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsOrdered { get; set; }
+
+    /// <summary>
+    ///     Gets a value indicating whether the usage's multiplicity declares <c>nonunique</c>
+    ///     (<c>[0..*] nonunique</c> or <c>part x nonunique;</c>). <see langword="false"/> for
+    ///     data that predates this property.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsNonunique { get; set; }
+
+    /// <summary>
+    ///     Gets the whole value clause of the usage verbatim, including its operator and original
+    ///     inter-token whitespace (<c>= 5 [kg]</c>, <c>:= 3</c>, <c>default = 10</c>,
+    ///     <c>default 7</c>), or <see langword="null"/> when the usage declares no value. Never
+    ///     parsed or evaluated; distinct from <see cref="ExpressionText"/>, which carries a
+    ///     constraint body.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ValueText { get; set; }
+
+    /// <summary>
+    ///     Gets the raw, unresolved target of the usage's <c>::&gt;</c>/<c>references</c>
+    ///     reference-subsetting clause, or <see langword="null"/> when it declares none. Not part
+    ///     of <see cref="SysmlNode.SupertypeNames"/> and never resolved: it produces no edge and no
+    ///     diagnostic.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ReferenceSubsettingName { get; set; }
+
+    /// <summary>
+    ///     Gets the raw, unresolved name of the conjugated type of a conjugated typing
+    ///     (<c>port p : ~PortT</c> yields <c>PortT</c>), or <see langword="null"/> when the usage
+    ///     is not typed by a conjugated port definition. <see cref="FeatureTyping"/> stays
+    ///     <see langword="null"/> for such a usage, so no typing edge is produced.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ConjugatedFeatureTyping { get; set; }
+
+    /// <summary>
+    ///     Gets a value indicating whether the usage is typed by a conjugated port definition
+    ///     (<see cref="ConjugatedFeatureTyping"/> is not <see langword="null"/>). Computed; not
+    ///     serialized.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsConjugated => ConjugatedFeatureTyping is not null;
+
+    /// <summary>
+    ///     Gets the verbatim declaration text of a state sub-action (<c>entry</c>/<c>do</c>/
+    ///     <c>exit</c> feature), for example <c>action initial</c>, <c>foo : Bar</c> or
+    ///     <c>accept sig</c>, excluding the action body; <see langword="null"/> for every other
+    ///     feature and for the empty form (<c>entry;</c>).
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ActionText { get; init; }
+
+    /// <summary>
+    ///     Gets a value indicating whether a <c>state</c> usage declares its nested states to be
+    ///     concurrent (<c>state s parallel { ... }</c>). <see langword="false"/> for data that
+    ///     predates this property.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsParallel { get; init; }
+}
+
+/// <summary>
+///     Declared flow direction of a usage (SysML v2 <c>FeatureDirectionKind</c>). Serialized as a
+///     string (<c>"In"</c>, <c>"Out"</c>, <c>"InOut"</c>) so exported JSON is readable.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<SysmlFeatureDirection>))]
+public enum SysmlFeatureDirection
+{
+    /// <summary>The <c>in</c> direction.</summary>
+    In,
+
+    /// <summary>The <c>out</c> direction.</summary>
+    Out,
+
+    /// <summary>The <c>inout</c> direction.</summary>
+    InOut,
 }
 
 /// <summary>
@@ -632,6 +807,23 @@ public sealed class SysmlTransitionNode : SysmlNode
     ///     Gets the guard expression text (the condition after <c>if</c>), or null when unguarded.
     /// </summary>
     public string? Guard { get; init; }
+
+    /// <summary>
+    ///     Gets the verbatim text of the transition's trigger (the text after <c>accept</c>, e.g.
+    ///     <c>callReceived</c>, <c>sig via pp</c>, <c>at 5</c>), or <see langword="null"/> when it
+    ///     declares none. Captured with original whitespace, unlike <see cref="Guard"/>, and only
+    ///     for the full transition and attached-transition forms.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Trigger { get; init; }
+
+    /// <summary>
+    ///     Gets the verbatim text of the transition's effect (the text after <c>do</c>), or
+    ///     <see langword="null"/> when it declares none. Captured with original whitespace, and
+    ///     only for the full transition and attached-transition forms.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Effect { get; init; }
 }
 
 /// <summary>

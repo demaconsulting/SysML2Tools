@@ -19,6 +19,8 @@ beyond a standard .NET SDK installation.
 - Repeated calls return the same cached `SymbolTable` instance.
 - After the first call, a subsequent call returns in under 50 milliseconds.
 - A non-null diagnostics list is returned alongside the `SymbolTable`.
+- The returned declarations carry the modifier data of the standard library source
+  (`Parts::Part` is abstract), and the diagnostics contain no errors.
 
 #### Test Scenarios
 
@@ -29,3 +31,5 @@ beyond a standard .NET SDK installation.
 | `GetSymbolTable_IsCached` | Repeated calls return the same instance |
 | `GetSymbolTable_FastOnSubsequentCalls` | A cached call completes in under 50 ms |
 | `GetSymbolTable_DiagnosticsNotNull` | A non-null diagnostics list is returned |
+| `GetSymbolTable_RegeneratedStdlib_CarriesModifiers` | `Parts::Part` is abstract (stale resource fails) |
+| `GetSymbolTable_Diagnostics_ContainNoErrors` | No diagnostic has error severity |

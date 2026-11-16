@@ -25,5 +25,6 @@ sections:
           - SysML2Tools-Stdlib-StdlibProvider-Caching
           - SysML2Tools-Stdlib-StdlibProvider-Performance
           - SysML2Tools-Stdlib-StdlibProvider-Diagnostics
+          - SysML2Tools-Stdlib-StdlibProvider-ModifierData
         tests:
           - WorkspaceLoader_LoadAsync_StdlibDeclarations_Registered

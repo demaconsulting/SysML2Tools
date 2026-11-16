@@ -54,8 +54,10 @@ sections:
               - SysML2Tools-Language-Semantic-AstSerializer-Serialize
               - SysML2Tools-Language-Semantic-AstSerializer-PreservesNodeTypes
               - SysML2Tools-Language-Semantic-AstSerializer-PreservesNodeData
+              - SysML2Tools-Language-Semantic-AstSerializer-ModifierData
               - SysML2Tools-Language-Semantic-AstDeserializer-Deserialize
               - SysML2Tools-Language-Semantic-AstDeserializer-RestoresNodeData
+              - SysML2Tools-Language-Semantic-AstDeserializer-ModifierDataCompatibility
             tests:
               - WorkspaceLoader_LoadAsync_NoFiles_ReturnsNonNullWorkspace
               - WorkspaceLoader_LoadAsync_StdlibDeclarations_Registered

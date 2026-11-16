@@ -5989,5 +5989,690 @@ public sealed class WorkspaceLoaderTests
                  e.TargetQualifiedName == "P::Sys::other::baseOpen");
         Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
     }
+
+    /// <summary>Returns the feature declared at <paramref name="qualifiedName"/>.</summary>
+    private static SysmlFeatureNode FeatureAt(SysmlLoadResult result, string qualifiedName) =>
+        Assert.IsType<SysmlFeatureNode>(result.Workspace!.Declarations[qualifiedName]);
+
+    /// <summary>Returns the definition declared at <paramref name="qualifiedName"/>.</summary>
+    private static SysmlDefinitionNode DefinitionAt(SysmlLoadResult result, string qualifiedName) =>
+        Assert.IsType<SysmlDefinitionNode>(result.Workspace!.Declarations[qualifiedName]);
+
+    /// <summary>
+    ///     A leading <c>abstract</c> sets <c>IsAbstract</c> on definitions (SysML and KerML) and
+    ///     features; a plain definition leaves it false.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_AbstractModifier_SetsIsAbstract()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                abstract part def A;
+                part def B;
+                abstract class K;
+                private abstract part def C;
+                part def Holder { abstract part x; part y; }
+            }
+            """);
+
+        // Assert
+        Assert.True(DefinitionAt(result, "P::A").IsAbstract);
+        Assert.False(DefinitionAt(result, "P::B").IsAbstract);
+        Assert.True(DefinitionAt(result, "P::K").IsAbstract);
+        Assert.True(DefinitionAt(result, "P::C").IsAbstract);
+        Assert.True(FeatureAt(result, "P::Holder::x").IsAbstract);
+        Assert.False(FeatureAt(result, "P::Holder::y").IsAbstract);
+    }
+
+    /// <summary>
+    ///     <c>variation</c> definitions and usages set <c>IsVariation</c>; <c>variant</c> usages set
+    ///     <c>IsVariant</c>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_VariationAndVariant_SetFlags()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def Base;
+                variation part def V { variant part v1 : Base; variant part v2 : Base; }
+                part def Holder { variation part vv { variant part w : Base; } part plain; }
+            }
+            """);
+
+        // Assert
+        Assert.True(DefinitionAt(result, "P::V").IsVariation);
+        Assert.False(DefinitionAt(result, "P::Base").IsVariation);
+        Assert.True(FeatureAt(result, "P::V::v1").IsVariant);
+        Assert.True(FeatureAt(result, "P::V::v2").IsVariant);
+        Assert.False(FeatureAt(result, "P::V::v1").IsVariation);
+        Assert.True(FeatureAt(result, "P::Holder::vv").IsVariation);
+        Assert.False(FeatureAt(result, "P::Holder::vv").IsVariant);
+        Assert.True(FeatureAt(result, "P::Holder::vv::w").IsVariant);
+        Assert.False(FeatureAt(result, "P::Holder::plain").IsVariant);
+    }
+
+    /// <summary>
+    ///     An <c>individual</c> prefix sets <c>IsIndividual</c> on definitions and usages.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_IndividualPrefix_SetsIsIndividual()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                individual part def Earth;
+                part def Plain;
+                part def Holder { individual part e : Earth; part p : Plain; }
+            }
+            """);
+
+        // Assert
+        Assert.True(DefinitionAt(result, "P::Earth").IsIndividual);
+        Assert.False(DefinitionAt(result, "P::Plain").IsIndividual);
+        Assert.True(FeatureAt(result, "P::Holder::e").IsIndividual);
+        Assert.False(FeatureAt(result, "P::Holder::p").IsIndividual);
+    }
+
+    /// <summary>
+    ///     The <c>ref</c> keyword sets <c>IsReference</c> for both <c>ref part x</c> and
+    ///     <c>ref x : T</c>, and combines with other modifiers.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_RefPrefix_SetsIsReference()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def T;
+                part def Holder {
+                    ref part r : T;
+                    ref x : T;
+                    part plain : T;
+                    abstract ref part both : T;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.True(FeatureAt(result, "P::Holder::r").IsReference);
+        Assert.True(FeatureAt(result, "P::Holder::x").IsReference);
+        Assert.False(FeatureAt(result, "P::Holder::plain").IsReference);
+        Assert.True(FeatureAt(result, "P::Holder::both").IsReference);
+        Assert.True(FeatureAt(result, "P::Holder::both").IsAbstract);
+    }
+
+    /// <summary>
+    ///     <c>in</c>/<c>out</c>/<c>inout</c> on usages that carry a direction keyword is captured as
+    ///     <c>Direction</c>; usages without a direction keep it null.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_FeatureDirection_Captured()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                port def Pd {
+                    in item i;
+                    out attribute o;
+                    inout port q;
+                    in abstract ref r;
+                    attribute none;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.Equal(SysmlFeatureDirection.In, FeatureAt(result, "P::Pd::i").Direction);
+        Assert.Equal(SysmlFeatureDirection.Out, FeatureAt(result, "P::Pd::o").Direction);
+        Assert.Equal(SysmlFeatureDirection.InOut, FeatureAt(result, "P::Pd::q").Direction);
+        var combined = FeatureAt(result, "P::Pd::r");
+        Assert.Equal(SysmlFeatureDirection.In, combined.Direction);
+        Assert.True(combined.IsAbstract);
+        Assert.True(combined.IsReference);
+        Assert.Null(FeatureAt(result, "P::Pd::none").Direction);
+    }
+
+    /// <summary>
+    ///     A bare direction-only parameter (<c>in x : T;</c>) still produces no AST node, so no
+    ///     direction is captured for it (decision D1: no new nodes).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_BareDirectionParameter_ProducesNoNode()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def T;
+                action def Act { in x : T; out y : T; }
+            }
+            """);
+
+        // Assert
+        Assert.Empty(DefinitionAt(result, "P::Act").Children);
+        Assert.DoesNotContain("P::Act::x", result.Workspace!.Declarations.Keys);
+    }
+
+    /// <summary>
+    ///     The central modifier pass reaches state, action, requirement and enumeration bodies,
+    ///     skips a leading <c>then</c>, and never flags the transitions synthesized from the same
+    ///     body item.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ModifiersInSpecializedBodies_AppliedToUsagesOnly()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                state def S {
+                    abstract state s1;
+                    state s2;
+                    transition first s1 then s2;
+                    abstract state s3;
+                    accept sig then s2;
+                }
+                action def A {
+                    abstract action a1;
+                    then abstract action a2;
+                    then action a3;
+                }
+                requirement def R { abstract attribute x; ref part y; }
+                enum def E { enum one; }
+            }
+            """);
+
+        // Assert
+        Assert.True(FeatureAt(result, "P::S::s1").IsAbstract);
+        Assert.False(FeatureAt(result, "P::S::s2").IsAbstract);
+        Assert.True(FeatureAt(result, "P::S::s3").IsAbstract);
+        Assert.Single(DefinitionAt(result, "P::S").Children.OfType<SysmlTransitionNode>(), t => t.Source == "s3");
+        Assert.True(FeatureAt(result, "P::A::a1").IsAbstract);
+        Assert.True(FeatureAt(result, "P::A::a2").IsAbstract);
+        Assert.False(FeatureAt(result, "P::A::a3").IsAbstract);
+        Assert.True(FeatureAt(result, "P::R::x").IsAbstract);
+        Assert.True(FeatureAt(result, "P::R::y").IsReference);
+        Assert.False(FeatureAt(result, "P::E::one").IsAbstract);
+    }
+
+    /// <summary>
+    ///     <c>ordered</c> and <c>nonunique</c> are captured in either order, with or without a
+    ///     <c>[..]</c> range, and are false when absent.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_OrderedNonunique_Captured()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def T;
+                part def H {
+                    part a : T[0..*] ordered;
+                    part b : T[0..*] nonunique;
+                    part c : T[0..*] ordered nonunique;
+                    part d : T[0..*] nonunique ordered;
+                    part e ordered;
+                    part f : T[2];
+                    part g;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.True(FeatureAt(result, "P::H::a").IsOrdered);
+        Assert.False(FeatureAt(result, "P::H::a").IsNonunique);
+        Assert.False(FeatureAt(result, "P::H::b").IsOrdered);
+        Assert.True(FeatureAt(result, "P::H::b").IsNonunique);
+        Assert.True(FeatureAt(result, "P::H::c").IsOrdered);
+        Assert.True(FeatureAt(result, "P::H::c").IsNonunique);
+        Assert.True(FeatureAt(result, "P::H::d").IsOrdered);
+        Assert.True(FeatureAt(result, "P::H::d").IsNonunique);
+        Assert.True(FeatureAt(result, "P::H::e").IsOrdered);
+        Assert.Null(FeatureAt(result, "P::H::e").Multiplicity);
+        Assert.False(FeatureAt(result, "P::H::f").IsOrdered);
+        Assert.False(FeatureAt(result, "P::H::f").IsNonunique);
+        Assert.False(FeatureAt(result, "P::H::g").IsOrdered);
+    }
+
+    /// <summary>
+    ///     The whole value clause (operator included, whitespace preserved) is captured verbatim
+    ///     as <c>ValueText</c>; usages without a value keep it null.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_FeatureValue_CapturedVerbatim()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def H {
+                    attribute a = 5 [kg];
+                    attribute b := 3;
+                    attribute c default = 10;
+                    attribute d default 7;
+                    attribute e = 1 + 2 * x;
+                    part f { attribute g = 4; }
+                    attribute none;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.Equal("= 5 [kg]", FeatureAt(result, "P::H::a").ValueText);
+        Assert.Equal(":= 3", FeatureAt(result, "P::H::b").ValueText);
+        Assert.Equal("default = 10", FeatureAt(result, "P::H::c").ValueText);
+        Assert.Equal("default 7", FeatureAt(result, "P::H::d").ValueText);
+        Assert.Equal("= 1 + 2 * x", FeatureAt(result, "P::H::e").ValueText);
+        Assert.Null(FeatureAt(result, "P::H::f").ValueText);
+        Assert.Equal("= 4", FeatureAt(result, "P::H::f::g").ValueText);
+        Assert.Null(FeatureAt(result, "P::H::none").ValueText);
+    }
+
+    /// <summary>
+    ///     <c>::&gt;</c>/<c>references</c> targets are captured raw in
+    ///     <c>ReferenceSubsettingName</c> and are not added to <c>SupertypeNames</c>, while
+    ///     <c>:&gt;</c> stays in <c>SupertypeNames</c>; no supertype edge or new diagnostic results.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ReferenceSubsetting_CapturedNotInSupertypeNames()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def T;
+                part def H {
+                    part owner : T;
+                    part viaSymbol ::> owner;
+                    part viaKeyword references owner;
+                    part viaColon :> owner;
+                }
+            }
+            """);
+
+        // Assert
+        var viaSymbol = FeatureAt(result, "P::H::viaSymbol");
+        Assert.Equal("owner", viaSymbol.ReferenceSubsettingName);
+        Assert.Empty(viaSymbol.SupertypeNames);
+        Assert.Equal("owner", FeatureAt(result, "P::H::viaKeyword").ReferenceSubsettingName);
+        var subset = FeatureAt(result, "P::H::viaColon");
+        Assert.Null(subset.ReferenceSubsettingName);
+        Assert.Equal(["owner"], subset.SupertypeNames);
+        Assert.Empty(viaSymbol.ResolvedEdges);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
+    }
+
+    /// <summary>
+    ///     A conjugated port typing (<c>~PortT</c>) is captured as <c>ConjugatedFeatureTyping</c> /
+    ///     <c>IsConjugated</c> while <c>FeatureTyping</c> stays null, so no typing edge or
+    ///     diagnostic is produced.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConjugatedPortTyping_CapturesNameKeepsTypingNull()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                port def PortT;
+                part def H { port conj : ~PortT; port plain : PortT; }
+            }
+            """);
+
+        // Assert
+        var conj = FeatureAt(result, "P::H::conj");
+        Assert.True(conj.IsConjugated);
+        Assert.Equal("PortT", conj.ConjugatedFeatureTyping);
+        Assert.Null(conj.FeatureTyping);
+        Assert.DoesNotContain(conj.ResolvedEdges, e => e.Kind == SysmlEdgeKind.Typing);
+        var plain = FeatureAt(result, "P::H::plain");
+        Assert.False(plain.IsConjugated);
+        Assert.Null(plain.ConjugatedFeatureTyping);
+        Assert.Equal("PortT", plain.FeatureTyping);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("Unresolved reference"));
+    }
+
+    /// <summary>
+    ///     The full transition form captures trigger, effect and (unchanged) guard text; each is
+    ///     null when absent.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_TransitionTriggerGuardEffect_Captured()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                state def S {
+                    state a;
+                    state b;
+                    transition full first a accept sig via pp if x > 5 do act then b;
+                    transition timed first a accept at 5 then b;
+                    transition effectOnly first a do act then b;
+                    transition bare first a then b;
+                }
+            }
+            """);
+
+        // Assert
+        var full = Assert.IsType<SysmlTransitionNode>(result.Workspace!.Declarations["P::S::full"]);
+        Assert.Equal("sig via pp", full.Trigger);
+        Assert.Equal("act", full.Effect);
+        Assert.Equal("x>5", full.Guard);
+        var timed = Assert.IsType<SysmlTransitionNode>(result.Workspace.Declarations["P::S::timed"]);
+        Assert.Equal("at 5", timed.Trigger);
+        Assert.Null(timed.Effect);
+        Assert.Null(timed.Guard);
+        var effectOnly = Assert.IsType<SysmlTransitionNode>(result.Workspace.Declarations["P::S::effectOnly"]);
+        Assert.Null(effectOnly.Trigger);
+        Assert.Equal("act", effectOnly.Effect);
+        var bare = Assert.IsType<SysmlTransitionNode>(result.Workspace.Declarations["P::S::bare"]);
+        Assert.Null(bare.Trigger);
+        Assert.Null(bare.Effect);
+    }
+
+    /// <summary>
+    ///     Attached transitions (<c>accept sig then a;</c>, <c>if g do e then b;</c>) capture trigger,
+    ///     guard and effect.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_AttachedTransition_CapturesTriggerGuardEffect()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                state def S {
+                    state a;
+                    state b;
+                    state d;
+                    accept sig then a;
+                    if g do e then b;
+                }
+            }
+            """);
+
+        // Assert
+        var transitions = DefinitionAt(result, "P::S").Children.OfType<SysmlTransitionNode>().ToList();
+        Assert.Equal(2, transitions.Count);
+        var withTrigger = Assert.Single(transitions, t => t.Trigger == "sig");
+        Assert.Equal("d", withTrigger.Source);
+        Assert.Null(withTrigger.Effect);
+        var withGuard = Assert.Single(transitions, t => t.Guard == "g");
+        Assert.Equal("e", withGuard.Effect);
+        Assert.Null(withGuard.Trigger);
+    }
+
+    /// <summary>
+    ///     Transitions synthesized from an entry action's attached successions and from action-flow
+    ///     target successions carry no trigger or effect.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SynthesizedSuccessions_TriggerEffectNull()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                state def S {
+                    entry action initial;
+                    then off;
+                    state off;
+                }
+                action def A {
+                    action a1;
+                    action a2;
+                    first a1 if true then a2;
+                }
+            }
+            """);
+
+        // Assert
+        var transitions = DefinitionAt(result, "P::S").Children.OfType<SysmlTransitionNode>()
+            .Concat(DefinitionAt(result, "P::A").Children.OfType<SysmlTransitionNode>()).ToList();
+        Assert.NotEmpty(transitions);
+        Assert.All(transitions, t =>
+        {
+            Assert.Null(t.Trigger);
+            Assert.Null(t.Effect);
+        });
+    }
+
+    /// <summary>
+    ///     <c>entry</c>/<c>do</c>/<c>exit</c> sub-actions capture their declaration text (body
+    ///     excluded); the empty form and non-action features keep it null, and names are unchanged.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_StateEntryDoExitActions_CaptureActionText()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                state def S {
+                    entry action initial;
+                    do action working { }
+                    exit foo;
+                    entry accept sig;
+                    state plain;
+                }
+            }
+            """);
+
+        // Assert
+        var children = DefinitionAt(result, "P::S").Children.OfType<SysmlFeatureNode>().ToList();
+        var entryNamed = children.Single(c => c.FeatureKeyword == "entry" && c.Name == "initial");
+        Assert.Equal("action initial", entryNamed.ActionText);
+        var doNamed = children.Single(c => c.FeatureKeyword == "do");
+        Assert.Equal("working", doNamed.Name);
+        Assert.Equal("action working", doNamed.ActionText);
+        Assert.Equal("foo", children.Single(c => c.FeatureKeyword == "exit").ActionText);
+        Assert.Equal("accept sig", children.Single(c => c.FeatureKeyword == "entry" && c.Name is null).ActionText);
+        Assert.Null(children.Single(c => c.FeatureKeyword == "state").ActionText);
+    }
+
+    /// <summary>
+    ///     An empty <c>entry;</c> action has no action text.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_EmptyStateEntryAction_ActionTextNull()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                state def S { entry; do; }
+            }
+            """);
+
+        // Assert
+        var children = DefinitionAt(result, "P::S").Children.OfType<SysmlFeatureNode>().ToList();
+        Assert.Equal(2, children.Count);
+        Assert.All(children, c => Assert.Null(c.ActionText));
+    }
+
+    /// <summary>
+    ///     <c>parallel</c> on a state definition or state usage sets <c>IsParallel</c>.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ParallelState_SetsIsParallel()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                state def Par parallel { state a; state b; }
+                state def Seq { state a; state b; }
+                part def H {
+                    state p parallel { state a; state b; }
+                    state q { state a; state b; }
+                }
+            }
+            """);
+
+        // Assert
+        Assert.True(DefinitionAt(result, "P::Par").IsParallel);
+        Assert.False(DefinitionAt(result, "P::Seq").IsParallel);
+        Assert.True(FeatureAt(result, "P::H::p").IsParallel);
+        Assert.False(FeatureAt(result, "P::H::q").IsParallel);
+    }
+
+    /// <summary>
+    ///     Action-flow control nodes (<c>decide</c>, <c>merge</c>, <c>fork</c>, <c>join</c>,
+    ///     <c>accept</c>, <c>send</c>) are never parallel and carry no spurious notation data;
+    ///     <c>IsParallel</c> belongs only to state definitions and state usages.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ActionControlNodes_NoParallelOrNotationData()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                action def Flow {
+                    action work;
+                    decide d;
+                    merge m;
+                    fork f;
+                    join j;
+                    accept a1;
+                    send s1;
+                }
+            }
+            """);
+
+        // Assert
+        var controlNodes = DefinitionAt(result, "P::Flow").Children.OfType<SysmlFeatureNode>().ToList();
+        Assert.NotEmpty(controlNodes);
+        Assert.All(controlNodes, n =>
+        {
+            Assert.False(n.IsParallel);
+            Assert.Null(n.ValueText);
+            Assert.False(n.IsOrdered);
+            Assert.False(n.IsNonunique);
+            Assert.Null(n.ReferenceSubsettingName);
+        });
+    }
+
+    /// <summary>
+    ///     Specialized usage builders (action, state, requirement, concern, constraint) capture the
+    ///     same ordered/nonunique, value, and reference-subsetting data as the generic usage path.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SpecializedUsages_CaptureNotationData()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def T;
+                part def H {
+                    part owner : T;
+                    action act [2] ordered nonunique ::> owner = 7;
+                    state st [2] ordered ::> owner := 3;
+                    requirement req [2] nonunique ::> owner = 4 { }
+                    concern con ordered ::> owner default = 5 { }
+                    constraint cst ::> owner = 6 { x > 1 }
+                    action plainAct;
+                    state plainSt;
+                    requirement plainReq { }
+                    concern plainCon { }
+                    constraint plainCst { x > 1 }
+                }
+            }
+            """);
+
+        // Assert
+        var act = FeatureAt(result, "P::H::act");
+        Assert.True(act.IsOrdered);
+        Assert.True(act.IsNonunique);
+        Assert.Equal("= 7", act.ValueText);
+        Assert.Equal("owner", act.ReferenceSubsettingName);
+
+        var st = FeatureAt(result, "P::H::st");
+        Assert.True(st.IsOrdered);
+        Assert.False(st.IsNonunique);
+        Assert.Equal(":= 3", st.ValueText);
+        Assert.Equal("owner", st.ReferenceSubsettingName);
+        Assert.False(st.IsParallel);
+
+        var req = FeatureAt(result, "P::H::req");
+        Assert.False(req.IsOrdered);
+        Assert.True(req.IsNonunique);
+        Assert.Equal("= 4", req.ValueText);
+        Assert.Equal("owner", req.ReferenceSubsettingName);
+
+        var con = FeatureAt(result, "P::H::con");
+        Assert.True(con.IsOrdered);
+        Assert.Equal("default = 5", con.ValueText);
+        Assert.Equal("owner", con.ReferenceSubsettingName);
+
+        var cst = FeatureAt(result, "P::H::cst");
+        Assert.Equal("= 6", cst.ValueText);
+        Assert.Equal("owner", cst.ReferenceSubsettingName);
+
+        foreach (var plain in new[] { "plainAct", "plainSt", "plainReq", "plainCon", "plainCst" })
+        {
+            var feature = FeatureAt(result, $"P::H::{plain}");
+            Assert.Null(feature.ValueText);
+            Assert.False(feature.IsOrdered);
+            Assert.False(feature.IsNonunique);
+            Assert.Null(feature.ReferenceSubsettingName);
+        }
+    }
+
+    /// <summary>
+    ///     Leading modifiers (<c>abstract</c>, <c>variation</c>, <c>ref</c>, direction) are captured
+    ///     on specialized usages (state, action, requirement) as well as on generic usages.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_SpecializedUsages_CaptureLeadingModifiers()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def H {
+                    abstract state st;
+                    abstract action act;
+                    abstract requirement req { }
+                    in item inItem;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.True(FeatureAt(result, "P::H::st").IsAbstract);
+        Assert.True(FeatureAt(result, "P::H::act").IsAbstract);
+        Assert.True(FeatureAt(result, "P::H::req").IsAbstract);
+        Assert.Equal(SysmlFeatureDirection.In, FeatureAt(result, "P::H::inItem").Direction);
+    }
+
+    /// <summary>
+    ///     A model that uses none of the new syntax leaves every new member at its default.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_PlainModel_AllNewMembersDefault()
+    {
+        // Arrange / Act
+        var result = await LoadModelsAsync("""
+            package P {
+                part def T;
+                part def H { part x : T[2]; attribute a : T; port p : T; }
+            }
+            """);
+
+        // Assert
+        var definition = DefinitionAt(result, "P::H");
+        Assert.False(definition.IsAbstract);
+        Assert.False(definition.IsVariation);
+        Assert.False(definition.IsIndividual);
+        Assert.False(definition.IsParallel);
+        foreach (var feature in definition.Children.OfType<SysmlFeatureNode>())
+        {
+            Assert.False(feature.IsAbstract);
+            Assert.False(feature.IsVariation);
+            Assert.False(feature.IsIndividual);
+            Assert.False(feature.IsVariant);
+            Assert.False(feature.IsReference);
+            Assert.Null(feature.Direction);
+            Assert.False(feature.IsOrdered);
+            Assert.False(feature.IsNonunique);
+            Assert.Null(feature.ValueText);
+            Assert.Null(feature.ReferenceSubsettingName);
+            Assert.Null(feature.ConjugatedFeatureTyping);
+            Assert.False(feature.IsConjugated);
+            Assert.Null(feature.ActionText);
+            Assert.False(feature.IsParallel);
+        }
+    }
 }
 

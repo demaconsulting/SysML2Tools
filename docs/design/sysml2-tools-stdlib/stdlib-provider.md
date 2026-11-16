@@ -33,3 +33,7 @@ during pre-compilation.
 - `WorkspaceLoader` (Language) seeds a workspace with the returned `SymbolTable`.
 - The Tool's lint and render commands obtain the standard library through the loader.
 - Tests call `GetSymbolTable` directly and assert on the returned table and diagnostics.
+
+The binary carries the additive modifier data of the standard library source (for example
+`Parts::Part`, declared `abstract part def Part`, has `IsAbstract = true`); members at their
+defaults are omitted, so the size grows only by the modifiers actually used.
