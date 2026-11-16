@@ -211,9 +211,10 @@ sections:
           compartments titled with the keyword (centered, italic), in that order, and shall
           size the state box to fit them.
         justification: |
-          The SysML v2 graphical notation shows what a state does on entry, while active, and on
-          exit in titled compartments of its box. Omitting them hides the behavior the model
-          declares; sizing the box to its content keeps the text from being clipped.
+          The SysML v2 graphical notation (clause 8.2.3.18, printed pp. 233-234: `state-entry-action`,
+          `state-do-action`, `state-exit-action`) shows what a state does on entry, while active, and
+          on exit in separate titled compartments of its box. Omitting them hides the behavior the
+          model declares; sizing the box to its content keeps the text from being clipped.
         tests:
           - StateTransitionView_BuildLayout_EntryDoExit_ProducesTitledCompartments
           - StateTransitionView_BuildLayout_EntryDoExit_NoneDeclared_NoCompartments

@@ -136,6 +136,18 @@ a labeled branch and only when every labeled branch's final drop would then be l
 run; when a branch's sideways run is the longer (for example two very wide target boxes) the engine's
 route is kept, since moving the jog could not make the drop the longest segment.
 
+*Known limitation: hooks at the diamond.* The engine attaches a decision's outgoing connectors to the
+bounding box of its slot, not to the diamond outline, so each branch starts on a slanted lower edge
+(after `SnapEndsToBadges`) and turns sideways after `JogClearance`; with the 4 px corner radius this
+reads as a small hook at the start of the connector (visible at 8x zoom). Two mitigations were tried
+and rejected. Leaving from the side vertices (an L route) clears the hook, but the badge's own name
+label (`smokeDecision`) is drawn beside the right vertex by the renderer and the right-hand connector
+then runs through it. Lengthening the first run to 12 px makes the stub visible, but on the Pipeline
+model the sideways run (73.4 px) is then longer than the final drop (68 px), so a branch label falls
+on the sideways run, which `MoveLabeledJogsTowardsSource` exists to prevent. The 5 px clearance is kept
+until the engine attaches connectors to the badge outline (or lets a badge label be placed above or
+below the shape).
+
 `AddSuccessionEdges` maps each succession to the corresponding orthogonal polyline returned by
 `LayeredPlacement`, preserving input-edge order and source-to-target orientation.
 Each succession is emitted as a dashed `LayoutLine` with an open chevron end marker

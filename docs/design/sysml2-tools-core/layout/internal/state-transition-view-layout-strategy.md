@@ -98,6 +98,19 @@ and tall enough for the title area plus each compartment, using the same height 
 General view (`ComputeCompartmentHeight` is deliberately repeated rather than shared, so the two
 strategies stay independent units).
 
+The separate `entry` / `do` / `exit` compartments follow the SysML v2.0 graphical notation for the
+state node (OMG formal/2025-09-03, clause 8.2.3.18 "States Graphical Notation", printed pp. 233-234,
+PDF pp. 265-266): the `state` production stacks `state-name-compartment`, `state-entry-action`,
+`state-do-action`, `state-transition-view`, `state-exit-action` and the `compartment-stack`, and each of
+`state-entry-action`, `state-do-action`, `state-exit-action` is its own compartment under a full-width
+separator, titled `'entry'`, `'do'` or `'exit'` and followed by the sub-action body. The single
+`state-actions-compartment` (printed p. 235; its title is printed `'states'`, a copy of
+`states-compartment`) is a member of the `compartment` list used in a compartment stack, not the
+state node's own layout, so it is not used here. The order is the node's `entry`, `do`, then `exit`; the
+`state-transition-view` that the specification puts between `do` and `exit` is not drawn because
+composite states are not supported (see "Limitations"). Known deviation: the specification draws the
+three titles upright, whereas this strategy draws them italic like every other compartment title.
+
 ###### Final state
 
 A transition whose target is the reserved name `done` (the target of `then done;`) ends in a single
