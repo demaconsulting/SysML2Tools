@@ -47,9 +47,23 @@ Remaining work, each independently scoped:
   `render` command, with help text, requirements, and user-guide text.
 - **Rendering engine (`DemaConsulting.Rendering`) items.** Rich-text rows with bold keywords (issue
   #99), port glyphs on box edges (issue #100), and connector end labels (issue #101); a source-end
-  marker on graph edges (so the strategy no longer reverses connectors after layout); a tight-tree
-  layering that keeps a wide drawing compact; control of the shape of the unconnected-node bucket; and a
-  larger first fan-out lane distance, so an owner-end glyph does not reach into the connector bend.
+  marker on graph edges (so the strategy no longer reverses connectors after layout, and the strategy's
+  `ClearEndDecorations` pass, which keeps a clean straight leg at an owner-end glyph, can be retired); a
+  tight-tree layering that keeps a wide drawing compact; and control of the shape of the
+  unconnected-node bucket (the strategy's `TryTuckUnconnected` pass currently places those boxes in the
+  free space of the drawing instead).
+- **Gallery model for requirements and imports.** No gallery model shows `satisfy`, `verify`, `import`,
+  or `::>`; they are covered by unit tests only. A model with requirement usages renders crossing,
+  overlapping `satisfy` and `verify` connectors and tangled labels, and shows no requirement typing (see
+  the requirement-usage typing gap below); a model with requirement definitions as `satisfy` and
+  `verify` targets renders cleanly but is not valid SysML (the specification defines these relationships
+  for requirement usages), and import labels still clip. Add the model once the connector routing and
+  the typing gap are fixed.
+- **Package-heavy drawings.** The vehicle packages drawing (`VehiclePackagesGeneralView`) is tall
+  because the engine places a folder's externally connected single box after the connected group, and
+  one connector crosses a specialization line; the leaf-block share of the canvas of the package views is
+  below the checklist threshold. Both need engine control of the interior order and spacing of
+  folders.
 - **Owned and unowned membership glyphs** (`⊕` and `○`) when a member is drawn outside its owner.
 - **Comment details.** The comment keyword, name, locale, and `about` target need these fields on
   `SysmlAnnotation` first.

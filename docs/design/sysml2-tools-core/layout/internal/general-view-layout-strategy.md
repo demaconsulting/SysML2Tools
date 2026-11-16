@@ -529,8 +529,9 @@ The engine guarantees a clean straight final leg (the end marker plus one corner
 `Theme.CleanLegMargin`) only at the *target* end of an edge. The General View declares most edges
 reversed, so after `OrientEdges` the owner-end decoration (a diamond or a triangle) sits at the
 engine's *source* end, where only the connector stub is reserved: the first lane out of an owner face is
-a fixed 10 px from the box, which is less than the length of a diamond plus the bend radius, so the connector would leave sideways
-from the decoration's tip (diagram-quality C10). `ClearEndDecorations` runs after `OrientEdges`, when
+a fixed 10 px from the box, which is less than the length of a diamond plus the bend radius, so the
+connector would leave sideways from the decoration's tip (diagram-quality C10). `ClearEndDecorations`
+runs after `OrientEdges`, when
 the marker is on the last waypoint, and applies to every connector with four or more axis-aligned
 waypoints whose last leg, the lane before it, and the leg before the lane form a Z shape. A connector
 with a single bend (three waypoints) has no lane and is left alone.

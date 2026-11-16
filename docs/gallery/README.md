@@ -50,8 +50,9 @@ top-to-bottom, so an owner or general definition is drawn above the elements tha
 Each part usage (`airframe`, `controller`, `motors`, and so on) is drawn as its own rounded box
 labeled `name : Type`, joined to its owner `Drone` by a filled-diamond composition edge and to
 the definition that types it, drawn below it, by a feature-typing edge (a hollow triangle with
-two dots at the definition). Definitions that nothing refers to are packed together beside the
-main diagram. See [section 14](#14-general-view--usages-typing-subsetting-and-redefinition) for
+two dots at the definition). Definitions that nothing refers to are packed together in a block of
+three columns, placed in the free space of the diagram (right of `Battery`, below the sensors) instead
+of widening it. See [section 14](#14-general-view--usages-typing-subsetting-and-redefinition) for
 the usage notation in a small model of its own.
 
 `RacingMotor` also redefines `Motor`'s inherited `maxThrust` attribute
