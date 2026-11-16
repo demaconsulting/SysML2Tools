@@ -314,7 +314,11 @@ every change by `GeneralViewLayoutStrategy_BuildLayout_DroneGalleryModel_MeetsBl
   (final legs of 13.5 to 15 px for the triangles and the diamonds). Three connector crossings remain,
   all engine routing outcomes that are not asserted: the `frontMotor` subsetting connector crosses the
   dashed note link and the `main` to `Motor` typing connector, and the `mainMotor` redefinition
-  connector crosses the `frontMotor` to `RearDrive` composition connector.
+  connector crosses the `frontMotor` to `RearDrive` composition connector. The order in which the strategy
+  hands the boxes and edges to the engine cannot remove them: the same ten boxes and thirteen edges laid
+  out directly with the engine in 1500 random insertion orders give 3 crossings at best (3 in 620 orders,
+  4 in 687, and more in the rest), and the strategy's own order gives 3. The cause is that `frontMotor`
+  must sit under both `motors` and `RearDrive` while `main` (with its note) lies between them.
 - `15`, `ChargerGeneralView`: `doc` compartments and the dashed comment link without arrowhead on
   nested parts; both diamonds at `Charger` have a 15 px clean approach.
 - `16`, `VehicleTypingGeneralView`: tab names, ◆ at `Car`, typing glyph with dots at the definition,
@@ -347,9 +351,21 @@ caused by the layout engine and not hand-tuned (the engine items are in `ROADMAP
   specification defines for requirement usages. These relationships stay covered by unit tests and are
   recorded in `ROADMAP.md`.
 
-A few connectors have a short lateral jog of about 2.5 to 3.4 px (cosmetic): the `spare` to
-`InductionMotor` typing connector, about 58 px before the definition, and the `InductionMotor` to `Motor`
-specialization connector, right behind the triangle. In `VehiclePackagesGeneralView` (left face) and
+Two connectors of `DriveUnitGeneralView` have a short lateral step of 2.6 to 3.4 px (cosmetic): the
+`InductionMotor` to `Motor` specialization connector, 10 px below `Motor`, and the `spare` to
+`InductionMotor` typing connector, 60 px above the definition. Both come from the layout engine, not from
+this strategy: the first layout (before `FitConnectorsToCanvas`, `OrientEdges`, and
+`ClearEndDecorations`) already contains both steps with the same size (`ClearEndDecorations` only moves the
+bar of the specialization connector 5 px away from the triangle at `Motor`, and changes neither step). The
+engine spreads the connectors that end on one box face evenly over that face (here two connectors at a
+quarter and three quarters of the width of `InductionMotor`) and does not align such a port with the port
+at the other end, so a source port at the middle of `Motor` and a target port 3.4 px away give a Z-shaped
+route with a 3.4 px bar. The effect needs no reversed edge and no code of this strategy: a plain graph of
+three boxes (`U` above `M` above `I`, edges `U` to `M`, `M` to `I`, and the long edge `U` to `I`, all
+declared top-down, sizes of the gallery model) laid out with `DemaConsulting.Rendering.Layout`
+0.3.0-beta.3 gives steps of 2.6, 2.6, 0.4, and 0.5 px. The renderer shortens the corner radius to the step, so
+the step reads as a tiny S-bend. Aligning those ports needs engine support (ROADMAP, rendering engine
+items). In `VehiclePackagesGeneralView` (left face) and
 `VehicleTypingGeneralView` (right face), one typing connector enters `Engine` through a side face
 instead of the top face; this is the engine's cross-hierarchy routing and is not asserted.
 

@@ -49,9 +49,11 @@ Remaining work, each independently scoped:
   #99), port glyphs on box edges (issue #100), and connector end labels (issue #101); a source-end
   marker on graph edges (so the strategy no longer reverses connectors after layout, and the strategy's
   `ClearEndDecorations` pass, which keeps a clean straight leg at an owner-end glyph, can be retired); a
-  tight-tree layering that keeps a wide drawing compact; and control of the shape of the
+  tight-tree layering that keeps a wide drawing compact; control of the shape of the
   unconnected-node bucket (the strategy's `TryTuckUnconnected` pass currently places those boxes in the
-  free space of the drawing instead).
+  free space of the drawing instead); and alignment of the two ports of a connector that ends on a shared
+  box face (the engine spreads the ports evenly, which leaves 2.5 to 3.4 px steps in some typing and
+  specialization connectors of `DriveUnitGeneralView`).
 - **Gallery model for requirements and imports.** No gallery model shows `satisfy`, `verify`, `import`,
   or `::>`; they are covered by unit tests only. A model with requirement usages renders crossing,
   overlapping `satisfy` and `verify` connectors and tangled labels, and shows no requirement typing (see
