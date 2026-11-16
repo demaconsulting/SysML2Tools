@@ -80,8 +80,9 @@ public class ExportSubsystemTests
     private static System.Text.Json.JsonDocument ParseJsonOutput(string output)
     {
         var start = output.IndexOf('{');
-        var end = output.LastIndexOf("\n}", StringComparison.Ordinal) + 2;
-        return System.Text.Json.JsonDocument.Parse(output[start..end]);
+        var end = output.LastIndexOf('}');
+        Assert.True(start >= 0 && end > start, "export output contains no JSON object");
+        return System.Text.Json.JsonDocument.Parse(output[start..(end + 1)]);
     }
 
     /// <summary>Returns the named child of a node element, or throws when absent.</summary>
@@ -127,16 +128,16 @@ public class ExportSubsystemTests
 
         // Assert
         Assert.Equal(0, exitCode);
-        var line = output.Split('\n')
+        // Filter the raw lines first, then parse exactly one document and dispose it.
+        var declarationLines = output.Split('\n')
             .Select(l => l.Trim())
-            .Where(l => l.StartsWith("{\"Kind\":\"declaration\"", StringComparison.Ordinal))
-            .Select(l => System.Text.Json.JsonDocument.Parse(l))
-            .First(d => d.RootElement.GetProperty("QualifiedName").GetString() == "Model::Base");
-        using (line)
-        {
-            var node = line.RootElement.GetProperty("Node");
-            Assert.True(node.GetProperty("IsAbstract").GetBoolean());
-        }
+            .Where(l => l.StartsWith("{\"Kind\":\"declaration\",\"QualifiedName\":\"Model::Base\"", StringComparison.Ordinal))
+            .ToList();
+        var baseLine = Assert.Single(declarationLines);
+        using var line = System.Text.Json.JsonDocument.Parse(baseLine);
+        Assert.Equal("Model::Base", line.RootElement.GetProperty("QualifiedName").GetString());
+        var node = line.RootElement.GetProperty("Node");
+        Assert.True(node.GetProperty("IsAbstract").GetBoolean());
     }
 
     /// <summary>

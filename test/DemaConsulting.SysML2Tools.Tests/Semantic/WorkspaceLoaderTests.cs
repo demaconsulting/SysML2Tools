@@ -6390,12 +6390,12 @@ public sealed class WorkspaceLoaderTests
         // Assert
         var transitions = DefinitionAt(result, "P::S").Children.OfType<SysmlTransitionNode>().ToList();
         Assert.Equal(2, transitions.Count);
-        Assert.Equal("d", transitions[0].Source);
-        Assert.Equal("sig", transitions[0].Trigger);
-        Assert.Null(transitions[0].Effect);
-        Assert.Equal("g", transitions[1].Guard);
-        Assert.Equal("e", transitions[1].Effect);
-        Assert.Null(transitions[1].Trigger);
+        var withTrigger = Assert.Single(transitions, t => t.Trigger == "sig");
+        Assert.Equal("d", withTrigger.Source);
+        Assert.Null(withTrigger.Effect);
+        var withGuard = Assert.Single(transitions, t => t.Guard == "g");
+        Assert.Equal("e", withGuard.Effect);
+        Assert.Null(withGuard.Trigger);
     }
 
     /// <summary>
