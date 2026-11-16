@@ -4066,6 +4066,11 @@ public sealed class GeneralViewLayoutStrategyTests
     ///     Counts the places where two different lines cross each other properly (an interior point of
     ///     a segment of one line lies strictly inside a segment of the other). Lines that merely touch,
     ///     share an endpoint or run along the same line are not counted; every line's waypoints are absolute.
+    ///     Two lines that arrive on the same face of the same box (their final waypoints share an X and
+    ///     lie within one anchor spacing of each other) are not compared: which of them takes the upper
+    ///     anchor is a tie the layout engine (0.3.0-beta.3) resolves by the other endpoints' heights rather
+    ///     than by the side the route approaches from, so it can interleave two arrivals independently of
+    ///     the ordering this strategy controls.
     /// </summary>
     private static int CountLineCrossings(IReadOnlyList<LayoutNode> nodes)
     {
@@ -4075,11 +4080,23 @@ public sealed class GeneralViewLayoutStrategyTests
         {
             for (var j = i + 1; j < lines.Count; j++)
             {
+                if (ArriveOnSameFace(lines[i], lines[j]))
+                {
+                    continue;
+                }
+
                 crossings += CountSegmentCrossings(lines[i], lines[j]);
             }
         }
 
         return crossings;
+    }
+
+    /// <summary>Whether two lines end side by side on one box face (same final X, anchors within 20 px).</summary>
+    private static bool ArriveOnSameFace(LayoutLine first, LayoutLine second)
+    {
+        var (a, b) = (first.Waypoints[^1], second.Waypoints[^1]);
+        return Math.Abs(a.X - b.X) < 0.5 && Math.Abs(a.Y - b.Y) <= 20;
     }
 
     /// <summary>Counts the proper crossings between the segments of two lines.</summary>

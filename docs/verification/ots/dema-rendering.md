@@ -26,6 +26,12 @@ between the nested endpoint nodes themselves (cross-hierarchy edges, available s
 0.3.0-beta.2), and stack the unconnected groups of a layered container's contents in the order the
 nodes were added.
 
+Version 0.3.0-beta.3 of the family adds the SysML v2 notation primitives that the State Transition
+and Action Flow views rely on: thick fork and join bars (`BadgeShape.ThickHorizontalBar`), the
+crossed-circle terminate badge (`BadgeShape.CrossedCircle`), the send and accept corner icons on a
+box (`BoxCornerIcon`), obstacle-aware connector label placement (`ConnectorLabelPlacer`), and the
+`LayoutGraphEdge.TargetEnd` end decoration that sizes the final approach of a back edge.
+
 ### Verification Approach
 
 `DemaConsulting.Rendering` is verified by self-validation evidence from the SysML2Tools CI
