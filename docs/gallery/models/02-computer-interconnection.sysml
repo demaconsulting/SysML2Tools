@@ -21,9 +21,9 @@ package DesktopComputer {
         inout port sata : SataPort;
     }
 
-    // The motherboard interconnects all components. The cpu documents itself and shows an
-    // attribute compartment, memory is a two-element part, monitor is a reference part
-    // (dashed outline), and firmware is an item rather than a part.
+    // The motherboard interconnects the components. The cpu documents itself and shows an
+    // attribute compartment, memory is a two-element part wired to the cpu, monitor is a
+    // reference part (dashed outline), and firmware is an item rather than a part.
     part def Workstation {
         part cpu : Cpu {
             doc /* Executes the program instructions. */
@@ -39,12 +39,10 @@ package DesktopComputer {
         item firmware : Firmware;
 
         connection c1 connect board to cpu;
-        connection c2 connect board to memory;
         connection c3 connect board to graphics;
         interface connect board.sata to storage.sata;
         connection c5 connect board to network;
         connection c6 connect psu to board;
-        connection c7 connect psu to graphics;
         connection c8 connect cpu to memory;
         connection c9 connect graphics to monitor;
         connection c10 connect board to firmware;

@@ -514,7 +514,7 @@ slightly with the straighter edge routing of rendering engine 0.3.0-beta.4 (the 
 are narrower; the Heater canvas is 257 px wide instead of 215 px).
 
 Two Interconnection images also fall short of B5 since the port notation was added: the Workstation
-image fills 15.5 % (1373 × 672 px; 19.0 % on `main`) and the Motor Rig image 18.3 % (1411 × 424 px;
+image fills 17.3 % (1255 × 643 px; 19.0 % on `main`) and the Motor Rig image 18.3 % (1411 × 424 px;
 46.0 % on `main`). The cause is again the layered layout engine: it reserves, between two columns of
 boxes, the width of every outside port label and end label along the connector run (the label of
 the port at each end plus the role names), so a connector between labeled ports needs a corridor
@@ -549,8 +549,12 @@ The interconnection models were extended to exercise the notation of the Interco
   `inout port sata`; the `cpu` usage has a `doc` and a `clock` attribute; `memory` is a
   two-element part; added a `ref part monitor`, an `item firmware`, and the connections `c9`
   (graphics to monitor) and `c10` (board to firmware); the former `c4` (board to storage) is now
-  an anonymous `interface` between the two `sata` ports. The `CoreLinkInterconnectionView` is
-  unchanged.
+  an anonymous `interface` between the two `sata` ports. The connections `c2` (board to memory)
+  and `c7` (psu to graphics) of the earlier model were removed: they were plain connectors
+  between parts without declared ports, so every one of them left the board or the power supply
+  as a bare line, and these two crossed several others without a label to tell them apart.
+  The memory is now wired through the cpu (`c8`), and the diagram has no crossing connectors
+  (and is 120 px narrower). The `CoreLinkInterconnectionView` is unchanged.
 - `08-nested-interconnection.sysml`: added the port definitions `PowerPort`, `SataPort`,
   `MainsPort`, and `VideoPort`; the power supply, motherboard, and storage declare ports; the
   `Computer` frame declares `mains` and `video`; the connections now join declared ports.
