@@ -3,8 +3,8 @@
 ## Architecture
 
 The `DemaConsulting.SysML2Tools` core library provides the Layout, Rendering,
-Query, and Io subsystems for SysML v2 diagram generation, model analysis, and shared file-
-discovery. It depends on `DemaConsulting.SysML2Tools.Language` for parsing, semantic
+Query, and Io subsystems for SysML v2 diagram generation, model analysis, and shared file-discovery.
+It depends on `DemaConsulting.SysML2Tools.Language` for parsing, semantic
 analysis, and view-filter evaluation (the Filtering subsystem, which lives in Language so
 `ReferenceResolver` can evaluate filtered imports), and on `DemaConsulting.SysML2Tools.Stdlib`
 for the pre-compiled standard library.
