@@ -65,6 +65,12 @@ external services or additional configuration are required beyond a standard .NE
   `SysmlConnectionNode` with `ConnectionKeyword == "binding"`, resolved via the same
   dotted-feature-chain walk as `connect`, producing a `Binding` edge when both sides resolve (or
   a Warning with no edge otherwise).
+- Connector ends capture their optional role name (`name ::> reference`) and cross multiplicity
+  (`[2] reference`) on `SysmlConnectionNode` for connection, binding, and interface usages, and leave
+  them null for an end that declares neither.
+- `VisitInterfaceUsage` builds a `"interface"` connection node and `VisitFlowUsage` a `"flow"` node
+  (two ends, plus the `of` payload text for a flow); `VisitMessage` captures its `of` payload. None of
+  them adds a reference-resolution edge or an error diagnostic.
 - `VisitStateBodyItem` synthesizes an attached `SysmlTransitionNode` for the
   `behaviorUsageMember (targetTransitionUsageMember)*` shape (e.g. `state off; accept Signal
   then starting;`), including the repeated (`*`) case, and for the
@@ -120,6 +126,9 @@ external services or additional configuration are required beyond a standard .NE
 - A succession declared with `else` sets `IsElse` (and has no guard); a `terminate` node produces a
   `terminate` feature (synthetic name when unnamed); an action usage captures its typing and
   multiplicity; `accept` and `send` nodes capture their payload clause as `ActionText`.
+- `event occurrence name [: Type];` (with or without a leading `then`) is captured as a feature child
+  with the keyword `event occurrence`, in declaration order; the referencing form `event feature;` is
+  not captured.
 
 ##### Test Scenarios
 
@@ -213,4 +222,11 @@ external services or additional configuration are required beyond a standard .NE
 | `terminate` node | `WorkspaceLoader_LoadAsync_TerminateNode_ProducesTerminateFeature` |
 | Action usage typing and multiplicity | `WorkspaceLoader_LoadAsync_ActionUsage_CapturesTypingAndMultiplicity` |
 | Accept/send payload text | `WorkspaceLoader_LoadAsync_AcceptSendNodes_CapturePayloadText` |
+| Connection end names, multiplicities | `WorkspaceLoader_LoadAsync_ConnectionEnds_CaptureRoleNamesAndMultiplicities` |
+| Binding end role names and multiplicities | `WorkspaceLoader_LoadAsync_BindingEnds_CaptureRoleNames` |
+| Interface usage connection node | `WorkspaceLoader_LoadAsync_InterfaceUsage_BuildsInterfaceConnectionNode` |
+| Flow usage connection node with payload | `WorkspaceLoader_LoadAsync_FlowUsage_BuildsFlowConnectionNodeWithPayload` |
+| Interface and flow add no diagnostics | `WorkspaceLoader_LoadAsync_InterfaceAndFlowUsages_ProduceNoDiagnostics` |
+| Message payload text | `WorkspaceLoader_LoadAsync_MessageWithPayload_CapturesPayloadText` |
+| Event occurrences | `WorkspaceLoader_LoadAsync_EventOccurrences_AreCapturedInDeclarationOrder` |
 | Plain model leaves new members at defaults | `WorkspaceLoader_LoadAsync_PlainModel_AllNewMembersDefault` |

@@ -289,7 +289,7 @@ sections:
         tests:
           - StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes
           - StateTransitionView_BuildLayout_HeaterGalleryModel_LabelsAreClear
-          - StateTransitionView_BuildLayout_SiblingLabelsOnSharedFace_AreWidenedApart
+          - StateTransitionView_BuildLayout_SiblingLabelsOnSharedFace_StayClear
           - StateTransitionView_BuildLayout_NoLabelCollision_KeepsNaturalWidth
 
       - id: SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-FrameMargin

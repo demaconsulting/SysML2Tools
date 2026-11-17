@@ -768,10 +768,13 @@ public sealed class SysmlConnectionNode : SysmlNode
 {
     /// <summary>
     ///     Gets the connection keyword. One of <c>"connection"</c>, <c>"message"</c>,
-    ///     <c>"allocation"</c>, or <c>"binding"</c> (the latter two reusing this node's endpoint
-    ///     shape for <c>allocate A to B</c> and <c>bind A = B</c> respectively, since
-    ///     <c>allocationUsageDeclaration</c>'s and <c>bindingConnectorAsUsage</c>'s
-    ///     <c>connectorPart</c> is the exact same grammar rule used by <c>connectionUsage</c>).
+    ///     <c>"allocation"</c>, <c>"binding"</c>, <c>"interface"</c>, or <c>"flow"</c> (the
+    ///     latter four reusing this node's endpoint shape for <c>allocate A to B</c>,
+    ///     <c>bind A = B</c>, <c>interface a connect A to B</c>, and <c>flow from A to B</c>
+    ///     respectively, since <c>allocationUsageDeclaration</c>'s and
+    ///     <c>bindingConnectorAsUsage</c>'s <c>connectorPart</c> is the exact same grammar rule used
+    ///     by <c>connectionUsage</c>, and <c>interfacePart</c> and <c>flowDeclaration</c> have the
+    ///     same two-ended shape).
     /// </summary>
     public string ConnectionKeyword { get; init; } = string.Empty;
 
@@ -784,6 +787,44 @@ public sealed class SysmlConnectionNode : SysmlNode
     ///     Gets the second endpoint reference (e.g., "transmission.input"), or null when unresolved.
     /// </summary>
     public string? EndpointB { get; init; }
+
+    /// <summary>
+    ///     Gets the role name declared for the first end with the <c>name ::&gt; reference</c> form
+    ///     (the <c>supply</c> of <c>supply ::&gt; controller.power</c>), or <see langword="null"/>
+    ///     when the end declares none or the connector kind has no such form. Serialized only when set.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EndpointAName { get; init; }
+
+    /// <summary>
+    ///     Gets the cross multiplicity text declared before the first end (the <c>[2]</c> of
+    ///     <c>[2] controller.power</c>), or <see langword="null"/> when none is declared.
+    ///     Serialized only when set.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EndpointAMultiplicity { get; init; }
+
+    /// <summary>
+    ///     Gets the role name declared for the second end; see <see cref="EndpointAName"/>.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EndpointBName { get; init; }
+
+    /// <summary>
+    ///     Gets the cross multiplicity text declared before the second end; see
+    ///     <see cref="EndpointAMultiplicity"/>.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EndpointBMultiplicity { get; init; }
+
+    /// <summary>
+    ///     Gets the verbatim payload clause of a <c>message</c> or <c>flow</c> (the
+    ///     <c>Torque</c> of <c>flow of Torque from a.out to b.in</c>, or <c>p : Payload</c>),
+    ///     excluding the <c>of</c> keyword, or <see langword="null"/> when none is declared.
+    ///     Serialized only when set.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PayloadText { get; init; }
 }
 
 /// <summary>

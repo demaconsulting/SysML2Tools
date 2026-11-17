@@ -447,8 +447,9 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
 - `GeneralViewLayoutStrategy_BuildLayout_TopDown_ConnectorsBetweenRootFolders_StayInsideCanvas`:
   Every waypoint of every connector lies inside the canvas (guards the canvas fit)
 - `GeneralViewLayoutStrategy_BuildLayout_OwnerFanOut_EndDecorationsHaveCleanApproach`:
-  A charger-like owner with two part usages: both filled diamonds end a lane with a final straight leg of
-  at least the diamond length plus the corner radius
+  A charger-like owner with two part usages: both filled diamonds are drawn, each sits on a straight final
+  leg at least as long as the diamond (whether the engine routes it straight or over a lane), and every one
+  that ends a lane has a final straight leg of at least the diamond length plus the corner radius
 - `GeneralViewLayoutStrategy_BuildLayout_SpecializationAndReferenceUsageFanOut_EndDecorationsHaveCleanApproach`:
   A hollow diamond, a filled diamond, and a specialization triangle on one owner face all have a clean
   approach
@@ -517,6 +518,9 @@ quoted above for the dilated measurement; both exceed the 150 px limit, and W1 c
   Seed-listed definitions excluded; empty canvas
 - `GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments`:
   Attribute and port compartments under the row-only policy, with centered italic titles
+- `GeneralViewLayoutStrategy_BuildLayout_EventOccurrenceUsage_IsNotACompartmentRow`:
+  A part def owning an attribute and an `event occurrence` usage draws only the `attributes` compartment;
+  the event occurrence is sequence data and is not listed as a row
 - `GeneralViewLayoutStrategy_BuildLayout_Compartments_AreInCanonicalOrder`:
   A part def declaring an item, port, enum value, part, and attribute (in that order) plus
   documentation lists `doc`, `attributes`, `enums`, `parts`, `ports`, `items` in that order

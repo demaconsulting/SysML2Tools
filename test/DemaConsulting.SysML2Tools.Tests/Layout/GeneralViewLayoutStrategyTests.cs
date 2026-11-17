@@ -509,6 +509,39 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     An <c>event occurrence</c> usage is sequence data, not a compartment row: a definition that owns
+    ///     one gets the same compartments as before the AST captured event occurrences.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_EventOccurrenceUsage_IsNotACompartmentRow()
+    {
+        // Arrange: a part def owning an attribute usage and an event occurrence usage
+        var strategy = new GeneralViewLayoutStrategy(NodePolicy.RowsOnly);
+        var vehicle = new SysmlDefinitionNode
+        {
+            Name = "Vehicle",
+            QualifiedName = "P::Vehicle",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "mass", QualifiedName = "P::Vehicle::mass", FeatureKeyword = "attribute", FeatureTyping = "Real" },
+                new SysmlFeatureNode { Name = "start", QualifiedName = "P::Vehicle::start", FeatureKeyword = "event occurrence" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::Vehicle"] = vehicle }
+        };
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert: only the attributes compartment is drawn
+        var box = CollectBoxes(layout.Nodes).First(b => b.Label == "Vehicle");
+        Assert.Equal("attributes", Assert.Single(box.Compartments).Title);
+    }
+
+    /// <summary>
     ///     Loads <paramref name="sysml"/>, then lays out the view <paramref name="viewName"/>
     ///     (declared in package <c>Diagrams</c>) with the general view strategy.
     /// </summary>
@@ -5474,10 +5507,23 @@ public sealed class GeneralViewLayoutStrategyTests
             part def Charger { part cable : Cable; part plug : Plug; }
             """);
 
-        // Assert: both composition diamonds sit at the end of a lane and have a clean approach
-        var diamonds = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.FilledDiamond && l.Waypoints.Count >= 4).ToList();
+        // Assert: both composition diamonds are drawn and each sits on a straight final leg at least as
+        // long as the diamond, whether the engine routes the connector straight or over a lane (beta.4
+        // routes both straight, so the lane-only helper has nothing to check here); any that does reach
+        // the owner over a lane also has the full clean approach.
+        var theme = Themes.Light;
+        var diamonds = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.FilledDiamond).ToList();
         Assert.Equal(2, diamonds.Count);
-        Assert.True(AssertEndDecorationsHaveCleanApproach(layout, Themes.Light) >= 2);
+        var diamondLength = NotationMetrics.RenderedAlongLineLength(EndMarkerStyle.FilledDiamond, theme);
+        foreach (var diamond in diamonds)
+        {
+            var n = diamond.Waypoints.Count;
+            var leg = Math.Abs(diamond.Waypoints[n - 1].X - diamond.Waypoints[n - 2].X) + Math.Abs(diamond.Waypoints[n - 1].Y - diamond.Waypoints[n - 2].Y);
+            Assert.True(leg + 0.001 >= diamondLength, $"The diamond has a final leg of {leg:F2} px, shorter than the diamond ({diamondLength:F2} px).");
+        }
+
+        var withLane = diamonds.Count(d => d.Waypoints.Count >= 4);
+        Assert.Equal(withLane, AssertEndDecorationsHaveCleanApproach(layout, theme));
     }
 
     /// <summary>

@@ -18,7 +18,8 @@ public sealed class InterconnectionViewLayoutStrategyTests
 {
     /// <summary>
     ///     A part definition with nested parts and connections renders as a container box with one
-    ///     rounded part box per nested part, port nodes, and one connector line per connection.
+    ///     rounded part box per nested part and one connector line per connection; an endpoint that
+    ///     names only a part draws no port glyph.
     /// </summary>
     [Fact]
     public void InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines()
@@ -47,11 +48,12 @@ public sealed class InterconnectionViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: one container box, two part boxes, two ports (one per endpoint), one connector line
+        // Assert: one container box, two part boxes, one connector line, and no port glyphs — the
+        // endpoints name the parts themselves, not a port, so the connector attaches to the part
         var boxes = CollectBoxes(layout.Nodes).ToList();
         Assert.Contains(boxes, b => b.Keyword == "part def" && b.Label == "PowerSystem");
         Assert.Equal(2, boxes.Count(b => b.Shape == BoxShape.RoundedRectangle));
-        Assert.Equal(2, CollectPorts(layout.Nodes).Count());
+        Assert.Empty(CollectPorts(layout.Nodes));
         Assert.Single(CollectLines(layout.Nodes));
     }
 
@@ -143,11 +145,11 @@ public sealed class InterconnectionViewLayoutStrategyTests
         Assert.Equal("part def", rootBox.Keyword);
         Assert.Equal("PowerSystem", rootBox.Label);
 
-        // Assert: the root box's own Children hold the interior content — two part boxes, two
-        // ports, and one connector line — none of it as flat top-level siblings.
+        // Assert: the root box's own Children hold the interior content — two part boxes and one
+        // connector line (no port glyphs for part-only endpoints) — none of it as flat top-level siblings.
         Assert.NotEmpty(rootBox.Children);
         Assert.Equal(2, rootBox.Children.OfType<LayoutBox>().Count(b => b.Shape == BoxShape.RoundedRectangle));
-        Assert.Equal(2, rootBox.Children.OfType<LayoutPort>().Count());
+        Assert.Empty(rootBox.Children.OfType<LayoutPort>());
         Assert.Single(rootBox.Children.OfType<LayoutLine>());
     }
 
@@ -312,9 +314,9 @@ public sealed class InterconnectionViewLayoutStrategyTests
         Assert.All(lines, l => Assert.True(l.Waypoints.Count >= 2));
         Assert.NotEqual(lines[0].Waypoints, lines[1].Waypoints);
 
-        // Assert: two part boxes and one port pair per connection (four ports total).
+        // Assert: two part boxes, and no port glyphs because the endpoints name only the parts.
         Assert.Equal(2, CollectBoxes(layout.Nodes).Count(b => b.Shape == BoxShape.RoundedRectangle));
-        Assert.Equal(4, CollectPorts(layout.Nodes).Count());
+        Assert.Empty(CollectPorts(layout.Nodes));
     }
 
     /// <summary>
@@ -473,9 +475,10 @@ public sealed class InterconnectionViewLayoutStrategyTests
         var lines = rootBox.Children.OfType<LayoutLine>().ToList();
         Assert.Single(lines);
 
+        // The "psu" end names only the part, so it has no port; the "board.cpu" end keeps its label.
         var ports = rootBox.Children.OfType<LayoutPort>().ToList();
-        Assert.Equal(2, ports.Count);
-        Assert.Contains(ports, p => p.ExternalLabel == "cpu");
+        var port = Assert.Single(ports);
+        Assert.Equal("cpu", port.ExternalLabel);
     }
 
     /// <summary>
@@ -938,6 +941,866 @@ public sealed class InterconnectionViewLayoutStrategyTests
         Assert.Contains(partLabels, l => l is not null && l.Contains("c1", StringComparison.Ordinal));
         Assert.DoesNotContain(partLabels, l => l is not null &&
             (l.Contains("a1", StringComparison.Ordinal) || l.Contains("a2", StringComparison.Ordinal) || l.Contains("a3", StringComparison.Ordinal)));
+    }
+
+    /// <summary>
+    ///     Each declared port direction maps to the matching direction arrow: <c>in</c>, <c>out</c>,
+    ///     <c>inout</c> and an undirected port, all drawn as outlined squares labeled outside the part.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_DeclaredPorts_DirectionAppearanceMatchesInOutInout()
+    {
+        // Arrange: a part with a port of every direction, each wired to a peer port
+        var layout = await LayOutModelAsync("""
+            package Q {
+                port def P;
+                part def Src { in port inA : P; out port outA : P; inout port bothA : P; port plainA : P; }
+                part def Dst { out port sourceA : P; in port sinkB : P; inout port bothB : P; port plainB : P; }
+                part def Rig {
+                    part src : Src; part dst : Dst;
+                    connection l1 connect dst.sourceA to src.inA;
+                    connection l2 connect src.outA to dst.sinkB;
+                    connection l3 connect src.bothA to dst.bothB;
+                    connection l4 connect src.plainA to dst.plainB;
+                }
+            }
+            """);
+
+        // Act
+        var ports = CollectPorts(layout.Nodes);
+
+        // Assert: direction per declared port, outlined glyph, outside label
+        Assert.Equal(PortDirection.In, PortNamed(ports, "inA : P").Appearance!.Direction);
+        Assert.Equal(PortDirection.Out, PortNamed(ports, "outA : P").Appearance!.Direction);
+        Assert.Equal(PortDirection.InOut, PortNamed(ports, "bothA : P").Appearance!.Direction);
+        Assert.Equal(PortDirection.None, PortNamed(ports, "plainA : P").Appearance!.Direction);
+        Assert.Equal(8, ports.Count);
+        Assert.All(ports, p =>
+        {
+            Assert.Equal(PortGlyph.Outlined, p.Appearance!.Glyph);
+            Assert.Equal(PortLabelPlacement.Outward, p.Appearance.LabelPlacement);
+        });
+    }
+
+    /// <summary>A reference port is drawn with a dashed outline; an ordinary port keeps a solid one.</summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ReferencePort_HasDashedOutline()
+    {
+        // Arrange
+        var layout = await LayOutModelAsync("""
+            package Q {
+                port def P;
+                part def A { ref port rp : P; port sp : P; }
+                part def B { port bp : P; port bq : P; }
+                part def Rig { part a : A; part b : B; connection c1 connect a.rp to b.bp; connection c2 connect a.sp to b.bq; }
+            }
+            """);
+
+        // Act
+        var ports = CollectPorts(layout.Nodes);
+
+        // Assert
+        Assert.Equal(LineStyle.Dashed, PortNamed(ports, "rp : P").Appearance!.OutlineStyle);
+        Assert.Equal(LineStyle.Solid, PortNamed(ports, "sp : P").Appearance!.OutlineStyle);
+    }
+
+    /// <summary>A port typed by a conjugated port definition is labeled <c>name : ~Type</c>.</summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ConjugatedPort_LabelShowsTildeType()
+    {
+        // Arrange
+        var layout = await LayOutModelAsync("""
+            package Q {
+                port def P;
+                part def A { out port po : P; }
+                part def B { in port pi : ~P; }
+                part def Rig { part a : A; part b : B; connection c connect a.po to b.pi; }
+            }
+            """);
+
+        // Act
+        var ports = CollectPorts(layout.Nodes);
+
+        // Assert
+        Assert.Contains(ports, p => p.ExternalLabel == "po : P");
+        Assert.Contains(ports, p => p.ExternalLabel == "pi : ~P");
+    }
+
+    /// <summary>A port label is <c>name : Type</c>, with the multiplicity when the port declares one.</summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_PortLabel_IsNameColonTypeWithMultiplicity()
+    {
+        // Arrange
+        var layout = await LayOutModelAsync("""
+            package Q {
+                port def P;
+                part def A { port pa : P [2]; }
+                part def B { port pb : P; }
+                part def Rig { part a : A; part b : B; connection c connect a.pa to b.pb; }
+            }
+            """);
+
+        // Act
+        var ports = CollectPorts(layout.Nodes);
+
+        // Assert
+        Assert.Contains(ports, p => p.ExternalLabel == "pa : P [2]");
+        Assert.Contains(ports, p => p.ExternalLabel == "pb : P");
+    }
+
+    /// <summary>
+    ///     An endpoint segment that no declaration backs keeps its bare name as the label and is drawn
+    ///     as an undirected outlined square labeled outside — never the legacy filled square.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_UndeclaredEndpointSegment_KeepsBareNameLabelWithOutlinedGlyph()
+    {
+        // Arrange: no part declares a port
+        var layout = await LayOutModelAsync("""
+            package Q {
+                part def A; part def B;
+                part def Rig { part a : A; part b : B; connection c connect a.x to b.y; }
+            }
+            """);
+
+        // Act
+        var ports = CollectPorts(layout.Nodes);
+
+        // Assert
+        Assert.Equal(2, ports.Count);
+        Assert.All(ports, p =>
+        {
+            Assert.Equal(PortDirection.None, p.Appearance!.Direction);
+            Assert.Equal(PortGlyph.Outlined, p.Appearance.Glyph);
+            Assert.Equal(PortLabelPlacement.Outward, p.Appearance.LabelPlacement);
+            Assert.Equal(LineStyle.Solid, p.Appearance.OutlineStyle);
+        });
+        Assert.Contains(ports, p => p.ExternalLabel == "x");
+        Assert.Contains(ports, p => p.ExternalLabel == "y");
+    }
+
+    /// <summary>
+    ///     A part's ports come from its own body, from its type, and from the supertypes of that type; a
+    ///     port redeclared on a more specific element is listed once.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_InheritedTypeAndInlinePorts_AreResolved()
+    {
+        // Arrange: inherited (from Base), own (on Derived), inline (in the usage body)
+        var layout = await LayOutModelAsync("""
+            package Q {
+                port def P;
+                part def Base { in port inherited : P; }
+                part def Derived :> Base { out port own : P; }
+                part def Peer { port x : P; port y : P; port z : P; }
+                part def Rig {
+                    part d : Derived { inout port inline : P; }
+                    part e : Peer;
+                    connection c1 connect d.inherited to e.x;
+                    connection c2 connect d.own to e.y;
+                    connection c3 connect d.inline to e.z;
+                }
+            }
+            """);
+
+        // Act
+        var ports = CollectPorts(layout.Nodes);
+
+        // Assert: each is resolved with its declared direction and typed label
+        Assert.Equal(PortDirection.In, PortNamed(ports, "inherited : P").Appearance!.Direction);
+        Assert.Equal(PortDirection.Out, PortNamed(ports, "own : P").Appearance!.Direction);
+        Assert.Equal(PortDirection.InOut, PortNamed(ports, "inline : P").Appearance!.Direction);
+    }
+
+    /// <summary>
+    ///     A declared port that no connector names is drawn anyway, on the border of its part, clear of
+    ///     every other port, label, and box, with its label inside the canvas.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_UnconnectedDeclaredPort_IsDrawnOnBoxBorderWithoutOverlap()
+    {
+        // Arrange: spare ports next to a connected one on both faces
+        var layout = await LayOutModelAsync("""
+            package Q {
+                port def P;
+                part def A { out port used : P; port spareLeft : P; out port spareRight : P; in port spareIn : P; }
+                part def B { in port sink : P; }
+                part def Rig { part a : A; part b : B; connection c connect a.used to b.sink; }
+            }
+            """);
+
+        // Act
+        var ports = CollectPorts(layout.Nodes);
+        var partA = FindPartBox(layout, "a : A");
+
+        // Assert: all four ports of A are drawn on its border at or below the title area
+        var titleArea = BoxMetrics.TitleAreaHeight(Themes.Light, hasLabel: true, hasKeyword: true);
+        var aPorts = ports.Where(p => p.ExternalLabel is "used : P" or "spareLeft : P" or "spareRight : P" or "spareIn : P").ToList();
+        Assert.Equal(4, aPorts.Count);
+        foreach (var port in aPorts)
+        {
+            var onBorder = Math.Abs(port.CentreX - partA.X) < 0.5 || Math.Abs(port.CentreX - (partA.X + partA.Width)) < 0.5;
+            Assert.True(onBorder, $"{port.ExternalLabel} is not on the border of its part");
+            Assert.True(port.CentreY >= partA.Y + titleArea && port.CentreY <= partA.Y + partA.Height, $"{port.ExternalLabel} is outside the part's port area");
+        }
+
+        // Assert: the out port went to the right face, the in and undirected ports to the left face
+        Assert.Equal(PortSide.Right, PortNamed(ports, "spareRight : P").Side);
+        Assert.Equal(PortSide.Left, PortNamed(ports, "spareLeft : P").Side);
+        Assert.Equal(PortSide.Left, PortNamed(ports, "spareIn : P").Side);
+
+        // Assert: no glyph or label of any port overlaps another port's, a box's, or leaves the canvas
+        AssertPortsClear(layout, ports);
+    }
+
+    /// <summary>
+    ///     A declared port used by two connectors is one port: its label appears once even though the
+    ///     layout engine emits a glyph per connector end.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_PortWithTwoConnections_LabelAppearsOnce()
+    {
+        // Arrange: a.shared feeds both b and c
+        var layout = await LayOutModelAsync("""
+            package Q {
+                port def P;
+                part def A { out port shared : P; }
+                part def B { in port bi : P; }
+                part def C { in port ci : P; }
+                part def Rig {
+                    part a : A; part b : B; part c : C;
+                    connection c1 connect a.shared to b.bi;
+                    connection c2 connect a.shared to c.ci;
+                }
+            }
+            """);
+
+        // Act
+        var ports = CollectPorts(layout.Nodes);
+
+        // Assert
+        Assert.Single(ports, p => p.ExternalLabel == "shared : P");
+        Assert.Equal(2, CollectLines(layout.Nodes).Count);
+    }
+
+    /// <summary>
+    ///     A part with a shared declared port (one port, two connectors; its repeated glyph carries no
+    ///     label) and an unconnected declared port lays out without throwing, and the unconnected port is
+    ///     placed clear of the shared port's glyphs and its single label.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_SharedPortAndUnconnectedPort_LaysOutClear()
+    {
+        // Arrange: a.shared feeds both b and c; a.spare is declared but never connected
+        var layout = await LayOutModelAsync("""
+            package Q {
+                port def P;
+                part def A { out port shared : P; out port spare : P; }
+                part def B { in port bi : P; }
+                part def C { in port ci : P; }
+                part def Rig {
+                    part a : A; part b : B; part c : C;
+                    connection c1 connect a.shared to b.bi;
+                    connection c2 connect a.shared to c.ci;
+                }
+            }
+            """);
+
+        // Act
+        var ports = CollectPorts(layout.Nodes);
+
+        // Assert: the shared port is labeled once, the spare port is drawn, and nothing overlaps
+        Assert.Single(ports, p => p.ExternalLabel == "shared : P");
+        Assert.Equal(5, ports.Count);
+        var spare = PortNamed(ports, "spare : P");
+        Assert.Equal(PortSide.Right, spare.Side);
+        AssertPortsClear(layout, ports);
+    }
+
+    /// <summary>
+    ///     The declared ports of the root definition are drawn on the frame's border (left face, or right
+    ///     face for an <c>out</c> port), below its header, and the canvas makes room for their labels.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_RootFramePorts_DrawnOnFrameBorder()
+    {
+        // Arrange
+        var layout = await LayOutModelAsync("""
+            package Q {
+                port def MainsPort;
+                part def A; part def B;
+                part def Rig {
+                    in port mains : MainsPort;
+                    out port video : MainsPort;
+                    part a : A; part b : B;
+                    connection c connect a to b;
+                }
+            }
+            """);
+
+        // Act
+        var frame = Assert.IsType<LayoutBox>(Assert.Single(layout.Nodes));
+        var framePorts = frame.Children.OfType<LayoutPort>().ToList();
+
+        // Assert: both ports sit on the frame border and below its header
+        var mains = PortNamed(framePorts, "mains : MainsPort");
+        var video = PortNamed(framePorts, "video : MainsPort");
+        Assert.Equal(PortSide.Left, mains.Side);
+        Assert.Equal(frame.X, mains.CentreX, 0.5);
+        Assert.Equal(PortSide.Right, video.Side);
+        Assert.Equal(frame.X + frame.Width, video.CentreX, 0.5);
+        Assert.Equal(PortDirection.In, mains.Appearance!.Direction);
+        Assert.Equal(PortDirection.Out, video.Appearance!.Direction);
+        Assert.True(mains.CentreY > BoxMetrics.TitleAreaHeight(Themes.Light, true, true));
+
+        // Assert: the frame moved right to make room for the left label, and the canvas fits the right one
+        Assert.True(frame.X > 0.0);
+        AssertPortsClear(layout, framePorts);
+    }
+
+    /// <summary>
+    ///     A reference part is drawn with a dashed outline and the keyword <c>ref part</c>; an ordinary
+    ///     part has a solid outline and the keyword <c>part</c>.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ReferencePart_HasDashedOutlineAndRefKeyword()
+    {
+        // Arrange
+        var layout = await LayOutModelAsync("""
+            package Q {
+                part def A; part def B;
+                part def Rig { part a : A; ref part b : B; connection c connect a to b; }
+            }
+            """);
+
+        // Act
+        var reference = FindPartBox(layout, "b : B");
+        var ordinary = FindPartBox(layout, "a : A");
+
+        // Assert
+        Assert.Equal("ref part", reference.Keyword);
+        Assert.Equal(LineStyle.Dashed, reference.Appearance?.OutlineStyle);
+        Assert.Equal("part", ordinary.Keyword);
+        Assert.NotEqual(LineStyle.Dashed, ordinary.Appearance?.OutlineStyle);
+    }
+
+    /// <summary>Item, action, state, and occurrence usages are nodes of the view, with their own keyword.</summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ItemActionStateOccurrenceUsages_AreNodes()
+    {
+        // Arrange: a part plus one usage of each other node kind, all connected to it
+        var layout = await LayOutModelAsync("""
+            package Q {
+                item def I; part def A;
+                part def Rig {
+                    part a : A;
+                    item i : I;
+                    action act;
+                    state st;
+                    occurrence oc;
+                    connection c1 connect a to i;
+                    connection c2 connect a to act;
+                    connection c3 connect a to st;
+                    connection c4 connect a to oc;
+                }
+            }
+            """);
+
+        // Act
+        var boxes = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
+
+        // Assert
+        Assert.Equal(5, boxes.Count);
+        Assert.Contains(boxes, b => b.Keyword == "item" && b.Label == "i : I");
+        Assert.Contains(boxes, b => b.Keyword == "action" && b.Label == "act");
+        Assert.Contains(boxes, b => b.Keyword == "state" && b.Label == "st");
+        Assert.Contains(boxes, b => b.Keyword == "occurrence" && b.Label == "oc");
+        Assert.Equal(4, CollectLines(layout.Nodes).Count);
+    }
+
+    /// <summary>
+    ///     A part usage declared directly in a package whose body declares nested parts and connectors is
+    ///     a root even without a definition: its frame is a rounded <c>«part» name</c> box.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_UsageRoot_RendersBodyWithoutDefinition()
+    {
+        // Arrange: no part definition at all
+        var layout = await LayOutModelAsync("""
+            package Q {
+                part system {
+                    part a; part b;
+                    connection c connect a to b;
+                }
+            }
+            """);
+
+        // Act
+        var frame = Assert.IsType<LayoutBox>(Assert.Single(layout.Nodes));
+
+        // Assert
+        Assert.Equal("part", frame.Keyword);
+        Assert.Equal("system", frame.Label);
+        Assert.Equal(BoxShape.RoundedRectangle, frame.Shape);
+        Assert.Equal(2, frame.Children.OfType<LayoutBox>().Count());
+        Assert.Single(frame.Children.OfType<LayoutLine>());
+    }
+
+    /// <summary>
+    ///     A part that declares a doc comment and attributes shows <c>doc</c> and <c>attributes</c>
+    ///     compartments; a part that declares neither has no compartments.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_PartWithAttributesAndDoc_ShowsCompartments()
+    {
+        // Arrange
+        var layout = await LayOutModelAsync("""
+            package Q {
+                attribute def Frequency;
+                part def Cpu; part def Ram;
+                part def Rig {
+                    part cpu : Cpu {
+                        doc /* Executes instructions. */
+                        attribute clock : Frequency;
+                    }
+                    part ram : Ram;
+                    connection c connect cpu to ram;
+                }
+            }
+            """);
+
+        // Act
+        var cpu = FindPartBox(layout, "cpu : Cpu");
+        var ram = FindPartBox(layout, "ram : Ram");
+
+        // Assert
+        Assert.Equal(["doc", "attributes"], cpu.Compartments.Select(c => c.Title).ToArray());
+        Assert.Contains(cpu.Compartments[0].Rows, r => r.Contains("Executes instructions", StringComparison.Ordinal));
+        Assert.Equal(["clock : Frequency"], cpu.Compartments[1].Rows.ToArray());
+        Assert.Empty(ram.Compartments);
+        Assert.True(cpu.Height > ram.Height);
+    }
+
+    /// <summary>
+    ///     The root frame carries a centered italic <c>interconnection</c> compartment title below its
+    ///     name, and its content starts below that title.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_RootFrame_HasInterconnectionTitleCompartment()
+    {
+        // Arrange
+        var layout = await LayOutModelAsync("""
+            package Q {
+                part def A; part def B;
+                part def Rig { part a : A; part b : B; connection c connect a to b; }
+            }
+            """);
+
+        // Act
+        var frame = Assert.IsType<LayoutBox>(Assert.Single(layout.Nodes));
+
+        // Assert: one title-only compartment, centered and italic
+        var title = Assert.Single(frame.Compartments);
+        Assert.Equal("interconnection", title.Title);
+        Assert.Equal(TextAlign.Center, title.TitleAlign);
+        Assert.Equal(TextStyle.Italic, title.ResolvedTitleStyle);
+        Assert.Empty(title.Rows);
+
+        // Assert: every inner box starts below the name compartment and the title band
+        var headerBottom = BoxMetrics.TitleAreaHeight(Themes.Light, true, true) + Themes.Light.LabelPadding + Themes.Light.FontSizeBody + Themes.Light.LabelPadding;
+        Assert.All(frame.Children.OfType<LayoutBox>(), b => Assert.True(b.Y >= headerBottom, $"{b.Label} starts above the interconnection title band"));
+    }
+
+    /// <summary>A binding connector is a plain line labeled <c>=</c>.</summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_BindingConnector_HasEqualsLabel()
+    {
+        // Arrange
+        var layout = await LayOutModelAsync("""
+            package Q {
+                port def P;
+                part def A { port pa : P; }
+                part def B { port pb : P; }
+                part def Rig { part a : A; part b : B; bind a.pa = b.pb; }
+            }
+            """);
+
+        // Act
+        var line = Assert.Single(CollectLines(layout.Nodes));
+
+        // Assert
+        Assert.Equal("=", line.MidpointLabel);
+        Assert.Equal(EndMarkerStyle.None, line.TargetEnd);
+        Assert.Equal(EndMarkerStyle.None, line.SourceEnd);
+        Assert.Equal(LineStyle.Solid, line.LineStyle);
+    }
+
+    /// <summary>
+    ///     A flow connector ends in a filled arrowhead at its target and is labeled <c>«flow»</c>, then its
+    ///     name and payload when it declares them.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_FlowConnector_HasFilledArrowAndFlowLabel()
+    {
+        // Arrange: one named flow with a payload, one anonymous flow without
+        var layout = await LayOutModelAsync("""
+            package Q {
+                item def Torque;
+                port def P;
+                part def A { out port o1 : P; out port o2 : P; }
+                part def B { in port i1 : P; in port i2 : P; }
+                part def Rig {
+                    part a : A; part b : B;
+                    flow torque of Torque from a.o1 to b.i1;
+                    flow from a.o2 to b.i2;
+                }
+            }
+            """);
+
+        // Act
+        var lines = CollectLines(layout.Nodes);
+
+        // Assert
+        Assert.Equal(2, lines.Count);
+        Assert.All(lines, l => Assert.Equal(EndMarkerStyle.FilledArrow, l.TargetEnd));
+        Assert.Contains(lines, l => l.MidpointLabel == "«flow» torque of Torque");
+        Assert.Contains(lines, l => l.MidpointLabel == "«flow»");
+    }
+
+    /// <summary>An interface connector is a plain line labeled <c>«interface»</c>, then its name.</summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_InterfaceConnector_HasInterfaceLabel()
+    {
+        // Arrange
+        var layout = await LayOutModelAsync("""
+            package Q {
+                port def P;
+                part def A { port pa : P; }
+                part def B { port pb : P; }
+                part def Rig { part a : A; part b : B; interface bus connect a.pa to b.pb; }
+            }
+            """);
+
+        // Act
+        var line = Assert.Single(CollectLines(layout.Nodes));
+
+        // Assert
+        Assert.Equal("«interface» bus", line.MidpointLabel);
+        Assert.Equal(EndMarkerStyle.None, line.TargetEnd);
+    }
+
+    /// <summary>
+    ///     Message and allocation usages are not interconnection connectors, so they are not drawn (and do
+    ///     not count when choosing the root), while a connection beside them still is.
+    /// </summary>
+    [Fact]
+    public void InterconnectionView_BuildLayout_MessageAndAllocation_AreNotDrawn()
+    {
+        // Arrange: a message, an allocation, and one connection between the same two parts
+        var rig = new SysmlDefinitionNode
+        {
+            Name = "Rig",
+            QualifiedName = "M::Rig",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "a", QualifiedName = "M::Rig::a", FeatureKeyword = "part" },
+                new SysmlFeatureNode { Name = "b", QualifiedName = "M::Rig::b", FeatureKeyword = "part" },
+                new SysmlConnectionNode { Name = "m", QualifiedName = "M::Rig::m", ConnectionKeyword = "message", EndpointA = "a", EndpointB = "b" },
+                new SysmlConnectionNode { Name = "x", QualifiedName = "M::Rig::x", ConnectionKeyword = "allocation", EndpointA = "a", EndpointB = "b" },
+                new SysmlConnectionNode { Name = "c", QualifiedName = "M::Rig::c", ConnectionKeyword = "connection", EndpointA = "a", EndpointB = "b" },
+            ],
+        };
+        var workspace = new SysmlWorkspace { Declarations = new Dictionary<string, SysmlNode> { ["M::Rig"] = rig } };
+
+        // Act
+        var layout = new InterconnectionViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert: only the connection is a line
+        Assert.Single(CollectLines(layout.Nodes));
+    }
+
+    /// <summary>
+    ///     A role name and a multiplicity declared on a connector end become the end label of that end:
+    ///     role name above, multiplicity below; an end that declares only one of them labels only that.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ConnectionEnds_RoleNameAndMultiplicityBecomeEndLabels()
+    {
+        // Arrange
+        var layout = await LayOutModelAsync("""
+            package Q {
+                port def P;
+                part def A { port pa : P; }
+                part def B { port pb : P; }
+                part def Rig {
+                    part a : A; part b : B;
+                    connection c connect [2] supply ::> a.pa to drain ::> b.pb;
+                }
+            }
+            """);
+
+        // Act
+        var line = Assert.Single(CollectLines(layout.Nodes));
+
+        // Assert
+        Assert.Equal(new LineEndLabel("supply", "[2]"), line.SourceEndLabel);
+        Assert.Equal(new LineEndLabel("drain", null), line.TargetEndLabel);
+    }
+
+    /// <summary>A connector whose ends declare neither a role name nor a multiplicity carries no end labels.</summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ConnectionWithoutEnds_HasNoEndLabels()
+    {
+        // Arrange
+        var layout = await LayOutModelAsync("""
+            package Q {
+                part def A; part def B;
+                part def Rig { part a : A; part b : B; connection c connect a to b; }
+            }
+            """);
+
+        // Act
+        var line = Assert.Single(CollectLines(layout.Nodes));
+
+        // Assert
+        Assert.Null(line.SourceEndLabel);
+        Assert.Null(line.TargetEndLabel);
+        Assert.Null(line.MidpointLabel);
+    }
+
+    /// <summary>
+    ///     A part usage whose own body declares nested parts is a container just like a part typed by a
+    ///     definition with parts: its inner parts and connector are nested in its box.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_InlineBodyPart_RecursesAsContainer()
+    {
+        // Arrange
+        var layout = await LayOutModelAsync("""
+            package Q {
+                part def Other;
+                part def Rig {
+                    part outer { part i1; part i2; connection ci connect i1 to i2; }
+                    part other : Other;
+                    connection co connect outer to other;
+                }
+            }
+            """);
+
+        // Act
+        var outer = FindPartBox(layout, "outer");
+
+        // Assert
+        Assert.Equal(["i1", "i2"], outer.Children.OfType<LayoutBox>().Select(b => b.Label).Order().ToArray());
+        Assert.Single(outer.Children.OfType<LayoutLine>());
+    }
+
+    /// <summary>
+    ///     Every port glyph and outside label of a layout with long labels at both faces of the diagram stays
+    ///     inside the canvas.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_OutwardLabels_StayInsideCanvas()
+    {
+        // Arrange: long port labels on the outermost faces, connected and unconnected
+        var layout = await LayOutModelAsync("""
+            package Q {
+                port def AVeryLongPortDefinitionName;
+                part def A { in port aLongInboundPortName : AVeryLongPortDefinitionName; out port anotherLongOutboundPortName : AVeryLongPortDefinitionName; }
+                part def B { in port bLongInboundPortName : AVeryLongPortDefinitionName; port unconnectedLongPortName : AVeryLongPortDefinitionName; }
+                part def Rig {
+                    in port frameInbound : AVeryLongPortDefinitionName;
+                    part a : A; part b : B;
+                    connection c connect a.anotherLongOutboundPortName to b.bLongInboundPortName;
+                }
+            }
+            """);
+
+        // Act
+        var ports = CollectPorts(layout.Nodes);
+
+        // Assert
+        Assert.True(ports.Count >= 5);
+        AssertPortsClear(layout, ports);
+    }
+
+    /// <summary>
+    ///     On the motor-rig gallery model the flow and interface labels, which the layout engine does not
+    ///     reserve room for, are moved clear of every port label by widening the corridors.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_MotorRigGalleryModel_MidpointLabelsClearOfPortLabels()
+    {
+        // Arrange
+        var workspace = await LabelClearance.LoadGalleryWorkspaceAsync("09-motor-controller-multi-port.sysml");
+
+        // Act
+        var layout = new InterconnectionViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(SysmlThemes.Plain));
+        var lines = CollectLines(layout.Nodes);
+        var labels = ConnectorLabelPlacer.ResolveLabels(lines, CollectBoxes(layout.Nodes), CollectPorts(layout.Nodes), SysmlThemes.Plain);
+
+        // Assert: five connectors of four kinds, every midpoint label clear of every port glyph and label
+        Assert.Equal(5, lines.Count);
+        Assert.Equal(3, lines.Count(l => l.MidpointLabel is not null));
+        foreach (var line in lines.Where(l => l.MidpointLabel is not null))
+        {
+            var label = labels.Midpoints[line];
+            Assert.All(labels.PortRects, r => Assert.False(
+                Math.Abs(label.Y - r.Y) < label.HalfHeight + r.HalfHeight && Math.Abs(label.X - r.X) < label.HalfWidth + r.HalfWidth,
+                $"The label '{line.MidpointLabel}' overlaps a port label or glyph."));
+        }
+    }
+
+    /// <summary>
+    ///     The motor-rig gallery model draws every declared port (eleven, one of them unconnected), a
+    ///     reference port with a dashed outline, a conjugated label, and the end labels of the power link.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_MotorRigGalleryModel_ShowsPortNotation()
+    {
+        // Arrange
+        var workspace = await LabelClearance.LoadGalleryWorkspaceAsync("09-motor-controller-multi-port.sysml");
+
+        // Act
+        var layout = new InterconnectionViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(SysmlThemes.Plain));
+        var ports = CollectPorts(layout.Nodes);
+        var lines = CollectLines(layout.Nodes);
+
+        // Assert
+        Assert.Equal(11, ports.Count);
+        Assert.Contains(ports, p => p.ExternalLabel == "status : StatusPort");
+        Assert.Contains(ports, p => p.ExternalLabel == "powerIn : ~PowerPort");
+        Assert.Equal(LineStyle.Dashed, PortNamed(ports, "mount : MountPort").Appearance!.OutlineStyle);
+        Assert.Contains(lines, l => l.SourceEndLabel == new LineEndLabel("supply", "[1]") && l.TargetEndLabel == new LineEndLabel("drive", "[1]"));
+        Assert.Contains(lines, l => l.MidpointLabel == "=");
+        Assert.Contains(lines, l => l.TargetEnd == EndMarkerStyle.FilledArrow);
+        Assert.Contains(lines, l => l.MidpointLabel == "«flow» of Torque");
+        Assert.Contains(lines, l => l.MidpointLabel == "«interface»");
+        AssertPortsClear(layout, ports);
+    }
+
+    /// <summary>
+    ///     The workstation gallery model shows a reference part, an item, a part with compartments, and an
+    ///     interface connector between two declared ports.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_WorkstationGalleryModel_ShowsUsageNotation()
+    {
+        // Arrange
+        var workspace = await LabelClearance.LoadGalleryWorkspaceAsync("02-computer-interconnection.sysml");
+
+        // Act
+        var layout = new InterconnectionViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(SysmlThemes.Plain));
+        var boxes = CollectBoxes(layout.Nodes);
+
+        // Assert
+        Assert.Contains(boxes, b => b.Keyword == "ref part" && b.Label == "monitor : Display" && b.Appearance?.OutlineStyle == LineStyle.Dashed);
+        Assert.Contains(boxes, b => b.Keyword == "item" && b.Label == "firmware : Firmware");
+        Assert.Contains(boxes, b => b.Label == "memory : Ram [2]");
+        Assert.Contains(boxes, b => b.Label == "cpu : Cpu" && b.Compartments.Count == 2);
+        Assert.Contains(CollectLines(layout.Nodes), l => l.MidpointLabel == "«interface»");
+        Assert.Equal(2, CollectPorts(layout.Nodes).Count);
+    }
+
+    /// <summary>
+    ///     The nested-computer gallery model draws the computer's own ports on its frame, the motherboard's
+    ///     ports on its border, and the connectors between the part ports.
+    /// </summary>
+    [Fact]
+    public async Task InterconnectionView_BuildLayout_ComputerGalleryModel_ShowsFrameAndNestedPorts()
+    {
+        // Arrange
+        var workspace = await LabelClearance.LoadGalleryWorkspaceAsync("08-nested-interconnection.sysml");
+
+        // Act
+        var layout = new InterconnectionViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(SysmlThemes.Plain));
+        var frame = Assert.IsType<LayoutBox>(Assert.Single(layout.Nodes));
+
+        // Assert: two ports on the frame border, plus the six part ports of the three connectors
+        var onFrameBorder = frame.Children.OfType<LayoutPort>()
+            .Where(p => Math.Abs(p.CentreX - frame.X) < 0.5 || Math.Abs(p.CentreX - (frame.X + frame.Width)) < 0.5)
+            .ToList();
+        Assert.Equal(["mains : MainsPort", "video : VideoPort"], onFrameBorder.Select(p => p.ExternalLabel!).Order().ToArray());
+        var ports = CollectPorts(layout.Nodes);
+        Assert.Equal(8, ports.Count);
+        AssertPortsClear(layout, ports);
+    }
+    /// <summary>Loads a model from source text and lays out the interconnection view with its default root.</summary>
+    private static async Task<LayoutTree> LayOutModelAsync(string sysml)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, sysml, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = DemaConsulting.SysML2Tools.Stdlib.StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            return new InterconnectionViewLayoutStrategy().BuildLayout(new ViewContext("v", result.Workspace), new RenderOptions(Themes.Light));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>Returns the single port with the given label.</summary>
+    private static LayoutPort PortNamed(IReadOnlyList<LayoutPort> ports, string label) =>
+        Assert.Single(ports, p => p.ExternalLabel == label);
+
+    /// <summary>
+    ///     Asserts that, for the given ports, no glyph or outward label overlaps another port's glyph or
+    ///     label or a part box (own box included for labels), and that all of them lie inside the canvas.
+    /// </summary>
+    private static void AssertPortsClear(LayoutTree layout, IReadOnlyList<LayoutPort> ports)
+    {
+        var theme = Themes.Light;
+        var parts = CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.RoundedRectangle).ToList();
+        var footprints = new List<(string Name, LabelPlacement Glyph, LabelPlacement? Label)>();
+        foreach (var port in ports)
+        {
+            // A repeated glyph of a shared port has no label of its own (the first glyph carries it)
+            var label = NotationMetrics.IsOutwardLabel(port) && port.ExternalLabel is { } text
+                ? NotationMetrics.PortOutwardLabelBounds(port, text, theme)
+                : (LabelPlacement?)null;
+            footprints.Add((port.ExternalLabel ?? "?", NotationMetrics.PortGlyphBounds(port), label));
+        }
+
+        static bool Hit(LabelPlacement a, LabelPlacement b) =>
+            Math.Abs(a.X - b.X) < a.HalfWidth + b.HalfWidth && Math.Abs(a.Y - b.Y) < a.HalfHeight + b.HalfHeight;
+
+        for (var i = 0; i < footprints.Count; i++)
+        {
+            var (name, glyph, label) = footprints[i];
+            foreach (var rect in label is { } l ? new[] { glyph, l } : [glyph])
+            {
+                // Inside the canvas
+                Assert.True(rect.X - rect.HalfWidth >= -0.01 && rect.X + rect.HalfWidth <= layout.Width + 0.01, $"{name} leaves the canvas horizontally");
+                Assert.True(rect.Y - rect.HalfHeight >= -0.01 && rect.Y + rect.HalfHeight <= layout.Height + 0.01, $"{name} leaves the canvas vertically");
+
+                // Clear of every other port
+                for (var j = 0; j < footprints.Count; j++)
+                {
+                    if (j == i)
+                    {
+                        continue;
+                    }
+
+                    Assert.False(Hit(rect, footprints[j].Glyph), $"{name} overlaps the glyph of {footprints[j].Name}");
+                    Assert.False(footprints[j].Label is { } other && Hit(rect, other), $"{name} overlaps the label of {footprints[j].Name}");
+                }
+            }
+
+            // A label (outside its part) overlaps no part box
+            if (label is { } text)
+            {
+                foreach (var part in parts)
+                {
+                    var box = new LabelPlacement(part.X + (part.Width / 2.0), part.Y + (part.Height / 2.0), part.Width / 2.0, part.Height / 2.0);
+                    Assert.False(Hit(text, box), $"The label of {name} overlaps the box {part.Label}");
+                }
+            }
+        }
     }
 
     /// <summary>Finds the rounded part box with the given label across the whole layout tree.</summary>

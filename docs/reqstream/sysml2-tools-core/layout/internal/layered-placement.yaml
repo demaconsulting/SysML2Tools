@@ -104,16 +104,18 @@ sections:
       - id: SysML2Tools-Core-Layout-Internal-LayeredPlacement-NamedPorts
         title: >-
           LayeredPlacement shall support placing edges through a named port on either endpoint via
-          a second `PlaceWithPorts` entry point, returning each requested port as a correctly
-          correlated placed port carrying the requested label, with parallel-edge merging always
+          a second `PlaceWithPorts` entry point, returning every placed port and the engine's
+          connector lines (with the declared end decoration, style, midpoint label, and end labels),
+          giving the ports the requested label and appearance, sharing one port between edges that
+          name the same key on a node (labeled once), and with parallel-edge merging always
           disabled.
         justification: |
           InterconnectionViewLayoutStrategy needs the layout engine itself to resolve each part's
           port sides, spacing, and any resulting box growth from named, labeled connection points,
           rather than computing box heights and port positions by hand. A second, additive entry
           point that models ports as first-class `LayoutGraphPort`s on the input graph — and
-          correlates the engine's placed ports back to the caller's requested endpoints by
-          reference identity — lets this strategy adopt the companion package's port model without
+          lets the caller name a port by key so that every connector of one declared SysML port shares
+          it, and lets this strategy adopt the companion package's port model without
           altering `Place`'s existing, unconditional behavior for its own callers. A strategy
           rendering non-overlapping boxes with a correctly labeled port for every incident
           connection, even under a high connection count, is the observable evidence.
@@ -121,6 +123,9 @@ sections:
           - InterconnectionView_BuildLayout_ConnectionEndpointWithPortSegment_PortLabelReflectsSysmlPortName
           - InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors
           - InterconnectionView_BuildLayout_HighConnectionDegreePart_BoxesDoNotOverlapAndPortsAreLabeled
+          - LayeredPlacement_PlaceWithPorts_SharedPortKey_LabelAppearsOnce
+          - LayeredPlacement_PlaceWithPorts_EdgeNotation_ReachesPlacedPortsAndLines
+          - LayeredPlacement_PlaceWithPorts_NoPortRequests_YieldsNoPorts
 
       - id: SysML2Tools-Core-Layout-Internal-LayeredPlacement-TitleAwarePorts
         title: >-
@@ -154,3 +159,17 @@ sections:
         tests:
           - LayeredPlacement_Place_EdgeTargetEnd_ForwardedToGraphEdges
           - LayeredPlacement_Place_DefaultEdgeTargetEnd_PreservesBehavior
+
+      - id: SysML2Tools-Core-Layout-Internal-LayeredPlacement-MidpointLabelClearance
+        title: >-
+          LayeredPlacement shall offer a post-placement pass that widens the corridor in front of a
+          connector until its midpoint label overlaps no box, port glyph, or port label, and that
+          returns the layout unchanged when no label overlaps.
+        justification: |
+          The layered algorithm reserves room between columns of boxes for end labels and outside
+          port labels but not for a midpoint label, so a long label such as «flow» torque of Torque
+          lands on the port labels at both ends of its connector. Resolving the labels with the
+          resolver the renderers use and opening the corridor is the observable evidence.
+        tests:
+          - LayeredPlacement_WidenForMidpointLabels_LabelOverlappingPortLabels_IsSeparated
+          - LayeredPlacement_WidenForMidpointLabels_NoMidpointLabels_ReturnsSameLayout

@@ -69,6 +69,26 @@ belonging to the first definition's own connection is geometrically anchored to 
 own `logger`/other boxes and never to the second definition's same-named `logger` box — the
 pre-fix collision this owner-scoped grouping resolves.
 
+A further group of tests, written against small SysML sources loaded through `WorkspaceLoader` (so the
+declared ports, directions, and connector kinds come from the real AST), verifies the SysML v2.0 notation:
+the direction arrow of each declared port (`in`, `out`, `inout`, none), the dashed outline of a reference
+port, the `name : Type` and `name : ~Type [multiplicity]` labels, the ports resolved from a part's own body, its
+type, and the supertype of that type, and the bare-name fallback for an endpoint segment no declaration
+backs. A declared port that nothing is wired to is checked to lie on the border of its part, below the title
+area, clear of every other glyph, label, and box, and a shared port is checked to carry its label once. The
+frame tests check the declared ports of the root on the frame border (with the canvas made wider for their
+outside labels) and the centered italic `interconnection` compartment title. Usage tests check the dashed
+`«ref part»` box, the `item`, `action`, `state`, and `occurrence` nodes, a part usage root without a
+definition, an inline-bodied part recursing as a container, and the `doc` and `attributes` compartments.
+Connector tests check the `=` label of a binding, the filled arrowhead and `«flow»` label (with name and
+payload) of a flow, the `«interface»` label, that message and allocation usages are not drawn, and the role
+name and multiplicity end labels. The three edited gallery models (02, 08, 09) are loaded from
+`docs/gallery/models` and checked for the notation they were extended to show, and the motor-rig model is
+resolved with the renderers' label resolver to confirm that no midpoint label overlaps a port label.
+`LayeredPlacementTests` verify the shared-port key, the notation reaching the placed ports and lines, and the
+midpoint-label corridor widening; `NotationStylingRenderTests` verify that the renderers draw the port glyph
+and the end labels.
+
 ##### Test Environment
 
 Tests run via `dotnet test` against net8.0, net9.0, net10.0, and net11.0. No external services, files, or
@@ -78,12 +98,28 @@ configuration are required beyond a standard .NET SDK installation.
 
 - All `InterconnectionViewLayoutStrategyTests` pass with zero failures across all four target frameworks.
 - A part definition with nested parts and connections yields a container box, one rounded box per
-  part, one port per connection endpoint, and one connector line per connection.
+  part, and one connector line per connection; an endpoint that names only a part draws no port.
 - No two part boxes overlap.
 - Two distinct connections between the same two parts render as two independently-routed
   connectors with genuinely distinct waypoints (parallel-edge preservation), not one shared route.
 - Three distinct connections between the same two parts (mirroring a real 3-axis-gantry wiring
   model) render as three pairwise-distinct connectors, each with its own labeled port pair.
+- A declared port is drawn as an outlined square whose arrow follows its `in`, `out`, or `inout` direction,
+  dashed for a reference port, labeled outside the part `name : Type` or `name : ~Type [multiplicity]`; ports are
+  resolved from the usage body, the type, and the type's supertypes.
+- A declared port that no connector names is drawn on the left face of its part (right face for `out`),
+  below the title area, clear of every other port, label, and box, inside the canvas.
+- A port used by two connectors shows its label once.
+- The declared ports of the root are drawn on its frame border, and the canvas makes room for their labels.
+- A reference part has a dashed outline and the keyword `ref part`; `item`, `action`, `state`, and
+  `occurrence` usages are nodes; a part usage root and an inline-bodied part are drawn as containers.
+- The root frame has a centered italic `interconnection` compartment title above its content; a part with
+  `doc` text or attributes shows `doc` and `attributes` compartments.
+- A binding is labeled `=`, an interface `«interface»` and its name, a flow has a filled arrowhead and the
+  label `«flow»` with its name and payload; message and allocation usages are not drawn.
+- A role name and multiplicity on a connector end become the end label (role name above, multiplicity
+  below); an end that declares neither has no label.
+- No midpoint label overlaps a port glyph or label on the motor-rig gallery model.
 - A connection endpoint with a dotted port segment (e.g. `StepperMotorX.encoder`) produces a
   `LayoutPort` whose `ExternalLabel` is the real SysML port name, not `null`.
 - A connection endpoint referencing a nested/cross-boundary path (e.g. `board.cpu`) still
@@ -209,3 +245,30 @@ configuration are required beyond a standard .NET SDK installation.
 | `InterconnectionView_BuildLayout_ExposeRootOnly_NestedSubsystemInDifferentNamespace_RendersItsOwnUnits` | Unchanged |
 | `InterconnectionView_BuildLayout_ExposeMixedRecursion_OnlyRecursiveBranchRecurses` | Per-branch |
 | `InterconnectionView_BuildLayout_TopLevelNameCollisionAcrossOwners_ResolvesOwnConnection` | Owner-scoped |
+| `InterconnectionView_BuildLayout_DeclaredPorts_DirectionAppearanceMatchesInOutInout` | Direction arrow per port |
+| `InterconnectionView_BuildLayout_ReferencePort_HasDashedOutline` | Dashed reference port |
+| `InterconnectionView_BuildLayout_ConjugatedPort_LabelShowsTildeType` | `~Type` label |
+| `InterconnectionView_BuildLayout_PortLabel_IsNameColonTypeWithMultiplicity` | `name : Type [multiplicity]` label |
+| `InterconnectionView_BuildLayout_UndeclaredEndpointSegment_KeepsBareNameLabelWithOutlinedGlyph` | Bare label |
+| `InterconnectionView_BuildLayout_InheritedTypeAndInlinePorts_AreResolved` | Own, type, and supertype ports |
+| `InterconnectionView_BuildLayout_UnconnectedDeclaredPort_IsDrawnOnBoxBorderWithoutOverlap` | Spare ports |
+| `InterconnectionView_BuildLayout_PortWithTwoConnections_LabelAppearsOnce` | One label per shared port |
+| `InterconnectionView_BuildLayout_SharedPortAndUnconnectedPort_LaysOutClear` | Shared plus spare port |
+| `InterconnectionView_BuildLayout_RootFramePorts_DrawnOnFrameBorder` | Frame ports and canvas room |
+| `InterconnectionView_BuildLayout_ReferencePart_HasDashedOutlineAndRefKeyword` | Dashed `ref part` box |
+| `InterconnectionView_BuildLayout_ItemActionStateOccurrenceUsages_AreNodes` | Four more node kinds |
+| `InterconnectionView_BuildLayout_UsageRoot_RendersBodyWithoutDefinition` | Part usage root |
+| `InterconnectionView_BuildLayout_InlineBodyPart_RecursesAsContainer` | Inline body is a container |
+| `InterconnectionView_BuildLayout_PartWithAttributesAndDoc_ShowsCompartments` | `doc` and `attributes` |
+| `InterconnectionView_BuildLayout_RootFrame_HasInterconnectionTitleCompartment` | Frame title compartment |
+| `InterconnectionView_BuildLayout_BindingConnector_HasEqualsLabel` | `=` label |
+| `InterconnectionView_BuildLayout_FlowConnector_HasFilledArrowAndFlowLabel` | Arrowhead and `«flow»` label |
+| `InterconnectionView_BuildLayout_InterfaceConnector_HasInterfaceLabel` | `«interface»` label |
+| `InterconnectionView_BuildLayout_MessageAndAllocation_AreNotDrawn` | Only connector kinds drawn |
+| `InterconnectionView_BuildLayout_ConnectionEnds_RoleNameAndMultiplicityBecomeEndLabels` | End labels |
+| `InterconnectionView_BuildLayout_ConnectionWithoutEnds_HasNoEndLabels` | No end labels |
+| `InterconnectionView_BuildLayout_OutwardLabels_StayInsideCanvas` | Ports and labels in canvas |
+| `InterconnectionView_BuildLayout_MotorRigGalleryModel_MidpointLabelsClearOfPortLabels` | Gallery 09 labels clear |
+| `InterconnectionView_BuildLayout_MotorRigGalleryModel_ShowsPortNotation` | Gallery 09 notation |
+| `InterconnectionView_BuildLayout_WorkstationGalleryModel_ShowsUsageNotation` | Gallery 02 notation |
+| `InterconnectionView_BuildLayout_ComputerGalleryModel_ShowsFrameAndNestedPorts` | Gallery 08 notation |

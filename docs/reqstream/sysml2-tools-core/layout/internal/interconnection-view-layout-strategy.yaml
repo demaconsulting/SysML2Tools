@@ -54,22 +54,24 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Ports
         title: >-
-          InterconnectionViewLayoutStrategy shall place a port on a part box for every connection
-          incident to that part.
+          InterconnectionViewLayoutStrategy shall attach a connector to a port on a part box when its
+          endpoint names a port of the part, and directly to the part box when the endpoint names
+          only the part.
         justification: |
-          Connections attach to parts at ports. Providing one port per incident connection is the
-          observable anchor the connector lines are drawn between.
+          A connection endpoint such as `controller.power` names a specific port, which is the
+          observable anchor the connector line is drawn from; an endpoint that names only a part has
+          no port to draw, and a port glyph there would show a port the model does not declare.
         tests:
           - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
           - InterconnectionView_BuildLayout_HighConnectionDegreePart_BoxesDoNotOverlapAndPortsAreLabeled
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-Connectors
         title: >-
-          InterconnectionViewLayoutStrategy shall draw one connector line for each connection between
-          nested parts.
+          InterconnectionViewLayoutStrategy shall draw one connector line for each connection,
+          binding, interface, and flow usage between nested parts.
         justification: |
-          The connections between nested parts are the relationships an Interconnection View
-          communicates; drawing one connector line per connection is the observable evidence of them.
+          The connectors between nested parts are the relationships an Interconnection View
+          communicates; drawing one connector line per connector is the observable evidence of them.
         tests:
           - InterconnectionView_BuildLayout_PartsAndConnections_ProducesBoxesPortsAndLines
 
@@ -276,13 +278,14 @@ sections:
 
       - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PortLabeling
         title: >-
-          InterconnectionViewLayoutStrategy shall label each connector's ports with the SysML
-          port-name segment of the connection's endpoint reference, when present.
+          InterconnectionViewLayoutStrategy shall label a port that a connector endpoint names but no
+          declaration provides with the port-name segment of the endpoint reference.
         justification: |
           A connection endpoint such as `StepperMotorX.encoder` names a specific port on the part,
-          not just the part itself; omitting that name (as the pre-fix rendering did) discards
-          information the diagram exists to show. Labeling the port with the real port name lets a
-          reader identify which physical connector a line represents.
+          not just the part itself; omitting that name discards information the diagram exists to
+          show. Labeling the port with the real port name lets a reader identify which physical
+          connector a line represents when the model does not declare the port. A declared port
+          carries the richer label of the declared-port requirement.
         tests:
           - InterconnectionView_BuildLayout_ConnectionEndpointWithPortSegment_PortLabelReflectsSysmlPortName
           - InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors
@@ -442,3 +445,178 @@ sections:
           changing the unrelated single-root `BuildPartIndex`/`ResolveConnections` path at all.
         tests:
           - InterconnectionView_BuildLayout_TopLevelNameCollisionAcrossOwners_ResolvesOwnConnection
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-DeclaredPorts
+        title: >-
+          InterconnectionViewLayoutStrategy shall resolve the ports a part declares in its own body,
+          through its type, and through the supertypes of that type, and shall draw each one as a port
+          labeled outside the part with its name and type (name : Type, or name : ~Type when the
+          port is typed by a conjugated port definition).
+        justification: |
+          SysML v2.0 clause 8.2.3.12 draws a port as a small square on the part boundary with the
+          label `name : Type` beside it, and a conjugated type with a leading tilde. A part's
+          ports are declared on its definition or an inherited one far more often than in the
+          usage body, so a view that only knew the ports named by connectors could not show
+          the type, direction, or a port that nothing is wired to.
+        tests:
+          - InterconnectionView_BuildLayout_DeclaredPorts_DirectionAppearanceMatchesInOutInout
+          - InterconnectionView_BuildLayout_ConjugatedPort_LabelShowsTildeType
+          - InterconnectionView_BuildLayout_PortLabel_IsNameColonTypeWithMultiplicity
+          - InterconnectionView_BuildLayout_InheritedTypeAndInlinePorts_AreResolved
+          - InterconnectionView_BuildLayout_UndeclaredEndpointSegment_KeepsBareNameLabelWithOutlinedGlyph
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PortGlyphs
+        title: >-
+          InterconnectionViewLayoutStrategy shall draw a declared port as an outlined rounded square
+          whose direction arrow follows the declared direction (in, out, or inout, none when
+          undirected) and whose outline is dashed for a reference port.
+        justification: |
+          The direction of a port and whether it is a reference are part of its notation in SysML
+          v2.0 clause 8.2.3.12 and Table 9; the filled square the layout engine draws by default
+          carries neither. The tests assert the appearance handed to the renderers.
+        tests:
+          - InterconnectionView_BuildLayout_DeclaredPorts_DirectionAppearanceMatchesInOutInout
+          - InterconnectionView_BuildLayout_ReferencePort_HasDashedOutline
+          - InterconnectionView_BuildLayout_MotorRigGalleryModel_ShowsPortNotation
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PortLabelOutside
+        title: >-
+          InterconnectionViewLayoutStrategy shall draw a port label outside its part and shall keep
+          every port glyph and label inside the canvas, clear of the other ports, labels, and boxes.
+        justification: |
+          A label inside the box collides with the title and the compartments, and a label that
+          leaves the canvas is clipped. SysML v2.0 draws the label outside, beside the port.
+        tests:
+          - InterconnectionView_BuildLayout_OutwardLabels_StayInsideCanvas
+          - InterconnectionView_BuildLayout_UnconnectedDeclaredPort_IsDrawnOnBoxBorderWithoutOverlap
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-SharedPort
+        title: >-
+          When several connectors name the same declared port, InterconnectionViewLayoutStrategy shall
+          show the port's label once.
+        justification: |
+          A SysML port with several connectors is one port; the layout engine emits a glyph per
+          connector end, and repeating the label at each would read as several ports.
+        tests:
+          - InterconnectionView_BuildLayout_PortWithTwoConnections_LabelAppearsOnce
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-UnconnectedPorts
+        title: >-
+          InterconnectionViewLayoutStrategy shall draw a declared port that no drawn connector names
+          on the left face of its part (the right face for an out port), below the title area, clear
+          of every other port, label, box, and connector, and shall reserve room for it in the part
+          height.
+        justification: |
+          A port is part of the part's interface whether or not anything is connected to it; the
+          layout engine emits only connected ports, so the strategy places the others itself after
+          the layout, where the positions of the boxes, ports, and lines are final.
+        tests:
+          - InterconnectionView_BuildLayout_UnconnectedDeclaredPort_IsDrawnOnBoxBorderWithoutOverlap
+          - InterconnectionView_BuildLayout_SharedPortAndUnconnectedPort_LaysOutClear
+          - InterconnectionView_BuildLayout_MotorRigGalleryModel_ShowsPortNotation
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-RootFramePorts
+        title: >-
+          InterconnectionViewLayoutStrategy shall draw the declared ports of the root element on the
+          border of its frame, with their labels outside it, and shall make room for those labels on
+          the canvas.
+        justification: |
+          The ports of the element whose interior is shown are its interface to the outside, drawn on
+          the frame boundary in SysML v2.0 Table 9. Connectors to a frame port are not routed; that
+          limitation is documented in the design.
+        tests:
+          - InterconnectionView_BuildLayout_RootFramePorts_DrawnOnFrameBorder
+          - InterconnectionView_BuildLayout_ComputerGalleryModel_ShowsFrameAndNestedPorts
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ReferencePartOutline
+        title: >-
+          InterconnectionViewLayoutStrategy shall draw a reference usage with a dashed outline and the
+          keyword ref followed by its kind (ref part), and every other usage with a solid outline.
+        justification: |
+          SysML v2.0 clause 8.2.3.6 draws a reference usage as a dashed rounded rectangle.
+        tests:
+          - InterconnectionView_BuildLayout_ReferencePart_HasDashedOutlineAndRefKeyword
+          - InterconnectionView_BuildLayout_WorkstationGalleryModel_ShowsUsageNotation
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-UsageKinds
+        title: >-
+          InterconnectionViewLayoutStrategy shall draw part, item, action, state, and occurrence
+          usages as nodes, each headed by its own keyword.
+        justification: |
+          SysML v2.0 clause 8.2.3.11 allows every occurrence usage as an interconnection element; a
+          view limited to parts would drop the items and behaviors a part is connected to.
+        tests:
+          - InterconnectionView_BuildLayout_ItemActionStateOccurrenceUsages_AreNodes
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-UsageRoot
+        title: >-
+          InterconnectionViewLayoutStrategy shall draw the interior of a part usage declared in a
+          package whose body declares nested parts and connectors when there is no part definition
+          to show, and shall draw a part usage with an inline body that declares nested parts as a
+          container.
+        justification: |
+          A model can describe a system as a usage without defining a type for it; the view then
+          has nothing else to show, and an inline body is as much a structure as a typed one.
+        tests:
+          - InterconnectionView_BuildLayout_UsageRoot_RendersBodyWithoutDefinition
+          - InterconnectionView_BuildLayout_InlineBodyPart_RecursesAsContainer
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-FrameInterconnectionTitle
+        title: >-
+          InterconnectionViewLayoutStrategy shall head the root frame with its keyword and name and a
+          centered italic compartment title interconnection, and shall place the interior below it.
+        justification: |
+          SysML v2.0 clause 8.2.3.11 labels the graphical interconnection compartment of an element.
+        tests:
+          - InterconnectionView_BuildLayout_RootFrame_HasInterconnectionTitleCompartment
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PartCompartments
+        title: >-
+          InterconnectionViewLayoutStrategy shall show the documentation and attribute usages of a
+          part in doc and attributes compartments of its box and size the box to fit them.
+        justification: |
+          A part node is a name compartment and a compartment stack (SysML v2.0 clause 8.2.3.5);
+          ports are glyphs and nested parts are boxes, so the documentation and attributes are what
+          remains for the stack.
+        tests:
+          - InterconnectionView_BuildLayout_PartWithAttributesAndDoc_ShowsCompartments
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ConnectorKinds
+        title: >-
+          InterconnectionViewLayoutStrategy shall draw a binding as a plain line labeled =, an
+          interface as a plain line labeled «interface» followed by its name, and a flow as a line
+          with a filled arrowhead at its target end labeled «flow» followed by its name and payload,
+          and shall not draw message or allocation usages.
+        justification: |
+          SysML v2.0 clauses 8.2.3.13 to 8.2.3.16 give each connector kind its own notation, and a
+          message or an allocation is drawn in other views. Distinguishing the kinds lets a reader
+          tell a flow of items from a plain link.
+        tests:
+          - InterconnectionView_BuildLayout_BindingConnector_HasEqualsLabel
+          - InterconnectionView_BuildLayout_FlowConnector_HasFilledArrowAndFlowLabel
+          - InterconnectionView_BuildLayout_InterfaceConnector_HasInterfaceLabel
+          - InterconnectionView_BuildLayout_MessageAndAllocation_AreNotDrawn
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ConnectionEndLabels
+        title: >-
+          InterconnectionViewLayoutStrategy shall label each connector end with the role name above
+          and the multiplicity below when the model declares them, and shall add no end label when it
+          declares neither.
+        justification: |
+          SysML v2.0 clause 8.2.3.13 shows the role name and multiplicity at each end of a
+          connection; they say what each end plays and how many instances take part.
+        tests:
+          - InterconnectionView_BuildLayout_ConnectionEnds_RoleNameAndMultiplicityBecomeEndLabels
+          - InterconnectionView_BuildLayout_ConnectionWithoutEnds_HasNoEndLabels
+
+      - id: SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-MidpointLabelClearance
+        title: >-
+          InterconnectionViewLayoutStrategy shall keep a connector's midpoint label clear of port
+          glyphs, port labels, and boxes by opening the space between the boxes when the label would
+          otherwise cover them.
+        justification: |
+          The layout engine reserves room between boxes for port and end labels but not for a midpoint
+          label such as «flow» torque of Torque, which then lands on the port labels.
+        tests:
+          - InterconnectionView_BuildLayout_MotorRigGalleryModel_MidpointLabelsClearOfPortLabels
+          - LayeredPlacement_WidenForMidpointLabels_LabelOverlappingPortLabels_IsSeparated

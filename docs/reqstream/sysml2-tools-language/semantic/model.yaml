@@ -75,6 +75,11 @@ sections:
           - SysML2Tools-Language-Semantic-Model-AstBuilder-TerminateNode
           - SysML2Tools-Language-Semantic-Model-AstBuilder-ActionUsageTypingMultiplicity
           - SysML2Tools-Language-Semantic-Model-AstBuilder-AcceptSendText
+          - SysML2Tools-Language-Semantic-Model-SysmlNode-ConnectionEndLabelsAndPayload
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-ConnectorEndLabels
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-InterfaceAndFlowUsages
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-MessagePayload
+          - SysML2Tools-Language-Semantic-Model-AstBuilder-EventOccurrences
         tests:
           - WorkspaceLoader_LoadAsync_SinglePackage_RegistersDeclaration
           - WorkspaceLoader_LoadAsync_NestedPackages_RegistersQualifiedNames

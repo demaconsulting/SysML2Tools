@@ -290,7 +290,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// name of an abstract definition in italics; the engine's default name style is bold). The
     /// name of an abstract <em>usage</em> is not italic in the specification and stays default.
     /// </summary>
-    private static readonly TextStyle AbstractDefinitionNameStyle = TextStyle.BoldItalic;
+    internal static readonly TextStyle AbstractDefinitionNameStyle = TextStyle.BoldItalic;
 
     /// <summary>A user-defined definition or named usage together with its computed box size and supertypes.</summary>
     /// <param name="QualifiedName">The definition or usage's fully qualified name.</param>
@@ -871,7 +871,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// inside the guillemet marks (<c>abstract part def</c>, <c>variation part def</c>,
     /// <c>individual part def</c>); the engine adds the guillemet marks themselves.
     /// </summary>
-    private static string DefinitionKeyword(SysmlDefinitionNode definition)
+    internal static string DefinitionKeyword(SysmlDefinitionNode definition)
     {
         var words = new List<string>();
         if (definition.IsAbstract)
@@ -898,7 +898,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// the guillemet marks (<c>abstract part</c>, <c>variation part</c>, <c>individual part</c>,
     /// <c>variant part</c>, <c>ref part</c>); a plain <c>ref</c> usage is not prefixed twice.
     /// </summary>
-    private static string UsageKeyword(SysmlFeatureNode feature)
+    internal static string UsageKeyword(SysmlFeatureNode feature)
     {
         var words = new List<string>();
         if (feature.IsAbstract)
@@ -1098,10 +1098,16 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <param name="def">The definition or usage whose owned features become rows.</param>
     /// <param name="qualifiedName">The qualified name of <paramref name="def"/>.</param>
     /// <param name="drawnAsNodes">The qualified names of the owned features drawn as separate nodes, or null.</param>
-    private static IReadOnlyList<LayoutCompartment> BuildCompartments(
+    /// <param name="onlyKeywords">
+    /// When not null, only owned features whose keyword is in this set become rows (the
+    /// Interconnection view shows only <c>attribute</c> rows, because its ports are glyphs and its
+    /// nested parts are boxes); null keeps every keyword, as the General view does.
+    /// </param>
+    internal static IReadOnlyList<LayoutCompartment> BuildCompartments(
         SysmlNode def,
         string qualifiedName,
-        IReadOnlySet<string>? drawnAsNodes)
+        IReadOnlySet<string>? drawnAsNodes,
+        IReadOnlySet<string>? onlyKeywords = null)
     {
         // Preserve keyword first-seen order so compartments appear in declaration order.
         var order = new List<string>();
@@ -1121,6 +1127,18 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             }
 
             var keyword = string.IsNullOrEmpty(feature.FeatureKeyword) ? "feature" : feature.FeatureKeyword;
+
+            // Event occurrences are sequence data (they order the messages of a Sequence view); they have
+            // never been rows of a compartment, and still are not.
+            if (keyword == "event occurrence")
+            {
+                continue;
+            }
+
+            if (onlyKeywords is not null && !onlyKeywords.Contains(keyword))
+            {
+                continue;
+            }
             if (!groups.TryGetValue(keyword, out var rows))
             {
                 rows = [];
@@ -1144,7 +1162,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// compartment title (SysML v2 graphical BNF, clause 8.2.3: a separator line with the title
     /// centered in italics below it).
     /// </summary>
-    private static LayoutCompartment MakeCompartment(string title, IReadOnlyList<string> rows) =>
+    internal static LayoutCompartment MakeCompartment(string title, IReadOnlyList<string> rows) =>
         new(title, rows, TitleAlign: TextAlign.Center, TitleStyle: TextStyle.Italic);
 
     /// <summary>
@@ -1169,7 +1187,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// <param name="boxWidth">The box width computed without the doc compartment.</param>
     /// <param name="theme">The theme supplying font size and padding.</param>
     /// <returns>The <c>doc</c> compartment, or null.</returns>
-    private static LayoutCompartment? BuildDocCompartment(
+    internal static LayoutCompartment? BuildDocCompartment(
         IReadOnlyList<SysmlAnnotation> annotations, double boxWidth, Theme theme)
     {
         var paragraphs = annotations
@@ -1321,7 +1339,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     };
 
     /// <summary>Returns the typing text of a usage: the typing reference, or the conjugated one prefixed with <c>~</c>; null when untyped.</summary>
-    private static string? FormatTyping(SysmlFeatureNode feature)
+    internal static string? FormatTyping(SysmlFeatureNode feature)
     {
         if (feature.ConjugatedFeatureTyping is { Length: > 0 } conjugated)
         {
@@ -1345,7 +1363,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// Formats the name line of a usage node: <c>&lt;shortName&gt; name : Type [multiplicity] ordered
     /// nonunique :&gt; subsetted :&gt;&gt; redefined ::&gt; referenced</c>.
     /// </summary>
-    private static string FormatUsageNameLine(SysmlFeatureNode feature, string name) =>
+    internal static string FormatUsageNameLine(SysmlFeatureNode feature, string name) =>
         FormatNameLine(
             feature.ShortName,
             name,
@@ -1464,7 +1482,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     };
 
     /// <summary>Computes the intrinsic box size needed for the title and any compartments.</summary>
-    private static (double Width, double Height) ComputeBoxSize(
+    internal static (double Width, double Height) ComputeBoxSize(
         string name,
         string keyword,
         IReadOnlyList<LayoutCompartment> compartments,
@@ -1502,7 +1520,7 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
     /// Computes the rendered height of a compartment, matching the renderer's layout: an optional
     /// title row followed by one row per entry.
     /// </summary>
-    private static double ComputeCompartmentHeight(LayoutCompartment compartment, Theme theme)
+    internal static double ComputeCompartmentHeight(LayoutCompartment compartment, Theme theme)
     {
         var height = 0.0;
         if (compartment.Title is not null)

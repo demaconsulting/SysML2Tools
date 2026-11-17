@@ -112,9 +112,12 @@ SVG: [`svg/BatterySubsystemView.svg`](svg/BatterySubsystemView.svg)
 
 ## 2. Interconnection View — Desktop Workstation
 
-Shows the internal structure of a part: nested part usages placed by the
-interconnection layout engine (a façade over the layered pipeline), ports on box
-boundaries, and connectors routed between them.
+Shows the internal structure of a part in the SysML v2 notation: rounded usage boxes headed by
+their keyword (`«part»`, `«item»`, and a dashed `«ref part»` for the `monitor` reference usage),
+the `doc` and `attributes` compartments of `cpu`, the `memory` multiplicity, the declared `sata`
+ports of the motherboard and the SSD (a white square with an `inout` arrow and a `name : Type`
+label outside the part), and connectors routed between them, including the `«interface»`
+connector between the two ports. The frame carries the italic `interconnection` title.
 The motherboard sits at the hub of the component connections. The view declares an
 explicit `render asInterconnectionDiagram;` statement, so the interconnection
 strategy is selected directly rather than inferred from the view's name.
@@ -128,7 +131,7 @@ SVG: [`svg/WorkstationInterconnectionView.svg`](svg/WorkstationInterconnectionVi
 
 The same model also declares `CoreLinkInterconnectionView`, which exposes only
 `Workstation::cpu` and `Workstation::memory`. The root part (`Workstation`) is kept,
-but every other part usage — and every connector with an endpoint outside the exposed
+but every other usage — and every connector with an endpoint outside the exposed
 scope (to `board`, `graphics`, `storage`, `psu`, `network`) — is dropped, leaving just
 the two exposed parts and the connection directly between them (`c8`).
 
@@ -194,8 +197,12 @@ SVG: [`svg/PipelineActionFlowView.svg`](svg/PipelineActionFlowView.svg)
 
 ## 5. Sequence View — OAuth 2.0 Login
 
-Shows lifelines for each participant and the ordered messages exchanged during an
-OAuth authorization-code login; each message ends in a hollow triangle arrowhead.
+Shows the interaction of an OAuth authorization-code login in the SysML v2 notation: every declared
+part is a lifeline under a rounded header with the `«part»` keyword over `name : Type` (the resource
+server is a reference part, so its header is dashed, and the audit log is declared but exchanges no
+message, so it still has a lifeline). Each message ends in a hollow triangle arrowhead and is labeled
+`name of Payload` when it carries one. The messages are drawn in the order of the events they connect:
+`accessToken` is declared before `exchangeCode` in the model but is drawn after it.
 
 Model: [`models/05-oauth-sequence.sysml`](models/05-oauth-sequence.sysml) ·
 SVG: [`svg/OAuthSequenceView.svg`](svg/OAuthSequenceView.svg)
@@ -265,7 +272,9 @@ Shows a two-level nested Interconnection View. The `Computer` part contains a `b
 typed by `Motherboard`, which has its own internal `cpu`, `chipset`, and `ram` parts and
 connections. The motherboard's interior is laid out recursively (bottom-up) and nested
 inside the `board` container box, while the outer power and storage connections route
-between the top-level parts. The view declares an explicit `render
+between the declared ports of the top-level parts. The `Computer` frame draws its own `mains`
+and `video` ports on its border (connectors to a frame port are not drawn), and the
+motherboard's ports are drawn on the `board` box. The view declares an explicit `render
 asInterconnectionDiagram;` statement, so the interconnection strategy is
 selected directly rather than inferred from the view's name.
 
@@ -278,13 +287,18 @@ SVG: [`svg/ComputerSystemInterconnectionView.svg`](svg/ComputerSystemInterconnec
 
 ## 9. Multi-Port Interconnection View — Motor/Controller Rig
 
-Shows multiple independent, named-port connections between the same two parts: a
-`motor` is wired to its `controller` by three separate connections (`powerLink`,
-`encoderLink`, `thermalLink`), each between its own distinct pair of ports. This
-demonstrates that the interconnection layout keeps every parallel connector between
-the same two boxes visually and structurally distinct — rather than collapsing them
-onto one shared route — and labels each end with its own SysML port name, with the
-boxes auto-sized to keep every port label clear of the box's own title.
+Shows multiple independent, named-port connections between the same parts, with one connector
+of every kind: `powerLink` is a connection whose ends declare a role name and a multiplicity
+(`supply` and `drive`, `[1]`), `encoderLink` a plain connection, `thermalLink` a binding
+(labeled `=`), an anonymous flow (filled arrowhead, labeled with its payload), and an
+anonymous interface (labeled `«interface»`). The ports follow the SysML v2 notation: an arrow
+for `in`, `out`, and `inout`, a dashed square for the reference port `mount`, the conjugated
+label `~PowerPort`, and the `status` port of the controller, which is declared but not
+connected to anything and so is placed on the controller's border by the layout. The
+interconnection layout keeps every parallel
+connector between the same two boxes visually and structurally distinct — rather than
+collapsing them onto one shared route — and the boxes are auto-sized to keep every port
+label clear of the box's own title.
 
 Model: [`models/09-motor-controller-multi-port.sysml`](models/09-motor-controller-multi-port.sysml) ·
 SVG: [`svg/MotorRigInterconnectionView.svg`](svg/MotorRigInterconnectionView.svg)
@@ -485,17 +499,85 @@ SVG: [`svg/VehicleTypingGeneralView.svg`](svg/VehicleTypingGeneralView.svg)
 
 ---
 
-## Known deviation: the diagram-quality fill criterion (B5) on two tall flows
+## Known deviation: the diagram-quality fill criterion (B5)
 
 The gallery images are checked against the project's diagram-quality criteria. Every image passes
-them except one criterion on two of the action-flow images: B5 (state boxes and action boxes fill at
-least 20 % of the canvas). The Pipeline image fills 14.2 % (382 × 1780 px) and the Order image fills
-11.5 % (377 × 850 px). The Pipeline image already fell short of B5 on `main` (15.2 %). The cause is
+them except one criterion, B5 (blocks fill at least 20 % of the canvas), which eleven images miss:
+Workstation, Motor Rig, OAuth Sequence, Token Exchange Sequence, Order, and Pipeline (all discussed
+below), and five General View images that fall short the same way on `main` and are unchanged by this
+branch's work on the notation: Drive Unit (14.0 %), Vehicle Packages (13.2 %), Vehicle Typing (15.9 %),
+Battery Subsystem (18.6 %), and Mission Control (19.8 %). Those five are pre-existing deviations: none of
+them was changed to fit the criterion, and this branch does not claim they meet it.
+
+Every percentage in this section is measured by one script on the committed SVG files in `svg/`: it
+fills the union of every stroked `<rect>` except the canvas frame, so it counts only the boxes drawn
+as rectangles (a General View folder counts as a block; a lifeline stem, a message, and a connector do
+not), and for the Interconnection images it also leaves out the 12 px port glyphs and the unrounded
+diagram frame. The percentage is that union's area divided by the canvas area.
+
+The Pipeline image fills 14.5 % (382 × 1780 px) and the Order image fills
+11.6 % (377 × 850 px). The Pipeline image already fell short of B5 on `main` (15.2 %). The cause is
 the layered layout engine, which keeps a fixed 70 px corridor between consecutive layers (an engine
 constant, not an option), so a single-column flow of 8 to 9 layers is mostly corridor. Making such a
 flow wider to raise the fill makes it worse, because the canvas grows faster than the boxes do, and
 reaching 20 % would need a canvas about 40 % smaller. The deviation is accepted for these two tall,
-single-column flows; the State Transition images (Elevator 23.8 %, Heater 22.9 %) pass.
+single-column flows; the State Transition images (Elevator 21.6 %, Heater 25.1 %) pass. Both moved
+slightly with the straighter edge routing of rendering engine 0.3.0-beta.4 (the Elevator boxes
+are narrower; the Heater canvas is 257 px wide instead of 215 px).
+
+Two Interconnection images also fall short of B5 since the port notation was added: the Workstation
+image fills 17.3 % (1254 × 642 px; 19.0 % on `main`) and the Motor Rig image 18.4 % (1411 × 424 px;
+46.0 % on `main`). The cause is again the layered layout engine: it reserves, between two columns of
+boxes, the width of every outside port label and end label along the connector run (the label of
+the port at each end plus the role names), so a connector between labeled ports needs a corridor
+several times the fixed 70 px, and the canvas grows faster than the boxes. The engine also ignores
+the `LayerSpacing` option, so the corridor cannot be narrowed from the strategy (upstream issue
+[demaconsulting/Rendering#60](https://github.com/demaconsulting/Rendering/issues/60)). The Computer System image
+(21.7 %) and the Core Link image (30.1 %) pass. The deviation is accepted: the labels are the
+point of the notation, and shortening port names or boxes to raise the fill would only tune the
+example to the criterion.
+
+The two Sequence images also fall short of B5 (the OAuth image fills 9.1 % and the Token Exchange image
+15.0 %, counting the lifeline headers as the blocks; both were lower on `main`, 5.2 % and 8.5 %). A
+sequence diagram is mostly lifeline stems and messages, which the criterion does not count, so the
+deviation is accepted and the headers are not enlarged to raise the fill. A message label that is
+centered on a lifeline it crosses (`fetchResource`, `promptCredentials`, and `submitCredentials of
+Credentials`; the stem is hidden behind the label background) was already so on `main` for the first two: the
+engine places a message label at the midpoint of its line and does not treat a lifeline stem as an obstacle.
+
+---
+
+## Model changes
+
+`05-oauth-sequence.sysml` was extended to exercise the notation of the Sequence View: added the part
+definitions `User`, `Browser`, `AuthServer`, `ResourceServer`, and `AuditLog` and the item definitions
+`Credentials`, `AuthorizationCode`, and `AccessToken`; the lifelines are typed (`part user : User`,
+and so on); `resourceServer` is a `ref part`; added a `part auditLog : AuditLog` that exchanges no
+message; `submitCredentials`, `authCode`, `exchangeCode`, and `accessToken` carry a payload
+(`of Credentials`, and so on); and `accessToken` is declared before `exchangeCode` so the diagram shows
+the ordering by events. `TokenExchangeSequenceView` is unchanged.
+
+The interconnection models were extended to exercise the notation of the Interconnection View:
+
+- `02-computer-interconnection.sysml`: added `port def SataPort`, `attribute def Frequency`,
+  `item def Firmware`, and `part def Display`; the motherboard and the SSD declare an
+  `inout port sata`; the `cpu` usage has a `doc` and a `clock` attribute; `memory` is a
+  two-element part; added a `ref part monitor`, an `item firmware`, and the connections `c9`
+  (graphics to monitor) and `c10` (board to firmware); the former `c4` (board to storage) is now
+  an anonymous `interface` between the two `sata` ports. The connections `c2` (board to memory)
+  and `c7` (psu to graphics) of the earlier model were removed: they were plain connectors
+  between parts without declared ports, so every one of them left the board or the power supply
+  as a bare line, and these two crossed several others without a label to tell them apart.
+  The memory is now wired through the cpu (`c8`), and the diagram has no crossing connectors
+  (and is 120 px narrower). The `CoreLinkInterconnectionView` is unchanged.
+- `08-nested-interconnection.sysml`: added the port definitions `PowerPort`, `SataPort`,
+  `MainsPort`, and `VideoPort`; the power supply, motherboard, and storage declare ports; the
+  `Computer` frame declares `mains` and `video`; the connections now join declared ports.
+- `09-motor-controller-multi-port.sysml`: every port declares a direction; added `StatusPort`,
+  `ShaftPort`, `MountPort`, and `Torque`; the controller has an unconnected `status` port; the motor
+  has a conjugated `powerIn : ~PowerPort`, a `shaft`, and a reference port `mount`; added a `Load`
+  part; the power link declares role names and multiplicities; `thermalLink` is a binding, and
+  the model adds an anonymous flow and an anonymous interface.
 
 ---
 

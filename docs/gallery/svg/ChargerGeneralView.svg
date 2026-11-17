@@ -61,9 +61,9 @@
   <line x1="381.70" y1="232.00" x2="526.18" y2="232.00" stroke="#000000" stroke-width="1.00"/>
   <text x="453.94" y="244.00" font-family="Noto Sans, sans-serif" font-size="12.00" font-style="italic" fill="#000000" text-anchor="middle" dominant-baseline="middle">doc</text>
   <text x="387.70" y="268.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Type 2 connector.</text>
-  <path d="M 275.24 286.00 L 275.24 292.00 A 4.00 4.00 0 0 0 279.24 296.00 L 286.59 296.00 A 4.00 4.00 0 0 1 290.59 300.00 L 290.59 356.00" fill="none" stroke="#000000" stroke-width="1.00" stroke-dasharray="6 3"/>
-  <path d="M 208.78 188.00 L 208.78 141.00 A 4.00 4.00 0 0 1 212.78 137.00 L 294.86 137.00 A 4.00 4.00 0 0 0 298.86 133.00 L 298.86 118.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 142.32 286.00 L 142.32 292.00 A 4.00 4.00 0 0 1 138.32 296.00 L 113.00 296.00 A 4.00 4.00 0 0 0 109.00 300.00 L 109.00 356.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle-two-dots)"/>
+  <path d="M 282.91 286.00 L 282.91 356.00" fill="none" stroke="#000000" stroke-width="1.00" stroke-dasharray="6 3"/>
+  <path d="M 276.36 188.00 L 276.36 118.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
+  <path d="M 125.66 286.00 L 125.66 356.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle-two-dots)"/>
   <path d="M 453.94 188.00 L 453.94 141.00 A 4.00 4.00 0 0 0 449.94 137.00 L 367.86 137.00 A 4.00 4.00 0 0 1 363.86 133.00 L 363.86 118.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-filled-diamond)"/>
-  <path d="M 453.94 286.00 L 453.94 292.00 A 4.00 4.00 0 0 0 457.94 296.00 L 476.68 296.00 A 4.00 4.00 0 0 1 480.68 300.00 L 480.68 356.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle-two-dots)"/>
+  <path d="M 467.31 286.00 L 467.31 356.00" fill="none" stroke="#000000" stroke-width="1.00" marker-end="url(#line-end-hollow-triangle-two-dots)"/>
 </svg>

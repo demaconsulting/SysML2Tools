@@ -268,3 +268,19 @@ sections:
           - WorkspaceLoader_LoadAsync_ElseSuccession_SetsIsElse
           - Serialize_NewModifierProperties_RoundTrip
           - Serialize_DefaultModifierProperties_AreOmittedFromJson
+
+      - id: SysML2Tools-Language-Semantic-Model-SysmlNode-ConnectionEndLabelsAndPayload
+        title: >-
+          SysmlConnectionNode shall expose the role name and cross multiplicity text of each
+          end (EndpointAName, EndpointAMultiplicity, EndpointBName, EndpointBMultiplicity) and the
+          verbatim payload clause (PayloadText), null when absent and omitted from serialized
+          output when null, and shall accept the `interface` and `flow` connection keywords.
+        justification: |
+          The interconnection notation labels each connector end with its role name and
+          multiplicity, a flow with its payload, and distinguishes interface and flow connectors
+          from plain connections. The node previously held only the two endpoint references and
+          the four older keywords, so this data had no place in the model. The properties are
+          omitted when null so existing serialized data is unchanged.
+        tests:
+          - Serialize_ConnectionEndLabelsAndPayload_RoundTripAndNullIsOmitted
+          - WorkspaceLoader_LoadAsync_ConnectionEnds_CaptureRoleNamesAndMultiplicities

@@ -15,13 +15,13 @@ types, each a `sealed record` derived from the abstract base `LayoutNode`:
 | Node type | Role | SysML diagram types |
 | --- | --- | --- |
 | `LayoutBox` | Rectangular container with label, depth, compartments, children | Block, IBD, Package, SM, Activity |
-| `LayoutPort` | Connection point on a box edge; child of `LayoutBox` | IBD, Block |
+| `LayoutPort` | Port glyph on a box edge (arrow, dashed outline, outside label); child of `LayoutBox` | IBD |
 | `LayoutLine` | Pre-routed orthogonal polyline with end markers and mid-label | All relational diagrams |
 | `LayoutLabel` | Standalone text label at absolute position | All diagram types |
 | `LayoutBadge` | Small icon decorator (pseudostate, choice node, etc.) | SM, Activity |
 | `LayoutBand` | Swim-lane with orientation, label, and nested children | Activity, Sequence |
-| `LayoutLifeline` | Sequence-diagram lifeline: dashed line with header box | Sequence |
-| `LayoutActivation` | Narrow activation bar on a lifeline | Sequence |
+| `LayoutLifeline` | Sequence-diagram lifeline: dashed line under a header box (rounded, with keyword) | Sequence |
+| `LayoutActivation` | Narrow activation bar on a lifeline (no view uses it; not in the SysML v2 notation) | none |
 | `LayoutGrid` | Tabular layout with header rows and column-spanning cells | Requirement, Allocation tables |
 
 ### Interfaces
@@ -83,16 +83,21 @@ flowchart TD
 
 - *Type*: Sealed record.
 - *Role*: Data container.
-- *Contract*: `double CentreX`, `double CentreY`, `PortSide Side`, `string? Label`. Position
-  is absolute. `Side` indicates which edge of the parent box the port is attached to.
+- *Contract*: `double CentreX`, `double CentreY`, `PortSide Side`, `string? ExternalLabel`,
+  `PortAppearance? Appearance`. Position is absolute. `Side` indicates which edge of the parent box the
+  port is attached to. `Appearance` carries the direction arrow (`PortDirection`), the glyph (`PortGlyph`,
+  outlined for a SysML port), the outline style (dashed for a reference port), and where the label is
+  drawn (`PortLabelPlacement`, outward for a SysML port); a `null` appearance is the legacy filled square
+  with an inward label.
 
 **LayoutLine**: Pre-routed orthogonal polyline.
 
 - *Type*: Sealed record.
 - *Role*: Data container.
 - *Contract*: `IReadOnlyList<Point2D> Waypoints`, `EndMarkerStyle SourceEnd`,
-  `EndMarkerStyle TargetEnd`, `LineStyle LineStyle`, `string? MidpointLabel`.
-  Waypoints are absolute positions. Corner rounding at elbows is applied by the renderer
+  `EndMarkerStyle TargetEnd`, `LineStyle LineStyle`, `string? MidpointLabel`,
+  `LineEndLabel? SourceEndLabel`, `LineEndLabel? TargetEndLabel` (role name above and multiplicity below the
+  line end). Waypoints are absolute positions. Corner rounding at elbows is applied by the renderer
   using `Theme.LineCornerRadius`.
 
 **Point2D**: Immutable 2-D point.
@@ -126,7 +131,9 @@ flowchart TD
 - *Type*: Sealed record.
 - *Role*: Data container.
 - *Contract*: `double CentreX`, `double TopY`, `double BottomY`, `string Label`,
-  `double HeaderWidth`, `double HeaderHeight`.
+  `double HeaderWidth`, `double HeaderHeight`, `string? Keyword` (drawn above the label),
+  `BoxShape HeaderShape` (the Sequence view uses `RoundedRectangle`), `BoxAppearance? HeaderAppearance`
+  (dashed for a reference usage), `double? HeaderCornerRadius`.
 
 **LayoutActivation**: Activation bar on a lifeline.
 

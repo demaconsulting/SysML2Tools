@@ -95,12 +95,14 @@ system, subsystem, and unit levels:
         package and placed top-to-bottom by the automatic layered/containment selection, with the
         notation glyphs for specialization, feature membership, typing, subsetting, redefinition,
         satisfy, verify, and import edges
-      - **InterconnectionViewLayoutStrategy** (Unit) — internal structure: nested parts, ports, connectors
+      - **InterconnectionViewLayoutStrategy** (Unit) — internal structure: nested usages, declared ports,
+        and connectors (connection, binding, interface, flow) with end labels
       - **StateTransitionViewLayoutStrategy** (Unit) — state machine: states and guarded transitions
         placed top-to-bottom by the layered algorithm (DOWN direction) with orthogonal transitions
       - **ActionFlowViewLayoutStrategy** (Unit) — action flow with start/done markers, placed
         top-to-bottom by the layered algorithm (DOWN direction) with orthogonal successions
-      - **SequenceViewLayoutStrategy** (Unit) — lifelines and ordered messages
+      - **SequenceViewLayoutStrategy** (Unit) — typed lifelines with rounded usage headers and
+        event-ordered messages labeled with their payload
       - **GridViewLayoutStrategy** (Unit) — specialization/relationship matrix
       - **BrowserViewLayoutStrategy** (Unit) — indented membership tree
       - **LayoutWarnings** (Unit) — builder for layout diagnostic warning messages
@@ -178,7 +180,9 @@ system, subsystem, and unit levels:
 - BuildMark (OTS) — build-notes documentation tool
 - DemaConsulting.Rendering (OTS) — SysML-agnostic layout intermediate representation, layered
   and containment layout algorithms with automatic selection, notation styling (box appearance,
-  compartment title style, extended end markers), and SVG/PNG renderers
+  compartment title style, extended end markers, SysML port glyphs, connection end labels, lifeline
+  headers), and SVG/PNG
+  renderers
 - FileAssert (OTS) — document assertion tool
 - Pandoc (OTS) — Markdown-to-HTML conversion tool
 - ReqStream (OTS) — requirements traceability tool

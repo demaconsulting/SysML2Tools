@@ -44,7 +44,17 @@ Version 0.3.0-beta.3 of the family adds the SysML v2 notation primitives that th
 and Action Flow views rely on: thick fork and join bars (`BadgeShape.ThickHorizontalBar`), the
 crossed-circle terminate badge (`BadgeShape.CrossedCircle`), the send and accept corner icons on a
 box (`BoxCornerIcon`), obstacle-aware connector label placement (`ConnectorLabelPlacer`), and the
-`LayoutGraphEdge.TargetEnd` end decoration that sizes the final approach of a back edge.
+`LayoutGraphEdge.TargetEnd` end decoration that sizes the final approach of a back edge. It also adds the
+rounded, keyword-carrying lifeline header (`LayoutLifeline.Keyword`, `HeaderShape`, and `HeaderAppearance`,
+with `BoxMetrics.LifelineHeaderHeight`) that the Sequence view relies on.
+
+Version 0.3.0-beta.4 of the family (the minimum version SysML2Tools builds against) adds the SysML v2
+port and connector end notation that the Interconnection view relies on: the
+`PortAppearance` of a graph port (direction arrow, outlined glyph, dashed reference outline, and outward
+`name : Type` label placement) and `LineEndLabel` end labels (role name above and multiplicity below the
+line end) on graph edges and layout lines. It also
+aligns the ports that several edges share on one box face straight, so the connectors between such
+boxes no longer end with a small bend.
 
 ### Verification Approach
 
@@ -479,3 +489,79 @@ with the top-to-bottom direction.
 drawing stays compact.
 
 **Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NestedDirectionAndAutoLayout`.
+
+#### LayeredPlacement_PlaceWithPorts_EdgeNotation_ReachesPlacedPortsAndLines
+
+**Scenario**: Two nodes are placed through `LayeredPlacement.PlaceWithPorts` with one edge that requests an
+outlined outward `out` port at its source, a dashed outlined outward `in` port at its target, a filled
+arrowhead, a dashed line, a midpoint label, and a role name and multiplicity at each end; the package's
+layered algorithm lays the graph out.
+
+**Expected**: The placed ports carry the requested labels and `PortAppearance`, and the placed line carries
+the arrowhead, line style, midpoint label, and both end labels.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-PortGlyphs`,
+`SysML2Tools-OTS-DemaRendering-EndLabels`.
+
+#### SvgRenderer_Render_PortGlyph_DirectionArrowAndDashedReference
+
+**Scenario**: A hand-built layout tree holds a box with an `in` port and a dashed `inout` reference port on
+its left face and an `out` port on its right face, all outlined with outward labels; the `SvgRenderer`
+renders it and the SVG is parsed.
+
+**Expected**: Each port is a white 12 by 12 rounded square; only the reference port has a dash array; the
+`in` arrow's tip is on the part side of the left face, the `out` arrow's tip is outside the part on the right
+face, and the `inout` arrow has a head at both ends; the labels end left of the left face and start right
+of the right face.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-PortGlyphs`.
+
+#### PngRenderer_Render_PortGlyph_DrawsOutlinedSquare
+
+**Scenario**: A hand-built tree holds a box whose left border is crossed by an `in` port; the
+`PngRenderer` renders it and the PNG is decoded. Pixel probes sample the border above the glyph, the
+inside of the glyph, and the glyph's own outline.
+
+**Expected**: The border above the glyph is dark, the inside of the glyph is white (the glyph is filled over
+the border), and the glyph's outline is dark.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-PortGlyphs`.
+
+#### SvgRenderer_Render_EndLabels_RoleAboveMultiplicityBelow
+
+**Scenario**: A hand-built tree holds a horizontal line with a role name and a multiplicity at each end; the
+`SvgRenderer` renders it and the SVG is parsed.
+
+**Expected**: Each role name is drawn above the line and each multiplicity below it, near its own end of
+the line.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-EndLabels`.
+
+#### SequenceView_BuildLayout_Lifeline_HasRoundedHeaderKeywordAndTypedLabel
+
+**Scenario**: The Sequence view lays out a part lifeline typed `Client` through the package's
+`LayoutLifeline`.
+
+**Expected**: The lifeline carries the `part` keyword, the `client : Client` name line, the rounded header
+shape, and the header height the package computes for a header with a keyword.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-LifelineHeader`.
+
+#### SequenceView_BuildLayout_ReferencePartLifeline_HasDashedHeader
+
+**Scenario**: The Sequence view lays out a reference part lifeline next to a plain part lifeline.
+
+**Expected**: The reference lifeline carries the `ref part` keyword and a dashed header appearance; the
+plain lifeline does not.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-LifelineHeader`.
+
+#### SvgRenderer_Render_LifelineHeader_RoundedWithKeyword
+
+**Scenario**: A hand-built layout tree holds a solid and a dashed rounded lifeline header, each with a
+keyword; the `SvgRenderer` renders it and the SVG is parsed.
+
+**Expected**: Both headers are rounded rectangles and only the reference header has a dash array; the keyword
+is drawn above the name line, both inside the header and centered on the lifeline.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-LifelineHeader`.

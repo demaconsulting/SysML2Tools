@@ -12,8 +12,11 @@ view layout strategy tests that depend on it: `ActionFlowViewLayoutStrategyTests
 `LayeredPlacement.Place` and build their `LayoutTree` from the returned rectangles and polylines,
 so a passing strategy layout is evidence that the adapter placed nodes and routed edges correctly.
 `InterconnectionViewLayoutStrategyTests` instead exercises `LayeredPlacement.PlaceWithPorts`, whose
-returned placed rectangles, polylines, and correlated placed ports feed that strategy's `LayoutTree`
-in the same way. No mocking is used; the real layered algorithm runs on every test.
+returned placed rectangles, connector lines, and ports feed that strategy's `LayoutTree`
+in the same way. The keyed shared port, the notation reaching the placed ports and lines, the absence of
+ports for part-only endpoints, and the midpoint-label corridor widening (`WidenForMidpointLabels`, which
+resolves labels with the real `ConnectorLabelPlacer`) are verified directly by `LayeredPlacementTests`. No
+mocking is used; the real layered algorithm runs on every test.
 
 ##### Test Environment
 
@@ -39,13 +42,21 @@ configuration are required beyond a standard .NET SDK installation and the refer
   approach at least as long as the marker (`LayeredPlacement_Place_EdgeTargetEnd_ForwardedToGraphEdges`),
   and omitting it leaves placement unchanged
   (`LayeredPlacement_Place_DefaultEdgeTargetEnd_PreservesBehavior`).
-- `PlaceWithPorts` returns exactly one correctly correlated placed port per requested port endpoint
-  (`null` only when no port was requested for that endpoint), each carrying the requested
-  `EdgePortRef.Label` as its `ExternalLabel`, verified transitively via
+- `PlaceWithPorts` returns the engine's placed ports (none for an edge that requested none), each
+  carrying the requested `EdgePortRef.Label` as its `ExternalLabel` and the requested appearance, and the
+  engine's connector lines with the declared end decoration, line style, midpoint label, and end labels
+  (`LayeredPlacement_PlaceWithPorts_EdgeNotation_ReachesPlacedPortsAndLines`,
+  `LayeredPlacement_PlaceWithPorts_NoPortRequests_YieldsNoPorts`), verified transitively via
   `InterconnectionViewLayoutStrategyTests`'s port-labeling tests
   (`InterconnectionView_BuildLayout_ConnectionEndpointWithPortSegment_PortLabelReflectsSysmlPortName`,
   `InterconnectionView_BuildLayout_ThreeParallelConnections_ProducesThreeDistinctConnectors`, and
   `InterconnectionView_BuildLayout_HighConnectionDegreePart_BoxesDoNotOverlapAndPortsAreLabeled`).
+- Edges that name the same `EdgePortRef.Key` on one node share one graph port, whose label appears on only
+  one placed glyph (`LayeredPlacement_PlaceWithPorts_SharedPortKey_LabelAppearsOnce`).
+- `WidenForMidpointLabels` moves the right-hand endpoint's column right until no midpoint label overlaps a
+  box, port glyph, or port label, and returns the same layout when there is no midpoint label
+  (`LayeredPlacement_WidenForMidpointLabels_LabelOverlappingPortLabels_IsSeparated`,
+  `LayeredPlacement_WidenForMidpointLabels_NoMidpointLabels_ReturnsSameLayout`).
 - `PlaceWithPorts` marks each input node's title presence (`HasLabel`/`HasKeyword`) on the created
   `LayoutGraphNode`, so the layered algorithm's automatic title-vs-side-port reservation activates
   for any node carrying named ports, keeping port anchors clear of the box's own title row —
@@ -73,3 +84,8 @@ configuration are required beyond a standard .NET SDK installation and the refer
 | `ActionFlowView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally` | Top-to-bottom direction honored |
 | `StateTransitionView_BuildLayout_ForwardChain_FlowsTopToBottomOrthogonally` | Top-to-bottom direction honored |
 | `ActionFlowView_BuildLayout_Successions_FlowTopToBottom` | Successor placed below predecessor |
+| `LayeredPlacement_PlaceWithPorts_SharedPortKey_LabelAppearsOnce` | Shared port labeled once |
+| `LayeredPlacement_PlaceWithPorts_EdgeNotation_ReachesPlacedPortsAndLines` | Appearance, markers, and labels kept |
+| `LayeredPlacement_PlaceWithPorts_NoPortRequests_YieldsNoPorts` | No ports for part-only endpoints |
+| `LayeredPlacement_WidenForMidpointLabels_LabelOverlappingPortLabels_IsSeparated` | Corridor opened for a label |
+| `LayeredPlacement_WidenForMidpointLabels_NoMidpointLabels_ReturnsSameLayout` | No labels, no change |

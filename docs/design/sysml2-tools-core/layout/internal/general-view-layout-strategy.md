@@ -742,4 +742,8 @@ canvas (`FitConnectorsToCanvas`), together with the owner-end decoration that is
 
 The Rendering subsystem selects `GeneralViewLayoutStrategy` when rendering a General View. No other
 unit calls it directly; `FormatNameLine` and `TryGetResolvedTarget` are additionally called by the
-Interconnection, Browser, and Grid view layout strategies.
+Interconnection, Browser, and Grid view layout strategies, and the `internal static` label and
+compartment helpers `UsageKeyword`, `DefinitionKeyword`, `FormatUsageNameLine`, `FormatTyping`,
+`BuildCompartments` (with its optional keyword filter), `BuildDocCompartment`, `MakeCompartment`,
+`ComputeBoxSize`, and `ComputeCompartmentHeight` are called by the Interconnection view layout strategy,
+so an element reads the same way in every view.

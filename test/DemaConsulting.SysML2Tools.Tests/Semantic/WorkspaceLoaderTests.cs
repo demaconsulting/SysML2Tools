@@ -809,6 +809,273 @@ public sealed class WorkspaceLoaderTests
                 .Single();
             Assert.Equal("engine", connection.EndpointA);
             Assert.Equal("gearbox", connection.EndpointB);
+            Assert.Null(connection.EndpointAName);
+            Assert.Null(connection.EndpointAMultiplicity);
+            Assert.Null(connection.EndpointBName);
+            Assert.Null(connection.EndpointBMultiplicity);
+            Assert.Null(connection.PayloadText);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Loads the SysML source and returns the connection nodes owned by the part definition
+    ///     <c>Demo::Rig</c>, in declaration order.
+    /// </summary>
+    private static async Task<IReadOnlyList<DemaConsulting.SysML2Tools.Semantic.Model.SysmlConnectionNode>> LoadRigConnectionsAsync(string source)
+    {
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, source, TestContext.Current.CancellationToken);
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+            Assert.NotNull(result.Workspace);
+            var rig = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace.Declarations["Demo::Rig"]);
+            return rig.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlConnectionNode>().ToList();
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     A connection whose ends declare a role name (<c>name ::&gt; reference</c>) and a cross
+    ///     multiplicity captures both beside the endpoint reference, and an end without either keeps
+    ///     them null.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_ConnectionEnds_CaptureRoleNamesAndMultiplicities()
+    {
+        // Arrange / Act: the first end has a role name and a multiplicity, the second only a role name
+        var connections = await LoadRigConnectionsAsync(
+            """
+            package Demo {
+                part def Source { port out1; }
+                part def Sink { port in1; }
+                part def Rig {
+                    part src : Source;
+                    part snk : Sink;
+                    connection feed connect [2] supply ::> src.out1 to drain ::> snk.in1;
+                    connection plain connect src.out1 to snk.in1;
+                }
+            }
+            """);
+
+        // Assert
+        var feed = connections.Single(c => c.Name == "feed");
+        Assert.Equal("src.out1", feed.EndpointA);
+        Assert.Equal("supply", feed.EndpointAName);
+        Assert.Equal("[2]", feed.EndpointAMultiplicity);
+        Assert.Equal("snk.in1", feed.EndpointB);
+        Assert.Equal("drain", feed.EndpointBName);
+        Assert.Null(feed.EndpointBMultiplicity);
+        var plain = connections.Single(c => c.Name == "plain");
+        Assert.Null(plain.EndpointAName);
+        Assert.Null(plain.EndpointAMultiplicity);
+        Assert.Null(plain.EndpointBName);
+        Assert.Null(plain.EndpointBMultiplicity);
+    }
+
+    /// <summary>
+    ///     A binding connector (<c>bind A = B</c>) with a role name and a multiplicity on its ends
+    ///     captures them the same way a connection does.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_BindingEnds_CaptureRoleNames()
+    {
+        // Arrange / Act
+        var connections = await LoadRigConnectionsAsync(
+            """
+            package Demo {
+                part def Rig {
+                    part a { port p; }
+                    part b { port q; }
+                    bind left ::> a.p = [1..*] b.q;
+                }
+            }
+            """);
+
+        // Assert
+        var binding = Assert.Single(connections);
+        Assert.Equal("binding", binding.ConnectionKeyword);
+        Assert.Equal("a.p", binding.EndpointA);
+        Assert.Equal("left", binding.EndpointAName);
+        Assert.Equal("b.q", binding.EndpointB);
+        Assert.Equal("[1..*]", binding.EndpointBMultiplicity);
+    }
+
+    /// <summary>
+    ///     An interface usage with <c>connect a.p to b.q</c> becomes a connection node with the
+    ///     <c>"interface"</c> keyword, its name, and both ends (with role names).
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_InterfaceUsage_BuildsInterfaceConnectionNode()
+    {
+        // Arrange / Act
+        var connections = await LoadRigConnectionsAsync(
+            """
+            package Demo {
+                part def Rig {
+                    part a { port p; }
+                    part b { port q; }
+                    interface bus connect left ::> a.p to b.q;
+                }
+            }
+            """);
+
+        // Assert
+        var bus = Assert.Single(connections);
+        Assert.Equal("interface", bus.ConnectionKeyword);
+        Assert.Equal("bus", bus.Name);
+        Assert.Equal("a.p", bus.EndpointA);
+        Assert.Equal("left", bus.EndpointAName);
+        Assert.Equal("b.q", bus.EndpointB);
+        Assert.Null(bus.PayloadText);
+    }
+
+    /// <summary>
+    ///     A flow usage captures its two ends and the payload clause after <c>of</c>; a flow
+    ///     without a payload leaves <see cref="DemaConsulting.SysML2Tools.Semantic.Model.SysmlConnectionNode.PayloadText"/> null.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_FlowUsage_BuildsFlowConnectionNodeWithPayload()
+    {
+        // Arrange / Act
+        var connections = await LoadRigConnectionsAsync(
+            """
+            package Demo {
+                item def Torque;
+                part def Rig {
+                    part a { out port shaft; }
+                    part b { in port input; }
+                    flow of Torque from a.shaft to b.input;
+                    flow from a.shaft to b.input;
+                }
+            }
+            """);
+
+        // Assert
+        Assert.Equal(2, connections.Count);
+        Assert.All(connections, c => Assert.Equal("flow", c.ConnectionKeyword));
+        Assert.Equal("a.shaft", connections[0].EndpointA);
+        Assert.Equal("b.input", connections[0].EndpointB);
+        Assert.Equal("Torque", connections[0].PayloadText);
+        Assert.Null(connections[1].PayloadText);
+        Assert.Equal("a.shaft", connections[1].EndpointA);
+    }
+
+    /// <summary>
+    ///     A message with a payload (<c>message m of Payload from a to b</c>) captures the payload
+    ///     text beside its two event references.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_MessageWithPayload_CapturesPayloadText()
+    {
+        // Arrange / Act
+        var connections = await LoadRigConnectionsAsync(
+            """
+            package Demo {
+                item def Token;
+                part def Rig {
+                    part a;
+                    part b;
+                    message grant of Token from a to b;
+                    message ping from b to a;
+                }
+            }
+            """);
+
+        // Assert
+        var grant = connections.Single(c => c.Name == "grant");
+        Assert.Equal("message", grant.ConnectionKeyword);
+        Assert.Equal("a", grant.EndpointA);
+        Assert.Equal("b", grant.EndpointB);
+        Assert.Equal("Token", grant.PayloadText);
+        Assert.Null(connections.Single(c => c.Name == "ping").PayloadText);
+    }
+
+    /// <summary>
+    ///     A part's <c>event occurrence</c> usages (with or without a leading <c>then</c>) are captured
+    ///     as children with the keyword <c>event occurrence</c>, in declaration order; the referencing
+    ///     form <c>event someFeature;</c> declares nothing and is not captured.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_EventOccurrences_AreCapturedInDeclarationOrder()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package Demo {
+                    part def Rig {
+                        part a {
+                            event occurrence alpha;
+                            then event occurrence beta : Occurrence;
+                            then event gamma;
+                        }
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var rig = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace.Declarations["Demo::Rig"]);
+            var part = Assert.Single(rig.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>());
+            var events = part.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>().ToList();
+            Assert.Equal(["alpha", "beta"], events.Select(e => e.Name));
+            Assert.All(events, e => Assert.Equal("event occurrence", e.FeatureKeyword));
+            Assert.Equal("Demo::Rig::a::alpha", events[0].QualifiedName);
+            Assert.Equal("Occurrence", events[1].FeatureTyping);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    ///     Interface and flow usages add no resolver diagnostics: a model whose ports are connected
+    ///     by them loads without errors.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_InterfaceAndFlowUsages_ProduceNoDiagnostics()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package Demo {
+                    item def Torque;
+                    part def Rig {
+                        part a { out port shaft; }
+                        part b { in port input; }
+                        interface bus connect a.shaft to b.input;
+                        flow of Torque from a.shaft to b.input;
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.DoesNotContain(result.Diagnostics, d => d.Severity == DemaConsulting.SysML2Tools.Parser.DiagnosticSeverity.Error);
         }
         finally
         {

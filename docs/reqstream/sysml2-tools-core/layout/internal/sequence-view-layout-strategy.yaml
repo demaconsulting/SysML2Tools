@@ -11,15 +11,86 @@ sections:
     requirements:
       - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-Lifelines
         title: >-
-          SequenceViewLayoutStrategy shall render each participant referenced by the messages as a
-          lifeline and each message as a line between lifelines, ordered top-to-bottom by
-          declaration order.
+          SequenceViewLayoutStrategy shall render each participant as a lifeline and each message
+          as a line between lifelines, ordered top-to-bottom by the events the messages connect and
+          otherwise by declaration order.
         justification: |
           A sequence diagram communicates an interaction by showing who participates and in what
           order they exchange messages. Presenting one lifeline per participant and ordering the
           messages from top to bottom matches sequence-diagram reading conventions.
         tests:
           - SequenceView_BuildLayout_Messages_ProducesLifelinesAndOrderedLines
+
+      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-LifelineHeader
+        title: >-
+          SequenceViewLayoutStrategy shall draw the header of a lifeline declared by a part, item,
+          or occurrence usage as a rounded box showing the usage keyword over the name line
+          `name : Type`, with a dashed outline when the usage is a reference.
+        justification: |
+          SysML v2.0 (clause 8.2.3.12) draws the head of a lifeline as the usage it represents: a
+          rounded box with the keyword in guillemet marks above the usage name and type, and a dashed
+          outline for a reference usage, as for every other usage in the graphical notation. A
+          plain sharp box with the bare name hides what the lifeline is and what type it has.
+        tests:
+          - SequenceView_BuildLayout_Lifeline_HasRoundedHeaderKeywordAndTypedLabel
+          - SequenceView_BuildLayout_ReferencePartLifeline_HasDashedHeader
+          - SequenceView_BuildLayout_ItemAndOccurrenceUsages_AreLifelines
+
+      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-DeclaredLifelines
+        title: >-
+          SequenceViewLayoutStrategy shall give every part, item, and occurrence usage declared by
+          the root a lifeline in declaration order, including a usage that exchanges no message,
+          and shall give a message endpoint that names no declared usage a lifeline with its plain
+          name after the declared ones, in first-appearance order.
+        justification: |
+          The participants of an interaction are the parts the model declares, not only those that
+          happen to send or receive a message: a part that is silent in this interaction is still a
+          participant, and showing it keeps the diagram a faithful picture of the model. Models
+          that reference an endpoint without declaring it, which the grammar permits, must still
+          render.
+        tests:
+          - SequenceView_BuildLayout_DeclaredPartWithoutMessages_GetsLifeline
+          - SequenceView_BuildLayout_UndeclaredEndpoint_FallsBackToFirstAppearance
+
+      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessagePayloadLabel
+        title: >-
+          SequenceViewLayoutStrategy shall label a message `name of Payload`, leaving out the name
+          or the payload when the model declares none.
+        justification: |
+          SysML v2.0 (clause 8.2.3.12) labels a message with its name followed by `of` and the
+          payload it carries. Showing the payload tells the reader what travels between the
+          lifelines, which the name alone often does not.
+        tests:
+          - SequenceView_BuildLayout_MessageWithPayload_LabelIsNameOfPayload
+
+      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessageEventOrdering
+        title: >-
+          SequenceViewLayoutStrategy shall draw a message above another when one of its events
+          precedes one of the other's events on the same lifeline in the order the lifeline declares
+          its event occurrences, and shall keep declaration order for messages the events do not
+          order or order contradictorily.
+        justification: |
+          The meaning of a sequence diagram is the order of the events on each lifeline, which the
+          model states with `event occurrence` usages and `then` successions; the order in which the
+          messages happen to be written is not significant. Ordering by events draws the interaction
+          the model describes. Declaration order for the rest keeps every model that gives no event
+          data, or gives conflicting data, rendering as before.
+        tests:
+          - SequenceView_BuildLayout_MessagesDeclaredOutOfEventOrder_AreOrderedByEvents
+          - SequenceView_BuildLayout_MessagesChained_AreOrderedTransitivelyAndStably
+          - SequenceView_BuildLayout_NoEventData_KeepsDeclarationOrder
+          - SequenceView_BuildLayout_ContradictoryEventOrders_FallBackToDeclarationOrder
+
+      - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessageLabelRoom
+        title: >-
+          SequenceViewLayoutStrategy shall space the lifelines so that the label of each message
+          fits between the lifelines the message connects.
+        justification: |
+          A message label wider than the gap between its two lifelines would run over the
+          neighboring lifelines and their messages. Widening the lifeline spacing to the widest
+          label, per lifeline spanned, keeps every label readable.
+        tests:
+          - SequenceView_BuildLayout_LongMessageLabel_WidensLifelinePitch
 
       - id: SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-HorizontalMessages
         title: >-

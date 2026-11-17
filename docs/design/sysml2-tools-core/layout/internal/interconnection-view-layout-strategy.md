@@ -3,34 +3,40 @@
 ##### Purpose
 
 `InterconnectionViewLayoutStrategy` implements `ILayoutStrategy` to produce an Interconnection
-View diagram. It shows the internal structure of a single part definition: its nested part usages
-as boxes placed through `LayeredPlacement`, ports on the box boundaries for the incident connections,
-and the connection usages routed as orthogonal connector lines between the ports, all enclosed by a
-container box for the host definition. Annotations (`comment` and `doc`) are never drawn: the
-strategy reads no `SysmlNode.Annotations`, so documentation never crowds the nested part boxes,
-regardless of the view's conditions.
+View diagram following SysML v2.0 clauses 8.2.3.11 to 8.2.3.16. It shows the internal structure of a
+single part definition or part usage: its nested usages (`part`, `item`, `action`, `state`, and
+`occurrence`) as rounded boxes placed through `LayeredPlacement`, the declared ports as glyphs on the
+box boundaries, and the connection, binding, interface, and flow usages routed as orthogonal connector
+lines, all enclosed by a frame for the host element headed by its keyword, its name, and an italic
+`interconnection` compartment title. A part usage that declares `doc` text or attributes shows `doc`
+and `attributes` compartments; the documentation of a definition and its `comment` annotations are
+never drawn, so they do not crowd the nested boxes.
 
 ##### Data Model
 
 `InterconnectionViewLayoutStrategy` has no instance state; all input arrives through the
 `BuildLayout` parameters. Layout constants (`MinPartWidth`, `CharWidthFactor`) are declared as
-`private const double` fields. Four private records carry intermediate data: `PartItem` (a nested
-part usage with its computed box size, typing, the display-only `ShortName` and `Multiplicity`
-that join the name and typing in its box label, and — when the part is a container — its
+`private const double` fields. Private records carry intermediate data: `PartItem` (a nested
+usage with its computed box size, its keyword and name line text, whether it is a reference usage,
+its compartments, its declared `PortInfo` list, and — when the usage is a container — its
 pre-laid-out `InnerContent`; `Name` remains the identity used to resolve connector endpoints),
+`PortInfo` (a declared port: its name, its `name : Type` label, and its `PortAppearance`),
 `TopLevelPart` (pairs a top-level-fallback `PartItem` with its owning
 definition's qualified name, `OwnerQualifiedName`, so `ResolveTopLevelConnections` can scope
 endpoint resolution correctly per owning definition — see _No-single-root scoped fallback_ below),
-`ConnPair` (a resolved binary connection between two nested-part
-indices, together with the optional port-name label for each end), and `InteriorLayout` (the full
-container size and content produced by laying out one definition's interior).
+`ConnItem` (a resolved binary connector between two nested-part indices, the `EdgePortRef` each end
+attaches through, and its `ConnectorStyle`: end decoration, midpoint label, and end labels),
+`InteriorLayout` (the full container size and content produced by laying out one element's interior),
+and `RootFrame` (a root frame with how far its port labels overhang its left and right edges). The
+private `DefinitionIndex` class wraps the container-definition map, the `NameResolver`, and the
+workspace, so a usage's type and its supertypes can be resolved whatever kind of definition they are.
 
 ##### Key Methods
 
 ###### `BuildLayout(ViewContext context, RenderOptions options)`
 
 Entry point. Resolves the view's `expose` scope via `ExposeScopeResolver.ResolveExposedScope`,
-selects the root part definition(s) via `FindRoots(workspace, scope)`, builds the container-definition
+selects the root part definition(s) or part usage(s) via `FindRoots(workspace, scope, defsByName)`, builds the container-definition
 index via `BuildDefinitionIndex`, lays out the root's interior via `LayOutInterior` (applying
 `scope`'s namespace-prefix filter only at the root's own direct children, depth 0; every deeper
 recursive call passes `scope: null`, since a nested container's own interior's membership in the
@@ -45,9 +51,11 @@ already uses for a container part, so the root box is never a bare sibling of it
 the `LayoutTree`. When `FindRoots` returns several roots, `LayOutRootsSideBySide` builds each
 root's container box with `BuildRootBox` and places them left to right in declaration order,
 separated by `6 × LabelPadding`, with aligned tops (SysML v2.1 Beta 2 8.2.3.11:
-`interconnection-view = (interconnection-element)*`). When `FindRoots` selects no root, falls
+`interconnection-view = (interconnection-element)*`); the gap grows by the left and right overhang of
+each frame's own port labels. A single root is translated right by its left overhang and the canvas
+widened by both overhangs. When `FindRoots` selects no root, falls
 back to the **no-single-root scoped fallback** described below when the resolved scope directly
-includes one or more top-level `part` feature usages; otherwise returns a minimal 200×100 empty
+includes one or more top-level node usages; otherwise returns a minimal 200×100 empty
 `LayoutTree`.
 
 ###### Per-Branch Depth-Limited Recursion (`DetermineBranchUnlimitedRecursion`, `MatchesUnlimitedSubject`)
@@ -176,15 +184,19 @@ without needing to change that unrelated, unaffected code path at all.
 
 ###### `BuildPartItem(feature, theme, depth, defsByName, visited, unlimitedRecursion)`
 
-Extracted from `CollectParts`'s per-feature loop body: resolves the feature's `FeatureTyping`
-against `defsByName` via `TryResolveContainer`, recursing into `LayOutInterior` at `depth + 1` for a
-container part **only when `unlimitedRecursion` is `true`** (with the resolved child's qualified
+Extracted from `CollectParts`'s per-feature loop body: builds the keyword (`GeneralViewLayoutStrategy.UsageKeyword`,
+so a reference part reads `ref part`), the name line (`FormatUsageNameLine`), and the declared
+ports (`ResolvePorts`), then resolves the container through `TryResolveContainer` — the usage itself
+when its own inline body declares nested parts, otherwise the container definition its `FeatureTyping`
+resolves to against `defsByName` — recursing into `LayOutInterior` at `depth + 1` for a
+container **only when `unlimitedRecursion` is `true`** (with the resolved container's qualified
 name added to a copy of `visited`, `scope: null` — nested composition structure's own membership is
 never re-derived from its own qualified name, matching `CollectParts`'s own documented recursion
 behavior — and `ancestorUnlimitedRecursion: unlimitedRecursion`, propagating this branch's
 already-decided flag unchanged to every descendant; see _Per-Branch Depth-Limited Recursion_ above)
-or computing an intrinsic leaf size via `ComputePartSize(label, theme)` otherwise — which happens both
-when the feature's type does not resolve to a container, and, unconditionally, whenever
+or computing an intrinsic leaf size via `ComputePartSize(label, keyword, theme)` (or `GeneralViewLayoutStrategy.ComputeBoxSize`
+when the leaf has `doc` or `attributes` compartments, built by `BuildLeafCompartments`) otherwise — which happens both
+when the feature is not a container, and, unconditionally, whenever
 `unlimitedRecursion` is `false` (a container part still renders as its own node; only its interior
 expansion is suppressed). Here, `unlimitedRecursion` is always the concrete, already-decided
 per-branch `bool` computed once at that branch's own depth 0 (never the ambient `bool?` — by the
@@ -194,15 +206,22 @@ directly (from `CollectParts` or `CollectTopLevelScopedParts`) or via its own
 `unlimitedRecursion`-gated recursive `LayOutInterior` call, so gating solely on `unlimitedRecursion`
 (without separately re-checking `depth`) is sufficient to limit expansion to "depth 0 only" under a
 non-recursive branch decision.
-Both `CollectParts` (depth > 0 or an already-scope-filtered depth-0 feature) and
+Every box is at least tall enough for its declared ports (`PortReservedHeight`: the title area plus
+one `PortPitch` per declared port, whether the engine or this strategy places it). Both `CollectParts`
+(depth > 0 or an already-scope-filtered depth-0 feature) and
 `CollectTopLevelScopedParts` (a scope-matched top-level feature, always at `depth: 0`) call this one
 method, so the container-vs-leaf recursion is defined exactly once.
 
-###### `LayOutInteriorWithConnections(parts, pairs, theme, boxDepth, reserveTitleArea = true)`
+###### `LayOutInteriorWithConnections(parts, pairs, theme, boxDepth, reserveTitleArea = true, extraTopBand = 0)`
 
-Places `parts` and routes `pairs` via `LayeredPlacement.PlaceWithPorts`, unchanged from before this
-feature except for two now-parameterized behaviors that previously assumed an enclosing container
-box always exists: `boxDepth` is stamped directly onto each placed part's own `LayoutBox.Depth`
+Places `parts` and routes `pairs` via `LayeredPlacement.PlaceWithPorts`, passing each connector's
+decoration, midpoint label, end labels, and port requests (see _Ports_ and _Connector kinds and end
+labels_ below), then opens corridors with `LayeredPlacement.WidenForMidpointLabels` (see _Midpoint
+label clearance_), shifts the content inside the container, adds the engine's connector lines and
+ports, and places the unconnected declared ports (see _Unconnected and frame ports_). Two
+behaviors are parameterized because an enclosing container box does not always exist or always have the same header:
+`extraTopBand` is the height of the compartment title band the root frame carries below its title
+(zero for every other container), and `boxDepth` is stamped directly onto each placed part's own `LayoutBox.Depth`
 (the existing `LayOutInterior` call site passes `depth + 1`, preserving today's exact depth
 numbering; the no-single-root fallback passes `0` directly, since there is no enclosing container
 box in that path at all), and `reserveTitleArea` (default `true`, unchanged for every existing
@@ -217,7 +236,8 @@ bottom-up** scheme equivalent to ELK's `SEPARATE_CHILDREN` hierarchy mode: inner
 out first through flat layered placement, and each container is then treated as an atomic fixed-size
 node by its parent, which is laid out with the **same** flat placement.
 
-- **Container detection.** `BuildDefinitionIndex` builds a `Dictionary<string, SysmlDefinitionNode>`
+- **Container detection.** A part usage whose own body declares nested `part` usages is a container
+  itself (its body is laid out like a definition's). Otherwise `BuildDefinitionIndex` builds a `Dictionary<string, SysmlDefinitionNode>`
   of candidate containers — non-standard-library `part def`s that have at least one nested `part`
   usage — keyed by qualified name. For each part,
   `CollectParts` resolves its type against that index (`TryResolveContainer` → `ResolveByTyping`):
@@ -255,13 +275,14 @@ node by its parent, which is laid out with the **same** flat placement.
   mirroring the `hasLabel: true, hasKeyword: true` convention already used for `TitleAreaHeight`
   above), which activates the engine's automatic title-vs-side-port reservation so no port is ever
   placed across the box's own title band.
-- **Part label.** `PartLabel(name, shortName, typing, multiplicity)` builds every part box's
-  label by calling the shared `GeneralViewLayoutStrategy.FormatNameLine` (without supertypes), so a
-  part reads `<shortName> name : Type [2]` with every piece the model does not declare omitted
-  — the same textual notation the General and Browser views use (SysML v2 graphical BNF, clause
-  8.2.3). `ComputePartSize(label, theme)` sizes a leaf part from that same label and `MakePartBox`
-  draws it, so a leaf box is always wide enough for its text (a container part's box label is built
-  the same way, and its size comes from its laid-out interior). Connector endpoint
+- **Part label.** Every usage box's keyword and name line come from the helpers shared with the General
+  view (`GeneralViewLayoutStrategy.UsageKeyword`, `FormatUsageNameLine`, which calls `FormatNameLine`), so
+  a part reads `«part»` over `<shortName> name : Type [2]`, a reference part reads `«ref part»` and is drawn
+  with a dashed outline (`BoxAppearance(LineStyle.Dashed)`, SysML v2 clause 8.2.3.6), and every piece the
+  model does not declare is omitted — the same textual notation the General and Browser views use (SysML v2
+  graphical BNF, clause 8.2.3). `ComputePartSize(label, keyword, theme)` sizes a leaf from that label and
+  keyword and `MakePartBox` draws it, so a leaf box is always wide enough for its text (a container part's
+  box label is built the same way, and its size comes from its laid-out interior). Connector endpoint
   resolution is unaffected: it keys on the plain part name, never on the label.
 - **Positioning.** `MakePartBox` builds a leaf box with empty `Children` (unchanged), and a
   container box whose `Children` are its `InnerContent` translated from the child's local origin
@@ -281,7 +302,8 @@ node by its parent, which is laid out with the **same** flat placement.
 - **Cross-boundary resolution.** `ResolveEndpoint` resolves the **full** dotted endpoint reference,
   not just its head segment: the head segment still identifies the parent-level part index, and any
   remaining dotted segment(s) (e.g. `cpu` in `board.cpu`, or `encoder` in `StepperMotorX.encoder`) is
-  captured as that endpoint's port-name label and flows through `ConnPair.LabelA`/`LabelB` into the
+  captured as that endpoint's port-name label (or, when its first segment names a declared port, the
+  declared port; see _Ports_) and flows through `ConnItem.PortA`/`PortB` into the
   emitted `LayoutPort.ExternalLabel`. This means a reference into a nested part (`connect psu to
   board.cpu`) now shows the true target name (`cpu`) on the port, rather than the pre-fix behavior of
   silently discarding it. The connector itself is still **routed only to the container's own
@@ -296,18 +318,94 @@ node by its parent, which is laid out with the **same** flat placement.
   (e.g. `board.sub.cpu` yields the label `sub.cpu`, not just `sub`); only the _routing_ — never the
   label text — stops at the container's boundary regardless of path depth.
 
-##### Port Labeling
+##### Ports
 
-Each connection endpoint that resolves to a nested part is requested as a named
-`LayeredPlacement.EdgePortRef` on that endpoint's `PortEdge`, carrying the real SysML port-name
-segment (from `ConnPair.LabelA`/`LabelB`; see _Cross-boundary resolution_ above and
-`ResolveEndpoint` below) as the port's `ExternalLabel`. `LayeredPlacement.PlaceWithPorts` creates
-the corresponding `LayoutGraphPort` and returns the engine-placed `LayoutPort` with that label
-already attached — the strategy only translates the returned port's `CentreX`/`CentreY` by the
-container offset before adding it to the interior's content. A bare endpoint reference with no
-dotted port segment (e.g. `connect psu to board`) yields a `null` label (a port is still created
-and placed; only its label is absent), preserving the pre-fix rendering (no label shown) for that
-connector end.
+SysML v2.0 clause 8.2.3.12 draws a port as a small rounded square on the boundary of its part, with a
+direction arrow, and the label `name : Type` beside it.
+
+- **Declared ports.** `ResolvePorts(node, defsByName)` collects the named `port` usages a part
+  declares in its own body, then those of its type, then those of every definition in the type's
+  specialization chain (breadth first, nearest first, cycle-guarded, through
+  `DefinitionIndex.ResolveTypeDefinition` and `SupertypeDefinitions`). A port declared more than once is
+  listed once, as its most specific declaration. `MakePortInfo` gives each one its label (`name : Type
+  [multiplicity]`, or `name : ~Type` when typed by a conjugated port definition, through
+  `FormatNameLine` and `FormatTyping`) and a `PortAppearance`: the declared `in`, `out`, or `inout`
+  direction becomes the arrow (none when undirected), the glyph is always `Outlined` (a white rounded
+  square, never the engine's legacy filled square), the outline is dashed for a reference port, and the
+  label placement is `Outward` (outside the part).
+- **Connector endpoints.** `ResolveEndpoint` resolves the head of a dotted endpoint reference to a
+  nested part and then looks the next segment up among that part's declared ports. A declared port
+  becomes an `EdgePortRef` carrying its declared label and appearance and the shared key `p:name`;
+  every other remainder (a segment no declaration backs, or a deeper path) becomes a port labeled with
+  that remainder, with the undirected outlined outward appearance and the key `u:remainder` — it is
+  never the legacy filled square or an inward label. An endpoint that names only a part has no port: the
+  connector attaches to the part box itself and no glyph is drawn, because a glyph there would show a
+  port the model does not declare.
+- **Shared ports.** `LayeredPlacement.PlaceWithPorts` creates one `LayoutGraphPort` per node and key, so
+  every connector that names a declared port shares it. The layout engine (0.3.0-beta.4) still emits one
+  placed glyph per connector end for a shared port, each repeating the label; `PlaceWithPorts` keeps the
+  label on the first placed glyph of each shared port and clears the others, so the port is named once.
+  The repeated glyphs are an engine limitation.
+
+##### Unconnected and frame ports
+
+The layout engine emits only the ports a connector attaches to, so the strategy places the others itself.
+
+- **Unconnected declared ports.** After the engine's boxes, lines, and ports have their final positions
+  (translated into container coordinates), `PlaceUnconnectedPorts` places every declared port that no
+  drawn connector names (`LayOutInteriorWithConnections` records the named ones in a `connected` set from
+  the `p:` keys). A port prefers the left face of its part, or the right face for an `out` port, and takes
+  the first slot, scanning down from just below the title area in `PortSlotStep` (3 px) steps, where its
+  glyph and its outside label (`NotationMetrics.PortGlyphBounds` and `PortOutwardLabelBounds`) overlap no
+  other part box (the part's own box counts for the label), no port glyph or label already placed, and no
+  connector segment. When the preferred face has no clear slot the other face is tried, and when neither
+  has one the slot with the fewest overlaps is used. Because each placed port adds its footprint to the
+  obstacles, successive ports on one face are at least one `PortPitch` apart.
+- **Room.** `PortPitch` is `1.3 × FontSizeBody + NotationMetrics.PortLabelConnectorGap + LabelPadding`
+  (the spacing the engine uses for its own ports), and `PortReservedHeight` makes every box at least
+  title area plus `(declaredPorts + 0.5) × PortPitch` tall, so the engine's and the strategy's ports
+  always have a face to share. After the placement `LayOutInteriorWithConnections` shifts the content
+  right and widens the container when an outside label would otherwise leave it (a margin of
+  `LabelPadding` is kept).
+- **Frame ports.** The declared ports of the root element are drawn on its frame: left face, or right face
+  for an `out` port, stacked from just below the frame header (title area plus the `interconnection`
+  compartment band, `FrameHeaderHeight`) at one `PortPitch`. The frame grows to be tall enough for the
+  busiest face, and `MeasurePortOverhang` measures how far the glyphs and outside labels reach beyond the
+  frame's left and right edges so `BuildTree` and `LayOutRootsSideBySide` make room for them.
+  **Limitation:** connectors to a frame port (delegation, `connect a.p to this.q`) are not routed; that
+  is the cross-boundary limitation already documented for nested containers.
+
+##### Connector kinds and end labels
+
+`IsDrawnConnector` accepts the `connection`, `binding`, `interface`, and `flow` connection keywords; a
+`message` (sequence view) or `allocation` usage is not an interconnection connector, is not drawn, and does
+not count when `FindRoots` scores the candidates. `StyleOf` gives each connector its notation (SysML v2.0
+clauses 8.2.3.13 to 8.2.3.16, graphical BNF pages 215 to 221):
+
+| Kind | Line | Midpoint label | End decoration |
+| --- | --- | --- | --- |
+| `connection` | solid | none (the connection label is optional in the BNF) | none |
+| `binding` | solid | `=` | none |
+| `interface` | solid | `«interface»` then the name, when it has one | none |
+| `flow` | solid | `«flow»` then the name and `of` payload, when declared | filled arrowhead at the target end |
+
+A role name (`name ::> reference`) and a multiplicity declared on an end become that end's
+`LineEndLabel` (role name above the line, multiplicity below); an end that declares neither adds no label.
+The decoration, labels, and style are declared on the `PortEdge`, so the layered algorithm reserves room for
+them and the engine's `LayoutLine` already carries them. The direction of a connector follows the textual
+order of its ends (the first end is the source).
+
+##### Midpoint label clearance
+
+The layered algorithm reserves room between two columns of boxes for the end labels and the outside port
+labels, but not for a connector's midpoint label, which the label placer centers on the connector's longest
+run. A label such as `«flow» torque of Torque` therefore landed on the port labels at both ends.
+`LayOutInteriorWithConnections` calls `LayeredPlacement.WidenForMidpointLabels` after the placement: it
+resolves the labels with `ConnectorLabelPlacer.ResolveLabels` (the resolver the renderers use), and while a
+midpoint label overlaps a box, a port glyph, or an outside port label (with `LabelBackgroundPad` of vertical
+padding for the label's opaque background), shifts the right-hand endpoint's column and everything right of
+it by twice the penetration plus a clearance, at most `MaxWideningPasses` times. A connector whose endpoints
+share a column cannot be separated this way and is left alone.
 
 ##### Parallel Connection Preservation
 
@@ -317,12 +415,13 @@ so multiple distinct SysML connections between the same two parts (e.g. separate
 `power`/`encoder`/`sensor` connections wired between the same controller and motor, as seen in a
 real 3-axis-gantry wiring model) are never collapsed onto one shared routed polyline: each
 connection keeps its own independently-routed connector with distinct waypoints (a separate
-parallel lane), and its own pair of labeled ports.
+parallel lane), and its own ports (a declared port that several of them name is one shared port; see _Ports_).
 
-###### `FindRoots(workspace, scope)`
+###### `FindRoots(workspace, scope, defsByName)`
 
-Chooses the non-standard-library `part def` with the most connection usages (breaking ties by the
-most part usages) as the definition whose interior to render, restricted — when a scope is
+Chooses the non-standard-library `part def` with the most drawn connector usages (see _Connector kinds
+and end labels_; ties broken by the most part usages) as the element whose interior to render,
+restricted — when a scope is
 resolved — to candidates for which `ExposeScopeResolver.IsRootRelevantToScope` returns `true`;
 returns `null` when no candidate is relevant to a non-null scope (an empty canvas results), and
 falls back to considering every candidate when `scope` is `null`. When multiple candidates are
@@ -333,17 +432,25 @@ break ties among equally specific candidates; this ordering does not apply when 
 non-null and more than one candidate is an independent composition-graph root (composes at least
 one part, is not used as another candidate's part type, and is not a namespace ancestor of another
 such root), every one of them is returned, in declaration order, and drawn side by side; a single
-root and the unscoped case are unchanged.
+root and the unscoped case are unchanged. A **part usage** declared directly in a package (not nested in
+a definition or another usage, which are drawn inside their owner) whose own body declares both nested parts
+and connectors is also a candidate (`IsRootUsage`), so a system described as a usage without a definition is
+drawn as a rounded `«part» name` frame. Usage candidates compete with the definitions when a scope is
+resolved, and are considered without a scope only when there is no part definition candidate at all, so an
+unscoped model with a part definition keeps selecting that definition. Candidates are still scored by
+their nested `part` usages only (an element that composes only items is not a root).
 
-###### `CollectParts` and `ResolveConnections(root, partIndex)`
+###### `CollectParts` and `ResolveConnections(root, partIndex, parts)`
 
-`CollectParts` gathers the root's nested `part` usages, sizing each box from its `name : Type`
-label, additionally excluding — when a scope is resolved and `depth == 0` — any part feature whose
+`CollectParts` gathers the root's nested node usages (`IsNodeUsage`: `part`, `item`, `action`, `state`,
+and `occurrence`; attributes and plain references stay compartment rows), sizing each box from its
+`name : Type` label, additionally excluding — when a scope is resolved and `depth == 0` — any part feature whose
 qualified name fails `ExposeScopeResolver.IsInSubjectScope`. `ResolveConnections` maps each binary
 connection's dotted endpoint references to nested-part indices and port-name labels via
 `ResolveEndpoint` (matching the first dotted segment against the (possibly narrowed) part names and
-capturing any remaining segment as the port label — see _Cross-boundary resolution_ above), keeping
-only distinct, resolvable pairs; a connection whose endpoint was excluded by scoping simply fails to
+attaching each end through the declared port its next segment names — see _Ports_ and _Cross-boundary
+resolution_ above), keeping only distinct, resolvable pairs of drawn connector kinds; a connection whose
+endpoint was excluded by scoping simply fails to
 resolve and is dropped by this existing endpoint-lookup logic — no separate edge-side scoping is
 needed.
 
@@ -410,10 +517,15 @@ diagnostics, so the returned `LayoutTree` carries no layout-quality warnings.
 ##### Dependencies
 
 - `ILayoutStrategy` and `ViewContext` (Rendering subsystem) — the strategy contract and view input.
-- `RenderOptions`, `Theme`, and `BoxMetrics` (`DemaConsulting.Rendering.Abstractions`) — render
-  options and sizing metrics.
+- `RenderOptions`, `Theme`, `BoxMetrics`, `NotationMetrics`, and `ConnectorLabelPlacer`
+  (`DemaConsulting.Rendering.Abstractions`) — render options, sizing metrics, the port glyph and outside
+  label geometry, and the label resolver.
 - `LayeredPlacement` (Layout Internal subsystem) — placement and routing through
-  `DemaConsulting.Rendering.Layout`.
+  `DemaConsulting.Rendering.Layout` (`PlaceWithPorts`, `WidenForMidpointLabels`).
+- `GeneralViewLayoutStrategy` (Layout Internal subsystem) — the shared label and compartment helpers
+  (`UsageKeyword`, `DefinitionKeyword`, `FormatUsageNameLine`, `FormatNameLine`, `FormatTyping`,
+  `BuildCompartments`, `BuildDocCompartment`, `MakeCompartment`, `ComputeBoxSize`,
+  `ComputeCompartmentHeight`), so an element reads the same way in every view.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
 - `ExposeScopeResolver` (Layout Internal subsystem) — `ResolveExposedScope`,
   `IsRootRelevantToScope`, `IsInSubjectScope`, and `IsMoreSpecificCandidate` supply the shared
@@ -422,8 +534,9 @@ diagnostics, so the returned `LayoutTree` carries no layout-quality warnings.
   once per depth-0/top-level branch whether that branch's specific matching subject is recursive,
   with `HasUnlimitedRecursion` retained only as the depth-0 fallback when no qualified name is
   available to match against a subject.
-- `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode`, `SysmlConnectionNode` (Semantic subsystem) — model input.
-- The `LayoutTree`, `LayoutBox`, `LayoutPort`, and `LayoutLine` data types
+- `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode`, `SysmlConnectionNode` (Semantic subsystem) — model input,
+  including the connector end names, multiplicities, and payload text.
+- The `LayoutTree`, `LayoutBox`, `LayoutPort`, `LayoutLine`, `PortAppearance`, and `LineEndLabel` data types
   (`DemaConsulting.Rendering`).
 
 ##### Callers

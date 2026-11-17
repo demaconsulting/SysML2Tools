@@ -81,6 +81,20 @@ sections:
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PortLabeling
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-CrossBoundaryLabelResolution
           - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PartLabel
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-DeclaredPorts
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PortGlyphs
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PortLabelOutside
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-SharedPort
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-UnconnectedPorts
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-RootFramePorts
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ReferencePartOutline
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-UsageKinds
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-UsageRoot
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-FrameInterconnectionTitle
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-PartCompartments
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ConnectorKinds
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-ConnectionEndLabels
+          - SysML2Tools-Core-Layout-Internal-InterconnectionViewLayoutStrategy-MidpointLabelClearance
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-States
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-ImplicitStates
           - SysML2Tools-Core-Layout-Internal-StateTransitionViewLayoutStrategy-DistinctAnchors
@@ -114,6 +128,11 @@ sections:
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-NodeLabel
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-BackEdgeApproach
           - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-Lifelines
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-LifelineHeader
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-DeclaredLifelines
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessagePayloadLabel
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessageEventOrdering
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessageLabelRoom
           - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-HorizontalMessages
           - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessageArrowhead
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-EdgeOrder
@@ -190,6 +209,7 @@ sections:
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-NodeOrder
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-NamedPorts
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-TitleAwarePorts
+          - SysML2Tools-Core-Layout-Internal-LayeredPlacement-MidpointLabelClearance
         tests:
           - InterconnectionView_BuildLayout_PartBoxes_DoNotOverlap
 
