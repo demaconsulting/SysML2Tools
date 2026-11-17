@@ -1,6 +1,6 @@
-### DemaConsulting.SysML2Tools.Tool — Help Subsystem
+## DemaConsulting.SysML2Tools.Tool — Help Subsystem
 
-#### Overview
+### Overview
 
 The Help subsystem implements the `help` CLI command: `sysml2tools help [command] [verb]`.
 It provides three cooperating types:
@@ -18,7 +18,7 @@ It provides three cooperating types:
   `LintCommand.PrintHelp`, `RenderCommand.PrintHelp`, or
   `QueryCommand.PrintGeneralHelp`/`PrintVerbHelp`.
 
-#### Design Rationale — Single Source of Truth
+### Design Rationale — Single Source of Truth
 
 Before this subsystem, `lint`/`render` had no command-specific `--help` output (both fell
 through to the generic top-level help printed by `Program`), while `query` alone had a
@@ -40,9 +40,9 @@ This is a deliberate, minimal scope expansion beyond "add a `help` command": wit
 lint`/`help render` would have nothing command-specific to show, defeating the purpose of a
 per-command help target.
 
-#### HelpOptions
+### HelpOptions
 
-##### HelpOptions Purpose
+#### HelpOptions Purpose
 
 A minimal, flat, immutable record carrying the two fields needed to dispatch `help` — no
 enum is defined for `TargetCommand` because `lint`/`render` have no enum of their own (unlike
@@ -50,21 +50,21 @@ enum is defined for `TargetCommand` because `lint`/`render` have no enum of thei
 `GlobalArguments.Command` itself is parsed as a token before becoming a `SysmlCommand` enum
 value.
 
-##### HelpOptions Data Model
+#### HelpOptions Data Model
 
 - `TargetCommand` (`string?`) — `"lint"`, `"render"`, `"query"`, or `null` for bare `help`.
 - `TargetVerb` (`string?`) — a raw query verb token; only meaningful when `TargetCommand` is
   `"query"`; `null` otherwise (including when `TargetCommand` is `"query"` but no verb was
   supplied, i.e., `help query`).
 
-#### HelpArgumentParser
+### HelpArgumentParser
 
-##### HelpArgumentParser Purpose
+#### HelpArgumentParser Purpose
 
 Parses the `help` command's positional grammar, eagerly validating both the target command and
 (when applicable) the target verb, rather than silently accepting an unrecognized token.
 
-##### HelpArgumentParser Key Methods
+#### HelpArgumentParser Key Methods
 
 **`Parse(IReadOnlyList<string> commandArgs)`**:
 
@@ -79,14 +79,14 @@ Parses the `help` command's positional grammar, eagerly validating both the targ
    rejection convention shared by `LintArgumentParser`/`RenderArgumentParser`/
    `QueryArgumentParser`.
 
-#### HelpCommand
+### HelpCommand
 
-##### HelpCommand Purpose
+#### HelpCommand Purpose
 
 Pure dispatch from the parsed `HelpOptions` to the single source of truth for each command's
 help text. Authors no help text of its own.
 
-##### HelpCommand Key Methods
+#### HelpCommand Key Methods
 
 **`Run(Context context)`**:
 
@@ -97,7 +97,7 @@ help text. Authors no help text of its own.
 - `TargetCommand == "query"`, `TargetVerb` set → `QueryCommand.PrintVerbHelp(context,
   QueryVerbParsing.Parse(TargetVerb))`.
 
-#### Error Handling
+### Error Handling
 
 - Unrecognized target command (`help bogus`): `ArgumentException` (thrown by
   `HelpArgumentParser.Parse`) listing the three valid targets.
@@ -109,7 +109,7 @@ help text. Authors no help text of its own.
   writes the message to stderr and returns exit code 1 — consistent with every other command's
   error handling; `help` introduces no new exception-handling path.
 
-#### Interaction with `--silent`
+### Interaction with `--silent`
 
 `--silent` suppresses `help`'s output exactly as it suppresses every other command's output,
 because `Context.WriteLine` unconditionally suppresses stdout when `Silent` is set, regardless
@@ -120,7 +120,7 @@ reason about across commands. A caller that needs help text programmatically whi
 capturing other output via `--log` will still receive the help text in the log file, since
 `WriteLine` writes to the log file unconditionally.
 
-#### Interaction with the Global `--help` Flag
+### Interaction with the Global `--help` Flag
 
 `Program.RunAsync`'s `--help` handling is unchanged in spirit but restructured to be
 command-aware for every command (see **Design Rationale** above) and to check
@@ -130,7 +130,7 @@ requiring `--help`. When `Command != SysmlCommand.Help` and `context.Help` is `t
 command-aware: `Lint`/`Render`/`Query`/`None` each print their own help via the same
 single-source-of-truth methods `HelpCommand.Run` uses.
 
-#### Dependencies
+### Dependencies
 
 - `Context`, `SysmlCommand` (in `DemaConsulting.SysML2Tools.Cli`) — reads `HelpCommand`
   options.
@@ -138,12 +138,12 @@ single-source-of-truth methods `HelpCommand.Run` uses.
   `QueryCommand.PrintGeneralHelp`/`PrintVerbHelp`, `QueryVerbParsing.Parse` — the single sources
   of truth this subsystem dispatches to.
 
-#### Callers
+### Callers
 
 - `Program.RunAsync` — dispatches to `HelpCommand.Run` when `context.Command ==
   SysmlCommand.Help`.
 
-#### Requirements Traceability
+### Requirements Traceability
 
 | Requirement ID | Satisfied by |
 | --- | --- |

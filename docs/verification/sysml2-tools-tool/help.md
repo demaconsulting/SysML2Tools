@@ -1,6 +1,6 @@
-### DemaConsulting.SysML2Tools.Tool — Help Subsystem Verification
+## DemaConsulting.SysML2Tools.Tool — Help Subsystem Verification
 
-#### Verification Approach
+### Verification Approach
 
 The Help subsystem is verified using unit/integration tests in two files under
 `test/DemaConsulting.SysML2Tools.Tool.Tests/Help/` (`HelpArgumentParserTests.cs`,
@@ -14,14 +14,14 @@ The Help subsystem is verified using unit/integration tests in two files under
 byte-for-byte parity between `help <command>[<verb>]` and `<command> [<verb>] --help`. Tests
 run against the tool's target framework.
 
-#### Test Environment
+### Test Environment
 
 - Framework: xUnit v3
 - Target framework: net10.0
 - Test project: `DemaConsulting.SysML2Tools.Tool.Tests`
 - Dependencies: `DemaConsulting.SysML2Tools.Tool` (internal access via `InternalsVisibleTo`)
 
-#### Acceptance Criteria
+### Acceptance Criteria
 
 - Bare `help` produces identical output to bare `--help`/`-h`/`-?`, and does not fall through
   to "No command specified".
@@ -44,9 +44,9 @@ run against the tool's target framework.
   `query` (no verb) → `TargetCommand` set; `query` + each of the 12 verbs → `TargetVerb` set;
   unknown target/verb/extra token → `ArgumentException`.
 
-#### Test Scenarios
+### Test Scenarios
 
-##### HelpArgumentParserTests.cs
+#### HelpArgumentParserTests.cs
 
 **`HelpArgumentParser_Parse_NoArguments_ReturnsBothFieldsNull`**: Bare `help` (no args)
 leaves `TargetCommand`/`TargetVerb` both null.
@@ -76,7 +76,7 @@ token as the target command throws `ArgumentException`.
 trailing token (after the command, or after the query verb) throws `ArgumentException` naming
 the extra token and the `help` command.
 
-##### HelpSubsystemTests.cs
+#### HelpSubsystemTests.cs
 
 **`HelpSubsystem_BareHelp_MatchesTopLevelHelpFlag`**: `help` (no args) produces output and
 exit code identical to `--help`.
@@ -112,7 +112,7 @@ stderr — via `Main`'s existing `ArgumentException` handler — without an unha
 existing unconditional suppression in `Context.WriteLine` applies equally to `help`'s output
 (consistent with, e.g., `--silent --version`), with no special-case bypass for `help`.
 
-##### Regression tests (existing files, updated)
+#### Regression tests (existing files, updated)
 
 **`LintSubsystem_Help_PrintsLintSpecificUsage`** (`LintSubsystemTests.cs`) /
 **`RenderSubsystem_Help_PrintsRenderSpecificUsage`** (`RenderSubsystemTests.cs`): `lint
@@ -126,7 +126,7 @@ existing unconditional suppression in `Context.WriteLine` applies equally to `he
 unmodified): confirm bare `--help`/`-h`/`-?` still print the generic top-level usage/options
 text, unaffected by the command-aware dispatch restructuring.
 
-##### Context_Create_HelpCommand_* (ContextTests.cs)
+#### Context_Create_HelpCommand_* (ContextTests.cs)
 
 Verifies `Context.Create`'s dispatch to `HelpArgumentParser` for `Command ==
 SysmlCommand.Help`: bare `help` populates an empty `HelpOptions`; `help lint`/`help render`
