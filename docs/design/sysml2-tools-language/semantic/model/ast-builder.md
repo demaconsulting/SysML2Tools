@@ -29,6 +29,8 @@ stack with `::` to form the fully-qualified name.
 | `VisitRequirementUsage` | `RequirementUsageContext` | `SysmlFeatureNode` (`FeatureKeyword = "requirement"`) |
 | `VisitDependency` | `DependencyContext` | `SysmlDependencyNode` |
 | `VisitBindingConnectorAsUsage` | `BindingConnectorAsUsageContext` | `SysmlConnectionNode` (kind `binding`) |
+| `VisitInterfaceUsage` | `InterfaceUsageContext` | `SysmlConnectionNode` (`ConnectionKeyword = "interface"`) |
+| `VisitFlowUsage` | `FlowUsageContext` | `SysmlConnectionNode` (`ConnectionKeyword = "flow"`, with `PayloadText`) |
 | `VisitStateBodyItem` | `StateBodyItemContext` | `SysmlNode` or `MultiNodeCapture` (usage + transitions) |
 | `VisitEntryActionMember` | `EntryActionMemberContext` | `SysmlFeatureNode` (`FeatureKeyword = "entry"`) |
 | `VisitDoActionMember` | `DoActionMemberContext` | `SysmlFeatureNode` (`FeatureKeyword = "do"`) |
@@ -157,6 +159,22 @@ same helper `connectionUsage`'s endpoint extraction already uses. The longer
 intentional non-goal (not attempted). `ReferenceResolver` resolves `"binding"`-keyword
 `SysmlConnectionNode` endpoints via the same dotted-feature-chain walk it already applies to
 `"connection"`/`"message"`.
+
+Every connector builder reads each end with `ConnectorEndDetail`, which returns the referenced feature
+chain together with the optional role name (`name ::> reference`) and cross multiplicity
+(`[2] reference`) of the grammar's `connectorEnd` and `interfaceEnd` rules (the same shape), and
+creates the node through one shared `BuildConnectionNode` helper that sets `EndpointAName`,
+`EndpointAMultiplicity`, `EndpointBName`, and `EndpointBMultiplicity`. These stay null when the end
+declares neither, so existing models serialize unchanged.
+
+`VisitInterfaceUsage` builds a `SysmlConnectionNode` with `ConnectionKeyword = "interface"` for
+`interface [name] connect A to B;` (the binary `interfacePart`); the interface body is not modeled.
+`VisitFlowUsage` builds one with `ConnectionKeyword = "flow"` for `flow [name] [of Payload] [from] A to
+B;`, reading the two `flowEndMember` feature chains and the payload clause (the verbatim text of
+`payloadFeatureMember` or `flowPayloadFeatureMember`) into `PayloadText`; `VisitMessage` captures the
+same payload clause of `message m of Payload from a to b;`. `ReferenceResolver` is deliberately not
+extended: `"interface"` and `"flow"` nodes add no edges and no diagnostics, and the interconnection view
+resolves their ends by name as it does for connections.
 
 `VisitDependency` builds a `SysmlDependencyNode` for a standalone `dependency A, B to C, D;`
 declaration. The grammar's `dependency` rule exposes a single flat `qualifiedName()` list (no

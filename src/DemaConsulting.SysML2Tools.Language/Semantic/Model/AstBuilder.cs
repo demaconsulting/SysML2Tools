@@ -1012,16 +1012,44 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     public override SysmlNode? VisitConnectionUsage(SysMLv2Parser.ConnectionUsageContext context)
     {
         var name = GetDeclaredName(context.usageDeclaration()?.identification());
-        var (endpointA, endpointB) = ExtractConnectorEnds(context.connectorPart());
+        var (endA, endB) = ExtractConnectorEnds(context.connectorPart());
 
-        return new SysmlConnectionNode
-        {
-            Name = name,
-            QualifiedName = name is not null ? QualifyName(name) : null,
-            ConnectionKeyword = "connection",
-            EndpointA = endpointA,
-            EndpointB = endpointB,
-        };
+        return BuildConnectionNode(name, "connection", endA, endB, payloadText: null);
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitInterfaceUsage(SysMLv2Parser.InterfaceUsageContext context)
+    {
+        // An interface usage connects two ports (interface i connect a.p to b.q). Its body
+        // (interface ends, nested features) is not modeled: the node carries the two ends only,
+        // like a connection usage, so a view can draw the interface as a connector.
+        var decl = context.interfaceUsageDeclaration();
+        var name = GetDeclaredName(decl?.usageDeclaration()?.identification());
+        var ends = decl?.interfacePart()?.binaryInterfacePart()?.interfaceEndMember();
+        var endA = ends is { Length: >= 2 } ? ConnectorEndDetail(ends[0].interfaceEnd()) : default;
+        var endB = ends is { Length: >= 2 } ? ConnectorEndDetail(ends[1].interfaceEnd()) : default;
+
+        return BuildConnectionNode(name, "interface", endA, endB, payloadText: null);
+    }
+
+    /// <inheritdoc/>
+    public override SysmlNode? VisitFlowUsage(SysMLv2Parser.FlowUsageContext context)
+    {
+        // flow [name] [of Payload] from a.out to b.in; or flow a.out to b.in; The flow ends are
+        // plain feature chains (no role names or multiplicities), unlike connector ends.
+        var decl = context.flowDeclaration();
+        var identification = decl?.featureDeclaration()?.featureIdentification();
+        var name = identification is not null
+            ? GetDeclaredName(identification)
+            : GetDeclaredName(decl?.usageDeclaration()?.identification());
+
+        var ends = decl?.flowEndMember();
+        var endA = ends is { Length: >= 2 } ? new ConnectorEndInfo(ends[0].flowEnd()?.GetText(), null, null) : default;
+        var endB = ends is { Length: >= 2 } ? new ConnectorEndInfo(ends[1].flowEnd()?.GetText(), null, null) : default;
+        var payload = OriginalTextOrNull(decl?.payloadFeatureMember())
+            ?? OriginalTextOrNull(decl?.flowPayloadFeatureMember());
+
+        return BuildConnectionNode(name, "flow", endA, endB, payload);
     }
 
     /// <inheritdoc/>
@@ -1040,14 +1068,12 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
             to = events[1].messageEvent()?.ownedReferenceSubsetting()?.GetText();
         }
 
-        return new SysmlConnectionNode
-        {
-            Name = name,
-            QualifiedName = name is not null ? QualifyName(name) : null,
-            ConnectionKeyword = "message",
-            EndpointA = from,
-            EndpointB = to,
-        };
+        return BuildConnectionNode(
+            name,
+            "message",
+            new ConnectorEndInfo(from, null, null),
+            new ConnectorEndInfo(to, null, null),
+            OriginalTextOrNull(decl?.flowPayloadFeatureMember()));
     }
 
     /// <inheritdoc/>
@@ -1058,16 +1084,9 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         // reusable as-is for allocate's two ends.
         var decl = context.allocationUsageDeclaration();
         var name = GetDeclaredName(decl?.usageDeclaration()?.identification());
-        var (endpointA, endpointB) = ExtractConnectorEnds(decl?.connectorPart());
+        var (endA, endB) = ExtractConnectorEnds(decl?.connectorPart());
 
-        return new SysmlConnectionNode
-        {
-            Name = name,
-            QualifiedName = name is not null ? QualifyName(name) : null,
-            ConnectionKeyword = "allocation",
-            EndpointA = endpointA,
-            EndpointB = endpointB,
-        };
+        return BuildConnectionNode(name, "allocation", endA, endB, payloadText: null);
     }
 
     /// <inheritdoc/>
@@ -1077,17 +1096,10 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         // bindingConnector/typeBody form has zero corpus evidence and is a documented limitation.
         var name = GetDeclaredName(context.usageDeclaration()?.identification());
         var ends = context.connectorEndMember();
-        var endpointA = ends.Length > 0 ? ConnectorEndReference(ends[0]) : null;
-        var endpointB = ends.Length > 1 ? ConnectorEndReference(ends[1]) : null;
+        var endA = ends.Length > 0 ? ConnectorEndDetail(ends[0].connectorEnd()) : default;
+        var endB = ends.Length > 1 ? ConnectorEndDetail(ends[1].connectorEnd()) : default;
 
-        return new SysmlConnectionNode
-        {
-            Name = name,
-            QualifiedName = name is not null ? QualifyName(name) : null,
-            ConnectionKeyword = "binding",
-            EndpointA = endpointA,
-            EndpointB = endpointB,
-        };
+        return BuildConnectionNode(name, "binding", endA, endB, payloadText: null);
     }
 
     /// <inheritdoc/>
@@ -1679,24 +1691,86 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <summary>
-    ///     Extracts the two endpoint references of a binary connector (the features either side of
-    ///     <c>connect … to …</c>), or nulls when the connector is not a simple binary connection.
+    ///     The parts of one end of a connector: the referenced feature chain, the optional role
+    ///     name of the <c>name ::&gt; reference</c> form, and the optional cross multiplicity text.
     /// </summary>
-    private static (string? A, string? B) ExtractConnectorEnds(SysMLv2Parser.ConnectorPartContext? connectorPart)
+    /// <param name="Reference">Referenced feature chain text (for example <c>a.p</c>), or null.</param>
+    /// <param name="RoleName">Role name declared before <c>::&gt;</c>, or null.</param>
+    /// <param name="Multiplicity">Cross multiplicity text (for example <c>[2]</c>), or null.</param>
+    private readonly record struct ConnectorEndInfo(string? Reference, string? RoleName, string? Multiplicity);
+
+    /// <summary>
+    ///     Extracts both ends of a binary connector (the features either side of
+    ///     <c>connect … to …</c>) with their role names and multiplicities, or empty ends when the
+    ///     connector is not a simple binary connection.
+    /// </summary>
+    private static (ConnectorEndInfo A, ConnectorEndInfo B) ExtractConnectorEnds(SysMLv2Parser.ConnectorPartContext? connectorPart)
     {
-        var binary = connectorPart?.binaryConnectorPart();
-        if (binary is null)
+        var ends = connectorPart?.binaryConnectorPart()?.connectorEndMember();
+        if (ends is not { Length: >= 2 })
         {
-            return (null, null);
+            return (default, default);
         }
 
-        var ends = binary.connectorEndMember();
-        if (ends.Length < 2)
-        {
-            return (null, null);
-        }
+        return (ConnectorEndDetail(ends[0].connectorEnd()), ConnectorEndDetail(ends[1].connectorEnd()));
+    }
 
-        return (ConnectorEndReference(ends[0]), ConnectorEndReference(ends[1]));
+    /// <summary>
+    ///     Reads the reference, role name, and cross multiplicity of a connector end
+    ///     (<c>[mult]? (name ::&gt;)? reference</c>).
+    /// </summary>
+    private static ConnectorEndInfo ConnectorEndDetail(SysMLv2Parser.ConnectorEndContext? end)
+    {
+        return end is null
+            ? default
+            : ConnectorEndDetail(end.name(), end.ownedCrossMultiplicityMember(), end.ownedReferenceSubsetting());
+    }
+
+    /// <summary>
+    ///     Reads the reference, role name, and cross multiplicity of an interface end
+    ///     (<c>[mult]? (name ::&gt;)? reference</c>, the same shape as a connector end).
+    /// </summary>
+    private static ConnectorEndInfo ConnectorEndDetail(SysMLv2Parser.InterfaceEndContext? end)
+    {
+        return end is null
+            ? default
+            : ConnectorEndDetail(end.name(), end.ownedCrossMultiplicityMember(), end.ownedReferenceSubsetting());
+    }
+
+    /// <summary>Builds a <see cref="ConnectorEndInfo"/> from the three optional parse-tree parts of an end.</summary>
+    private static ConnectorEndInfo ConnectorEndDetail(
+        SysMLv2Parser.NameContext? name,
+        SysMLv2Parser.OwnedCrossMultiplicityMemberContext? multiplicity,
+        SysMLv2Parser.OwnedReferenceSubsettingContext? reference)
+    {
+        var multiplicityText = multiplicity?.GetText();
+        return new ConnectorEndInfo(
+            reference?.GetText(),
+            name?.GetText(),
+            string.IsNullOrEmpty(multiplicityText) ? null : multiplicityText);
+    }
+
+    /// <summary>Builds a <see cref="SysmlConnectionNode"/> from its keyword, two ends, and optional payload text.</summary>
+    private SysmlConnectionNode BuildConnectionNode(
+        string? name,
+        string keyword,
+        ConnectorEndInfo endA,
+        ConnectorEndInfo endB,
+        string? payloadText)
+    {
+        return new SysmlConnectionNode
+        {
+            Name = name,
+            QualifiedName = name is not null ? QualifyName(name) : null,
+            ConnectionKeyword = keyword,
+            EndpointA = endA.Reference,
+            EndpointB = endB.Reference,
+            EndpointAName = endA.RoleName,
+            EndpointAMultiplicity = endA.Multiplicity,
+            EndpointBName = endB.RoleName,
+            EndpointBMultiplicity = endB.Multiplicity,
+            PayloadText = payloadText,
+        };
     }
 
     /// <summary>Returns the qualified feature reference named by a connector end, or null.</summary>
@@ -2924,6 +2998,22 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
         }
 
         return names;
+    }
+
+    /// <summary>
+    ///     Extracts the declared name from a <see cref="SysMLv2Parser.FeatureIdentificationContext"/>
+    ///     (<c>&lt;shortName&gt; declaredName?</c> or <c>declaredName</c>), or null when only a short
+    ///     name is present.
+    /// </summary>
+    private static string? GetDeclaredName(SysMLv2Parser.FeatureIdentificationContext identification)
+    {
+        var names = identification.name();
+        if (identification.LT() is not null)
+        {
+            return names.Length >= 2 ? names[1].GetText() : null;
+        }
+
+        return names.Length >= 1 ? names[0].GetText() : null;
     }
 
     /// <summary>

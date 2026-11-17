@@ -18,7 +18,7 @@ connections, transitions, dependency declarations, and requirement-satisfaction 
 | `SysmlMetadataNode` | Applied metadata annotation; adds TypeReference and Attributes |
 | `SysmlViewNode` | View definition; adds RenderTargetName, ExposeMembers, and filter-expression fields |
 | `SysmlViewpointNode` | Viewpoint definition |
-| `SysmlConnectionNode` | Connection/binding/allocation usage; adds ConnectionKeyword, EndpointA, EndpointB |
+| `SysmlConnectionNode` | Connection/binding/allocation/message/interface/flow usage; adds ConnectionKeyword, EndpointA/B, end role names and multiplicities, PayloadText |
 | `SysmlTransitionNode` | State transition; adds Source, Target, Guard, Trigger, Effect |
 | `SysmlSatisfyNode` | `satisfy X by Y;` requirement-satisfaction usage; adds RequirementName, SubjectName |
 | `SysmlDependencyNode` | Standalone `dependency A, B to C, D;` declaration; adds FromNames, ToNames |
@@ -108,16 +108,26 @@ There are no behavioral methods beyond the inherited `object` members. `SysmlImp
 
 `SysmlConnectionNode` adds:
 
-- `ConnectionKeyword` — the connection keyword (e.g., `"connection"`, `"binding"`, or the
+- `ConnectionKeyword` — the connection keyword (e.g., `"connection"`, `"binding"`, `"message"`, the
   `"allocation"` variant produced by `AstBuilder.VisitAllocationUsage` for `allocate A to B;`,
   reusing this node's endpoint shape since `allocationUsageDeclaration`'s `connectorPart` is the
-  exact same grammar rule used by `connectionUsage`).
+  exact same grammar rule used by `connectionUsage`, and the `"interface"` and `"flow"` variants
+  produced by `VisitInterfaceUsage` and `VisitFlowUsage`). `ReferenceResolver` resolves only the
+  `"connection"`, `"message"`, `"binding"`, and `"allocation"` variants; `"interface"` and `"flow"`
+  nodes add no edges and no diagnostics.
 - `EndpointA` — the first endpoint reference (e.g., `"engine.fuelPort"`), or null when unresolved.
   For `"connection"`/`"message"` keyword variants, resolved by `ReferenceResolver`'s feature-chain
   walk into a `SysmlEdgeKind.Connect` edge (see `SysmlEdgeKind.Connect`); dotted chains on
   `"allocation"` endpoints remain unresolved.
 - `EndpointB` — the second endpoint reference (e.g., `"transmission.input"`), or null when
   unresolved. Resolved the same way as `EndpointA`.
+- `EndpointAName`, `EndpointBName` — the role name of an end declared as `name ::> reference`
+  (connection, binding, and interface ends), or null. Not resolved; omitted from serialized output
+  when null.
+- `EndpointAMultiplicity`, `EndpointBMultiplicity` — the cross multiplicity text written before an
+  end (`[2] reference`), or null. Omitted from serialized output when null.
+- `PayloadText` — the verbatim payload clause after `of` of a `"flow"` or `"message"` (`Torque` in
+  `flow of Torque from a.out to b.in`), or null. Omitted from serialized output when null.
 
 `SysmlTransitionNode` adds:
 
@@ -245,6 +255,9 @@ and data written before the members existed deserializes with all of them at the
 | `IsParallel` | definition, feature | `state def`/`state` declared `parallel` |
 | `Trigger`, `Effect` | transition | verbatim trigger and effect text |
 | `IsElse` | transition | succession declared with `else` |
+| `EndpointAName`, `EndpointBName` | connection | role name of a connector end (`name ::> reference`) |
+| `EndpointAMultiplicity`, `EndpointBMultiplicity` | connection | cross multiplicity text of a connector end |
+| `PayloadText` | connection | payload clause of a flow or message |
 
 `ReferenceSubsettingName` and `ConjugatedFeatureTyping` are deliberately **not** merged into
 `SupertypeNames` or `FeatureTyping`: doing so would add `Supertype`/`Typing` edges and change
@@ -269,7 +282,8 @@ elements are filtered out by `AstBuilder` before a node is constructed.
   captured `comment`/`doc` annotating elements nested in the node's body; sets
   `VerifiedRequirementNames` via the recursive verification-member finder; builds `SysmlSatisfyNode`
   instances from `satisfyRequirementUsage` via `VisitSatisfyRequirementUsage`, and the
-  `"allocation"` `SysmlConnectionNode` variant via `VisitAllocationUsage`; builds `SysmlViewNode`
+  `"allocation"`, `"interface"`, and `"flow"` `SysmlConnectionNode` variants via `VisitAllocationUsage`,
+  `VisitInterfaceUsage`, and `VisitFlowUsage`; builds `SysmlViewNode`
   instances (setting `RenderTargetName`/`FilterExpressionText`/`SourceFilePath`/`SourceLine`/
   `SourceColumn`, and additionally `ExposeMembers`
   for usages) from both `VisitViewDefinition` (`view def`) and

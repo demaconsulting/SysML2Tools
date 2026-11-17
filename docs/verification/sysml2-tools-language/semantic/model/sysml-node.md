@@ -58,7 +58,8 @@ external services or additional configuration are required beyond a standard .NE
 - The additive modifier and notation members (`IsAbstract`, `IsVariation`, `IsIndividual`,
   `IsVariant`, `IsReference`, `Direction`, `IsOrdered`, `IsNonunique`, `ValueText`,
   `ReferenceSubsettingName`, `ConjugatedFeatureTyping`/`IsConjugated`, `ActionText`, `IsParallel`
-  on definitions and features; `Trigger`/`Effect`/`IsElse` on transitions) hold their documented values for
+  on definitions and features; `Trigger`/`Effect`/`IsElse` on transitions; the end names, end
+  multiplicities, and `PayloadText` on connection nodes) hold their documented values for
   models that use the corresponding syntax and their defaults (`false`/null) otherwise.
 
 ##### Test Scenarios
@@ -107,4 +108,6 @@ external services or additional configuration are required beyond a standard .NE
 | Transition `IsElse` | `WorkspaceLoader_LoadAsync_ElseSuccession_SetsIsElse` |
 | IsElse round trip | `Serialize_NewModifierProperties_RoundTrip` |
 | IsElse omitted when false | `Serialize_DefaultModifierProperties_AreOmittedFromJson` |
+| Connection end names, multiplicities, and payload round trip, null omitted | `Serialize_ConnectionEndLabelsAndPayload_RoundTripAndNullIsOmitted` |
+| Connection end names and multiplicities captured | `WorkspaceLoader_LoadAsync_ConnectionEnds_CaptureRoleNamesAndMultiplicities` |
 | New members default for a plain model | `WorkspaceLoader_LoadAsync_PlainModel_AllNewMembersDefault` |

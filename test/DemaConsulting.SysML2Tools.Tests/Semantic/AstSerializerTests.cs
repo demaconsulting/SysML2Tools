@@ -342,6 +342,57 @@ public sealed class AstSerializerTests
     }
 
     /// <summary>
+    ///     The connector end names, end multiplicities, and payload text of a
+    ///     <see cref="SysmlConnectionNode"/> round-trip through the serializer, and a node without them
+    ///     omits the properties from the JSON.
+    /// </summary>
+    [Fact]
+    public void Serialize_ConnectionEndLabelsAndPayload_RoundTripAndNullIsOmitted()
+    {
+        // Arrange
+        var table = new SymbolTable();
+        table.RegisterAll(new SysmlConnectionNode
+        {
+            Name = "feed",
+            QualifiedName = "feed",
+            ConnectionKeyword = "flow",
+            EndpointA = "a.out1",
+            EndpointB = "b.in1",
+            EndpointAName = "supply",
+            EndpointAMultiplicity = "[2]",
+            EndpointBName = "drain",
+            EndpointBMultiplicity = "[1..*]",
+            PayloadText = "Torque",
+        });
+        table.RegisterAll(new SysmlConnectionNode
+        {
+            Name = "bare",
+            QualifiedName = "bare",
+            ConnectionKeyword = "interface",
+            EndpointA = "a.p",
+            EndpointB = "b.q",
+        });
+
+        // Act
+        var bytes = AstSerializer.Serialize(table, []);
+        var json = System.Text.Encoding.UTF8.GetString(bytes);
+        var (result, _) = AstDeserializer.Deserialize(bytes);
+
+        // Assert
+        var feed = Assert.IsType<SysmlConnectionNode>(result.Symbols["feed"]);
+        Assert.Equal("supply", feed.EndpointAName);
+        Assert.Equal("[2]", feed.EndpointAMultiplicity);
+        Assert.Equal("drain", feed.EndpointBName);
+        Assert.Equal("[1..*]", feed.EndpointBMultiplicity);
+        Assert.Equal("Torque", feed.PayloadText);
+        var bare = Assert.IsType<SysmlConnectionNode>(result.Symbols["bare"]);
+        Assert.Equal("interface", bare.ConnectionKeyword);
+        Assert.Null(bare.EndpointAName);
+        Assert.Null(bare.PayloadText);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(json, "\"PayloadText\""));
+    }
+
+    /// <summary>
     ///     Every additive modifier/notation member of definitions, features and transitions —
     ///     including the <see cref="SysmlFeatureDirection"/> enum — round-trips.
     /// </summary>

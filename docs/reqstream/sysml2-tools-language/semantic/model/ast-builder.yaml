@@ -624,3 +624,43 @@ sections:
           previously kept only its name.
         tests:
           - WorkspaceLoader_LoadAsync_AcceptSendNodes_CapturePayloadText
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-ConnectorEndLabels
+        title: >-
+          AstBuilder shall capture the role name (`name ::> reference`) and cross multiplicity
+          of each end of a connection, binding, and interface usage into the SysmlConnectionNode
+          end properties, leaving them null when the end declares neither.
+        justification: |
+          The grammar's connector and interface ends carry an optional role name and cross
+          multiplicity that the builder discarded; the interconnection notation shows both beside
+          the connector end.
+        tests:
+          - WorkspaceLoader_LoadAsync_ConnectionEnds_CaptureRoleNamesAndMultiplicities
+          - WorkspaceLoader_LoadAsync_BindingEnds_CaptureRoleNames
+          - WorkspaceLoader_LoadAsync_ConnectionUsages_CaptureEndpoints
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-InterfaceAndFlowUsages
+        title: >-
+          AstBuilder shall build a SysmlConnectionNode with ConnectionKeyword "interface" from an
+          interface usage with `connect A to B`, and with ConnectionKeyword "flow" from a flow
+          usage (`flow [of Payload] [from] A to B`), capturing the payload clause of a flow, and
+          shall add no reference-resolution edges or diagnostics for either.
+        justification: |
+          Interface and flow connectors are drawn by the interconnection view, so they must be
+          in the model with their two ends. Resolution is left unchanged on purpose: the view
+          resolves the ends by name as it does for connections, and no new diagnostics appear for
+          existing models.
+        tests:
+          - WorkspaceLoader_LoadAsync_InterfaceUsage_BuildsInterfaceConnectionNode
+          - WorkspaceLoader_LoadAsync_FlowUsage_BuildsFlowConnectionNodeWithPayload
+          - WorkspaceLoader_LoadAsync_InterfaceAndFlowUsages_ProduceNoDiagnostics
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-MessagePayload
+        title: >-
+          AstBuilder shall capture the payload clause of a message (`message m of Payload from a
+          to b`) into SysmlConnectionNode.PayloadText.
+        justification: |
+          The sequence notation labels a message with its payload; the builder dropped the
+          `of` clause.
+        tests:
+          - WorkspaceLoader_LoadAsync_MessageWithPayload_CapturesPayloadText
