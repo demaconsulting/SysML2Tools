@@ -1,6 +1,6 @@
-### DemaConsulting.SysML2Tools.Tool — Export Subsystem Verification
+## DemaConsulting.SysML2Tools.Tool — Export Subsystem Verification
 
-#### Verification Approach
+### Verification Approach
 
 The Export subsystem is verified using unit/integration tests in two files under
 `test/DemaConsulting.SysML2Tools.Tool.Tests/Export/` (`ExportSubsystemTests.cs`,
@@ -12,7 +12,7 @@ end-to-end scenario) the built tool as a real process via `Runner.Run`, assertin
 captured console output, exit code, produced file content, and deserialized JSON/JSONL
 shape. Tests run against the tool's target framework.
 
-#### Test Environment
+### Test Environment
 
 - Framework: xUnit v3
 - Target framework: net10.0
@@ -21,7 +21,7 @@ shape. Tests run against the tool's target framework.
   OMG reference models under `test/SysMLModels/OMG/` (locatable via a repo-root search
   upward from the test assembly's output directory).
 
-#### Acceptance Criteria
+### Acceptance Criteria
 
 - `--format json` (and the default, no `--format`) and `--format jsonl` both parse and
   dispatch without error; an unrecognized `--format` value produces an `ArgumentException`.
@@ -70,9 +70,9 @@ shape. Tests run against the tool's target framework.
 - Existing `lint`/`render`/`query` test suites continue to pass unmodified, confirming no
   regression.
 
-#### Test Scenarios
+### Test Scenarios
 
-##### ExportSubsystemTests.cs
+#### ExportSubsystemTests.cs
 
 **`ExportArgumentParser_NoFlags_ProducesDefaults`**: Verifies that parsing with only file
 globs produces `Format = null`, `Output = null`, `IncludeStdlib = false`.
@@ -170,7 +170,7 @@ unsupported Phase 1 `--filter` construct does not abort the export — it falls 
 unfiltered result, appends a synthetic warning `SysmlDiagnostic` (`FilePath = "<--filter>"`,
 `Severity = Warning`) to the output, and prints a matching console warning.
 
-##### ExportRenderingTests.cs
+#### ExportRenderingTests.cs
 
 **`ExportResultSerializerContext_DefinitionNode_RoundTripsTypeDiscriminator`** /
 **`ExportResultSerializerContext_FeatureNode_UsesFeatureTypeDiscriminator`**: Verifies JSON
@@ -219,13 +219,13 @@ smaller than an unscoped baseline export, contains no synthetic `--filter`-failu
 diagnostic, and that every declaration key and edge endpoint lies within the `--target`
 subtree. Satisfies `SysML2Tools-Tool-Export-Target` and `SysML2Tools-Tool-Export-Filter`.
 
-##### Validation_RunExportSelfTest_ValidModel_Passes (ValidationTests.cs)
+#### Validation_RunExportSelfTest_ValidModel_Passes (ValidationTests.cs)
 
 Verifies that `Validation.RunExportSelfTestAsync` passes against the built-in self-test
 model, reporting a passing `TestResult` named `SysML2Tools_ExportSelfTest`. Satisfies
 `SysML2Tools-Tool-Export-SelfTest`.
 
-##### ContextTests.cs
+#### ContextTests.cs
 
 **`Context_Create_ExportCommand_SetsCommandExport`**: Verifies that
 `Context.Create(["export"])` sets `Command` to `SysmlCommand.Export` with exit code 0.

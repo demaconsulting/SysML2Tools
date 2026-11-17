@@ -1,6 +1,6 @@
-### DemaConsulting.SysML2Tools.Tool — Export Subsystem
+## DemaConsulting.SysML2Tools.Tool — Export Subsystem
 
-#### Overview
+### Overview
 
 The Export subsystem implements the `export` CLI command: a single-purpose command that
 loads a workspace and dumps its resolved semantic model — every declaration, every semantic
@@ -29,7 +29,7 @@ cooperating types:
 - `ExportResultSerializerContext` / `ExportLineSerializerContext` — two source-generated
   `JsonSerializerContext` classes (see **Serialization Contexts** below).
 
-#### Command Semantics
+### Command Semantics
 
 `ExportCommand.RunAsync` performs the same file-resolution and workspace-loading sequence as
 `query`/`render` (`GlobFileCollector.Collect`, `StdlibProvider.GetSymbolTable()`,
@@ -61,7 +61,7 @@ cooperating types:
 7. Writes the rendered text to the file named by `--output` (via `File.WriteAllText`) when
    present, or to stdout via `context.WriteLine` otherwise.
 
-##### Stdlib Filtering
+#### Stdlib Filtering
 
 `ExportCommand` defines its own `private static bool IsVisible(string qualifiedName,
 SysmlWorkspace workspace, bool includeStdlib) => includeStdlib ||
@@ -77,7 +77,7 @@ the stdlib symbol table returned by `StdlibProvider.GetSymbolTable()` is a pre-r
 consumed as-is by `WorkspaceLoader`, not re-parsed, so it can never itself be a diagnostic
 source.
 
-##### Target Scoping
+#### Target Scoping
 
 `--target <qualified-name>` restricts export output to the containment subtree rooted at the
 named element. `ExportCommand.ResolveTargetSubtreeSubjects` resolves the target: it returns
@@ -104,7 +104,7 @@ machinery is deliberately omitted from this smaller copy. Future changes to
 `ExposeScopeResolver`'s whole-subtree-subject behavior should prompt a deliberate check of
 whether this duplicate needs a matching update.
 
-##### Filter Narrowing
+#### Filter Narrowing
 
 `--filter <expr>` narrows the exported declarations/edges using the same Phase 1
 filter-expression subset `render`'s dynamic-view `--filter` uses, reusing the public
@@ -135,9 +135,9 @@ Composition order is deliberate: `--target` scopes first, `--filter` narrows sec
 `--filter` narrows the whole (stdlib-filtered) workspace, matching a view with a `filter`
 statement but no `expose` statement.
 
-#### Output Model
+### Output Model
 
-##### ExportResult Data Model
+#### ExportResult Data Model
 
 - `Declarations` (`IReadOnlyDictionary<string, SysmlNode>`) — every visible declaration,
   keyed by its qualified name.
@@ -159,7 +159,7 @@ design) are exported with no export-specific code. Each is written only when set
 (`"IsAbstract"`, `"ValueText"`), like the existing node properties. `ReferenceSubsettingName` and
 `ConjugatedFeatureTyping` are raw, unresolved text and produce no edge.
 
-##### JSON Rendering (`--format json`, default)
+#### JSON Rendering (`--format json`, default)
 
 A single indented JSON document is produced via
 `JsonSerializer.Serialize(result, ExportResultSerializerContext.Default.ExportResult)`. The
@@ -168,7 +168,7 @@ A single indented JSON document is produced via
 pre-existing `[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]` /
 `[JsonDerivedType]` attributes — no export-specific converter is required.
 
-##### JSONL Rendering (`--format jsonl`)
+#### JSONL Rendering (`--format jsonl`)
 
 `ExportCommand.RenderJsonLines` emits one compact (non-indented) JSON object per line: one
 line per `Declarations` entry wrapped in `ExportDeclarationLine` (`Kind = "declaration"`),
@@ -183,7 +183,7 @@ line is flat (`ExportEdgeLine`) and mirrors the JSON edge: it includes `RawRefer
 edge carries one (`JsonIgnoreCondition.WhenWritingNull`, set by `ExportEdgeLine.Create`), so both
 formats expose the same additive, null-omitted field.
 
-##### Serialization Contexts
+#### Serialization Contexts
 
 Source-generated `JsonSerializerContext` types apply their `WriteIndented` setting at the
 context level only — there is no supported per-`Serialize`-call override in AOT-safe
@@ -195,7 +195,7 @@ types) are therefore two separate, purpose-built contexts — the concrete resol
 recommended by this unit's planning report for the single-vs-dual-context design question,
 implemented directly without re-spiking.
 
-#### ExportOptions
+### ExportOptions
 
 - `Format` (`string?`) — `"json"` (default) or `"jsonl"` from `--format`.
 - `Output` (`string?`) — a **file path** (not a directory) from `--output`; when omitted,
@@ -213,9 +213,9 @@ implemented directly without re-spiking.
   See **Filter Narrowing** above.
 - `Files` (`IReadOnlyList<string>`) — file glob patterns.
 
-#### ExportCommand
+### ExportCommand
 
-##### Key Methods
+#### Key Methods
 
 **`RunAsync(Context context)`**
 
@@ -240,7 +240,7 @@ implemented directly without re-spiking.
 explicit note that `--output` names a file, not a directory), and one example invocation,
 sourced from `ExportStrings`.
 
-#### Localization / Resource Strings
+### Localization / Resource Strings
 
 `export`'s help text is sourced from `ExportStrings`, a hand-written, culture-aware
 `ResourceManager` accessor over `Export/ExportStrings.resx`, following the exact pattern
@@ -248,7 +248,7 @@ established by `LintStrings`/`RenderStrings`/`QueryStrings` (see
 `docs/design/sysml2-tools-tool/program.md`'s "Localization / Resource Strings" section for
 the rationale).
 
-#### Error Handling
+### Error Handling
 
 - `context.Export is null`: `ArgumentException` (defensive; should not occur via `Program`).
 - Unsupported `--format` value: `ArgumentException` naming the bad value.
@@ -266,7 +266,7 @@ the rationale).
   appended to the output and a matching `context.WriteLine` console warning; `Context.ExitCode`
   remains 0. See **Filter Narrowing** above.
 
-#### Dependencies
+### Dependencies
 
 - `Context`, `SysmlCommand` (in `DemaConsulting.SysML2Tools.Cli`) — reads `Export` options;
   writes output.
@@ -276,13 +276,13 @@ the rationale).
   `SysmlEdge`, `SysmlDiagnostic` (in `DemaConsulting.SysML2Tools.Semantic`/`.Internal`) —
   workspace loading and the model dumped by `ExportCommand`.
 
-#### Callers
+### Callers
 
 - `Program.RunToolLogicAsync` — dispatches to `ExportCommand.RunAsync` when
   `context.Command == SysmlCommand.Export`.
 - `Program.RunAsync` — dispatches to `ExportCommand.PrintHelp` for the `export --help` case.
 
-#### Requirements Traceability
+### Requirements Traceability
 
 | Requirement ID | Satisfied by |
 | --- | --- |
