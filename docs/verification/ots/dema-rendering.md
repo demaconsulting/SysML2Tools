@@ -10,21 +10,35 @@ Requirements document.
 SysML2Tools:
 
 - `DemaConsulting.Rendering` — the layout intermediate representation (`LayoutTree`, `LayoutBox`,
-  `LayoutLine`, and related nodes), the layout property system, and `LayoutGraph`.
+  `LayoutLine`, and related nodes), the layout property system, `LayoutGraph`, and the notation
+  styling carried on graph nodes and compartments (`BoxAppearance`, compartment title alignment and
+  style, and the extended `EndMarkerStyle` values).
 - `DemaConsulting.Rendering.Abstractions` — the `IRenderer` contract, `Theme`, `RenderOptions`,
   `RenderOutput`, `NotationMetrics`, `BoxMetrics`, and `ConnectorLabelPlacer`.
 - `DemaConsulting.Rendering.Layout` — the `LayeredLayoutAlgorithm`, `LayoutEngine`, containment
-  layout, and connector routing.
+  layout, the automatic algorithm selection, and connector routing.
 - `DemaConsulting.Rendering.Svg` — the `SvgRenderer`.
 - `DemaConsulting.Rendering.CanvasNet` — the CanvasNet-based `PngRenderer` (and `JpegRenderer`).
 
 SysML2Tools relies on the family to lay a graph of sized nodes and directed edges out into placed
 boxes and routed orthogonal connectors, honor the requested layout direction (including a
-top-to-bottom flow), pack container regions, route connectors around the boxes it places, and
-render a layout tree to both SVG and PNG, and route an edge declared on an ancestor graph scope
-between the nested endpoint nodes themselves (cross-hierarchy edges, available since version
-0.3.0-beta.2), and stack the unconnected groups of a layered container's contents in the order the
-nodes were added.
+top-to-bottom flow, cascaded to every nested container scope), pack container regions, route
+connectors around the boxes it places, and render a layout tree to both SVG and PNG. It also relies
+on the following features introduced by version 0.3.0-beta.3 of the family, in addition to the
+cross-hierarchy edges of version 0.3.0-beta.2 (an edge declared on an ancestor graph scope is routed
+between the nested endpoint nodes themselves) and the insertion-order stacking of the unconnected
+groups of a layered container's contents:
+
+- the per-node `BoxAppearance` (outline style, name style, folder-title placement) carried from the
+  graph node to the placed box and drawn by both renderers (dashed reference usages, italic abstract
+  definition names, package names in the folder tab);
+- the compartment title alignment and title style (centered italic compartment titles);
+- the `HollowTriangleTwoDots` and `HollowTriangleFourDots` end markers (feature typing and reference
+  subsetting) in addition to the existing hollow-triangle, hollow-triangle-with-crossbar, diamond, and
+  open-arrowhead markers;
+- the layout direction set on the root graph cascading to nested folders and containers, and per-node
+  algorithm overrides that survive the `auto` meta-algorithm's split into connected and unconnected
+  groups.
 
 Version 0.3.0-beta.3 of the family adds the SysML v2 notation primitives that the State Transition
 and Action Flow views rely on: thick fork and join bars (`BadgeShape.ThickHorizontalBar`), the
@@ -38,7 +52,9 @@ box (`BoxCornerIcon`), obstacle-aware connector label placement (`ConnectorLabel
 pipeline. The SysML2Tools view layout strategies and renderers drive the package family end-to-end
 on every test run: the `LayeredPlacement` helper builds a `LayoutGraph` and runs
 `LayeredLayoutAlgorithm`, while the `Tool` and core `DiagramRenderer` render the resulting
-`LayoutTree` through the package's SVG and PNG renderers. A passing pipeline run for all scenarios
+`LayoutTree` through the package's SVG and PNG renderers. The notation styling drawn by the renderers is
+additionally verified by focused tests that render small hand-built layout trees and assert on the SVG
+elements and attributes and on decoded PNG pixels. A passing pipeline run for all scenarios
 below constitutes evidence that the requirements are satisfied.
 
 ### Test Scenarios
@@ -283,3 +299,183 @@ as long as the marker.
 **Expected**: Every succession ends in an open chevron on an approach at least as long as the marker.
 
 **Requirement coverage**: `SysML2Tools-OTS-DemaRendering-BackEdgeApproach`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_ReferenceUsage_OutlineIsDashedAndCompositeUsageIsSolid
+
+**Scenario**: A reference usage and a composite usage are laid out as graph nodes whose box appearance
+requests a dashed and a default outline.
+
+**Expected**: The placed box of the reference usage carries the dashed outline and the composite
+usage's box the solid one.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_AbstractDefinition_NameIsItalicButAbstractUsageIsNot
+
+**Scenario**: An abstract definition's graph node requests an italic name style.
+
+**Expected**: The placed box carries the italic name style; the abstract usage's box carries the default.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_PackageFolder_NameInTabOnlyWhenItHasContent
+
+**Scenario**: A package folder with content requests the name in the tab; an empty package and a
+collapsed package do not.
+
+**Expected**: The placed folder box carries the tab placement only for the folder with content.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments
+
+**Scenario**: A definition's compartments request centered, italic titles.
+
+**Expected**: Every compartment of the placed box carries the centered alignment and italic style.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_ReferenceSubsetting_ProducesHollowTriangleFourDotsEdgeOnlyWhenResolved
+
+**Scenario**: A usage reference-subsets another; the edge requests the four-dots triangle marker.
+
+**Expected**: The routed connector carries the four-dots triangle end marker.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_AllUsages_AttributeUsage_IsNodeWithTypingAndHollowDiamond
+
+**Scenario**: A typed usage and its definition are laid out; the typing edge requests the two-dots
+triangle marker.
+
+**Expected**: The routed connector carries the two-dots triangle end marker at the definition.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### SvgRenderer_Render_DashedOutline_ReferenceUsageHasDashArrayAndCompositeUsageIsSolid
+
+**Scenario**: A hand-built layout tree holds a rounded box whose appearance requests a dashed outline
+(a reference usage) next to a rounded box with the default appearance (a composite usage); the
+package's `SvgRenderer` renders it.
+
+**Expected**: The outline rectangle of the dashed box carries a non-empty `stroke-dasharray`; the
+outline rectangle of the default box carries none.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### SvgRenderer_Render_ItalicName_AbstractDefinitionIsItalicAndConcreteIsNot
+
+**Scenario**: A hand-built layout tree holds a box whose appearance requests the bold-italic name style
+(an abstract definition) next to a default box (a concrete definition); the `SvgRenderer` renders it.
+
+**Expected**: The abstract name text has `font-style="italic"` and stays bold; the concrete name text
+has no `font-style` attribute.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### SvgRenderer_Render_CompartmentTitle_CenteredAndItalicWhenRequested
+
+**Scenario**: Three hand-built boxes carry a compartment with a centered italic title, a centered
+regular-style title, and a default title; the `SvgRenderer` renders them.
+
+**Expected**: The centered italic title has `text-anchor="middle"`, is positioned at the horizontal
+center of its box, and has `font-style="italic"`. The regular-style title is also centered but has no
+italic style, which shows that the requested style is carried through rather than a fixed default; the
+default title is not middle-anchored.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### SvgRenderer_Render_FolderNameInTab_NameInsideTabWithoutSecondTitleBand
+
+**Scenario**: Two hand-built folder boxes with the same tab size are rendered; one requests the name in
+the tab and the other keeps the default placement.
+
+**Expected**: The tab-titled folder's name occurs exactly once and its position lies inside the tab
+rectangle (so no second title band is drawn in the folder body); the default folder's name lies below
+the tab.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### SvgRenderer_Render_HollowTriangleTwoDots_MarkerHasTriangleAndTwoDots
+
+**Scenario**: A hand-built connector ending in the `HollowTriangleTwoDots` marker is rendered by the
+`SvgRenderer`.
+
+**Expected**: The `line-end-hollow-triangle-two-dots` marker definition holds one polygon and exactly
+two circles, and the connector path references it as its end marker. The assertions use the marker
+identifier and the element counts, not coordinates.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### SvgRenderer_Render_HollowTriangleFourDots_MarkerHasTriangleAndFourDots
+
+**Scenario**: A hand-built connector ending in the `HollowTriangleFourDots` marker is rendered by the
+`SvgRenderer`.
+
+**Expected**: The `line-end-hollow-triangle-four-dots` marker definition holds one polygon and exactly
+four circles in two distinct columns, and the connector path references it as its end marker.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### SvgRenderer_Render_HollowTriangleCrossbar_MarkerHasTriangleAndBarWithoutDots
+
+**Scenario**: A hand-built connector ending in the `HollowTriangleCrossbar` marker is rendered by the
+`SvgRenderer`.
+
+**Expected**: The `line-end-hollow-triangle-crossbar` marker definition holds one polygon and one
+vertical bar line and no circles, and the connector path references it as its end marker.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### PngRenderer_Render_DashedOutline_TopEdgeAlternatesDarkAndWhiteAndSolidEdgeDoesNot
+
+**Scenario**: A hand-built layout tree holds a dashed-outline rectangle and a default rectangle; the
+CanvasNet-based `PngRenderer` renders it and the PNG is decoded. A pixel probe walks the straight top
+edge of each rectangle, sampling the two pixel rows the outline straddles.
+
+**Expected**: The dashed edge alternates between dark outline and white background at least ten times;
+the default edge never shows a white gap and is dark.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### PngRenderer_Render_HollowTriangleFourDots_DrawsDarkDotsBehindTriangle
+
+**Scenario**: A hand-built tree holds one connector ending in the `HollowTriangleFourDots` marker and one
+ending in the plain `HollowTriangle` marker; the `PngRenderer` renders it and the PNG is decoded. A
+pixel probe counts the separate dark spots in a band above and a band below each connector, just left
+of the triangle.
+
+**Expected**: Two dark spots are found in each band for the four-dots marker (four dots in total) and
+none for the plain triangle. The probe depends on spot counts in a band, not on exact marker geometry.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NotationStyling`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_TopDown_OwnerAndGeneralAboveUsageAndDefinitionBelow
+
+**Scenario**: A definition owning a usage typed by another definition, and a specialization, are laid
+out with the top-to-bottom direction set on the root graph only; the definitions sit in nested package
+containers.
+
+**Expected**: The package places the layout-edge sources above their targets, also inside the nested
+containers.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NestedDirectionAndAutoLayout`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_TopDown_UnconnectedDefinitionsDoNotOverlap
+
+**Scenario**: A folder with twelve unconnected nodes and one connected pair is laid out with the
+`auto` algorithm selection and the top-to-bottom direction, in a folder and at the root.
+
+**Expected**: No two placed boxes overlap.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NestedDirectionAndAutoLayout`.
+
+#### GeneralViewLayoutStrategy_BuildLayout_DroneLikeModel_IsCompactAndTopDown
+
+**Scenario**: A graph whose owner reaches eight usages, each typed by its own definition, is laid out
+with the top-to-bottom direction.
+
+**Expected**: The usages share one row below the owner, each definition hangs below its usage, and the
+drawing stays compact.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NestedDirectionAndAutoLayout`.

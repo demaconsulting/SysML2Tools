@@ -24,23 +24,48 @@ sysml2tools render <model>.sysml --format png --output docs/gallery/png
 sysml2tools render <model>.sysml --format svg --output docs/gallery/svg
 ```
 
+For example, to regenerate every image at once (from the repository root, with the `sysml2tools`
+tool installed):
+
+```pwsh
+foreach ($model in Get-ChildItem docs/gallery/models/*.sysml) {
+    sysml2tools render $model.FullName --format png --output docs/gallery/png
+    sysml2tools render $model.FullName --format svg --output docs/gallery/svg
+}
+```
+
+Regenerate the whole gallery whenever the layout or the drawing code changes, since a change to
+either can alter every image, and review each changed PNG before committing it.
+
 ---
 
 ## 1. General View — Quadcopter Drone
 
 Shows every definition kind (part, port, interface, attribute, enumeration,
-requirement) grouped in a package folder, with typed compartments (attributes,
-ports, parts) and specialization edges. Definitions are placed by a layered
-(ELK-style) engine with orthogonal edge routing.
+requirement) grouped in a package folder (with the package name in the folder's tab),
+with typed compartments (attributes, ports) and specialization edges. Definitions are
+placed by a layered (ELK-style) engine with orthogonal edge routing; the graph flows
+top-to-bottom, so an owner or general definition is drawn above the elements that refer to it.
+
+Each part usage (`airframe`, `controller`, `motors`, and so on) is drawn as its own rounded box
+labeled `name : Type`, joined to its owner `Drone` by a filled-diamond composition edge and to
+the definition that types it, drawn below it, by a feature-typing edge (a hollow triangle with
+two dots at the definition). Definitions that nothing refers to are packed together in a block of
+three columns, placed in the free space of the diagram (right of `Battery`, below the sensors) instead
+of widening it. See [section 14](#14-general-view--usages-typing-subsetting-and-redefinition) for
+the usage notation in a small model of its own.
 
 `RacingMotor` also redefines `Motor`'s inherited `maxThrust` attribute
-(`attribute :>> maxThrust : Mass;`), demonstrating the hollow-triangle-crossbar
-marker used for `redefines`/`:>>` relationships.
+(`attribute :>> maxThrust : Mass;`). An attribute is a compartment row, so the redefinition
+is shown as the row `maxThrust : Mass :>> maxThrust` in the `attributes` compartment and not
+as a connector. The hollow-triangle-with-crossbar marker of a redefinition appears when a usage
+that is drawn as a node redefines another usage; see
+[section 14](#14-general-view--usages-typing-subsetting-and-redefinition) (`mainMotor :>> main`).
 
 `Drone`'s `connect controller.power to battery.output;` statement demonstrates
 the plain, unmarked solid line used for `connect` between two sibling parts'
 ports. `RacingDrone`'s `part frontMotors : Motor[2] subsets motors;` narrows
-`Drone`'s inherited `motors` feature, demonstrating the dashed hollow-triangle
+`Drone`'s inherited `motors` feature, demonstrating the hollow-triangle
 marker used for `subsets`/`:>` feature subsetting. `allocate FlightTimeRequirement
 to Battery;` demonstrates the solid open-chevron line carrying the
 `«allocate»` stereotype label used for allocation relationships, while the
@@ -332,8 +357,9 @@ Model: [`models/10-mission-control-expose-recursion.sysml`](models/10-mission-co
 
 The unscoped `MissionControlGeneralView` in the same model draws the whole hierarchy: the
 `MissionControl` folder holds the `GroundSegment` and `SpaceSegment` folders, and
-`GroundSegment` in turn holds the `RadioNetwork` folder beside the `OperatorConsole` and
-`ThermalRegulator` boxes, because a nested package is drawn inside its owner's folder.
+`GroundSegment` in turn holds the `RadioNetwork` folder together with the `OperatorConsole` and
+`ThermalRegulator` boxes, because a nested package is drawn inside its owner's folder. Each
+folder shows its name in its tab.
 
 Model: [`models/10-mission-control-expose-recursion.sysml`](models/10-mission-control-expose-recursion.sysml)
 (`MissionControlGeneralView`) · SVG: [`svg/MissionControlGeneralView.svg`](svg/MissionControlGeneralView.svg)
@@ -349,24 +375,25 @@ packages, `Powertrain` and `Body`, which are drawn as folders **inside** the `Ve
 rather than beside it, together with `Car`, a definition owned by `Vehicle` itself.
 
 Every relationship between two drawn definitions is drawn as a connector between the two
-definition boxes themselves, whichever packages they are in. `Hybrid :> Powertrain::Engine`
-is a specialization that crosses from the `Body` package into the `Powertrain` package, and
-`Car`'s `engine : Powertrain::Engine` and `chassis : Body::Chassis` parts draw filled-diamond
-composition edges from the nested packages' definitions to the owner-level `Car` box. Each
-connector is declared in the innermost container that encloses both of its ends (here the
-`Vehicle` folder), so it leaves the nested folders and ends on the definition boxes, not on the
-folder borders. Specializations inside one package (`ElectricMotor :> Engine`,
-`SportsChassis :> Chassis`) stay inside that package's folder.
+boxes themselves, whichever packages they are in. `Hybrid :> Powertrain::Engine` is a
+specialization that crosses from the `Body` package into the `Powertrain` package, and `Car`'s
+`engine : Powertrain::Engine` and `chassis : Body::Chassis` part usages are drawn as rounded
+boxes joined to `Car` by filled-diamond composition edges and to the definitions that type them,
+inside the nested folders, by feature-typing edges. Each connector is declared in the innermost
+container that encloses both of its ends (here the `Vehicle` folder), so it leaves the nested
+folders and ends on the definition boxes, not on the folder borders. Specializations inside one
+package (`ElectricMotor :> Engine`, `SportsChassis :> Chassis`) stay inside that package's folder.
 
-The order of the definitions inside a folder follows where their relationships lead rather than the
-order they were declared in: `Hybrid` is declared after `Chassis`, but its specialization leads into
-the nearer `Powertrain` folder while `Chassis`'s composition leads past it to `Car`, so `Hybrid` is
-drawn above `Chassis` and the connectors do not cross.
+The diagram flows top-to-bottom: `Car` and its usages on top, the definitions below. The
+`Hybrid` specialization starts in the `Body` folder and points up to `Engine`, so the `Powertrain`
+folder is drawn above the `Body` folder. Its connector crosses the `ElectricMotor` to `Engine`
+line once (an engine routing outcome). [Section 16](#16-general-view--nested-packages-and-feature-typing)
+shows the same package structure without `Hybrid`, side by side.
 
 Model: [`models/11-nested-packages-general.sysml`](models/11-nested-packages-general.sysml) ·
 SVG: [`svg/VehiclePackagesGeneralView.svg`](svg/VehiclePackagesGeneralView.svg)
 
-![Vehicle Packages General View: Powertrain and Body folders nested inside the Vehicle folder, with the Hybrid specialization and the Engine and Chassis compositions into Car drawn between the definition boxes](png/VehiclePackagesGeneralView.png)
+![Vehicle Packages General View: Powertrain and Body folders nested inside the Vehicle folder, with the Hybrid specialization and the Engine and Chassis typing edges drawn between the definition boxes](png/VehiclePackagesGeneralView.png)
 
 ---
 
@@ -397,6 +424,64 @@ Model: [`models/13-order-action-flow.sysml`](models/13-order-action-flow.sysml) 
 SVG: [`svg/OrderActionFlowView.svg`](svg/OrderActionFlowView.svg)
 
 ![Order Handling Action Flow View: an accept action, a guarded decision with an else branch, a fork and join as thick bars, a send action, and done and terminate nodes](png/OrderActionFlowView.png)
+
+---
+
+## 14. General View — Usages, Typing, Subsetting and Redefinition
+
+A small model (`DriveSystem`) that shows how a General View draws **usages** as nodes and
+every relationship a usage can have:
+
+- `DriveUnit` owns three usages. Each part usage is a rounded box labeled `name : Type`
+  (`motors : Motor [2]` shows a multiplicity) joined to its owner by a filled-diamond
+  composition edge and to its type by a feature-typing edge (hollow triangle with two dots at
+  the definition).
+- `spare` is a reference usage (`ref part spare : InductionMotor;`): a dashed rounded box with
+  the `«ref part»` keyword, joined to its owner by a hollow diamond instead of a filled one.
+- `Motor` is an abstract definition: its keyword line reads `«abstract part def»`
+  and its name is italic. `InductionMotor :> Motor` is an ordinary definition
+  specialization (solid line, hollow triangle at the general definition).
+- `RearDrive :> DriveUnit` narrows two inherited usages. `frontMotor :> motors` is subsetting
+  (hollow triangle at the subsetted usage) and `mainMotor :>> main` is redefinition (hollow
+  triangle with a crossbar at the redefined usage). Neither repeats a type, so each inherits
+  the type of the usage it narrows.
+- `main` owns a `doc` and a `comment`: the documentation is a `doc` compartment inside the
+  box and the comment is a note attached by a dashed line.
+
+Model: [`models/14-usages-typing-general.sysml`](models/14-usages-typing-general.sysml) ·
+SVG: [`svg/DriveUnitGeneralView.svg`](svg/DriveUnitGeneralView.svg)
+
+![Drive Unit General View: part usages as rounded boxes with typing, subsetting and redefinition edges, a dashed reference usage, and an abstract definition with an italic name](png/DriveUnitGeneralView.png)
+
+---
+
+## 15. General View — Documentation and Comments on Nested Parts
+
+A minimal model (`ChargingStation`) that isolates how a General View draws annotations owned
+by a nested part usage. `Charger` owns the part usages `cable : Cable` and `plug : Plug`.
+Documentation owned by a usage is drawn as a `doc` compartment inside that usage's box (both
+`cable` and `plug`). A comment owned by a usage is drawn as a separate folded-corner note,
+attached to the usage's box by a dashed line with no arrowhead (the note below `cable`).
+
+Model: [`models/15-doc-comment-general.sysml`](models/15-doc-comment-general.sysml) ·
+SVG: [`svg/ChargerGeneralView.svg`](svg/ChargerGeneralView.svg)
+
+![Charger General View: nested part usages cable and plug with doc compartments, and a comment note attached to cable](png/ChargerGeneralView.png)
+
+---
+
+## 16. General View — Nested Packages and Feature Typing
+
+The `Vehicle` package of section 11 without the cross-package specialization, which keeps the
+diagram small: `Powertrain` and `Body` are folders inside the `Vehicle` folder, each showing its
+name in its tab because it holds content. `Car`'s `engine` and `chassis` part usages are drawn
+below `Car`, joined to it by filled-diamond composition edges, and each is joined to the
+definition that types it inside a nested folder by a feature-typing edge.
+
+Model: [`models/16-nested-packages-typing-general.sysml`](models/16-nested-packages-typing-general.sysml) ·
+SVG: [`svg/VehicleTypingGeneralView.svg`](svg/VehicleTypingGeneralView.svg)
+
+![Vehicle Typing General View: Powertrain and Body folders nested inside the Vehicle folder, with the engine and chassis part usages typed by definitions inside them](png/VehicleTypingGeneralView.png)
 
 ---
 
@@ -431,3 +516,6 @@ single-column flows; the State Transition images (Elevator 23.8 %, Heater 22.9 %
 | 11 | General View — Nested Packages | Vehicle Packages | ✅ |
 | 12 | State Transition View — notation showcase | Heater | ✅ |
 | 13 | Action Flow View — notation showcase | Order Handling | ✅ |
+| 14 | General View — Usages, Typing, Subsetting, Redefinition | Drive Unit | ✅ |
+| 15 | General View — Documentation and Comments on Nested Parts | Charging Station | ✅ |
+| 16 | General View — Nested Packages and Feature Typing | Vehicle Typing | ✅ |

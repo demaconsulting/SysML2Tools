@@ -26,23 +26,40 @@ sections:
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CompartmentOrder
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NameLine
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageShape
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageNodes
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NodePolicy
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageNameLine
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-FeatureRows
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AbstractDefinitionName
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ReferenceUsageShape
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-PackageTabTitle
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CompartmentTitles
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-TruncatedDefinitionMarker
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Specialization
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CompositeMembership
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ReferenceMembership
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-FeatureTyping
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ReferenceSubsetting
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Connect
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Allocate
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Dependency
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Binding
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-SatisfyVerify
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ImportEdges
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Subsetting
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NonStructuralMembership
-          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AttributeTyping
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Direction
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-LayoutCompactness
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CanvasFit
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-EndDecorationClearance
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UnconnectedDefinitionPlacement
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-FilterEvaluation
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageLevelCandidates
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-QualifiedForm
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-BareNameForm
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-Redefinition-NoEdgeOnFailure
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-AnnotationNote
+          - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-UsageDocAndComment
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-ExposedPackageNodes
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-NestedPackageFolders
           - SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CrossContainerEdges

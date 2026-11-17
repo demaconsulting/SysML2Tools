@@ -91,9 +91,10 @@ system, subsystem, and unit levels:
     intermediate representation and delegates geometric placement and routing to the off-the-shelf
     `DemaConsulting.Rendering.Layout` layered algorithm
     - **Internal** (Subsystem) — per-view layout strategies
-      - **GeneralViewLayoutStrategy** (Unit) — general view: package-grouped definitions placed by
-        the layered algorithm with orthogonal specialization, membership, attribute-typing, and
-        redefinition edges
+      - **GeneralViewLayoutStrategy** (Unit) — general view: definitions and usage nodes grouped by
+        package and placed top-to-bottom by the automatic layered/containment selection, with the
+        notation glyphs for specialization, feature membership, typing, subsetting, redefinition,
+        satisfy, verify, and import edges
       - **InterconnectionViewLayoutStrategy** (Unit) — internal structure: nested parts, ports, connectors
       - **StateTransitionViewLayoutStrategy** (Unit) — state machine: states and guarded transitions
         placed top-to-bottom by the layered algorithm (DOWN direction) with orthogonal transitions
@@ -176,7 +177,8 @@ system, subsystem, and unit levels:
 - ANTLR4 (OTS) — ANTLR4 runtime (Antlr4.Runtime.Standard)
 - BuildMark (OTS) — build-notes documentation tool
 - DemaConsulting.Rendering (OTS) — SysML-agnostic layout intermediate representation, layered
-  layout algorithm, and SVG/PNG renderers
+  and containment layout algorithms with automatic selection, notation styling (box appearance,
+  compartment title style, extended end markers), and SVG/PNG renderers
 - FileAssert (OTS) — document assertion tool
 - Pandoc (OTS) — Markdown-to-HTML conversion tool
 - ReqStream (OTS) — requirements traceability tool

@@ -11,6 +11,7 @@ using DemaConsulting.SysML2Tools.Rendering;
 using DemaConsulting.SysML2Tools.Semantic;
 using DemaConsulting.SysML2Tools.Semantic.Model;
 using DemaConsulting.SysML2Tools.Stdlib;
+using NodePolicy = DemaConsulting.SysML2Tools.Layout.Internal.GeneralViewLayoutStrategy.NodePolicy;
 
 namespace DemaConsulting.SysML2Tools.Tests.Layout;
 
@@ -466,13 +467,14 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     BuildLayout populates a definition box with compartments grouped by usage keyword,
-    ///     formatting each usage as a <c>name : Type</c> row.
+    ///     formatting each usage as a <c>name : Type</c> row (the row-only policy shows every
+    ///     usage as a row), with every compartment title centered and italic.
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments()
     {
-        // Arrange: a part def owning an attribute usage and a port usage
-        var strategy = new GeneralViewLayoutStrategy();
+        // Arrange: a part def owning an attribute usage and a port usage, under the row-only policy
+        var strategy = new GeneralViewLayoutStrategy(NodePolicy.RowsOnly);
         var vehicle = new SysmlDefinitionNode
         {
             Name = "Vehicle",
@@ -499,13 +501,18 @@ public sealed class GeneralViewLayoutStrategyTests
         Assert.Equal(2, box.Compartments.Count);
         Assert.Contains(box.Compartments, c => c.Title == "attributes" && c.Rows.Contains("mass : Real"));
         Assert.Contains(box.Compartments, c => c.Title == "ports" && c.Rows.Contains("fuel : FuelPort"));
+        Assert.All(box.Compartments, c =>
+        {
+            Assert.Equal(TextAlign.Center, c.TitleAlign);
+            Assert.Equal(TextStyle.Italic, c.TitleStyle);
+        });
     }
 
     /// <summary>
     ///     Loads <paramref name="sysml"/>, then lays out the view <paramref name="viewName"/>
     ///     (declared in package <c>Diagrams</c>) with the general view strategy.
     /// </summary>
-    private static async Task<LayoutTree> LayOutDeclaredViewAsync(string sysml, string viewName, int depthLimit = 0)
+    private static async Task<LayoutTree> LayOutDeclaredViewAsync(string sysml, string viewName, int depthLimit = 0, NodePolicy? policy = null)
     {
         var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
         try
@@ -515,7 +522,7 @@ public sealed class GeneralViewLayoutStrategyTests
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
             Assert.NotNull(result.Workspace);
             var view = Assert.IsType<SysmlViewNode>(result.Workspace.Declarations[$"Diagrams::{viewName}"]);
-            return new GeneralViewLayoutStrategy().BuildLayout(
+            return new GeneralViewLayoutStrategy(policy ?? NodePolicy.Pilot).BuildLayout(
                 new ViewContext(viewName, result.Workspace, view), new RenderOptions(Themes.Light, DepthLimit: depthLimit));
         }
         finally
@@ -730,7 +737,8 @@ public sealed class GeneralViewLayoutStrategyTests
     /// <summary>
     ///     Subsetting and redefinition references that do not resolve (only a same-named feature in
     ///     an unrelated package exists) draw no edge and no warning, while the same references
-    ///     written in a specialization of the declaring type still draw theirs.
+    ///     written in a specialization of the declaring type still draw theirs, from the subsetting
+    ///     or redefining usage to the usage it subsets or redefines.
     /// </summary>
     [Fact]
     public async Task GeneralViewLayoutStrategy_BuildLayout_UnresolvedSubsettingAndRedefinition_DrawNoEdge()
@@ -739,16 +747,18 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = await LayOutViewVAsync("""
             package Lib {
                 part def Holder { part slotX; part spareX; }
-                part def Child :> Holder { part s :> slotX; part r redefines spareX; }
+                part def Child :> Holder { part childSub :> slotX; part childRedefining redefines spareX; }
             }
-            package App { part def Consumer { part s :> slotX; part r redefines spareX; } }
-            package Diagrams { view V { expose Lib::*; expose App::*; } }
+            package App { part def Consumer { part consumerSub :> slotX; part consumerRedefining redefines spareX; } }
+            package Diagrams { view V { expose Lib::**; expose App::**; } }
             """);
 
         // Assert: exactly one subsetting and one redefinition edge (Child's), no warning
         var lines = CollectLines(layout.Nodes);
-        Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Dashed);
-        Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        var subsetting = Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && RunsBetween(l, FindBox(layout.Nodes, "childSub"), FindBox(layout.Nodes, "slotX")));
+        Assert.Equal(LineStyle.Solid, subsetting.LineStyle);
+        var redefinition = Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.True(RunsBetween(redefinition, FindBox(layout.Nodes, "childRedefining"), FindBox(layout.Nodes, "spareX")));
         Assert.Empty(layout.Warnings);
     }
 
@@ -765,14 +775,15 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = await LayOutViewVAsync("""
             package Lib { part def Holder { part slot; part spare; } }
             import Lib::Holder::*;
-            package App { part def Consumer { part s :> slot; part r redefines spare; } }
-            package Diagrams { view V { expose Lib::*; expose App::*; } }
+            package App { part def Consumer { part consumerSub :> slot; part consumerRedefining redefines spare; } }
+            package Diagrams { view V { expose Lib::**; expose App::**; } }
             """);
 
         // Assert
         var lines = CollectLines(layout.Nodes);
-        Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Dashed);
-        Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && RunsBetween(l, FindBox(layout.Nodes, "consumerSub"), FindBox(layout.Nodes, "slot")));
+        var redefinition = Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.True(RunsBetween(redefinition, FindBox(layout.Nodes, "consumerRedefining"), FindBox(layout.Nodes, "spare")));
         Assert.Empty(layout.Warnings);
     }
 
@@ -788,11 +799,12 @@ public sealed class GeneralViewLayoutStrategyTests
         var layout = await LayOutViewVAsync("""
             package P { private part def Hidden; part def Shown; }
             package Q { part def Owner { part a : P::Hidden; part b : P::Shown; } }
-            package Diagrams { view V { expose P::*; expose Q::*; } }
+            package Diagrams { view V { expose P::**; expose Q::**; } }
             """);
 
-        // Assert: only the Owner-Shown composition edge exists; Hidden is not wired to Owner
-        Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        // Assert: only the usage b is typed by Shown; a is not typed by Hidden
+        var typing = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.True(RunsBetween(typing, FindBox(layout.Nodes, "b"), FindBox(layout.Nodes, "Shown")));
         Assert.Empty(layout.Warnings);
     }
 
@@ -811,11 +823,12 @@ public sealed class GeneralViewLayoutStrategyTests
                 private import P::*[@X];
                 part def Owner { part a : Marked; part b : Plain; }
             }
-            package Diagrams { view V { expose P::*; expose Q::*; } }
+            package Diagrams { view V { expose P::**; expose Q::**; } }
             """);
 
-        // Assert: only the Owner-Marked composition edge exists
-        Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        // Assert: only the usage a is typed by Marked
+        var typing = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.True(RunsBetween(typing, FindBox(layout.Nodes, "a"), FindBox(layout.Nodes, "Marked")));
         Assert.Empty(layout.Warnings);
     }
 
@@ -831,18 +844,19 @@ public sealed class GeneralViewLayoutStrategyTests
             package A { part def Thing; }
             package PkgA { private import A::*; part def OwnerA { part p : Thing; } }
             package PkgB { part def OwnerB { part q : Thing; } }
-            package Diagrams { view V { expose A::*; expose PkgA::*; } }
+            package Diagrams { view V { expose A::**; expose PkgA::**; } }
             """);
         var sibling = await LayOutViewVAsync("""
             package A { part def Thing; }
             package PkgA { private import A::*; part def OwnerA { part p : Thing; } }
             package PkgB { part def OwnerB { part q : Thing; } }
-            package Diagrams { view V { expose A::*; expose PkgB::*; } }
+            package Diagrams { view V { expose A::**; expose PkgB::**; } }
             """);
 
-        // Assert: PkgA::OwnerA is wired to A::Thing, PkgB::OwnerB is not
-        Assert.Single(CollectLines(importing.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
-        Assert.DoesNotContain(CollectLines(sibling.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        // Assert: PkgA::OwnerA's usage p is typed by A::Thing, PkgB::OwnerB's usage q is not
+        var typing = Assert.Single(CollectLines(importing.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.True(RunsBetween(typing, FindBox(importing.Nodes, "p"), FindBox(importing.Nodes, "Thing")));
+        Assert.DoesNotContain(CollectLines(sibling.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
         Assert.Empty(importing.Warnings);
         Assert.Empty(sibling.Warnings);
     }
@@ -897,8 +911,9 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A part def that owns a typed feature emits a filled-diamond line from the feature's type
-    ///     box to the owning definition box.
+    ///     A part def that owns a part usage draws the usage as its own node, joined to the owning
+    ///     definition's box by a solid line with a filled diamond at the owner (composite feature
+    ///     membership); the usage's rounded node is the line's source.
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_CompositeMembership_ProducesFilledDiamondEdge()
@@ -928,22 +943,23 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a line with a filled-diamond arrowhead at the owner (Vehicle) end exists
-        var membershipEdge = CollectLines(layout.Nodes)
-            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
-        Assert.NotNull(membershipEdge);
+        // Assert: a solid filled-diamond line runs from the wheel usage node to the Vehicle box
+        var membershipEdge = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.Equal(LineStyle.Solid, membershipEdge.LineStyle);
+        var wheel = FindBox(layout.Nodes, "wheel");
+        Assert.Equal(BoxShape.RoundedRectangle, wheel.Shape);
+        Assert.True(RunsBetween(membershipEdge, wheel, FindBox(layout.Nodes, "Vehicle")));
     }
 
     /// <summary>
-    ///     A part def that owns a <c>ref</c>-typed feature emits a Dependency-shaped edge (dashed
-    ///     line, open chevron) from the owning definition to the referenced type box — the obsolete
-    ///     hollow-diamond membership notation was removed in favor of current OMG SysML v2 notation
-    ///     for reference usages, sharing the same rendering as the public Dependency edge kind.
+    ///     A part def that owns a reference part usage (<c>ref part</c>) draws the usage as a node
+    ///     with a dashed outline and the keyword <c>ref part</c>, joined to the owner by a solid
+    ///     line with a hollow diamond at the owner (non-composite feature membership).
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesDependencyEdge()
+    public void GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesHollowDiamondEdgeAndDashedNode()
     {
-        // Arrange: System owns a ref typed as Engine; both are user definitions
+        // Arrange: System owns a reference part typed as Engine; both are user definitions
         var strategy = new GeneralViewLayoutStrategy();
         var workspace = new SysmlWorkspace
         {
@@ -957,7 +973,7 @@ public sealed class GeneralViewLayoutStrategyTests
                     DefinitionKeyword = "part def",
                     Children =
                     [
-                        new SysmlFeatureNode { Name = "eng", QualifiedName = "P::System::eng", FeatureKeyword = "ref", FeatureTyping = "Engine" }
+                        new SysmlFeatureNode { Name = "eng", QualifiedName = "P::System::eng", FeatureKeyword = "part", IsReference = true, FeatureTyping = "Engine" }
                     ]
                 }
             }
@@ -968,12 +984,16 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a dashed open-chevron edge is emitted for a ref feature, and no hollow-diamond
-        // edge is emitted anywhere (the obsolete notation is fully retired).
+        // Assert: the usage node is dashed and reads «ref part»; a solid hollow-diamond line joins
+        // it to its owner; no filled diamond is drawn
+        var eng = FindBox(layout.Nodes, "eng");
+        Assert.Equal("ref part", eng.Keyword);
+        Assert.Equal(LineStyle.Dashed, eng.Appearance?.OutlineStyle);
         var lines = CollectLines(layout.Nodes);
-        var dependencyEdge = lines.FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed);
-        Assert.NotNull(dependencyEdge);
-        Assert.DoesNotContain(lines, l => l.TargetEnd == EndMarkerStyle.HollowDiamond);
+        var membership = Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowDiamond);
+        Assert.Equal(LineStyle.Solid, membership.LineStyle);
+        Assert.True(RunsBetween(membership, eng, FindBox(layout.Nodes, "System")));
+        Assert.DoesNotContain(lines, l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
     }
 
     /// <summary>
@@ -1016,12 +1036,12 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A definition that owns an <c>attribute</c>-typed feature whose type is another definition
-    ///     in the view draws a dashed dependency line with an open chevron at the attribute-type box,
-    ///     connecting the otherwise-disconnected attribute def into the cluster.
+    ///     An attribute usage owned by a definition is a compartment row (<c>mass : Mass</c>) under
+    ///     the Pilot policy and draws no typing edge, however its type is declared — the type is
+    ///     visible in the row, as the Pilot implementation shows it.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_AttributeTyping_ProducesDashedOpenChevronEdge()
+    public void GeneralViewLayoutStrategy_BuildLayout_AttributeTyping_RowDrawsNoTypingEdge()
     {
         // Arrange: Vehicle owns an attribute typed as the user attribute def Mass
         var strategy = new GeneralViewLayoutStrategy();
@@ -1048,34 +1068,27 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a dashed dependency line with an open chevron at the attribute-type (Mass) end exists
-        var typingEdge = CollectLines(layout.Nodes)
-            .FirstOrDefault(l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.OpenChevron);
-        Assert.NotNull(typingEdge);
-        Assert.True(typingEdge.Waypoints.Count >= 2);
-
-        // Assert: attribute typing is a dependency, not composition — no membership diamond is drawn.
-        var diamondEdge = CollectLines(layout.Nodes)
-            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.FilledDiamond ||
-                                 l.TargetEnd == EndMarkerStyle.HollowDiamond);
-        Assert.Null(diamondEdge);
+        // Assert: the attribute is a row of the Vehicle box and no edge of any kind is drawn
+        var vehicle = FindBox(layout.Nodes, "Vehicle");
+        Assert.Contains(vehicle.Compartments, c => c.Title == "attributes" && c.Rows.Contains("mass : Mass"));
+        Assert.Empty(CollectLines(layout.Nodes));
     }
 
     /// <summary>
-    ///     A subtype feature that redefines a bare-named inherited feature (declared on a resolved
-    ///     supertype in the view) emits a solid hollow-triangle-with-crossbar line from the subtype
-    ///     to the supertype that declares the redefined feature.
+    ///     With the all-usages policy an attribute usage is a node typed by its attribute definition
+    ///     (hollow triangle with two dots at the definition) and joined to its owner by a hollow
+    ///     diamond (attributes are referential, not composite).
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_BareNameRedefinition_ProducesHollowTriangleCrossbarEdge()
+    public void GeneralViewLayoutStrategy_BuildLayout_AllUsages_AttributeUsage_IsNodeWithTypingAndHollowDiamond()
     {
-        // Arrange: Vehicle declares "eng"; SmallVehicle specializes Vehicle and redefines "eng" by
-        // bare name (no Owner:: qualifier).
-        var strategy = new GeneralViewLayoutStrategy();
+        // Arrange: Vehicle owns an attribute typed as the user attribute def Mass
+        var strategy = new GeneralViewLayoutStrategy(NodePolicy.AllUsages);
         var workspace = new SysmlWorkspace
         {
             Declarations = new Dictionary<string, SysmlNode>
             {
+                ["P::Mass"] = new SysmlDefinitionNode { Name = "Mass", QualifiedName = "P::Mass", DefinitionKeyword = "attribute def" },
                 ["P::Vehicle"] = new SysmlDefinitionNode
                 {
                     Name = "Vehicle",
@@ -1083,20 +1096,56 @@ public sealed class GeneralViewLayoutStrategyTests
                     DefinitionKeyword = "part def",
                     Children =
                     [
-                        new SysmlFeatureNode { Name = "eng", QualifiedName = "P::Vehicle::eng", FeatureKeyword = "attribute", FeatureTyping = "Real" }
+                        new SysmlFeatureNode { Name = "mass", QualifiedName = "P::Vehicle::mass", FeatureKeyword = "attribute", FeatureTyping = "Mass" }
                     ]
-                },
+                }
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: the usage node exists, is typed by Mass, and is joined to Vehicle by a hollow diamond
+        var mass = FindBox(layout.Nodes, "mass");
+        var lines = CollectLines(layout.Nodes);
+        var typing = Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.True(RunsBetween(typing, mass, FindBox(layout.Nodes, "Mass")));
+        var membership = Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowDiamond);
+        Assert.True(RunsBetween(membership, mass, FindBox(layout.Nodes, "Vehicle")));
+        Assert.DoesNotContain(FindBox(layout.Nodes, "Vehicle").Compartments, c => c.Title == "attributes");
+    }
+
+    /// <summary>
+    ///     A usage that redefines a bare-named inherited usage (declared on a resolved supertype of
+    ///     its owner) draws a solid hollow-triangle-with-crossbar line from the redefining usage
+    ///     node to the redefined usage node.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_BareNameRedefinition_ProducesHollowTriangleCrossbarEdge()
+    {
+        // Arrange: Vehicle declares "eng"; SmallVehicle specializes Vehicle and redefines "eng" by
+        // bare name (no Owner:: qualifier). Nested usages are registered in Declarations like a
+        // loaded workspace does.
+        var strategy = new GeneralViewLayoutStrategy();
+        var eng = new SysmlFeatureNode { Name = "eng", QualifiedName = "P::Vehicle::eng", FeatureKeyword = "part" };
+        var smallEng = new SysmlFeatureNode { Name = "smallEng", QualifiedName = "P::SmallVehicle::smallEng", FeatureKeyword = "part", RedefinedFeatureName = "eng" };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Vehicle"] = new SysmlDefinitionNode { Name = "Vehicle", QualifiedName = "P::Vehicle", DefinitionKeyword = "part def", Children = [eng] },
+                ["P::Vehicle::eng"] = eng,
                 ["P::SmallVehicle"] = new SysmlDefinitionNode
                 {
                     Name = "SmallVehicle",
                     QualifiedName = "P::SmallVehicle",
                     DefinitionKeyword = "part def",
                     SupertypeNames = ["Vehicle"],
-                    Children =
-                    [
-                        new SysmlFeatureNode { Name = "smallEng", QualifiedName = "P::SmallVehicle::smallEng", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "eng" }
-                    ]
-                }
+                    Children = [smallEng]
+                },
+                ["P::SmallVehicle::smallEng"] = smallEng
             }
         };
         var context = new ViewContext("v", workspace);
@@ -1105,48 +1154,39 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a solid line with a hollow-triangle-crossbar arrowhead exists, from SmallVehicle to Vehicle
-        var redefinitionEdge = CollectLines(layout.Nodes)
-            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
-        Assert.NotNull(redefinitionEdge);
+        // Assert: a solid crossbar line runs from smallEng to eng
+        var redefinitionEdge = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
         Assert.Equal(LineStyle.Solid, redefinitionEdge.LineStyle);
+        Assert.True(RunsBetween(redefinitionEdge, FindBox(layout.Nodes, "smallEng"), FindBox(layout.Nodes, "eng")));
     }
 
     /// <summary>
-    ///     A subtype feature that redefines a qualified <c>Owner::feature</c> reference emits a
-    ///     hollow-triangle-with-crossbar edge to the named owner, without needing to walk the
+    ///     A usage that redefines a qualified <c>Owner::feature</c> reference draws a
+    ///     hollow-triangle-with-crossbar edge to the named usage, without needing to walk the
     ///     supertype chain.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_QualifiedRedefinition_ProducesHollowTriangleCrossbarEdgeToOwner()
+    public void GeneralViewLayoutStrategy_BuildLayout_QualifiedRedefinition_ProducesHollowTriangleCrossbarEdgeToRedefinedUsage()
     {
         // Arrange: Car redefines "Vehicle::mass" directly by qualified reference.
         var strategy = new GeneralViewLayoutStrategy();
+        var mass = new SysmlFeatureNode { Name = "mass", QualifiedName = "P::Vehicle::mass", FeatureKeyword = "part" };
+        var carMass = new SysmlFeatureNode { Name = "carMass", QualifiedName = "P::Car::carMass", FeatureKeyword = "part", RedefinedFeatureName = "Vehicle::mass" };
         var workspace = new SysmlWorkspace
         {
             Declarations = new Dictionary<string, SysmlNode>
             {
-                ["P::Vehicle"] = new SysmlDefinitionNode
-                {
-                    Name = "Vehicle",
-                    QualifiedName = "P::Vehicle",
-                    DefinitionKeyword = "part def",
-                    Children =
-                    [
-                        new SysmlFeatureNode { Name = "mass", QualifiedName = "P::Vehicle::mass", FeatureKeyword = "attribute", FeatureTyping = "Real" }
-                    ]
-                },
+                ["P::Vehicle"] = new SysmlDefinitionNode { Name = "Vehicle", QualifiedName = "P::Vehicle", DefinitionKeyword = "part def", Children = [mass] },
+                ["P::Vehicle::mass"] = mass,
                 ["P::Car"] = new SysmlDefinitionNode
                 {
                     Name = "Car",
                     QualifiedName = "P::Car",
                     DefinitionKeyword = "part def",
                     SupertypeNames = ["Vehicle"],
-                    Children =
-                    [
-                        new SysmlFeatureNode { Name = "carMass", QualifiedName = "P::Car::carMass", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "Vehicle::mass" }
-                    ]
-                }
+                    Children = [carMass]
+                },
+                ["P::Car::carMass"] = carMass
             }
         };
         var context = new ViewContext("v", workspace);
@@ -1155,10 +1195,9 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a hollow-triangle-crossbar arrowhead edge is emitted, resolved via the qualified reference
-        var redefinitionEdge = CollectLines(layout.Nodes)
-            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
-        Assert.NotNull(redefinitionEdge);
+        // Assert: a crossbar edge is emitted, resolved via the qualified reference
+        var redefinitionEdge = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
+        Assert.True(RunsBetween(redefinitionEdge, FindBox(layout.Nodes, "carMass"), FindBox(layout.Nodes, "mass")));
     }
 
     /// <summary>
@@ -1170,20 +1209,13 @@ public sealed class GeneralViewLayoutStrategyTests
     {
         // Arrange: Vehicle redefines a bare name that does not exist anywhere in scope.
         var strategy = new GeneralViewLayoutStrategy();
+        var eng = new SysmlFeatureNode { Name = "eng", QualifiedName = "P::Vehicle::eng", FeatureKeyword = "part", RedefinedFeatureName = "nonExistentFeature" };
         var workspace = new SysmlWorkspace
         {
             Declarations = new Dictionary<string, SysmlNode>
             {
-                ["P::Vehicle"] = new SysmlDefinitionNode
-                {
-                    Name = "Vehicle",
-                    QualifiedName = "P::Vehicle",
-                    DefinitionKeyword = "part def",
-                    Children =
-                    [
-                        new SysmlFeatureNode { Name = "eng", QualifiedName = "P::Vehicle::eng", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "nonExistentFeature" }
-                    ]
-                }
+                ["P::Vehicle"] = new SysmlDefinitionNode { Name = "Vehicle", QualifiedName = "P::Vehicle", DefinitionKeyword = "part def", Children = [eng] },
+                ["P::Vehicle::eng"] = eng
             }
         };
         var context = new ViewContext("v", workspace);
@@ -1201,30 +1233,24 @@ public sealed class GeneralViewLayoutStrategyTests
     /// <summary>
     ///     A bare-name redefinition whose declaring ancestor is two supertype hops away
     ///     (<c>Mid :> Parent :> GrandParent</c>, with <c>GrandParent</c> declaring the redefined
-    ///     member) produces a hollow-triangle-crossbar edge targeting the actual declaring
-    ///     ancestor (<c>GrandParent</c>), not the immediate supertype (<c>Parent</c>) — proving the
-    ///     bare-name walk is transitive, not limited to a single hop.
+    ///     member) produces a hollow-triangle-crossbar edge to the usage of the actual declaring
+    ///     ancestor (<c>GrandParent::feat</c>) — proving the bare-name walk is transitive, not
+    ///     limited to a single hop.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_TransitiveBareNameRedefinition_ProducesHollowTriangleCrossbarEdgeToDeclaringAncestor()
+    public void GeneralViewLayoutStrategy_BuildLayout_TransitiveBareNameRedefinition_ProducesHollowTriangleCrossbarEdgeToDeclaringAncestorUsage()
     {
         // Arrange: GrandParent declares "feat"; Parent specializes GrandParent with no members of
         // its own; Mid specializes Parent and redefines "feat" by bare name.
         var strategy = new GeneralViewLayoutStrategy();
+        var feat = new SysmlFeatureNode { Name = "feat", QualifiedName = "P::GrandParent::feat", FeatureKeyword = "part" };
+        var subFeat = new SysmlFeatureNode { Name = "subFeat", QualifiedName = "P::Mid::subFeat", FeatureKeyword = "part", RedefinedFeatureName = "feat" };
         var workspace = new SysmlWorkspace
         {
             Declarations = new Dictionary<string, SysmlNode>
             {
-                ["P::GrandParent"] = new SysmlDefinitionNode
-                {
-                    Name = "GrandParent",
-                    QualifiedName = "P::GrandParent",
-                    DefinitionKeyword = "part def",
-                    Children =
-                    [
-                        new SysmlFeatureNode { Name = "feat", QualifiedName = "P::GrandParent::feat", FeatureKeyword = "attribute", FeatureTyping = "Real" }
-                    ]
-                },
+                ["P::GrandParent"] = new SysmlDefinitionNode { Name = "GrandParent", QualifiedName = "P::GrandParent", DefinitionKeyword = "part def", Children = [feat] },
+                ["P::GrandParent::feat"] = feat,
                 ["P::Parent"] = new SysmlDefinitionNode
                 {
                     Name = "Parent",
@@ -1238,11 +1264,9 @@ public sealed class GeneralViewLayoutStrategyTests
                     QualifiedName = "P::Mid",
                     DefinitionKeyword = "part def",
                     SupertypeNames = ["Parent"],
-                    Children =
-                    [
-                        new SysmlFeatureNode { Name = "subFeat", QualifiedName = "P::Mid::subFeat", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "feat" }
-                    ]
-                }
+                    Children = [subFeat]
+                },
+                ["P::Mid::subFeat"] = subFeat
             }
         };
         var context = new ViewContext("v", workspace);
@@ -1251,30 +1275,36 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: the crossbar edge targets GrandParent (the actual declaring ancestor), and there
-        // is exactly one such edge (not one for each hop of the chain).
+        // Assert: exactly one crossbar edge, from subFeat to GrandParent's feat (not one per hop)
         var redefinitionEdges = CollectLines(layout.Nodes)
             .Where(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar)
             .ToList();
-        Assert.Single(redefinitionEdges);
-        Assert.Equal(LineStyle.Solid, redefinitionEdges[0].LineStyle);
+        var edge = Assert.Single(redefinitionEdges);
+        Assert.Equal(LineStyle.Solid, edge.LineStyle);
+        Assert.True(RunsBetween(edge, FindBox(layout.Nodes, "subFeat"), FindBox(layout.Nodes, "feat")));
     }
 
     /// <summary>
-    ///     A genuinely self-referential redefinition — a definition whose own supertype chain
-    ///     cycles back to itself, such that the bare-name walk resolves the redefined member's
-    ///     owner back to the very definition doing the redefining — produces no redefinition edge
-    ///     and does not throw. This is distinct from
+    ///     A genuinely self-referential redefinition — a usage that redefines itself — produces no
+    ///     redefinition edge and does not throw. This is distinct from
     ///     <see cref="GeneralViewLayoutStrategy_BuildLayout_UnresolvableRedefinition_ProducesNoEdge"/>,
     ///     which covers a name that cannot be found anywhere, not a name that resolves back to the
-    ///     definition itself.
+    ///     usage itself.
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_SelfReferentialRedefinition_ProducesNoEdge()
     {
-        // Arrange: Standalone lists itself as its own supertype (a self-cycle), and redefines its
-        // own "otherFeat" member by bare name — so the walk resolves the owner back to Standalone.
+        // Arrange: Standalone lists itself as its own supertype (a self-cycle), and its usage
+        // "selfFeat" redefines itself through the semantic redefinition edge.
         var strategy = new GeneralViewLayoutStrategy();
+        var selfFeat = new SysmlFeatureNode
+        {
+            Name = "selfFeat",
+            QualifiedName = "P::Standalone::selfFeat",
+            FeatureKeyword = "part",
+            RedefinedFeatureName = "selfFeat",
+            ResolvedEdges = [new SysmlEdge("P::Standalone::selfFeat", "P::Standalone::selfFeat", SysmlEdgeKind.Redefinition)]
+        };
         var workspace = new SysmlWorkspace
         {
             Declarations = new Dictionary<string, SysmlNode>
@@ -1285,12 +1315,9 @@ public sealed class GeneralViewLayoutStrategyTests
                     QualifiedName = "P::Standalone",
                     DefinitionKeyword = "part def",
                     SupertypeNames = ["Standalone"],
-                    Children =
-                    [
-                        new SysmlFeatureNode { Name = "selfFeat", QualifiedName = "P::Standalone::selfFeat", FeatureKeyword = "attribute", FeatureTyping = "Real", RedefinedFeatureName = "otherFeat" },
-                        new SysmlFeatureNode { Name = "otherFeat", QualifiedName = "P::Standalone::otherFeat", FeatureKeyword = "attribute", FeatureTyping = "Real" }
-                    ]
-                }
+                    Children = [selfFeat]
+                },
+                ["P::Standalone::selfFeat"] = selfFeat
             }
         };
         var context = new ViewContext("v", workspace);
@@ -1299,25 +1326,23 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act: laying out must not throw despite the self-referential supertype cycle.
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: no hollow-triangle-crossbar edge is produced, since the resolved owner is
-        // Standalone itself.
+        // Assert: no hollow-triangle-crossbar edge is produced
         var redefinitionEdge = CollectLines(layout.Nodes)
             .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangleCrossbar);
         Assert.Null(redefinitionEdge);
     }
 
     /// <summary>
-    ///     A definition with TWO <c>attribute</c>-typed features of the SAME in-view type produces two
-    ///     identical owner→type intra-group edges. The layered pipeline de-duplicates the identical
-    ///     directed pair so its routed waypoints are not 1:1 with the intra-edges; the strategy must
-    ///     resolve each intra-edge by its endpoints (not by input position) and lay out without throwing,
-    ///     emitting one dashed open-chevron typing dependency per attribute.
+    ///     A definition with TWO attribute usages of the SAME in-view type draws two typing edges
+    ///     under the all-usages policy (one per usage node). The layered pipeline de-duplicates an
+    ///     identical directed pair, so the strategy must resolve each edge by its endpoints (not by
+    ///     input position) and lay out without throwing.
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_TwoAttributesSameType_ProducesTwoTypingEdgesWithoutException()
     {
         // Arrange: Vehicle owns two attributes (mass, weight) both typed as the user attribute def Mass.
-        var strategy = new GeneralViewLayoutStrategy();
+        var strategy = new GeneralViewLayoutStrategy(NodePolicy.AllUsages);
         var workspace = new SysmlWorkspace
         {
             Declarations = new Dictionary<string, SysmlNode>
@@ -1339,27 +1364,26 @@ public sealed class GeneralViewLayoutStrategyTests
         var context = new ViewContext("v", workspace);
         var options = new RenderOptions(Themes.Light);
 
-        // Act: laying out must not throw even though the two intra-edges share one routed polyline.
+        // Act: laying out must not throw even though the two edges share one type endpoint.
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: exactly two dashed open-chevron typing dependencies are drawn (one per attribute), and
-        // each has a real polyline.
+        // Assert: exactly two typing edges are drawn (one per attribute), each with a real polyline.
         var typingEdges = CollectLines(layout.Nodes)
-            .Where(l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.OpenChevron)
+            .Where(l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots)
             .ToList();
         Assert.Equal(2, typingEdges.Count);
         Assert.All(typingEdges, e => Assert.True(e.Waypoints.Count >= 2));
     }
 
     /// <summary>
-    ///     An <c>attribute</c>-typed feature whose type is an <c>enum def</c> in the view also draws a
-    ///     dashed open-chevron typing dependency to the enumeration definition.
+    ///     With the all-usages policy an attribute usage typed by an <c>enum def</c> in the view is
+    ///     a node with a typing edge (hollow triangle with two dots) to the enumeration definition.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_EnumTypedAttribute_ProducesDashedOpenChevronEdge()
+    public void GeneralViewLayoutStrategy_BuildLayout_EnumTypedAttribute_ProducesFeatureTypingEdge()
     {
         // Arrange: Controller owns an attribute typed as the user enum def FlightMode
-        var strategy = new GeneralViewLayoutStrategy();
+        var strategy = new GeneralViewLayoutStrategy(NodePolicy.AllUsages);
         var workspace = new SysmlWorkspace
         {
             Declarations = new Dictionary<string, SysmlNode>
@@ -1383,20 +1407,19 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a dashed dependency line with an open chevron at the enum-type (FlightMode) end exists
-        var typingEdge = CollectLines(layout.Nodes)
-            .FirstOrDefault(l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.OpenChevron);
-        Assert.NotNull(typingEdge);
+        // Assert: a typing edge runs from the mode usage to the enum definition
+        var typingEdge = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.True(RunsBetween(typingEdge, FindBox(layout.Nodes, "mode"), FindBox(layout.Nodes, "FlightMode")));
     }
 
     /// <summary>
-    ///     An <c>attribute</c> feature whose type does not resolve to a definition in the view draws
-    ///     no typing edge, mirroring the specialization/membership resolution rules.
+    ///     A usage whose type does not resolve to a definition in the view draws no typing edge,
+    ///     mirroring the specialization/membership resolution rules.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_AttributeTyping_UnresolvedType_ProducesNoEdge()
+    public void GeneralViewLayoutStrategy_BuildLayout_UsageTyping_UnresolvedType_ProducesNoTypingEdge()
     {
-        // Arrange: Vehicle owns an attribute typed as a name with no matching definition in the view
+        // Arrange: Vehicle owns a part typed as a name with no matching definition in the view
         var strategy = new GeneralViewLayoutStrategy();
         var workspace = new SysmlWorkspace
         {
@@ -1409,7 +1432,7 @@ public sealed class GeneralViewLayoutStrategyTests
                     DefinitionKeyword = "part def",
                     Children =
                     [
-                        new SysmlFeatureNode { Name = "mass", QualifiedName = "P::Vehicle::mass", FeatureKeyword = "attribute", FeatureTyping = "Real" }
+                        new SysmlFeatureNode { Name = "engine", QualifiedName = "P::Vehicle::engine", FeatureKeyword = "part", FeatureTyping = "Unknown" }
                     ]
                 }
             }
@@ -1420,20 +1443,19 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: no typing dependency edge is produced when the attribute type is unresolved
-        var typingEdge = CollectLines(layout.Nodes)
-            .FirstOrDefault(l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.OpenChevron);
-        Assert.Null(typingEdge);
+        // Assert: the usage node and its owner link exist, but no typing edge is produced
+        Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
     }
 
     /// <summary>
-    ///     A part def that owns a <c>port</c>-typed feature emits a filled-diamond line from the
-    ///     port's type box to the owning definition box.
+    ///     A part def that owns a <c>port</c> usage with nested content draws the port as its own
+    ///     node, joined to the owning definition's box by a filled diamond at the owner.
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_PortFeature_ProducesFilledDiamondEdge()
     {
-        // Arrange: Vehicle owns a port typed as FuelPort; both are user definitions
+        // Arrange: Vehicle owns a port typed as FuelPort that itself owns an attribute; both are user definitions
         var strategy = new GeneralViewLayoutStrategy();
         var workspace = new SysmlWorkspace
         {
@@ -1447,7 +1469,14 @@ public sealed class GeneralViewLayoutStrategyTests
                     DefinitionKeyword = "part def",
                     Children =
                     [
-                        new SysmlFeatureNode { Name = "fuel", QualifiedName = "P::Vehicle::fuel", FeatureKeyword = "port", FeatureTyping = "FuelPort" }
+                        new SysmlFeatureNode
+                        {
+                            Name = "fuel",
+                            QualifiedName = "P::Vehicle::fuel",
+                            FeatureKeyword = "port",
+                            FeatureTyping = "FuelPort",
+                            Children = [new SysmlFeatureNode { Name = "level", QualifiedName = "P::Vehicle::fuel::level", FeatureKeyword = "attribute" }]
+                        }
                     ]
                 }
             }
@@ -1458,10 +1487,74 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a line with a filled-diamond arrowhead at the owner (Vehicle) end exists
-        var membershipEdge = CollectLines(layout.Nodes)
-            .FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
-        Assert.NotNull(membershipEdge);
+        // Assert: the port is a node, joined to the owner by a filled diamond
+        var membershipEdge = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.True(RunsBetween(membershipEdge, FindBox(layout.Nodes, "fuel"), FindBox(layout.Nodes, "Vehicle")));
+    }
+
+    /// <summary>
+    ///     A <c>port</c> usage without nested content is a row of the owner's <c>ports</c> compartment
+    ///     (like an attribute), not a node, under the default policy: only the owner is drawn, with no
+    ///     membership edge and no typing edge for the port.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PlainPort_IsRowOfOwnerPortsCompartment()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("port def FuelPort; part def Vehicle { port fuel : FuelPort; }");
+
+        // Assert: no box for the port, one row in the owner's ports compartment, no edge
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => IsNamed(b, "fuel"));
+        var vehicle = FindBox(layout.Nodes, "Vehicle");
+        var ports = Assert.Single(vehicle.Compartments, c => c.Title == "ports");
+        Assert.Equal(["fuel : FuelPort"], ports.Rows);
+        Assert.Empty(CollectLines(layout.Nodes));
+    }
+
+    /// <summary>
+    ///     A <c>port</c> usage that owns nested features is a node of its own (joined to its owner by a
+    ///     filled diamond) and lists the nested features in its own compartments, while a plain sibling
+    ///     port stays a row of the owner.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PortWithNestedContent_IsNodeAndPlainPortStaysRow()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            port def FuelPort;
+            part def Vehicle {
+                port plain : FuelPort;
+                port rich : FuelPort { attribute level : Real; }
+            }
+            """);
+
+        // Assert
+        var rich = FindBox(layout.Nodes, "rich");
+        Assert.Equal("port", rich.Keyword);
+        Assert.Contains(rich.Compartments, c => c.Title == "attributes" && c.Rows.Contains("level : Real"));
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => IsNamed(b, "plain"));
+        var vehicle = FindBox(layout.Nodes, "Vehicle");
+        Assert.Equal(["plain : FuelPort"], Assert.Single(vehicle.Compartments, c => c.Title == "ports").Rows);
+        Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+    }
+
+    /// <summary>
+    ///     The all-usages policy still draws a plain port as a node (the variant exists so a later
+    ///     option can flip the decision), and the row-only policy draws no port as a node.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PortPolicyVariants_AllUsagesDrawsPlainPortAsNode_RowsOnlyDoesNot()
+    {
+        // Arrange
+        const string model = "port def FuelPort; part def Vehicle { port fuel : FuelPort { attribute level : Real; } }";
+
+        // Act
+        var allUsages = await LayOutUnscopedAsync("port def FuelPort; part def Vehicle { port fuel : FuelPort; }", policy: NodePolicy.AllUsages);
+        var rowsOnly = await LayOutUnscopedAsync(model, policy: NodePolicy.RowsOnly);
+
+        // Assert
+        Assert.Contains(CollectBoxes(allUsages.Nodes), b => IsNamed(b, "fuel"));
+        Assert.DoesNotContain(CollectBoxes(rowsOnly.Nodes), b => IsNamed(b, "fuel"));
     }
 
     /// <summary>
@@ -1973,12 +2066,13 @@ public sealed class GeneralViewLayoutStrategyTests
     ///     excluded (its parent <c>A</c> is rendered), <c>b</c> no longer renders anywhere and its
     ///     compartment can no longer show <c>c</c> — so <c>c</c> must survive as its own standalone
     ///     box rather than vanishing entirely (the single-pass, pre-dedup-snapshot bug the prior
-    ///     quality re-validation found).
+    ///     quality re-validation found). Row-only policy: under the Pilot policy <c>b</c> is a node
+    ///     and <c>c</c> its own node (see the usage-node tests).
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_NoFilter_RendersDeeplyNestedGrandchildUsageWhenIntermediateParentExcluded()
     {
-        var strategy = new GeneralViewLayoutStrategy();
+        var strategy = new GeneralViewLayoutStrategy(NodePolicy.RowsOnly);
         var workspace = new SysmlWorkspace
         {
             Declarations = new Dictionary<string, SysmlNode>
@@ -2102,17 +2196,22 @@ public sealed class GeneralViewLayoutStrategyTests
         var hybrid = FindBox(layout.Nodes, "Hybrid");
         var engine = FindBox(layout.Nodes, "Engine");
         var car = FindBox(layout.Nodes, "Car");
+        var engineUsage = FindBox(layout.Nodes, "engine");
+        var chassisUsage = FindBox(layout.Nodes, "chassis");
         var crossSpecialization = Assert.Single(DirectSpecializationLines(vehicle.Children));
         Assert.True(RunsBetween(crossSpecialization, hybrid, engine));
         var compositions = vehicle.Children.OfType<LayoutLine>().Where(l => l.TargetEnd == EndMarkerStyle.FilledDiamond).ToList();
         Assert.Equal(2, compositions.Count);
-        Assert.Contains(compositions, l => RunsBetween(l, engine, car));
-        Assert.Contains(compositions, l => RunsBetween(l, FindBox(layout.Nodes, "Chassis"), car));
+        Assert.Contains(compositions, l => RunsBetween(l, engineUsage, car));
+        Assert.Contains(compositions, l => RunsBetween(l, chassisUsage, car));
 
-        // Assert: no two connectors cross - Hybrid is stacked above Chassis because its relationship
-        // leads to the nearer Powertrain folder while Chassis's leads past it to Car
-        Assert.Equal(0, CountLineCrossings(layout.Nodes));
-        Assert.True(hybrid.Y < FindBox(layout.Nodes, "Chassis").Y);
+        // Assert: the car's usage nodes sit beside it in the Vehicle folder and are typed by the
+        // definitions inside the nested package folders
+        Assert.Contains(vehicle.Children.OfType<LayoutBox>(), b => b.Label == engineUsage.Label);
+        var typing = vehicle.Children.OfType<LayoutLine>().Where(l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots).ToList();
+        Assert.Equal(2, typing.Count);
+        Assert.Contains(typing, l => RunsBetween(l, engineUsage, engine));
+        Assert.Contains(typing, l => RunsBetween(l, chassisUsage, FindBox(layout.Nodes, "Chassis")));
     }
 
     /// <summary>
@@ -2237,8 +2336,8 @@ public sealed class GeneralViewLayoutStrategyTests
         var scopedLabels = scopedBoxes.Select(b => b.Label).ToList();
         Assert.DoesNotContain("Safety", scopedLabels);
         Assert.DoesNotContain("Security", scopedLabels);
-        Assert.Contains("seatBelt", scopedLabels);
-        Assert.Contains("bumper", scopedLabels);
+        Assert.Contains(scopedLabels, l => l?.StartsWith("seatBelt", StringComparison.Ordinal) == true);
+        Assert.Contains(scopedLabels, l => l?.StartsWith("bumper", StringComparison.Ordinal) == true);
     }
 
     /// <summary>
@@ -2337,21 +2436,24 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a solid, unmarked line exists linking the FlightController and Battery boxes.
+        // Assert: a solid, unmarked line links the controller and battery usage nodes (not the
+        // enclosing Drone definition, which would be a self-loop).
         var lines = CollectLines(layout.Nodes);
-        var connectEdge = lines.FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.None && l.LineStyle == LineStyle.Solid && l.MidpointLabel is null);
-        Assert.NotNull(connectEdge);
+        var connectEdge = Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.None && l.LineStyle == LineStyle.Solid && l.MidpointLabel is null);
+        Assert.True(
+            RunsBetween(connectEdge, FindBox(layout.Nodes, "controller"), FindBox(layout.Nodes, "battery")) ||
+            RunsBetween(connectEdge, FindBox(layout.Nodes, "battery"), FindBox(layout.Nodes, "controller")));
     }
 
     /// <summary>
     ///     A <c>connect</c> edge whose two dotted-chain endpoints resolve to the <em>same</em>
-    ///     owning box (e.g. two features of the same enclosing definition) produces no edge — the
+    ///     owning box (two features nested in the same usage node) produces no edge — the
     ///     self-loop guard that every other edge kind in this unit already applies.
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_Connect_SameOwningType_ProducesNoEdge()
     {
-        // Arrange: Vehicle owns two features both typed as Port (the same owning box).
+        // Arrange: Vehicle owns the port portA; the connect joins two features nested in portA.
         var strategy = new GeneralViewLayoutStrategy();
         var workspace = new SysmlWorkspace
         {
@@ -2371,19 +2473,11 @@ public sealed class GeneralViewLayoutStrategyTests
                     FeatureKeyword = "port",
                     FeatureTyping = "Port",
                     ResolvedEdges = [new SysmlEdge("P::Vehicle::portA", "P::Port", SysmlEdgeKind.Typing)]
-                },
-                ["P::Vehicle::portB"] = new SysmlFeatureNode
-                {
-                    Name = "portB",
-                    QualifiedName = "P::Vehicle::portB",
-                    FeatureKeyword = "port",
-                    FeatureTyping = "Port",
-                    ResolvedEdges = [new SysmlEdge("P::Vehicle::portB", "P::Port", SysmlEdgeKind.Typing)]
                 }
             },
             Index = new SemanticIndex(
             [
-                new SysmlEdge("P::Vehicle::portA::sig", "P::Vehicle::portB::sig", SysmlEdgeKind.Connect)
+                new SysmlEdge("P::Vehicle::portA::sig", "P::Vehicle::portA::other", SysmlEdgeKind.Connect)
             ])
         };
         var context = new ViewContext("v", workspace);
@@ -2392,7 +2486,7 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: no Connect-shaped (unmarked solid) edge is emitted between Vehicle and itself.
+        // Assert: no Connect-shaped (unmarked solid) edge is emitted between portA and itself.
         var lines = CollectLines(layout.Nodes);
         Assert.DoesNotContain(lines, l => l.TargetEnd == EndMarkerStyle.None && l.LineStyle == LineStyle.Solid);
 
@@ -2400,7 +2494,7 @@ public sealed class GeneralViewLayoutStrategyTests
         // than silently discarded.
         Assert.Contains(layout.Warnings, w => w.Contains("Connect", StringComparison.Ordinal) &&
             w.Contains("P::Vehicle::portA::sig", StringComparison.Ordinal) &&
-            w.Contains("P::Vehicle::portB::sig", StringComparison.Ordinal));
+            w.Contains("P::Vehicle::portA::other", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -2506,9 +2600,7 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     A resolved standalone <see cref="SysmlEdgeKind.Dependency"/> edge between two
-    ///     definitions produces the same dashed, open-chevron rendering as the <c>ref</c>-keyword
-    ///     fix (<see cref="GeneralViewLayoutStrategy_BuildLayout_ReferenceMembership_ProducesDependencyEdge"/>),
-    ///     confirming both sources share one visual identity.
+    ///     definitions is drawn as a dashed line with an open chevron at the depended-upon box.
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_Dependency_ProducesDashedChevronEdge()
@@ -2592,45 +2684,36 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
-    ///     A subtype narrowing an inherited feature via <c>subsets</c> (e.g.
+    ///     A subtype narrowing an inherited usage via <c>subsets</c> (e.g.
     ///     <c>part frontMotors : Motor[2] subsets motors;</c> where <c>motors</c> is declared on
-    ///     the supertype) emits a dashed hollow-triangle edge from the subtype to the ancestor
-    ///     definition that declares the subsetted feature — reusing the same
-    ///     <c>ResolveRedefinitionOwner</c> ancestor-chain walk as Redefinition, but rendered dashed
-    ///     to distinguish it from solid Specialization/Redefinition edges.
+    ///     the supertype) emits a solid hollow-triangle edge from the subsetting usage node to the
+    ///     subsetted usage node — the same marker as specialization, between the usages instead of
+    ///     between the owning definitions.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_Subsetting_CrossesSpecializationBoundary_ProducesDashedHollowTriangleEdge()
+    public void GeneralViewLayoutStrategy_BuildLayout_Subsetting_CrossesSpecializationBoundary_ProducesSolidHollowTriangleUsageEdge()
     {
         // Arrange: Drone declares "motors"; RacingDrone specializes Drone and subsets "motors" via
-        // a narrower "frontMotors" feature.
+        // a narrower "frontMotors" usage.
         var strategy = new GeneralViewLayoutStrategy();
+        var motors = new SysmlFeatureNode { Name = "motors", QualifiedName = "P::Drone::motors", FeatureKeyword = "part", FeatureTyping = "Motor", Multiplicity = "[4]" };
+        var frontMotors = new SysmlFeatureNode { Name = "frontMotors", QualifiedName = "P::RacingDrone::frontMotors", FeatureKeyword = "part", FeatureTyping = "Motor", Multiplicity = "[2]", SupertypeNames = ["motors"] };
         var workspace = new SysmlWorkspace
         {
             Declarations = new Dictionary<string, SysmlNode>
             {
                 ["P::Motor"] = new SysmlDefinitionNode { Name = "Motor", QualifiedName = "P::Motor", DefinitionKeyword = "part def" },
-                ["P::Drone"] = new SysmlDefinitionNode
-                {
-                    Name = "Drone",
-                    QualifiedName = "P::Drone",
-                    DefinitionKeyword = "part def",
-                    Children =
-                    [
-                        new SysmlFeatureNode { Name = "motors", QualifiedName = "P::Drone::motors", FeatureKeyword = "part", FeatureTyping = "Motor", Multiplicity = "[4]" }
-                    ]
-                },
+                ["P::Drone"] = new SysmlDefinitionNode { Name = "Drone", QualifiedName = "P::Drone", DefinitionKeyword = "part def", Children = [motors] },
+                ["P::Drone::motors"] = motors,
                 ["P::RacingDrone"] = new SysmlDefinitionNode
                 {
                     Name = "RacingDrone",
                     QualifiedName = "P::RacingDrone",
                     DefinitionKeyword = "part def",
                     SupertypeNames = ["Drone"],
-                    Children =
-                    [
-                        new SysmlFeatureNode { Name = "frontMotors", QualifiedName = "P::RacingDrone::frontMotors", FeatureKeyword = "part", FeatureTyping = "Motor", Multiplicity = "[2]", SupertypeNames = ["motors"] }
-                    ]
-                }
+                    Children = [frontMotors]
+                },
+                ["P::RacingDrone::frontMotors"] = frontMotors
             }
         };
         var context = new ViewContext("v", workspace);
@@ -2639,42 +2722,38 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: a dashed hollow-triangle edge from RacingDrone to Drone is emitted (distinct
-        // from the solid hollow-triangle Specialization edge also present between the same boxes).
+        // Assert: a solid hollow-triangle edge runs from the frontMotors usage to the motors usage
+        // (usage to usage — no longer from RacingDrone to Drone), distinct from the solid
+        // hollow-triangle Specialization edge also present between the two definitions.
         var lines = CollectLines(layout.Nodes);
-        var subsettingEdge = lines.FirstOrDefault(l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Dashed);
-        Assert.NotNull(subsettingEdge);
-        Assert.Contains(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Solid);
+        var frontMotorsBox = FindBox(layout.Nodes, "frontMotors");
+        var motorsBox = FindBox(layout.Nodes, "motors");
+        var subsettingEdge = Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && RunsBetween(l, frontMotorsBox, motorsBox));
+        Assert.Equal(LineStyle.Solid, subsettingEdge.LineStyle);
+        Assert.Single(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && RunsBetween(l, FindBox(layout.Nodes, "RacingDrone"), FindBox(layout.Nodes, "Drone")));
     }
 
     /// <summary>
-    ///     A <c>subsets</c> reference to a sibling feature declared on the very same definition
-    ///     (no specialization boundary crossed) produces no edge — a known limitation mirroring
-    ///     <see cref="GeneralViewLayoutStrategy_BuildLayout_SelfReferentialRedefinition_ProducesNoEdge"/>'s
-    ///     documented self-reference behavior for Redefinition.
+    ///     A <c>subsets</c> reference to a sibling usage declared on the very same definition draws
+    ///     an edge from the subsetting usage node to the subsetted usage node: the edge joins the
+    ///     two usages, so no specialization boundary has to be crossed.
     /// </summary>
     [Fact]
-    public void GeneralViewLayoutStrategy_BuildLayout_SelfReferentialSubsetting_ProducesNoEdge()
+    public void GeneralViewLayoutStrategy_BuildLayout_SameDefinitionSubsetting_ProducesUsageToUsageEdge()
     {
         // Arrange: Vehicle declares both "wheels" and a same-definition sibling "frontWheels" that
         // subsets "wheels" with no supertype to walk.
         var strategy = new GeneralViewLayoutStrategy();
+        var wheels = new SysmlFeatureNode { Name = "wheels", QualifiedName = "P::Vehicle::wheels", FeatureKeyword = "part", FeatureTyping = "Wheel", Multiplicity = "[4]" };
+        var frontWheels = new SysmlFeatureNode { Name = "frontWheels", QualifiedName = "P::Vehicle::frontWheels", FeatureKeyword = "part", FeatureTyping = "Wheel", Multiplicity = "[2]", SupertypeNames = ["wheels"] };
         var workspace = new SysmlWorkspace
         {
             Declarations = new Dictionary<string, SysmlNode>
             {
                 ["P::Wheel"] = new SysmlDefinitionNode { Name = "Wheel", QualifiedName = "P::Wheel", DefinitionKeyword = "part def" },
-                ["P::Vehicle"] = new SysmlDefinitionNode
-                {
-                    Name = "Vehicle",
-                    QualifiedName = "P::Vehicle",
-                    DefinitionKeyword = "part def",
-                    Children =
-                    [
-                        new SysmlFeatureNode { Name = "wheels", QualifiedName = "P::Vehicle::wheels", FeatureKeyword = "part", FeatureTyping = "Wheel", Multiplicity = "[4]" },
-                        new SysmlFeatureNode { Name = "frontWheels", QualifiedName = "P::Vehicle::frontWheels", FeatureKeyword = "part", FeatureTyping = "Wheel", Multiplicity = "[2]", SupertypeNames = ["wheels"] }
-                    ]
-                }
+                ["P::Vehicle"] = new SysmlDefinitionNode { Name = "Vehicle", QualifiedName = "P::Vehicle", DefinitionKeyword = "part def", Children = [wheels, frontWheels] },
+                ["P::Vehicle::wheels"] = wheels,
+                ["P::Vehicle::frontWheels"] = frontWheels
             }
         };
         var context = new ViewContext("v", workspace);
@@ -2683,9 +2762,37 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act
         var layout = strategy.BuildLayout(context, options);
 
-        // Assert: no dashed hollow-triangle (Subsetting) edge is emitted.
-        var lines = CollectLines(layout.Nodes);
-        Assert.DoesNotContain(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Dashed);
+        // Assert: a solid hollow-triangle edge runs from frontWheels to wheels
+        var subsettingEdge = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangle);
+        Assert.True(RunsBetween(subsettingEdge, FindBox(layout.Nodes, "frontWheels"), FindBox(layout.Nodes, "wheels")));
+    }
+
+    /// <summary>
+    ///     A usage that subsets itself draws no subsetting edge — the self-reference guard shared
+    ///     with every other edge kind — and does not throw.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_SelfReferentialSubsetting_ProducesNoEdge()
+    {
+        // Arrange: a usage that names itself as its own subsetted feature
+        var strategy = new GeneralViewLayoutStrategy();
+        var wheels = new SysmlFeatureNode { Name = "wheels", QualifiedName = "P::Vehicle::wheels", FeatureKeyword = "part", SupertypeNames = ["wheels"] };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::Vehicle"] = new SysmlDefinitionNode { Name = "Vehicle", QualifiedName = "P::Vehicle", DefinitionKeyword = "part def", Children = [wheels] },
+                ["P::Vehicle::wheels"] = wheels
+            }
+        };
+        var context = new ViewContext("v", workspace);
+        var options = new RenderOptions(Themes.Light);
+
+        // Act
+        var layout = strategy.BuildLayout(context, options);
+
+        // Assert: no hollow-triangle (subsetting) edge is emitted.
+        Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangle);
     }
 
     /// <summary>
@@ -2931,12 +3038,11 @@ public sealed class GeneralViewLayoutStrategyTests
                 alias Alias for Lib::Holder::slotX;
                 part def Consumer { part s :> slotX, Alias; }
             }
-            package Diagrams { view V { expose Lib::*; expose App::*; } }
+            package Diagrams { view V { expose Lib::**; expose App::**; } }
             """);
 
         // Assert: exactly one subsetting edge (the alias's)
-        Assert.Single(
-            CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangle && l.LineStyle == LineStyle.Dashed);
+        Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangle);
     }
 
     /// <summary>
@@ -3055,7 +3161,7 @@ public sealed class GeneralViewLayoutStrategyTests
     /// <summary>
     ///     Loads <paramref name="sysml"/> and lays out the general view <c>Diagrams::V</c>.
     /// </summary>
-    private static async Task<LayoutTree> LayOutViewVAsync(string sysml)
+    private static async Task<LayoutTree> LayOutViewVAsync(string sysml, NodePolicy? policy = null)
     {
         var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
         try
@@ -3065,7 +3171,7 @@ public sealed class GeneralViewLayoutStrategyTests
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
             Assert.NotNull(result.Workspace);
             var view = Assert.IsType<SysmlViewNode>(result.Workspace.Declarations["Diagrams::V"]);
-            return new GeneralViewLayoutStrategy().BuildLayout(
+            return new GeneralViewLayoutStrategy(policy ?? NodePolicy.Pilot).BuildLayout(
                 new ViewContext("V", result.Workspace, view), new RenderOptions(Themes.Light));
         }
         finally
@@ -3292,14 +3398,15 @@ public sealed class GeneralViewLayoutStrategyTests
     /// <summary>
     ///     Compartments are emitted in the canonical order attributes, enums, parts, ports followed
     ///     by every other keyword group in declaration order, regardless of the order the usages are
-    ///     declared in; the <c>doc</c> compartment stays first.
+    ///     declared in; the <c>doc</c> compartment stays first. (Row-only policy: under the Pilot
+    ///     policy the item, port and part usages are nodes of their own, not rows.)
     /// </summary>
     [Fact]
     public void GeneralViewLayoutStrategy_BuildLayout_Compartments_AreInCanonicalOrder()
     {
         // Arrange: a part def declaring an item, port, enum value, part, and attribute (in that
         // order) plus documentation
-        var strategy = new GeneralViewLayoutStrategy();
+        var strategy = new GeneralViewLayoutStrategy(NodePolicy.RowsOnly);
         var def = new SysmlDefinitionNode
         {
             Name = "Thing",
@@ -3353,7 +3460,7 @@ public sealed class GeneralViewLayoutStrategyTests
 
         // Assert: the usage is a rounded rectangle, the definition a plain rectangle
         var boxes = CollectBoxes(layout.Nodes);
-        Assert.Equal(BoxShape.RoundedRectangle, boxes.Single(b => b.Label == "engine1").Shape);
+        Assert.Equal(BoxShape.RoundedRectangle, boxes.Single(b => IsNamed(b, "engine1")).Shape);
         Assert.Equal(BoxShape.Rectangle, boxes.Single(b => b.Label == "Engine").Shape);
     }
 
@@ -3686,7 +3793,7 @@ public sealed class GeneralViewLayoutStrategyTests
     ///     Loads <paramref name="sysml"/> and lays out an unscoped view (no <c>expose</c>: every
     ///     non-stdlib definition and package is drawn) with the general view strategy.
     /// </summary>
-    private static async Task<LayoutTree> LayOutUnscopedAsync(string sysml, int depthLimit = 0)
+    private static async Task<LayoutTree> LayOutUnscopedAsync(string sysml, int depthLimit = 0, NodePolicy? policy = null)
     {
         var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".sysml");
         try
@@ -3695,7 +3802,7 @@ public sealed class GeneralViewLayoutStrategyTests
             var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
             var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
             Assert.NotNull(result.Workspace);
-            return new GeneralViewLayoutStrategy().BuildLayout(
+            return new GeneralViewLayoutStrategy(policy ?? NodePolicy.Pilot).BuildLayout(
                 new ViewContext("v", result.Workspace), new RenderOptions(Themes.Light, DepthLimit: depthLimit));
         }
         finally
@@ -3710,11 +3817,11 @@ public sealed class GeneralViewLayoutStrategyTests
 
     /// <summary>
     ///     True when the box's name line is <paramref name="name"/> exactly or <paramref name="name"/>
-    ///     followed by its <c>:&gt;</c> specialization (a specializing definition's label reads
-    ///     <c>Name :&gt; Super</c>).
+    ///     followed by a <c>:</c>-introduced clause (a specializing definition's label reads
+    ///     <c>Name :&gt; Super</c>, a typed usage's <c>name : Type</c>).
     /// </summary>
     private static bool IsNamed(LayoutBox box, string name) =>
-        box.Label == name || (box.Label?.StartsWith(name + " :>", StringComparison.Ordinal) ?? false);
+        box.Label == name || (box.Label?.StartsWith(name + " :", StringComparison.Ordinal) ?? false);
 
     /// <summary>Returns the hollow-triangle (specialization) lines among the direct nodes of a scope.</summary>
     private static IReadOnlyList<LayoutLine> DirectSpecializationLines(IReadOnlyList<LayoutNode> scopeNodes) =>
@@ -4231,10 +4338,11 @@ public sealed class GeneralViewLayoutStrategyTests
         """;
 
     /// <summary>
-    ///     Relationships leaving a package folder are not forced to cross by the declaration order of
-    ///     the folder's definitions: <c>Hybrid</c> (leading into the <c>Powertrain</c> folder) is placed
-    ///     above <c>Chassis</c> (leading past it to <c>Car</c>) whether it is declared last or first, and
-    ///     no two lines of the whole drawing cross.
+    ///     The declaration order of a package folder's definitions does not change where the
+    ///     definitions are drawn: whether <c>Hybrid</c> (leading into the <c>Powertrain</c> folder)
+    ///     is declared last or first, the folder places every box at the same position and no two
+    ///     definition boxes overlap. (A residual crossing between the cross-folder connectors of
+    ///     this model is an engine routing outcome, see the verification document.)
     /// </summary>
     [Fact]
     public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_OrderFolderItemsByPartnerPosition()
@@ -4243,12 +4351,17 @@ public sealed class GeneralViewLayoutStrategyTests
         var hybridLast = await LayOutUnscopedAsync(VehicleModel("part def Chassis; part def SportsChassis :> Chassis; part def Hybrid :> Powertrain::Engine;"));
         var hybridFirst = await LayOutUnscopedAsync(VehicleModel("part def Hybrid :> Powertrain::Engine; part def Chassis; part def SportsChassis :> Chassis;"));
 
-        // Assert: Hybrid sits above Chassis in both and nothing crosses
-        foreach (var layout in new[] { hybridLast, hybridFirst })
+        // Assert: both orders draw the same boxes at the same positions, without overlap
+        foreach (var name in new[] { "Hybrid", "Chassis", "SportsChassis", "Engine", "Car" })
         {
-            Assert.True(FindBox(layout.Nodes, "Hybrid").Y < FindBox(layout.Nodes, "Chassis").Y);
-            Assert.Equal(0, CountLineCrossings(layout.Nodes));
+            var last = FindBox(hybridLast.Nodes, name);
+            var first = FindBox(hybridFirst.Nodes, name);
+            Assert.Equal(last.X, first.X, 1.0);
+            Assert.Equal(last.Y, first.Y, 1.0);
         }
+
+        AssertDefinitionBoxesDoNotOverlap(hybridLast.Nodes);
+        AssertDefinitionBoxesDoNotOverlap(hybridFirst.Nodes);
     }
 
     /// <summary>
@@ -4262,15 +4375,14 @@ public sealed class GeneralViewLayoutStrategyTests
         // Act: three unconnected definitions and a specialization pair, all inside one package
         var layout = await LayOutUnscopedAsync("package P { part def Zeta; part def Alpha; part def Mid :> Alpha; part def Beta; }");
 
-        // Assert: reading order (top to bottom, then left to right) equals declaration order of the
-        // groups, and nothing is reordered alphabetically or by connectivity
+        // Assert: the unconnected definitions keep their declaration order in reading order (top to
+        // bottom, then left to right); nothing is reordered alphabetically or by connectivity
         var p = FindBox(layout.Nodes, "P");
         var readingOrder = p.Children.OfType<LayoutBox>()
             .OrderBy(b => b.Y).ThenBy(b => b.X)
             .Select(b => b.Label)
             .ToList();
-        Assert.True(readingOrder.IndexOf("Zeta") < readingOrder.IndexOf("Alpha"));
-        Assert.True(readingOrder.IndexOf("Alpha") < readingOrder.IndexOf("Beta"));
+        Assert.True(readingOrder.IndexOf("Zeta") < readingOrder.IndexOf("Beta"));
     }
 
     /// <summary>
@@ -4297,8 +4409,8 @@ public sealed class GeneralViewLayoutStrategyTests
     /// <summary>
     ///     The partner's position is measured at the level where the two meet, however deep the partner
     ///     is nested: definitions of <c>A::B</c> that lead into <c>Lo::In</c> and <c>Hi::In</c> are
-    ///     stacked in the same vertical order as the <c>Lo</c> and <c>Hi</c> folders they lead to,
-    ///     whichever way they were declared.
+    ///     placed in the reading order of the horizontal order of the <c>Lo</c> and <c>Hi</c> folders
+    ///     they lead to, whichever way they were declared.
     /// </summary>
     [Fact]
     public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DeepNesting_FollowsPartnerContainerOrder()
@@ -4308,27 +4420,33 @@ public sealed class GeneralViewLayoutStrategyTests
         var viaLowFirst = packages + " package A { package B { part def ToLo :> Lo::In::L; part def ToHi :> Hi::In::H; } }";
         var viaHighFirst = packages + " package A { package B { part def ToHi :> Hi::In::H; part def ToLo :> Lo::In::L; } }";
 
-        // Act / Assert: the stacking of the two definitions matches the stacking of their partners
+        // Act / Assert: the reading order of the two definitions matches the left-to-right order of their partners
         foreach (var sysml in new[] { viaLowFirst, viaHighFirst })
         {
             var layout = await LayOutUnscopedAsync(sysml);
             var lo = FindBox(layout.Nodes, "Lo");
             var hi = FindBox(layout.Nodes, "Hi");
-            var toLo = FindBox(layout.Nodes, "ToLo");
-            var toHi = FindBox(layout.Nodes, "ToHi");
-            Assert.NotEqual(lo.Y + (lo.Height / 2.0), hi.Y + (hi.Height / 2.0));
+            Assert.NotEqual(lo.X + (lo.Width / 2.0), hi.X + (hi.Width / 2.0));
             Assert.Equal(
-                (lo.Y + (lo.Height / 2.0)).CompareTo(hi.Y + (hi.Height / 2.0)),
-                (toLo.Y + (toLo.Height / 2.0)).CompareTo(toHi.Y + (toHi.Height / 2.0)));
+                (lo.X + (lo.Width / 2.0)) < (hi.X + (hi.Width / 2.0)),
+                ReadsBefore(FindBox(layout.Nodes, "ToLo"), FindBox(layout.Nodes, "ToHi")));
+            Assert.Equal(0, CountLineCrossings(layout.Nodes));
         }
+    }
+
+    /// <summary>True when <paramref name="first"/> comes before <paramref name="second"/> in reading order (top to bottom, then left to right).</summary>
+    private static bool ReadsBefore(LayoutBox first, LayoutBox second)
+    {
+        var sameRow = Math.Abs(first.Y - second.Y) < 1.0;
+        return sameRow ? first.X < second.X : first.Y < second.Y;
     }
 
     /// <summary>
     ///     A definition that is a direct member of a package and whose partners live in different nested
     ///     packages of that same package is ordered by where those nested packages sit, even though the
     ///     lowest common scope of each relationship is the package's own scope: <c>ToA</c> and
-    ///     <c>ToB</c> are stacked like the <c>A</c> and <c>B</c> folders they lead to, whichever way
-    ///     they were declared, and no lines cross.
+    ///     <c>ToB</c> read in the same order as the <c>A</c> and <c>B</c> folders they lead to,
+    ///     whichever way they were declared, and no lines cross.
     /// </summary>
     [Fact]
     public async Task GeneralViewLayoutStrategy_BuildLayout_ExternalEdges_DefinitionToSiblingNestedPackages_OrdersByPartnerFolder()
@@ -4344,30 +4462,29 @@ public sealed class GeneralViewLayoutStrategyTests
             var layout = await LayOutUnscopedAsync(sysml);
             var a = FindBox(layout.Nodes, "A");
             var b = FindBox(layout.Nodes, "B");
-            var toA = FindBox(layout.Nodes, "ToA");
-            var toB = FindBox(layout.Nodes, "ToB");
-            Assert.NotEqual(a.Y + (a.Height / 2.0), b.Y + (b.Height / 2.0));
+            Assert.NotEqual(a.X + (a.Width / 2.0), b.X + (b.Width / 2.0));
             Assert.Equal(
-                (a.Y + (a.Height / 2.0)).CompareTo(b.Y + (b.Height / 2.0)),
-                (toA.Y + (toA.Height / 2.0)).CompareTo(toB.Y + (toB.Height / 2.0)));
+                (a.X + (a.Width / 2.0)) < (b.X + (b.Width / 2.0)),
+                ReadsBefore(FindBox(layout.Nodes, "ToA"), FindBox(layout.Nodes, "ToB")));
             Assert.Equal(0, CountLineCrossings(layout.Nodes));
         }
     }
 
     /// <summary>
     ///     Two distinct relationships between the same two definitions inside a nested package (two
-    ///     attributes of the same type) are drawn as two separate connectors: parallel-edge merging is
-    ///     off in every scope, not only at the root.
+    ///     attribute usages of the same type, drawn as nodes under the all-usages policy) are drawn
+    ///     as two separate connectors: parallel-edge merging is off in every scope, not only at the root.
     /// </summary>
     [Fact]
     public async Task GeneralViewLayoutStrategy_BuildLayout_ParallelEdgesInNestedPackage_AreNotMerged()
     {
         // Act
         var layout = await LayOutUnscopedAsync(
-            "package P { package Sub { attribute def Mass; part def Vehicle { attribute mass : Mass; attribute weight : Mass; } } }");
+            "package P { package Sub { attribute def Mass; part def Vehicle { attribute mass : Mass; attribute weight : Mass; } } }",
+            policy: NodePolicy.AllUsages);
 
-        // Assert: one dashed typing dependency per attribute
-        var typing = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron).ToList();
+        // Assert: one typing edge per attribute usage
+        var typing = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots).ToList();
         Assert.Equal(2, typing.Count);
     }
 
@@ -4380,12 +4497,13 @@ public sealed class GeneralViewLayoutStrategyTests
     {
         // Act
         var layout = await LayOutUnscopedAsync(
-            "part def Outer { attribute def Mass; part def Vehicle { attribute mass : Mass; attribute weight : Mass; } }");
+            "part def Outer { attribute def Mass; part def Vehicle { attribute mass : Mass; attribute weight : Mass; } }",
+            policy: NodePolicy.AllUsages);
 
-        // Assert: Vehicle and Mass are nested in Outer, and each attribute has its own typing dependency
+        // Assert: Vehicle and Mass are nested in Outer, and each attribute usage has its own typing edge
         var outer = FindBox(layout.Nodes, "Outer");
         Assert.Contains(outer.Children.OfType<LayoutBox>(), b => b.Label == "Mass");
-        var typing = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron).ToList();
+        var typing = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots).ToList();
         Assert.Equal(2, typing.Count);
     }
 
@@ -4446,6 +4564,1413 @@ public sealed class GeneralViewLayoutStrategyTests
         // Assert
         Assert.True(FindBox(hybridLast.Nodes, "H").Y > FindBox(hybridLast.Nodes, "C").Y);
         Assert.True(FindBox(hybridFirst.Nodes, "H").Y < FindBox(hybridFirst.Nodes, "C").Y);
+    }
+
+    /// <summary>
+    ///     The General view flows top-to-bottom: the owner and the general type are placed above the
+    ///     element they own or specialize, and the definition typing a usage is placed below the
+    ///     usage. The connectors keep their drawn direction: a specialization and a feature
+    ///     membership line run upward from the source, with the marker at the upper box's bottom
+    ///     border, while a typing line runs downward with the marker at the definition's top border.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_TopDown_OwnerAndGeneralAboveUsageAndDefinitionBelow()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            part def Wheel;
+            part def Vehicle { part wheel : Wheel; }
+            part def Car :> Vehicle;
+            """);
+
+        // Assert: Vehicle above Car (specialization), Vehicle above wheel (membership) and Wheel below wheel (typing)
+        var vehicle = FindBox(layout.Nodes, "Vehicle");
+        var car = FindBox(layout.Nodes, "Car");
+        var wheelUsage = FindBox(layout.Nodes, "wheel");
+        var wheelDef = FindBox(layout.Nodes, "Wheel");
+        Assert.True(vehicle.Y + vehicle.Height <= car.Y);
+        Assert.True(vehicle.Y + vehicle.Height <= wheelUsage.Y);
+        Assert.True(wheelUsage.Y + wheelUsage.Height <= wheelDef.Y);
+
+        // Assert: specialization and membership lines start at the lower box and end at the upper one
+        // (marker at the upper box); the typing line starts at the usage and ends at the definition below
+        var lines = CollectLines(layout.Nodes);
+        Assert.Equal(3, lines.Count);
+        foreach (var line in lines)
+        {
+            var start = line.Waypoints[0];
+            var end = line.Waypoints[^1];
+            if (line.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots)
+            {
+                Assert.True(RunsBetween(line, wheelUsage, wheelDef));
+                Assert.True(start.Y < end.Y, "the typing line does not run downward");
+            }
+            else
+            {
+                Assert.True(start.Y > end.Y, $"line from ({start.X},{start.Y}) to ({end.X},{end.Y}) does not run upward");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Layout compactness regression for a drone-like model (one definition owning eight part usages,
+    ///     one specialization with a subsetting usage, and a handful of unrelated definitions): the
+    ///     usages of the owner share one row directly below it, each typing definition hangs below its
+    ///     usage, and the drawing stays within a readable size instead of the former two rigid tiers
+    ///     that grew several thousand pixels wide.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_DroneLikeModel_IsCompactAndTopDown()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            part def Mass; part def Frame; part def Propeller;
+            part def Battery { port output : PowerPort; }
+            part def FlightController { port power : PowerPort; port sensors : SensorPort; }
+            part def Motor { port control : MotorControlPort; }
+            part def ImuSensor { port data : SensorPort; }
+            part def GpsSensor { port data : SensorPort; }
+            interface def PowerBus;
+            port def PowerPort; port def SensorPort; port def MotorControlPort;
+            enum def FlightMode { enum idle; enum manual; }
+            part def Drone {
+                attribute totalMass : Mass;
+                part airframe : Frame;
+                part battery : Battery;
+                part controller : FlightController;
+                part motors : Motor[4];
+                part propellers : Propeller[4];
+                part imu : ImuSensor;
+                part gps : GpsSensor;
+            }
+            part def RacingDrone :> Drone { part frontMotors : Motor[2] subsets motors; }
+            """);
+
+        // Assert: the drawing is compact and nothing overlaps
+        Assert.InRange(layout.Width, 1.0, 2000.0);
+        Assert.InRange(layout.Height, 1.0, 1300.0);
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
+
+        // Assert: the owner is on top, its seven direct usages share one row below it, and every typing
+        // definition is below the usage it types
+        var drone = FindBox(layout.Nodes, "Drone");
+        var usageNames = new[] { "airframe", "battery", "controller", "motors", "propellers", "imu", "gps" };
+        var usages = usageNames.Select(name => FindBox(layout.Nodes, name)).ToList();
+        Assert.All(usages, usage => Assert.True(drone.Y + drone.Height <= usage.Y));
+        Assert.Single(usages.Select(usage => Math.Round(usage.Y)).Distinct());
+        foreach (var (usage, definition) in usages.Zip(new[] { "Frame", "Battery", "FlightController", "Motor", "Propeller", "ImuSensor", "GpsSensor" }))
+        {
+            Assert.True(usage.Y + usage.Height <= FindBox(layout.Nodes, definition).Y, $"{definition} is not below its usage");
+        }
+
+        // Assert: every connector end lies inside the canvas
+        foreach (var point in CollectLines(layout.Nodes).SelectMany(l => l.Waypoints))
+        {
+            Assert.InRange(point.X, 0.0, layout.Width);
+            Assert.InRange(point.Y, 0.0, layout.Height);
+        }
+    }
+
+    /// <summary>
+    ///     Regression for an engine defect worked around by laying package folders out with the
+    ///     <c>auto</c> algorithm: a folder pinned to the layered algorithm with the bottom-to-top
+    ///     direction piles several unconnected definitions of one layer on top of each other. Twelve
+    ///     unconnected definitions and one specialization pair in a folder (and at the root) must
+    ///     all be drawn without overlap.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_TopDown_UnconnectedDefinitionsDoNotOverlap()
+    {
+        // Arrange: a folder and the root each holding many unconnected definitions
+        var folderDefs = string.Join(' ', Enumerable.Range(1, 12).Select(i => $"part def F{i};"));
+        var rootDefs = string.Join(' ', Enumerable.Range(1, 12).Select(i => $"part def R{i};"));
+
+        // Act
+        var layout = await LayOutUnscopedAsync($"package P {{ {folderDefs} part def Base; part def Derived :> Base; }} {rootDefs}");
+
+        // Assert: every definition box is drawn and none overlap another
+        Assert.Equal(12 + 2 + 12, CollectBoxes(layout.Nodes).Count(b => b.Shape == BoxShape.Rectangle));
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
+    }
+
+    /// <summary>
+    ///     A package folder with content carries its name in the tab (the specification's
+    ///     package-with-name-in-tab) — its box asks the renderer for the tab placement and keeps the
+    ///     <c>Folder</c> shape — while an exposed package with no content and a depth-truncated
+    ///     package keep the name inside the body.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PackageFolder_NameInTabOnlyWhenItHasContent()
+    {
+        // Act: a package with content, then an exposed empty package, then a depth-truncated one
+        var withContent = await LayOutUnscopedAsync("package P { part def A; }");
+        var empty = await LayOutDeclaredViewAsync(ExposeFormsSysml, "Bare");
+        var truncated = await LayOutUnscopedAsync("package P { part def A; }", depthLimit: 1);
+
+        // Assert
+        Assert.Equal(FolderTitlePlacement.Tab, FindBox(withContent.Nodes, "P").Appearance?.FolderTitle);
+        Assert.NotEqual(FolderTitlePlacement.Tab, FindBox(empty.Nodes, "Pkg").Appearance?.FolderTitle ?? FolderTitlePlacement.Body);
+        Assert.NotEqual(FolderTitlePlacement.Tab, FindBox(truncated.Nodes, "P").Appearance?.FolderTitle ?? FolderTitlePlacement.Body);
+    }
+
+    /// <summary>
+    ///     Regression for an engine defect worked around by fitting the canvas to the connectors: with the
+    ///     bottom-to-top direction the engine routes a connector between two root-level folders through
+    ///     a channel outside the drawing (negative coordinates) without growing the canvas, so the
+    ///     renderer would clip it. Every waypoint of every connector must lie inside the canvas.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_TopDown_ConnectorsBetweenRootFolders_StayInsideCanvas()
+    {
+        // Act: an import and a typing edge join the two root-level packages
+        var layout = await LayOutUnscopedAsync("package Lib { part def X; } package Design { private import Lib::*; part def A { part p : X; } }");
+
+        // Assert
+        var lines = CollectLines(layout.Nodes);
+        Assert.NotEmpty(lines);
+        foreach (var point in lines.SelectMany(l => l.Waypoints))
+        {
+            Assert.InRange(point.X, 0.0, layout.Width);
+            Assert.InRange(point.Y, 0.0, layout.Height);
+        }
+    }
+
+    /// <summary>Returns the node policy named <paramref name="name"/> (<c>Pilot</c>, <c>AllUsages</c> or <c>RowsOnly</c>).</summary>
+    private static NodePolicy PolicyByName(string name) => name switch
+    {
+        "Pilot" => NodePolicy.Pilot,
+        "AllUsages" => NodePolicy.AllUsages,
+        _ => NodePolicy.RowsOnly,
+    };
+
+    /// <summary>
+    ///     The node policy decides by usage keyword whether a nested usage is a node: the Pilot policy
+    ///     draws occurrence-kind usages and ports that own nested content as nodes and keeps attributes,
+    ///     plain references, plain ports (no nested content), enumeration values and constraints as
+    ///     rows; the all-usages policy draws every named usage
+    ///     with a keyword except constraints and enumeration values; the row-only policy draws none.
+    /// </summary>
+    /// <param name="policy">The policy name.</param>
+    /// <param name="keyword">The usage keyword.</param>
+    /// <param name="expected">Whether the usage is a node.</param>
+    [Theory]
+    [InlineData("Pilot", "part", true)]
+    [InlineData("Pilot", "item", true)]
+    [InlineData("Pilot", "port", false)]
+    [InlineData("Pilot", "action", true)]
+    [InlineData("Pilot", "state", true)]
+    [InlineData("Pilot", "requirement", true)]
+    [InlineData("Pilot", "occurrence", true)]
+    [InlineData("Pilot", "attribute", false)]
+    [InlineData("Pilot", "ref", false)]
+    [InlineData("Pilot", "enum value", false)]
+    [InlineData("Pilot", "constraint", false)]
+    [InlineData("Pilot", "subject", false)]
+    [InlineData("AllUsages", "part", true)]
+    [InlineData("AllUsages", "port", true)]
+    [InlineData("AllUsages", "attribute", true)]
+    [InlineData("AllUsages", "ref", true)]
+    [InlineData("AllUsages", "enum value", false)]
+    [InlineData("AllUsages", "constraint", false)]
+    [InlineData("AllUsages", "require constraint", false)]
+    [InlineData("RowsOnly", "part", false)]
+    [InlineData("RowsOnly", "port", false)]
+    [InlineData("RowsOnly", "attribute", false)]
+    public void GeneralViewLayoutStrategy_NodePolicy_IsNode_KeywordMatrix_ReturnsExpected(string policy, string keyword, bool expected)
+    {
+        // Arrange: a named usage of the keyword
+        var usage = new SysmlFeatureNode { Name = "u", FeatureKeyword = keyword };
+
+        // Act
+        var isNode = PolicyByName(policy).IsNode(usage);
+
+        // Assert
+        Assert.Equal(expected, isNode);
+    }
+
+    /// <summary>
+    ///     An unnamed usage, a usage without keyword and a usage whose payload is an expression are never
+    ///     nodes, whatever the policy: there is nothing to key or label a box with.
+    /// </summary>
+    /// <param name="policy">The policy name.</param>
+    [Theory]
+    [InlineData("Pilot")]
+    [InlineData("AllUsages")]
+    [InlineData("RowsOnly")]
+    public void GeneralViewLayoutStrategy_NodePolicy_IsNode_UnnamedWithoutKeywordOrExpression_IsNeverNode(string policy)
+    {
+        // Arrange
+        var nodePolicy = PolicyByName(policy);
+
+        // Act / Assert
+        Assert.False(nodePolicy.IsNode(new SysmlFeatureNode { FeatureKeyword = "part" }));
+        Assert.False(nodePolicy.IsNode(new SysmlFeatureNode { Name = "u", FeatureKeyword = string.Empty }));
+        Assert.False(nodePolicy.IsNode(new SysmlFeatureNode { Name = "u", FeatureKeyword = "part", ExpressionText = "x > 1" }));
+    }
+
+    /// <summary>
+    ///     Under the Pilot policy a <c>port</c> usage is a node only when it owns at least one named
+    ///     nested feature; a port without nested features, or whose only children are unnamed, stays a row.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_NodePolicy_IsNode_PilotPort_IsNodeOnlyWithNestedContent()
+    {
+        // Arrange
+        var plain = new SysmlFeatureNode { Name = "p", FeatureKeyword = "port" };
+        var unnamedChild = new SysmlFeatureNode { Name = "p", FeatureKeyword = "port", Children = [new SysmlFeatureNode { FeatureKeyword = "attribute" }] };
+        var withContent = new SysmlFeatureNode
+        {
+            Name = "p",
+            FeatureKeyword = "port",
+            Children = [new SysmlFeatureNode { Name = "a", FeatureKeyword = "attribute" }]
+        };
+
+        // Act / Assert
+        Assert.False(NodePolicy.Pilot.IsNode(plain));
+        Assert.False(NodePolicy.Pilot.IsNode(unnamedChild));
+        Assert.True(NodePolicy.Pilot.IsNode(withContent));
+        Assert.False(NodePolicy.RowsOnly.IsNode(withContent));
+    }
+
+    /// <summary>
+    ///     Under the Pilot policy a part usage owned by a definition is a rounded node placed beside
+    ///     its owner in the owner's own scope (the folder), not inside the owner's box, and the owner
+    ///     no longer lists it as a row.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PilotPolicy_PartUsage_IsOwnNodeBesideOwner()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package P { part def Wheel; part def Vehicle { part wheel : Wheel; } }");
+
+        // Assert: the usage is a rounded sibling of Vehicle inside folder P, and Vehicle has no rows for it
+        var folder = FindBox(layout.Nodes, "P");
+        var wheel = Assert.Single(folder.Children.OfType<LayoutBox>(), b => IsNamed(b, "wheel"));
+        Assert.Equal(BoxShape.RoundedRectangle, wheel.Shape);
+        Assert.Equal("part", wheel.Keyword);
+        Assert.Equal("wheel : Wheel", wheel.Label);
+        var vehicle = Assert.Single(folder.Children.OfType<LayoutBox>(), b => b.Label == "Vehicle");
+        Assert.Empty(vehicle.Children);
+        Assert.Empty(vehicle.Compartments);
+    }
+
+    /// <summary>
+    ///     Under the Pilot policy attribute usages and plain reference usages stay compartment rows of
+    ///     their owner while a part usage of the same owner becomes a node.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PilotPolicy_AttributeAndPlainReference_StayRows()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("part def Other; part def V { attribute mass : Real; ref link : Other; part p; }");
+
+        // Assert: p is a node, mass and link are rows; no box exists for either row
+        var boxes = CollectBoxes(layout.Nodes);
+        Assert.Contains(boxes, b => IsNamed(b, "p"));
+        Assert.DoesNotContain(boxes, b => IsNamed(b, "mass") || IsNamed(b, "link"));
+        var v = FindBox(layout.Nodes, "V");
+        Assert.Contains(v.Compartments, c => c.Title == "attributes" && c.Rows.Contains("mass : Real"));
+        Assert.Contains(v.Compartments, c => c.Title == "references" && c.Rows.Contains("link : Other"));
+        Assert.DoesNotContain(v.Compartments, c => c.Title == "parts");
+    }
+
+    /// <summary>
+    ///     Under the row-only policy a part usage stays a row of its owner and no usage edge of any kind
+    ///     (ownership, typing) is drawn.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_RowsOnlyPolicy_PartUsage_StaysRowAndDrawsNoEdges()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("part def W; part def V { part p : W; }", policy: NodePolicy.RowsOnly);
+
+        // Assert
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => IsNamed(b, "p"));
+        Assert.Contains(FindBox(layout.Nodes, "V").Compartments, c => c.Title == "parts" && c.Rows.Contains("p : W"));
+        Assert.Empty(CollectLines(layout.Nodes));
+    }
+
+    /// <summary>
+    ///     A usage nested in a usage (<c>part def A { part b { part c; } }</c>) is a node whose owner is
+    ///     the enclosing usage: the owner chain A, b, c is drawn with a filled diamond from each usage
+    ///     to its owner.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_PilotPolicy_NestedUsageInUsage_ChainsOwners()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("part def A { part b { part c; } }");
+
+        // Assert: c is owned by b and b by A
+        var diamonds = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.FilledDiamond).ToList();
+        Assert.Equal(2, diamonds.Count);
+        Assert.Contains(diamonds, l => RunsBetween(l, FindBox(layout.Nodes, "b"), FindBox(layout.Nodes, "A")));
+        Assert.Contains(diamonds, l => RunsBetween(l, FindBox(layout.Nodes, "c"), FindBox(layout.Nodes, "b")));
+    }
+
+    /// <summary>
+    ///     The keyword of a usage node carries the prefix words the specification places inside the
+    ///     guillemet marks (<c>abstract part</c>, <c>variation part</c>, <c>individual part</c>,
+    ///     <c>variant part</c>, <c>ref part</c>); the engine adds the guillemet marks themselves.
+    /// </summary>
+    /// <param name="isAbstract">Whether the usage is abstract.</param>
+    /// <param name="isVariation">Whether the usage is a variation.</param>
+    /// <param name="isIndividual">Whether the usage is individual.</param>
+    /// <param name="isVariant">Whether the usage is a variant.</param>
+    /// <param name="isReference">Whether the usage is a reference usage.</param>
+    /// <param name="expected">The expected keyword.</param>
+    [Theory]
+    [InlineData(false, false, false, false, false, "part")]
+    [InlineData(true, false, false, false, false, "abstract part")]
+    [InlineData(false, true, false, false, false, "variation part")]
+    [InlineData(false, false, true, false, false, "individual part")]
+    [InlineData(false, false, false, true, false, "variant part")]
+    [InlineData(false, false, false, false, true, "ref part")]
+    [InlineData(true, false, false, false, true, "abstract ref part")]
+    public void GeneralViewLayoutStrategy_BuildLayout_UsageKeyword_PrefixWords_AreInsideTheKeyword(
+        bool isAbstract, bool isVariation, bool isIndividual, bool isVariant, bool isReference, string expected)
+    {
+        // Arrange: a top-level part usage with the modifiers
+        var usage = new SysmlFeatureNode
+        {
+            Name = "p",
+            QualifiedName = "p",
+            FeatureKeyword = "part",
+            IsAbstract = isAbstract,
+            IsVariation = isVariation,
+            IsIndividual = isIndividual,
+            IsVariant = isVariant,
+            IsReference = isReference
+        };
+        var workspace = new SysmlWorkspace { Declarations = new Dictionary<string, SysmlNode> { ["p"] = usage } };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        Assert.Equal(expected, FindBox(layout.Nodes, "p").Keyword);
+    }
+
+    /// <summary>
+    ///     A plain <c>ref</c> usage (keyword <c>ref</c>, reference by definition) is not prefixed a
+    ///     second time with <c>ref</c>.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_PlainReferenceUsage_KeywordIsNotDoubled()
+    {
+        // Arrange
+        var usage = new SysmlFeatureNode { Name = "r", QualifiedName = "r", FeatureKeyword = "ref", IsReference = true };
+        var workspace = new SysmlWorkspace { Declarations = new Dictionary<string, SysmlNode> { ["r"] = usage } };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        Assert.Equal("ref", FindBox(layout.Nodes, "r").Keyword);
+    }
+
+    /// <summary>
+    ///     A usage node's name line follows the textual notation: short name, name, typing,
+    ///     multiplicity, ordering, then subsetting, redefinition and reference subsetting.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_UsageNameLine_ShowsTypeMultiplicitySubsettingRedefinitionAndReferenceSubsetting()
+    {
+        // Arrange
+        var usage = new SysmlFeatureNode
+        {
+            Name = "p",
+            ShortName = "s",
+            QualifiedName = "p",
+            FeatureKeyword = "part",
+            FeatureTyping = "T",
+            Multiplicity = "[2]",
+            IsOrdered = true,
+            IsNonunique = true,
+            SupertypeNames = ["a", "b"],
+            RedefinedFeatureName = "r",
+            ReferenceSubsettingName = "c"
+        };
+        var workspace = new SysmlWorkspace { Declarations = new Dictionary<string, SysmlNode> { ["p"] = usage } };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        Assert.Equal("<s> p : T [2] ordered nonunique :> a, b :>> r ::> c", Assert.Single(CollectBoxes(layout.Nodes)).Label);
+    }
+
+    /// <summary>
+    ///     A conjugated typing is shown as <c>~Type</c> in the name line and drawn as a typing edge to
+    ///     the underlying port definition.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ConjugatedTyping_ShowsTildeAndTypesTheUsageByThePortDefinition()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("port def PortT; part def A { port p : ~PortT { attribute x : Real; } }");
+
+        // Assert
+        var p = FindBox(layout.Nodes, "p");
+        Assert.Equal("p : ~PortT", p.Label);
+        var typing = Assert.Single(CollectLines(layout.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots);
+        Assert.True(RunsBetween(typing, p, FindBox(layout.Nodes, "PortT")));
+    }
+
+    /// <summary>
+    ///     Only a reference usage has a dashed outline; a composite usage keeps the default solid outline.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ReferenceUsage_OutlineIsDashedAndCompositeUsageIsSolid()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("part def T; part def V { part own : T; ref part shared : T; }");
+
+        // Assert
+        Assert.Equal(LineStyle.Dashed, FindBox(layout.Nodes, "shared").Appearance?.OutlineStyle);
+        Assert.NotEqual(LineStyle.Dashed, FindBox(layout.Nodes, "own").Appearance?.OutlineStyle ?? LineStyle.Solid);
+    }
+
+    /// <summary>
+    ///     The name of an abstract definition is italic (the specification's Table 4) and its keyword
+    ///     reads <c>abstract part def</c>; the name of an abstract usage stays upright.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_AbstractDefinition_NameIsItalicButAbstractUsageIsNot()
+    {
+        // Arrange: an abstract part def and an abstract part usage
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["D"] = new SysmlDefinitionNode { Name = "D", QualifiedName = "D", DefinitionKeyword = "part def", IsAbstract = true },
+                ["u"] = new SysmlFeatureNode { Name = "u", QualifiedName = "u", FeatureKeyword = "part", IsAbstract = true }
+            }
+        };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        var definition = FindBox(layout.Nodes, "D");
+        Assert.Equal("abstract part def", definition.Keyword);
+        Assert.Equal(TextStyle.BoldItalic, definition.Appearance?.NameStyle);
+        var usage = FindBox(layout.Nodes, "u");
+        Assert.Equal("abstract part", usage.Keyword);
+        Assert.Null(usage.Appearance?.NameStyle);
+    }
+
+    /// <summary>
+    ///     A row follows the textual notation: a direction keyword, a conjugated type, multiplicity with
+    ///     its ordering modifiers, subsetting and redefinition clauses and the value clause.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_FeatureRows_UseTextualNotation()
+    {
+        // Arrange: one definition owning rows of every shape (row-only policy)
+        var def = new SysmlDefinitionNode
+        {
+            Name = "D",
+            QualifiedName = "D",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "speed", FeatureKeyword = "attribute", FeatureTyping = "Real", Direction = SysmlFeatureDirection.In },
+                new SysmlFeatureNode { Name = "xs", FeatureKeyword = "attribute", FeatureTyping = "Real", Multiplicity = "[0..*]", IsOrdered = true, IsNonunique = true },
+                new SysmlFeatureNode { Name = "m", FeatureKeyword = "attribute", FeatureTyping = "Mass", SupertypeNames = ["base"], RedefinedFeatureName = "old" },
+                new SysmlFeatureNode { Name = "mass", FeatureKeyword = "attribute", FeatureTyping = "Real", ValueText = "= 5 [kg]" },
+                new SysmlFeatureNode { Name = "q", FeatureKeyword = "attribute", ConjugatedFeatureTyping = "PortT", Direction = SysmlFeatureDirection.Out }
+            ]
+        };
+        var workspace = new SysmlWorkspace { Declarations = new Dictionary<string, SysmlNode> { ["D"] = def } };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy(NodePolicy.RowsOnly).BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        var rows = FindBox(layout.Nodes, "D").Compartments.Single(c => c.Title == "attributes").Rows;
+        Assert.Equal(
+            ["in speed : Real", "xs : Real [0..*] ordered nonunique", "m : Mass :> base :>> old", "mass : Real = 5 [kg]", "out q : ~PortT"],
+            rows);
+    }
+
+    /// <summary>
+    ///     A usage that reference-subsets another (<c>part b ::&gt; a</c>) draws a solid line from
+    ///     <c>b</c> to <c>a</c> with a hollow triangle with four dots at <c>a</c>; an unresolvable
+    ///     reference draws nothing.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ReferenceSubsetting_ProducesHollowTriangleFourDotsEdgeOnlyWhenResolved()
+    {
+        // Act
+        var resolved = await LayOutUnscopedAsync("part def D { part a; part b ::> a; }");
+        var unresolved = await LayOutUnscopedAsync("part def D { part a; part b ::> nothing; }");
+
+        // Assert
+        var edge = Assert.Single(CollectLines(resolved.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleFourDots);
+        Assert.Equal(LineStyle.Solid, edge.LineStyle);
+        Assert.True(RunsBetween(edge, FindBox(resolved.Nodes, "b"), FindBox(resolved.Nodes, "a")));
+        Assert.DoesNotContain(CollectLines(unresolved.Nodes), l => l.TargetEnd == EndMarkerStyle.HollowTriangleFourDots);
+    }
+
+    /// <summary>
+    ///     With a depth limit that does not permit the usage nodes of a definition, the definition stays
+    ///     a leaf whose last compartment row is the specification's truncation marker (<c>…</c>), and no
+    ///     usage node or edge is drawn.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_DepthLimit_OwnerWithUsageNodes_StaysLeafWithEllipsisRow()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("part def W; part def V { part p : W; }", depthLimit: 1);
+
+        // Assert
+        Assert.DoesNotContain(CollectBoxes(layout.Nodes), b => IsNamed(b, "p"));
+        var v = FindBox(layout.Nodes, "V");
+        Assert.Equal("\u2026", v.Compartments[^1].Rows[^1]);
+        Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.TargetEnd is EndMarkerStyle.FilledDiamond or EndMarkerStyle.HollowTriangleTwoDots);
+    }
+
+    /// <summary>
+    ///     A recursive expose (<c>P::**</c>) includes the usages owned by the exposed definition, which are
+    ///     drawn as nodes; a namespace expose (<c>P::*</c>) exposes only the definition, so its usages
+    ///     are not rendered and stay rows of the definition.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ScopedExpose_RecursiveIncludesUsageNodes_NamespaceKeepsRows()
+    {
+        // Arrange
+        const string model = """
+            package P { part def W; part def V { part p : W; } }
+            package Diagrams {
+                view Deep { expose P::**; }
+                view Shallow { expose P::*; }
+            }
+            """;
+
+        // Act
+        var deep = await LayOutDeclaredViewAsync(model, "Deep");
+        var shallow = await LayOutDeclaredViewAsync(model, "Shallow");
+
+        // Assert
+        Assert.Contains(CollectBoxes(deep.Nodes), b => IsNamed(b, "p"));
+        Assert.DoesNotContain(CollectBoxes(shallow.Nodes), b => IsNamed(b, "p"));
+        Assert.Contains(FindBox(shallow.Nodes, "V").Compartments, c => c.Title == "parts" && c.Rows.Contains("p : W"));
+    }
+
+    /// <summary>
+    ///     Two usage nodes of different owners that read exactly alike (<c>data : P</c>) are both drawn
+    ///     and the layout completes, although the layout cannot tell their boxes apart by label.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_IdenticalUsageNodesOfDifferentOwners_AreBothDrawn()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package Q {
+                port def P;
+                part def A { port data : P { attribute x : Real; } }
+                part def B { port data : P { attribute x : Real; } }
+            }
+            """);
+
+        // Assert
+        Assert.Equal(2, CollectBoxes(layout.Nodes).Count(b => b.Label == "data : P"));
+        Assert.Equal(2, CollectLines(layout.Nodes).Count(l => l.TargetEnd == EndMarkerStyle.HollowTriangleTwoDots));
+    }
+
+    /// <summary>
+    ///     A nested part's own <c>doc</c> is a compartment of the part's own node (not of its owner), and a
+    ///     <c>comment</c> on the nested part is a note joined to the part's own node by a dashed line
+    ///     without arrowhead.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_NestedPartDocAndComment_AttachToOwnNode()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            part def Vehicle {
+                part engine {
+                    doc /* The propulsion unit. */
+                    comment /* Sized for 120 kW. */
+                }
+            }
+            """);
+
+        // Assert: the doc is on engine, not on Vehicle
+        var engine = FindBox(layout.Nodes, "engine");
+        Assert.Contains(engine.Compartments, c => c.Title == "doc" && c.Rows.Any(r => r.Contains("propulsion", StringComparison.Ordinal)));
+        Assert.DoesNotContain(FindBox(layout.Nodes, "Vehicle").Compartments, c => c.Title == "doc");
+
+        // Assert: the comment is a note linked to engine by a dashed line without an arrowhead
+        var note = Assert.Single(CollectBoxes(layout.Nodes), b => b.Shape == BoxShape.Note);
+        var link = Assert.Single(CollectLines(layout.Nodes), l => l.LineStyle == LineStyle.Dashed && l.TargetEnd == EndMarkerStyle.None);
+        Assert.True(RunsBetween(link, engine, note));
+    }
+
+    /// <summary>
+    ///     A <c>satisfy</c> relationship is drawn from the satisfying element to the requirement as a
+    ///     solid line with an open arrowhead and the <c>«satisfy»</c> label.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_Satisfy_ProducesSolidOpenArrowEdgeWithKeywordLabel()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package P {
+                requirement def R;
+                requirement req : R;
+                part def Q;
+                part subj : Q;
+                satisfy req by subj;
+            }
+            """);
+
+        // Assert
+        var edge = Assert.Single(CollectLines(layout.Nodes), l => l.MidpointLabel == "«satisfy»");
+        Assert.Equal(EndMarkerStyle.OpenChevron, edge.TargetEnd);
+        Assert.Equal(LineStyle.Solid, edge.LineStyle);
+        Assert.True(RunsBetween(edge, FindBox(layout.Nodes, "subj"), FindBox(layout.Nodes, "req")));
+    }
+
+    /// <summary>
+    ///     A <c>verify</c> relationship is drawn from the verifying element to the requirement with the
+    ///     <c>«verify»</c> label; when the verifying declaration is nested in a rendered box (an
+    ///     objective of a verification definition) the nearest rendered box on its path is the source.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_Verify_NestedSourceMapsToNearestRenderedBox()
+    {
+        // Arrange: a verification definition V (rendered) whose nested objective verifies requirement req
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::req"] = new SysmlFeatureNode { Name = "req", QualifiedName = "P::req", FeatureKeyword = "requirement" },
+                ["P::V"] = new SysmlDefinitionNode { Name = "V", QualifiedName = "P::V", DefinitionKeyword = "verification def" }
+            },
+            Index = new SemanticIndex([new SysmlEdge("P::V::obj", "P::req", SysmlEdgeKind.Verify)])
+        };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        var edge = Assert.Single(CollectLines(layout.Nodes), l => l.MidpointLabel == "«verify»");
+        Assert.Equal(EndMarkerStyle.OpenChevron, edge.TargetEnd);
+        Assert.Equal(LineStyle.Solid, edge.LineStyle);
+        Assert.True(RunsBetween(edge, FindBox(layout.Nodes, "V"), FindBox(layout.Nodes, "req")));
+    }
+
+    /// <summary>
+    ///     An import is drawn from the importing package's folder to the imported package's folder (or
+    ///     the imported definition's box) as a dashed line with an open arrowhead, labeled <c>«import»</c>
+    ///     for a membership import, <c>«import»*</c> for a namespace import and <c>«import»**</c> for a
+    ///     recursive one.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_Imports_ProduceDashedOpenArrowEdgesLabeledByKind()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package A { part def X; }
+            package B { private import A::*; part def Y; }
+            package C { import A::**; part def Z; }
+            package D { import A::X; part def W; }
+            """);
+
+        // Assert: one dashed open-arrow edge per import, labeled by kind, from the importer's folder
+        var imports = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed).ToList();
+        Assert.Equal(3, imports.Count);
+        var namespaceImport = Assert.Single(imports, l => l.MidpointLabel == "«import»*");
+        Assert.True(RunsBetween(namespaceImport, FindBox(layout.Nodes, "B"), FindBox(layout.Nodes, "A")));
+        var recursiveImport = Assert.Single(imports, l => l.MidpointLabel == "«import»**");
+        Assert.True(RunsBetween(recursiveImport, FindBox(layout.Nodes, "C"), FindBox(layout.Nodes, "A")));
+        var membershipImport = Assert.Single(imports, l => l.MidpointLabel == "«import»");
+        Assert.True(RunsBetween(membershipImport, FindBox(layout.Nodes, "D"), FindBox(layout.Nodes, "X")));
+    }
+
+    /// <summary>
+    ///     A namespace import and a recursive import of the same package, written by one importer, are
+    ///     two distinct relationships: both edges are drawn between the same two folders, each with its
+    ///     own label, and neither replaces the other.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_Imports_NamespaceAndRecursiveOfSamePackage_DrawTwoEdgesWithDistinctLabels()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package A { part def X; }
+            package B { import A::*; import A::**; part def Y; }
+            """);
+
+        // Assert
+        var imports = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed).ToList();
+        Assert.Equal(2, imports.Count);
+        var namespaceImport = Assert.Single(imports, l => l.MidpointLabel == "«import»*");
+        var recursiveImport = Assert.Single(imports, l => l.MidpointLabel == "«import»**");
+        var importer = FindBox(layout.Nodes, "B");
+        var imported = FindBox(layout.Nodes, "A");
+        foreach (var edge in imports)
+        {
+            // The edge ends on the imported folder and starts within the importing folder's span
+            Assert.True(OnBorder(edge.Waypoints[^1].X, edge.Waypoints[^1].Y, imported));
+            Assert.InRange(edge.Waypoints[0].X, importer.X, importer.X + importer.Width);
+        }
+
+        // Assert: the two parallel edges do not run exactly on top of each other
+        Assert.NotEqual(
+            namespaceImport.Waypoints.Select(p => (p.X, p.Y)),
+            recursiveImport.Waypoints.Select(p => (p.X, p.Y)));
+    }
+
+    /// <summary>
+    ///     A membership import and a namespace import that resolve to the same imported box are two
+    ///     distinct relationships and draw two edges with distinct labels.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_Imports_MembershipAndNamespaceOfSameTarget_DrawTwoEdgesWithDistinctLabels()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package A { part def X; }
+            package B { import A::X; import A::X::*; part def Y; }
+            """);
+
+        // Assert: both imports end at the box of X
+        var imports = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed).ToList();
+        Assert.Equal(2, imports.Count);
+        Assert.Single(imports, l => l.MidpointLabel == "«import»");
+        Assert.Single(imports, l => l.MidpointLabel == "«import»*");
+    }
+
+    /// <summary>
+    ///     Two identical imports (same importer, same imported namespace, same kind) draw one edge.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_Imports_ExactDuplicate_DrawsOneEdge()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package A { part def X; }
+            package B { import A::*; import A::*; part def Y; }
+            """);
+
+        // Assert
+        var imports = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron && l.LineStyle == LineStyle.Dashed).ToList();
+        var edge = Assert.Single(imports);
+        Assert.Equal("«import»*", edge.MidpointLabel);
+    }
+
+    /// <summary>
+    ///     A <c>satisfy</c> and a <c>verify</c> relationship between the same pair of boxes are two
+    ///     distinct relationships and draw two edges with their own keyword labels, while a repeated
+    ///     <c>satisfy</c> of the same pair draws one edge.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_SatisfyAndVerifyOfSamePair_DrawTwoEdgesAndRepeatsCoalesce()
+    {
+        // Arrange
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode>
+            {
+                ["P::req"] = new SysmlFeatureNode { Name = "req", QualifiedName = "P::req", FeatureKeyword = "requirement" },
+                ["P::V"] = new SysmlDefinitionNode { Name = "V", QualifiedName = "P::V", DefinitionKeyword = "verification def" }
+            },
+            Index = new SemanticIndex(
+            [
+                new SysmlEdge("P::V", "P::req", SysmlEdgeKind.Satisfy),
+                new SysmlEdge("P::V::obj", "P::req", SysmlEdgeKind.Verify),
+                new SysmlEdge("P::V", "P::req", SysmlEdgeKind.Satisfy)
+            ])
+        };
+
+        // Act
+        var layout = new GeneralViewLayoutStrategy().BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert
+        var lines = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.OpenChevron).ToList();
+        Assert.Equal(2, lines.Count);
+        Assert.Single(lines, l => l.MidpointLabel == "«satisfy»");
+        Assert.Single(lines, l => l.MidpointLabel == "«verify»");
+    }
+
+    /// <summary>
+    ///     An import of the standard library (no rendered endpoint) and an import between a package and a
+    ///     package nested in it draw no edge and produce no warning.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_Imports_StdlibAndContainedNamespace_DrawNoEdge()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            package Outer {
+                import ScalarValues::*;
+                import Inner::*;
+                package Inner { part def I; }
+                part def O;
+            }
+            """);
+
+        // Assert
+        Assert.DoesNotContain(CollectLines(layout.Nodes), l => l.LineStyle == LineStyle.Dashed);
+        Assert.Empty(layout.Warnings);
+    }
+
+    /// <summary>
+    ///     Asserts that every connector with an end decoration that reaches it over a lane (four or more
+    ///     waypoints) ends with a straight leg at least as long as the decoration plus one corner radius,
+    ///     and returns the number of connectors checked.
+    /// </summary>
+    private static int AssertEndDecorationsHaveCleanApproach(LayoutTree layout, Theme theme)
+    {
+        var checkedLines = 0;
+        foreach (var line in CollectLines(layout.Nodes).Where(l => l.TargetEnd != EndMarkerStyle.None && l.Waypoints.Count >= 4))
+        {
+            var n = line.Waypoints.Count;
+            var leg = Math.Abs(line.Waypoints[n - 1].X - line.Waypoints[n - 2].X) + Math.Abs(line.Waypoints[n - 1].Y - line.Waypoints[n - 2].Y);
+            var required = NotationMetrics.RenderedAlongLineLength(line.TargetEnd, theme) + theme.LineCornerRadius;
+            Assert.True(leg + 0.001 >= required, $"{line.TargetEnd} decoration has a final leg of {leg:F2} px, shorter than the required {required:F2} px");
+            checkedLines++;
+        }
+
+        return checkedLines;
+    }
+
+    /// <summary>Invokes the private <c>ClearEndDecorations</c> post-pass.</summary>
+    private static LayoutTree InvokeClearEndDecorations(LayoutTree tree, Theme theme)
+    {
+        var method = typeof(GeneralViewLayoutStrategy)
+            .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
+            .Single(m => m.Name == "ClearEndDecorations");
+        return (LayoutTree)method.Invoke(null, [tree, theme])!;
+    }
+
+    /// <summary>Builds a tree of an owner box above a lower box joined by one oriented, filled-diamond connector with a lane of the given distance from the owner.</summary>
+    private static LayoutTree MakeFanOutFixture(double laneDistance, bool lShaped)
+    {
+        var owner = MakeFixtureBox("Owner", BoxShape.Rectangle, "part def") with { X = 100, Y = 0 };
+        var lower = MakeFixtureBox("Lower", BoxShape.Rectangle, "part def") with { X = 0, Y = 200 };
+        IReadOnlyList<Point2D> waypoints = lShaped
+            ? [new Point2D(250, 60 + laneDistance), new Point2D(150, 60 + laneDistance), new Point2D(150, 60)]
+            : [new Point2D(50, 200), new Point2D(50, 60 + laneDistance), new Point2D(150, 60 + laneDistance), new Point2D(150, 60)];
+        var line = new LayoutLine(waypoints, EndMarkerStyle.None, EndMarkerStyle.FilledDiamond, LineStyle.Solid, null);
+        return new LayoutTree(400, 300, [owner, lower, line]);
+    }
+
+    /// <summary>
+    ///     The first lane out of an owner face lies a decoration length away from the box or farther: a
+    ///     charger-like owner with two part usages draws both filled diamonds with a straight approach of
+    ///     at least the diamond length plus the corner radius (diagram-quality C10), the same distance
+    ///     the engine keeps at the target end of an edge.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_OwnerFanOut_EndDecorationsHaveCleanApproach()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            part def Cable; part def Plug;
+            part def Charger { part cable : Cable; part plug : Plug; }
+            """);
+
+        // Assert: both composition diamonds sit at the end of a lane and have a clean approach
+        var diamonds = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.FilledDiamond && l.Waypoints.Count >= 4).ToList();
+        Assert.Equal(2, diamonds.Count);
+        Assert.True(AssertEndDecorationsHaveCleanApproach(layout, Themes.Light) >= 2);
+    }
+
+    /// <summary>
+    ///     A hollow diamond (reference usage), a filled diamond (composite usage) and a specialization
+    ///     triangle that end on the same face of one owner are all moved clear of their bends: each has a
+    ///     straight approach of its own decoration length plus the corner radius.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_SpecializationAndReferenceUsageFanOut_EndDecorationsHaveCleanApproach()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            abstract part def Motor;
+            part def InductionMotor :> Motor;
+            part def DriveUnit {
+                part motors : Motor [2];
+                part main : Motor;
+                ref part spare : InductionMotor;
+            }
+            part def RearDrive :> DriveUnit { part frontMotor :> motors; part mainMotor :>> main; }
+            """);
+
+        // Assert: the three kinds of owner-end decoration are present and all have a clean approach
+        var lines = CollectLines(layout.Nodes);
+        Assert.Contains(lines, l => l.TargetEnd == EndMarkerStyle.HollowDiamond);
+        Assert.Contains(lines, l => l.TargetEnd == EndMarkerStyle.FilledDiamond);
+        Assert.Contains(lines, l => l.TargetEnd == EndMarkerStyle.HollowTriangle);
+        Assert.True(AssertEndDecorationsHaveCleanApproach(layout, Themes.Light) >= 3);
+    }
+
+    /// <summary>A wide drone-like model (seven usages in one row, typed definitions below) plus nine definitions that nothing refers to.</summary>
+    private const string WideTreeWithIsolatedDefinitions = """
+        part def Frame; part def Propeller;
+        part def Battery { port output : PowerPort; }
+        part def FlightController { port power : PowerPort; port sensors : SensorPort; }
+        part def Motor { port control : MotorControlPort; }
+        part def Motor2 :> Motor; part def Motor3 :> Motor2; part def Motor4 :> Motor3; part def Motor5 :> Motor4;
+        part def ImuSensor { port data : SensorPort; }
+        part def GpsSensor { port data : SensorPort; }
+        part def Drone {
+            part airframe : Frame; part battery : Battery; part controller : FlightController;
+            part motors : Motor[4]; part propellers : Propeller[4]; part imu : ImuSensor; part gps : GpsSensor;
+        }
+        part def Lonely1; part def Lonely2; part def Lonely3; part def Lonely4; part def Lonely5;
+        part def Lonely6; part def Lonely7; part def Lonely8; part def Lonely9;
+        """;
+
+    /// <summary>The labels of the nine isolated definitions of <see cref="WideTreeWithIsolatedDefinitions"/>.</summary>
+    private static readonly string[] IsolatedLabels = [.. Enumerable.Range(1, 9).Select(i => $"Lonely{i}")];
+
+    /// <summary>Returns the bounds of the boxes and connector waypoints of the connected part of a layout: everything except the boxes labeled <paramref name="isolated"/>.</summary>
+    private static (double Left, double Top, double Right, double Bottom) ConnectedBounds(LayoutTree layout, IReadOnlyCollection<string> isolated)
+    {
+        var boxes = CollectBoxes(layout.Nodes).Where(b => b.Shape != BoxShape.Folder && !isolated.Contains(b.Label ?? string.Empty)).ToList();
+        var points = CollectLines(layout.Nodes).SelectMany(l => l.Waypoints).ToList();
+        return (
+            Math.Min(boxes.Min(b => b.X), points.Min(p => p.X)),
+            Math.Min(boxes.Min(b => b.Y), points.Min(p => p.Y)),
+            Math.Max(boxes.Max(b => b.X + b.Width), points.Max(p => p.X)),
+            Math.Max(boxes.Max(b => b.Y + b.Height), points.Max(p => p.Y)));
+    }
+
+    /// <summary>Returns whether any segment of any connector of <paramref name="layout"/> passes through the box.</summary>
+    private static bool AnyConnectorCrosses(LayoutTree layout, LayoutBox box)
+    {
+        foreach (var waypoints in CollectLines(layout.Nodes).Select(l => l.Waypoints))
+        {
+            for (var i = 1; i < waypoints.Count; i++)
+            {
+                var (minX, maxX) = (Math.Min(waypoints[i - 1].X, waypoints[i].X), Math.Max(waypoints[i - 1].X, waypoints[i].X));
+                var (minY, maxY) = (Math.Min(waypoints[i - 1].Y, waypoints[i].Y), Math.Max(waypoints[i - 1].Y, waypoints[i].Y));
+                if (maxX > box.X && minX < box.X + box.Width && maxY > box.Y && minY < box.Y + box.Height)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     The definitions that nothing refers to are placed in the free space of a wide connected tree
+    ///     instead of beside it (diagram-quality B4/B5): each lies inside the bounds of the connected
+    ///     drawing, none overlaps another box or touches a connector, every one is drawn exactly once,
+    ///     and every box is inside the canvas.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_ManyUnconnectedDefinitions_AreTuckedIntoFreeCornerOfWideTree()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync(WideTreeWithIsolatedDefinitions);
+
+        // Assert: every isolated definition is drawn once, inside the connected part's bounds
+        var (left, top, right, bottom) = ConnectedBounds(layout, IsolatedLabels);
+        foreach (var label in IsolatedLabels)
+        {
+            var box = FindBox(layout.Nodes, label);
+            Assert.True(box.X >= left && box.Y >= top && box.X + box.Width <= right && box.Y + box.Height <= bottom, $"{label} is outside the connected drawing");
+            Assert.False(AnyConnectorCrosses(layout, box), $"a connector crosses {label}");
+            Assert.True(box.X + box.Width <= layout.Width && box.Y + box.Height <= layout.Height, $"{label} is outside the canvas");
+        }
+
+        // Assert: nothing overlaps, and the canvas is no wider than the connected drawing plus its folder margin
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
+        Assert.True(layout.Width <= right + 40.0, $"the canvas ({layout.Width:F0}) is wider than the connected drawing ({right:F0})");
+    }
+
+    /// <summary>
+    ///     When the connected drawing has no free region big enough (a small tree and several isolated
+    ///     definitions) the engine's own packing is kept: the isolated definitions sit outside the bounds
+    ///     of the connected drawing, in the engine's shelf, with no overlap.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UnconnectedDefinitions_NoFreeSpace_KeepEngineShelf()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            part def A; part def B :> A;
+            part def U1; part def U2; part def U3; part def U4; part def U5;
+            """);
+
+        // Assert: all seven definitions are drawn, the isolated ones outside the connected bounds, none overlapping
+        string[] isolated = ["U1", "U2", "U3", "U4", "U5"];
+        var (left, top, right, bottom) = ConnectedBounds(layout, isolated);
+        Assert.Equal(7, CollectBoxes(layout.Nodes).Count(b => b.Shape == BoxShape.Rectangle));
+        foreach (var label in isolated)
+        {
+            var box = FindBox(layout.Nodes, label);
+            var inside = box.X >= left && box.Y >= top && box.X + box.Width <= right && box.Y + box.Height <= bottom;
+            Assert.False(inside, $"{label} was tucked into a connected drawing without free space");
+        }
+
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
+    }
+
+    /// <summary>
+    ///     The isolated definitions of a nested package folder are tucked into that folder's own free
+    ///     space: each stays inside the nested folder's box, none overlaps another box.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_UnconnectedDefinitions_InNestedFolder_AreTuckedInsideThatFolder()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync($"package Outer {{ package Inner {{ {WideTreeWithIsolatedDefinitions} }} part def Sibling; }}");
+
+        // Assert: the nested folder holds all nine isolated definitions inside its own box
+        var inner = FindBox(layout.Nodes, "Inner", BoxShape.Folder);
+        foreach (var label in IsolatedLabels)
+        {
+            var box = FindBox(layout.Nodes, label);
+            Assert.True(box.X >= inner.X && box.Y >= inner.Y && box.X + box.Width <= inner.X + inner.Width && box.Y + box.Height <= inner.Y + inner.Height, $"{label} is outside the Inner folder");
+            Assert.False(AnyConnectorCrosses(layout, box), $"a connector crosses {label}");
+        }
+
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
+        Assert.Single(CollectBoxes(layout.Nodes), b => b.Label == "Sibling");
+    }
+
+    /// <summary>
+    ///     A folder whose definitions have no relationship at all (the shape of a package of independent
+    ///     elements) keeps the engine's packing: every box is drawn once and nothing overlaps.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_AllDefinitionsUnconnected_KeepsEngineLayout()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("package P { part def A; part def B; part def C; part def D; part def E; part def F; }");
+
+        // Assert
+        Assert.Equal(6, CollectBoxes(layout.Nodes).Count(b => b.Shape == BoxShape.Rectangle));
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
+        var folder = FindBox(layout.Nodes, "P", BoxShape.Folder);
+        Assert.All(CollectBoxes(layout.Nodes).Where(b => b.Shape == BoxShape.Rectangle), b => Assert.True(b.X >= folder.X && b.X + b.Width <= folder.X + folder.Width));
+    }
+
+    /// <summary>
+    ///     A definition that carries a comment is joined to its note by a line, so it is part of the
+    ///     connected drawing and is not tucked as an isolated definition: its box and note stay
+    ///     connected by a dashed line.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_DefinitionWithCommentNote_IsNotDeferred()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync(WideTreeWithIsolatedDefinitions + " part def Noted { comment /* a remark */ }");
+
+        // Assert: the noted definition and its note are joined by a dashed line
+        var noted = FindBox(layout.Nodes, "Noted");
+        var note = Assert.Single(CollectBoxes(layout.Nodes), b => b.Shape == BoxShape.Note);
+        Assert.Contains(CollectLines(layout.Nodes), l => l.LineStyle == LineStyle.Dashed && RunsBetween(l, noted, note));
+        AssertDefinitionBoxesDoNotOverlap(layout.Nodes);
+    }
+
+    /// <summary>
+    ///     Standing regression for diagram-quality B4/B5 on the quadcopter drone gallery model: the leaf
+    ///     blocks cover at least 20 % of the canvas, and the largest empty square (obstacles are the
+    ///     boxes, the folder outline and the connectors, each grown by 12 px) is at most three times the
+    ///     average leaf block height.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_DroneGalleryModel_MeetsBlockPlacementCriteria()
+    {
+        // Arrange
+        var layout = await LayOutGalleryViewAsync("01-drone-general.sysml", "QuadcopterDrone::DroneGeneralView", SysmlThemes.Plain);
+        if (layout is null)
+        {
+            return;
+        }
+
+        // Act
+        var leaves = CollectBoxes(layout.Nodes).Where(b => b.Shape is BoxShape.Rectangle or BoxShape.RoundedRectangle).ToList();
+        var share = leaves.Sum(b => b.Width * b.Height) / (layout.Width * layout.Height);
+        var averageHeight = leaves.Average(b => b.Height);
+        var largestSquare = LargestEmptySquare(layout, 12.0);
+
+        // Assert
+        Assert.True(share >= 0.20, $"the leaf blocks cover {share:P1} of the canvas, below 20 %");
+        Assert.True(largestSquare <= 3.0 * averageHeight, $"the largest empty square is {largestSquare:F0} px, above {3.0 * averageHeight:F0} px");
+    }
+
+    /// <summary>
+    ///     Measures, in logical pixels on a 4 px grid, the side of the largest empty square of a layout,
+    ///     where the obstacles are every box (a folder only by its outline) and every connector segment,
+    ///     grown by <paramref name="clearance"/> on every side.
+    /// </summary>
+    private static double LargestEmptySquare(LayoutTree layout, double clearance)
+    {
+        const double step = 4.0;
+        var columns = (int)(layout.Width / step);
+        var rows = (int)(layout.Height / step);
+        var blocked = new bool[columns * rows];
+        void Block(double left, double top, double right, double bottom)
+        {
+            var x0 = Math.Max(0, (int)Math.Floor((left - clearance) / step));
+            var x1 = Math.Min(columns - 1, (int)Math.Floor((right + clearance) / step));
+            var y0 = Math.Max(0, (int)Math.Floor((top - clearance) / step));
+            var y1 = Math.Min(rows - 1, (int)Math.Floor((bottom + clearance) / step));
+            for (var y = y0; y <= y1; y++)
+            {
+                for (var x = x0; x <= x1; x++)
+                {
+                    blocked[(y * columns) + x] = true;
+                }
+            }
+        }
+
+        foreach (var box in CollectBoxes(layout.Nodes))
+        {
+            if (box.Shape == BoxShape.Folder)
+            {
+                Block(box.X, box.Y, box.X + box.Width, box.Y);
+                Block(box.X, box.Y + box.Height, box.X + box.Width, box.Y + box.Height);
+                Block(box.X, box.Y, box.X, box.Y + box.Height);
+                Block(box.X + box.Width, box.Y, box.X + box.Width, box.Y + box.Height);
+            }
+            else
+            {
+                Block(box.X, box.Y, box.X + box.Width, box.Y + box.Height);
+            }
+        }
+
+        foreach (var waypoints in CollectLines(layout.Nodes).Select(l => l.Waypoints))
+        {
+            for (var i = 1; i < waypoints.Count; i++)
+            {
+                Block(Math.Min(waypoints[i - 1].X, waypoints[i].X), Math.Min(waypoints[i - 1].Y, waypoints[i].Y), Math.Max(waypoints[i - 1].X, waypoints[i].X), Math.Max(waypoints[i - 1].Y, waypoints[i].Y));
+            }
+        }
+
+        var previous = new int[columns + 1];
+        var current = new int[columns + 1];
+        var largest = 0;
+        for (var y = 0; y < rows; y++)
+        {
+            for (var x = 0; x < columns; x++)
+            {
+                current[x + 1] = blocked[(y * columns) + x] ? 0 : 1 + Math.Min(Math.Min(previous[x], previous[x + 1]), current[x]);
+                largest = Math.Max(largest, current[x + 1]);
+            }
+
+            (previous, current) = (current, previous);
+        }
+
+        return largest * step;
+    }
+
+    /// <summary>
+    ///     Moving the first lane of an owner face away from the box moves every lane of that face by the
+    ///     same distance, so the lanes of a seven-usage fan-out stay distinct, keep their order and are at
+    ///     least one lane pitch (8 px) apart, with no two collinear segments overlapping.
+    /// </summary>
+    [Fact]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_FanOutLanes_KeepDistinctOrderedLanes()
+    {
+        // Act
+        var layout = await LayOutUnscopedAsync("""
+            part def Frame; part def Battery; part def FlightController; part def Motor;
+            part def Propeller; part def ImuSensor; part def GpsSensor;
+            part def Drone {
+                part airframe : Frame; part battery : Battery; part controller : FlightController;
+                part motors : Motor[4]; part propellers : Propeller[4]; part imu : ImuSensor; part gps : GpsSensor;
+            }
+            """);
+
+        // Assert: lanes whose horizontal extents overlap are at least 8 px apart, the nearest lane clears the decoration
+        var drone = FindBox(layout.Nodes, "Drone");
+        var diamondLines = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.FilledDiamond && l.Waypoints.Count >= 4).ToList();
+        Assert.True(diamondLines.Count >= 4, "the fan-out has no lanes");
+        Assert.All(diamondLines, l => Assert.True(l.Waypoints[^2].Y > drone.Y + drone.Height));
+        for (var i = 0; i < diamondLines.Count; i++)
+        {
+            for (var j = i + 1; j < diamondLines.Count; j++)
+            {
+                var (a, b) = (diamondLines[i].Waypoints, diamondLines[j].Waypoints);
+                var overlap = Math.Min(Math.Max(a[^2].X, a[^3].X), Math.Max(b[^2].X, b[^3].X)) - Math.Max(Math.Min(a[^2].X, a[^3].X), Math.Min(b[^2].X, b[^3].X));
+                if (overlap > 0.0)
+                {
+                    Assert.True(Math.Abs(a[^2].Y - b[^2].Y) >= 8.0, $"lanes at {a[^2].Y:F1} and {b[^2].Y:F1} overlap and are closer than 8 px");
+                }
+            }
+        }
+
+        var nearest = diamondLines.Min(l => l.Waypoints[^2].Y);
+        Assert.True(nearest - (drone.Y + drone.Height) >= NotationMetrics.RenderedAlongLineLength(EndMarkerStyle.FilledDiamond, Themes.Light));
+        Assert.Equal(0, CountCollinearOverlaps(diamondLines));
+    }
+
+    /// <summary>Counts pairs of horizontal segments of different lines that lie on the same y and overlap in x.</summary>
+    private static int CountCollinearOverlaps(IReadOnlyList<LayoutLine> lines)
+    {
+        var count = 0;
+        for (var i = 0; i < lines.Count; i++)
+        {
+            for (var j = i + 1; j < lines.Count; j++)
+            {
+                for (var a = 0; a + 1 < lines[i].Waypoints.Count; a++)
+                {
+                    for (var b = 0; b + 1 < lines[j].Waypoints.Count; b++)
+                    {
+                        var (a1, a2) = (lines[i].Waypoints[a], lines[i].Waypoints[a + 1]);
+                        var (b1, b2) = (lines[j].Waypoints[b], lines[j].Waypoints[b + 1]);
+                        var sameY = Math.Abs(a1.Y - a2.Y) < 0.01 && Math.Abs(b1.Y - b2.Y) < 0.01 && Math.Abs(a1.Y - b1.Y) < 0.01;
+                        var overlap = Math.Min(Math.Max(a1.X, a2.X), Math.Max(b1.X, b2.X)) - Math.Max(Math.Min(a1.X, a2.X), Math.Min(b1.X, b2.X));
+                        if (sameY && overlap > 0.01)
+                        {
+                            count++;
+                        }
+                    }
+                }
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    ///     Real-corpus guard (diagram-quality C10): every General View of the gallery models that ends a
+    ///     connector in an end decoration over a lane gives it a clean straight approach, with the theme
+    ///     the tool renders with (plain) and, for the models whose lanes have room, the light theme. The
+    ///     light-theme drone view is not asserted: its decorations are longer, and moving the lanes of the
+    ///     <c>Battery</c> face would leave a note link and a dependency lane almost collinear, so the
+    ///     post-pass keeps the engine's routing there by design.
+    /// </summary>
+    /// <param name="modelFile">The gallery model file name.</param>
+    /// <param name="viewQualifiedName">The qualified name of the General View to lay out.</param>
+    /// <param name="plainTheme">True for the tool's plain theme, false for the light theme.</param>
+    [Theory]
+    [InlineData("01-drone-general.sysml", "QuadcopterDrone::DroneGeneralView", true)]
+    [InlineData("01-drone-general.sysml", "QuadcopterDrone::BatterySubsystemView", true)]
+    [InlineData("11-nested-packages-general.sysml", "Vehicle::VehiclePackagesGeneralView", true)]
+    [InlineData("14-usages-typing-general.sysml", "DriveSystem::DriveUnitGeneralView", true)]
+    [InlineData("14-usages-typing-general.sysml", "DriveSystem::DriveUnitGeneralView", false)]
+    [InlineData("15-doc-comment-general.sysml", "ChargingStation::ChargerGeneralView", true)]
+    [InlineData("15-doc-comment-general.sysml", "ChargingStation::ChargerGeneralView", false)]
+    [InlineData("16-nested-packages-typing-general.sysml", "Vehicle::VehicleTypingGeneralView", true)]
+    public async Task GeneralViewLayoutStrategy_BuildLayout_GalleryGeneralViews_EndDecorationsHaveCleanApproach(
+        string modelFile, string viewQualifiedName, bool plainTheme)
+    {
+        // Arrange
+        var theme = plainTheme ? SysmlThemes.Plain : Themes.Light;
+        var layout = await LayOutGalleryViewAsync(modelFile, viewQualifiedName, theme);
+        if (layout is null)
+        {
+            return;
+        }
+
+        // Assert
+        AssertEndDecorationsHaveCleanApproach(layout, theme);
+    }
+
+    /// <summary>
+    ///     Loads a gallery model by file name and lays out one of its views with the general view
+    ///     strategy; returns null when the gallery is not available (for example in a packaged test run).
+    /// </summary>
+    private static async Task<LayoutTree?> LayOutGalleryViewAsync(string modelFile, string viewQualifiedName, Theme theme)
+    {
+        var galleryModelsRoot = FindGalleryModelsRoot();
+        var modelPath = galleryModelsRoot is null ? null : Path.Combine(galleryModelsRoot, modelFile);
+        if (modelPath is null || !File.Exists(modelPath))
+        {
+            return null;
+        }
+
+        var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+        var result = await WorkspaceLoader.LoadAsync([modelPath], stdlibTable);
+        Assert.NotNull(result.Workspace);
+        var viewNode = Assert.IsType<SysmlViewNode>(result.Workspace.Declarations[viewQualifiedName]);
+        return new GeneralViewLayoutStrategy().BuildLayout(
+            new ViewContext("v", result.Workspace, viewNode), new RenderOptions(theme));
+    }
+
+    /// <summary>
+    ///     A connector whose final leg is already long enough is not touched: the post-pass returns the
+    ///     very same tree instance.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_ClearEndDecorations_NoViolation_ReturnsTreeUnchanged()
+    {
+        // Arrange: the lane is 50 px from the owner, far more than the diamond needs
+        var tree = MakeFanOutFixture(laneDistance: 50, lShaped: false);
+
+        // Act
+        var result = InvokeClearEndDecorations(tree, Themes.Light);
+
+        // Assert
+        Assert.Same(tree, result);
+    }
+
+    /// <summary>
+    ///     A connector with a single bend (three waypoints) has no lane to move: it is left alone even
+    ///     when its final leg is short.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_ClearEndDecorations_LShapedConnector_IsLeftAlone()
+    {
+        // Arrange
+        var tree = MakeFanOutFixture(laneDistance: 10, lShaped: true);
+
+        // Act
+        var result = InvokeClearEndDecorations(tree, Themes.Light);
+
+        // Assert
+        Assert.Same(tree, result);
+    }
+
+    /// <summary>
+    ///     A Z-shaped connector whose final leg is shorter than its decoration is moved so the leg is
+    ///     exactly as long as the decoration, one corner radius and the safety margin require, and only
+    ///     the two bend points move: the start point and the anchor stay where they are.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_ClearEndDecorations_ShortFinalLeg_MovesLaneAwayFromOwner()
+    {
+        // Arrange
+        var theme = Themes.Light;
+        var tree = MakeFanOutFixture(laneDistance: 10, lShaped: false);
+        var before = Assert.Single(CollectLines(tree.Nodes));
+        var required = NotationMetrics.RenderedAlongLineLength(EndMarkerStyle.FilledDiamond, theme) + theme.LineCornerRadius + theme.CleanLegMargin;
+
+        // Act
+        var result = InvokeClearEndDecorations(tree, theme);
+
+        // Assert
+        var after = Assert.Single(CollectLines(result.Nodes));
+        Assert.Equal(before.Waypoints[0], after.Waypoints[0]);
+        Assert.Equal(before.Waypoints[^1], after.Waypoints[^1]);
+        Assert.Equal(60 + required, after.Waypoints[1].Y, 3);
+        Assert.Equal(60 + required, after.Waypoints[2].Y, 3);
+        Assert.Equal(before.Waypoints[1].X, after.Waypoints[1].X);
+        Assert.Equal(before.Waypoints[2].X, after.Waypoints[2].X);
+    }
+
+    /// <summary>
+    ///     When moving the lane would leave too little of the leg that starts at the lower box, the
+    ///     connector is left as the engine routed it instead of being squeezed against that box.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_ClearEndDecorations_NoRoomOnFarLeg_LeavesConnectorUnchanged()
+    {
+        // Arrange: the lower box starts 22 px below the owner, so the lane cannot move 5 px
+        var owner = MakeFixtureBox("Owner", BoxShape.Rectangle, "part def") with { X = 100, Y = 0 };
+        var lower = MakeFixtureBox("Lower", BoxShape.Rectangle, "part def") with { X = 0, Y = 82 };
+        var line = new LayoutLine(
+            [new Point2D(50, 82), new Point2D(50, 70), new Point2D(150, 70), new Point2D(150, 60)],
+            EndMarkerStyle.None, EndMarkerStyle.FilledDiamond, LineStyle.Solid, null);
+        var tree = new LayoutTree(400, 300, [owner, lower, line]);
+
+        // Act
+        var result = InvokeClearEndDecorations(tree, Themes.Light);
+
+        // Assert
+        Assert.Same(tree, result);
     }
 }
 

@@ -1131,3 +1131,4 @@ reviews:
     paths:
       - "docs/reqstream/ots/dema-rendering.yaml"
       - "docs/verification/ots/dema-rendering.md"
+      - "test/DemaConsulting.SysML2Tools.Tests/Rendering/NotationStylingRenderTests.cs"

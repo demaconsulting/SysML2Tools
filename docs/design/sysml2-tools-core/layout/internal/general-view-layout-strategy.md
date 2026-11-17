@@ -2,816 +2,744 @@
 
 ##### Purpose
 
-`GeneralViewLayoutStrategy` implements `ILayoutStrategy` to produce a General View diagram. It
-renders every user-defined definition (part, port, interface, requirement, action, and so on) and
-— since Phase 2d (see `ROADMAP.md`'s "View `filter [<expr>];` expression evaluation" section) —
-every named usage-level declaration too, as a keyword-labeled box (square-cornered for a definition,
-rounded for a usage) whose name line shows the declared short name and, for a definition, its
-specialization (`:>`), groups the boxes that belong to
-a bare package (one with no admitted definition as its own owner) inside a folder-shaped
-container when the view is unscoped — drawing a package nested in another package inside its
-owner's folder — nests a definition that owns nested definitions recursively
-inside that definition's own box rather than as a duplicate sibling container, lists each
-definition's owned usages in compartments, and draws specialization,
-membership, attribute-typing, redefinition, subsetting, connect, allocate, dependency, and
-binding edges orthogonally between the boxes, including edges whose endpoints lie in different
-packages or at different nesting depths. The whole diagram — package
-folders, definition-as-container boxes, and plain definitions alike — is expressed as a single
-`DemaConsulting.Rendering` `LayoutGraph`
-and placed with one `LayoutEngine.Layout` call via the `"auto"` meta-algorithm
-(`AutoLayoutAlgorithm`): the root scope classifies package folders and top-level definitions by
-connectivity, routing connected groups through the bundled layered algorithm
-(`LayeredLayoutAlgorithm`) and packing disconnected/singleton nodes by reading order
-(`ContainmentLayoutAlgorithm`), while each container's own contents (a folder's or a
-nested-owning-definition's) are always ordered by their intra-container edges with the layered
-algorithm. Because the engine places a folder's contents without knowing where the folder's
-relationships to the outside lead, the strategy orders each folder's definitions by the vertical
+`GeneralViewLayoutStrategy` implements `ILayoutStrategy` to produce a General View diagram in the
+notation of the SysML v2 graphical BNF (clause 8.2.3) and of the OMG Pilot implementation. It
+renders every user-defined definition (part, port, interface, requirement, action, and so on) as a
+square-cornered, keyword-labeled box, and every named usage that the node policy (see *Data Model*)
+selects as a rounded box of its own, placed beside its owner. By default the selected usages are the
+occurrence-kind usages (part, item, occurrence, action, state, requirement, concern, and so on) and
+each port that owns nested features.
+
+A box's name line shows the declared short name and name, followed by the specialization (`:>`) of a
+definition or by the typing, multiplicity, and subsetting/redefinition of a usage. Its keyword carries
+the prefix words (`abstract`, `variation`, `individual`, `variant`, `ref`). A reference usage has a
+dashed outline and an abstract definition an italic name. The features that stay rows (attributes,
+plain references, plain ports, enumeration values, constraints) are listed in compartments with
+centered italic titles. Boxes that belong to a package are grouped inside a folder-shaped container
+with the package name in its tab; a package nested in another package is drawn inside its owner's
+folder, and a definition that owns nested definitions is a container of those definitions.
+
+The unit draws the relationship glyphs of the notation orthogonally between the boxes —
+specialization, feature membership (filled diamond for a composite usage, hollow diamond for a
+referential one), feature typing, subsetting, reference subsetting, redefinition, satisfy, verify,
+import, connect, allocate, dependency, and binding — including edges whose endpoints lie in different
+packages or at different nesting depths.
+
+The whole diagram — package folders, definition-as-container boxes, definitions, and usages — is
+expressed as a single `DemaConsulting.Rendering` `LayoutGraph` and placed with one
+`LayoutEngine.Layout` call via the `"auto"` meta-algorithm (`AutoLayoutAlgorithm`): the root scope and
+every folder classify their contents by connectivity, routing connected groups through the bundled
+layered algorithm (`LayeredLayoutAlgorithm`) and packing disconnected or singleton nodes by reading
+order (`ContainmentLayoutAlgorithm`). The graph flows top-to-bottom (`LayoutFlowDirection.Down`), with
+the owner and the general element on top, as in the Pilot implementation; see *Direction and edge
+orientation* below. Because the engine places a folder's contents without knowing where the folder's
+relationships to the outside lead, the strategy orders each folder's definitions by the horizontal
 position of those relationships' far ends in a first layout and lays out once more (see
 `ComputeItemOrder`), so relationships leaving a folder are not forced to cross by declaration order.
-All box sizing (title bands, compartment rows) remains this strategy's
-responsibility, since the layout stage in `DemaConsulting.Rendering.Layout` is theme-agnostic;
-box title and folder-tab geometry come from `BoxMetrics` in `DemaConsulting.Rendering.Abstractions`.
+All box sizing (title bands, compartment rows) remains this strategy's responsibility, since the layout
+stage in `DemaConsulting.Rendering.Layout` is theme-agnostic; box title and folder-tab geometry come
+from `BoxMetrics` in `DemaConsulting.Rendering.Abstractions`.
 
 ##### Data Model
 
-`GeneralViewLayoutStrategy` has no instance state; all input arrives through the `BuildLayout`
-parameters. Layout constants (`MinBoxWidth`, `CharWidthFactor`) are declared as `private const`
-fields. Private records carry intermediate data: `DefBox` (a user definition with its computed
-size, keyword, displayed name line `Label`, supertype names, memberships, compartments, and `Annotations` — the definition's
-own `comment` annotations from `SysmlNode.Annotations`, threaded through by `CollectDefinitions` so `AddAnnotationNote`
-(below) can render them without a second workspace lookup), `ModelEdge` (a resolved
-specialization/membership/attribute-typing/redefinition/subsetting/connect/allocate/dependency/
-binding relationship expressed by qualified name, together with its target end marker, edge kind,
-and an optional midpoint label), `Location` (a located definition's
-graph node and the `ScopeInfo` that directly holds it, used to resolve and scope edges), `ScopeInfo`
-(one container scope of the layout graph — the root graph, a package folder's `Children` graph, or
-a definition-as-container's `Children` graph — with a `Parent` link to its enclosing scope and the
-`Owner` container node whose `Children` graph it is (null for the root), so the
-scopes form a tree whose lowest common ancestor `LowestCommonScope` can find), `GraphBuild` (the
-result of one `BuildGraph` pass: the root graph, the truncated containers, the `located` map, and the
-folder plans, which the order-refinement pass reads), `FolderPlan` (the
-pre-materialization plan for one package folder: its key, nearest enclosing folder, directly owned
-definitions, ordered child-folder keys, nesting level, and the hidden-element count reported if it is
-truncated; see `BuildGraph`), and `TruncatedContainer` (a
-depth-truncated package folder's leaf placeholder graph
-node, hidden-item count — retained for diagnostics only, since the rendered marker is a bare
-ellipsis that does not report it — and vertical title-band offset, used to stamp its ellipsis label onto the
-placed box after layout — see `DecorateTruncated` below; a depth-truncated *definition* needs no such
-record because it stays an ordinary leaf box carrying its own trailing `…` compartment row, see
-`PlaceDef`). `DroppedRelationshipEdge` (a private record)
-carries the short kind label, raw source/target reference, and human-readable reason for one
-`Connect`/`Allocate`/`Dependency`/`Binding` edge `BuildModelEdges` could not map to two distinct
-rendered boxes, feeding `LayoutWarnings.ForDroppedRelationshipEdges`. `FeatureMembership` (a private record) carries
-each owned feature's keyword, raw type reference (`TypeName`, nullable — a feature may declare a
-redefinition with no explicit type annotation), simple `Name`, raw
-`RedefinedFeatureName` reference, the raw `SubsettedFeatureNames` list (populated verbatim
-from `SysmlFeatureNode.SupertypeNames` — a feature's `subsets`/`:>` targets, not a new AST field),
-and the semantic model's resolved answers for them: `ResolvedTypeName` (the feature's `Typing` edge
-target), `ResolvedRedefinedFeatureName` (its `Redefinition` edge target), and `ResolvedSubsettedNames`
-(one `EdgeAnswer` per `SubsettedFeatureNames` entry, by index — a private `(Known, Target)` struct
-built by `TryGetResolvedTarget` from the feature's `Supertype` edge whose `RawReference` equals that
-reference's text; the whole list `null` when the feature has no subsetted references), all populated
-by `CollectMemberships`.
-`FeatureMembership` does not itself carry an
-`ExpressionText` field — constraint-kind features' expression text (non-null only for
-`"require constraint"`/`"assume constraint"`/`"constraint"` keywords) is read directly from the
-owning `SysmlFeatureNode.ExpressionText` where needed (`BuildCompartments`), not copied into
-`FeatureMembership`. `CollectMemberships` includes a feature when `TypeName`,
-`RedefinedFeatureName`, or a non-empty `SubsettedFeatureNames` is present. The private `EdgeKind`
-enumeration classifies each edge as
-`Specialization`, `Membership`, `Typing`, `Redefinition`, `Subsetting`, `Connect`, `Allocate`,
-`Dependency`, or `Binding`; `Subsetting` is a purely view-layer classification — it does not
-correspond to a public `SysmlEdgeKind` — reusing `SupertypeNames` and the same owner-resolution
-walk (`ResolveRedefinitionOwner`) already used for `Redefinition`. The `LineStyleForKind` helper
-maps each kind to a rendered line style (dashed for `Typing`, `Dependency`, and
-`Subsetting`; solid for all others, including `Allocate`, which the specification draws as a
-solid line with an open arrowhead), so an attribute-typing/dependency/subsetting
-dependency is visually distinct from the structural relationships.
+`GeneralViewLayoutStrategy` has no mutable instance state: all input arrives through the `BuildLayout`
+parameters, and the only instance field is the immutable node policy chosen at construction. Layout
+constants (`MinBoxWidth`, `CharWidthFactor`, `CanvasMargin`) are declared as `private const` fields.
+
+**Node policy.** `NodePolicy` (an `internal` nested class with an `internal` `UsageNodeMode` enumeration)
+decides, by usage keyword only, whether a usage nested in a rendered box is a node of its own or a
+compartment row of its owner. Whether a usage is a reference usage changes how its node looks (dashed
+outline, hollow diamond), never whether it is a node. The strategy has two constructors: the default
+one uses `NodePolicy.Pilot`, the other takes an explicit policy so tests can flip the decision with one
+argument. The policy is deliberately not exposed through `RenderOptions`, the command line, or the
+public API: those would need new options, help text, requirements, and user documentation, and the
+Pilot default is the intended presentation (see `ROADMAP.md` for the planned public option).
+
+- `Pilot` (the default) draws as nodes the `part`, `item`, `occurrence`, `action`, `state`, `requirement`,
+  `concern`, `analysis`, `verification`, `use case`, and `case` usages, and a `port` only when it owns at
+  least one named nested feature. `attribute`, plain `ref`, `enum value`, `subject`, `actor`,
+  `stakeholder`, constraints, and a port without nested features stay rows.
+- `AllUsages` draws every named usage with a keyword as a node, except constraints and `enum value`
+  (which stay rows).
+- `RowsOnly` draws no usage as a node: every usage is a row and no usage relationship edge is drawn.
+
+An unnamed usage, a usage without a keyword, and a usage that carries an expression are never nodes,
+in any mode: there is nothing to key or label a box with. A usage that has no rendered owner (its owner
+is outside the view's scope, for example) stays a standalone box whatever the policy says.
+
+**Private records.**
+
+- `DefBox` — a definition or named usage with its qualified name, simple name (the identity used for
+  grouping, ordering, and edge endpoints), displayed name line `Label`, keyword including prefix words,
+  specialization supertypes (definitions only), compartments, computed size, the element's visible
+  `comment` annotations, the `Declaration` it represents (so `Feature` and `IsUsage` are derived from
+  it), whether its documentation is visible, an optional `BoxAppearance`, and the qualified name of the
+  rendered owner box for a usage node (`OwnerQualifiedName`).
+- `ModelEdge` — one relationship between two boxes by qualified name: source, target, the end marker
+  drawn at the target, the `EdgeKind`, and an optional midpoint label. A package-folder endpoint is
+  keyed `folder:<package qualified name>`.
+- `Location` (a located node and the `ScopeInfo` holding it), `ScopeInfo` (one container scope of the
+  graph — the root graph, a package folder's `Children` graph, or a definition container's `Children`
+  graph — with a `Parent` link and the `Owner` container node, so `LowestCommonScope` can find the scope
+  of an edge), and `GraphBuild` (the result of one `BuildGraph` pass: the graph, the truncated
+  containers, the `Located` map including folder keys, the folder plans, and the usage nodes placed
+  beside each owner).
+- `FolderPlan` (key, nearest enclosing folder, directly owned boxes, ordered child-folder keys, nesting
+  level, and the hidden-element count of a truncated folder), `TruncatedContainer` (a depth-truncated
+  folder's placeholder node, hidden count — retained for diagnostics only — and title-band offset,
+  used by `DecorateTruncated`), and `DroppedRelationshipEdge` (kind, raw source and target, reason; one
+  per `Connect`/`Allocate`/`Dependency`/`Binding` edge that could not be mapped to two distinct boxes,
+  feeding `LayoutWarnings.ForDroppedRelationshipEdges`).
+- `EdgeAnswer` — the semantic model's answer for one raw reference (`Known`, `Target`), built by
+  `TryGetResolvedTarget`.
+
+**Edge kinds and glyphs.** The private `EdgeKind` enumeration is `Specialization`, `Membership`,
+`FeatureTyping`, `Redefinition`, `Subsetting`, `ReferenceSubsetting`, `Satisfy`, `Verify`, `Import`,
+`Connect`, `Allocate`, `Dependency`, and `Binding`. The source of a `ModelEdge` is always the dependent,
+specific, or owned element, and the end marker is at the target (the general, owning, or depended-upon
+element). `LineStyleForKind` draws `Dependency` and `Import` dashed and every other kind solid
+(including `Allocate`, which the specification draws as a solid line with an open arrowhead).
+
+| Relationship | Source → target | Marker at target | Line | Label |
+| --- | --- | --- | --- | --- |
+| Specialization | definition → supertype | hollow triangle | solid | none |
+| Feature membership, composite | usage → owner | filled diamond | solid | none |
+| Feature membership, referential | usage → owner | hollow diamond | solid | none |
+| Feature typing | usage → definition | hollow triangle with two dots | solid | none |
+| Subsetting | usage → subsetted usage | hollow triangle | solid | none |
+| Reference subsetting (`::>`) | usage → referenced usage | hollow triangle with four dots | solid | none |
+| Redefinition | usage → redefined usage | hollow triangle with crossbar | solid | none |
+| Satisfy | satisfier → requirement | open arrowhead | solid | `«satisfy»` |
+| Verify | verifier → requirement | open arrowhead | solid | `«verify»` |
+| Import | importing namespace → imported namespace | open arrowhead | dashed | `«import»`, `«import»*`, `«import»**` |
+| Connect | box → box | none | solid | none |
+| Allocate | source → target | open arrowhead | solid | `«allocate»` |
+| Dependency | client → supplier | open arrowhead | dashed | none |
+| Binding | box → box | none | solid | `=` |
+| Comment link | element → note | none | dashed | none |
+
+A usage is referential (hollow diamond) when it is a reference usage or when its keyword is
+`attribute`, `ref`, or `enum`; every other usage is composite. The distinction is visible only for a
+usage that is a node: under the Pilot policy attribute and plain reference usages are rows, so it
+matters for reference parts and under the `AllUsages` policy.
+
+**Appearance.** A usage that `IsReference` gets `BoxAppearance(OutlineStyle: Dashed)`. An abstract
+definition gets a bold-italic name through the constant `AbstractDefinitionNameStyle`; an abstract
+*usage* keeps the default name style, because Table 4 of the graphical notation sets only the name of
+an abstract definition in italics (the usage is marked by its `abstract` keyword prefix). A package
+folder with content gets `BoxAppearance(FolderTitle: Tab)` and no `TitleHeight`, so the engine reserves
+only the tab. An empty exposed package and a depth-truncated folder keep the name inside the body, as
+the notation shows a package without visible content. Every compartment is created by
+`MakeCompartment` with `TitleAlign = Center` and `TitleStyle = TextStyle.Italic`.
 
 ##### Key Methods
 
 ###### `BuildLayout(ViewContext context, RenderOptions options)`
 
 Entry point. First resolves the view's exposed-name scope via the shared
-`ExposeScopeResolver.ResolveExposedScope` (see the *ExposeScopeResolver* unit chapter) — which
-(Phase 2a) already narrows any bracket-filtered `expose` entry to its matched definitions and
-records any bracket-filter parse/evaluation failures on `scope.Failures` — then calls
-`CollectDefinitions` to gather user definitions restricted to that scope (or every definition when
-no scope applies); returns a minimal 200×100 empty `LayoutTree` when none are found. If the view
-carries standalone `FilterExpressionText`, the method next parses it with
-`FilterExpressionParser.Parse`; a successful parse is evaluated with
-`FilterExpressionEvaluator.Evaluate` over the already expose-scoped candidate definitions, narrowing
-`defs` to the matched subset and returning the same minimal empty canvas when that subset is empty.
-A parse failure or unsupported Phase 1 construct does not abort layout: the first parser
-diagnostic message is remembered as the warning reason and the method continues rendering the
-unfiltered resolved scope. Once scope and standalone-filter narrowing are both applied, the method
-calls `RemoveRedundantNestedUsages(defs)` (see below), which drops any usage-level box whose
-nearest still-rendered ancestor is also present in the final `defs` set — this must run after both
-narrowing steps, not before or inside `CollectDefinitions`, so a usage whose parent was excluded by
-a filter (rather than genuinely absent from scope) survives as its own standalone box. The method returns
-the same minimal empty canvas if the dedup empties `defs`. The remaining pipeline partitions the
-surviving `defs` into `childrenByParent` (items whose immediate parent — the qualified-name prefix
-before the last `"::"` — is itself an admitted definition, keyed by that parent's own qualified
-name) and the rest (`packageOrRootItems`), grouping only the latter by package
-with `GroupByPackage` — this partitioning is what prevents a definition that owns nested
-definitions from being handed to `GroupByPackage` a second time under its own qualified name, which
-is what used to render it twice (see `GroupByPackage` and `BuildGraph`/`PlaceDef` below). The
-specialization/membership/attribute-typing/redefinition/subsetting/
-connect/allocate/dependency/binding relationships are
-resolved into qualified-name edges (plus any dropped-edge diagnostics) with `BuildModelEdges`, the
-single input `LayoutGraph` is built
-with `BuildGraph` (passed `childrenByParent`, whether the view has a resolved scope, the set of
-every non-stdlib package in the workspace from `CollectPackageNames`, and no item order on the first
-pass), and the
-whole graph is placed with one `LayoutEngine.Layout(graph)` call (the `LayOut` helper, which first sets
-`graph.Set(CoreOptions.Algorithm, AutoLayoutAlgorithm.AlgorithmId)`) — delegating root-scope
-algorithm selection to `"auto"`, which classifies the root's own folders/top-level definitions by
-connectivity (routing connected groups through the layered algorithm and packing
-disconnected/singleton nodes via containment) rather than pinning every root-scope node to a single
-fixed algorithm regardless of its own connectivity. The engine places a package folder's contents
-without knowing where the folder's relationships to the outside lead, and stacks the unconnected
-groups of those contents by the order they were added, so `BuildLayout` then calls
-`ComputeItemOrder` on the first layout: when it reports a different item order for any folder, the
-graph is built a second time with that order (`BuildGraph`'s `itemOrder`) and laid out again; when
-it reports none (no folder has two or more items with external relationships whose order would
-change) the first layout is kept unchanged. The refinement is a single pass — there is no iteration
-to a fixed point, so termination is guaranteed — and it is documented as a compensation for the
-engine's placement model that can be retired once the engine orders a container's interior by its
-cross-hierarchy edges. When any package folder was
-depth-truncated, `DecorateTruncated` stamps each truncated folder's bare ellipsis (`…`) label onto
-its placed box of the final layout. (A depth-truncated definition is not decorated here: it is an
-ordinary leaf box that already carries its trailing `…` compartment row.) Finally, the returned tree's `Warnings` concatenates
-`LayoutWarnings.ForUnevaluatedFilter` (only when standalone filter parsing/evaluation failed),
-`LayoutWarnings.ForUnevaluatedExposeBracketFilter(context.ViewName, scope?.Failures ?? [])` (Phase
-2a: one warning per bracket-filter expression that failed to parse or evaluate — a
-successfully-evaluated bracket filter now has real narrowing effect and produces no warning), and
-`LayoutWarnings.ForDroppedRelationshipEdges(context.ViewName, dropped)` (one warning per
-`Connect`/`Allocate`/`Dependency`/`Binding` edge `BuildModelEdges` could not map to two distinct
-rendered boxes — see `BuildModelEdges` below) via
-the `LayoutTree with { Warnings = … }` record-copy idiom.
+`ExposeScopeResolver.ResolveExposedScope` (see the *ExposeScopeResolver* unit chapter), which also
+narrows any bracket-filtered `expose` entry to its matched definitions and records bracket-filter
+failures on `scope.Failures`. It gathers the view's conditions with
+`ExposeScopeResolver.CollectViewConditions` (see *View conditions and annotation visibility*) and
+calls `CollectDefinitions` to gather the user definitions and usages restricted to that scope (or
+all of them when no scope applies). It returns a minimal 200×100 empty `LayoutTree` when none are
+found (and no package is exposed).
 
-###### `CollectDefinitions(workspace, theme, scope)`
+Each view condition is then evaluated with `FilterExpressionEvaluator.Evaluate` over the admitted
+boxes and exposed packages, narrowing them to the matched subset; an empty result returns the same
+minimal canvas. A condition that fails to parse does not abort the layout: it is reported with
+`LayoutWarnings.ForUnevaluatedFilter` and skipped, so the unfiltered resolved scope is rendered.
 
-Iterates `workspace.Declarations`, keeping each `SysmlDefinitionNode` **or named**
-`SysmlFeatureNode` (Phase 2d — a metaclass-kind classification test like
-`filter @SysML::PartUsage;` is inherently about usages, not definitions, and this method doubles
-as both the filter-candidate source and the box-rendering function for the whole diagram, so
-usages must be admitted here for such a filter to have anything meaningful to narrow; an unnamed
-feature is excluded, since it has no stable qualified name to key a box on) that is not a
-standard-library element (per `StdlibFilter.IsStdlibElement`) and, when `scope` is non-null, is
-within `scope` per `ExposeScopeResolver.IsInSubjectScope`. This admission is unconditional of
-nesting depth — it is deliberately a superset used as the filter-candidate pool, including usages
-nested inside an already-admitted definition/usage. `BuildLayout` narrows this superset down to
-the final rendered set in two later steps: the standalone `filter [<expr>];` narrowing, then
-`RemoveRedundantNestedUsages` (Retry 1 fix, cascading depth-ordered pass hardened in Retry 2 —
-see below), which removes exactly the nested usages
-that would duplicate an already-rendered immediate parent's compartment row. For each kept
-declaration it builds the
-compartments from the owned usage features (grouped by keyword, each formatted via
-`FormatFeatureRow`), collects the typed memberships, and computes the box size from the name
-line, keyword, and the longest compartment row. The box's displayed name line is
-`FormatNameLine(declaration.ShortName, simpleName, specializationSupertypeNames)` stored in
-`DefBox.Label`, where the supertype list is only passed for a definition (a usage's
-`SupertypeNames` are subsetting references, drawn as edges, so they never reach the label); the
-box width is computed from that label, while `DefBox.SimpleName` remains the identity used for
-grouping, ordering, and edge endpoints. `BuildCompartments`/`CollectMemberships` take the common
-`SysmlNode` base type (not `SysmlDefinitionNode`) precisely so a usage-level candidate's owned
-features are collected identically to a definition's.
+Once scope and filter narrowing are applied, `RemoveRowUsages` drops every usage that is shown as a
+row of its rendered owner and records the owner of every usage that stays a node (see below); this
+must run after both narrowing steps so a usage whose owner was excluded by a filter survives as a
+standalone box. `FinalizeBoxes` then builds each box's compartments and size, now that the final set
+of boxes is known. The surviving boxes are partitioned into three disjoint sets: boxes whose
+immediate parent (the qualified-name prefix before the last `::`) is itself an admitted box are
+nested definitions (`childrenByParent`); usages with a rendered owner (`usagesByOwner`) are placed
+beside their owner; everything else (`packageOrRootItems`) is grouped by package with
+`GroupByPackage`. This partitioning is what prevents a definition that owns nested definitions from
+being rendered a second time as a duplicate sibling folder.
 
-Each compartment's title comes from `Pluralize(keyword)`, which special-cases a small set of
-individually-significant single-member keywords to a guillemet-wrapped stereotype form instead of
-the generic pluralized-keyword default: `"subject"` → `"«subject»"`, `"assume constraint"` →
-`"«assume constraint»"`, `"require constraint"` → `"«require constraint»"`, and `"constraint"` →
-`"«constraint»"`. This reuses the exact guillemet convention already established elsewhere in this
-file for the `«allocate»` edge midpoint label (see `BuildModelEdges`), rather than inventing a new
-one. The keyword `"enum value"` is special-cased to the title `"enums"` — the specification's
-compartment title for enumerated values, rather than the naive plural `"enum values"`. Every other
-keyword introduced alongside this work — `"actor"`, `"stakeholder"` — falls through to the generic
-pluralized-keyword default, matching the OMG spec figures' own compartment-heading conventions for
-those kinds.
+The relationships are resolved into qualified-name edges (plus dropped-edge diagnostics) with
+`BuildModelEdges`, the single `LayoutGraph` is built with `BuildGraph`, and the whole graph is placed
+with one `LayoutEngine.Layout(graph)` call (the `LayOut` helper, which first sets
+`CoreOptions.Algorithm` to `"auto"`). The engine stacks the unconnected groups of a folder's contents
+by the order they were added, so `ComputeItemOrder` is called on the first layout; when it reports a
+different item order for any folder, the graph is built a second time with that order and laid out
+again. The refinement is a single pass, so termination is guaranteed, and a no-op when no folder's
+order changes. A third, conditional layout then places the definitions that nothing refers to in the
+free space of the drawing (`TryTuckUnconnected`, see below); it only runs when such definitions
+exist next to connected content.
 
-*Compartment order.* `BuildCompartments` groups the owned features by keyword and emits the
-groups in a fixed order: the `doc` compartment first (added afterward by `CollectDefinitions` via
-`BuildDocCompartment`, ahead of everything else), then the canonical keyword groups `attribute`,
-`enum value`, `part`, and `port` — in that order, from the private `CanonicalCompartmentKeywords`
-array — and then every other keyword group in the declaration order in which it was first seen. This
-is the stacking order of the specification's compartment list (SysML v2 graphical BNF, clause
-8.2.3), and it makes every box read the same way regardless of member declaration order. A visible
-side effect is that a `requirement def` lists its `attributes` compartment before `«subject»`.
+The placed tree is then post-processed in a fixed sequence: `DecorateTruncated` stamps the bare `…`
+label onto each truncated folder's box; `TryTuckUnconnected` replaces the tree by the tucked one when it
+accepts (it decorates its own third layout the same way); `FitConnectorsToCanvas` grows and shifts the
+canvas so every connector lies inside it (see below); `OrientEdges` turns back the connectors that
+were declared reversed (see *Direction and edge orientation*); and `ClearEndDecorations` moves the bends
+of the oriented connectors whose end decoration would reach into their last bend (see below). Finally the
+returned tree's `Warnings` concatenates
+`ForUnevaluatedFilter` (view conditions that failed), `ForUnevaluatedExposeBracketFilter` (bracket
+filters that failed), and `ForDroppedRelationshipEdges` via the `LayoutTree with { Warnings = … }`
+record-copy idiom.
 
-`FormatFeatureRow` renders a feature with a non-null, non-empty `ExpressionText` (constraint-kind
-features only) as its raw expression text alone (unnamed) or as `"{name}: {expr}"` (named)
-instead of the generic `"name : Type [multiplicity]"` shape used by every other feature kind,
-since a constraint's defining content is its expression, not a type/multiplicity pair.
+###### `CollectDefinitions(workspace, scope, annotationVisible)` and `CreateBox`
 
-###### `FormatNameLine(shortName, name, supertypes, typing, multiplicity)`
+Visits `workspace.Declarations` and, recursively, the named usages in each declaration's `Children`
+(each qualified name admitted once): a real workspace registers every nested usage in `Declarations`,
+whereas a hand-built one may list nested usages only as children. A `SysmlDefinitionNode` or a named
+`SysmlFeatureNode` that is not a standard-library element (`StdlibFilter.IsStdlibElement`) and is
+within `scope` (`ExposeScopeResolver.IsInSubjectScope`) becomes a box through `CreateBox`. An unnamed
+usage is excluded, since it has no stable qualified name to key a box on; an unnamed definition is
+admitted under its qualified name. The admission is deliberately a superset used as the
+filter-candidate pool, so a metaclass filter such as `filter @SysML::PartUsage;` has usages to narrow;
+`RemoveRowUsages` later reduces it to the rendered set.
 
-An `internal static` helper shared by the General, Interconnection, and Browser views so a given
-element reads the same way in every view. It formats the name line in the specification's textual
-notation — `<shortName> name :> Super1, Super2 : Type [2]` — omitting every piece that is
-`null` or empty: the short name (wrapped in angle brackets) first, then the name, then the
-comma-separated supertypes (` :> `), then the typing (` : `), then the multiplicity text
-as written (including its brackets). This is the order of the name compartment in the SysML v2
-graphical BNF (clause 8.2.3). Supertypes and typing are passed through exactly as written in the
-model (possibly qualified); nothing is resolved here. `GeneralViewLayoutStrategy` passes the
-short name, name, and — for a definition only — its supertypes; `InterconnectionViewLayoutStrategy`
-passes the short name, name, typing, and multiplicity of a part usage; `BrowserViewLayoutStrategy`
-passes the short name and name, plus a feature's typing and multiplicity.
+`CreateBox` builds the not-yet-sized box:
 
-###### `RemoveRedundantNestedUsages(defs)` (Retry 1 fix; cascading depth-ordered pass hardened in Retry 2)
+- the keyword — `DefinitionKeyword` writes the prefix words `abstract`, `variation`, `individual`
+  before the definition keyword, and `UsageKeyword` writes `abstract`, `variation`, `individual`,
+  `variant`, and `ref` before the usage keyword (a plain `ref` usage is not prefixed twice); the engine
+  itself adds the guillemet marks, so raw words are passed;
+- the name line — `FormatNameLine(shortName, name, supertypes)` for a definition (specialization
+  after the name) and `FormatUsageNameLine` for a usage (typing, a conjugated typing with a leading
+  `~`, multiplicity, `ordered`/`nonunique`, then `:> subsets`, `:>> redefines`, `::> references`);
+- the appearance (dashed for a reference usage, italic name for an abstract definition);
+- the visible `comment` annotations and whether documentation is visible, from the `annotationVisible`
+  callback (see *View conditions and annotation visibility*).
 
-Removes usage-level (`DefBox.IsUsage`) boxes from `defs` whose nearest still-rendered ancestor is
-also present in `defs` — i.e., a usage nested (directly, or transitively through one or more other
-excluded usages) inside a box that already shows it as a compartment row. Since every node's
-qualified name is a strict `parent::child` containment chain, every ancestor is strictly shallower
-(fewer `::`-separated segments) than its descendants, and a usage's immediate-parent qualified name
-is recovered by stripping the qualified name's last `::`-separated segment (a top-level usage, with
-no `::` in its qualified name, is never excluded). Boxes are processed in ascending depth order
-(fewest `::` occurrences first) while incrementally building an `excluded` set, so that by the time
-a usage is tested, every one of its ancestors has already been finally decided. A usage is excluded
-only when its immediate parent is present in `defs` **and has not itself already been excluded**
-earlier in this same pass — i.e., only when the immediate parent is itself still rendered, and
-therefore already shows the usage as one of the parent's compartment rows (`BuildCompartments`
-renders a definition/usage's direct `SysmlNode.Children` only — it never reaches into
-grandchildren). Conversely, when the immediate parent has itself just been excluded in this same
-pass, it no longer renders anywhere, so its own compartment can no longer show this usage — the
-usage is therefore not excluded, and survives as its own standalone box. This cascades correctly
-through any nesting depth: two, three, or more levels of usage-in-usage nesting all resolve
-correctly in this single ordered pass, so a deeper-nested usage is never silently dropped merely
-because an intermediate ancestor between it and the nearest rendered box was itself excluded.
-Definitions (`DefBox.IsUsage` is `false`) are never excluded by this rule, preserving all
-pre-Phase-2d definition-rendering behavior.
+###### `RemoveRowUsages(defs, policy)`
 
-Known limitation: a usage removed by this rule appears only as its parent's compartment row, so
-its own exposed `doc` compartment and `comment` note are not drawn (comments were already lost
-this way before view conditions applied to annotations). Documentation of such a nested usage is
-visible when the usage is itself rendered as a box, for example when the view exposes it directly
-or a view condition excludes its parent.
+Removes the usage boxes that the policy says are rows of their rendered owner, and records the owner
+of every nested usage that stays a node. Every qualified name is a strict `parent::child` chain, so a
+usage's immediate parent is recovered by stripping the last `::` segment, and every ancestor has fewer
+`::` segments than its descendants. Boxes are processed shallowest-first while an `excluded` set grows,
+so by the time a usage is tested its owner's own decision is final. A usage whose immediate parent is
+present and not excluded is excluded when `NodePolicy.IsNode` is false (the owner's compartment shows
+it as a row) and otherwise kept with `OwnerQualifiedName` set. A usage whose parent is absent (outside
+the scope or removed by a filter) or was itself excluded is not touched, so a usage nested several
+levels deep is never silently lost because an intermediate usage became a row: it survives as a
+standalone box. A top-level usage and every definition are never removed by this rule.
 
-This exists because `CollectDefinitions`'s usage-level widening (Phase 2d) admits every named
-usage regardless of nesting depth — necessary so a metaclass-kind filter like
-`filter @SysML::PartUsage;` has a complete candidate pool to narrow — but that superset, if
-rendered unfiltered, duplicates every nested usage already shown as a compartment row inside its
-owning definition's box (empirically, 21 → 47 rendered boxes for
-`docs/gallery/models/01-drone-general.sysml`'s `DroneGeneralView`, a real regression found by
-quality re-validation). The initial Retry 1 fix computed the "which parents are present" set once
-from the pre-dedup `defs` list and tested every usage against that single fixed snapshot; a
-subsequent quality re-validation found this silently dropped a usage nested **two or more levels**
-deep (e.g. `part def A { part b { part c; } }`), since `c`'s immediate parent `b` was present in
-the pre-removal snapshot even though `b` was itself simultaneously being excluded — `c` vanished
-from the diagram entirely, shown neither as its own box nor inside any surviving compartment. The
-current depth-ordered, incrementally-shrinking-`excluded`-set pass (Retry 2) fixes this: `b` is
-excluded before `c` is considered, so `c`'s immediate parent is no longer treated as present by the
-time `c` is tested, and `c` correctly survives as its own standalone box. `BuildLayout` calls this
-method **after** the standalone `filter [<expr>];` narrowing and **before** `GroupByPackage`, so
-the dedup sees only the truly final, fully scope-and-filter-narrowed set: a nested usage whose
-immediate parent was excluded by scope, by that filter, or by this same dedup pass (rather than
-genuinely still present and rendered) is correctly kept as its own standalone box, since it either
-duplicates a still-rendered ancestor's compartment row (and is correctly excluded) or is never
-shown anywhere else and must render standalone (and is therefore never silently lost).
+###### `FinalizeBoxes(defs, theme)`, `BuildCompartments`, and `FormatFeatureRow`
 
-###### `GroupByPackage(defs)`
+`FinalizeBoxes` builds, for every box, the compartments of its owned features that are not nodes of
+their own (a feature that is a node of the box is listed in `drawnAsNodes`, so a node-kind feature that
+is not rendered, for example under `expose P::*;`, stays a row), prepends the `doc` compartment when
+documentation is visible, and computes the box size with `ComputeBoxSize`.
 
-Groups definitions by the qualified-name prefix before the last `::`, preserving first-seen order.
-Top-level definitions (no package prefix) become plain leaves directly on the root graph. This
-method is unchanged by the nested-definition-containment fix: `BuildLayout` now only ever calls it
-with the subset of definitions whose immediate parent is *not* itself an admitted definition (see
-`BuildLayout` above), so an admitted definition's own qualified name can never again become one of
-its bucket keys — which is precisely what removes the duplicate-folder symptom, without any change
-to this method's own flat, first-seen-order bucketing logic. The buckets stay flat: package nesting
-is not decided here but in `BuildGraph`, which also receives the exposed-package and workspace-package
-sets that nesting needs.
+`BuildCompartments` groups the owned features by keyword and emits the groups in a fixed order: the
+canonical keywords `attribute`, `enum value`, `part`, `port` (the private `CanonicalCompartmentKeywords`
+array, the stacking order of the specification's compartment list) and then every other keyword in the
+order first seen; the `doc` compartment is prepended by `FinalizeBoxes`. This makes every box read the
+same way regardless of member declaration order. Each title comes from `Pluralize(keyword)`, which
+special-cases `subject`, `assume constraint`, `require constraint`, and `constraint` to a
+guillemet-wrapped stereotype form, `ref` to `references`, and `enum value` to `enums` (the
+specification's title), and otherwise appends `s`.
 
-###### `CollectExposedPackages(workspace, scope)`
+`FormatFeatureRow` writes a row in the specification's textual notation: an optional direction keyword
+(`in`, `out`, `inout`), the name line from `FormatNameLine` (name, typing with a conjugated typing as
+`~Type`, multiplicity, `ordered`/`nonunique`, subsetting, redefinition, and reference-subsetting
+clauses), and the value clause (which already carries its operator). A feature with a non-empty
+`ExpressionText` (constraint kinds) is written as its raw expression, prefixed `name:` when named.
 
-Returns the non-stdlib `SysmlPackageNode` declarations that `ExposeScopeResolver.IsInSubjectScope`
-admits (an empty set for an unscoped view). `BuildLayout` applies the view's `filter` condition to
-these packages exactly as to definitions (a package is a candidate element), keeps the view
-non-empty when only packages are exposed, and passes the set to `BuildGraph`.
+###### `FormatNameLine(shortName, name, supertypes, typing, multiplicity, subsets, redefines, referenceSubsets, modifiers)`
 
-###### `CollectPackageNames(workspace)`
+An `internal static` helper shared by the General, Interconnection, and Browser views so a given element
+reads the same way in every view. It formats the name line in the order of the graphical BNF name
+compartment — `<shortName> name :> Super1, Super2 : Type [2] ordered :> subsetted :>> redefined
+::> referenced` — omitting every piece that is `null` or empty. The trailing optional parameters
+(`subsets`, `redefines`, `referenceSubsets`, `modifiers`) are appended after the multiplicity, so
+callers that do not pass them are unaffected. Supertypes and typing are passed through exactly as
+written (possibly qualified); nothing is resolved here.
 
-Returns the qualified names of every non-stdlib `SysmlPackageNode` in the workspace, exposed or not.
-`BuildGraph` uses it to tell which qualified-name prefixes are packages, so an unscoped view draws an
-enclosing package's folder even when that package owns no definitions directly.
+###### `GroupByPackage(defs, workspace)` and `PlacementPackage`
 
-###### `BuildModelEdges(defs, workspace, isScoped)`
+Groups boxes by the qualified-name prefix before the last `::`, preserving first-seen order; top-level
+boxes (no package prefix) become plain leaves on the root graph. For a usage, `PlacementPackage` walks
+the prefix outward while it names a declared definition or usage, so a usage whose owner is not rendered
+is grouped by its nearest enclosing package and never by its owner's own qualified name (which would
+draw a folder for a definition). The buckets stay flat: package nesting is decided in `BuildGraph`.
 
-Resolves every specialization (subtype → supertype), structural membership (member-type → owner),
-attribute-typing (owner → attribute-type), redefinition (subtype → the owning definition of
-the redefined feature), and subsetting (subtype → the owning definition of the subsetted
-ancestor feature) relationship — across every definition, regardless of
-package — into a flat list of qualified-name `ModelEdge`s, then appends `Connect`/`Allocate`/
-`Dependency`/`Binding` edges resolved directly from `workspace.Index.AllEdges` (the semantic
-model's already-resolved edges — no re-resolution needed here). Specialization edges carry an open
-triangular end marker at the supertype; `part`/`port` memberships carry a filled diamond; other
-memberships are not drawn (the `ref` keyword no longer contributes a hollow-diamond membership
-marker — see below). In addition, each `attribute` (or `enum`-typed attribute) feature whose type
-resolves to a definition in the view contributes a **typing** edge from the owner to the
-attribute-type definition, carrying an open
-chevron at the type end and rendered as a dashed line. Attribute typing is a usage-type dependency,
-not composition, so it uses the OMG dependency notation (dashed line with an open arrowhead) rather
-than a membership diamond, and it connects otherwise-disconnected attribute and enumeration
-definitions into the cluster near the definitions that reference them. Unresolved types and
-self-references are skipped.
+###### `CollectExposedPackages(workspace, scope)` and `CollectPackageNames(workspace)`
+
+`CollectExposedPackages` returns the non-stdlib `SysmlPackageNode` declarations that
+`ExposeScopeResolver.IsInSubjectScope` admits (empty for an unscoped view); `BuildLayout` applies the
+view conditions to these packages like to definitions and keeps the view non-empty when only packages
+are exposed. `CollectPackageNames` returns every non-stdlib package, exposed or not, so `BuildGraph` can
+tell which qualified-name prefixes are packages and draw an enclosing package's folder even when it
+owns no boxes directly.
+
+###### `BuildModelEdges(defs, workspace, isScoped, policy)`
+
+Resolves every relationship into a flat list of qualified-name `ModelEdge`s and the list of dropped
+`Connect`/`Allocate`/`Dependency`/`Binding` edges. Per box:
+
+- a definition contributes a **specialization** edge to each resolved supertype, resolved by
+  `TypeResolver.TryResolveSupertype` (the edge answer matched to the raw text, else name resolution)
+  and skipped when it resolves to the box itself;
+- a usage node contributes, through `AddUsageEdges` and unless the policy is `RowsOnly`, its
+  **feature membership** edge to the rendered owner (filled or hollow diamond by `IsReferential`), its
+  **typing** edge (`ResolveTyping`, a conjugated typing connecting to the underlying port definition),
+  one **subsetting** edge per entry of `SupertypeNames` (`ResolveSubsetting`), a **reference
+  subsetting** edge (`ResolveReferenceSubsetting`), and a **redefinition** edge
+  (`ResolveRedefinition`). Every target is the *box* of the typing definition or related usage, never the
+  owning definition. An unresolved reference, an unrendered target, and a self-reference draw nothing.
+  A feature that is a row has no box and therefore no edge: an attribute's type is visible in its row.
+
+Then `workspace.Index.AllEdges` is walked once:
+
+- `Connect`, `Allocate`, `Dependency`, and `Binding` map each endpoint to its owning rendered box with
+  `ResolveOwningBox` and are emitted only when both endpoints resolve to distinct boxes; a same-box
+  result is a genuine self-loop and is dropped. Every dropped edge is recorded as a
+  `DroppedRelationshipEdge`, except that an unresolved-endpoint drop is not reported in an `expose`-scoped
+  view, where an endpoint outside the exposed subtree legitimately has no box; a self-loop is always
+  reported.
+- `Satisfy` and `Verify` map each endpoint to the *nearest rendered box* with `ResolveNearestBox`
+  (the name itself, else the longest rendered `::` prefix), because the relating element is often a
+  nested declaration such as an objective or a subject. The edge is added once per source, target,
+  kind, and label (`AddOnce`; a `satisfy` and a `verify` of the same pair are two edges) with the label
+  `«satisfy»` or `«verify»`; an unrendered endpoint or a same-box
+  result draws nothing, silently, as the relationships are an overlay on content a view may scope out.
+- `AddImportEdges` finds the imports by walking the `Children` of every declaration for
+  `SysmlImportNode` (an import node has no qualified name of its own, so it carries no usable source in
+  `AllEdges`), reading its resolved `Import` edges, with the declaration as the importing namespace. A
+  package endpoint is its folder (`folder:<name>`), a definition or usage endpoint its box. An
+  unrendered endpoint (including the standard library), an import of itself, and an import between a
+  namespace and a namespace nested in it draw nothing. The label is `«import»`, `«import»*` for a
+  namespace import, and `«import»**` for a recursive one. Edges are added with `AddOnce`, keyed by
+  source, target, kind, and label, so imports of different kinds that reach the same endpoints (such as
+  `import A::*;` with `import A::**;`) each keep their edge and label, while an exact repeat draws one
+  edge; no visibility indicator is drawn, because the
+  default (private) visibility cannot be told from an explicit one.
 
 **Resolving a reference to a box (`TypeResolver`).** Because packages may reuse a simple name for
 distinct definitions, every reference is resolved in this order: (1) the semantic model's
-already-resolved target — a membership's `FeatureMembership.ResolvedTypeName` (the feature's own
-`Typing` edge) via `TryResolveMemberType`, the definition's own `Supertype` edge matched to the
-raw reference by its `RawReference` (`TryGetResolvedTarget`) via `TryResolveSupertype`, a feature's
-`ResolvedRedefinedFeatureName` (its `Redefinition` edge) via `ResolveRedefinitionOwner`, or a
-feature's `ResolvedSubsettedNames` answer via `ResolveSubsettedOwner` — used as resolved,
-since the semantic resolver already applies KerML name resolution (member visibility, filtered
-imports, import scoping, and imports written at the root of a file), so its answer is
-authoritative and the layout does not re-check it; otherwise (2) KerML 1.1 Beta 2
-8.2.3.5 name resolution through the Language `NameResolver` (created by
-`FilterExpressionEvaluator.CreateNameResolver`, so filtered imports honor their conditions):
-owned, imported, and inherited memberships — including aliases and short names — of the local
-namespace, then outward to the global namespace, later qualified-name segments by visible
-(public-only) resolution. The local namespace follows KerML 8.2.3.5.2: a feature's type and a
-subsetted feature resolve relative to the feature's owning definition; a definition's supertype
-relative to the definition's owning namespace; a redefined feature against each general type of
-the owning definition (`ResolveRedefinitionOwner`, KerML 8.2.3.5.1, then — as the semantic
-resolver does — ordinary resolution from the owning type). (3) A reference neither step resolves
-is **unresolved**: no edge is drawn (a type or supertype reference draws no edge, a part is not
-expanded, a grid row is not marked) and the layout emits no warning for it.
+already-resolved target — the usage's own `Typing` edge for typing, the `Supertype` edge matched to the
+raw reference by its `RawReference` (`TryGetResolvedTarget`) for specialization and subsetting, the
+`Redefinition` edge for redefinition — used as resolved, since the semantic resolver already applies
+KerML name resolution (member visibility, filtered imports, import scoping, and imports written at the
+root of a file); otherwise (2) KerML 8.2.3.5 name resolution through the Language `NameResolver`
+(created by `FilterExpressionEvaluator.CreateNameResolver`, so filtered imports honor their
+conditions): owned, imported, and inherited memberships — including aliases and short names — of the
+local namespace, then outward to the global namespace, later qualified-name segments by visible
+(public-only) resolution. The local namespace follows KerML 8.2.3.5.2: a usage's type and a subsetted
+usage resolve relative to the usage's owner; a definition's supertype relative to the definition's
+owning namespace; a redefined usage against each general type of the owning type (KerML 8.2.3.5.1,
+then ordinary resolution from the owning type). A reference `::>` is resolved only by step (2), because
+the syntax tree carries its raw text and the semantic model produces no edge for it. (3) A reference
+neither step resolves is **unresolved**: no edge is drawn and the layout emits no warning for it. A
+resolved target is used only when it is a rendered box (`RenderedOrNull`); a redefinition resolves to
+the usage of the nearest ancestor of the owner that declares the name, never to the owning definition.
 
 **Why the `NameResolver` step is kept.** `SysmlWorkspace` is a public type that programmatic callers
 (and many layout tests) build by hand with no `ResolvedEdges`, or with edges that carry no
-`RawReference`, where step (2) is the only resolution available; it also resolves a declaration all of
-whose references are semantically unresolved (such a declaration has no edges, so
-`TryGetResolvedTarget` reports "not known") by the same KerML algorithm on the reference's own text — it
-cannot see file-root imports, so it is strictly less permissive than the semantic pass, and this residual
-case is documented rather than special-cased. Where the semantic model did produce identified edges, it is
-authoritative even for the references it left unmatched: step (2) is not consulted, so the layout cannot
-resurrect a reference the load already reported as unresolved. Step (2) is the same engine the semantic pass
-uses, so it cannot draw a relationship KerML forbids; its only divergence is that it cannot see file-root
-imports, which is why redefinition and subsetting prefer the semantic edge (step 1): without that, a target
-reachable only through a file-root import would vanish once the simple-name fallback no longer rescued it.
+`RawReference`, where step (2) is the only resolution available. Where the semantic model did produce
+identified edges it is authoritative even for the references it left unmatched: step (2) is not
+consulted, so the layout cannot resurrect a reference the load already reported as unresolved.
 
-**Pairing references with edges by identity (`TryGetResolvedTarget`).** The semantic `Supertype` edges
-follow the declared reference order but omit unresolved references, so they cannot be paired with the
-references by position. Each edge therefore carries the reference text it was resolved from
-(`SysmlEdge.RawReference`, set by `ReferenceResolver`), and `TryGetResolvedTarget(declaration, kind,
-rawReference, out target)` pairs by exact (ordinal) text equality: it returns the target of the first edge
-of that kind whose `RawReference` equals the reference. When the declaration carries at least one edge of
-that kind with a `RawReference` but none matches, it reports a known answer with no target (the reference is
-semantically unresolved and draws nothing); when it carries none, the answer is not known and the caller
-falls back to step (2). No name-suffix logic exists, so an unresolved reference can never take the target
-another reference resolved to — for example `:> X, A`, where `X` is unresolved and the alias `A` resolves to
-`P::X`, draws one edge. The helper is shared with `GridViewLayoutStrategy`;
-`InterconnectionViewLayoutStrategy` does not use it (a part's typing is a single edge).
+**Pairing references with edges by identity (`TryGetResolvedTarget`).** The semantic `Supertype`
+edges follow the declared reference order but omit unresolved references, so they cannot be paired with
+the references by position. Each edge therefore carries the reference text it was resolved from
+(`SysmlEdge.RawReference`), and `TryGetResolvedTarget(declaration, kind, rawReference, out target)`
+pairs by exact (ordinal) text equality, returning the target of the first edge of that kind whose
+`RawReference` equals the reference. When the declaration carries at least one such edge but none
+matches, it reports a known answer with no target (the reference is semantically unresolved and draws
+nothing); when it carries none, the answer is not known and the caller falls back to name resolution.
+No name-suffix logic exists, so an unresolved reference can never take the target another reference
+resolved to — for example `:> X, A`, where `X` is unresolved and the alias `A` resolves to `P::X`,
+draws one edge. The helper is shared with `GridViewLayoutStrategy`.
 
-**Decision: no simple-name fallback (issue #91).** The earlier design matched a reference that
-the KerML rules reject — a private member, a candidate a filtered import excludes, a name reachable
-only through another namespace's import — to any same-simple-name element and warned. That drew
-relationships the model does not contain (and the sibling Grid and Interconnection layouts did the
-same), so it was removed from all three layouts, with no opt-in flag: an unresolved reference
-renders as unresolved. The diagnostic channel is the load-time `Unresolved reference` warning from
-`ReferenceResolver`, which is the single report (one message per unresolved name per file, printed by
-`render`, `lint`, `query`, and `export`); the layouts emit no additional warning, because it would
-duplicate that message. Only a view that merely does not draw an unresolved reference is silent at
-layout level, by design. The `State`, `ActionFlow`, `Sequence`, and `Browser` layouts were audited
-and have no such fallback: their name-index logic matches transition, succession, and message
-endpoints only against elements of the already-selected root (local-scope naming within one
-container), and the Browser view uses qualified names only.
-Relationship endpoints from `workspace.Index` are already
-qualified, so `ResolveOwningBox` maps them only to the box with that exact qualified name or via
-the owning typed-feature walk — never by simple name.
+**Decision: no simple-name fallback (issue #91).** A reference that the KerML rules reject — a private
+member, a candidate a filtered import excludes, a name reachable only through another namespace's
+import — is not matched to any same-simple-name element: an unresolved reference renders as
+unresolved. The diagnostic channel is the load-time `Unresolved reference` warning from
+`ReferenceResolver`, the single report; the layouts emit no additional warning because it would
+duplicate that message. Relationship endpoints from `workspace.Index` are already qualified, so they are
+mapped only to the box with that exact qualified name or through `ResolveOwningBox` — never by simple
+name.
 
-Each `ref`-keyword feature (previously rendered with an obsolete hollow-diamond membership marker —
-a bug fixed by this unit) instead contributes a **dependency** edge from the owner to the
-referenced type, sharing the exact same rendering (dashed line, open chevron, `EdgeKind.Dependency`)
-as the new public `Dependency` edge kind below — per current OMG SysML v2 notation, a `ref`
-feature is a usage-type dependency, not a diamond-marked structural membership.
+###### `ResolveOwningBox(qualifiedName, workspace, byQualified, usageBoxes)`
 
-Each feature with a non-null `RedefinedFeatureName`
-contributes a **redefinition** edge from the subtype to the owning definition of the redefined
-feature, carrying a hollow-triangle-crossbar end marker at the owner and rendered as a solid line
-via `ResolveRedefinitionOwner`: the feature's resolved `Redefinition` edge target
-(`ResolvedRedefinedFeatureName`) when present, else the KerML 8.2.3.5.1 redefined-feature
-resolution of the raw reference against each general type of the redefining feature's owning
-type (so a bare `redefines name` finds the member the owner inherits, transitively), else ordinary
-resolution of the reference from the owning type (a qualified `Owner::feature` target); the edge
-ends at the resolved feature's owning definition when that definition is rendered. An unresolved
-reference or a self-referential result (`owner == def.QualifiedName`) produces no edge and no
-layout warning — consistent with the other edge kinds in this method.
+Resolves the rendered box that "owns" a `Connect`/`Binding` endpoint (also used for
+`Allocate`/`Dependency` endpoints that already name a box). A reference that names a rendered box
+resolves directly. Otherwise the reference is a feature-chain qualified name such as
+`Drone::controller::power` (always `::`-joined), and the **outermost** rendered *usage* box on the
+path wins: shortest prefix first, so `connect controller.power to battery.output;` written inside
+`Drone` joins the `controller` and `battery` nodes instead of resolving both sides to `Drone` and
+dropping a false self-loop. Last, for an endpoint nested in a feature that is a row rather than a node,
+the method walks successively shorter prefixes, longest first, looking for a `SysmlFeatureNode` whose
+resolved `Typing` edge targets a rendered box; the shortest matching prefix wins. A genuine same-box
+result now arises only when both endpoints are features of the same usage node (two features nested in
+one part) — a rarer, legitimately self-referential shape.
 
-Each entry in a feature's `SubsettedFeatureNames` (populated verbatim from
-`SysmlFeatureNode.SupertypeNames` — see `FeatureMembership` above) contributes a **subsetting**
-edge from the subtype to the owning definition of the subsetted (ancestor) feature, carrying a
-hollow-triangle end marker (the same marker as `Specialization`, distinguished purely by the
-dashed line style) at the owner, resolved by `ResolveSubsettedOwner`: the `Supertype` edge target
-matched to the reference by its `RawReference` (the `ResolvedSubsettedNames` answer) when known, else
-ordinary resolution of the
-reference relative to the feature's owning definition — a subsetted-feature reference is "a bare
-or qualified reference to a member the owner inherits" in SysML v2 semantics, as is a redefined one.
-`Subsetting` is intentionally *not* a new public `SysmlEdgeKind`: it is derived entirely from
-existing AST/resolver data at render time, per the project's explicit design decision to avoid
-adding semantic-model surface area for a relationship that can be fully reconstructed from
-`SupertypeNames` plus the existing redefinition-owner walk.
+###### `BuildGraph(groups, childrenByParent, usagesByOwner, modelEdges, theme, depthLimit, ...)`
 
-Finally, `Connect`/`Allocate`/`Dependency`/`Binding` edges are read directly from
-`workspace.Index.AllEdges`, one iteration over every `SysmlEdge` whose `Kind` matches one of the
-four. Each endpoint (`SourceQualifiedName`/`TargetQualifiedName`) is mapped to its *owning rendered
-box* via `ResolveOwningBox` (see below) — necessary because a `Connect`/`Binding` endpoint is
-frequently a dotted feature-chain qualified name (e.g. `Drone::controller::power`), not itself a
-definition, so it must be mapped up to the definition that actually owns the referenced feature
-before it can become a graph edge endpoint. `Allocate` edges carry an open chevron at the target
-and a `«allocate»` midpoint label — an `Allocate` edge is drawn as a **solid** line, which the
-specification uses for allocation, whereas a `Dependency` edge is dashed; `Dependency` edges carry
-an open chevron with no label (matching
-the `ref`-fix rendering above); `Connect` edges carry no end marker and no label; `Binding` edges
-carry no end marker and an `=` midpoint label. An edge is only emitted when both endpoints resolve
-to *distinct* boxes — a same-box result is a genuine self-loop and is dropped, exactly as every
-other edge kind in this method already does for self-references. For the dominant real-world
-corpus shape — two sibling features (e.g. ports) declared directly in their owning `part def`s,
-referenced from an enclosing part via bare `part` usages with no per-instance nested redeclaration
-— `ReferenceResolver`'s dotted-chain resolution now (as of the instance-path-preserving fix
-documented in the `ReferenceResolver` design chapter) correctly returns an instance-relative
-qualified name for each endpoint (e.g. `Drone::controller::power`, `Drone::battery::output`), which
-`ResolveOwningBox`'s shortest-matching-prefix walk maps to two *distinct* boxes — this is the
-normal, expected outcome for that shape, not a self-loop. A genuine same-box result now only arises
-when both endpoints are truly features of the same enclosing definition (e.g. two sibling ports of
-one part, with no distinguishing intermediate owner) — a rarer, legitimately self-referential
-model shape.
+Builds the single input `LayoutGraph` and returns it as a `GraphBuild`. Its remaining parameters are
+`exposedPackages` (the exposed packages of a scoped view), `packageNames` (every package of the
+workspace), `itemOrder`, and the optional `deferred` set. The optional `itemOrder`
+(folder key to item qualified names, produced by `ComputeItemOrder`) sets the order in which a folder's
+own boxes are placed (`OrderedItems`); without it, or for a folder it does not name, declaration order
+is used, names the folder does not own are ignored, and any item the order omits follows the named
+ones, so a stale or partial order can never drop a box. The optional `deferred` set (qualified names)
+names leaf definitions held directly by a folder or the root that are left out of the graph; it is
+used only by `TryTuckUnconnected`.
 
-Every edge dropped by this method — whether because an endpoint failed to resolve to any rendered
-box, or because both endpoints resolved to the same box — is also recorded (subject to the scoping
-rule described in the next paragraph) as a `DroppedRelationshipEdge` (kind, raw source/target
-reference, and a short human-readable reason), returned as `BuildModelEdges`'s second tuple element
-and surfaced by `BuildLayout` via `LayoutWarnings.ForDroppedRelationshipEdges` — a defense-in-depth
-diagnostic ensuring that any residual or future resolution gap remains visible in the view's
-`Warnings` rather than being silently and invisibly dropped, as it was before this diagnostic was
-added. An unresolved-endpoint drop is only reported when the view carries no `expose` scope
-restriction: within an `expose`-scoped view, an endpoint whose owning box falls outside the exposed
-subtree legitimately fails to resolve by design, and reporting it would be misleading noise for
-ordinary, intentional scope narrowing (confirmed empirically while regenerating the gallery's
-`expose`-scoped `BatterySubsystemView`, whose `Allocate`/`Dependency`/`Connect` edges reaching
-outside the exposed `Battery` subtree produced exactly this noise before the scoping rule was
-added). A genuine self-loop (both endpoints resolve, to the same box) is always reported,
-regardless of scoping, since a same-box result can never be an intended outcome of `expose`
-narrowing.
+The root graph is configured once, and every `CoreOptions` property cascades to the nested folder and
+container scopes unless a scope overrides it: `MergeParallelEdges = false` (every distinct model
+relationship stays its own routed edge, pinned by the `ParallelEdgesIn…_AreNotMerged` tests) and
+`Direction = Down` (see below).
 
-Whether an edge's endpoints actually
-receive a graph node — i.e.,
-were not depth-truncated — is decided later, in `BuildGraph`.
-
-###### `ResolveOwningBox(qualifiedName, workspace, byQualified, bySimple)`
-
-Resolves the qualified name of the rendered box that "owns" a `Connect`/`Binding` endpoint
-reference (also reused, degenerately, for `Allocate`/`Dependency` endpoints that are already
-definition names). If the reference already names a rendered definition, it resolves directly
-(the common, simple case). Otherwise, the reference is a dotted-feature-chain qualified name
-(e.g. `Drone::controller::power`, produced by `ReferenceResolver`'s feature-chain walk, which
-always emits `"::"`-joined segments — never the raw `.`-separated source text). The method walks
-successively shorter `"::"`-split prefixes of that name, from **longest to shortest**, looking for
-a `SysmlFeatureNode` declaration whose own resolved `Typing` edge targets a rendered box; each
-match overwrites the running candidate (it does not break early), so the **shortest** matching
-prefix — the feature immediately, directly owned by the enclosing rendered definition — wins.
-This "shortest wins" rule is essential: a naive "walk to the nearest enclosing definition" (i.e.,
-longest-prefix-wins) would resolve *both* sides of the dominant real-world corpus shape — e.g.
-`connect controller.power to battery.output;` written inside a single enclosing `part def Drone`
-— to the same box (`Drone`), producing a false self-loop where a real diagram must show two
-distinct boxes (`Controller` and `Battery`) connected.
-
-###### `BuildGraph(groups, childrenByParent, modelEdges, theme, depthLimit, exposedPackages, packageNames, itemOrder)`
-
-Builds the single input `LayoutGraph` and returns it as a `GraphBuild` (graph, truncated containers,
-`located` map, folder plans). The optional `itemOrder` (folder key to item qualified names, produced by
-`ComputeItemOrder`) sets the order in which a folder's own definitions are placed (`OrderedItems`);
-without it, or for a folder it does not name, declaration order is used, names the folder does not own
-are ignored, and any item the order omits follows the named ones in declaration order, so a stale or
-partial order can never drop a definition. Sets `CoreOptions.MergeParallelEdges` to `false` on the
-root graph (every `CoreOptions` property cascades to the nested package-folder and definition-container
-`Children` scopes unless a scope overrides it, so the setting holds in every scope where an edge is
-declared; the `ParallelEdgesInNestedPackage_AreNotMerged` and
-`ParallelEdgesInDefinitionContainer_AreNotMerged` tests pin it) so multiple distinct model
-relationship edges that happen to share the same source and
-target (for example two attributes of the same type, or a redefinition edge that coincides with
-another edge between the same two definitions) are never collapsed by the bundled layered
-algorithm's default parallel-edge merging — every distinct model relationship this strategy adds
-remains its own visible, independently-routed edge, unlike `LayeredPlacement`'s helper (used by the
-flat view strategies), which defaults to the algorithm's own merge-by-default behavior unless a
-caller opts out (see `LayeredPlacement`'s design documentation). Every definition — whether a
-top-level item, a bare package's item, or a definition nested inside another definition — is placed
-through the recursive `PlaceDef` helper (below), which is what actually creates each definition's
-node and recurses into its own `childrenByParent` entry, if any.
-
-Folders are planned before any graph node exists (`PlanFolders`), then materialized parent-first.
-
-*Planning.* A group becomes a folder seed when its `package` key is non-empty and, in a scoped view
-(`exposedPackages` non-null), the package is itself exposed: per SysML 2.1 Beta 2 8.3.26.3/8.3.26.4
-(and KerML 8.3.2.4.4) a MembershipExpose (`expose P;`, `expose P::**;`) exposes the Package P itself,
-while a NamespaceExpose (`expose P::*;`, `expose P::*::**;`) exposes only P's members. Groups with an
-empty key (top-level, unpackaged items) and, in a scoped view, groups of non-exposed packages are not
-folders; their items are placed via `PlaceDef` directly on the root scope, exactly like top-level items
+*Folder planning (`PlanFolders`).* A group becomes a folder seed when its package key is non-empty
+and, in a scoped view, the package is itself exposed: per SysML 2.1 8.3.26.3/8.3.26.4 (and KerML
+8.3.2.4.4) a MembershipExpose (`expose P;`, `expose P::**;`) exposes the package P itself, while a
+NamespaceExpose (`expose P::*;`) exposes only P's members. Groups with an empty key and, in a scoped
+view, groups of non-exposed packages are not folders; their boxes are placed directly on the root scope
 (a package that is merely an ancestor of admitted content is not drawn). Every enclosing package of a
-seed that is eligible — an exposed package in a scoped view, otherwise any package from
-`packageNames` — also becomes a folder, planned before the first folder nested in it, even when it
-owns no definitions directly; a prefix that is not a package (for example a definition) is skipped.
-Each folder is nested in its nearest enclosing planned folder, or sits on the root when there is none
-(so in a scoped view a nested exposed package attaches to its nearest *exposed* ancestor, else the
-root). The plan records each folder's nesting level (the number of enclosing folders) and its
-subtree count — its own definitions plus, for each nested folder, one for the folder and its own
-subtree count — which is the number a truncated folder records as hidden (diagnostics only; the
-rendered marker is a bare `…`).
+seed that is eligible also becomes a folder, planned before the first folder nested in it, even when it
+owns no boxes directly. Each folder is nested in its nearest enclosing planned folder, or on the root.
+The plan records each folder's nesting level and its subtree count (its own boxes plus, for each nested
+folder, one for the folder and its own subtree count), the number a truncated folder records as hidden
+(diagnostics only; the rendered marker is a bare `…`). `PlanFolders` returns the ordered
+materialization steps — a folder key or the index of a group placed directly on the root — so root-level
+items keep their relative order.
 
-*Materialization.* Folders are materialized in plan order, so a folder's parent scope always exists
-first; a folder whose parent was collapsed by the depth limit is skipped (the parent's subtree count
-already includes it). A folder with no definitions and no nested folders is drawn as a leaf package
-node (`Shape = Folder`, name inside, sized to its label) — the SysML 8.2.3.5 `package-node` with no
-compartments — instead of an empty canvas; this case is handled before depth truncation, so a depth
-limit never decorates an empty package node with an ellipsis (`…`) indicator. Any other folder becomes a
-container node (`Shape = Folder`, no `Keyword` — the specification draws a package as a folder with
-its name only, so no `«package»` line is drawn — `Label` the simple package name,
-`TitleHeight` set from `BoxMetrics.TitleAreaHeight(theme, hasLabel: true, hasKeyword: false)` so the
-hierarchical engine reserves exactly the name-only title band the renderer will draw) added to its
-parent scope — the root graph, or the enclosing
-folder's own `Children` graph, which is how a nested package is drawn inside its owner — with its own
-definitions placed via `PlaceDef` under `folder.Children` and a new `ScopeInfo` whose parent is the
-enclosing scope. The folder's own `CoreOptions.Algorithm` is set to `LayeredLayoutAlgorithm.AlgorithmId`
-per the established per-container-algorithm convention (the algorithm override lives on the container
-node itself, while every other `CoreOptions` property would live on its `Children` graph). When the
-depth limit forbids a folder's contents, its definitions and nested folders are never added as
-individual boxes at all — the folder becomes a single leaf node (its `Children` graph is never
-touched, so the hierarchical engine keeps this caller-computed placeholder size rather than auto-sizing
-it as a container) sized by `ComputeEllipsisSize(theme)` — the minimum box width and a body tall enough
-for the folder's name and the ellipsis below it, independent of how many elements are hidden — showing the folder's name
-and a bare `…` label, and recorded as a `TruncatedContainer` for later decoration.
+*Materialization.* Folders are materialized in plan order, so a folder's parent scope exists first; a
+folder whose parent was collapsed by the depth limit is skipped. A folder with no boxes and no nested
+folders is drawn as a leaf package node (`Shape = Folder`, name inside, sized to its label) — checked
+before depth truncation, so a depth limit never decorates an empty package with an ellipsis. Any other
+folder becomes a container node (`Shape = Folder`, no `Keyword`, since a package is drawn with its name
+only) whose appearance asks for the name in the tab (`FolderTitlePlacement.Tab`). No `TitleHeight` is
+set for such a folder: the engine reserves the tab height itself, and a title height would add a body
+band back. The folder's own `CoreOptions.Algorithm` is set to `AutoLayoutAlgorithm.AlgorithmId`
+(see *Direction and edge orientation* for why it is not the layered algorithm). The folder's boxes
+are placed with `PlaceDef` under `folder.Children` and a new `ScopeInfo`. When the depth limit forbids a
+folder's contents, none of its boxes or nested folders is added: the folder becomes a single leaf node
+(its `Children` graph is never touched, so the engine keeps this caller-computed placeholder size)
+sized by `ComputeEllipsisSize(theme)`, showing its name and a bare `…` label, and is recorded as a
+`TruncatedContainer` for later decoration.
 
-Package-folder contents sit at depth `1 + nesting level`: the contents of a top-level folder, and the
-top-level/scoped-promoted items placed directly on the root graph, are at depth 1 — the pre-existing
-convention (`depthLimit > 0 && depthLimit <= 1` collapses a top-level folder) — and each enclosing
-folder adds one level, the same as a definition nested in a definition. A folder is therefore
-collapsed when `depthLimit > 0 && depthLimit <= 1 + nesting level`: with a limit of 1 only the
-top-level folders are shown, collapsed; with 2 each top-level folder's own definitions are shown and
-its nested folders are collapsed; and so on. Every `PlaceDef` call `BuildGraph` makes for a folder's
-items passes that folder's content depth as `def`'s own starting depth (and the root depth, 1, for
-root-scope items), so `PlaceDef`'s own nested-definition-containment recursion (see below) goes one
-depth deeper per level from this same baseline — a definition's immediate nested child sits one
-level deeper than the definition, its grandchild two, and so on — regardless of whether that
-definition sits directly on the root, inside a (possibly nested) folder, or is itself already nested
-inside another definition. This is what fixes the reviewer-confirmed defect where
-`RenderOptions.DepthLimit` only capped package-folder-contents nesting and had no effect at all on
-nested-definition containment.
+*Depth.* The contents of a top-level folder, and the top-level or scope-promoted items placed on the
+root, are at depth 1; each enclosing folder adds one level, as does each level of nested-definition
+containment and each usage node below its owner. A folder is collapsed when
+`depthLimit > 0 && depthLimit <= 1 + nesting level`: with a limit of 1 only the top-level folders are
+shown, collapsed; with 2 each top-level folder's own boxes are shown and its nested folders collapsed;
+and so on.
 
-Every located definition's node and the `ScopeInfo` that directly holds it is recorded in a `located`
-map so model edges can be scoped by lowest common ancestor. Each edge is added to the scope returned
-by `LowestCommonScope(source.Scope, target.Scope)` — the innermost scope on both endpoints' parent
-chains — and references the (possibly deeply nested) endpoint nodes directly. Because the scope
-chain contains both package folders and definition-as-container scopes, one lookup handles sibling
-definitions in one scope, two siblings of a common parent (their parent package or definition), a
-nested package versus its owner (the owner's scope), definitions several packages deep in different
-top-level packages (the root), and mixtures of package and definition nesting. The layout engine
-(`DemaConsulting.Rendering.Layout` 0.3.0-beta.2 or later) routes an edge declared on an ancestor
-scope between the endpoint nodes themselves, not between the containers holding them, so
-relationships across packages are drawn between the actual definition boxes; earlier engine versions
-dropped such edges or anchored them to package borders. An edge between a container and one of its
-own descendants has the container's own enclosing scope as its lowest common ancestor; the engine
-does not draw it (the containment is already visible) and does not throw. An edge touching a
-depth-truncated (unrendered) definition has no node in the `located` map to reference and is silently
-dropped, exactly as before.
+*Edges.* Every located box's node and holding `ScopeInfo` is recorded in the `located` map (folders
+under `folder:<name>` keys too, so import edges can end at a folder). Each model edge whose endpoints
+both have a node is added to the scope returned by `LowestCommonScope(source.Scope, target.Scope)` — the
+innermost scope on both endpoints' parent chains — and references the (possibly deeply nested) endpoint
+nodes directly. One lookup therefore handles sibling boxes in one scope, siblings of a common parent,
+a nested package versus its owner, boxes several packages deep in different top-level packages (the
+root), and mixtures of package and definition nesting. The layout engine routes an edge declared on an
+ancestor scope between the endpoint nodes themselves, not between the containers holding them. An edge
+between a container and one of its own descendants is not drawn by the engine (the containment is
+already visible) and does not throw. An edge touching a depth-truncated (unrendered) box has no node
+in `located` and is silently dropped.
 
-###### `PlanFolders(groups, exposedPackages, packageNames)`
+###### Direction and edge orientation
 
-Pure planning step used by `BuildGraph` (see above): decides which packages become folders, their
-nesting and order (an enclosing folder always precedes everything nested in it), the nesting level,
-and the subtree count, and returns the ordered materialization steps — each either a folder key or the
-index of a group whose items are placed directly on the root scope — so root-level items keep their
-original relative order.
+The graph flows top-to-bottom (`CoreOptions.Direction = LayoutFlowDirection.Down`, set once on the
+root), so the owner, the supertype, and the general element read on top, as in the Pilot implementation
+and the SysML v2 training material, and the definition typing a usage hangs below the usage. The
+bundled layered algorithm assigns layers by longest path from the sources, with no option to tighten
+the layering. If every edge were declared in notation direction (usage → owner, usage → definition,
+specific → general) with an upward flow, the owner and every typing definition would share one tier
+above all usages, giving two rigid tiers and a drawing several thousand pixels wide for the gallery
+drone model. Instead every layout edge runs from the element drawn above to the element drawn below:
+owner → owned usage, general → specific, subsetted or redefined → subsetting or redefining,
+requirement → satisfier, imported → importer, and usage → typing definition. Each element then hangs
+directly below the top-most element that reaches it, and the owner, its usages, and the definitions form
+a short three-tier tree.
 
-###### `LowestCommonScope(a, b)`
+An edge whose notation direction points up is therefore *declared reversed* (`IsDeclaredReversed` is
+true for every kind except `FeatureTyping`, `Connect`, and `Binding`): `BuildGraph` adds it from its
+drawn target to its drawn source with the end marker still on the layout target. After layout,
+`OrientEdges` reverses the waypoints of every connector whose `TargetEnd` is neither `None` nor
+`HollowTriangleTwoDots`, so the marker ends up at the drawn target. A connector declared in its drawn
+direction carries either no marker (connect, bind, the comment link) or the typing marker, which no
+reversed edge uses, so the marker identifies the connectors to reverse. The comment link is declared
+element → note so the note hangs directly below its element. The graph cannot express a source-end
+marker, which is why the reversal is done on the placed connectors (see `ROADMAP.md`).
 
-Returns the innermost `ScopeInfo` that encloses both arguments (a scope encloses itself) by collecting
-the ancestors of `a` (by reference identity) and walking `b` upward until one of them is found; the
-root scope is on both chains, so a result always exists.
+For a reader and for the diagram-quality checklist, the rule that a marker sits "on the right face of
+the source box and the left face of the target" is specific to a left-to-right flow. For this
+top-to-bottom layout it reads as follows: the connector of a relationship toward the owner or the
+general element starts at the *top* face of the lower (owned or specific) box and ends, with its
+marker, at the *bottom* face of the upper box; the typing connector starts at the bottom face of the
+usage and ends, with its marker, at the top face of the definition below it.
 
-###### `PlaceDef(def, scope, childrenByParent, located, theme, depth, depthLimit)`
+Folders are not pinned to the layered algorithm but to `"auto"`: a folder pinned to `LayeredLayoutAlgorithm`
+with a vertical direction was observed to stack several unconnected nodes of one layer on top of each
+other, whereas the automatic selection places connected groups with the layered algorithm and the
+singletons with the containment algorithm; the regression test
+`TopDown_UnconnectedDefinitionsDoNotOverlap` guards this. The automatic selection places the
+unconnected-box bucket as a shelf beside or below the connected component, which can leave an empty
+region in a wide drawing; no option controls the bucket's shape, so the strategy places those boxes
+itself (see `TryTuckUnconnected`).
 
-Places a single definition's node into `scope.Graph` via `MakeDefNode`, records its `Location` in
-`located` (the node and the `scope` that directly holds it, for edge scoping), and emits its
-annotation note via `AddAnnotationNote` — exactly the three steps `BuildGraph` used to perform
-inline for every leaf definition, now factored into one recursive helper. `depth` is `def`'s own
-nesting depth, using the same numbering `BuildGraph` uses for package-folder contents (a
-top-level definition is depth 1; a folder's definition is its folder's content depth, per `BuildGraph`
-above); `def`'s own immediate nested children (if any) sit one depth deeper, at `depth + 1`.
+###### `TryTuckUnconnected(tree, build, rebuild, theme)`
 
-When `def` owns nested definitions (a `childrenByParent` entry keyed by `def.QualifiedName`), exactly
-one of two things happens to that nested content:
+The automatic layout packs every childless box without an edge into one block beside the connected
+part of a scope. In a wide tree this block sits beside the tree while the lower part of the drawing
+stays empty, so the canvas is much larger than its content (diagram-quality B4/B5: the quadcopter model
+was 1959×1308 px with a 460 px empty square and 17.6 % of the canvas covered by blocks).
+`TryTuckUnconnected` places those boxes in the free space instead:
 
-- If `depthLimit` is positive and does not permit the children's depth (`depthLimit <= depth + 1`),
-  the children are **not** recursed into or rendered as individual boxes at all — mirroring
-  `BuildGraph`'s `truncateFolderContents` package-folder-contents truncation one nesting level
-  deeper. Before the node is created, `def` is replaced by `WithTruncationRow(def, theme)`, which
-  appends one extra, untitled `LayoutCompartment` whose single row is `…` after every compartment
-  `def` already has and recomputes the box size with `ComputeBoxSize` so the extra row fits. The
-  result is a leaf box (no `Children` scope, no placeholder child box, no `TitleHeight` override):
-  the trailing `…` is the specification's marker that a box has further contents which are not
-  shown — the graphical BNF (clause 8.2.3) ends the contents of every compartment production with
-  an optional `'…'`. No child `ScopeInfo` is created for `def` in this branch, and none of the
-  hidden children receive a `located` entry, so every edge touching one is dropped exactly like a
-  depth-truncated package folder's contents.
-- Otherwise, `def`'s own node's `TitleHeight` is set to `def.Height` (which already includes the
-  title band and every compartment row for `def`'s own owned usages, from `ComputeBoxSize`),
-  reserving exactly that band above where its nested content begins, and a new `ScopeInfo` (enclosed
-  by `scope`, graph `node.Children`) is created for `def`, so
-  edges between `def`'s own nested children — or between one of them and a node elsewhere — resolve to
-  their lowest common scope rather than always the root, and each child is placed by a recursive call
-  to `PlaceDef` with that new scope and `depth + 1` as the child's
-  own depth — resolving arbitrarily deep nesting (a definition owning a definition owning a
-  definition, and so on) through repeated single-level recursion, one call per level, rather than a
-  multi-hop ancestor walk, with the depth-limit check re-applied at every level.
+1. `FindUnconnectedDefinitions` selects, per scope, the leaf boxes that no edge of the graph touches
+   (a definition with a comment note, a definition that owns usages or nested definitions, and a box that
+   is the end of any relationship are connected, so they are not selected), only for the root and
+   package-folder scopes, and only when the scope also holds connected
+   content. A scope of isolated boxes only keeps the engine's packing.
+2. The graph is built again through `rebuild` with these names deferred (`BuildGraph(…, deferred)`) and
+   laid out again, so the connected part keeps the engine's placement and the folder and the canvas
+   shrink to it. The result is decorated like the second layout. If its canvas is not strictly smaller
+   than the canvas of the second layout the method returns null.
+3. For each scope, `TuckScope` takes the deferred boxes from the second layout (with their compartments
+   and appearance) and calls `PlaceInFreeSpace` with the content bounds of the scope in the new layout
+   (the bounds of its boxes and connector waypoints, so no folder is resized) and the obstacles: the
+   boxes placed directly in the scope, every connector segment of the tree, and every connector label
+   (placed by `ConnectorLabelPlacer`).
+4. `PlaceInFreeSpace` rasterizes the bounds into cells of `TuckClearance` (12 px) and marks the cells that
+   an obstacle grown by that clearance touches. It tries the boxes, in placement order, as an arrangement
+   of one to six columns (`ArrangeInColumns`, a gap of `TuckGap` = 16 px) at every third cell, using
+   prefix sums to test that the footprint is free, and picks the position that leaves the smallest empty
+   square (`MeasureEmptySquares`, a dynamic-programming pass), then the fewest empty squares of any size,
+   then the position nearest the bottom-right corner; ties keep the first position tried, so the result is
+   deterministic. It returns null when no arrangement fits inside the bounds.
+5. A scope whose boxes do not fit is dropped from the set, and the whole attempt is repeated with that
+   scope's boxes in the engine's packing (the set shrinks every round, so the loop terminates). When no
+   scope remains the method returns null and the caller keeps the engine's layout unchanged.
 
-`LayoutGraphNode.Children` and `TitleHeight` are shape-agnostic in `DemaConsulting.Rendering.Layout`
-(not reserved for `BoxShape.Folder`), so a `Rectangle`-shaped definition box can safely become a
-container this way with no engine-side change: the `HierarchicalLayoutAlgorithm`'s cascading sizing
-pass grows any container whose placed content needs more room than its initial `Width`/`Height`,
-exactly as an (initially `0, 0`-sized) package folder already relied on.
+Nothing is moved outside a scope's own content bounds, so no sibling can overlap and no nested folder needs
+resizing. The cost is one more engine pass plus a few thousand cell evaluations (a few milliseconds for the
+quadcopter model); a layout without isolated boxes beside connected content does no extra work. The
+pass compensates for the missing bucket-shape control of the engine and can be retired when the engine
+offers one (see `ROADMAP.md`).
 
-###### `ComputeEllipsisSize(theme)`
+###### `FitConnectorsToCanvas(tree)`
 
-Computes the width/height of a truncated package folder's ellipsis (`…`) placeholder leaf body: the
-minimum box width and a height of three title lines plus margins, so the folder's name (which the
-renderer centers in the body) and the ellipsis drawn below it stay clear of each other. The
-placeholder shows only the ellipsis glyph, so — unlike the earlier "+N more…" label — the size no
-longer depends on how many elements were hidden. Only `BuildGraph`'s folder truncation uses it; a
-truncated definition is sized by `WithTruncationRow` instead.
+The engine can route a connector joining two root-level folders through a channel outside the drawing
+(negative coordinates) and reports the node bounds only, so a renderer would clip it. When any waypoint
+lies outside the canvas, the whole tree is translated so the leftmost and topmost waypoint sits
+`CanvasMargin` (8) inside the canvas, and the canvas is widened and heightened to hold the rightmost and
+lowest waypoint; a tree whose connectors are all inside is returned unchanged. Labels outside the
+canvas are not covered (see `ROADMAP.md`).
+
+###### `ClearEndDecorations(tree, theme)`
+
+The engine guarantees a clean straight final leg (the end marker plus one corner radius, see
+`Theme.CleanLegMargin`) only at the *target* end of an edge. The General View declares most edges
+reversed, so after `OrientEdges` the owner-end decoration (a diamond or a triangle) sits at the
+engine's *source* end, where only the connector stub is reserved: the first lane out of an owner face is
+a fixed 10 px from the box, which is less than the length of a diamond plus the bend radius, so the
+connector would leave sideways from the decoration's tip (diagram-quality C10). `ClearEndDecorations`
+runs after `OrientEdges`, when
+the marker is on the last waypoint, and applies to every connector with four or more axis-aligned
+waypoints whose last leg, the lane before it, and the leg before the lane form a Z shape. A connector
+with a single bend (three waypoints) has no lane and is left alone.
+
+The Z-shaped connectors are grouped by the box face their last waypoint lies on (the box whose outline
+contains it, and the outward direction of the last leg). The required approach of a connector is
+`NotationMetrics.RenderedAlongLineLength(TargetEnd, theme) + Theme.LineCornerRadius +
+Theme.CleanLegMargin` (zero without a marker). The group's shift is the largest shortfall of its
+members, and every member's last two bend points move away from the box by that one distance, so the
+lane order and the lane pitch of the face are preserved (moving only the short lane would collapse it
+onto the next one). A group is left unchanged, as the engine routed it, when any of these guards fail:
+
+- the leg that starts at the other box would shrink below two corner radii plus the margin;
+- a moved segment would pass through the inside of a leaf box;
+- the moved set would add a conflict between connectors: a crossing of perpendicular segments, or
+  parallel segments closer than 8 px (`LanePitch`) whose extents overlap or are less than 8 px apart.
+  Conflicts that exist before the move are not counted.
+
+Each face is decided once, in the order the connectors were first seen, with no iteration, so the pass is
+deterministic and terminates; a tree without a violation is returned as the same instance. It is a
+post-pass of this unit rather than an engine option because the engine exposes no source-end marker
+and no first-lane distance (see `ROADMAP.md`); it can be retired when the engine reserves a clean leg
+at the source end too.
+
+###### `PlaceDef(def, scope, childrenByParent, usagesByOwner, located, theme, depth, depthLimit)`
+
+Places a single box's node into `scope.Graph` via `MakeDefNode`, records its `Location`, and emits its
+annotation note via `AddAnnotationNote`. `depth` is the box's own nesting depth; its nested children
+sit at `depth + 1`. When the box owns nested definitions or usage nodes and `depthLimit` is positive and
+does not permit that depth (`depthLimit <= depth + 1`), the children are not rendered: the box is
+replaced by `WithTruncationRow(def, theme)`, which appends one untitled `LayoutCompartment` whose
+single row is `…` (the specification's marker that contents are not shown) and recomputes the size,
+and the box stays a leaf. No child scope is created and the hidden children receive no `located` entry,
+so every edge touching one is dropped.
+
+Otherwise the box's usage nodes (`usagesByOwner`) are placed in the **same scope as the box**, beside
+it and recursively at `depth + 1`, never inside the owner's `Children`, because an edge between a
+container and its own descendant is not drawn by the engine. Nested definitions (`childrenByParent`)
+are placed inside the box: its `TitleHeight` is set to its own `Height`, which already includes the
+title band and every compartment row, reserving that band above the nested content, and a new
+`ScopeInfo` (enclosed by `scope`) is created for the child scope, so edges between nested definitions
+resolve to their lowest common scope. `LayoutGraphNode.Children` and `TitleHeight` are shape-agnostic,
+so a rectangle-shaped definition can be a container with no engine-side change.
 
 ###### `MakeDefNode(scope, def)`
 
-Adds one definition as a leaf node to the given scope (the root graph or a folder's `Children`),
-carrying its `Label` (the displayed name line, `def.Label`), `Keyword`, and `Compartments`. The
-`Shape` is `RoundedRectangle` for a usage (`def.IsUsage`) and `Rectangle` for a definition: the
-graphical BNF (clause 8.2.3) draws definition nodes with square corners and usage nodes with
-rounded corners.
+Adds one box as a leaf node carrying its `Label`, `Keyword`, `Compartments`, and `Appearance`. The
+`Shape` is `RoundedRectangle` for a usage and `Rectangle` for a definition (graphical BNF, clause
+8.2.3).
+
+###### `ComputeEllipsisSize(theme)` and `WithTruncationRow(def, theme)`
+
+`ComputeEllipsisSize` computes the size of a truncated folder's placeholder: the minimum box width and a
+height of three title lines plus margins, so the folder's name and the ellipsis drawn below it stay
+clear of each other; it does not depend on how many elements were hidden. A truncated definition or
+usage is sized by `WithTruncationRow` instead.
 
 ###### View conditions and annotation visibility
 
-`BuildLayout` gathers the view's conditions with `ExposeScopeResolver.CollectViewConditions` —
-every `filter` the view owns followed by those inherited from its view definition and its general
-view definitions (SysML 2.1 Beta 2 7.26.2; 8.3.26.11 `viewCondition`/`includeAsExposed`) — and
-parses each with `FilterExpressionParser.Parse`; a condition that does not parse is reported with
-`LayoutWarnings.ForUnevaluatedFilter` and skipped. Every exposed definition or usage must satisfy
-all parsed conditions (`FilterExpressionEvaluator.Evaluate`, with abstract-syntax metaclass tests
-such as `@SysML::PartUsage`, SysML 7.5.4). An owned `doc` or `comment` is visible when
+`BuildLayout` gathers the view's conditions with `ExposeScopeResolver.CollectViewConditions` — every
+`filter` the view owns followed by those inherited from its view definition and its general view
+definitions (SysML 2.1 7.26.2; 8.3.26.11 `viewCondition`/`includeAsExposed`) — and parses each with
+`FilterExpressionParser.Parse`. Every exposed definition or usage must satisfy all parsed conditions
+(`FilterExpressionEvaluator.Evaluate`, with abstract-syntax metaclass tests such as
+`@SysML::PartUsage`, SysML 7.5.4). An owned `doc` or `comment` is visible when
 `ExposeScopeResolver.IsAnnotationExposed` reports it exposed (including through an expose filter,
-`expose P::**[expr];`) and it satisfies every condition for its metaclass (`Documentation` or
-`Comment`) via `FilterExpressionEvaluator.EvaluateForMetaclass` — so
-`filter not @SysML::Documentation;` hides documentation while keeping comments, and a positive
-condition such as `filter @SysML::PartDefinition;` hides both.
+`expose P::**[expr];`) and it satisfies every condition for its metaclass (`Documentation` or `Comment`)
+via `FilterExpressionEvaluator.EvaluateForMetaclass` — so `filter not @SysML::Documentation;` hides
+documentation while keeping comments, and a positive condition such as `filter @SysML::PartDefinition;`
+hides both. These decisions are made per element, so a nested usage that is a node carries its own
+documentation and comments.
 
 ###### `BuildDocCompartment(annotations, boxWidth, theme)`
 
-Called by `CollectDefinitions` when the element's documentation is visible: it is exposed with
-its owner's members (`ExposeScopeResolver.IsAnnotationExposed`, KerML 7.2.4.2 — documentation is
-an owned member of its element) and satisfies every view condition
-(`FilterExpressionEvaluator.EvaluateForMetaclass(…, "Documentation", …)`). It draws the SysML 2.1
-Beta 2 8.2.3.4 `documentation-compartment` notation. It returns `null` when the element has no
-non-empty `doc` annotation; otherwise it
-builds a `LayoutCompartment` titled `doc` that `CollectDefinitions` places first among the box's
-compartments before re-running `ComputeBoxSize`. `SplitParagraphs` normalizes each annotation's
-raw text (trimming lines, dropping a leading `*` continuation marker, joining consecutive lines,
-and splitting paragraphs on blank lines), and `WrapText` greedily word-wraps each paragraph to the
-number of characters that fit the box width computed without the doc compartment — using the same
-`FontSizeBody * CharWidthFactor` estimate and `3 * LabelPadding` inset as `ComputeBoxSize`, so a
-wrapped row never widens the box — but never fewer than `MinDocWrapChars` (36) characters, so a
-narrow box widens to a readable column instead of wrapping into a tall sliver. A word longer than
-the limit is hard-broken. Documentation is never drawn as a separate note.
+Called by `FinalizeBoxes` when the element's documentation is visible: it is exposed with its owner's
+members (KerML 7.2.4.2 — documentation is an owned member of its element) and satisfies every view
+condition. It draws the SysML 2.1 8.2.3.4 `documentation-compartment` notation. It returns `null` when
+the element has no non-empty `doc` annotation; otherwise it builds a `LayoutCompartment` titled `doc`
+(centered and italic like every compartment) that `FinalizeBoxes` places first among the box's
+compartments before re-running `ComputeBoxSize`. `SplitParagraphs` normalizes each annotation's raw text
+(trimming lines, dropping a leading `*` continuation marker, joining consecutive lines, and splitting
+paragraphs on blank lines), and `WrapText` greedily word-wraps each paragraph to the number of
+characters that fit the box width computed without the doc compartment — using the same
+`FontSizeBody * CharWidthFactor` estimate and `3 * LabelPadding` inset as `ComputeBoxSize`, so a wrapped
+row never widens the box — but never fewer than `MinDocWrapChars` (36) characters, so a narrow box
+widens to a readable column instead of wrapping into a tall sliver. A word longer than the limit is
+hard-broken. Documentation is never drawn as a separate note. Only an element that is rendered as a box
+reaches `FinalizeBoxes`, so the documentation of a usage that stays a compartment row under the default
+`NodePolicy` (an attribute, a plain reference, or a port without nested features) is not drawn, matching
+the OMG Pilot implementation.
 
 ###### `AddAnnotationNote(scope, def, defNode, theme)`
 
-Called immediately after `MakeDefNode` for every definition (both top-level and folder-scoped),
-this no-ops when `def.Annotations` is empty; otherwise it adds one `BoxShape.Note` node (id
-`note:{qualifiedName}`) to the same `scope` as `defNode`, plus a plain dashed edge with no end
-marker (id `note-edge:{qualifiedName}`, `LineStyle.Dashed`, `TargetEnd = EndMarkerStyle.None`) from the note to the
-definition. `def.Annotations` holds only the element's `comment` annotations that are visible —
-exposed with the owner's members and satisfying every view condition for metaclass `Comment` —
-so this draws the SysML 8.2.3.4 `comment-node` with its `annotation-link`; `doc` (Documentation)
-annotations are never drawn as notes (see `BuildDocCompartment` below). `BuildNoteText`
-concatenates every comment's trimmed text with a blank-line separator, so **one note box renders
-per commented element**, never one box per individual `comment` — a definition with two
-`comment`s still gets a single note.
-`ComputeNoteBoxSize` sizes the note from the longest line and total line count using
-`BoxMetrics.TitleAreaHeight(theme, hasLabel: false, hasKeyword: false)` for the (title-less) top
-band plus per-line height and padding — deliberately simpler than the full `ComputeBoxSize` used
-for definition boxes, since a note has no title/keyword band. The note's single
-`LayoutCompartment` carries `Title = null` and one row per line of the concatenated text; no
-`Label`/`Keyword` is set on the note node itself, matching conventional UML/SysML note rendering
-(body text only).
+Called immediately after `MakeDefNode` for every box (definition or usage node), this does nothing when
+`def.Annotations` is empty; otherwise it adds one `BoxShape.Note` node (id `note:{qualifiedName}`) to
+the same `scope` as the box, plus a plain dashed edge with no end marker (id
+`note-edge:{qualifiedName}`, `LineStyle.Dashed`, `TargetEnd = EndMarkerStyle.None`) from the box to the
+note. `def.Annotations` holds only the element's visible `comment` annotations, so this draws the SysML
+8.2.3.4 `comment-node` with its `annotation-link`; `doc` annotations are never drawn as notes.
+`BuildNoteText` concatenates every comment's trimmed text with a blank-line separator, so **one note
+renders per commented element**, never one per `comment`. `ComputeNoteBoxSize` sizes the note from the
+longest line and the line count using `BoxMetrics.TitleAreaHeight(theme, hasLabel: false, hasKeyword:
+false)` for the title-less top band, deliberately simpler than the full `ComputeBoxSize`. The note's
+single `LayoutCompartment` carries `Title = null` and one row per line; no `Label` or `Keyword` is set.
 
-This is implemented as ordinary `LayoutGraph` nodes and edges added during the same
-single-pass `BuildGraph`/`CollectDefinitions` traversal that builds each definition's own box — a
-deliberate, documented deviation from a literal "post-layout marker decoration" approach (the
-pattern used by, e.g., `StateTransitionViewLayoutStrategy.AddInitialMarker`, which stamps a marker
-onto an already-placed box after layout completes). This strategy has no equivalent
-post-layout decoration phase — its entire graph, including folder containers and truncated
-placeholders, is built in one `BuildGraph` pass before layout ever runs — so adding the note as an
-ordinary graph node/edge pair up front is the natural fit, and lets the layout engine route and
-position it like any other element rather than requiring bespoke placement math.
+The note is an ordinary `LayoutGraph` node and edge added during the same single-pass `BuildGraph`
+traversal that builds each box, a deliberate deviation from the post-layout marker decoration used by
+`StateTransitionViewLayoutStrategy.AddInitialMarker`: this strategy builds its entire graph in one pass
+with no separate decoration phase, so adding the note up front lets the engine route and position it
+like any other element. A usage that stays a compartment row has no box, so its comments are not
+drawn either (the specification permits a dashed link from a note to the row; see `ROADMAP.md`).
+Comment keyword, name, locale, and `about` are not shown, because
+`SysmlAnnotation` carries only the kind and the text.
 
 ###### `ComputeItemOrder(tree, build, edges)`
 
 Decides, from the first-pass layout, how each package folder's definitions should be ordered so that
 relationships leaving the folder do not have to cross one another. The layered engine lays out a
-container's contents independently of the container's external edges (the engine's
-`SeparateChildren` placement model) and orders the unconnected groups of those contents by their
-lowest insertion index, so declaration order alone can force a crossing: in the gallery's
-`VehiclePackagesGeneralView`, `Hybrid` is declared after `Chassis` and was therefore stacked below
-it, although `Hybrid`'s relationship leads to the nearer `Powertrain` folder and `Chassis`'s leads
-past that folder to `Car`. This unit applies the standard barycenter heuristic across the container
-boundary, which the engine leaves to the caller:
+container's contents independently of the container's external edges and orders the unconnected groups
+of those contents by their lowest insertion index, so declaration order alone can force a crossing. This
+unit applies the standard barycenter heuristic across the container boundary, which the engine leaves
+to the caller:
 
-1. `CollectCenters` records the absolute vertical center of every placed box against the graph node it
-   was placed from (tree coordinates are absolute, so centers in different scopes compare directly).
+1. `CollectCenters` records the absolute **horizontal** center of every placed box against the graph
+   node it was placed from (tree coordinates are absolute, so centers in different scopes compare
+   directly). A box whose label, keyword, and shape signature is not unique within its scope cannot be
+   told from its twin by `PairBoxesWithNodes` (for example identical `data : SensorPort` nodes of
+   different owners) and is never used as an ordering key.
 2. For every folder plan with at least two items, `ExternalPartnerKey` computes each item's key: the
-   mean center of the boxes its *external* relationships lead to. For each model edge touching the
-   item (`PartnerOf`), `ExternalAnchor` takes the lowest common scope of the item's scope and the
-   partner's scope; when that is the item's own (holding) scope the relationship stays inside the
-   folder and contributes nothing, whether the partner is a sibling definition or sits inside a nested
-   package or definition of the same folder: such an edge is declared in the folder's scope, so the
-   engine sees it when it orders that scope's contents (a nested-package partner does not force a
-   crossing, which the `ExternalEdges_DefinitionToSiblingNestedPackages_OrdersByPartnerFolder` test
-   pins). Otherwise the partner is walked up through `ScopeInfo.Owner`/`Parent` until the scope
-   reached is the common scope, and the node reached is the *anchor* — the direct member of the common
-   scope that contains the partner (the partner itself when it is a direct member). Anchors are
-   container boxes at the common scope, so the key does not depend on the partner folder's interior
-   order, which changes between passes. A partner without a node (hidden by the depth limit) adds
-   nothing.
+   mean center of the boxes its *external* relationships lead to, aggregated over the item and the usage
+   nodes placed beside it (`GroupMembers`, since they move together). For each model edge touching a
+   member (`PartnerOf`), `ExternalAnchor` takes the lowest common scope of the member's scope and the
+   partner's scope; when that is the member's own holding scope the relationship stays inside the folder
+   and contributes nothing. Otherwise the partner is walked up through `ScopeInfo.Owner`/`Parent` until
+   the common scope is reached, and the node reached is the *anchor* — the direct member of the common
+   scope that contains the partner. Anchors are container boxes at the common scope, so the key does not
+   depend on the partner folder's interior order, which changes between passes. A partner without a node
+   (hidden by the depth limit) adds nothing.
 3. `OrderByPartnerPosition` sorts the items that have a key by the rounded key (ties keep declaration
-   order) into the slots those items occupied; items without a key stay where they are. It returns
-   null when fewer than two items have a key or the order is unchanged.
+   order) into the slots those items occupied; items without a key stay where they are. It returns null
+   when fewer than two items have a key or the order is unchanged.
 
 The result maps each folder whose order changes to its wanted item order; an empty result means the
-first layout stands. Scope limits, deliberately not addressed: only package-folder items are
-reordered (promoted root-level items and the children of a definition-as-container keep declaration
-order); the key is vertical only, matching the default left-to-right flow every folder uses; and a
-single refinement pass is made. The heuristic is a crossing-reduction mitigation, not a guarantee. It
-also relies on the engine's insertion-order behavior, which is pinned by the OTS requirement
+first layout stands. Scope limits, deliberately not addressed: only package-folder items are reordered;
+the key is horizontal only, matching the top-to-bottom flow in which a layer is a row; and a single
+refinement pass is made. The heuristic is a crossing-reduction mitigation, not a guarantee, and it
+relies on the engine's insertion-order behavior, pinned by the OTS requirement
 `SysML2Tools-OTS-DemaRendering-ComponentOrderFollowsInsertion`.
 
 ###### `DecorateTruncated(tree, graph, truncated, theme)`
 
 Replaces each truncated package folder's placed box with one carrying a bare ellipsis (`…`) label,
-centered horizontally in the box's now-known absolute placement and anchored at its bottom, below
-the folder's name and never above the title band that each `TruncatedContainer`'s own
-`TitleOffset` reserves. (The label is the glyph alone: the hidden count is no longer displayed.) Delegates to a
-recursive worker overload that walks the tree scope-by-scope: at every
-compound-graph scope (the root graph, or any container node's own `Children` graph) the engine emits
-one box per node of that scope, possibly interleaved with the lines of the scope's own routed
-edges, and not necessarily in node order. `LayoutBox` carries no `Id`, so each placed box is paired
-with the graph node of that same scope it came from — by the shared `PairBoxesWithNodes` enumerator,
-which `ComputeItemOrder`'s `CollectCenters` also uses so both agree on which node a box is — through
-the identity signature the strategy itself set
-on the node and the engine copies verbatim onto the box — `Label`, `Keyword`, and `Shape`: each box
-takes the first not-yet-paired node with an equal signature, so the pairing does not depend on box
-order. Nodes with an equal signature (only duplicated, never-truncated nodes can have one; a
-truncated folder's simple name is unique among its siblings) pair in order, and a box with no signature match falls
-back to the first unpaired node. The worker decorates any box whose paired graph node is a recorded
-truncation, and otherwise — when that graph node itself owns children and the placed box has its own
-nested children — recurses one level deeper into that box's own `Children` against the graph node's
-own `Children.Nodes`. This is what lets a truncated nested package folder (potentially several
-levels deep — inside another folder, inside a definition, or both) be found and decorated exactly
-like a root-level truncated package folder, not just the ones directly on the root graph.
+centered horizontally in the box's now-known absolute placement and anchored at its bottom, below the
+folder's name and never above the title band that each `TruncatedContainer`'s own `TitleOffset`
+reserves. A recursive worker overload walks the tree scope by scope: at every compound-graph scope
+the engine emits one box per node of that scope, possibly interleaved with the lines of the scope's own
+routed edges, and not necessarily in node order. `LayoutBox` carries no `Id`, so each placed box is
+paired with the graph node of that same scope it came from — by the shared `PairBoxesWithNodes`
+enumerator, which `ComputeItemOrder`'s `CollectCenters` also uses — through the identity signature the
+strategy itself set on the node and the engine copies onto the box: `Label`, `Keyword`, and `Shape`. Each
+box takes the first not-yet-paired node with an equal signature, so the pairing does not depend on box
+order; a box with no signature match falls back to the first unpaired node. The worker decorates any box
+whose paired graph node is a recorded truncation and otherwise recurses into the box's own `Children`
+against the graph node's own children, so a truncated folder at any depth is found.
 
 ##### Error Handling
 
-Null `context` or `options` arguments throw `ArgumentNullException`. A workspace with no user
-definitions is not an error: the method returns the minimal empty canvas. Delegated placement
-produces valid geometry, so no crossing warnings are emitted.
+Null `context` or `options` arguments throw `ArgumentNullException`, as does a null policy passed to the
+policy constructor. A workspace with no user definitions is not an error: the method returns the
+minimal empty canvas. A reference that cannot be resolved, an unrendered endpoint, and a self-reference
+draw no edge and raise no exception. A view condition that cannot be parsed is reported as a layout
+warning and skipped. Delegated placement produces valid geometry, so no crossing warnings are emitted;
+the one geometry defect of the engine that the strategy corrects itself is a connector outside the
+canvas (`FitConnectorsToCanvas`), together with the owner-end decoration that is too close to its bend
+(`ClearEndDecorations`).
 
 ##### Dependencies
 
 - `ILayoutStrategy` and `ViewContext` (Rendering subsystem) — the strategy contract and view input.
 - `RenderOptions` and `Theme` (`DemaConsulting.Rendering.Abstractions`) — render options and sizing
   inputs.
-- `LayoutGraph`, `LayoutGraphNode`, `LayoutGraphEdge`, and `CoreOptions` (`DemaConsulting.Rendering`) —
-  the input graph model and its well-known cascading options.
+- `LayoutGraph`, `LayoutGraphNode`, `LayoutGraphEdge`, `CoreOptions`, `LayoutFlowDirection`,
+  `BoxAppearance`, `TextStyle`, and `EndMarkerStyle` (`DemaConsulting.Rendering`) — the input graph
+  model, its well-known cascading options, and the notation styling carried to the placed tree.
 - `AutoLayoutAlgorithm`, `ContainmentLayoutAlgorithm`, `LayeredLayoutAlgorithm`, and `LayoutEngine`
-  (`DemaConsulting.Rendering.Layout`) — the layout engine and the bundled leaf algorithms it
-  delegates to per scope.
+  (`DemaConsulting.Rendering.Layout`) — the layout engine and the bundled leaf algorithms it delegates
+  to per scope.
 - `BoxMetrics` (`DemaConsulting.Rendering.Abstractions`) — box title-area and folder-tab geometry.
 - `StdlibFilter` (Rendering Internal subsystem) — standard-library exclusion.
-- `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode` (Semantic subsystem) — model input;
-  `SysmlWorkspace.Index.AllEdges` and `SysmlEdgeKind.Connect`/`Allocate`/`Dependency`/`Binding`
-  additionally consumed by `BuildModelEdges`/`ResolveOwningBox`.
-- `ExposeScopeResolver` (Layout Internal subsystem) — `ResolveExposedScope` and
-  `IsInSubjectScope` supply the shared `expose`-scoping used by `BuildLayout` and
-  `CollectDefinitions`.
-- `FilterExpressionParser` and `FilterExpressionEvaluator` (Filtering subsystem) — parse and
-  evaluate standalone `filter [<expr>];` statements over the already expose-scoped definition set.
+- `SysmlWorkspace`, `SysmlDefinitionNode`, `SysmlFeatureNode`, `SysmlPackageNode`, and
+  `SysmlImportNode` (Semantic subsystem) — model input; `SysmlWorkspace.Index.AllEdges` and
+  `SysmlEdgeKind.Connect`/`Allocate`/`Dependency`/`Binding`/`Satisfy`/`Verify` are consumed by
+  `BuildModelEdges`, and each import node's resolved `Import` edges by `AddImportEdges`.
+- `ExposeScopeResolver` (Layout Internal subsystem) — `ResolveExposedScope`, `IsInSubjectScope`, and
+  the annotation-exposure checks supply the shared `expose` scoping.
+- `FilterExpressionParser`, `FilterExpressionEvaluator`, and `NameResolver` (Filtering and Language
+  subsystems) — parse and evaluate view conditions and resolve references by KerML name resolution.
 - `LayoutWarnings` (Layout Internal subsystem) — `ForUnevaluatedFilter`,
-  `ForUnevaluatedExposeBracketFilter`, and `ForDroppedRelationshipEdges` supply the warning text
-  for standalone-filter fallback, (Phase 2a) failed expose bracket filters, and dropped
-  `Connect`/`Allocate`/`Dependency`/`Binding` edges, respectively.
+  `ForUnevaluatedExposeBracketFilter`, and `ForDroppedRelationshipEdges` supply the warning text.
 - The `LayoutTree`, `LayoutBox`, `LayoutCompartment`, `LayoutLine`, `LayoutLabel`, and `Point2D` data
   types (`DemaConsulting.Rendering`).
-- `FeatureMembership` (private record) — carries the keyword, nullable type reference, simple
-  name, nullable redefined-feature reference, subsetted-feature-name list, and the resolved
-  typing, redefinition, and identity-matched subsetting answers of one owned feature.
 
 ##### Callers
 
-The Rendering subsystem selects `GeneralViewLayoutStrategy` when rendering a General View. No
-other unit calls it directly.
+The Rendering subsystem selects `GeneralViewLayoutStrategy` when rendering a General View. No other
+unit calls it directly; `FormatNameLine` and `TryGetResolvedTarget` are additionally called by the
+Interconnection, Browser, and Grid view layout strategies.

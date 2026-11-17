@@ -117,6 +117,65 @@ sections:
               - GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_SiblingPackages_DeclaredAtRootAndRoutedToNestedBoxes
               - GeneralViewLayoutStrategy_BuildLayout_CrossPackageEdge_NestedVersusOuter_DeclaredInOuterScope
 
+          - id: SysML2Tools-OTS-DemaRendering-NotationStyling
+            title: >-
+              DemaConsulting.Rendering shall carry per-node box appearance (outline style, name
+              style, folder-title placement), compartment title alignment and style, and the
+              hollow-triangle-with-two-dots and hollow-triangle-with-four-dots end markers from the
+              input graph to the placed layout tree, and shall draw them, together with the
+              hollow-triangle-with-crossbar end marker, in its SVG and PNG output.
+            justification: |
+              The General View follows the SysML v2 graphical notation: a dashed outline for a
+              reference usage, an italic name for an abstract definition, the package name in the
+              folder tab, centered italic compartment titles, and the typing, reference-subsetting,
+              and redefinition end markers. The strategy states each of these on the graph and
+              relies on the package to keep it through placement and to draw it. Version
+              0.3.0-beta.3 of the package family introduced these capabilities. The placed boxes,
+              compartments, and lines carrying the requested style are the evidence that the
+              package preserved it; focused renderer tests on small hand-built layout trees are the
+              evidence that it draws it: the SVG tests assert the dash pattern, the italic font
+              style, the centered title anchor, the name position inside the folder tab, and the
+              marker definitions (triangle plus two dots, four dots, or a crossbar), and the PNG
+              tests probe pixels for the alternating dashed outline and for the dots behind the
+              triangle. A generic "the output contains the element names" check cannot detect a
+              regression in any of these and is therefore not used as evidence.
+            tags: [ots]
+            tests:
+              - GeneralViewLayoutStrategy_BuildLayout_ReferenceUsage_OutlineIsDashedAndCompositeUsageIsSolid
+              - GeneralViewLayoutStrategy_BuildLayout_AbstractDefinition_NameIsItalicButAbstractUsageIsNot
+              - GeneralViewLayoutStrategy_BuildLayout_PackageFolder_NameInTabOnlyWhenItHasContent
+              - GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments
+              - GeneralViewLayoutStrategy_BuildLayout_ReferenceSubsetting_ProducesHollowTriangleFourDotsEdgeOnlyWhenResolved
+              - GeneralViewLayoutStrategy_BuildLayout_AllUsages_AttributeUsage_IsNodeWithTypingAndHollowDiamond
+              - SvgRenderer_Render_DashedOutline_ReferenceUsageHasDashArrayAndCompositeUsageIsSolid
+              - SvgRenderer_Render_ItalicName_AbstractDefinitionIsItalicAndConcreteIsNot
+              - SvgRenderer_Render_CompartmentTitle_CenteredAndItalicWhenRequested
+              - SvgRenderer_Render_FolderNameInTab_NameInsideTabWithoutSecondTitleBand
+              - SvgRenderer_Render_HollowTriangleTwoDots_MarkerHasTriangleAndTwoDots
+              - SvgRenderer_Render_HollowTriangleFourDots_MarkerHasTriangleAndFourDots
+              - SvgRenderer_Render_HollowTriangleCrossbar_MarkerHasTriangleAndBarWithoutDots
+              - PngRenderer_Render_DashedOutline_TopEdgeAlternatesDarkAndWhiteAndSolidEdgeDoesNot
+              - PngRenderer_Render_HollowTriangleFourDots_DrawsDarkDotsBehindTriangle
+
+          - id: SysML2Tools-OTS-DemaRendering-NestedDirectionAndAutoLayout
+            title: >-
+              DemaConsulting.Rendering shall apply a top-to-bottom layout direction set on the root
+              graph to every nested container scope, and shall lay out each container with the
+              automatic algorithm selection without overlapping its unconnected nodes.
+            justification: |
+              The General View sets the top-to-bottom direction once on the root graph and expects
+              package folders and definition containers to follow it, and it lets each folder choose
+              between the layered and containment algorithms by connectivity. A layered algorithm
+              pinned to a folder was observed to stack unconnected nodes of one layer on top of each
+              other, so the automatic selection is relied upon, and a regression test guards the
+              non-overlap. Version 0.3.0-beta.3 of the package family introduced per-node algorithm
+              overrides that survive the automatic split.
+            tags: [ots]
+            tests:
+              - GeneralViewLayoutStrategy_BuildLayout_TopDown_OwnerAndGeneralAboveUsageAndDefinitionBelow
+              - GeneralViewLayoutStrategy_BuildLayout_TopDown_UnconnectedDefinitionsDoNotOverlap
+              - GeneralViewLayoutStrategy_BuildLayout_DroneLikeModel_IsCompactAndTopDown
+
           - id: SysML2Tools-OTS-DemaRendering-ComponentOrderFollowsInsertion
             title: >-
               DemaConsulting.Rendering shall stack the unconnected groups of nodes inside a layered

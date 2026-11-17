@@ -27,7 +27,8 @@ flat whole-workspace General View plus a single subsystem view:
   `allocate` edges from requirements to parts.
 - A subsystem-boundary view showing cross-subsystem `dependency` edges without full
   implementation detail.
-- A variant/specialization view showing `subsets` alongside the existing redefinition example.
+- A variant/specialization view showing `abstract` definitions and variants alongside the
+  subsetting and redefinition that gallery model 14 already shows on a drive unit.
 
 This also exercises `--filter`'s metadata classification-test path (e.g. tagging parts with
 `@Critical`/`@Requirement` metadata) rather than only the bracket/expose-subtree path the
@@ -35,6 +36,51 @@ gallery currently shows.
 
 **Scope:** `docs/gallery/models/01-drone-general.sysml` (or a new model file), regenerated SVGs,
 `docs/gallery/README.md`.
+
+### General View notation: follow-ups
+
+The General View now draws usage nodes and the specification's relationship glyphs top-to-bottom.
+Remaining work, each independently scoped:
+
+- **Public node-policy option.** Which usages are nodes (`Pilot` default, every named usage, or rows
+  only) is an internal setting of `GeneralViewLayoutStrategy`. Expose it through `RenderOptions` and the
+  `render` command, with help text, requirements, and user-guide text.
+- **Rendering engine (`DemaConsulting.Rendering`) items.** Rich-text rows with bold keywords (issue
+  #99), port glyphs on box edges (issue #100), and connector end labels (issue #101); a source-end
+  marker on graph edges (so the strategy no longer reverses connectors after layout, and the strategy's
+  `ClearEndDecorations` pass, which keeps a clean straight leg at an owner-end glyph, can be retired); a
+  tight-tree layering that keeps a wide drawing compact; control of the shape of the
+  unconnected-node bucket (the strategy's `TryTuckUnconnected` pass currently places those boxes in the
+  free space of the drawing instead); and alignment of the two ports of a connector that ends on a shared
+  box face (the engine spreads the ports evenly, which leaves 2.5 to 3.4 px steps in some typing and
+  specialization connectors of `DriveUnitGeneralView`).
+- **Gallery model for requirements and imports.** No gallery model shows `satisfy`, `verify`, `import`,
+  or `::>`; they are covered by unit tests only. A model with requirement usages renders crossing,
+  overlapping `satisfy` and `verify` connectors and tangled labels, and shows no requirement typing (see
+  the requirement-usage typing gap below); a model with requirement definitions as `satisfy` and
+  `verify` targets renders cleanly but is not valid SysML (the specification defines these relationships
+  for requirement usages), and import labels still clip. Add the model once the connector routing and
+  the typing gap are fixed.
+- **Package-heavy drawings.** The vehicle packages drawing (`VehiclePackagesGeneralView`) is tall
+  because the engine places a folder's externally connected single box after the connected group, and
+  one connector crosses a specialization line; the leaf-block share of the canvas of the package views is
+  below the checklist threshold. Both need engine control of the interior order and spacing of
+  folders.
+- **Owned and unowned membership glyphs** (`⊕` and `○`) when a member is drawn outside its owner.
+- **Comment details.** The comment keyword, name, locale, and `about` target need these fields on
+  `SysmlAnnotation` first.
+- **Annotations on compartment rows.** Under the default node policy, an attribute, plain reference,
+  or port without nested features stays a compartment row, and its `doc` and `comment` are not drawn
+  (as in the OMG Pilot implementation). Draw them as a note joined to the row by a dashed link, which
+  the specification permits.
+- **Requirement-usage typing gap.** `requirement r : R;` (also concern and constraint usages) keeps no
+  typing in the syntax tree, so it draws no typing edge and its box shows `r` instead of `r : R`.
+- **Standard-library name collision.** A user package named like a standard-library package (for
+  example `Requirements` or `Views`) is dropped by the name-based standard-library filter.
+- **Import label clipping.** The `«import»*` label is cut off when an import connector routes around the
+  outside of a folder, because the canvas fit shifts waypoints but not label extents.
+- **More relationships.** `perform`, `require`, `frame`, `exhibit`, and `include` need their data in the
+  syntax tree or semantic edges before they can be drawn.
 
 ### Action Flow View: remaining control-node/shape gaps
 

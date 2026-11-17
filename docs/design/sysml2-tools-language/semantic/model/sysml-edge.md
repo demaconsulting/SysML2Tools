@@ -47,8 +47,8 @@ material indexed by `SemanticIndex`.
 - `Redefinition` — a feature redefinition reference (`redefines X;` / `:>> X`), sourced from the
   redefining feature's own qualified name (`SysmlFeatureNode.RedefinedFeatureName`) and
   targeting the resolved redefined-feature reference. Rendered by `GeneralViewLayoutStrategy` as
-  a solid line with a hollow-triangle-crossbar end marker at the owning definition of the
-  redefined feature.
+  a solid line with a hollow-triangle-crossbar end marker from the redefining usage's box to the
+  redefined usage's box.
 - `MetadataType` — a metadata annotation's type reference (`SysmlMetadataNode.TypeReference` /
   `@Type` / `{@Type{...}}`), sourced from the annotation and targeting the resolved `metadata
   def` declaration it references.
@@ -57,8 +57,7 @@ material indexed by `SemanticIndex`.
   `SysmlDependencyNode.ToNames`, one `Dependency` edge per resolved (from, to) pair (cross
   product); an unresolvable name on either side is skipped (with a Warning diagnostic) rather
   than blocking the other pairs. Rendered by `GeneralViewLayoutStrategy` as a dashed line with an
-  open-chevron end marker at the target (depended-upon) box; the pre-existing `ref`-typed
-  membership case is rendered with the same dashed/open-chevron style (see
+  open-chevron end marker at the target (depended-upon) box (see
   `general-view-layout-strategy.md`).
 - `Binding` — a resolved binding-connector reference (`bind A = B;`), sourced from the first
   connector end and targeting the second (`SysmlConnectionNode` with
