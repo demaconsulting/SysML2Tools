@@ -509,7 +509,9 @@ the layered layout engine, which keeps a fixed 70 px corridor between consecutiv
 constant, not an option), so a single-column flow of 8 to 9 layers is mostly corridor. Making such a
 flow wider to raise the fill makes it worse, because the canvas grows faster than the boxes do, and
 reaching 20 % would need a canvas about 40 % smaller. The deviation is accepted for these two tall,
-single-column flows; the State Transition images (Elevator 23.8 %, Heater 22.9 %) pass.
+single-column flows; the State Transition images (Elevator 21.6 %, Heater 25.1 %) pass. Both moved
+slightly with the straighter edge routing of rendering engine 0.3.0-beta.4 (the Elevator boxes
+are narrower; the Heater canvas is 257 px wide instead of 215 px).
 
 Two Interconnection images also fall short of B5 since the port notation was added: the Workstation
 image fills 15.5 % (1373 × 672 px; 19.0 % on `main`) and the Motor Rig image 18.3 % (1411 × 424 px;

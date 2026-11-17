@@ -42,5 +42,5 @@
   <path d="M 20.00 236.00 L 395.06 236.00 L 402.56 243.50 L 402.56 266.00 L 20.00 266.00 Z" fill="#FFFFFF" stroke="#000000" stroke-width="1.00"/>
   <path d="M 395.06 236.00 L 395.06 243.50 L 402.56 243.50" fill="none" stroke="#000000" stroke-width="1.00"/>
   <text x="26.00" y="248.00" font-family="Noto Sans, sans-serif" font-size="12.00" fill="#000000" text-anchor="start" dominant-baseline="middle">Demonstrates the BoxShape.Note comment rendering.</text>
-  <path d="M 211.28 166.00 L 211.28 173.88 A 2.13 2.13 0 0 1 209.16 176.00 L 209.16 176.00 A 2.13 2.13 0 0 0 207.03 178.12 L 207.03 236.00" fill="none" stroke="#000000" stroke-width="1.00" stroke-dasharray="6 3"/>
+  <path d="M 209.16 166.00 L 209.16 236.00" fill="none" stroke="#000000" stroke-width="1.00" stroke-dasharray="6 3"/>
 </svg>
