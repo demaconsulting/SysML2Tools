@@ -4,34 +4,55 @@ package MotorControllerRig {
     port def PowerPort;
     port def EncoderPort;
     port def ThermalPort;
+    port def StatusPort;
+    port def ShaftPort;
+    port def MountPort;
+
+    item def Torque;
 
     // ===== Core part definitions =====
+    // Every port declares its direction, so the diagram draws an in, out, or inout arrow in
+    // the port square. The controller's status port is declared but wired to nothing, and
+    // the motor's mount is a reference port (dashed outline).
     part def Controller {
-        port power : PowerPort;
-        port encoderFeedback : EncoderPort;
-        port thermalSense : ThermalPort;
+        out port power : PowerPort;
+        in port encoderFeedback : EncoderPort;
+        in port thermalSense : ThermalPort;
+        out port status : StatusPort;
     }
 
+    // The motor's power input is typed by the conjugate of the controller's power port, so
+    // its label reads ~PowerPort.
     part def Motor {
-        port powerIn : PowerPort;
-        port encoderOut : EncoderPort;
-        port thermalOut : ThermalPort;
+        in port powerIn : ~PowerPort;
+        out port encoderOut : EncoderPort;
+        out port thermalOut : ThermalPort;
+        out port shaft : ShaftPort;
+        ref port mount : MountPort;
     }
 
-    // Three independent, named-port connections between the same two parts: a motor
-    // is wired to its controller by a power feed, an encoder feedback line, and a
-    // thermal sense line, each its own distinct connection rather than a single bundled
-    // link. This demonstrates that the interconnection layout keeps every parallel
-    // connector between the same two boxes visually and structurally distinct, and
-    // labels each end with its own SysML port name rather than merging them into one
-    // shared route.
+    part def Load {
+        in port shaftIn : ShaftPort;
+        inout port base : MountPort;
+    }
+
+    // One connector of every kind an interconnection view draws, between the same parts:
+    // - powerLink is a connection whose ends declare a role name and a multiplicity
+    //   (shown above and below the line end),
+    // - encoderLink is a plain connection,
+    // - thermalLink is a binding connector (labeled =),
+    // - the anonymous flow is a flow connector (filled arrowhead, labeled with its payload),
+    // - the anonymous interface is an interface connector (labeled «interface»).
     part def MotorRig {
         part controller : Controller;
         part motor : Motor;
+        part load : Load;
 
-        connection powerLink connect controller.power to motor.powerIn;
+        connection powerLink connect [1] supply ::> controller.power to [1] drive ::> motor.powerIn;
         connection encoderLink connect motor.encoderOut to controller.encoderFeedback;
-        connection thermalLink connect motor.thermalOut to controller.thermalSense;
+        binding thermalLink bind motor.thermalOut = controller.thermalSense;
+        flow of Torque from motor.shaft to load.shaftIn;
+        interface connect motor.mount to load.base;
     }
 
     view def MotorRigInterconnectionView {

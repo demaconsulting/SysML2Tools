@@ -112,9 +112,12 @@ SVG: [`svg/BatterySubsystemView.svg`](svg/BatterySubsystemView.svg)
 
 ## 2. Interconnection View — Desktop Workstation
 
-Shows the internal structure of a part: nested part usages placed by the
-interconnection layout engine (a façade over the layered pipeline), ports on box
-boundaries, and connectors routed between them.
+Shows the internal structure of a part in the SysML v2 notation: rounded usage boxes headed by
+their keyword (`«part»`, `«item»`, and a dashed `«ref part»` for the `monitor` reference usage),
+the `doc` and `attributes` compartments of `cpu`, the `memory` multiplicity, the declared `sata`
+ports of the motherboard and the SSD (a white square with an `inout` arrow and a `name : Type`
+label outside the part), and connectors routed between them, including the `«interface»`
+connector between the two ports. The frame carries the italic `interconnection` title.
 The motherboard sits at the hub of the component connections. The view declares an
 explicit `render asInterconnectionDiagram;` statement, so the interconnection
 strategy is selected directly rather than inferred from the view's name.
@@ -128,7 +131,7 @@ SVG: [`svg/WorkstationInterconnectionView.svg`](svg/WorkstationInterconnectionVi
 
 The same model also declares `CoreLinkInterconnectionView`, which exposes only
 `Workstation::cpu` and `Workstation::memory`. The root part (`Workstation`) is kept,
-but every other part usage — and every connector with an endpoint outside the exposed
+but every other usage — and every connector with an endpoint outside the exposed
 scope (to `board`, `graphics`, `storage`, `psu`, `network`) — is dropped, leaving just
 the two exposed parts and the connection directly between them (`c8`).
 
@@ -265,7 +268,9 @@ Shows a two-level nested Interconnection View. The `Computer` part contains a `b
 typed by `Motherboard`, which has its own internal `cpu`, `chipset`, and `ram` parts and
 connections. The motherboard's interior is laid out recursively (bottom-up) and nested
 inside the `board` container box, while the outer power and storage connections route
-between the top-level parts. The view declares an explicit `render
+between the declared ports of the top-level parts. The `Computer` frame draws its own `mains`
+and `video` ports on its border (connectors to a frame port are not drawn), and the
+motherboard's ports are drawn on the `board` box. The view declares an explicit `render
 asInterconnectionDiagram;` statement, so the interconnection strategy is
 selected directly rather than inferred from the view's name.
 
@@ -278,13 +283,18 @@ SVG: [`svg/ComputerSystemInterconnectionView.svg`](svg/ComputerSystemInterconnec
 
 ## 9. Multi-Port Interconnection View — Motor/Controller Rig
 
-Shows multiple independent, named-port connections between the same two parts: a
-`motor` is wired to its `controller` by three separate connections (`powerLink`,
-`encoderLink`, `thermalLink`), each between its own distinct pair of ports. This
-demonstrates that the interconnection layout keeps every parallel connector between
-the same two boxes visually and structurally distinct — rather than collapsing them
-onto one shared route — and labels each end with its own SysML port name, with the
-boxes auto-sized to keep every port label clear of the box's own title.
+Shows multiple independent, named-port connections between the same parts, with one connector
+of every kind: `powerLink` is a connection whose ends declare a role name and a multiplicity
+(`supply` and `drive`, `[1]`), `encoderLink` a plain connection, `thermalLink` a binding
+(labeled `=`), an anonymous flow (filled arrowhead, labeled with its payload), and an
+anonymous interface (labeled `«interface»`). The ports follow the SysML v2 notation: an arrow
+for `in`, `out`, and `inout`, a dashed square for the reference port `mount`, the conjugated
+label `~PowerPort`, and the `status` port of the controller, which is declared but not
+connected to anything and so is placed on the controller's border by the layout. The
+interconnection layout keeps every parallel
+connector between the same two boxes visually and structurally distinct — rather than
+collapsing them onto one shared route — and the boxes are auto-sized to keep every port
+label clear of the box's own title.
 
 Model: [`models/09-motor-controller-multi-port.sysml`](models/09-motor-controller-multi-port.sysml) ·
 SVG: [`svg/MotorRigInterconnectionView.svg`](svg/MotorRigInterconnectionView.svg)
@@ -485,10 +495,10 @@ SVG: [`svg/VehicleTypingGeneralView.svg`](svg/VehicleTypingGeneralView.svg)
 
 ---
 
-## Known deviation: the diagram-quality fill criterion (B5) on two tall flows
+## Known deviation: the diagram-quality fill criterion (B5)
 
 The gallery images are checked against the project's diagram-quality criteria. Every image passes
-them except one criterion on two of the action-flow images: B5 (state boxes and action boxes fill at
+them except one criterion on four images: B5 (state boxes and action boxes fill at
 least 20 % of the canvas). The Pipeline image fills 14.2 % (382 × 1780 px) and the Order image fills
 11.5 % (377 × 850 px). The Pipeline image already fell short of B5 on `main` (15.2 %). The cause is
 the layered layout engine, which keeps a fixed 70 px corridor between consecutive layers (an engine
@@ -496,6 +506,38 @@ constant, not an option), so a single-column flow of 8 to 9 layers is mostly cor
 flow wider to raise the fill makes it worse, because the canvas grows faster than the boxes do, and
 reaching 20 % would need a canvas about 40 % smaller. The deviation is accepted for these two tall,
 single-column flows; the State Transition images (Elevator 23.8 %, Heater 22.9 %) pass.
+
+Two Interconnection images also fall short of B5 since the port notation was added: the Workstation
+image fills 15.5 % (1373 × 672 px; 19.0 % on `main`) and the Motor Rig image 18.3 % (1411 × 424 px;
+46.0 % on `main`). The cause is again the layered layout engine: it reserves, between two columns of
+boxes, the width of every outside port label and end label along the connector run (the label of
+the port at each end plus the role names), so a connector between labeled ports needs a corridor
+several times the fixed 70 px, and the canvas grows faster than the boxes. The Computer System image
+(21.5 %) and the Core Link image (29.8 %) pass. The deviation is accepted: the labels are the
+point of the notation, and shortening port names or boxes to raise the fill would only tune the
+example to the criterion.
+
+---
+
+## Model changes
+
+The interconnection models were extended to exercise the notation of the Interconnection View:
+
+- `02-computer-interconnection.sysml`: added `port def SataPort`, `attribute def Frequency`,
+  `item def Firmware`, and `part def Display`; the motherboard and the SSD declare an
+  `inout port sata`; the `cpu` usage has a `doc` and a `clock` attribute; `memory` is a
+  two-element part; added a `ref part monitor`, an `item firmware`, and the connections `c9`
+  (graphics to monitor) and `c10` (board to firmware); the former `c4` (board to storage) is now
+  an anonymous `interface` between the two `sata` ports. The `CoreLinkInterconnectionView` is
+  unchanged.
+- `08-nested-interconnection.sysml`: added the port definitions `PowerPort`, `SataPort`,
+  `MainsPort`, and `VideoPort`; the power supply, motherboard, and storage declare ports; the
+  `Computer` frame declares `mains` and `video`; the connections now join declared ports.
+- `09-motor-controller-multi-port.sysml`: every port declares a direction; added `StatusPort`,
+  `ShaftPort`, `MountPort`, and `Torque`; the controller has an unconnected `status` port; the motor
+  has a conjugated `powerIn : ~PowerPort`, a `shaft`, and a reference port `mount`; added a `Load`
+  part; the power link declares role names and multiplicities; `thermalLink` is a binding, and
+  the model adds an anonymous flow and an anonymous interface.
 
 ---
 
