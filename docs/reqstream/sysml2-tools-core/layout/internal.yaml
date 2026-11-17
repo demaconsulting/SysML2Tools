@@ -128,6 +128,11 @@ sections:
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-NodeLabel
           - SysML2Tools-Core-Layout-Internal-ActionFlowViewLayoutStrategy-BackEdgeApproach
           - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-Lifelines
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-LifelineHeader
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-DeclaredLifelines
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessagePayloadLabel
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessageEventOrdering
+          - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessageLabelRoom
           - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-HorizontalMessages
           - SysML2Tools-Core-Layout-Internal-SequenceViewLayoutStrategy-MessageArrowhead
           - SysML2Tools-Core-Layout-Internal-LayeredPlacement-EdgeOrder

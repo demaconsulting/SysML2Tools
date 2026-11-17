@@ -561,6 +561,40 @@ public sealed class NotationStylingRenderTests
             Assert.True(nearLeft ? x < 190.0 : x > 190.0, $"{role} must be near its own end of the line");
         }
     }
+
+    /// <summary>
+    ///     The SVG renderer draws a lifeline header as a rounded rectangle that shows the keyword over the
+    ///     name line, with a dashed outline when the header appearance requests one, and the stem below it.
+    /// </summary>
+    [Fact]
+    public void SvgRenderer_Render_LifelineHeader_RoundedWithKeyword()
+    {
+        // Arrange: a solid and a dashed lifeline header, both rounded and with a keyword
+        var headerHeight = BoxMetrics.LifelineHeaderHeight(Themes.Light, hasKeyword: true);
+        var svg = RenderSvg(
+            new LayoutLifeline(90, 20, 250, "client : Client", 140, headerHeight, "part", BoxShape.RoundedRectangle, null, null),
+            new LayoutLifeline(300, 20, 250, "server : Server", 140, headerHeight, "ref part", BoxShape.RoundedRectangle, new BoxAppearance(LineStyle.Dashed), null));
+
+        // Act
+        var solid = FindRect(svg, 20, 20);
+        var dashed = FindRect(svg, 230, 20);
+        var keyword = FindText(svg, "«part»");
+        var name = FindText(svg, "client : Client");
+
+        // Assert: both headers are rounded, only the reference header is dashed
+        Assert.True(Number(solid, "rx") > 0.0, "the header must have rounded corners");
+        Assert.True(Number(dashed, "rx") > 0.0, "the header must have rounded corners");
+        Assert.Null(solid.Attribute("stroke-dasharray"));
+        Assert.NotNull(dashed.Attribute("stroke-dasharray"));
+
+        // Assert: the keyword is drawn above the name, both inside the header and centered on the lifeline
+        Assert.True(Number(keyword, "y") < Number(name, "y"), "the keyword must be above the name line");
+        Assert.True(Number(name, "y") < 20.0 + headerHeight, "the name must be inside the header");
+        Assert.Equal(90.0, Number(keyword, "x"), 0.5);
+        Assert.Equal(90.0, Number(name, "x"), 0.5);
+        Assert.Contains(svg.Descendants(Svg + "text"), t => t.Value == "«ref part»");
+    }
+
     /// <summary>
     ///     Counts the separate dark runs across a horizontal band of pixel rows.
     /// </summary>

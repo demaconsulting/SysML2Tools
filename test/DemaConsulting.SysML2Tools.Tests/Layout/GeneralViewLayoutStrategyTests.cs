@@ -509,6 +509,39 @@ public sealed class GeneralViewLayoutStrategyTests
     }
 
     /// <summary>
+    ///     An <c>event occurrence</c> usage is sequence data, not a compartment row: a definition that owns
+    ///     one gets the same compartments as before the AST captured event occurrences.
+    /// </summary>
+    [Fact]
+    public void GeneralViewLayoutStrategy_BuildLayout_EventOccurrenceUsage_IsNotACompartmentRow()
+    {
+        // Arrange: a part def owning an attribute usage and an event occurrence usage
+        var strategy = new GeneralViewLayoutStrategy(NodePolicy.RowsOnly);
+        var vehicle = new SysmlDefinitionNode
+        {
+            Name = "Vehicle",
+            QualifiedName = "P::Vehicle",
+            DefinitionKeyword = "part def",
+            Children =
+            [
+                new SysmlFeatureNode { Name = "mass", QualifiedName = "P::Vehicle::mass", FeatureKeyword = "attribute", FeatureTyping = "Real" },
+                new SysmlFeatureNode { Name = "start", QualifiedName = "P::Vehicle::start", FeatureKeyword = "event occurrence" }
+            ]
+        };
+        var workspace = new SysmlWorkspace
+        {
+            Declarations = new Dictionary<string, SysmlNode> { ["P::Vehicle"] = vehicle }
+        };
+
+        // Act
+        var layout = strategy.BuildLayout(new ViewContext("v", workspace), new RenderOptions(Themes.Light));
+
+        // Assert: only the attributes compartment is drawn
+        var box = CollectBoxes(layout.Nodes).First(b => b.Label == "Vehicle");
+        Assert.Equal("attributes", Assert.Single(box.Compartments).Title);
+    }
+
+    /// <summary>
     ///     Loads <paramref name="sysml"/>, then lays out the view <paramref name="viewName"/>
     ///     (declared in package <c>Diagrams</c>) with the general view strategy.
     /// </summary>

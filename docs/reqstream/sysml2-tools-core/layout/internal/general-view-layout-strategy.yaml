@@ -230,9 +230,11 @@ sections:
         justification: |
           The usages a box owns (attributes, plain ports, and, under an all-rows presentation,
           parts) are part of its shown content. Listing them in compartments lets a reader see
-          an element's features without opening another view.
+          an element's features without opening another view. An `event occurrence` usage is
+          sequence data, not a feature of the element's shape, and is not listed.
         tests:
           - GeneralViewLayoutStrategy_BuildLayout_DefinitionWithUsages_ProducesCompartments
+          - GeneralViewLayoutStrategy_BuildLayout_EventOccurrenceUsage_IsNotACompartmentRow
 
       - id: SysML2Tools-Core-Layout-Internal-GeneralViewLayoutStrategy-CompartmentTitles
         title: >-

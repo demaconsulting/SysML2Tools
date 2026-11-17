@@ -287,3 +287,23 @@ sections:
               - LayeredPlacement_PlaceWithPorts_EdgeNotation_ReachesPlacedPortsAndLines
               - InterconnectionView_BuildLayout_ConnectionEnds_RoleNameAndMultiplicityBecomeEndLabels
               - SvgRenderer_Render_EndLabels_RoleAboveMultiplicityBelow
+
+          - id: SysML2Tools-OTS-DemaRendering-LifelineHeader
+            title: >-
+              DemaConsulting.Rendering shall draw a sequence lifeline header with the shape, keyword,
+              and outline style declared on the lifeline: a rounded rectangle for a usage, the
+              keyword above the name line, and a dashed outline for a reference usage.
+            justification: |
+              The Sequence View draws each lifeline head as the specification draws a part usage: a
+              rounded box with the `«part»` keyword over the `name : Type` line, dashed for a
+              reference part. The strategy states the shape, keyword, and appearance on the lifeline
+              and relies on the package to draw them and to size the header from the keyword. Version
+              0.3.0-beta.3 of the package family introduced the capability. The sequence strategy
+              tests are the evidence that the lifeline carries the request; a focused renderer test
+              on small hand-built layout trees is the evidence that the package draws it, asserting
+              the rounded corners, the dash pattern, and the keyword above the name inside the header.
+            tags: [ots]
+            tests:
+              - SequenceView_BuildLayout_Lifeline_HasRoundedHeaderKeywordAndTypedLabel
+              - SequenceView_BuildLayout_ReferencePartLifeline_HasDashedHeader
+              - SvgRenderer_Render_LifelineHeader_RoundedWithKeyword

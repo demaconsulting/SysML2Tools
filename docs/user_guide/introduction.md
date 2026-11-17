@@ -190,10 +190,10 @@ sysml2tools render model.sysml --view-type general --view-target Pkg::Vehicle --
   | `action` | Target must have at least one succession or nested `action` feature |
   | `sequence` | Target must have at least one nested `message` usage |
 
-  > **Known limitation — sequence view.** The AST has no dedicated "lifeline" node;
-  > `SequenceViewLayoutStrategy` derives lifelines purely from each `message` usage's endpoint
-  > references. The `sequence` pre-check therefore approximates "at least one lifeline" as "at
-  > least one nested `message` usage" — necessary (zero messages guarantees zero lifelines) but
+  > **Known limitation — sequence view.** A lifeline is a declared `part`, `item`, or `occurrence`
+  > usage, or else the first segment of a `message` usage's endpoint reference. The `sequence`
+  > pre-check approximates "at least one lifeline and message" as "at least one nested `message`
+  > usage" — necessary (zero messages guarantees an empty diagram) but
   > **not sufficient**: a target whose message endpoints fail to resolve to any lifeline still
   > passes this pre-check yet still renders the near-blank canonical `LayoutTree` sentinel. A
   > full message-edge-walk validation was deliberately not implemented for this check (see
@@ -403,6 +403,40 @@ The names of plain connections are not drawn (the connection label is optional i
 A port that several connectors name is one port, labeled once; the layout engine currently draws a glyph
 for each of its connectors (a known engine limitation). When a connector label would overlap the port labels at its
 ends, the space between the boxes is widened.
+
+### Sequence View Notation
+
+The Sequence View draws the interaction of a part definition with the notation of SysML v2 (graphical
+notation, clause 8.2.3.12). The repository's diagram gallery shows it in `05-oauth-sequence.sysml`.
+
+Lifelines (a rounded box with the keyword in guillemet marks above the name line, and a dashed stem below):
+
+| Textual form | Drawn as |
+| --- | --- |
+| `part browser : Browser;` | `«part»` over `browser : Browser` |
+| `ref part resourceServer : ResourceServer;` | a dashed outline, `«ref part»` over `resourceServer : ResourceServer` |
+| `item token : Token;` | `«item»` over `token : Token`; `occurrence` likewise |
+
+Every `part`, `item`, and `occurrence` usage that the part definition declares is a lifeline, in declaration
+order, whether or not it exchanges a message. A message endpoint whose first segment names no declared
+usage still gets a lifeline, after the declared ones, drawn with its plain name and no keyword.
+
+Messages (a horizontal arrow from the sender to the receiver with a hollow triangular head; an arrow from a
+lifeline to itself is drawn as a small loop):
+
+| Textual form | Drawn as |
+| --- | --- |
+| `message request from client.send to server.receive;` | an arrow labeled `request` |
+| `message grant of Token from authServer.issue to browser.accept;` | an arrow labeled `grant of Token` |
+
+The order of the messages from top to bottom follows the events they connect. A lifeline declares its events
+with `event occurrence` usages in order (`event occurrence a; then event occurrence b;`), and a message
+endpoint names a lifeline and one of its events (`client.send`). A message is drawn above another when one of
+its events comes before one of the other's events on the same lifeline, so messages may be declared in any
+order. The messages that the events do not order, and every message of a model that declares no events, keep
+declaration order. Lifelines are spaced wide enough for the longest message label. Proxies, found and lost
+messages, sequence ports, and combined fragments (`alt`, `opt`, `loop`) are not drawn; a combined fragment is
+not part of the SysML v2 sequence notation.
 
 ## View Body Statements
 

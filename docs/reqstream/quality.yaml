@@ -133,3 +133,4 @@ sections:
           - SysML2Tools-OTS-DemaRendering-NestedDirectionAndAutoLayout
           - SysML2Tools-OTS-DemaRendering-PortGlyphs
           - SysML2Tools-OTS-DemaRendering-EndLabels
+          - SysML2Tools-OTS-DemaRendering-LifelineHeader

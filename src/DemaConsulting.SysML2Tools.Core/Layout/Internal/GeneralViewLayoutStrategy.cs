@@ -1127,6 +1127,14 @@ internal sealed class GeneralViewLayoutStrategy : ILayoutStrategy
             }
 
             var keyword = string.IsNullOrEmpty(feature.FeatureKeyword) ? "feature" : feature.FeatureKeyword;
+
+            // Event occurrences are sequence data (they order the messages of a Sequence view); they have
+            // never been rows of a compartment, and still are not.
+            if (keyword == "event occurrence")
+            {
+                continue;
+            }
+
             if (onlyKeywords is not null && !onlyKeywords.Contains(keyword))
             {
                 continue;

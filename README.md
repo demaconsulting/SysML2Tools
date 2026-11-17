@@ -57,6 +57,9 @@ analysis][workflow]
   part, item, and reference usages, ports as boundary squares with direction arrows, dashed reference
   ports, and `name : Type` labels outside the part, and connection, binding, interface, and flow
   connectors with role-name and multiplicity end labels
+- **Sequence Layout**: Interaction diagrams in the SysML v2 graphical notation: rounded lifeline headers
+  (`«part»` over `name : Type`, dashed for a reference part), a lifeline for every declared part, and
+  messages labeled `name of Payload` and ordered by the events they connect
 - **State and Action Flow Layouts**: Spec-style state machines (entry/do/exit compartments,
   `trigger [guard] / effect` labels, initial and final states) and action flows (thick fork/join
   bars, guarded decisions, accept/send icons, terminate nodes)

@@ -20,7 +20,7 @@ types, each a `sealed record` derived from the abstract base `LayoutNode`:
 | `LayoutLabel` | Standalone text label at absolute position | All diagram types |
 | `LayoutBadge` | Small icon decorator (pseudostate, choice node, etc.) | SM, Activity |
 | `LayoutBand` | Swim-lane with orientation, label, and nested children | Activity, Sequence |
-| `LayoutLifeline` | Sequence-diagram lifeline: dashed line with header box | Sequence |
+| `LayoutLifeline` | Sequence-diagram lifeline: dashed line under a header box (rounded, with keyword) | Sequence |
 | `LayoutActivation` | Narrow activation bar on a lifeline (no view uses it; not in the SysML v2 notation) | none |
 | `LayoutGrid` | Tabular layout with header rows and column-spanning cells | Requirement, Allocation tables |
 
@@ -131,7 +131,9 @@ flowchart TD
 - *Type*: Sealed record.
 - *Role*: Data container.
 - *Contract*: `double CentreX`, `double TopY`, `double BottomY`, `string Label`,
-  `double HeaderWidth`, `double HeaderHeight`.
+  `double HeaderWidth`, `double HeaderHeight`, `string? Keyword` (drawn above the label),
+  `BoxShape HeaderShape` (the Sequence view uses `RoundedRectangle`), `BoxAppearance? HeaderAppearance`
+  (dashed for a reference usage), `double? HeaderCornerRadius`.
 
 **LayoutActivation**: Activation bar on a lifeline.
 
