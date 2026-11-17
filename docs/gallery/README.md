@@ -197,8 +197,12 @@ SVG: [`svg/PipelineActionFlowView.svg`](svg/PipelineActionFlowView.svg)
 
 ## 5. Sequence View — OAuth 2.0 Login
 
-Shows lifelines for each participant and the ordered messages exchanged during an
-OAuth authorization-code login; each message ends in a hollow triangle arrowhead.
+Shows the interaction of an OAuth authorization-code login in the SysML v2 notation: every declared
+part is a lifeline under a rounded header with the `«part»` keyword over `name : Type` (the resource
+server is a reference part, so its header is dashed, and the audit log is declared but exchanges no
+message, so it still has a lifeline). Each message ends in a hollow triangle arrowhead and is labeled
+`name of Payload` when it carries one. The messages are drawn in the order of the events they connect:
+`accessToken` is declared before `exchangeCode` in the model but is drawn after it.
 
 Model: [`models/05-oauth-sequence.sysml`](models/05-oauth-sequence.sysml) ·
 SVG: [`svg/OAuthSequenceView.svg`](svg/OAuthSequenceView.svg)
@@ -498,7 +502,7 @@ SVG: [`svg/VehicleTypingGeneralView.svg`](svg/VehicleTypingGeneralView.svg)
 ## Known deviation: the diagram-quality fill criterion (B5)
 
 The gallery images are checked against the project's diagram-quality criteria. Every image passes
-them except one criterion on four images: B5 (state boxes and action boxes fill at
+them except one criterion on six images: B5 (state boxes and action boxes fill at
 least 20 % of the canvas). The Pipeline image fills 14.2 % (382 × 1780 px) and the Order image fills
 11.5 % (377 × 850 px). The Pipeline image already fell short of B5 on `main` (15.2 %). The cause is
 the layered layout engine, which keeps a fixed 70 px corridor between consecutive layers (an engine
@@ -517,9 +521,24 @@ several times the fixed 70 px, and the canvas grows faster than the boxes. The C
 point of the notation, and shortening port names or boxes to raise the fill would only tune the
 example to the criterion.
 
+The two Sequence images also fall short of B5 (the OAuth image fills 8.9 % and the Token Exchange image
+14.6 %, counting the lifeline headers as the blocks; both were lower on `main`, 5.2 % and 8.5 %). A
+sequence diagram is mostly lifeline stems and messages, which the criterion does not count, so the
+deviation is accepted and the headers are not enlarged to raise the fill. A message label that is
+centered on a lifeline it crosses (`fetchResource` and `promptCredentials`) was already so on `main`: the
+engine places a message label at the midpoint of its line and does not treat a lifeline stem as an obstacle.
+
 ---
 
 ## Model changes
+
+`05-oauth-sequence.sysml` was extended to exercise the notation of the Sequence View: added the part
+definitions `User`, `Browser`, `AuthServer`, `ResourceServer`, and `AuditLog` and the item definitions
+`Credentials`, `AuthorizationCode`, and `AccessToken`; the lifelines are typed (`part user : User`,
+and so on); `resourceServer` is a `ref part`; added a `part auditLog : AuditLog` that exchanges no
+message; `submitCredentials`, `authCode`, `exchangeCode`, and `accessToken` carry a payload
+(`of Credentials`, and so on); and `accessToken` is declared before `exchangeCode` so the diagram shows
+the ordering by events. `TokenExchangeSequenceView` is unchanged.
 
 The interconnection models were extended to exercise the notation of the Interconnection View:
 
