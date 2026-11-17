@@ -14,8 +14,9 @@ namespace DemaConsulting.SysML2Tools.Tests.Rendering;
 
 /// <summary>
 ///     Focused renderer tests for the SysML v2 notation styling of DemaConsulting.Rendering (dashed
-///     outlines, italic names, name-in-tab folders, centered italic compartment titles, and the
-///     two-dot, four-dot, and crossbar end markers). Each test builds a small hand-made
+///     outlines, italic names, name-in-tab folders, centered italic compartment titles, the
+///     two-dot, four-dot, and crossbar end markers, the port glyph with its direction arrow, and the
+///     connector end labels). Each test builds a small hand-made
 ///     <see cref="LayoutTree"/> so the SVG and PNG renderers are isolated from the layout strategies,
 ///     then asserts on the renderer output rather than on a generic "output exists" check.
 /// </summary>
@@ -442,6 +443,124 @@ public sealed class NotationStylingRenderTests
         Assert.Equal(0, plainBelow);
     }
 
+    /// <summary>
+    ///     Builds a port on a box face with the SysML appearance the Interconnection View requests: an
+    ///     outlined glyph with a direction arrow and an outside label.
+    /// </summary>
+    /// <param name="x">Center X of the port.</param>
+    /// <param name="y">Center Y of the port.</param>
+    /// <param name="side">Face of the owning box the port sits on.</param>
+    /// <param name="direction">Direction arrow of the port.</param>
+    /// <param name="label">Outside label.</param>
+    /// <param name="outline">Outline style of the glyph.</param>
+    /// <returns>The layout port.</returns>
+    private static LayoutPort Port(double x, double y, PortSide side, PortDirection direction, string label, LineStyle outline = LineStyle.Solid) =>
+        new(x, y, side, label, Appearance: new PortAppearance(direction, PortGlyph.Outlined, outline, PortLabelPlacement.Outward));
+
+    /// <summary>
+    ///     The SVG renderer draws a port as a white 12 x 12 rounded square with a direction arrow that points
+    ///     into the part for an in port on a left face and out of the part for an out port on a right face,
+    ///     a dashed outline for a reference port, and the label outside the box.
+    /// </summary>
+    [Fact]
+    public void SvgRenderer_Render_PortGlyph_DirectionArrowAndDashedReference()
+    {
+        // Arrange: a box with an in port and a dashed inout reference port on its left face and an out port
+        // on its right face
+        var svg = RenderSvg(
+            Box(100, 50, 160, 140, "part", BoxShape.RoundedRectangle),
+            Port(100, 80, PortSide.Left, PortDirection.In, "in : Fuel"),
+            Port(100, 140, PortSide.Left, PortDirection.InOut, "ref : Fuel", LineStyle.Dashed),
+            Port(260, 80, PortSide.Right, PortDirection.Out, "out : Fuel"));
+
+        // Act
+        var inGlyph = FindRect(svg, 94, 74);
+        var refGlyph = FindRect(svg, 94, 134);
+        var outGlyph = FindRect(svg, 254, 74);
+        var polylines = svg.Descendants(Svg + "polyline").Select(p => (string)p.Attribute("points")!).ToList();
+
+        // Assert: a white rounded square, solid for the in and out ports and dashed for the reference port
+        foreach (var glyph in new[] { inGlyph, refGlyph, outGlyph })
+        {
+            Assert.Equal(12.0, Number(glyph, "width"), 0.01);
+            Assert.Equal(12.0, Number(glyph, "height"), 0.01);
+            Assert.Equal("#FFFFFF", (string?)glyph.Attribute("fill"));
+            Assert.True(Number(glyph, "rx") > 0.0, "the glyph must have rounded corners");
+        }
+
+        Assert.Null(inGlyph.Attribute("stroke-dasharray"));
+        Assert.Null(outGlyph.Attribute("stroke-dasharray"));
+        Assert.NotNull(refGlyph.Attribute("stroke-dasharray"));
+
+        // Assert: the in arrow's tip is on the part side of the left face (right of its center), the out
+        // arrow's tip is outside the part on the right face (right of its center), and the inout arrow has
+        // a head at both ends
+        Assert.Contains(polylines, p => p.Contains("103.00,80.00", StringComparison.Ordinal));
+        Assert.Contains(polylines, p => p.Contains("263.00,80.00", StringComparison.Ordinal));
+        Assert.Contains(polylines, p => p.Contains("103.00,140.00", StringComparison.Ordinal));
+        Assert.Contains(polylines, p => p.Contains("97.00,140.00", StringComparison.Ordinal));
+
+        // Assert: labels are outside the box: ending left of the left face and starting right of the right face
+        Assert.Equal("end", (string?)FindText(svg, "in : Fuel").Attribute("text-anchor"));
+        Assert.True(Number(FindText(svg, "in : Fuel"), "x") < 100.0);
+        Assert.Equal("start", (string?)FindText(svg, "out : Fuel").Attribute("text-anchor"));
+        Assert.True(Number(FindText(svg, "out : Fuel"), "x") > 260.0);
+    }
+
+    /// <summary>
+    ///     The PNG renderer draws a port as an outlined white square that hides the box border beneath it: the
+    ///     border is dark above the glyph, white inside the glyph, and the glyph's own outline is dark.
+    /// </summary>
+    [Fact]
+    public void PngRenderer_Render_PortGlyph_DrawsOutlinedSquare()
+    {
+        // Arrange: a box whose left border (x = 100) is crossed by an in port centered at y = 80
+        using var surface = RenderPng(
+            Box(100, 50, 160, 140, "part", BoxShape.Rectangle),
+            Port(100, 80, PortSide.Left, PortDirection.In, "in : Fuel"));
+
+        // Act
+        var borderAbove = Math.Min(Intensity(surface, 99, 62), Intensity(surface, 100, 62));
+        var insideGlyph = Intensity(surface, 100, 75);
+        var glyphOutline = Math.Min(Intensity(surface, 93, 80), Intensity(surface, 94, 80));
+
+        // Assert
+        Assert.True(borderAbove < 110, "the box border above the glyph must be dark");
+        Assert.True(insideGlyph > 200, $"the glyph must be filled white over the border (intensity {insideGlyph})");
+        Assert.True(glyphOutline < 140, $"the glyph must have a dark outline (intensity {glyphOutline})");
+    }
+
+    /// <summary>
+    ///     The SVG renderer draws the end labels of a line at its ends: the role name above the line and the
+    ///     multiplicity below it, at both ends.
+    /// </summary>
+    [Fact]
+    public void SvgRenderer_Render_EndLabels_RoleAboveMultiplicityBelow()
+    {
+        // Arrange: a horizontal line with a role name and a multiplicity at each end
+        var line = new LayoutLine(
+            [new Point2D(40, 100), new Point2D(340, 100)],
+            EndMarkerStyle.None,
+            EndMarkerStyle.None,
+            LineStyle.Solid,
+            null,
+            new LineEndLabel("supply", "[1]"),
+            new LineEndLabel("drain", "[0..*]"));
+
+        // Act
+        var svg = RenderSvg(line);
+
+        // Assert: each role name is above the line (smaller y) and each multiplicity below it, near its end
+        foreach (var (role, multiplicity, nearLeft) in new[] { ("supply", "[1]", true), ("drain", "[0..*]", false) })
+        {
+            var roleText = FindText(svg, role);
+            var multiplicityText = FindText(svg, multiplicity);
+            Assert.True(Number(roleText, "y") < 100.0, $"{role} must be above the line");
+            Assert.True(Number(multiplicityText, "y") > 100.0, $"{multiplicity} must be below the line");
+            var x = Number(roleText, "x");
+            Assert.True(nearLeft ? x < 190.0 : x > 190.0, $"{role} must be near its own end of the line");
+        }
+    }
     /// <summary>
     ///     Counts the separate dark runs across a horizontal band of pixel rows.
     /// </summary>

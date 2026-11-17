@@ -18,7 +18,7 @@ connections, transitions, dependency declarations, and requirement-satisfaction 
 | `SysmlMetadataNode` | Applied metadata annotation; adds TypeReference and Attributes |
 | `SysmlViewNode` | View definition; adds RenderTargetName, ExposeMembers, and filter-expression fields |
 | `SysmlViewpointNode` | Viewpoint definition |
-| `SysmlConnectionNode` | Connection/binding/allocation/message/interface/flow usage; adds ConnectionKeyword, EndpointA/B, end role names and multiplicities, PayloadText |
+| `SysmlConnectionNode` | Connector usage; adds ConnectionKeyword, EndpointA/B, end labels, PayloadText |
 | `SysmlTransitionNode` | State transition; adds Source, Target, Guard, Trigger, Effect |
 | `SysmlSatisfyNode` | `satisfy X by Y;` requirement-satisfaction usage; adds RequirementName, SubjectName |
 | `SysmlDependencyNode` | Standalone `dependency A, B to C, D;` declaration; adds FromNames, ToNames |

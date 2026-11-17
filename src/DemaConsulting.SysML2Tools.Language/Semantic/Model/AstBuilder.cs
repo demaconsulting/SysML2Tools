@@ -1717,7 +1717,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
     /// <summary>
     ///     Reads the reference, role name, and cross multiplicity of a connector end
-    ///     (<c>[mult]? (name ::&gt;)? reference</c>).
+    ///     (<c>[multiplicity]? (name ::&gt;)? reference</c>).
     /// </summary>
     private static ConnectorEndInfo ConnectorEndDetail(SysMLv2Parser.ConnectorEndContext? end)
     {
@@ -1728,7 +1728,7 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
 
     /// <summary>
     ///     Reads the reference, role name, and cross multiplicity of an interface end
-    ///     (<c>[mult]? (name ::&gt;)? reference</c>, the same shape as a connector end).
+    ///     (<c>[multiplicity]? (name ::&gt;)? reference</c>, the same shape as a connector end).
     /// </summary>
     private static ConnectorEndInfo ConnectorEndDetail(SysMLv2Parser.InterfaceEndContext? end)
     {

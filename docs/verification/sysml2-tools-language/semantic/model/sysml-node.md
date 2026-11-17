@@ -108,6 +108,6 @@ external services or additional configuration are required beyond a standard .NE
 | Transition `IsElse` | `WorkspaceLoader_LoadAsync_ElseSuccession_SetsIsElse` |
 | IsElse round trip | `Serialize_NewModifierProperties_RoundTrip` |
 | IsElse omitted when false | `Serialize_DefaultModifierProperties_AreOmittedFromJson` |
-| Connection end names, multiplicities, and payload round trip, null omitted | `Serialize_ConnectionEndLabelsAndPayload_RoundTripAndNullIsOmitted` |
-| Connection end names and multiplicities captured | `WorkspaceLoader_LoadAsync_ConnectionEnds_CaptureRoleNamesAndMultiplicities` |
+| Connection end labels round trip | `Serialize_ConnectionEndLabelsAndPayload_RoundTripAndNullIsOmitted` |
+| Connection end labels captured | `WorkspaceLoader_LoadAsync_ConnectionEnds_CaptureRoleNamesAndMultiplicities` |
 | New members default for a plain model | `WorkspaceLoader_LoadAsync_PlainModel_AllNewMembersDefault` |

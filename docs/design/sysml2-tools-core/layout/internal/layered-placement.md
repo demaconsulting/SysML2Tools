@@ -21,14 +21,19 @@ by index.
   - `Width`, `Height` — the overall content extent in logical pixels.
 - `PlacedPortLayout` — the result of `PlaceWithPorts`, with the same `Rects`/`EdgePolylines`/
   `Width`/`Height` shape as `PlacedLayout`, plus:
-  - `EdgePorts` — the placed source/target ports (`(LayoutPort? Source, LayoutPort? Target)`), one
-    pair per input edge, in input-edge order; an element is `null` when the corresponding
-    `PortEdge.SourcePort`/`TargetPort` was itself `null` (that endpoint attached to the plain node
-    instead of a named port).
+  - `Lines` — the connector lines exactly as the engine emitted them, one per input edge in input-edge
+    order, carrying the end marker, line style, midpoint label, and end labels declared on the `PortEdge`.
+  - `Ports` — every placed port glyph the engine emitted. A port shared by several edges yields one
+    placed port per edge end (an engine limitation), all with the same `LayoutPort.SourcePort`; only the
+    first keeps its label.
 - `EdgePortRef` — requests that an edge endpoint attach through a named port rather than to its
-  node as a whole, carrying an optional `Label` rendered as that port's `LayoutGraphPort.ExternalLabel`.
+  node as a whole, carrying an optional `Label` rendered as that port's `LayoutGraphPort.ExternalLabel`, an
+  optional `PortAppearance` (direction arrow, glyph, outline style, and label placement), and an optional
+  `Key`: edges that name the same key on the same node share one `LayoutGraphPort`.
 - `PortEdge` — a directed edge (`From`, `To`) with an optional `SourcePort`/`TargetPort`
-  `EdgePortRef` at either endpoint; a `null` ref means that endpoint attaches directly to the node.
+  `EdgePortRef` at either endpoint (a `null` ref means that endpoint attaches directly to the node), and the
+  notation of the connector: `TargetEnd` decoration, `LineStyle`, `SourceEndLabel`/`TargetEndLabel` (role name
+  and multiplicity), and `MidpointLabel`.
 
 `Place`'s `nodes` parameter is a plain `(double Width, double Height)` tuple list.
 `PlaceWithPorts`'s `nodes` parameter is instead `(double Width, double Height, bool HasLabel, bool
@@ -99,29 +104,48 @@ its code path beyond the identical `LayoutGraph`/`LayoutGraphNode` construction 
    The engine's layered algorithm reserves a title band above a node's ports purely based on whether
    `Label`/`Keyword` are non-null (never their text), so this sentinel is the minimal signal needed
    to keep ports clear of a titled box's own header row.
-3. For each input `PortEdge`, resolves its `ILayoutConnectable` source and target: when
-   `SourcePort`/`TargetPort` is non-null, calls `graphNodes[from].Ports.AddPort("{edgeIndex}-a")` (or
-   `"{edgeIndex}-b"` for the target), sets the new `LayoutGraphPort.ExternalLabel` to the requested
-   `EdgePortRef.Label`, and uses that port as the endpoint; otherwise uses the plain node. The
-   `"{edgeIndex}-a"`/`"{edgeIndex}-b"` naming scheme is unique per owning node because the edge index
-   is unique across the whole input, so multiple connections into the same node never collide. Each
-   created `LayoutGraphPort` reference is remembered (per edge, per end) for the correlation step
-   below. Calls `graph.AddEdge(edgeIndex, source, target)` with the resolved endpoints.
+3. For each input `PortEdge`, resolves its `ILayoutConnectable` source and target through
+   `ResolveEndpoint`: when `SourcePort`/`TargetPort` is non-null and carries a `Key` that the node already
+   has a port for, that port is reused (a declared SysML port with several connectors is one port);
+   otherwise it calls `graphNodes[from].Ports.AddPort(...)` (named `"k:{key}"`, or `"{edgeIndex}-a"`/
+   `"{edgeIndex}-b"` for a request without a key, which is unique per owning node because the edge index is
+   unique across the whole input), sets the new port's `ExternalLabel` and `Appearance` from the request, and
+   uses that port as the endpoint; with no request it uses the plain node. Calls
+   `graph.AddEdge(edgeIndex, source, target)` and sets the edge's `TargetEnd`, `LineStyle`, `SourceEndLabel`,
+   `TargetEndLabel`, and `Label` (the midpoint label) from the `PortEdge`, so the layered algorithm reserves
+   room for them.
 4. Sets `CoreOptions.Direction` to the requested `direction` and unconditionally sets
    `CoreOptions.MergeParallelEdges` to `false` — unlike `Place`'s optional parameter, this method has
    no parameter for it, since every current caller needs parallel-edge preservation. Calls
    `LayoutEngine.Layout(graph)`.
 5. Reads the tree's `LayoutBox` nodes into `Rects` and `LayoutLine` nodes into `EdgePolylines`
    exactly as `Place` does.
-6. Builds `EdgePorts[e]` by scanning the tree's `LayoutPort` nodes for the one whose
-   `LayoutPort.SourcePort` is reference-equal (`ReferenceEquals`) to the `LayoutGraphPort` created
-   for edge `e`'s source (respectively target) in step 3; `null` when no port was requested for that
-   end. `LayoutPort.SourcePort` exists specifically so a caller can recover, by reference identity,
-   which graph port produced a given placed anchor — its own XML documentation states this is its
-   intended purpose, since `ExternalLabel` is frequently `null` and so cannot itself serve as an
-   identity key.
-7. Returns a `PlacedPortLayout` carrying the rectangles, polylines, correlated ports, and the tree's
-   overall `Width` and `Height`.
+6. Collects every `LayoutPort` of the tree. The engine (0.3.0-beta.4) emits one placed port per edge end even
+   for a shared graph port, each repeating the label, so the first placed port of each distinct
+   `LayoutPort.SourcePort` (compared by reference) keeps its label and the others have `ExternalLabel` and
+   `InternalLabel` cleared: a declared port is named once.
+7. Returns a `PlacedPortLayout` carrying the rectangles, polylines, the engine's connector lines, the
+   ports, and the tree's overall `Width` and `Height`.
+
+###### `WidenForMidpointLabels(placed, edges, theme)`
+
+A post-placement pass for callers that draw port labels outside the boxes and connector midpoint labels
+(`InterconnectionViewLayoutStrategy`). The layered algorithm reserves room between two columns of boxes for
+end labels and outward port labels, but not for a connector's midpoint label, which lands on the port labels
+when the corridor is only just wide enough for them. The method returns `placed` itself when no line has a
+midpoint label; otherwise it repeats, at most `MaxWideningPasses` times:
+
+1. Resolves the labels of the current layout with `ConnectorLabelPlacer.ResolveLabels` (boxes rebuilt from
+   `Rects`), the resolver the renderers use.
+2. Finds the first labeled connector whose midpoint label penetrates a box or a port rectangle (glyph or
+   outside label, `PortRects`) horizontally, treating labels within `LabelBackgroundPad` (4 px) vertically as
+   touching because the renderers draw an opaque background taller than the text rectangle. A connector whose
+   endpoints share a column cannot be separated and is skipped.
+3. Shifts the right-hand endpoint's column — every box, port, and waypoint at or right of the leftmost box that
+   overlaps the node's own horizontal extent — right by twice the penetration plus `WideningClearance` (6 px),
+   and widens the layout by the same amount.
+
+The loop ends when no label overlaps.
 
 ##### Error Handling
 
@@ -136,6 +160,8 @@ adds no additional validation.
   `LayoutTree`, `LayoutBox`, `LayoutLine`, `LayoutPort`), the geometric value types (`Rect`,
   `Point2D`), and the layout option system (`CoreOptions.Direction`, `CoreOptions.MergeParallelEdges`,
   `IPropertyHolder.Set`).
+- `DemaConsulting.Rendering.Abstractions` (OTS) — `ConnectorLabelPlacer.ResolveLabels` (the label resolver the
+  renderers use) and `Theme`, for `WidenForMidpointLabels`.
 - `DemaConsulting.Rendering.Layout` (OTS) — the `LayoutEngine.Layout(LayoutGraph)` facade that
   resolves and runs the appropriate bundled algorithm (the bundled `layered` algorithm, for the
   flat graphs built here) to perform the actual ELK-style layered placement and orthogonal
@@ -146,8 +172,9 @@ adds no additional validation.
 
 The view layout strategies that arrange nodes with the layered algorithm call either `Place` or
 `PlaceWithPorts`: `InterconnectionViewLayoutStrategy` calls `PlaceWithPorts` (with a left-to-right
-direction), so every connection endpoint attaches through a named, labeled port and the engine
-itself resolves port sides, spacing, and any resulting box growth, while distinct parallel SysML
+direction) and then `WidenForMidpointLabels`, so every connection endpoint that names a port attaches through
+a named, labeled, shared port and the engine itself resolves port sides, spacing, and any resulting box
+growth, while distinct parallel SysML
 connections between the same two parts still render as separate independently-routed connectors
 (parallel-edge merging is unconditionally disabled by `PlaceWithPorts`). `ActionFlowViewLayoutStrategy`
 and `StateTransitionViewLayoutStrategy` call `Place` (with a top-to-bottom direction, leaving

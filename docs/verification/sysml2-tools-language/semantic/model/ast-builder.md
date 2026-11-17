@@ -219,7 +219,7 @@ external services or additional configuration are required beyond a standard .NE
 | `terminate` node | `WorkspaceLoader_LoadAsync_TerminateNode_ProducesTerminateFeature` |
 | Action usage typing and multiplicity | `WorkspaceLoader_LoadAsync_ActionUsage_CapturesTypingAndMultiplicity` |
 | Accept/send payload text | `WorkspaceLoader_LoadAsync_AcceptSendNodes_CapturePayloadText` |
-| Connection end role names and multiplicities | `WorkspaceLoader_LoadAsync_ConnectionEnds_CaptureRoleNamesAndMultiplicities` |
+| Connection end names, multiplicities | `WorkspaceLoader_LoadAsync_ConnectionEnds_CaptureRoleNamesAndMultiplicities` |
 | Binding end role names and multiplicities | `WorkspaceLoader_LoadAsync_BindingEnds_CaptureRoleNames` |
 | Interface usage connection node | `WorkspaceLoader_LoadAsync_InterfaceUsage_BuildsInterfaceConnectionNode` |
 | Flow usage connection node with payload | `WorkspaceLoader_LoadAsync_FlowUsage_BuildsFlowConnectionNodeWithPayload` |

@@ -53,6 +53,10 @@ analysis][workflow]
   content), and the notation glyphs for specialization, composite and reference membership, typing,
   subsetting, redefinition, satisfy, verify, and import, placed by a layered (ELK-style) engine with
   orthogonal edges, compartments, and configurable depth limiting
+- **Interconnection Layout**: Internal-structure diagrams in the SysML v2 graphical notation: rounded
+  part, item, and reference usages, ports as boundary squares with direction arrows, dashed reference
+  ports, and `name : Type` labels outside the part, and connection, binding, interface, and flow
+  connectors with role-name and multiplicity end labels
 - **State and Action Flow Layouts**: Spec-style state machines (entry/do/exit compartments,
   `trigger [guard] / effect` labels, initial and final states) and action flows (thick fork/join
   bars, guarded decisions, accept/send icons, terminate nodes)

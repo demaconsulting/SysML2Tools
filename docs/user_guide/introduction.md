@@ -349,6 +349,61 @@ node). A model that uses `then done;` reports the lint warning `Unresolved refer
 the diagram is unaffected. Nested actions, action parameters, swim-lanes, and control structures
 (`if`, `while`, `for`) are not drawn.
 
+### Interconnection View Notation
+
+The Interconnection View draws the internal structure of a part definition or part usage with the
+notation of SysML v2 (graphical notation, clauses 8.2.3.11 to 8.2.3.16). The repository's diagram gallery
+shows it in `02-computer-interconnection.sysml`, `08-nested-interconnection.sysml`, and
+`09-motor-controller-multi-port.sysml`.
+
+Nodes (a rounded box with the keyword in guillemet marks above the name line):
+
+| Textual form | Drawn as |
+| --- | --- |
+| `part cpu : Cpu;` | `«part»` over `cpu : Cpu` |
+| `part memory : Ram [2];` | `«part»` over `memory : Ram [2]` |
+| `ref part monitor : Display;` | a dashed outline, `«ref part»` over `monitor : Display` |
+| `item firmware : Firmware;` | `«item»` over `firmware : Firmware`; `action`, `state`, `occurrence` likewise |
+| `part cpu { doc /* ... */ attribute clock : Frequency; }` | `doc` and `attributes` compartments in the box |
+| `part outer { part a; part b; }` | a container with `a` and `b` drawn inside it |
+
+The frame of the root is a square-cornered box headed `«part def» Name` for a part definition, or a
+rounded box headed `«part» name : Type` for a part usage declared in a package whose body declares nested
+parts and connectors (a usage is a root only when there is no part definition to show, or when the view
+exposes it). An italic `interconnection` title separates the heading from the contents.
+
+Ports are small white rounded squares on the border of the part, with the label `name : Type` outside it:
+
+| Textual form | Drawn as |
+| --- | --- |
+| `in port p : T;` / `out port p : T;` / `inout port p : T;` | an arrow: into the part, out of it, or both ways |
+| `port p : T;` | a square without an arrow |
+| `ref port p : T;` | a dashed square |
+| `in port p : ~T;` | the label `p : ~T` |
+
+A part's ports are the ports it declares in its own body, in its type, and in the supertypes of that type. A
+port that no drawn connector names is still drawn, on the left face of the part (the right face for an `out`
+port). The declared ports of the root itself are drawn on its frame; connectors to a frame port are not
+drawn. A connector endpoint that names only a part (`connect a to b`) attaches to the part, with no port.
+An endpoint segment that is not a declared port (`connect a.x to b.y` where no port `x` is declared) is
+drawn as an undirected square labeled with the bare name.
+
+Connectors (`connection`, `binding`, `interface`, and `flow` usages; `message` and `allocation` usages are
+not drawn in this view):
+
+| Textual form | Drawn as |
+| --- | --- |
+| `connection c connect a.p to b.q;` | a plain line |
+| `bind a.p = b.q;` | a plain line labeled `=` |
+| `interface bus connect a.p to b.q;` | a plain line labeled `«interface» bus` |
+| `flow f of Torque from a.out to b.in;` | a line with a filled arrowhead, labeled `«flow» f of Torque` |
+| `connect [2] supply ::> a.p to drain ::> b.q;` | role names `supply`, `drain` above the line ends, `[2]` below |
+
+The names of plain connections are not drawn (the connection label is optional in the notation).
+A port that several connectors name is one port, labeled once; the layout engine currently draws a glyph
+for each of its connectors (a known engine limitation). When a connector label would overlap the port labels at its
+ends, the space between the boxes is widened.
+
 ## View Body Statements
 
 A `view def`/`view` declaration's body may contain `render <target>;` and `filter [<expr>];`
@@ -464,10 +519,10 @@ their own renderable declarations: a workspace containing both `view def` declar
 
 ### Interconnection View Connector Detail
 
-An Interconnection View's connector endpoints now show the SysML port name from the connection's
-endpoint reference (for example a connection between `StepperMotorX.encoder` and
-`LBO3AxisGantry.J40` labels its two ports `encoder` and `J40`), instead of leaving every port
-unlabeled. When several distinct connections wire the same two parts (for example separate
+An Interconnection View's connector endpoints show the port the connection's endpoint reference
+names (for example a connection between `StepperMotorX.encoder` and `LBO3AxisGantry.J40` draws its two
+ports labeled `encoder` and `J40` when they are not declared, and `encoder : EncoderPort` when they are; see
+*Interconnection View Notation*). When several distinct connections wire the same two parts (for example separate
 `power`, `encoder`, and `sensor` connections between one controller and one motor), each
 connection now renders as its own independently-routed connector line, rather than visually
 collapsing onto a single shared line. A connection whose endpoint reaches into a part nested

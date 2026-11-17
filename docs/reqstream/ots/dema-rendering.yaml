@@ -246,3 +246,44 @@ sections:
               - LayeredPlacement_Place_EdgeTargetEnd_ForwardedToGraphEdges
               - StateTransitionView_BuildLayout_BackEdge_OpenChevronWithFlushApproach
               - ActionFlowView_BuildLayout_BackEdge_OpenChevronWithFlushApproach
+
+          - id: SysML2Tools-OTS-DemaRendering-PortGlyphs
+            title: >-
+              DemaConsulting.Rendering shall carry the appearance of a graph port (direction arrow,
+              outlined glyph, outline style, and outside label placement) to the placed port and
+              draw it in its SVG and PNG output: an outlined rounded square with a direction arrow
+              oriented for the face it sits on, a dashed outline for a reference port, and the label
+              outside the owning box.
+            justification: |
+              The Interconnection View draws a SysML port as a white rounded square with an in, out,
+              or inout arrow, dashed for a reference port, labeled `name : Type` outside the part.
+              The strategy states this appearance on each graph port and relies on the package to keep
+              it through placement and to draw it. Version 0.3.0-beta.4 of the package family
+              introduced the capability. The placed ports carrying the requested appearance are the
+              evidence that the package preserved it; focused renderer tests on small hand-built layout
+              trees are the evidence that it draws it: the SVG test asserts the direction arrow and
+              the dash pattern of a reference port, and the PNG test probes pixels for the outlined
+              square.
+            tags: [ots]
+            tests:
+              - LayeredPlacement_PlaceWithPorts_EdgeNotation_ReachesPlacedPortsAndLines
+              - InterconnectionView_BuildLayout_DeclaredPorts_DirectionAppearanceMatchesInOutInout
+              - SvgRenderer_Render_PortGlyph_DirectionArrowAndDashedReference
+              - PngRenderer_Render_PortGlyph_DrawsOutlinedSquare
+
+          - id: SysML2Tools-OTS-DemaRendering-EndLabels
+            title: >-
+              DemaConsulting.Rendering shall carry the end labels declared on a graph edge (a role
+              name and a multiplicity) to the placed line and draw them at the line end in its SVG
+              output, the role name above the line and the multiplicity below it.
+            justification: |
+              The Interconnection View labels each end of a connector with its role name and
+              multiplicity (SysML v2.0 clause 8.2.3.13). The strategy states the labels on the graph
+              edge and relies on the package to keep them through placement, to reserve room for them
+              along the route, and to draw them. Version 0.3.0-beta.4 of the package family introduced
+              the capability.
+            tags: [ots]
+            tests:
+              - LayeredPlacement_PlaceWithPorts_EdgeNotation_ReachesPlacedPortsAndLines
+              - InterconnectionView_BuildLayout_ConnectionEnds_RoleNameAndMultiplicityBecomeEndLabels
+              - SvgRenderer_Render_EndLabels_RoleAboveMultiplicityBelow

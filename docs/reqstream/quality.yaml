@@ -131,3 +131,5 @@ sections:
           - SysML2Tools-OTS-DemaRendering-BackEdgeApproach
           - SysML2Tools-OTS-DemaRendering-NotationStyling
           - SysML2Tools-OTS-DemaRendering-NestedDirectionAndAutoLayout
+          - SysML2Tools-OTS-DemaRendering-PortGlyphs
+          - SysML2Tools-OTS-DemaRendering-EndLabels

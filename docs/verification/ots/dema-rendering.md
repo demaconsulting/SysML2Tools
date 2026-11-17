@@ -487,3 +487,50 @@ with the top-to-bottom direction.
 drawing stays compact.
 
 **Requirement coverage**: `SysML2Tools-OTS-DemaRendering-NestedDirectionAndAutoLayout`.
+
+#### LayeredPlacement_PlaceWithPorts_EdgeNotation_ReachesPlacedPortsAndLines
+
+**Scenario**: Two nodes are placed through `LayeredPlacement.PlaceWithPorts` with one edge that requests an
+outlined outward `out` port at its source, a dashed outlined outward `in` port at its target, a filled
+arrowhead, a dashed line, a midpoint label, and a role name and multiplicity at each end; the package's
+layered algorithm lays the graph out.
+
+**Expected**: The placed ports carry the requested labels and `PortAppearance`, and the placed line carries
+the arrowhead, line style, midpoint label, and both end labels.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-PortGlyphs`,
+`SysML2Tools-OTS-DemaRendering-EndLabels`.
+
+#### SvgRenderer_Render_PortGlyph_DirectionArrowAndDashedReference
+
+**Scenario**: A hand-built layout tree holds a box with an `in` port and a dashed `inout` reference port on
+its left face and an `out` port on its right face, all outlined with outward labels; the `SvgRenderer`
+renders it and the SVG is parsed.
+
+**Expected**: Each port is a white 12 by 12 rounded square; only the reference port has a dash array; the
+`in` arrow's tip is on the part side of the left face, the `out` arrow's tip is outside the part on the right
+face, and the `inout` arrow has a head at both ends; the labels end left of the left face and start right
+of the right face.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-PortGlyphs`.
+
+#### PngRenderer_Render_PortGlyph_DrawsOutlinedSquare
+
+**Scenario**: A hand-built tree holds a box whose left border is crossed by an `in` port; the
+`PngRenderer` renders it and the PNG is decoded. Pixel probes sample the border above the glyph, the
+inside of the glyph, and the glyph's own outline.
+
+**Expected**: The border above the glyph is dark, the inside of the glyph is white (the glyph is filled over
+the border), and the glyph's outline is dark.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-PortGlyphs`.
+
+#### SvgRenderer_Render_EndLabels_RoleAboveMultiplicityBelow
+
+**Scenario**: A hand-built tree holds a horizontal line with a role name and a multiplicity at each end; the
+`SvgRenderer` renders it and the SVG is parsed.
+
+**Expected**: Each role name is drawn above the line and each multiplicity below it, near its own end of
+the line.
+
+**Requirement coverage**: `SysML2Tools-OTS-DemaRendering-EndLabels`.
