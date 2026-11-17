@@ -64,8 +64,8 @@ resolutions are reflected in the algorithm chapters above.
     model concern the model-independent engine cannot perform.
 
 11. **Single-sourced notation geometry** — *Resolved: centralize in shared metric types.* Intrinsic
-    notation geometry (end-marker shapes and sizes, port squares, and related constants) is single-
-    sourced in the rendering subsystem's notation-metrics type, and layout spacing constants are
+    notation geometry (end-marker shapes and sizes, port squares, and related constants) is single-sourced
+    in the rendering subsystem's notation-metrics type, and layout spacing constants are
     single-sourced in the layered-layout metrics type, so a geometry literal never appears in more than
     one place.
 

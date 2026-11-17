@@ -303,8 +303,8 @@ stores it in `SysmlImportNode.RawReferenceText` and `ExtractExposedNames` passes
 stripped name that drives resolution, so only the edge's `RawReference` is affected.
 
 `VisitRequirementUsage` and `VisitConcernUsage` push a namespace scope (when named) and call
-`CollectChildren(body?.requirementBodyItem() ?? [])` in addition to their existing name/qualified-
-name capture, so a requirement/concern *usage*'s own `subject`/`actor`/`stakeholder`/constraint
+`CollectChildren(body?.requirementBodyItem() ?? [])` in addition to their existing name/qualified-name
+capture, so a requirement/concern *usage*'s own `subject`/`actor`/`stakeholder`/constraint
 members are captured as `Children` — not only a requirement/concern *definition*'s. This is a
 deliberate extension beyond a literal reading of "definitions only": the dominant idiom in the
 real OMG training corpus (e.g. `test/SysMLModels/OMG/training/32.Requirements/
@@ -326,8 +326,8 @@ objectiveRequirementUsage → requirementBody` chains, since `caseBodyItem` does
 list and delegates to `CollectVerificationMembers`, which recursively walks every child of the
 given `IParseTree`, extracting a name via `ExtractVerifiedRequirementName` whenever it encounters
 a `RequirementVerificationMemberContext`. `ExtractVerifiedRequirementName` prefers the
-`ownedReferenceSubsetting()` reference form (`verify <ref>;`), falling back to the typed-
-placeholder form's feature typing (`verify requirement <name> : <Type>;`, via the existing
+`ownedReferenceSubsetting()` reference form (`verify <ref>;`), falling back to the typed-placeholder
+form's feature typing (`verify requirement <name> : <Type>;`, via the existing
 `ExtractFeatureTyping` helper). This trio is wired into 4 call sites: `VisitCaseDefinition`,
 `VisitAnalysisCaseDefinition`, `VisitVerificationCaseDefinition` (via an optional
 `specializedBody` parameter added to the shared `BuildDefinitionFromDeclaration`, defaulting to
@@ -377,8 +377,8 @@ absent) captures a top-level `constraint { expr }` usage's name and raw
 `calculationBody()?.GetText()` into `ExpressionText`, with `FeatureKeyword = "constraint"`.
 `VisitConstraintDefinition` no longer delegates to the generic `BuildDefinitionFromDeclaration`
 (which has no way to expose a `constraintDefinition`'s own body, since that body is a
-`calculationBody`, not a `definitionBody`); it instead builds the definition's name/qualified-
-name/supertypes directly and synthesizes a single child `SysmlFeatureNode { FeatureKeyword =
+`calculationBody`, not a `definitionBody`); it instead builds the definition's name/qualified-name/supertypes
+directly and synthesizes a single child `SysmlFeatureNode { FeatureKeyword =
 "constraint", ExpressionText = context.calculationBody()?.GetText() }`, reusing the same
 `"constraint"`-keyword/`ExpressionText` shape as a nested requirement constraint so
 `GeneralViewLayoutStrategy` can render both uniformly.

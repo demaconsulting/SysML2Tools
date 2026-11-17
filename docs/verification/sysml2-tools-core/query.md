@@ -13,8 +13,8 @@ directly against loaded OMG fixture workspaces and hand-built `QueryResult` inst
 public Core API is verified without any dependency on the Tool project's CLI parsing or
 `Context` I/O behavior.
 
-The `uses`, `used-by`, `dependencies`, `impact`, `interface`, `list`, `find`, and stdlib-
-filtering behaviors are additionally exercised at the engine level from
+The `uses`, `used-by`, `dependencies`, `impact`, `interface`, `list`, `find`, and stdlib-filtering
+behaviors are additionally exercised at the engine level from
 `test/DemaConsulting.SysML2Tools.Tool.Tests/Query/QueryVerbsTests.cs` and, for the
 `IncludeStdlib` option, `test/DemaConsulting.SysML2Tools.Tool.Tests/Cli/ContextTests.cs`. Those
 tests call `Context.Create` and `Program.RunAsync`, but the assertions cited below verify the
@@ -39,8 +39,8 @@ scenarios listed under "Test Scenarios (Tool Test Project)" below run via `dotne
 - All `QueryOmgFixtureTests`, `QueryRenderingTests`, `QueryEngineImpactTests`,
   `QueryResultExporterTests`, and
   `QualifiedNameShortenerTests` pass with zero failures across all four target frameworks.
-- The `uses`, `used-by`, `dependencies`, `impact`, `interface`, `list`, `find`, and stdlib-
-  filtering behaviors are proven at the `QueryEngine`/`QueryOptions` level by the
+- The `uses`, `used-by`, `dependencies`, `impact`, `interface`, `list`, `find`, and stdlib-filtering
+  behaviors are proven at the `QueryEngine`/`QueryOptions` level by the
   `Tool.Tests`-hosted scenarios cited below, in addition to the Core-project scenarios above;
   not every verb's engine-level coverage is required to live in the Core test project.
 - Representative real-world OMG fixtures produce non-empty, sensible `requirements`,
@@ -49,8 +49,8 @@ scenarios listed under "Test Scenarios (Tool Test Project)" below run via `dotne
 - Markdown and JSON rendering preserve the same deterministic, ordinal-by-qualified-name entry
   ordering.
 - The `dependencies` verb renders Markdown as prose bullets, shortens names only in Markdown,
-  retains fully qualified JSON output, and omits the `Direction` property from non-
-  `dependencies` JSON results.
+  retains fully qualified JSON output, and omits the `Direction` property from non-`dependencies`
+  JSON results.
 - `QueryResultExporter` writes exactly the renderer's Markdown and JSON text and propagates
   missing-parent-directory write failures instead of masking them.
 - `QualifiedNameShortener.Shorten` strips only the longest shared leading `::`-segment prefix
@@ -186,8 +186,8 @@ includes the populated `Direction` field.
 **`RenderJson_DependenciesVerb_NamesRemainFullyQualified`**: Verifies that JSON output never
 applies Markdown-only qualified-name shortening.
 
-**`RenderJson_NonDependenciesVerb_DirectionFieldOmittedFromOutput`**: Verifies that non-
-`dependencies` JSON omits the `Direction` property entirely when it is `null`.
+**`RenderJson_NonDependenciesVerb_DirectionFieldOmittedFromOutput`**: Verifies that non-`dependencies`
+JSON omits the `Direction` property entirely when it is `null`.
 
 **`RenderJson_EntryWithDepthAndRelation_IncludesBothFieldsAndRoundTrips`**: Renders an impact
 entry carrying `Depth`, `Relation`, and `ViaQualifiedName`; verifies that JSON contains
