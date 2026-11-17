@@ -1,22 +1,22 @@
-### DemaConsulting.SysML2Tools.Tool — Render Subsystem
+## DemaConsulting.SysML2Tools.Tool — Render Subsystem
 
-#### Overview
+### Overview
 
 The Render subsystem implements the `render` CLI verb. It provides a single internal
 static class, `RenderCommand`, with one entry-point method `RunAsync`. The subsystem
 coordinates workspace loading, renderer selection, and file output for the Phase 4
 diagram-rendering feature.
 
-#### RenderCommand
+### RenderCommand
 
-##### Purpose
+#### Purpose
 
 `RenderCommand.RunAsync` translates the user's CLI intent — expressed as file glob
 patterns, a format option, and an output directory — into rendered diagram files on
 disk. It delegates workspace loading to `WorkspaceLoader`, renderer instantiation to
 a simple string comparison, and rendering orchestration to `DiagramRenderer`.
 
-##### Data Model
+#### Data Model
 
 No instance state. All data flows through the `Context` parameter and local variables.
 
@@ -29,7 +29,7 @@ No instance state. All data flows through the `Context` parameter and local vari
 - Intermediate: `SysmlLoadResult` — workspace and diagnostics from `WorkspaceLoader`
 - Output: files written to `OutputDirectory` via `File.Create`
 
-##### Key Methods
+#### Key Methods
 
 **`RunAsync(Context context)`**
 
@@ -109,7 +109,7 @@ accessor over `Render/RenderStrings.resx` — see `docs/design/sysml2-tools-tool
 "Localization / Resource Strings" section for the rationale and the zero-code-change
 future-locale story, which applies identically here.
 
-##### Error Handling
+#### Error Handling
 
 - Missing file patterns: `context.WriteError` is called and the method returns early.
 - Patterns given but none matched any files: `context.WriteError` reports
@@ -145,7 +145,7 @@ future-locale story, which applies identically here.
   name collision) is likewise reported via `context.WriteError`, prefixed with `"render: "`, and
   `RunAsync` returns before any output is rendered.
 
-##### Dependencies
+#### Dependencies
 
 - `StdlibProvider` (in `DemaConsulting.SysML2Tools.Stdlib`) — supplies the pre-resolved OMG
   stdlib symbol table used to seed `WorkspaceLoader.LoadAsync`
@@ -163,12 +163,12 @@ future-locale story, which applies identically here.
 - `Context`/`RenderCommandOptions`/`RenderArgumentParser` (in `DemaConsulting.SysML2Tools.Cli`
   and `DemaConsulting.SysML2Tools.Render`) — reads arguments; writes output
 
-##### Callers
+#### Callers
 
 - `Program.RunToolLogicAsync` — dispatches to `RenderCommand.RunAsync` when
   `context.Command == SysmlCommand.Render`
 
-#### Requirements Traceability
+### Requirements Traceability
 
 | Requirement ID | Satisfied by |
 | --- | --- |
