@@ -1001,6 +1001,52 @@ public sealed class WorkspaceLoaderTests
     }
 
     /// <summary>
+    ///     A part's <c>event occurrence</c> usages (with or without a leading <c>then</c>) are captured
+    ///     as children with the keyword <c>event occurrence</c>, in declaration order; the referencing
+    ///     form <c>event someFeature;</c> declares nothing and is not captured.
+    /// </summary>
+    [Fact]
+    public async Task WorkspaceLoader_LoadAsync_EventOccurrences_AreCapturedInDeclarationOrder()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName() + ".sysml";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile,
+                """
+                package Demo {
+                    part def Rig {
+                        part a {
+                            event occurrence alpha;
+                            then event occurrence beta : Occurrence;
+                            then event gamma;
+                        }
+                    }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            // Act
+            var (stdlibTable, _) = StdlibProvider.GetSymbolTable();
+            var result = await WorkspaceLoader.LoadAsync([tempFile], stdlibTable);
+
+            // Assert
+            Assert.NotNull(result.Workspace);
+            var rig = Assert.IsType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlDefinitionNode>(
+                result.Workspace.Declarations["Demo::Rig"]);
+            var part = Assert.Single(rig.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>());
+            var events = part.Children.OfType<DemaConsulting.SysML2Tools.Semantic.Model.SysmlFeatureNode>().ToList();
+            Assert.Equal(["alpha", "beta"], events.Select(e => e.Name));
+            Assert.All(events, e => Assert.Equal("event occurrence", e.FeatureKeyword));
+            Assert.Equal("Demo::Rig::a::alpha", events[0].QualifiedName);
+            Assert.Equal("Occurrence", events[1].FeatureTyping);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     ///     Interface and flow usages add no resolver diagnostics: a model whose ports are connected
     ///     by them loads without errors.
     /// </summary>

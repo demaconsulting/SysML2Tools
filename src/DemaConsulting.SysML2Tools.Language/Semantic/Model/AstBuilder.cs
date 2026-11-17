@@ -1009,6 +1009,34 @@ internal sealed class AstBuilder : SysMLv2ParserBaseVisitor<SysmlNode?>
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    ///     Only the declaring form <c>event occurrence name [: Type];</c> is captured, as a
+    ///     <see cref="SysmlFeatureNode"/> with the keyword <c>event occurrence</c>; the Sequence view
+    ///     orders messages by the declaration order of these children. The referencing form
+    ///     <c>event someFeature;</c> declares nothing new and is not captured.
+    /// </remarks>
+    public override SysmlNode? VisitEventOccurrenceUsage(SysMLv2Parser.EventOccurrenceUsageContext context)
+    {
+        var decl = context.usageDeclaration();
+        var name = GetDeclaredName(decl?.identification());
+        if (decl is null || name is null)
+        {
+            return null;
+        }
+
+        var node = new SysmlFeatureNode
+        {
+            Name = name,
+            QualifiedName = QualifyName(name),
+            FeatureKeyword = "event occurrence",
+            FeatureTyping = ExtractFeatureTyping(decl.featureSpecializationPart()),
+            Multiplicity = ExtractMultiplicity(decl.featureSpecializationPart()),
+        };
+
+        return ApplyFeatureNotation(node, decl, valuePart: null);
+    }
+
+    /// <inheritdoc/>
     public override SysmlNode? VisitConnectionUsage(SysMLv2Parser.ConnectionUsageContext context)
     {
         var name = GetDeclaredName(context.usageDeclaration()?.identification());

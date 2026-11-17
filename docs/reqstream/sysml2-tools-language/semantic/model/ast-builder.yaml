@@ -664,3 +664,15 @@ sections:
           `of` clause.
         tests:
           - WorkspaceLoader_LoadAsync_MessageWithPayload_CapturesPayloadText
+
+      - id: SysML2Tools-Language-Semantic-Model-AstBuilder-EventOccurrences
+        title: >-
+          AstBuilder shall capture each `event occurrence` usage of a body as a feature child with
+          the keyword `event occurrence`, in declaration order.
+        justification: |
+          The sequence notation orders messages by the events on each lifeline, which the model
+          states as a chain of `event occurrence` usages; the builder dropped them. Only the
+          declaring form is captured, because the referencing form `event feature;` declares
+          nothing new to order by.
+        tests:
+          - WorkspaceLoader_LoadAsync_EventOccurrences_AreCapturedInDeclarationOrder

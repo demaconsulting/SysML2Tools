@@ -176,6 +176,13 @@ same payload clause of `message m of Payload from a to b;`. `ReferenceResolver` 
 extended: `"interface"` and `"flow"` nodes add no edges and no diagnostics, and the interconnection view
 resolves their ends by name as it does for connections.
 
+`VisitEventOccurrenceUsage` builds a `SysmlFeatureNode` with `FeatureKeyword = "event occurrence"` for
+the declaring form `event occurrence name [: Type] [multiplicity];` (typing and multiplicity are read
+from the declaration's feature specialization part), so a part's chain of `event occurrence` and
+`then event occurrence` usages is in the model in declaration order; the Sequence view orders its
+messages by it. The referencing form `event someFeature;` declares nothing and returns no node, and
+the body of an event occurrence is not modeled.
+
 `VisitDependency` builds a `SysmlDependencyNode` for a standalone `dependency A, B to C, D;`
 declaration. The grammar's `dependency` rule exposes a single flat `qualifiedName()` list (no
 separate "from" vs. "to" sub-rules), so `VisitDependency` splits it positionally: every
