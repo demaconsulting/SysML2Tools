@@ -114,6 +114,9 @@ Remaining gaps, each independently scoped:
   also has proxies (a dot on a lifeline for an event), dashed succession arrows, and messages from or to
   nowhere; the Sequence View draws lifelines and messages only. Sequence ports on a lifeline are not drawn
   either, and the engine needs a proxy marker for the dot.
+- **Dropped: combined fragments, activation bars, and async/reply message styling.** These are UML sequence-diagram
+  constructs, not part of the SysML v2 sequence notation, so the Sequence View does not draw them and they are
+  no longer on this roadmap (earlier roadmap text listed fragment boxes and async/reply styling).
 
 **Scope:** `SequenceViewLayoutStrategy`; the event-occurrence data is already in the syntax tree.
 **Visual gate:** a lifeline shows a proxy dot for each event, and a found message starts at a dot.
@@ -126,19 +129,22 @@ delivered for binary connections):
 
 - **Proxy ports and nested ports.** A proxy port (a port that stands for a part inside the box) and a
   port with nested ports are drawn as plain ports with no proxy marker and no nested glyphs; the engine
-  needs the proxy glyph and nested-port placement.
+  needs the proxy glyph and nested-port placement (upstream issue to be filed; repro prepared).
 - **N-ary connection dot.** A connection with more than two ends is not drawn with the junction dot of the
   notation; the engine needs a connector junction.
 - **Root-frame delegation connectors.** A connector to a port of the frame of the root is not routed; the
   ports of the frame are drawn but no connector reaches them.
 - **Shared-port fan-out (engine).** A port that several connectors name is drawn as one glyph per
-  connector, because the engine splits a shared port per edge; the strategy labels it once.
+  connector, because the engine splits a shared port per edge; the strategy labels it once (upstream issue to
+  be filed; repro prepared).
 - **Unconnected ports (engine).** The engine does not emit a port that no edge names, so the strategy
-  places those itself after the layout.
+  places those itself after the layout (upstream issue to be filed; repro prepared).
 - **Connector label corridor (engine).** The layer corridor reserves room for end labels and outward port
   labels but not for the midpoint label of a connector, so a connector label can land on a port label and
   the strategy widens the corridor by hand; the reserved room also leaves the diagrams below the
-  checklist's share of the canvas for blocks (B5).
+  checklist's share of the canvas for blocks (B5). Upstream issue to be filed for the label corridor (repro
+  prepared); the fixed layer spacing is tracked as
+  [demaconsulting/Rendering#60](https://github.com/demaconsulting/Rendering/issues/60).
 
 **Scope:** `InterconnectionViewLayoutStrategy`, `LayeredPlacement`; most items need `DemaConsulting.Rendering`
 support first.

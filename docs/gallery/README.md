@@ -502,9 +502,21 @@ SVG: [`svg/VehicleTypingGeneralView.svg`](svg/VehicleTypingGeneralView.svg)
 ## Known deviation: the diagram-quality fill criterion (B5)
 
 The gallery images are checked against the project's diagram-quality criteria. Every image passes
-them except one criterion on six images: B5 (state boxes and action boxes fill at
-least 20 % of the canvas). The Pipeline image fills 14.2 % (382 × 1780 px) and the Order image fills
-11.5 % (377 × 850 px). The Pipeline image already fell short of B5 on `main` (15.2 %). The cause is
+them except one criterion, B5 (blocks fill at least 20 % of the canvas), which eleven images miss:
+Workstation, Motor Rig, OAuth Sequence, Token Exchange Sequence, Order, and Pipeline (all discussed
+below), and five General View images that fall short the same way on `main` and are unchanged by this
+branch's work on the notation: Drive Unit (14.0 %), Vehicle Packages (13.2 %), Vehicle Typing (15.9 %),
+Battery Subsystem (18.6 %), and Mission Control (19.8 %). Those five are pre-existing deviations: none of
+them was changed to fit the criterion, and this branch does not claim they meet it.
+
+Every percentage in this section is measured by one script on the committed SVG files in `svg/`: it
+fills the union of every stroked `<rect>` except the canvas frame, so it counts only the boxes drawn
+as rectangles (a General View folder counts as a block; a lifeline stem, a message, and a connector do
+not), and for the Interconnection images it also leaves out the 12 px port glyphs and the unrounded
+diagram frame. The percentage is that union's area divided by the canvas area.
+
+The Pipeline image fills 14.5 % (382 × 1780 px) and the Order image fills
+11.6 % (377 × 850 px). The Pipeline image already fell short of B5 on `main` (15.2 %). The cause is
 the layered layout engine, which keeps a fixed 70 px corridor between consecutive layers (an engine
 constant, not an option), so a single-column flow of 8 to 9 layers is mostly corridor. Making such a
 flow wider to raise the fill makes it worse, because the canvas grows faster than the boxes do, and
@@ -514,20 +526,23 @@ slightly with the straighter edge routing of rendering engine 0.3.0-beta.4 (the 
 are narrower; the Heater canvas is 257 px wide instead of 215 px).
 
 Two Interconnection images also fall short of B5 since the port notation was added: the Workstation
-image fills 17.3 % (1255 × 643 px; 19.0 % on `main`) and the Motor Rig image 18.3 % (1411 × 424 px;
+image fills 17.3 % (1254 × 642 px; 19.0 % on `main`) and the Motor Rig image 18.4 % (1411 × 424 px;
 46.0 % on `main`). The cause is again the layered layout engine: it reserves, between two columns of
 boxes, the width of every outside port label and end label along the connector run (the label of
 the port at each end plus the role names), so a connector between labeled ports needs a corridor
-several times the fixed 70 px, and the canvas grows faster than the boxes. The Computer System image
-(21.5 %) and the Core Link image (29.8 %) pass. The deviation is accepted: the labels are the
+several times the fixed 70 px, and the canvas grows faster than the boxes. The engine also ignores
+the `LayerSpacing` option, so the corridor cannot be narrowed from the strategy (upstream issue
+[demaconsulting/Rendering#60](https://github.com/demaconsulting/Rendering/issues/60)). The Computer System image
+(21.7 %) and the Core Link image (30.1 %) pass. The deviation is accepted: the labels are the
 point of the notation, and shortening port names or boxes to raise the fill would only tune the
 example to the criterion.
 
-The two Sequence images also fall short of B5 (the OAuth image fills 8.9 % and the Token Exchange image
-14.6 %, counting the lifeline headers as the blocks; both were lower on `main`, 5.2 % and 8.5 %). A
+The two Sequence images also fall short of B5 (the OAuth image fills 9.1 % and the Token Exchange image
+15.0 %, counting the lifeline headers as the blocks; both were lower on `main`, 5.2 % and 8.5 %). A
 sequence diagram is mostly lifeline stems and messages, which the criterion does not count, so the
 deviation is accepted and the headers are not enlarged to raise the fill. A message label that is
-centered on a lifeline it crosses (`fetchResource` and `promptCredentials`) was already so on `main`: the
+centered on a lifeline it crosses (`fetchResource`, `promptCredentials`, and `submitCredentials of
+Credentials`; the stem is hidden behind the label background) was already so on `main` for the first two: the
 engine places a message label at the midpoint of its line and does not treat a lifeline stem as an obstacle.
 
 ---

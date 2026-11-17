@@ -14,7 +14,9 @@ label format, the final badge, and the back-edge approach, and run the renderers
 produced layout and over the Elevator and Heater gallery models. A label is inflated by the
 renderers' background padding and must not cover a state box, another connector, or the first or
 last marker length of its own connector; synthetic cases confirm that sibling labels on one narrow
-face widen the state and that a state with no collision keeps its natural width. A gallery model
+face stay at least one label padding apart (the engine aligns the arrival ports straight, and the strategy
+widens the state only if they would still collide) and that a state with no collision keeps its natural
+width. A gallery model
 that cannot be found fails the test; it is never skipped. No mocking is required; the strategy
 depends only on the in-memory model, `LayeredPlacement`, and render options.
 
@@ -71,8 +73,8 @@ configuration are required beyond a standard .NET SDK installation.
   the frame contains every label as the renderers place it clear of the state boxes.
 - Every transition label, with its background padding, is clear of every state box, every other
   connector, and the end marker of its own connector (Elevator and Heater gallery models); two
-  sibling labels that arrive on one narrow face widen that state, and a state with no collision
-  keeps its natural width.
+  sibling labels that arrive on one narrow face stay at least one label padding apart, and a state
+  with no collision keeps its natural width.
 - The frame ends one margin below the lowest content.
 - A missing gallery model fails its test rather than passing vacuously.
 
@@ -114,7 +116,7 @@ configuration are required beyond a standard .NET SDK installation.
 | `StateTransitionView_BuildLayout_LongLabel_OverhangingLeft_IsContainedByFrame` | Left overhang moves content right |
 | `StateTransitionView_BuildLayout_ElevatorGalleryModel_LabelsDoNotOverlapStateBoxes` | Elevator labels clear of all |
 | `StateTransitionView_BuildLayout_HeaterGalleryModel_LabelsAreClear` | Heater labels clear of all |
-| `StateTransitionView_BuildLayout_SiblingLabelsOnSharedFace_AreWidenedApart` | Sibling labels stay clear |
+| `StateTransitionView_BuildLayout_SiblingLabelsOnSharedFace_StayClear` | Sibling labels stay clear |
 | `StateTransitionView_BuildLayout_NoLabelCollision_KeepsNaturalWidth` | No collision, natural width |
 | `StateTransitionView_BuildLayout_FrameBottom_IsOneMarginBelowContent` | Frame bottom one margin below |
 | `StateTransitionView_BuildLayout_ElevatorGalleryModel_ShowsCompartmentsLabelsAndFinal` | Gallery notation |

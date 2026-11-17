@@ -1111,11 +1111,12 @@ public sealed class StateTransitionViewLayoutStrategyTests
     /// <summary>
     ///     Two transitions with the same wide label that arrive on one face of a narrow state keep
     ///     their labels clear of each other and of the state's border: the engine (0.3.0-beta.4)
-    ///     aligns the arrival ports straight, and the strategy widens the state only when the labels
-    ///     would still collide.
+    ///     aligns the arrival ports straight, so the labels no longer collide and the strategy widens
+    ///     the state only when they still would. The test measures the label gap directly, so it
+    ///     fails if the labels were crowded (whether by the engine or by the strategy).
     /// </summary>
     [Fact]
-    public void StateTransitionView_BuildLayout_SiblingLabelsOnSharedFace_AreWidenedApart()
+    public void StateTransitionView_BuildLayout_SiblingLabelsOnSharedFace_StayClear()
     {
         // Arrange: a and b both reach c with the same wide guard (c would be only 100 px wide)
         var layout = LayOut(
@@ -1126,11 +1127,22 @@ public sealed class StateTransitionViewLayoutStrategyTests
             new SysmlTransitionNode { Source = "b", Target = "c", Guard = "atFloorNow" });
 
         // Act
-        var c = Content(layout).OfType<LayoutBox>().Single(b => b.Label == "c");
+        var frame = Assert.IsType<LayoutBox>(Assert.Single(layout.Nodes));
+        var lines = frame.Children.OfType<LayoutLine>().Where(l => l.MidpointLabel is not null).ToList();
+        var obstacles = frame.Children.OfType<LayoutBox>().ToList();
+        var placements = ConnectorLabelPlacer.Place(lines, Themes.Light.FontSizeBody, obstacles, NotationMetrics.MarkerScale(Themes.Light));
+        var first = placements[lines[0]];
+        var second = placements[lines[1]];
+        var padding = Themes.Light.LabelPadding;
+        var horizontalGap = Math.Abs(first.X - second.X) - first.HalfWidth - second.HalfWidth;
+        var verticalGap = Math.Abs(first.Y - second.Y) - first.HalfHeight - second.HalfHeight;
 
-        // Assert
+        // Assert: the two labels are at least one label padding apart, and nothing else collides
+        Assert.Equal(2, lines.Count);
+        Assert.True(
+            Math.Max(horizontalGap, verticalGap) >= padding,
+            $"The sibling labels must be separated by their padding (horizontal gap {horizontalGap:F2} px, vertical gap {verticalGap:F2} px).");
         AssertLabelsClear(layout, Themes.Light);
-        Assert.True(c.Width >= 100.0, "State c must keep at least its natural width.");
     }
 
     /// <summary>A state whose labels do not collide keeps its natural width.</summary>

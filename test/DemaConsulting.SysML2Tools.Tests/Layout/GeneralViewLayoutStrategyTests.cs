@@ -5507,11 +5507,23 @@ public sealed class GeneralViewLayoutStrategyTests
             part def Charger { part cable : Cable; part plug : Plug; }
             """);
 
-        // Assert: both composition diamonds are drawn; every one that reaches the owner over a lane has a
-        // clean approach. The engine may route the connectors straight (no lane), which needs no approach.
+        // Assert: both composition diamonds are drawn and each sits on a straight final leg at least as
+        // long as the diamond, whether the engine routes the connector straight or over a lane (beta.4
+        // routes both straight, so the lane-only helper has nothing to check here); any that does reach
+        // the owner over a lane also has the full clean approach.
+        var theme = Themes.Light;
         var diamonds = CollectLines(layout.Nodes).Where(l => l.TargetEnd == EndMarkerStyle.FilledDiamond).ToList();
         Assert.Equal(2, diamonds.Count);
-        Assert.True(AssertEndDecorationsHaveCleanApproach(layout, Themes.Light) >= 0);
+        var diamondLength = NotationMetrics.RenderedAlongLineLength(EndMarkerStyle.FilledDiamond, theme);
+        foreach (var diamond in diamonds)
+        {
+            var n = diamond.Waypoints.Count;
+            var leg = Math.Abs(diamond.Waypoints[n - 1].X - diamond.Waypoints[n - 2].X) + Math.Abs(diamond.Waypoints[n - 1].Y - diamond.Waypoints[n - 2].Y);
+            Assert.True(leg + 0.001 >= diamondLength, $"The diamond has a final leg of {leg:F2} px, shorter than the diamond ({diamondLength:F2} px).");
+        }
+
+        var withLane = diamonds.Count(d => d.Waypoints.Count >= 4);
+        Assert.Equal(withLane, AssertEndDecorationsHaveCleanApproach(layout, theme));
     }
 
     /// <summary>
